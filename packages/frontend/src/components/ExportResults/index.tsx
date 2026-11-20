@@ -136,13 +136,16 @@ const ExportResults: FC<ExportResultsProps> = memo(
             useMutation(
                 ['export-results', fileType],
                 async () => {
+                    // An image needs no rows: reuse the query on screen
+                    // whatever row limit was picked for a data export
+                    const queryLimit = isChartImageExport ? Limit.TABLE : limit;
                     const queryUuid = await getDownloadQueryUuid(
-                        limit === Limit.CUSTOM
+                        queryLimit === Limit.CUSTOM
                             ? customLimit
-                            : limit === Limit.TABLE
+                            : queryLimit === Limit.TABLE
                               ? (totalResults ?? 0)
                               : null,
-                        limit,
+                        queryLimit,
                         exportPivotedData,
                     );
 

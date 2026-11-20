@@ -91,7 +91,6 @@ import {
     isDateItem,
     isDateZoomRefusedOnExplore,
     isExecuteAsyncChartRequestParams,
-    isExecuteAsyncDashboardChartRequestParams,
     isExploreError,
     isField,
     isJwtUser,
@@ -459,6 +458,7 @@ import {
 } from '../WarehouseClientFactory/ConnectionContext';
 import { WarehouseClientFactory } from '../WarehouseClientFactory/WarehouseClientFactory';
 import { captureAiAgentQueryError } from './captureAiAgentQueryError';
+import { getChartImageRenderOverrides } from './chartImageRender';
 import { discoverColumns } from './columnDiscovery';
 import { type ComposeEngineClient } from './ComposeEngineClient';
 import {
@@ -3615,9 +3615,8 @@ export class AsyncQueryService extends ProjectService {
 
     /**
      * XLSX whose single sheet is a screenshot of the saved chart the query
-     * ran for. A dashboard-tile query renders with the filters and
-     * parameters that produced its rows, so the picture matches the data a
-     * data export would have returned.
+     * ran for. A dashboard-tile query is replayed as that tile, so the
+     * picture matches the data a data export would have returned.
      */
     private async downloadChartImageXlsx({
         account,
@@ -3653,14 +3652,7 @@ export class AsyncQueryService extends ProjectService {
             chartUuid: chart.uuid,
             user: toSessionUser(account),
             projectUuid,
-            chartFilters: isExecuteAsyncDashboardChartRequestParams(
-                requestParameters,
-            )
-                ? queryHistory.metricQuery.filters
-                : undefined,
-            parameters:
-                requestParameters.resultEffectiveParameters ??
-                requestParameters.parameters,
+            ...getChartImageRenderOverrides(requestParameters),
         });
 
         return ExcelService.downloadChartImageXlsx({

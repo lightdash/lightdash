@@ -247,6 +247,31 @@ describe('ExportResults', () => {
             expect(HTMLAnchorElement.prototype.click).toHaveBeenCalled(),
         );
     });
+    it('reuses the query on screen for a chart image, whatever row limit was picked', async () => {
+        const user = userEvent.setup();
+        const getDownloadQueryUuid = vi.fn().mockResolvedValue(QUERY_UUID);
+        renderWithProviders(
+            <ExportResults
+                projectUuid={PROJECT_UUID}
+                totalResults={7}
+                getDownloadQueryUuid={getDownloadQueryUuid}
+                forceShowLimitSelection
+                canExportChartImage
+            />,
+        );
+
+        await user.click(screen.getByRole('radio', { name: 'XLSX' }));
+        await user.click(screen.getByRole('radio', { name: 'All results' }));
+        await user.click(screen.getByRole('radio', { name: 'Chart image' }));
+        await user.click(screen.getByTestId('chart-export-results-button'));
+        await getScheduledDownloadBody();
+
+        expect(getDownloadQueryUuid).toHaveBeenCalledWith(
+            7,
+            Limit.TABLE,
+            expect.anything(),
+        );
+    });
 });
 
 describe('getExportCellEstimate', () => {

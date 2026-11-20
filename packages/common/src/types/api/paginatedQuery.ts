@@ -85,6 +85,22 @@ export type ExecuteAsyncDashboardChartRequestParams =
         includeUnpublishedDraft?: boolean;
     };
 
+/**
+ * The parts of a dashboard tile's query request a headless render replays so
+ * the picture matches the tile: same filters, sorts, date zoom and parameters,
+ * authorized through the dashboard like the tile itself.
+ */
+export type DashboardTileRenderRequest = Pick<
+    ExecuteAsyncDashboardChartRequestParams,
+    | 'dashboardUuid'
+    | 'tileUuid'
+    | 'dashboardFilters'
+    | 'dashboardSorts'
+    | 'dateZoom'
+    | 'parameters'
+    | 'excludedParameterKeys'
+>;
+
 /** Saved-chart and dashboard-chart runs both carry the chart they rendered. */
 export const isExecuteAsyncChartRequestParams = (
     params: ExecuteAsyncQueryRequestParams,

@@ -45,6 +45,7 @@ import {
     type AiArtifact,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DashboardTileRenderRequest,
     type DeliveryCaptureManifest,
     type ExportContentPayload,
     type Filters,
@@ -1404,21 +1405,21 @@ export class UnfurlService extends BaseService {
 
     /**
      * Renders a saved chart to a PNG buffer without hosting it, for callers
-     * that embed the image in another file (e.g. an XLSX export). Filter and
-     * parameter overrides render the chart as a dashboard tile saw it. Fails
-     * rather than returning a screenshot of an errored chart.
+     * that embed the image in another file (e.g. an XLSX export). A dashboard
+     * tile request renders the chart as that tile ran it. Fails rather than
+     * returning a screenshot of an errored chart.
      */
     async captureChartImage({
         chartUuid,
         user,
         projectUuid,
-        chartFilters,
+        dashboardTileRenderRequest,
         parameters,
     }: {
         chartUuid: string;
         user: SessionUser;
         projectUuid: string;
-        chartFilters?: Filters;
+        dashboardTileRenderRequest?: DashboardTileRenderRequest;
         parameters?: ParametersValuesMap;
     }): Promise<Buffer> {
         const { chart, minimalUrl } = await this.getViewableChartForExport(
@@ -1439,7 +1440,7 @@ export class UnfurlService extends BaseService {
             resourceName: chart.name,
             context: ScreenshotContext.EXPORT_CHART,
             selectedTabs: null,
-            sendNowSchedulerChartFilters: chartFilters,
+            dashboardTileRenderRequest,
             sendNowSchedulerParameters: parameters,
             requireSuccessfulRender: true,
         });
@@ -1961,6 +1962,7 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerChartFilters,
         sendNowSchedulerParameters,
         tileParameters,
+        dashboardTileRenderRequest,
         outputFormat = 'image',
         withPdf = false,
         pdfPagination = 'crop',
@@ -1990,6 +1992,8 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerChartFilters?: Filters | undefined;
         sendNowSchedulerParameters?: ParametersValuesMap | undefined;
         tileParameters?: ExportContentPayload['tileParameters'];
+        // Chart page only: run the chart as this dashboard tile ran it
+        dashboardTileRenderRequest?: DashboardTileRenderRequest;
         outputFormat?: 'image' | 'pdf';
         withPdf?: boolean;
         // 'crop' (default): single-page PDF clipped to content.
@@ -2221,6 +2225,8 @@ export class UnfurlService extends BaseService {
                                 sendNowSchedulerParameters,
                             [`dashboardExportTileParameters:${resourceUuid}`]:
                                 tileParameters,
+                            [SessionStorageKeys.DASHBOARD_TILE_RENDER_REQUEST]:
+                                dashboardTileRenderRequest,
                         },
                     );
 
@@ -3218,6 +3224,7 @@ export class UnfurlService extends BaseService {
                             sendNowSchedulerChartFilters,
                             sendNowSchedulerParameters,
                             tileParameters,
+                            dashboardTileRenderRequest,
                             outputFormat,
                             withPdf,
                             pdfPagination,
