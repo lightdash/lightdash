@@ -768,7 +768,7 @@ export const useColumns = (): TableColumn[] => {
                                             <MantineIcon
                                                 icon={IconKey}
                                                 size="sm"
-                                                color="gray.6"
+                                                color="ldGray.6"
                                             />
                                         )}
                                         {typeIcon}
