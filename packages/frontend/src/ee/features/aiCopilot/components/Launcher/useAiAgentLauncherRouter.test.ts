@@ -10,6 +10,7 @@ vi.mock('../../hooks/useAiAgentRouterFlow', () => ({
         isLocked: false,
         isPickingAgent: false,
         isRouting: false,
+        phase: { kind: 'idle' },
         sortedCandidates: [],
     }),
 }));
