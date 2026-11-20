@@ -1,3 +1,11 @@
+## [3.351.6](https://github.com/lightdash/lightdash/compare/3.351.5...3.351.6) (2026-11-20)
+
+
+### Bug Fixes
+
+* **ai-agents:** show one error and an error state when a thread fails to load ([#33034](https://github.com/lightdash/lightdash/issues/33034)) ([5f9ef09](https://github.com/lightdash/lightdash/commit/5f9ef091683f1f2d38899380c63e95ba718a798b))
+* **semantic-studio:** steady the chat while changes apply and end it once published ([#33042](https://github.com/lightdash/lightdash/issues/33042)) ([e0b5a04](https://github.com/lightdash/lightdash/commit/e0b5a049215a31aaeae8c83154fb449cbc0637c3))
+
 ## [3.351.5](https://github.com/lightdash/lightdash/compare/3.351.4...3.351.5) (2026-11-20)
 
 
