@@ -1214,15 +1214,14 @@ describe('built-in usage dashboards', () => {
                 expect.arrayContaining([
                     expect.objectContaining({
                         people_adoption_user_id: 'lapsed',
-                        people_adoption_activity_status:
-                            'Previously observed; inactive for 30 days',
+                        people_adoption_activity_status_name:
+                            'Used Lightdash before, not in the last 30 days',
                         people_adoption_days_since_last_activity: 49n,
                     }),
                     expect.objectContaining({
                         people_adoption_user_id: 'never-a',
-                        people_adoption_activity_status:
-                            'No qualifying activity observed',
-                        people_adoption_last_observed_activity_at: null,
+                        people_adoption_activity_status_name: 'No recorded use',
+                        people_adoption_last_observed_activity_at_day: null,
                     }),
                 ]),
             );

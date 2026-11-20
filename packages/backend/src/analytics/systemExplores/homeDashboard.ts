@@ -188,7 +188,7 @@ export const homeChartSpecs: UsageChartSpec[] = [
             { metric: 'user_activity_total_ai_calls', name: 'AI calls' },
             { metric: 'user_activity_total_downloads', name: 'Downloads' },
         ],
-        yName: 'Recorded activities',
+        yName: 'Count',
         stacked: true,
     }),
     trend({

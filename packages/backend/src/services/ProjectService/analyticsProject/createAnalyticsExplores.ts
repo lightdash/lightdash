@@ -108,6 +108,13 @@ const dimensionFields = {
 
 // Shown in a plain-name field when nothing was recorded
 const notRecorded = 'Not recorded';
+const contentTypeNames = {
+    saved_chart: 'Chart',
+    chart: 'Chart',
+    sql_chart: 'SQL chart',
+    dashboard: 'Dashboard',
+    data_app: 'Data app',
+};
 
 const dimensionTypes: Record<CompactedColumnType, DimensionType> = {
     VARCHAR: DimensionType.STRING,
@@ -483,6 +490,8 @@ export const createAnalyticsExplores = (): Explore[] => {
             plainLabel?: string,
         ) => {
             const recorded = table.dimensions[column];
+            // Not every model that shares a table has the column
+            if (!recorded) return;
             table.dimensions[`${column}_name`] = {
                 ...recorded,
                 name: `${column}_name`,
@@ -508,6 +517,39 @@ export const createAnalyticsExplores = (): Explore[] => {
             });
             addPlainName('execution_source', { missing: notRecorded });
             addPlainName('status', { missing: notRecorded });
+        }
+        if (
+            name === 'content_health' ||
+            name === 'content_inventory' ||
+            name === 'content_reach'
+        ) {
+            addPlainName('content_type', { names: contentTypeNames });
+            addPlainName('is_deleted', {
+                names: { true: 'Deleted', false: 'Not deleted' },
+            });
+            addPlainName('activity_status', {
+                names: {
+                    'Activity observed': 'Has recorded activity',
+                    'No activity observed; known dependency':
+                        'No recorded activity, used by a dashboard or schedule',
+                    'No activity observed; coverage incomplete':
+                        'No recorded activity',
+                },
+            });
+        }
+        if (name === 'people_adoption') {
+            addPlainName('organization_role');
+            addPlainName('activity_status', {
+                names: {
+                    'Not currently eligible': 'Not currently eligible',
+                    'Active in last 7 closed days': 'Active in the last 7 days',
+                    'Active in last 30 closed days':
+                        'Active in the last 30 days',
+                    'Previously observed; inactive for 30 days':
+                        'Used Lightdash before, not in the last 30 days',
+                    'No qualifying activity observed': 'No recorded use',
+                },
+            });
         }
         if (name === 'semantic_usage') {
             addPlainName('field_kind');

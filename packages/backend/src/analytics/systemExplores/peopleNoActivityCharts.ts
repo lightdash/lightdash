@@ -6,13 +6,13 @@ const eligiblePeople: NonNullable<UsageChartSpec['filters']> = [
 const personDimensions = [
     'people_adoption_name',
     'people_adoption_user_id',
-    'people_adoption_organization_role',
-    'people_adoption_activity_status',
+    'people_adoption_organization_role_name',
+    'people_adoption_activity_status_name',
 ];
 const personLabels = {
-    people_adoption_activity_status: 'Activity status',
+    people_adoption_activity_status_name: 'Activity status',
     people_adoption_activity_through_day: 'Activity through (UTC)',
-    people_adoption_organization_role: 'Organization role',
+    people_adoption_organization_role_name: 'Organization role',
 };
 
 export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
@@ -58,7 +58,8 @@ export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
         explore: 'people_adoption',
         dimensions: [
             ...personDimensions,
-            'people_adoption_last_observed_activity_at',
+            // The day is enough: the time of day would show to the millisecond
+            'people_adoption_last_observed_activity_at_day',
             'people_adoption_days_since_last_activity',
             'people_adoption_activity_through_day',
         ],
@@ -74,7 +75,7 @@ export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
         ],
         fieldLabels: {
             ...personLabels,
-            people_adoption_last_observed_activity_at:
+            people_adoption_last_observed_activity_at_day:
                 'Last used Lightdash (UTC)',
             people_adoption_days_since_last_activity: 'Days since last use',
         },
