@@ -63,9 +63,7 @@ const card = ({
             metrics: [metric],
             sorts: [{ fieldId: day, descending: false }],
             limit: 500,
-            description: distinct
-                ? `${description} The line shows each day. A person active on several days is counted on each of those days.`
-                : description,
+            description,
         },
     },
 });
@@ -237,7 +235,7 @@ export const homeChartSpecs: UsageChartSpec[] = [
                     },
                 ],
                 limit: 10,
-                description: `${mostActivePeopleDescription} People without a display name are grouped as Unknown user.`,
+                description: mostActivePeopleDescription,
             },
         },
     },

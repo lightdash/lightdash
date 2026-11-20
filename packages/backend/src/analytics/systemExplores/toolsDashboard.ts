@@ -75,7 +75,7 @@ export const toolsChartSpecs: UsageChartSpec[] = [
         key: 'mcp-users-clients-tools-and-error-rates',
         name: 'MCP tool calls by person and tool',
         description:
-            'MCP tool calls for each person, client and tool, including service accounts. Duration is in seconds. An error rate over a few calls is not reliable.',
+            'MCP tool calls for each person, client and tool, including service accounts. An error rate over a few calls is not reliable.',
         explore: 'tool_activity',
         by: 'tool_activity_user_name',
         then: 'tool_activity_tool_name',

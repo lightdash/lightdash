@@ -824,7 +824,7 @@ describe('legacyLibraryChartBindings', () => {
                 agentChart('agent-retries-latency-and-consumption'),
             ),
         ).toBe(
-            'Requests and average request latency by retry count. Each retry runs the request again with new AI calls, so more retries mean a longer wait and more tokens. An agent step is not a retry.',
+            'Requests and average request latency by retry count. Each retry runs the request again with new AI calls, so more retries mean a longer wait and more tokens.',
         );
     });
 });

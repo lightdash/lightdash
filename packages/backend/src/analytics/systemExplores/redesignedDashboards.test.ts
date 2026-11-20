@@ -1349,6 +1349,36 @@ describe('library chart options', () => {
     });
 });
 
+describe('hover descriptions', () => {
+    const sentencesOf = (text: string) =>
+        text.split(/[.?!](?:\s+|$)/).filter((sentence) => sentence.trim())
+            .length;
+
+    it('say what a tile shows in at most two sentences, in the plain and the library version', () => {
+        const long = analyticsContentAsCode.flatMap(({ dashboard, charts }) => {
+            const tiled = new Set(
+                dashboard.tiles.flatMap((tile) =>
+                    'chartSlug' in tile.properties
+                        ? [tile.properties.chartSlug]
+                        : [],
+                ),
+            );
+            return charts
+                .filter(({ slug }) => tiled.has(slug))
+                .flatMap(({ slug, description }) =>
+                    [
+                        description ?? '',
+                        analyticsLibraryChartBindings.get(slug)?.query
+                            ?.description ?? '',
+                    ]
+                        .filter((text) => sentencesOf(text) > 2)
+                        .map((text) => `${slug}: ${text}`),
+                );
+        });
+        expect(long).toEqual([]);
+    });
+});
+
 describe('axis titles of the area charts', () => {
     // The trellis has no title options: it titles its axes with the labels of the fields it draws
     it.each([

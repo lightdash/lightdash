@@ -42,7 +42,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
     card({
         key: 'adoption-active-people-latest-day',
         name: 'Active people',
-        description: `People with any recorded activity on the latest day in recorded history. Includes activity that background work attributed to a person. ${latestDayNote}`,
+        description: `People with any recorded activity on the latest day in recorded history. ${latestDayNote}`,
         explore: 'user_activity',
         day: activityDay,
         metric: 'user_activity_unique_users',
@@ -77,7 +77,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-active-people-day',
         name: 'Daily active people',
         description:
-            'Distinct identified people with recorded activity each day. Includes activity that background work attributed to a person. This is not a count of logins or the share of people with access.',
+            'Distinct identified people with recorded activity each day. This is not a count of logins or the share of people with access.',
         explore: 'user_activity',
         day: activityDay,
         metric: 'user_activity_unique_users',
@@ -123,7 +123,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-dashboard-audience',
         name: 'Which dashboards are people viewing?',
         description:
-            'Distinct viewers and recorded views for each dashboard. Reloads can add views. Views served entirely from the browser cache are not counted. One person can view several dashboards, so viewer counts overlap.',
+            'Distinct viewers and recorded views for each dashboard. One person can view several dashboards, so viewer counts overlap.',
         explore: 'content_reach',
         by: 'content_reach_content_name',
         dimensions: [
@@ -154,7 +154,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-app-audience',
         name: 'Which data apps are people loading?',
         description:
-            'Recorded data app loads from standalone pages and dashboards. Reloads count, and so do creators using their own apps. Chart tiles drawn by a custom chart type, builder previews, embeds, deliveries and older loads with unknown context are left out. A load does not confirm the app rendered or was read.',
+            'Recorded data app loads from standalone pages and dashboards, including reloads. Chart tiles drawn by a custom chart type, builder previews, embeds and deliveries are left out.',
         explore: 'data_app_reach',
         by: 'data_app_reach_app_name',
         dimensions: [
@@ -199,7 +199,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-app-creators',
         name: 'Who is creating data apps?',
         description:
-            'People who created data apps, and the apps they created, by day. Names are the latest available. Iterations and loads are not counted.',
+            'People who created data apps, and the apps they created, by day. Iterations and loads are not counted.',
         explore: 'data_app_events',
         by: 'data_app_events_user_name',
         then: 'data_app_events_app_name',
@@ -225,13 +225,13 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
             data_app_events_total_events: 'Data apps created',
         },
         libraryDescription:
-            'Data apps created by each person. Open a person to see their data apps. Iterations and loads are not counted.',
+            'Data apps created by each person; open a person to see their data apps. Iterations and loads are not counted.',
     }),
     {
         key: 'adoption-app-reader-trend',
         name: 'Data app loads and viewers by day',
         description:
-            'Loads and distinct identified viewers per day, from standalone pages and dashboards. Older loads with unknown context appear in the surface breakdown instead. Daily viewer counts cannot be added up across days. Reloads count.',
+            'Loads and distinct identified viewers per day, from standalone pages and dashboards. Daily viewer counts cannot be added up across days.',
         explore: 'data_app_reach',
         dimensions: [reachDay],
         metrics: [
@@ -267,7 +267,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
                 ],
                 limit: allHistory,
                 description:
-                    'Loads per day, with one row for standalone pages and one for dashboards. Each row has its own scale. Reloads count.',
+                    'Loads per day, with one row for standalone pages and one for dashboards. Each row has its own scale.',
             },
         },
     },
@@ -275,7 +275,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-app-reader-detail',
         name: 'Who loads each data app?',
         description:
-            'People who loaded data apps from standalone pages and dashboards, by app. Creators loading their own apps count. The same person can appear for several apps, so rows cannot be added up to count people.',
+            'People who loaded data apps from standalone pages and dashboards, by app. The same person can appear for several apps, so rows cannot be added up to count people.',
         explore: 'data_app_reach',
         by: 'data_app_reach_app_name',
         then: 'data_app_reach_user_name',
@@ -301,7 +301,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-app-first-audience',
         name: 'Where are data apps being loaded?',
         description:
-            'All recorded data app loads by surface, including chart tiles drawn by a custom chart type, builder previews, embeds, deliveries and older loads with unknown context. Viewers of embeds are not identified. For older loads with unknown context, viewers cannot be told apart from embed token issuers. Apps with no recorded loads are not shown.',
+            'All recorded data app loads by surface, including chart tiles drawn by a custom chart type, builder previews, embeds, deliveries and loads with unknown context. Viewers of embeds are not identified.',
         explore: 'data_app_reach',
         by: 'data_app_reach_view_context',
         metrics: [
@@ -319,7 +319,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-app-outcome-trend',
         name: 'Data app errors by day',
         description:
-            'Distinct data app navigations each day with an HTML delivery failure or a runtime error, on all surfaces. A navigation with both kinds of error is counted in both series. Daily counts cannot be added up across days.',
+            'Distinct data app page loads each day with a delivery failure or a runtime error, on all surfaces. Daily counts cannot be added up across days.',
         explore: 'data_app_outcomes',
         day: 'data_app_outcomes_event_ts_day',
         series: [
@@ -339,7 +339,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-app-outcome-detail',
         name: 'Data app outcomes by app and surface',
         description:
-            'HTML delivery, SDK startup and runtime errors for each data app and surface, each counted once per navigation. Includes builder previews, embeds and deliveries. The Signals recorded column is a raw count: it includes repeated signals and signals with no navigation ID. SDK startup does not confirm the data app rendered fully or was read. Older app bundles may send no SDK signals: that is unknown, not an error.',
+            'Page delivery, startup and runtime errors for each data app and surface, counted once for each load of a page. Includes builder previews, embeds and deliveries.',
         explore: 'data_app_outcomes',
         dimensions: [
             'data_app_outcomes_app_name',
@@ -401,7 +401,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-ask-ai-frequency',
         name: 'Agent requests per person asking, by day',
         description:
-            'Agent requests from identified people in the web app, divided by the number of people who asked that day. People who asked nothing are not in the average. Days with no requests show no value, not zero.',
+            'Agent requests from identified people in the web app, divided by the number of people who asked that day. People who asked nothing are not in the average.',
         explore: 'agent_request_starts',
         day: requestDay,
         metric: 'questions_per_person',

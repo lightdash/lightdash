@@ -621,7 +621,7 @@ export const analyticsSampleDashboards = [
                             ],
                             limit: 500,
                             description:
-                                'People who ran queries on the latest day in the selected period, with the daily trend. A person active on several days is counted on each of those days. Service accounts are counted too.',
+                                'People who ran queries on the latest day in the selected period, with the daily trend. Service accounts are counted too.',
                         },
                     },
                 },
@@ -831,7 +831,7 @@ export const analyticsSampleDashboards = [
                     colors: ['#12B886', '#F59F00'],
                     axisLabel: 'Warehouse time (s)',
                     description:
-                        'Average and P90 warehouse execution time per day, in seconds. Queries with no timing are left out. This is warehouse time only, not end-to-end response time.',
+                        'Average and P90 warehouse execution time per day, in seconds. This is warehouse time only, not end-to-end response time.',
                 },
             ),
         ],

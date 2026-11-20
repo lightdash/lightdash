@@ -298,7 +298,7 @@ export const buildQueryCalendarChart = (source: ChartAsCode): ChartAsCode => ({
     slug: 'lightdash-analytics-query-activity-query-calendar',
     name: 'Queries by day (calendar)',
     description:
-        'Queries per UTC day over the last 26 weeks. The date filter does not change this tile. Grey means no recorded data. Use Queries by day for a chosen date range.',
+        'Queries per UTC day over the last 26 weeks; grey means no recorded data. The date filter does not change this tile.',
     metricQuery: {
         ...source.metricQuery,
         dimensions: [day],

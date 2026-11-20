@@ -9,7 +9,7 @@ import type { UsageChartSpec } from './usageDashboardTypes';
 const failedTokens = 'agent_requests_failed_or_cancelled_request_tokens';
 const failedTokenShare = 'failed_token_share';
 const failedTokensDescription =
-    'Tokens from AI calls linked to agent requests that ended in an error or were cancelled. Requests still pending or waiting for a clarification are not counted. Unlinked AI calls and unknown token counts are not zero tokens.';
+    'Tokens from AI calls linked to agent requests that ended in an error or were cancelled. Tokens are not cost.';
 
 export const usageChartSpecs: UsageChartSpec[] = [
     ...monthlyQueryComparisonCharts,
@@ -43,7 +43,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'most-used-fields',
         name: 'Queries per field',
         description:
-            'Distinct queries per field, counting fields that were selected, filtered, grouped or sorted. Cached and failed queries count. A field missing here can still be in use. Names are those recorded when the query ran, so a renamed field can appear more than once.',
+            'Distinct queries per field, counting fields that were selected, filtered, grouped or sorted. A renamed field can appear more than once.',
         explore: 'semantic_usage',
         dimensions: [
             'semantic_usage_field_label',
@@ -561,7 +561,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'agent-retries-latency-and-consumption',
         name: 'Requests and latency by retry count',
         description:
-            'Requests, time spent on failed attempts, average latency and tokens for each retry count. Each retry runs the request again with new AI calls, so more retries mean a longer wait and more tokens. The exact tokens added by each attempt are not recorded, and waiting time between attempts is not included. Token totals can be incomplete. An agent step is not a retry.',
+            'Requests, time spent on failed attempts, average latency and tokens for each retry count. Each retry runs the request again with new AI calls, so more retries mean a longer wait and more tokens.',
         explore: 'agent_requests',
         dimensions: ['agent_requests_retry_count'],
         metrics: [
@@ -612,7 +612,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 ],
                 limit: 30,
                 description:
-                    'Requests and average request latency by retry count. Each retry runs the request again with new AI calls, so more retries mean a longer wait and more tokens. An agent step is not a retry.',
+                    'Requests and average request latency by retry count. Each retry runs the request again with new AI calls, so more retries mean a longer wait and more tokens.',
             },
         },
     },
@@ -798,7 +798,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
                         format: { type: CustomFormatType.PERCENT, round: 1 },
                     },
                 ],
-                description: `${failedTokensDescription} The percentage is their share of all tokens used by agent requests in the selected period.`,
+                description:
+                    'Tokens from AI calls linked to agent requests that ended in an error or were cancelled. The percentage is their share of all tokens used by agent requests in the selected period.',
             },
         },
     },

@@ -47,7 +47,7 @@ export const dataAppsChartSpecs: UsageChartSpec[] = [
         key: 'total-loads',
         name: 'Data app loads',
         description:
-            'Number of times a data app was loaded. Reloads count. Unknown or deleted data apps are included. Custom chart types shown as chart tiles are not counted.',
+            'Number of times a data app was loaded, including reloads. Chart tiles drawn by a custom chart type are not counted.',
         explore: 'data_app_events',
         day,
         metric: 'data_app_events_total_views',

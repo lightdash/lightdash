@@ -20,7 +20,7 @@ export const monthlyQueryComparisonCharts: UsageChartSpec[] = [
         // Newest month first in the table
         newestFirst: true,
         description:
-            'People who ran a query in each month, including service accounts. Queries with no user ID are left out. A person who ran queries on several days counts once for the month. ∅ means there is no data for the month before, or it was zero. Months with no data are left out.',
+            'People who ran a query in each month, counted once for the month, including service accounts. ∅ means there is no figure for the month before.',
     },
     {
         key: 'queries-run-month-over-month',
@@ -30,7 +30,7 @@ export const monthlyQueryComparisonCharts: UsageChartSpec[] = [
         // Oldest month first, so the chart reads left to right
         newestFirst: false,
         description:
-            'Completed query attempts, including cache hits and queries that failed during execution. Preview projects and queries that failed before execution are left out. The change axis stops at 200%, so a larger change runs off the top of the chart. ∅ means there is no data for the month before, or it was zero. Months with no data are left out.',
+            'Queries run in each month, including cache hits and queries that failed while running. The change axis stops at 200%, so a larger change runs off the top.',
     },
 ].map(({ metric, label, newestFirst, ...spec }) => {
     const value = `\${query_events.${metric}}`;

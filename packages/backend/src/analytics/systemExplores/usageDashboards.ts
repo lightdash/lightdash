@@ -124,10 +124,6 @@ const withPeopleDisplayName = (chart: ChartAsCode): ChartAsCode => {
     };
 };
 
-// Appended to every table that shows the person and Activity source columns.
-const userActivityNote =
-    'People without a display name show their primary email, or User <ID> if there is no email. No user recorded means the activity has no user ID. Activity source lists where the activity in each row came from; older rows can be missing embed context.';
-
 const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
     const tableName =
         chart.tableName === 'agent_request_starts'
@@ -152,9 +148,6 @@ const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
     const originField = `${tableName}_${originName}`;
     return {
         ...chart,
-        description: [chart.description, userActivityNote]
-            .filter(Boolean)
-            .join(' '),
         metricQuery: {
             ...chart.metricQuery,
             dimensions: [

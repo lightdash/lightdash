@@ -66,9 +66,7 @@ export const card = ({
             metrics: [metric],
             sorts: [{ fieldId: day, descending: false }],
             limit: history,
-            description: latestDay
-                ? `${description} The line shows each day.`
-                : description,
+            description,
         },
     },
 });

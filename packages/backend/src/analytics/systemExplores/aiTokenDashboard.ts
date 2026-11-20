@@ -24,7 +24,7 @@ const queryLimit = 5000;
 const colors = [...analyticsColorPalette.colors.slice(0, 5), '#868e96'];
 // The one place billing scope is defined; other tiles refer to "tokens in billing scope".
 const scopeDescription =
-    'Tokens from work that completed, on Lightdash-managed keys, for agents, deep research, agent tools, compaction and data apps. Agent tools are AI calls made by tools an agent used while answering a request. Unpriced models are included. These tokens are not credits, and not the priced billable-token total in Settings.';
+    'Tokens from completed work on Lightdash-managed keys, for agents, deep research, agent tools, compaction and data apps. These tokens are not credits or cost.';
 
 type Query = ChartAsCode['metricQuery'];
 type Breakdown = {
@@ -771,7 +771,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                     },
                 },
             },
-            'AI calls in billing scope. Up to 1,000 grouped rows. An AI call is not an agent request or an exact count of provider calls.',
+            'AI calls in billing scope, up to 1,000 grouped rows. An AI call is not an agent request.',
         ),
         chart(
             'quality',
@@ -799,7 +799,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                 ],
             }),
             tableConfig,
-            'How many AI calls have a token count. Even if every AI call has one, some provider calls may not have been recorded. For data apps, one AI call can cover a whole run for one model.',
+            'How many AI calls have a token count. Some provider calls may not have been recorded at all.',
         ),
     ];
 

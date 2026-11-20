@@ -86,7 +86,7 @@ export const contentChartSpecs: UsageChartSpec[] = [
         key: 'new-content-adoption-creation-week-proxy',
         name: 'New content adoption after the first week',
         description:
-            'Creation date stands in for launch date. Return activity after the first seven days only shows when enough history has been recorded. Older content may have been created before recording began.',
+            'Creation date stands in for launch date. Older content may have been created before recording began.',
         explore: 'content_reach',
         by: 'content_reach_content_name',
         dimensions: [
@@ -106,7 +106,7 @@ export const contentChartSpecs: UsageChartSpec[] = [
         key: 'content-creation-by-month',
         name: 'Content created by month',
         description:
-            'Items in the latest inventory by the month they were created, including deleted items (recoverable). This is not a full history of all content. The date filter does not apply.',
+            'Items in the latest inventory by the month they were created, including deleted items. The date filter does not apply.',
         explore: 'content_inventory',
         day: 'content_health_created_at_month',
         metric: 'content_health_total_content',
@@ -118,7 +118,7 @@ export const contentChartSpecs: UsageChartSpec[] = [
             xName: 'Month',
         },
         splitDescription:
-            'Items in the latest inventory by the month they were created and their type, including deleted items (recoverable). This is not a full history of all content. The date filter does not apply.',
+            'Items in the latest inventory by the month they were created and their type, including deleted items. The date filter does not apply.',
     }),
     ranking({
         key: 'content-by-activity-status',
@@ -128,7 +128,7 @@ export const contentChartSpecs: UsageChartSpec[] = [
         by: 'content_health_activity_status_name',
         then: 'content_health_content_type_name',
         metrics: ['content_health_total_content'],
-        libraryDescription: `Charts, dashboards and data apps by whether they have any recorded activity. Open a status to see each type of content. ${allHistory}`,
+        libraryDescription: `Charts, dashboards and data apps by whether they have any recorded activity; open a status to see each type of content. ${allHistory}`,
     }),
     ranking({
         key: 'content-ownership-current-snapshot',
@@ -144,13 +144,13 @@ export const contentChartSpecs: UsageChartSpec[] = [
         // Drawn as a donut: see withAnalyticsChartPresentation
         visualization: 'bar',
         libraryDescription:
-            'Content by the status of its owner. Open a status to see each type of content. Owner status reflects current Lightdash membership, not whether the person is still employed.',
+            'Content by the status of its owner; open a status to see each type of content. Owner status reflects current Lightdash membership, not whether the person is still employed.',
     }),
     ranking({
         key: 'high-compute-dashboards-audience-versus-warehouse-time',
         name: 'Dashboards by warehouse time (top 25)',
         description:
-            'Top 25 dashboards by warehouse execution time (s), across all recorded history. The date filter does not apply. Each point is a dashboard; open the underlying results to see names.',
+            'Top 25 dashboards by warehouse execution time (s), across all recorded history. The date filter does not apply.',
         explore: 'content_health',
         by: 'content_health_content_name',
         dimensions: [
