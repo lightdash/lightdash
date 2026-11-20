@@ -8813,11 +8813,17 @@ const models: TsoaRoute.Models = {
         enums: ['xlsx'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    XlsxExportContent: {
+        dataType: 'refEnum',
+        enums: ['data', 'chart_image'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SchedulerCsvOptions: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                xlsxContent: { ref: 'XlsxExportContent' },
                 xlsxFileLayout: {
                     dataType: 'union',
                     subSchemas: [
@@ -16141,6 +16147,7 @@ const models: TsoaRoute.Models = {
             'github',
             'pylon',
             'attio',
+            'hubspot',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -16386,6 +16393,22 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiConnectorType.HUBSPOT': {
+        dataType: 'refEnum',
+        enums: ['hubspot'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HubspotApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                connector: { ref: 'ApiConnectorType.HUBSPOT', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExternalConnectionApiSource: {
         dataType: 'refAlias',
         type: {
@@ -16401,6 +16424,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'GithubApiSource' },
                 { ref: 'PylonApiSource' },
                 { ref: 'AttioApiSource' },
+                { ref: 'HubspotApiSource' },
             ],
             validators: {},
         },
@@ -17583,11 +17607,36 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    LiveSourceExploreFields: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                fields: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'LiveSourceField' },
+                    required: true,
+                },
+                label: { dataType: 'string', required: true },
+                exploreName: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     LiveSourceFields: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                explores: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'LiveSourceExploreFields',
+                    },
+                    required: true,
+                },
                 fields: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'LiveSourceField' },
@@ -17654,6 +17703,7 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 inUse: { dataType: 'boolean' },
+                exploreName: { dataType: 'string' },
                 name: { dataType: 'string', required: true },
             },
             validators: {},
@@ -32447,6 +32497,13 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    xlsxContent: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'XlsxExportContent' },
                             { dataType: 'undefined' },
                         ],
                     },

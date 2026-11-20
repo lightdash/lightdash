@@ -1,3 +1,24 @@
+# [3.357.0](https://github.com/lightdash/lightdash/compare/3.356.2...3.357.0) (2026-11-20)
+
+
+### Bug Fixes
+
+* **merge-query:** escape identifiers ([#33064](https://github.com/lightdash/lightdash/issues/33064)) ([880d246](https://github.com/lightdash/lightdash/commit/880d24688cbab66d8a18662fb0f1e58f03dab0a9))
+* **palette:** improve context handling when resolving colour palettes ([#32887](https://github.com/lightdash/lightdash/issues/32887)) ([bb6b426](https://github.com/lightdash/lightdash/commit/bb6b426c71e633dfd23880749c4c4129a5105e17))
+
+
+### Features
+
+* **export:** embed rendered chart image in XLSX exports of non-table charts ([#33045](https://github.com/lightdash/lightdash/issues/33045)) ([5bb788f](https://github.com/lightdash/lightdash/commit/5bb788f3faf5fdcada4f168dbf25b85fcc3296ba))
+* **live-sources:** add HubSpot integration ([#32983](https://github.com/lightdash/lightdash/issues/32983)) ([011f0b9](https://github.com/lightdash/lightdash/commit/011f0b9c3b8db3b5d8d4df35a98de594fa70b6d3)), closes [#32981](https://github.com/lightdash/lightdash/issues/32981)
+* **live-sources:** scan and curate fields on more than one explore ([#33051](https://github.com/lightdash/lightdash/issues/33051)) ([98c1cb3](https://github.com/lightdash/lightdash/commit/98c1cb3ec0d3690aa45e6a2e1fd6bbffc8c79ab9))
+* **semantic-studio:** drop Cache hits from the live data sources table ([#32999](https://github.com/lightdash/lightdash/issues/32999)) ([0826a87](https://github.com/lightdash/lightdash/commit/0826a8738166a55a142fc817167404cb8b346759))
+
+
+### Performance Improvements
+
+* **tables:** virtualize columns in wide result tables ([#33021](https://github.com/lightdash/lightdash/issues/33021)) ([d90c92f](https://github.com/lightdash/lightdash/commit/d90c92fb9cfe674f298cec033ab6cab7f65c3d7f)), closes [#33065](https://github.com/lightdash/lightdash/issues/33065)
+
 ## [3.356.2](https://github.com/lightdash/lightdash/compare/3.356.1...3.356.2) (2026-11-20)
 
 

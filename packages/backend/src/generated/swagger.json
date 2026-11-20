@@ -9019,8 +9019,16 @@
                 "enum": ["xlsx"],
                 "type": "string"
             },
+            "XlsxExportContent": {
+                "description": "What an XLSX export of a saved chart contains: the query's data rows, or a\nrendered image of the visualization. Only non-table charts offer the image.",
+                "enum": ["data", "chart_image"],
+                "type": "string"
+            },
             "SchedulerCsvOptions": {
                 "properties": {
+                    "xlsxContent": {
+                        "$ref": "#/components/schemas/XlsxExportContent"
+                    },
                     "xlsxFileLayout": {
                         "type": "string",
                         "enum": ["zip", "workbook"]
@@ -16578,7 +16586,8 @@
                     "linkedin_ads",
                     "github",
                     "pylon",
-                    "attio"
+                    "attio",
+                    "hubspot"
                 ],
                 "type": "string"
             },
@@ -16800,6 +16809,20 @@
                 "required": ["object", "connector"],
                 "type": "object"
             },
+            "ApiConnectorType.HUBSPOT": {
+                "enum": ["hubspot"],
+                "type": "string"
+            },
+            "HubspotApiSource": {
+                "properties": {
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.HUBSPOT"
+                    }
+                },
+                "required": ["connector"],
+                "type": "object",
+                "description": "The private app's token picks the HubSpot account, so nothing else is set."
+            },
             "ExternalConnectionApiSource": {
                 "anyOf": [
                     {
@@ -16831,6 +16854,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/AttioApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HubspotApiSource"
                     }
                 ],
                 "description": "Connector settings of a live source; the server fixes its access rules."
@@ -18044,8 +18070,34 @@
                 "type": "object",
                 "description": "One field of a live data source, in use or available."
             },
+            "LiveSourceExploreFields": {
+                "properties": {
+                    "fields": {
+                        "items": {
+                            "$ref": "#/components/schemas/LiveSourceField"
+                        },
+                        "type": "array"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fields", "label", "exploreName"],
+                "type": "object",
+                "description": "The fields of one explore of a live data source."
+            },
             "LiveSourceFields": {
                 "properties": {
+                    "explores": {
+                        "items": {
+                            "$ref": "#/components/schemas/LiveSourceExploreFields"
+                        },
+                        "type": "array",
+                        "description": "Every explore whose fields can be curated, the first one included."
+                    },
                     "fields": {
                         "items": {
                             "$ref": "#/components/schemas/LiveSourceField"
@@ -18063,10 +18115,12 @@
                         "description": "Saved charts on any of the source's explores, each counted once."
                     },
                     "exploreName": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "The first explore, which `fields` lists."
                     }
                 },
                 "required": [
+                    "explores",
                     "fields",
                     "scannedAt",
                     "usedByChartCount",
@@ -18108,6 +18162,10 @@
                     },
                     "inUse": {
                         "type": "boolean"
+                    },
+                    "exploreName": {
+                        "type": "string",
+                        "description": "The explore the field belongs to; omitted, the source's first explore."
                     },
                     "name": {
                         "type": "string"
@@ -34291,6 +34349,9 @@
                     },
                     "showColumnTotals": {
                         "type": "boolean"
+                    },
+                    "xlsxContent": {
+                        "$ref": "#/components/schemas/XlsxExportContent"
                     },
                     "showSubtotals": {
                         "type": "boolean"
@@ -81221,7 +81282,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.356.2",
+        "version": "3.357.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
