@@ -298,15 +298,15 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
             const content = contentRef.current;
             if (!hasResizeHandle || !content) return;
             // Reports the rendered height, which can sit outside limits that moved since the last resize.
-            const now = Math.round(editorHeight ?? content.clientHeight);
+            const now = content.clientHeight;
             const { min, max } = editorHeightLimits(content);
             setHeightRange({
                 now,
                 min: Math.min(min, now),
                 max: Math.max(max, now),
             });
-        }, [hasResizeHandle, editorHeight]);
-        useLayoutEffect(syncHeightRange, [syncHeightRange]);
+        }, [hasResizeHandle]);
+        useLayoutEffect(syncHeightRange, [syncHeightRange, editorHeight]);
         const dragStartHeightRef = useRef<number | null>(null);
 
         // Dragging the handle away from the opposite edge grows the editor.

@@ -215,18 +215,19 @@ describe('PromptComposer resize handle', () => {
         expect(resizedHeight(handle)).toBe(40);
     });
 
-    it('reports its size as a value that tracks resizing', () => {
+    it('reports the rendered editor height within its limits', () => {
+        const clientHeight = vi
+            .spyOn(HTMLElement.prototype, 'clientHeight', 'get')
+            .mockReturnValue(100);
         renderWithProviders(
             <PromptComposer ariaLabel="Prompt" resizeHandle="top" />,
         );
         const handle = getHandle();
         const value = (name: string) => Number(handle.getAttribute(name));
-        expect(value('aria-valuenow')).toBe(value('aria-valuemin'));
 
-        fireEvent.keyDown(handle, { key: 'ArrowUp', shiftKey: true });
-        expect(value('aria-valuenow')).toBeGreaterThan(value('aria-valuemin'));
-        expect(value('aria-valuenow')).toBeLessThanOrEqual(
-            value('aria-valuemax'),
-        );
+        expect(value('aria-valuenow')).toBe(100);
+        expect(value('aria-valuemin')).toBeLessThanOrEqual(100);
+        expect(value('aria-valuemax')).toBeGreaterThanOrEqual(100);
+        clientHeight.mockRestore();
     });
 });
