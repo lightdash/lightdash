@@ -6,6 +6,7 @@ import {
     getComposerChartDisplayedQueryUuid,
     getComposerChartExportLabels,
     getComposerChartDraw,
+    withZoomedColumnLabels,
     pickComposerChartRows,
     type ComposerChartDraw,
     type DashboardComposerChartTile as ComposerChartTile,
@@ -277,7 +278,10 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                 draw: getComposerChartDraw({
                     pipeline: chart.pipeline,
                     chart: chart.chart,
-                    columns: Object.values(terminal.columns),
+                    columns: withZoomedColumnLabels(
+                        Object.values(terminal.columns),
+                        run.zoomedFieldLabels,
+                    ),
                     fields: run.fields,
                 }),
             };

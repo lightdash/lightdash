@@ -627,6 +627,8 @@ export type ComposerChartRunResults = {
     dateZoomApplied: boolean;
     /** The date fields the tile can be zoomed on, so the dashboard offers its date zoom. */
     zoomableFields: ChartZoomableField[];
+    /** Each zoomed field's label at the zoomed grain, by field id. */
+    zoomedFieldLabels: Record<string, string>;
 };
 
 /** The query a composer chart tile draws, and so exports: its series-split stage, else its terminal node. */
