@@ -180,7 +180,6 @@
     }
 
     &:is(a) {
-        /* The link is only as wide as its text, so empty header space is not the title */
         width: fit-content;
 
         &:not([href]) {

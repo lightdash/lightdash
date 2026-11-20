@@ -12,7 +12,6 @@ type Box = Pick<DOMRect, 'left' | 'top' | 'right' | 'bottom'>;
 
 const AIM_WINDOW_MS = 80;
 const AIM_DWELL_MS = 150;
-const AIM_SLACK_PX = 8;
 
 const contains = (box: Box, p: Point) =>
     p.x >= box.left && p.x <= box.right && p.y >= box.top && p.y <= box.bottom;
@@ -69,12 +68,7 @@ export const resolveTitleAim = ({
         !!actions &&
         !!from &&
         (from.x !== point.x || from.y !== point.y) &&
-        isMovingToward(from, point, {
-            left: actions.left - AIM_SLACK_PX,
-            top: actions.top - AIM_SLACK_PX,
-            right: actions.right + AIM_SLACK_PX,
-            bottom: actions.bottom + AIM_SLACK_PX,
-        });
+        isMovingToward(from, point, actions);
     return headingForActions ? 'headingForActions' : 'title';
 };
 
@@ -90,8 +84,8 @@ export const useTileTitleAim = ({
 }) => {
     const [titleHovered, setTitleHovered] = useState(false);
     const hoveredRef = useRef(false);
-    // Escape hides the hover until the pointer leaves the title
-    const dismissedRef = useRef(false);
+    // Escape closes the description until the pointer leaves the title
+    const [descriptionDismissed, setDescriptionDismissed] = useState(false);
     const restingTitleRef = useRef<DOMRect | null>(null);
     const trailRef = useRef<Array<Point & { t: number }>>([]);
     const dwellRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -111,14 +105,12 @@ export const useTileTitleAim = ({
         function dismissOnEscape() {
             if (!titleHovered) return;
             const onKeyDown = (e: KeyboardEvent) => {
-                if (e.key !== 'Escape') return;
-                dismissedRef.current = true;
-                setHovered(false);
+                if (e.key === 'Escape') setDescriptionDismissed(true);
             };
             window.addEventListener('keydown', onKeyDown);
             return () => window.removeEventListener('keydown', onKeyDown);
         },
-        [titleHovered, setHovered],
+        [titleHovered],
     );
 
     const onPointerMove = useCallback(
@@ -149,8 +141,8 @@ export const useTileTitleAim = ({
                         ?.getBoundingClientRect() ?? null,
                 titleHovered: hoveredRef.current,
             });
-            if (aim !== 'title') dismissedRef.current = false;
-            setHovered(aim === 'title' && !dismissedRef.current);
+            if (aim === 'elsewhere') setDescriptionDismissed(false);
+            setHovered(aim === 'title');
             if (aim === 'headingForActions')
                 dwellRef.current = setTimeout(
                     () => setHovered(true),
@@ -163,12 +155,13 @@ export const useTileTitleAim = ({
     const onPointerLeave = useCallback(() => {
         clearDwell();
         trailRef.current = [];
-        dismissedRef.current = false;
+        setDescriptionDismissed(false);
         setHovered(false);
     }, [setHovered]);
 
     return {
         titleHovered: enabled && titleHovered,
+        descriptionOpened: enabled && titleHovered && !descriptionDismissed,
         pointerHandlers: { onPointerMove, onPointerLeave },
     };
 };

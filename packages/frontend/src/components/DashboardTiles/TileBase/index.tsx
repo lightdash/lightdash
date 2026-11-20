@@ -152,11 +152,12 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const isTitleLink =
         !isEditMode && tile.type !== DashboardTileTypes.MARKDOWN;
     const followsTitleAim = isTitleLink && !minimal && !hideTitle;
-    const { titleHovered, pointerHandlers } = useTileTitleAim({
-        enabled: followsTitleAim,
-        titleRef,
-        actionsSelector: `.${styles.tileTooltip}`,
-    });
+    const { titleHovered, descriptionOpened, pointerHandlers } =
+        useTileTitleAim({
+            enabled: followsTitleAim,
+            titleRef,
+            actionsSelector: `.${styles.tileTooltip}`,
+        });
     const belongsToDashboard: boolean =
         isDashboardChartTileType(tile) && !!tile.properties.belongsToDashboard;
 
@@ -547,7 +548,9 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             <Tooltip
                                 disabled={!description}
                                 opened={
-                                    followsTitleAim ? titleHovered : undefined
+                                    followsTitleAim
+                                        ? descriptionOpened
+                                        : undefined
                                 }
                                 label={
                                     <Text
