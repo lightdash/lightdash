@@ -1,6 +1,5 @@
 import {
     ConflictError,
-    FeatureFlags,
     ForbiddenError,
     formatMobileSignInMatchNumber,
     LightdashMode,
@@ -65,8 +64,6 @@ import { MobileSignInOAuthError } from './MobileSignInOAuthError';
 const CHALLENGE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const VERIFIER_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
 const MATCH_NUMBER_PATTERN = /^[0-9]{2}$/;
-export const QR_SIGN_IN_DISABLED_MESSAGE =
-    'Sign in with a QR code is turned off for this organization';
 const MOBILE_APP_DISABLED_MESSAGE =
     'The mobile app is turned off for this organization';
 
@@ -102,7 +99,6 @@ const SUPPORTED_MODES: LightdashMode[] = [
 
 const UNAVAILABLE_REFUSALS: MobileSignInRefusal[] = [
     MobileSignInRefusal.FEATURE_DISABLED,
-    MobileSignInRefusal.QR_SIGN_IN_DISABLED,
     MobileSignInRefusal.MOBILE_APP_DISABLED,
 ];
 
@@ -110,13 +106,11 @@ const PHONE_REFUSAL_DESCRIPTIONS: Partial<Record<MobileSignInRefusal, string>> =
     {
         [MobileSignInRefusal.MANAGED_SIGN_IN_REQUIRED]:
             'managed_sign_in_required',
-        [MobileSignInRefusal.QR_SIGN_IN_DISABLED]: 'qr_sign_in_disabled',
         [MobileSignInRefusal.FEATURE_DISABLED]: 'feature_disabled',
         [MobileSignInRefusal.MOBILE_APP_DISABLED]: MOBILE_ORG_DISABLED_CODE,
     };
 
 const WEB_REFUSAL_MESSAGES: Partial<Record<MobileSignInRefusal, string>> = {
-    [MobileSignInRefusal.QR_SIGN_IN_DISABLED]: QR_SIGN_IN_DISABLED_MESSAGE,
     [MobileSignInRefusal.MOBILE_APP_DISABLED]: MOBILE_APP_DISABLED_MESSAGE,
 };
 
@@ -335,26 +329,6 @@ export class MobileSignInService extends BaseService {
         return getClientAddress(req, this.lightdashConfig.trustProxy);
     }
 
-    private async isEnabled(
-        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-    ): Promise<boolean> {
-        const flag = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.MobileSettings,
-        });
-        return flag.enabled;
-    }
-
-    private async isQrSignInEnabled(
-        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-    ): Promise<boolean> {
-        const flag = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.MobileQrSignIn,
-        });
-        return flag.enabled;
-    }
-
     private static refusalError(refusal: MobileSignInRefusal): ForbiddenError {
         return new ForbiddenError(
             WEB_REFUSAL_MESSAGES[refusal] ?? 'Sign-in codes are not available',
@@ -380,12 +354,6 @@ export class MobileSignInService extends BaseService {
             ))
         ) {
             return MobileSignInRefusal.MOBILE_APP_DISABLED;
-        }
-        if (!(await this.isEnabled(user))) {
-            return MobileSignInRefusal.FEATURE_DISABLED;
-        }
-        if (!(await this.isQrSignInEnabled(user))) {
-            return MobileSignInRefusal.QR_SIGN_IN_DISABLED;
         }
         return null;
     }

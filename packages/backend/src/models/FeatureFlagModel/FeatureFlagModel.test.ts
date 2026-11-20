@@ -156,7 +156,6 @@ const buildFakeWriteDatabase = ({
 
 describe('FeatureFlagModel', () => {
     describe.each([
-        FeatureFlags.MobileQrSignIn,
         FeatureFlags.DbtPartialParse,
         FeatureFlags.AgentIdentity,
         FeatureFlags.BigqueryWorkloadIdentityAuth,
@@ -868,7 +867,7 @@ describe('FeatureFlagModel', () => {
     });
 });
 
-describe('mobile QR deployment defaults', () => {
+describe('organization flag deployment defaults', () => {
     it.each([false, true])(
         'uses the deployment database default: %s',
         async (enabled) => {
@@ -877,8 +876,10 @@ describe('mobile QR deployment defaults', () => {
                 buildFakeDatabase({ flag: { default_enabled: enabled } }),
             );
             expect(
-                await model.get({ featureFlagId: FeatureFlags.MobileQrSignIn }),
-            ).toEqual({ id: FeatureFlags.MobileQrSignIn, enabled });
+                await model.get({
+                    featureFlagId: FeatureFlags.DbtPartialParse,
+                }),
+            ).toEqual({ id: FeatureFlags.DbtPartialParse, enabled });
         },
     );
 
@@ -900,7 +901,7 @@ describe('mobile QR deployment defaults', () => {
         );
         const get = (organizationUuid = dbUser.organizationUuid) =>
             model.get({
-                featureFlagId: FeatureFlags.MobileQrSignIn,
+                featureFlagId: FeatureFlags.DbtPartialParse,
                 user: { organizationUuid },
             });
         expect((await get()).enabled).toBe(true);
@@ -917,7 +918,7 @@ describe('mobile QR deployment defaults', () => {
         );
         const get = () =>
             model.get({
-                featureFlagId: FeatureFlags.MobileQrSignIn,
+                featureFlagId: FeatureFlags.DbtPartialParse,
                 user: { organizationUuid: dbUser.organizationUuid },
             });
         expect((await get()).enabled).toBe(true);

@@ -21,10 +21,7 @@ const user = {
     organizationUuid: ORG_UUID,
 } as SessionUser;
 
-const setup = ({
-    flagEnabled = true,
-    counter = 1,
-}: { flagEnabled?: boolean; counter?: number } = {}) => {
+const setup = ({ counter = 1 }: { counter?: number } = {}) => {
     const mobileAppLinkModel = {
         create: vi.fn(async () => ({
             linkUuid: LINK_UUID,
@@ -58,21 +55,14 @@ const setup = ({
             }) => counter,
         ),
     };
-    const featureFlagModel = {
-        get: vi.fn(async () => ({
-            id: 'mobile-settings',
-            enabled: flagEnabled,
-        })),
-    };
     const analytics = { track: vi.fn() };
     const service = new MobileAppService({
         mobileAppLinkModel,
-        featureFlagModel,
         analytics,
         lightdashConfig: { siteUrl: 'https://app.example.com/' },
         now: () => NOW,
     });
-    return { service, mobileAppLinkModel, featureFlagModel, analytics };
+    return { service, mobileAppLinkModel, analytics };
 };
 
 describe('MobileAppService.createLink', () => {
@@ -94,13 +84,6 @@ describe('MobileAppService.createLink', () => {
                 linkUuid: LINK_UUID,
             },
         });
-    });
-
-    it('refuses when the flag is off', async () => {
-        const { service, mobileAppLinkModel } = setup({ flagEnabled: false });
-
-        await expect(service.createLink(user)).rejects.toThrow(ForbiddenError);
-        expect(mobileAppLinkModel.create).not.toHaveBeenCalled();
     });
 
     it('refuses a user with no organization', async () => {
@@ -165,12 +148,16 @@ describe('MobileAppService.getLinkStatus', () => {
         expect(mobileAppLinkModel.findForUser).not.toHaveBeenCalled();
     });
 
-    it('refuses when the flag is off', async () => {
-        const { service } = setup({ flagEnabled: false });
+    it('refuses a user with no organization', async () => {
+        const { service, mobileAppLinkModel } = setup();
 
-        await expect(service.getLinkStatus(user, LINK_UUID)).rejects.toThrow(
-            ForbiddenError,
-        );
+        await expect(
+            service.getLinkStatus(
+                { ...user, organizationUuid: undefined },
+                LINK_UUID,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(mobileAppLinkModel.findForUser).not.toHaveBeenCalled();
     });
 });
 

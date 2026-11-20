@@ -80,10 +80,6 @@ export const useSettingsContext = (): SettingsContext => {
     const { data: apiQuerySourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ApiQuerySources,
     );
-    const {
-        data: mobileSettingsFlag,
-        isInitialLoading: isMobileSettingsFlagLoading,
-    } = useServerFeatureFlag(FeatureFlags.MobileSettings);
     // The roadmap proxy is only registered behind a validated enterprise license.
     const isOrganizationRoadmapEnabled = health?.license?.valid === true;
     const {
@@ -233,8 +229,6 @@ export const useSettingsContext = (): SettingsContext => {
         isDataAppsFlagLoading: dataAppsFlagQuery.isInitialLoading,
         isChartStudioAvailable,
         isApiQuerySourcesEnabled: apiQuerySourcesFlag?.enabled ?? false,
-        isMobileSettingsEnabled: mobileSettingsFlag?.enabled ?? false,
-        isMobileSettingsFlagLoading,
         isResultsCacheAvailable,
         embeddingEnabled,
         allowPasswordAuthentication,

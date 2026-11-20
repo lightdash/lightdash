@@ -1851,7 +1851,6 @@ export class ServiceRepository
             () =>
                 new MobileAppService({
                     mobileAppLinkModel: this.models.getMobileAppLinkModel(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                     analytics: this.context.lightdashAnalytics,
                     lightdashConfig: this.context.lightdashConfig,
                 }),

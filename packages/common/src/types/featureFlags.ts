@@ -275,21 +275,11 @@ export enum FeatureFlags {
      */
     AthenaWebIdentityAuth = 'athena-web-identity-auth',
     /**
-     * Organization-scoped: the Mobile page under Your settings, with links to
-     * install and sign in to the mobile apps. Off by default.
-     */
-    MobileSettings = 'mobile-settings',
-    /**
      * Organization-scoped: the Billing page under Organization settings, which
      * opens the customer billing portal. Cloud and development modes only.
      * Off by default.
      */
     BillingPortal = 'billing-portal',
-    /**
-     * Organization-scoped: the sign-in step on the Mobile page and its
-     * endpoints. Off by default until an app release supports QR sign-in.
-     */
-    MobileQrSignIn = 'mobile-qr-sign-in',
     /**
      * Organization-scoped, on by default: the organization can use the mobile
      * apps. An organization override set to off denies every mobile sign-in

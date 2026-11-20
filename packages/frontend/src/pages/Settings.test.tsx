@@ -618,16 +618,16 @@ describe('Mobile settings route', () => {
     });
     afterEach(() => viewport.restore());
 
-    it('does not open the Mobile page when mobile-settings is off', async () => {
+    it('opens the Mobile page and lists it under Your settings', async () => {
         renderSettings('', [viewProject], true, '/generalSettings/mobile');
         expect(
-            await screen.findByRole('heading', { name: 'Profile' }),
-        ).toBeInTheDocument();
+            await screen.findByRole('link', { name: 'Mobile' }),
+        ).toBeVisible();
         expect(
-            screen.queryByRole('heading', { name: 'Mobile' }),
-        ).not.toBeInTheDocument();
+            screen.getByRole('status', { name: 'Current URL' }),
+        ).toHaveTextContent('/generalSettings/mobile');
         expect(
-            screen.queryByRole('link', { name: 'Mobile' }),
+            screen.queryByRole('heading', { name: 'Profile' }),
         ).not.toBeInTheDocument();
     });
 });
