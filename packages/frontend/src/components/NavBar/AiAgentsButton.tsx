@@ -1,9 +1,16 @@
-import { Anchor, Button, HoverCard, Stack, Text } from '@mantine/core';
+import {
+    Anchor,
+    Button,
+    Center,
+    HoverCard,
+    Loader,
+    Stack,
+    Text,
+} from '@mantine/core';
 import { IconArrowRight } from '@tabler/icons-react';
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { AiAgentIcon } from '../../ee/features/aiCopilot/components/AiAgentIcon';
-import { ReviewFindingsPreview } from '../../ee/features/aiCopilot/components/ReviewFindingsPreview';
 import {
     useAiAgentAdminProjectPromptActivity,
     useAiAgentAdminReviewItems,
@@ -13,6 +20,13 @@ import { useAiAgentButtonVisibility } from '../../ee/features/aiCopilot/hooks/us
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import MantineIcon from '../common/MantineIcon';
 import { useNavBarPortalTarget } from './NavBarPortalContext';
+
+// Its sparkline pulls in the chart engine, so it loads when the card opens.
+const ReviewFindingsPreview = lazy(() =>
+    import('../../ee/features/aiCopilot/components/ReviewFindingsPreview').then(
+        (m) => ({ default: m.ReviewFindingsPreview }),
+    ),
+);
 
 const PREVIEW_LIMIT = 3;
 const PROMPT_TREND_DAYS = 30;
@@ -171,14 +185,22 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
                 </Button>
             </HoverCard.Target>
             <HoverCard.Dropdown p="xs">
-                <ReviewFindingsPreview
-                    items={projectReviewItems.slice(0, PREVIEW_LIMIT)}
-                    totalOpen={reviewCount}
-                    reviewsUrl={reviewsUrl}
-                    promptTrend={promptActivityQuery.data ?? []}
-                    promptTrendDays={PROMPT_TREND_DAYS}
-                    isLoadingPromptTrend={promptActivityQuery.isFetching}
-                />
+                <Suspense
+                    fallback={
+                        <Center p="sm">
+                            <Loader size="xs" />
+                        </Center>
+                    }
+                >
+                    <ReviewFindingsPreview
+                        items={projectReviewItems.slice(0, PREVIEW_LIMIT)}
+                        totalOpen={reviewCount}
+                        reviewsUrl={reviewsUrl}
+                        promptTrend={promptActivityQuery.data ?? []}
+                        promptTrendDays={PROMPT_TREND_DAYS}
+                        isLoadingPromptTrend={promptActivityQuery.isFetching}
+                    />
+                </Suspense>
             </HoverCard.Dropdown>
         </HoverCard>
     );
