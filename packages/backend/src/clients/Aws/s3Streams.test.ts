@@ -2,6 +2,7 @@ import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import http, { type IncomingMessage, type ServerResponse } from 'http';
 import { type AddressInfo } from 'net';
 import { PassThrough, type Readable } from 'stream';
+import Logger from '../../logging/logger';
 import { buildS3ClientConfig } from './S3BaseClient';
 import { destroyS3Body, pipeS3BodyToResponse } from './s3Streams';
 import { ChecksumStreamStandIn } from './s3Streams.testUtils';
@@ -83,6 +84,7 @@ describe('pipeS3BodyToResponse', () => {
     const servers: http.Server[] = [];
 
     afterEach(() => {
+        vi.restoreAllMocks();
         servers.splice(0).forEach((server) => {
             server.closeAllConnections();
             server.close();
@@ -181,7 +183,22 @@ describe('pipeS3BodyToResponse', () => {
         });
     });
 
+    it('destroys the body when the client left before streaming started', async () => {
+        const warn = vi.spyOn(Logger, 'warn');
+        const source = new PassThrough();
+        const body = new ChecksumStreamStandIn(source);
+        const res = new PassThrough();
+        res.destroy();
+
+        await pipeS3BodyToResponse(body, res as unknown as ServerResponse);
+
+        expect(body.destroyed).toBe(true);
+        expect(source.destroyed).toBe(true);
+        expect(warn).not.toHaveBeenCalled();
+    });
+
     it('resets the connection when the body fails', async () => {
+        const warn = vi.spyOn(Logger, 'warn');
         const body = new PassThrough();
         let piped: Promise<void> = Promise.resolve();
         const backend = await listen((_req, res) => {
@@ -194,5 +211,8 @@ describe('pipeS3BodyToResponse', () => {
         await expect(get(backend.port)).rejects.toThrow();
         await expect(piped).resolves.toBeUndefined();
         expect(body.destroyed).toBe(true);
+        expect(warn).toHaveBeenCalledWith(
+            expect.stringContaining('ECONNRESET'),
+        );
     });
 });

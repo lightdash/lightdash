@@ -14,6 +14,7 @@ import express from 'express';
 import path from 'path';
 import { pipeline } from 'stream/promises';
 import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
+import { destroyS3Body } from '../clients/Aws/s3Streams';
 import { getSafeContentDispositionHeader } from '../utils/FileDownloadUtils/FileDownloadUtils';
 import { allowApiKeyAuthentication } from './authentication';
 import { BaseController } from './baseController';
@@ -98,6 +99,7 @@ export class FileController extends BaseController {
         try {
             await pipeline(stream, res);
         } catch (error) {
+            destroyS3Body(stream);
             // If we've already started writing the response body there's
             // nothing useful we can send back to the client — just make sure
             // the socket is torn down. Otherwise let TSOA turn the error into

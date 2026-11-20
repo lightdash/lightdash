@@ -1,6 +1,8 @@
+import { getErrorMessage } from '@lightdash/common';
 import type { ServerResponse } from 'http';
 import type { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
+import Logger from '../../logging/logger';
 
 /**
  * Destroys an S3 GetObject body and the HTTP response behind it.
@@ -31,7 +33,16 @@ export async function pipeS3BodyToResponse(
 ): Promise<void> {
     try {
         await pipeline(body, res);
-    } catch {
+    } catch (error) {
         destroyS3Body(body);
+        const { code } = error as NodeJS.ErrnoException;
+        if (
+            code !== 'ERR_STREAM_PREMATURE_CLOSE' &&
+            code !== 'ERR_STREAM_UNABLE_TO_PIPE'
+        ) {
+            Logger.warn(
+                `Streaming S3 body to response failed: ${getErrorMessage(error)}`,
+            );
+        }
     }
 }
