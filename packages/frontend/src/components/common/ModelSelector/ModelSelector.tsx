@@ -13,6 +13,7 @@ import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useUiString } from '../../../ee/providers/Embed/useUiStrings';
 import MantineIcon from '../MantineIcon';
+import TruncatedText from '../TruncatedText';
 import { RetiredModelBadge } from './RetiredModelBadge';
 import {
     filterDeprecatedModelsForPicker,
@@ -103,12 +104,24 @@ export const ModelSelector: FC<Props> = ({
                         />
                     }
                 >
-                    <Group gap={6} wrap="nowrap">
-                        <Text size="xs" fw={600} span>
+                    <Group gap={6} wrap="nowrap" miw={0}>
+                        <TruncatedText
+                            maxWidth="100%"
+                            inline
+                            size="xs"
+                            fz="xs"
+                            fw={600}
+                        >
                             {selectedModel?.displayName ?? 'Select model'}
-                        </Text>
+                        </TruncatedText>
                         {showReasoning && reasoningLabel && (
-                            <Text size="xs" fw={500} c="dimmed" span>
+                            <Text
+                                size="xs"
+                                fw={500}
+                                c="dimmed"
+                                span
+                                flex="none"
+                            >
                                 {reasoningLabel}
                             </Text>
                         )}

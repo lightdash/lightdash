@@ -1781,7 +1781,12 @@ export const AgentChatInput = ({
                             </Group>
                         }
                         toolbarRight={
-                            <Group gap="xs" align="center" wrap="nowrap">
+                            <Group
+                                gap="xs"
+                                align="center"
+                                wrap="nowrap"
+                                miw={0}
+                            >
                                 <Box
                                     className={styles.toolbarSelectors}
                                     data-compact={isCompactLayout}
