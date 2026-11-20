@@ -146,7 +146,13 @@ describe('streaming an answer', () => {
             await act(async () => stream.set(next));
         }
 
-        expect(await screen.findByText(lastParagraph)).toBeInTheDocument();
+        expect(
+            await screen.findByText(
+                (_, element) =>
+                    element?.tagName === 'P' &&
+                    element.textContent === lastParagraph,
+            ),
+        ).toBeInTheDocument();
         expect(stream.parses).toBeGreaterThan(0);
         expect(stream.parses).toBeLessThanOrEqual(frames);
     });

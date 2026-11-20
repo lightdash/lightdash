@@ -126,3 +126,27 @@ describe('AiMarkdown code blocks', () => {
         expect(getComputedStyle(header).display).toBe('none');
     });
 });
+
+describe('AiMarkdown streaming', () => {
+    it('wraps streamed words for the fade-in, and a finished answer not at all', () => {
+        const markdown = 'Revenue grew **12%** last quarter.';
+        const { container, rerender } = renderWithProviders(
+            <AiMarkdown isStreaming>{markdown}</AiMarkdown>,
+        );
+
+        const words = Array.from(
+            container.querySelectorAll('[data-sd-animate]'),
+        ).map((span) => span.textContent);
+        expect(words).toStrictEqual([
+            'Revenue',
+            'grew',
+            '12%',
+            'last',
+            'quarter.',
+        ]);
+
+        rerender(<AiMarkdown>{markdown}</AiMarkdown>);
+        expect(container.querySelector('[data-sd-animate]')).toBeNull();
+        expect(container).toHaveTextContent(markdown.replaceAll('**', ''));
+    });
+});
