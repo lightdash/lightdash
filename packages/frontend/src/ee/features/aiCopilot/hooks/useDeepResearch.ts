@@ -419,6 +419,7 @@ export const useDeepResearchThreadRunRegistrationState = ({
     return {
         registrations,
         isReady: serverRuns.isSuccess && !serverRuns.isFetching,
+        isInitialLoading: serverRuns.isInitialLoading,
     };
 };
 
