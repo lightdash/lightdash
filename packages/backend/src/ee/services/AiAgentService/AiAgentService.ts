@@ -223,6 +223,7 @@ import {
     type AiDeepResearchPhase,
     type AiPromptContextInput,
     type AiPromptContextItem,
+    type AiPromptContextItemInput,
     type AiSemanticChartArtifactConfig,
     type AiThreadCreatedFrom,
     type AiWebAppThreadCreatedFrom,
@@ -381,6 +382,7 @@ import { DocumentService } from '../../../services/DocumentService/DocumentServi
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { GithubAppService } from '../../../services/GithubAppService/GithubAppService';
 import { PersistentDownloadFileService } from '../../../services/PersistentDownloadFileService/PersistentDownloadFileService';
+import { developmentView } from '../../../services/ProjectService/developmentView';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
     describeLiveTarget,
@@ -521,10 +523,10 @@ import {
     type DocumentEditResolution,
 } from '../ai/decisions/documentEdit';
 import { composeInstantReply } from '../ai/decisions/instantReplies';
+import { getPreviousAnswer } from '../ai/decisions/previousAnswer';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
 import {
-    findPreferredPreset,
     getCompactionModelMetadata,
     getDefaultModel,
     getModel,
@@ -534,7 +536,6 @@ import {
     resolveKeyManagement,
     resolveModelConfigForPrompt,
 } from '../ai/models';
-import { type ModelTier } from '../ai/models/presets';
 import {
     OrgAiCopilotConfigResolver,
     type AiConfigScope,
@@ -600,6 +601,7 @@ import {
     EditProjectContextFn,
     ExploreRepoFn,
     ExportCustomChartTypeImageFn,
+    GetExploreFn,
     GetPromptFn,
     GetPullRequestDiffFn,
     ListWorkstreamsFn,
@@ -608,6 +610,7 @@ import {
     ReadSemanticModelFn,
     RecordMcpToolCallFn,
     RecordPromptDecisionFn,
+    RunAsyncQueryFn,
     SendFileFn,
     SendSlackBlocksFn,
     StoreLoadoutFn,
@@ -732,7 +735,7 @@ import { type ExternalConnectionService } from '../ExternalConnectionService/Ext
 import { type MobilePushNotificationService } from '../MobilePushNotificationService/MobilePushNotificationService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import { createReviewRemediationAgentWorkGuard } from '../reviewRemediationAgentWork';
-import { SEMANTIC_STUDIO_MODEL_TIER } from '../SemanticStudioService/modelPreference';
+import { findSemanticStudioPreset } from '../SemanticStudioService/modelPreference';
 import { type SemanticStudioService } from '../SemanticStudioService/SemanticStudioService';
 import {
     parseAgentSelectionValue,
@@ -750,6 +753,12 @@ import {
     redactStreamToolOutputs,
     redactThreadToolResults,
 } from './embedDebugRedaction';
+import {
+    agentsReachingPinnedSpaces,
+    isOutsideAgentSpaces,
+    OUTSIDE_AGENT_SPACES_NOTE,
+    spaceScopedPinnedUuid,
+} from './pinnedOutsideAgentSpaces';
 import {
     responseMatchesPromptInputRequestGate,
     runPromptInputRequestClassification,
@@ -1534,7 +1543,7 @@ export class AiAgentService extends BaseService {
         threadModelConfig,
         agentModelConfig,
         requestedModelConfig,
-        preferredTier,
+        prefersStudioModel,
     }: {
         organizationUuid: string;
         projectUuid: string;
@@ -1542,8 +1551,8 @@ export class AiAgentService extends BaseService {
         threadModelConfig: AiAgentModelConfig | null;
         agentModelConfig: AiAgentModelConfig | null;
         requestedModelConfig: AiAgentModelConfig | null;
-        /** The tier to prefer when nobody chose a model; null to take the default. */
-        preferredTier: ModelTier | null;
+        /** Whether the thread is a Studio one, which has its own model when nobody chose one. */
+        prefersStudioModel: boolean;
     }): Promise<AiAgentModelConfig | null> {
         if (threadModelConfig) return threadModelConfig;
         const pickedModelConfig = requestedModelConfig ?? agentModelConfig;
@@ -1552,7 +1561,7 @@ export class AiAgentService extends BaseService {
             (await this.aiOrganizationSettingsService.getDefaultModelConfig(
                 organizationUuid,
             ));
-        if (!modelConfig && !preferredTier) return null;
+        if (!modelConfig && !prefersStudioModel) return null;
         const { catalogue, copilotConfig } =
             await this.orgAiCopilotConfigResolver.getOrgModelCatalogue({
                 organizationUuid,
@@ -1569,14 +1578,15 @@ export class AiAgentService extends BaseService {
         const inherited = resolved
             ? reconcileInheritedModelConfig(copilotConfig, resolved)
             : null;
-        // A preference only replaces a model nobody chose, and only within the provider already in use.
-        const provider =
-            inherited?.modelProvider ??
-            getDefaultModel(copilotConfig)?.provider;
-        const preferred =
-            preferredTier && provider
-                ? findPreferredPreset(catalogue, provider, preferredTier)
-                : null;
+        // A preference only replaces a model nobody chose, among those the org is offered.
+        const preferred = prefersStudioModel
+            ? findSemanticStudioPreset(
+                  catalogue,
+                  inherited?.modelProvider ??
+                      getDefaultModel(copilotConfig)?.provider ??
+                      null,
+              )
+            : null;
         if (!preferred) return inherited;
         this.logger.info(
             `Running a thread on preferred model "${preferred.provider}/${preferred.name}" in place of ${inherited ? `"${inherited.modelProvider}/${inherited.modelName}"` : 'the instance default'}`,
@@ -5965,10 +5975,7 @@ export class AiAgentService extends BaseService {
             threadModelConfig: null,
             agentModelConfig: agent.modelConfig,
             requestedModelConfig: body.modelConfig ?? null,
-            preferredTier:
-                body.createdFrom === 'semantic_studio'
-                    ? SEMANTIC_STUDIO_MODEL_TIER
-                    : null,
+            prefersStudioModel: body.createdFrom === 'semantic_studio',
         });
 
         if (body.prompt) {
@@ -6195,10 +6202,7 @@ export class AiAgentService extends BaseService {
                 await this.aiAgentModel.findThreadModelConfig(threadUuid),
             agentModelConfig: agent.modelConfig,
             requestedModelConfig: body.modelConfig ?? null,
-            preferredTier:
-                thread.createdFrom === 'semantic_studio'
-                    ? SEMANTIC_STUDIO_MODEL_TIER
-                    : null,
+            prefersStudioModel: thread.createdFrom === 'semantic_studio',
         });
 
         const messageUuid = await this.aiAgentModel.createWebAppPrompt({
@@ -8798,11 +8802,14 @@ export class AiAgentService extends BaseService {
             deferCurrentVerifiedExamples = false,
             enableFastDecisions = true,
             aiCreditCheck,
+            flagPinnedOutsideAgentSpaces = true,
         }: {
             agentUuid: string;
             threadUuid: string;
             promptUuid?: string;
             aiCreditCheck: AiCreditCheck | null;
+            /** Off for embeds, whose space limits come from the token, not the agent. */
+            flagPinnedOutsideAgentSpaces?: boolean;
             retrieveRelevantArtifacts?: boolean;
             enableFastDecisions?: boolean;
             /** Look up the prompt's verified examples without blocking fast decisions on them. */
@@ -8996,6 +9003,9 @@ export class AiAgentService extends BaseService {
                 agentCredentialUuid: agent.providerCredentialUuid,
             })),
             threadUuid: prompt.threadUuid,
+            agentScope: flagPinnedOutsideAgentSpaces
+                ? { user, spaceAccess: agent.spaceAccess }
+                : null,
         };
         // Fast decisions only need the conversation; the example lookup embeds the
         // prompt, so it starts now and the agent awaits it only if it runs.
@@ -9284,6 +9294,7 @@ export class AiAgentService extends BaseService {
                 deferCurrentVerifiedExamples: true,
                 enableFastDecisions,
                 aiCreditCheck: { isEmbedViewer: runtimeOptions !== undefined },
+                flagPinnedOutsideAgentSpaces: runtimeOptions === undefined,
                 onPromptResolved: (promptUuid, responseState) => {
                     trackedPromptUuid = promptUuid;
                     this.trackStreamPrompt(promptUuid, responseState);
@@ -10128,6 +10139,7 @@ export class AiAgentService extends BaseService {
                         ? execution.runUuid
                         : null,
                 aiCreditCheck,
+                flagPinnedOutsideAgentSpaces: !aiCreditCheck?.isEmbedViewer,
                 onPromptResolved: (uuid) => {
                     resolvedPromptUuid = uuid;
                 },
@@ -13157,6 +13169,8 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
         context: AiPromptContext,
         options: {
             threadFiles?: Map<string, { content: string; path: string }>;
+            /** Pinned items the agent's space limits keep it from reading. */
+            outsideAgentSpaces?: ReadonlySet<string>;
         } = {},
     ): UserModelMessage | null {
         if (context.length === 0) return null;
@@ -13166,7 +13180,7 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
         let inlineBudget = AI_THREAD_FILE_INLINE_BUDGET_BYTES;
         const inlinedFiles: { path: string; content: string }[] = [];
 
-        const lines = context.map((item) => {
+        const describeItem = (item: AiPromptContextItem): string => {
             switch (item.type) {
                 case 'chart': {
                     const name = item.displayName ?? '(name unavailable)';
@@ -13378,6 +13392,17 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                         'Unknown AiPromptContextItem type',
                     );
             }
+        };
+        const lines = context.map((item) => {
+            const line = describeItem(item);
+            const pinnedUuid = spaceScopedPinnedUuid(item);
+            if (!pinnedUuid || !options.outsideAgentSpaces?.has(pinnedUuid)) {
+                return line;
+            }
+            const [headline, ...rest] = line.split('\n');
+            return [`${headline}${OUTSIDE_AGENT_SPACES_NOTE}`, ...rest].join(
+                '\n',
+            );
         });
 
         // A per-message random tag name means file content cannot close the
@@ -13701,6 +13726,123 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         }
     }
 
+    /**
+     * Space of each pinned dashboard, chart and data app, keyed by its id.
+     * Items the user cannot open are left out, so nothing here is new to them.
+     */
+    private async findPinnedSpaces(
+        user: SessionUser,
+        projectUuid: string,
+        pinned: (AiPromptContextItem | AiPromptContextItemInput)[],
+    ): Promise<Map<string, string | null>> {
+        const items = new Map<
+            string,
+            AiPromptContextItem | AiPromptContextItemInput
+        >();
+        for (const item of pinned) {
+            const uuid = spaceScopedPinnedUuid(item);
+            if (uuid) items.set(uuid, item);
+        }
+        const spaceUuidOf = async (
+            item: AiPromptContextItem | AiPromptContextItemInput,
+        ): Promise<string | null | undefined> => {
+            switch (item.type) {
+                case 'dashboard':
+                    return (
+                        await this.dashboardService.getByIdOrSlug(
+                            user,
+                            item.dashboardUuid,
+                            { projectUuid },
+                        )
+                    ).spaceUuid;
+                case 'chart':
+                    return (
+                        await this.savedChartService.get(
+                            item.chartUuid,
+                            fromSession(user),
+                            { projectUuid },
+                        )
+                    ).spaceUuid;
+                case 'data_app': {
+                    const app = await this.appModel.findAppByUuid(item.appUuid);
+                    if (
+                        !app ||
+                        app.project_uuid !== projectUuid ||
+                        !(await this.appGenerateService.canViewApp(user, app))
+                    ) {
+                        return undefined;
+                    }
+                    return app.space_uuid;
+                }
+                default:
+                    return undefined;
+            }
+        };
+        const found = await Promise.all(
+            [...items].map(async ([uuid, item]) => {
+                try {
+                    const spaceUuid = await spaceUuidOf(item);
+                    return spaceUuid === undefined
+                        ? null
+                        : ([uuid, spaceUuid] as const);
+                } catch {
+                    return null;
+                }
+            }),
+        );
+        return new Map(
+            found.filter(
+                (entry): entry is readonly [string, string | null] =>
+                    entry !== null,
+            ),
+        );
+    }
+
+    /** Agents whose spaces hold everything the user pinned; all of them when none do. */
+    public async filterAgentsReachingPinnedContext<
+        T extends { spaceAccess: string[] },
+    >(
+        user: SessionUser,
+        projectUuid: string,
+        agents: T[],
+        context: AiPromptContextInput,
+    ): Promise<T[]> {
+        if (!agents.some((agent) => agent.spaceAccess.length > 0)) {
+            return agents;
+        }
+        const pinnedSpaces = await this.findPinnedSpaces(
+            user,
+            projectUuid,
+            context,
+        );
+        return agentsReachingPinnedSpaces(agents, [...pinnedSpaces.values()]);
+    }
+
+    // The user attached these, so naming them as out of reach reveals nothing
+    // they cannot already see. Items the user cannot open are left unflagged.
+    private async findPinnedOutsideAgentSpaces(
+        contextMap: Map<string, AiPromptContext>,
+        projectUuid: string,
+        agentScope: { user: SessionUser; spaceAccess: string[] } | null,
+    ): Promise<Set<string>> {
+        if (!agentScope || agentScope.spaceAccess.length === 0) {
+            return new Set();
+        }
+        const { user, spaceAccess } = agentScope;
+        const pinnedSpaces = await this.findPinnedSpaces(
+            user,
+            projectUuid,
+            [...contextMap.values()].flat(),
+        );
+        return new Set(
+            [...pinnedSpaces]
+                .filter(([, spaceUuid]) =>
+                    isOutsideAgentSpaces(spaceAccess, spaceUuid),
+                )
+                .map(([uuid]) => uuid),
+        );
+    }
+
     // Only files the thread owns are readable; a pinned row can only reference
     // a file claimed by this thread, so the thread lookup is the boundary.
     private async getThreadFiles(
@@ -13738,6 +13880,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             currentPromptExamples?: CurrentPromptExamples;
             pendingRejectedSqlApprovalResults?: Parameters<StoreToolResultsFn>[0];
             threadUuid: string;
+            /** The answering agent's space limits, to flag pinned items it cannot read. */
+            agentScope?: { user: SessionUser; spaceAccess: string[] } | null;
         },
     ): Promise<ModelMessage[]> {
         const currentPromptExamples = options.currentPromptExamples ?? {
@@ -13748,10 +13892,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         );
         const contextMap =
             await this.aiAgentModel.getContextForPromptUuids(promptUuids);
-        const threadFiles = await this.getThreadFiles(
-            options.threadUuid,
-            contextMap,
-        );
+        const [threadFiles, outsideAgentSpaces] = await Promise.all([
+            this.getThreadFiles(options.threadUuid, contextMap),
+            this.findPinnedOutsideAgentSpaces(
+                contextMap,
+                options.projectUuid,
+                options.agentScope ?? null,
+            ),
+        ]);
 
         const messagesWithToolCalls = await Promise.all(
             threadMessages.map(async (message, index) => {
@@ -13768,7 +13916,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 const pinnedContextMessage =
                     AiAgentService.createPinnedContextMessage(
                         contextMap.get(message.ai_prompt_uuid) ?? [],
-                        { threadFiles },
+                        { threadFiles, outsideAgentSpaces },
                     );
                 if (pinnedContextMessage) {
                     messages.push(pinnedContextMessage);
@@ -15213,6 +15361,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 );
             }
             let { script } = args;
+            let diffs: string[] | null = null;
             if (script) {
                 // Run it once now so a broken script goes back to the model instead of failing in the background.
                 const checked = await this.aiWritebackService.saveWithScript(
@@ -15242,6 +15391,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 );
                 if (checked?.status === 'script_failed') return checked;
                 if (checked === null) script = null;
+                if (checked?.status === 'checked') diffs = checked.diffs;
             }
             const { aiWritebackRunUuid } =
                 await this.aiWritebackService.createPendingRun({
@@ -15283,6 +15433,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 status: 'started',
                 aiWritebackRunUuid,
                 inSandbox: !script,
+                diffs,
             };
         };
 
@@ -15613,6 +15764,34 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         const listChanges = () =>
             this.semanticStudioService.listChanges(user, projectUuid);
 
+        // Studio queries read the person's draft over what is published, the way trying their changes does.
+        const inDraft = <T>(run: () => Promise<T>): Promise<T> => {
+            let drafted:
+                | ReturnType<SemanticStudioService['findDevelopmentExplores']>
+                | undefined;
+            // Reading the draft reads the project itself, which must see what is published.
+            const findExplores = () => {
+                drafted ??= developmentView.exit(() =>
+                    this.semanticStudioService.findDevelopmentExplores(
+                        user,
+                        projectUuid,
+                    ),
+                );
+                return drafted;
+            };
+            return developmentView.run(
+                {
+                    findExplores,
+                    hasChanges: async () => (await findExplores()) !== null,
+                },
+                run,
+            );
+        };
+        const getDraftExplore: GetExploreFn = (args) =>
+            inDraft(() => toolsRuntime.getExplore(args));
+        const runDraftQuery: RunAsyncQueryFn = (...args) =>
+            inDraft(() => toolsRuntime.runAsyncQuery(...args));
+
         const readSemanticModel: ReadSemanticModelFn = (name) =>
             this.semanticStudioService.readDraftedModel(
                 user,
@@ -15719,6 +15898,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             runComposerQueries: toolsRuntime.runComposerQueries,
             listWarehouseTables: toolsRuntime.listWarehouseTables,
             describeWarehouseTable: toolsRuntime.describeWarehouseTable,
+            listWarehouseColumns: toolsRuntime.listWarehouseColumns,
             listKnowledgeDocuments: toolsRuntime.listKnowledgeDocuments,
             getKnowledgeDocumentContent:
                 toolsRuntime.getKnowledgeDocumentContent,
@@ -15750,6 +15930,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             editProjectContext,
             proposeSemanticLayerChange,
             listChanges,
+            getDraftExplore,
+            runDraftQuery,
             readSemanticModel,
             exploreRepo,
             readAttachments,
@@ -17478,6 +17660,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                               prompt: prompt.prompt,
                               instructions: agentSettings.instruction,
                               conversation: decisionHistory.slice(-3),
+                              previousAnswer:
+                                  getPreviousAnswer(decisionHistory),
                               context: chartTurn?.intentContext ?? null,
                           })
                         : null);
@@ -17838,7 +18022,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                             user,
                             projectUuid: prompt.projectUuid,
                             agentUuid: agentSettings.uuid,
+                            // Studio's loadout takes no MCP tools, so its turns do not wait on those servers.
                             includeAttachedMcpServers:
+                                !isSemanticStudioThread &&
                                 shouldIncludeAttachedMcpServers(
                                     responseExecution.mode,
                                     responseExecution.mode === 'deep_research'
@@ -17899,14 +18085,16 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         user,
                         featureFlagId: FeatureFlags.AiFilterExpressions,
                     });
+                // Studio's chat offers a change as a choice, so its threads ask without the flag.
                 const enableAskUser =
                     canOfferAskUser(prompt, responseExecution.mode) &&
-                    (
-                        await this.featureFlagService.get({
-                            user,
-                            featureFlagId: FeatureFlags.AiAgentAskUser,
-                        })
-                    ).enabled;
+                    (isSemanticStudioThread ||
+                        (
+                            await this.featureFlagService.get({
+                                user,
+                                featureFlagId: FeatureFlags.AiAgentAskUser,
+                            })
+                        ).enabled);
                 // A dbt project keeps no draft in Semantic Studio; its thread edits the repository instead.
                 const semanticStudioStatus = isSemanticStudioThread
                     ? await this.semanticStudioService.getStatus(
@@ -18122,6 +18310,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     runComposerQueries,
                     listWarehouseTables,
                     describeWarehouseTable,
+                    listWarehouseColumns,
                     listKnowledgeDocuments,
                     getKnowledgeDocumentContent,
                     getSavedChart,
@@ -18144,6 +18333,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     editProjectContext,
                     proposeSemanticLayerChange,
                     listChanges,
+                    getDraftExplore,
+                    runDraftQuery,
                     readSemanticModel,
                     exploreRepo,
                     readAttachments,
@@ -18625,6 +18816,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     runComposerQueries,
                     listWarehouseTables,
                     describeWarehouseTable,
+                    listWarehouseColumns,
                     listKnowledgeDocuments,
                     getKnowledgeDocumentContent,
                     // Only conversations pinned as context on this thread are
@@ -18671,6 +18863,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     editProjectContext,
                     proposeSemanticLayerChange,
                     listChanges,
+                    getDraftExplore,
+                    runDraftQuery,
                     readSemanticModel,
                     exploreRepo,
                     readAttachments,
@@ -19289,7 +19483,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 : null,
             agentModelConfig: agent?.modelConfig ?? null,
             requestedModelConfig: data.modelConfig ?? null,
-            preferredTier: null,
+            prefersStudioModel: false,
         });
 
         if (!threadUuid) {
@@ -20612,6 +20806,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 case 'searchSemanticLayer':
                 case 'listWarehouseTables':
                 case 'describeWarehouseTable':
+                case 'grepWarehouseColumns':
                     return 'Reviewing the semantic layer...';
                 case 'generateVisualization':
                 case 'generateDashboard':
@@ -20621,6 +20816,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 case 'query':
                 case 'runComposerQueries':
                 case 'runContentQuery':
+                case 'runMetricQuery':
                 case 'runSavedChart':
                 case 'runQuery':
                     return 'Reviewing the results...';

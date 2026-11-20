@@ -41,7 +41,12 @@ import {
     type NodeRef,
     type TreeNode,
 } from './model';
-import { CHANGE_KIND_LABELS, getModelCodeSearch } from './modelCode';
+import {
+    CHANGE_KIND_LABELS,
+    describeFieldChanges,
+    getModelCodeSearch,
+} from './modelCode';
+import { ModelMark } from './ModelMark';
 import { ModelTabs } from './ModelTabs';
 import {
     FieldDetailModal,
@@ -146,6 +151,9 @@ const ChildrenList: FC<{
                                             {CHANGE_KIND_LABELS[kind]}
                                         </Text>
                                     ) : null}
+                                    {node.ref.type === 'explore' ? (
+                                        <ModelMark model={node.ref.exploreId} />
+                                    ) : null}
                                 </Group>
                                 {describe ? (
                                     <Text
@@ -196,7 +204,25 @@ const ExploreBody: FC<{
         canManageLive: view.permissions.live,
         draft: modelDraft,
     });
-    const allFields = useMemo(() => loaded ?? [], [loaded]);
+    const marks = useContext(DraftMarksContext);
+    const review = marks.inReview.get(exploreId);
+    const published = marks.published.get(exploreId);
+    // Fields just published keep their mark, as they had it in the draft.
+    const allFields = useMemo(
+        () =>
+            (loaded ?? []).map((field) => {
+                const change = field.draftState
+                    ? undefined
+                    : published?.find(
+                          ({ kind, name }) =>
+                              name === field.name && kind === field.fieldKind,
+                      );
+                return change && change.change !== 'removed'
+                    ? { ...field, draftState: change.change }
+                    : field;
+            }),
+        [loaded, published],
+    );
     const groups = useMemo(() => fieldGroups(allFields), [allFields]);
     const { fields, hiddenCount, onShowHidden, toolbarProps } =
         useFieldListState(allFields, openFieldId);
@@ -244,6 +270,15 @@ const ExploreBody: FC<{
     }
     return (
         <>
+            {/* A pull request's fields are not on this page yet; a publish marks its own fields below. */}
+            {review ? (
+                <Group gap="xs" mb="sm" wrap="nowrap">
+                    <ModelMark model={exploreId} />
+                    <Text fz="xs" c="dimmed">
+                        {`${describeFieldChanges(review.fields) || 'Changed'}. Not published until the pull request merges.`}
+                    </Text>
+                </Group>
+            ) : null}
             {modelDraft || othersHere.length > 0 ? (
                 <Group gap="sm" mb="sm" wrap="nowrap">
                     <Text fz="xs" c="dimmed">
@@ -268,6 +303,12 @@ const ExploreBody: FC<{
                 hiddenCount={hiddenCount}
                 onShowHidden={onShowHidden}
                 openFieldId={openFieldId}
+                revealFieldId={
+                    published
+                        ? (fields.find(({ draftState }) => draftState)?.id ??
+                          null)
+                        : null
+                }
                 toolbar={<FieldListToolbar {...toolbarProps} />}
                 // The open field is in the URL; opening and closing replaces
                 // the entry rather than stacking up the back button.

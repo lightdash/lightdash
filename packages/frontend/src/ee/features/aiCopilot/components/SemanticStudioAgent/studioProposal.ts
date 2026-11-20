@@ -43,6 +43,37 @@ export const getOpenProposal = (
     return [];
 };
 
+/** A save of the agent's and what it writes, one diff per file. */
+export type SavingChange = { toolCallId: string; diffs: string[] };
+
+/** What the latest save writes, while it runs and then until the pull request's diff is read at its commit; null once it fails or without diffs. */
+export const getSavingChange = (
+    messages: AiAgentThread['messages'],
+    shown: SavingChange | null,
+    isPullRequestDiffCurrent: boolean,
+): SavingChange | null => {
+    const latest = messages
+        .flatMap((message) =>
+            message.role === 'assistant'
+                ? message.toolResults.filter(isToolEditDbtProjectResult)
+                : [],
+        )
+        .at(-1);
+    if (!latest) return null;
+    const { metadata } = latest;
+    if (metadata.status === 'pending') {
+        return metadata.diffs && metadata.diffs.length > 0
+            ? { toolCallId: latest.toolCallId, diffs: metadata.diffs }
+            : null;
+    }
+    return metadata.status === 'success' &&
+        !!metadata.prUrl &&
+        !isPullRequestDiffCurrent &&
+        shown?.toolCallId === latest.toolCallId
+        ? shown
+        : null;
+};
+
 const pathOf = (patch: string) =>
     /^\+\+\+ (?:b\/)?(\S+)/m.exec(patch)?.[1] ?? null;
 

@@ -90,6 +90,7 @@ export {
     selectCanvasBackground,
     selectCanvasZoom,
     selectIsTileSelected,
+    selectIsTileTextFocusPending,
     selectControlOrder,
     selectControlSections,
     selectDashboardCustomMetrics,

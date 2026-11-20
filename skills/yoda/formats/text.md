@@ -19,7 +19,7 @@ Standalone json-mode data has no review-only sections.
   - Tick the name only if greppable (route, flag, column); descriptions remain plain.
     Other fields and the note stay unticked.
   - Show at most one extra plus the note, each about six words; hide fields that add nothing to the row (`all`, a kind implied by the name, a `direction` the impact already says); JSON retains them.
-- **Footer:** `---`, then comma-formatted `lines` (“8,020 lines”).
+- **Footer:** `---`, then comma-formatted `added` and `deleted` (“+6,900 −1,120”).
 - **Links:** `[file.ts:120](path:120)` when the local checkout is at the reviewed head; otherwise GitHub pinned to it (`/blob/<sha>/path#L120-L128`).
 
 No folds; emoji only in the signal, Testing kinds and the diff's impact marks.

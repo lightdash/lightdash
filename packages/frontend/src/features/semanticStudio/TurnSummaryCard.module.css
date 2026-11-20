@@ -1,16 +1,75 @@
 .card {
     overflow: hidden;
-}
-
-.section {
-    padding: 6px var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-lg);
 }
 
 .card > * + * {
     border-top: 1px solid var(--mantine-color-default-border);
 }
 
-.card[data-gone='true'] .model {
+.head,
+.foot,
+.section {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+}
+
+/* The header sits on the page's own tone, a shade off the card. */
+.head {
+    background: var(--ld-color-page);
+}
+
+/* A draft is not live yet, so its light is amber. */
+.dot {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--mantine-color-yellow-filled);
+}
+
+.tally {
+    flex: none;
+    color: var(--mantine-color-dimmed);
+}
+
+/* Each model the turn touched is a step, on a line that runs from one icon to the next. */
+.steps {
+    display: flex;
+    flex-direction: column;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+}
+
+.step {
+    position: relative;
+    display: flex;
+    gap: var(--mantine-spacing-sm);
+    padding-bottom: var(--mantine-spacing-sm);
+}
+
+.step:last-child {
+    padding-bottom: 0;
+}
+
+.step:not(:last-child)::before {
+    position: absolute;
+    top: 20px;
+    bottom: 2px;
+    left: 6.5px;
+    width: 1px;
+    background: var(--mantine-color-default-border);
+    content: '';
+}
+
+/* Holds an icon on the first line of the text beside it. */
+.node {
+    display: flex;
+    flex: none;
+    align-items: center;
+    width: 14px;
+    height: 18px;
+}
+
+.card[data-gone='true'] .steps {
     opacity: 0.6;
 }
 
@@ -18,67 +77,22 @@
     text-decoration: line-through;
 }
 
-.model {
-    padding-bottom: 4px;
-}
-
-.modelName {
-    padding: 6px var(--mantine-spacing-xs) 2px;
-}
-
 .row {
-    display: grid;
-    grid-template-columns: 12px 16px minmax(0, 1fr) auto;
-    column-gap: 6px;
-    align-items: center;
-    width: 100%;
-    padding: 3px var(--mantine-spacing-xs);
-}
-
-.row:hover,
-.row:focus-visible {
-    background: var(--mantine-color-default-hover);
-}
-
-.glyph {
-    font-family: var(--mantine-font-family-monospace);
-    font-weight: 600;
-    text-align: center;
-}
-
-.row[data-change='new'] .glyph {
-    color: var(--mantine-color-green-text);
-}
-
-.row[data-change='changed'] .glyph {
-    color: var(--mantine-color-orange-text);
-}
-
-.row[data-change='removed'] .glyph {
-    color: var(--mantine-color-red-text);
-}
-
-.kindIcon {
     display: flex;
+    gap: var(--mantine-spacing-xs);
+    align-items: baseline;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.row:hover .label,
+.row:focus-visible .label {
+    color: var(--mantine-color-text);
+    text-decoration: underline;
 }
 
 .label {
     min-width: 0;
-}
-
-/* How much of a file moved, at the row's end. */
-.sub {
-    min-width: 0;
-}
-
-.issue {
-    padding: 3px var(--mantine-spacing-xs);
-}
-
-.icon {
-    display: flex;
-    flex: none;
-    margin-top: 1px;
 }
 
 .wrap {
@@ -91,10 +105,36 @@
     align-items: center;
     gap: 6px;
     width: 100%;
-    padding: 6px var(--mantine-spacing-xs);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
 }
 
 .fold:hover,
 .fold:focus-visible {
     background: var(--mantine-color-default-hover);
+}
+
+/* The small card of an open draft's latest turn: one line to open it, then what it did. */
+.compactHead {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px var(--mantine-spacing-sm);
+    background: var(--ld-color-page);
+}
+
+.compactHead:hover,
+.compactHead:focus-visible {
+    background: var(--mantine-color-default-hover);
+}
+
+.compactBody {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px var(--mantine-spacing-sm);
+}
+
+.compactFoot {
+    padding: 6px var(--mantine-spacing-sm);
 }

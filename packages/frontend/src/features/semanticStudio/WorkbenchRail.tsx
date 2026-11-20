@@ -1,5 +1,5 @@
 import { type PreAggregateMaterializationSummary } from '@lightdash/common';
-import { Box, Group, Text, TextInput, Tooltip } from '@mantine/core';
+import { Box, Text, TextInput, Tooltip } from '@mantine/core';
 import {
     IconBolt,
     IconChevronRight,
@@ -45,7 +45,20 @@ const DraftMarker: FC<{ model: string; isMine: boolean }> = ({
 }) => {
     const marks = useContext(DraftMarksContext);
     const others = marks.others.get(model) ?? [];
-    if (!isMine && others.length === 0) return null;
+    if (!isMine && others.length === 0) {
+        if (marks.inReview.has(model)) {
+            return (
+                <Tooltip label="Your changes to this model are in an open pull request. Not published yet.">
+                    <Box className={classes.draftDot} data-mark="review" />
+                </Tooltip>
+            );
+        }
+        return marks.published.has(model) ? (
+            <Tooltip label="You published changes to this model.">
+                <Box className={classes.draftDot} data-mark="published" />
+            </Tooltip>
+        ) : null;
+    }
     const whose = [...(isMine ? ['you'] : []), ...others].join(', ');
     const kind = isMine ? marks.kinds.get(model) : undefined;
     return (
@@ -290,31 +303,21 @@ export const Rail: FC<{
 
 export const LineCounts: FC<{
     counts: { additions: number; deletions: number } | null;
-    /** Also draws how much of the change adds and how much removes. */
-    withBar?: boolean;
-}> = ({ counts, withBar = false }) =>
+}> = ({ counts }) =>
     counts ? (
-        <Group gap={6} wrap="nowrap" flex="none">
-            <Text fz="xs">
-                {counts.additions > 0 ? (
-                    <Text span inherit c="green.7">
-                        +{counts.additions}
-                    </Text>
-                ) : null}
-                {counts.additions > 0 && counts.deletions > 0 ? ' ' : null}
-                {counts.deletions > 0 ? (
-                    <Text span inherit c="red.7">
-                        −{counts.deletions}
-                    </Text>
-                ) : null}
-            </Text>
-            {withBar && counts.additions + counts.deletions > 0 ? (
-                <Box className={classes.diffBar} aria-hidden>
-                    <Box flex={counts.additions} bg="green.7" />
-                    <Box flex={counts.deletions} bg="red.7" />
-                </Box>
+        <Text fz="xs" flex="none">
+            {counts.additions > 0 ? (
+                <Text span inherit c="green.7">
+                    +{counts.additions}
+                </Text>
             ) : null}
-        </Group>
+            {counts.additions > 0 && counts.deletions > 0 ? ' ' : null}
+            {counts.deletions > 0 ? (
+                <Text span inherit c="red.7">
+                    −{counts.deletions}
+                </Text>
+            ) : null}
+        </Text>
     ) : null;
 
 const sumLineCounts = (
@@ -370,7 +373,7 @@ export const CodeRail: FC<{
                         color="dimmed"
                     />
                     <Text className={classes.treeLabel}>Overview</Text>
-                    <LineCounts counts={sumLineCounts(lineCounts)} withBar />
+                    <LineCounts counts={sumLineCounts(lineCounts)} />
                 </Box>
             </Box>
         ) : null}

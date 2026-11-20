@@ -11,11 +11,13 @@
         "describeWarehouseTable",
         "getMetadata",
         "grepFields",
+        "grepWarehouseColumns",
         "listChanges",
         "listWarehouseTables",
         "loadProjectContext",
         "proposeSemanticLayerChange",
         "readSemanticModel",
+        "runMetricQuery",
         "runSql",
         "searchFieldValues",
         "searchSemanticLayer"

@@ -2572,13 +2572,15 @@ export class AppGenerateService extends BaseService {
         );
     }
 
-    /** Voice Design is behind its feature flag on every surface that uses it. */
+    /** Voice Design is behind its feature flags on every surface that uses it. */
     private async assertVoiceDesignEnabled(user: SessionUser): Promise<void> {
-        const { enabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.DataAppCapture,
-        });
-        if (!enabled) {
+        const flags = await Promise.all(
+            [FeatureFlags.DataAppCapture, FeatureFlags.DashboardCapture].map(
+                (featureFlagId) =>
+                    this.featureFlagModel.get({ user, featureFlagId }),
+            ),
+        );
+        if (!flags.some(({ enabled }) => enabled)) {
             throw new ForbiddenError('Voice Design is not enabled');
         }
     }

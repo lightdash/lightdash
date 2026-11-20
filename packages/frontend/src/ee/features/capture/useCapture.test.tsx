@@ -60,6 +60,25 @@ describe('useCapture toggle', () => {
         expect(startVoice).toHaveBeenCalledTimes(1);
     });
 
+    // Started from a key press inside the app frame: Shift must reach the page.
+    it('takes focus back from an app frame when a recording starts', async () => {
+        const frame = document.createElement('iframe');
+        document.body.appendChild(frame);
+        frame.focus();
+        const focusWindow = vi
+            .spyOn(window, 'focus')
+            .mockImplementation(() => {});
+        const { result } = renderHook(() => useCapture(surface));
+
+        await act(async () => {
+            result.current.toggle();
+        });
+        expect(focusWindow).toHaveBeenCalled();
+
+        focusWindow.mockRestore();
+        frame.remove();
+    });
+
     // The page passes no surface when the feature flag is off.
     it('does nothing when capture is off for the page', async () => {
         const { result } = renderHook(() => useCapture(null));

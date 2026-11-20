@@ -94,6 +94,10 @@
     transform: translateY(rem(-2px));
 }
 
+.dockExtras {
+    display: contents;
+}
+
 .dockIconTab {
     width: rem(28px);
     height: rem(28px);
@@ -256,6 +260,11 @@
 
 .minWidth0 {
     min-width: 0;
+}
+
+.waitingPrompt {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 .candidateContent {

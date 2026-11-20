@@ -210,6 +210,7 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
             preAggregationRoute,
             fieldsMap: resolveArgs.fieldsMap,
             pivotConfiguration: resolveArgs.pivotConfiguration,
+            pivotDimensions: resolveArgs.pivotDimensions,
             startOfWeek: resolveArgs.startOfWeek,
             userAccessControls: resolveArgs.userAccessControls!,
             availableParameterDefinitions:

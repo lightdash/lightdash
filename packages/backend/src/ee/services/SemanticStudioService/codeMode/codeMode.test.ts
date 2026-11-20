@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
     diffLineCounts,
     runCodeMode,
+    unifiedDiff,
+    unifiedDiffs,
     validateSemanticLayerYaml,
     type CodeModeRepo,
 } from './codeMode';
@@ -247,5 +249,65 @@ describe('diffLineCounts', () => {
             additions: 0,
             deletions: 1,
         });
+    });
+});
+
+describe('unifiedDiff', () => {
+    const lines = (count: number) =>
+        Array.from({ length: count }, (_, index) => `line ${index + 1}`);
+
+    it('shows each change with three lines of context, in separate hunks when far apart', () => {
+        const before = `${lines(20).join('\n')}\n`;
+        const after = `${lines(20)
+            .map((line, index) => (index === 1 ? 'changed' : line))
+            .join('\n')}\nadded\n`;
+        expect(unifiedDiff({ path: 'models/a.yml', before, after })).toBe(
+            [
+                '--- a/models/a.yml',
+                '+++ b/models/a.yml',
+                '@@ -1,5 +1,5 @@',
+                ' line 1',
+                '-line 2',
+                '+changed',
+                ' line 3',
+                ' line 4',
+                ' line 5',
+                '@@ -18,3 +18,4 @@',
+                ' line 18',
+                ' line 19',
+                ' line 20',
+                '+added',
+                '',
+            ].join('\n'),
+        );
+    });
+
+    it('diffs a new file and a deleted one by the same path', () => {
+        expect(
+            unifiedDiff({ path: 'models/b.sql', before: null, after: 'x\n' }),
+        ).toBe('--- /dev/null\n+++ b/models/b.sql\n@@ -0,0 +1,1 @@\n+x\n');
+        expect(
+            unifiedDiff({ path: 'models/b.sql', before: 'x\n', after: null }),
+        ).toBe('--- a/models/b.sql\n+++ b/models/b.sql\n@@ -1,1 +0,0 @@\n-x\n');
+    });
+
+    it('is null when nothing changed', () => {
+        expect(
+            unifiedDiff({ path: 'a.yml', before: 'a\n', after: 'a\n' }),
+        ).toBe(null);
+    });
+
+    it('leaves out a file whose changed region is too large to compare', () => {
+        const before = lines(1500).join('\n');
+        const after = lines(1500)
+            .map((line) => `${line} changed`)
+            .join('\n');
+        expect(unifiedDiff({ path: 'a.yml', before, after })).toBe(null);
+        expect(
+            unifiedDiffs([
+                { path: 'a.yml', before, after },
+                { path: 'b.yml', before: 'a\n', after: 'b\n' },
+            ]),
+        ).toEqual(['--- a/b.yml\n+++ b/b.yml\n@@ -1,1 +1,1 @@\n-a\n+b\n']);
     });
 });

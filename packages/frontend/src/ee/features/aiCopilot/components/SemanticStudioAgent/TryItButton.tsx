@@ -52,8 +52,9 @@ export const TryIt: FC<{
     const turnOn = useRef({ isOn, setIsOn, preview });
     useEffect(() => {
         const { isOn: wasOn, setIsOn: set, preview: tried } = turnOn.current;
-        const unpin = pinDevelopmentView();
+        // Switched on first, so the page keeps what it shows; then pinned, so nothing switches it off under the modal.
         set(true, tried);
+        const unpin = pinDevelopmentView(tried);
         return () => {
             unpin();
             if (!wasOn) set(false);

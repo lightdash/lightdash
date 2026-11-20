@@ -6,6 +6,7 @@ import {
     type DashboardParameters,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { type DbHeadingTileConfig } from '../../models/DashboardModel/headingTileConfig';
 
 export const DashboardsTableName = 'dashboards';
 export const DashboardVersionsTableName = 'dashboard_versions';
@@ -154,6 +155,7 @@ type DbDashboardTileHeadings = {
     dashboard_tile_uuid: string;
     text: string;
     show_divider: boolean | null;
+    config: DbHeadingTileConfig | null;
 };
 
 export type DashboardTileHeadingsTable =

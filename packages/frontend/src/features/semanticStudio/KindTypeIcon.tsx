@@ -4,7 +4,7 @@ import {
     MetricType,
     type Field as LightdashField,
 } from '@lightdash/common';
-import { IconLink, IconTable } from '@tabler/icons-react';
+import { IconArrowsJoin, IconTable } from '@tabler/icons-react';
 import { type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -58,7 +58,7 @@ export const FieldChangeIcon: FC<{
         />
     ) : (
         <MantineIcon
-            icon={field.kind === 'join' ? IconLink : IconTable}
+            icon={field.kind === 'join' ? IconArrowsJoin : IconTable}
             color="dimmed"
         />
     );

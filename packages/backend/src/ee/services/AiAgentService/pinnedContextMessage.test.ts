@@ -759,3 +759,42 @@ describe('AiAgentService.createPinnedContextMessage attached documents', () => {
         );
     });
 });
+
+describe('AiAgentService.createPinnedContextMessage outside agent spaces', () => {
+    const dashboard = {
+        type: 'dashboard' as const,
+        dashboardUuid: 'dashboard-1',
+        dashboardSlug: 'exec-dashboard',
+        displayName: 'Executive dashboard',
+        pinnedVersionUuid: null,
+        runtimeOverrides: null,
+    };
+    const chart = {
+        type: 'chart' as const,
+        chartUuid: 'chart-1',
+        chartSlug: 'revenue',
+        displayName: 'Revenue',
+        pinnedVersionUuid: null,
+        runtimeOverrides: null,
+        chartKind: null,
+    };
+
+    it('says an attached item is outside the agent spaces', () => {
+        const message = AiAgentService.createPinnedContextMessage(
+            [dashboard, chart],
+            { outsideAgentSpaces: new Set(['dashboard-1']) },
+        );
+        const content = message!.content as string;
+        expect(content).toContain(
+            '- Dashboard "Executive dashboard" (dashboardSlug: exec-dashboard) — outside the spaces this agent may use',
+        );
+        expect(content).toContain('- Chart "Revenue" (chartSlug: revenue)\n');
+        expect(content).not.toContain(
+            '- Chart "Revenue" (chartSlug: revenue) — outside',
+        );
+    });
+
+    it('adds nothing when every item is in reach', () => {
+        expect(buildMessage([dashboard])).not.toContain('outside the spaces');
+    });
+});

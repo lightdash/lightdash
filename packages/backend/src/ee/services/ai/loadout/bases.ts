@@ -96,8 +96,12 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
                 'readSemanticModel',
                 'proposeSemanticLayerChange',
             ]),
+            // A dbt draft compiles after the turn, so a query there could read what is published and pass for the draft.
+            ...onlyIf(input.semanticStudioDrafts && input.enableDataAccess, [
+                'runMetricQuery',
+            ]),
             ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
-            ...onlyIf(input.canRunSql, ['runSql']),
+            ...onlyIf(input.canRunSql, ['runSql', 'grepWarehouseColumns']),
         ],
         sections: ['semanticStudio'],
         skills: [],

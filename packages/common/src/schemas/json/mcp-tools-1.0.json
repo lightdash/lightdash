@@ -329,7 +329,7 @@
                                                     },
                                                     "stack": {
                                                         "default": null,
-                                                        "description": "bar: stack series on top of each other, for parts that add up to a total (sums and counts; averages, ratios and distinct counts sit side by side). area always stacks. Ignored elsewhere.",
+                                                        "description": "bar: stack series (several y columns, or a groupBy split) on top of each other, for parts that add up to a total (sums and counts; averages, ratios and distinct counts sit side by side). area always stacks. Ignored elsewhere.",
                                                         "type": [
                                                             "boolean",
                                                             "null"
@@ -376,7 +376,7 @@
                                                             }
                                                         ],
                                                         "default": null,
-                                                        "description": "Value columns. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy."
+                                                        "description": "Value columns, one series each on bar/line/area/scatter. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy."
                                                     },
                                                     "y2": {
                                                         "anyOf": [

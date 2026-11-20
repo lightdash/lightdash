@@ -112,3 +112,13 @@
 .scrollableDropdown {
     overflow-y: auto;
 }
+
+.draftSection {
+    padding: var(--mantine-spacing-sm);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    color: var(--mantine-color-text);
+}
+
+.draftIcon {
+    flex-shrink: 0;
+}

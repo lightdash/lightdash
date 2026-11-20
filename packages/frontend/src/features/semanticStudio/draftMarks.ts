@@ -1,5 +1,5 @@
 import { createContext } from 'react';
-import { type ChangeKind } from './modelCode';
+import { type ChangeKind, type FieldChange } from './modelCode';
 
 export type DraftMarks = {
     /** Each drafted model's name as the draft leaves it. */
@@ -8,6 +8,10 @@ export type DraftMarks = {
     kinds: Map<string, ChangeKind>;
     /** Who else has unpublished changes to each model. */
     others: Map<string, string[]>;
+    /** This person's changes to each model that wait in an open pull request. */
+    inReview: Map<string, { pullRequestUrl: string; fields: FieldChange[] }>;
+    /** What this person published to each model on this visit to Studio. */
+    published: Map<string, FieldChange[]>;
 };
 
 // Read once for the page: every row asking the draft itself costs a subscription per row.
@@ -15,4 +19,11 @@ export const DraftMarksContext = createContext<DraftMarks>({
     labels: new Map(),
     kinds: new Map(),
     others: new Map(),
+    inReview: new Map(),
+    published: new Map(),
 });
+
+/** Records what was just published to each model, for the marks above. */
+export const MarkPublishedContext = createContext<
+    (published: Map<string, FieldChange[]>) => void
+>(() => {});

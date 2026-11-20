@@ -54,6 +54,17 @@ describe('wordsToPhrases', () => {
         ).toEqual([{ atMs: 2500, text: 'hello' }]);
     });
 
+    // The recorder starts a moment before the capture clock, so the first
+    // words can land before zero.
+    it('never times speech before the recording started', () => {
+        expect(
+            wordsToPhrases([w(300, 'and'), w(600, 'so')], {
+                offsetMs: -1200,
+                breakAtMs: [],
+            }),
+        ).toEqual([{ atMs: 0, text: 'and so' }]);
+    });
+
     it('returns nothing for no words', () => {
         expect(wordsToPhrases([], { offsetMs: 0, breakAtMs: [] })).toEqual([]);
     });

@@ -131,6 +131,7 @@ import {
     renderCandidateBlock,
     selectCandidateFields,
 } from '../tools/grepFieldsIndex';
+import { getGrepWarehouseColumns } from '../tools/grepWarehouseColumns';
 import { getIterateDataApp } from '../tools/iterateDataApp';
 import { getListContent } from '../tools/listContent';
 import { getListDataAppConnections } from '../tools/listDataAppConnections';
@@ -153,6 +154,7 @@ import {
     canRunContentQuerySql,
     getRunContentQuery,
 } from '../tools/runContentQuery';
+import { getRunMetricQuery } from '../tools/runMetricQuery';
 import { getRunQuery } from '../tools/runQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
@@ -2264,11 +2266,19 @@ export const getAgentTools = (
             getProposeSemanticLayerChange({
                 proposeSemanticLayerChange:
                     dependencies.proposeSemanticLayerChange,
+                canRunMetrics: loadout.toolNames.has('runMetricQuery'),
             }),
         listChanges: () => getListChanges(dependencies.listChanges),
         readSemanticModel: () =>
             getReadSemanticModel({
                 readSemanticModel: dependencies.readSemanticModel,
+            }),
+        runMetricQuery: () =>
+            getRunMetricQuery({
+                agentContext,
+                getExplore: dependencies.getDraftExplore,
+                runAsyncQuery: dependencies.runDraftQuery,
+                maxLimit: args.maxQueryLimit,
             }),
         syncDbtProject: () =>
             getSyncDbtProject({
@@ -2402,6 +2412,10 @@ export const getAgentTools = (
         describeWarehouseTable: () =>
             getDescribeWarehouseTable({
                 describeWarehouseTable: dependencies.describeWarehouseTable,
+            }),
+        grepWarehouseColumns: () =>
+            getGrepWarehouseColumns({
+                listWarehouseColumns: dependencies.listWarehouseColumns,
             }),
         loadSkill: () => {
             const listed = new Set(
@@ -2800,6 +2814,7 @@ export const getAgentMessages = (
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         semanticStudioCodeMode: args.semanticStudioCodeMode,
+        semanticStudioQueriesDraft: loadout.toolNames.has('runMetricQuery'),
         slackLinksOnly: args.slackLinksOnly,
         enableComposerPythonNodes: args.enableComposerQueries,
         liveSources: args.liveSources,

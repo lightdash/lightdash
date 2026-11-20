@@ -922,6 +922,44 @@ export class PostgresClient<
         return this.parsePostgresCatalog(rows);
     }
 
+    async getSchemaColumns(
+        schemas: { database: string; schema: string }[],
+    ): Promise<WarehouseCatalog> {
+        const names = [...new Set(schemas.map(({ schema }) => schema))];
+        if (names.length === 0) return {};
+        const schemaParams = names.map((_, index) => `$${index + 1}`).join(',');
+        // A session only sees its own database, so no catalog filter is needed
+        const query = `
+            SELECT table_catalog,
+                   table_schema,
+                   table_name,
+                   column_name,
+                   data_type
+            FROM information_schema.columns
+            WHERE table_schema IN (${schemaParams})
+            ${
+                (await this.supportsMatviews())
+                    ? `
+            UNION ALL
+            SELECT current_database() AS table_catalog,
+                   n.nspname AS table_schema,
+                   c.relname AS table_name,
+                   a.attname AS column_name,
+                   pg_catalog.format_type(a.atttypid, NULL) AS data_type
+            FROM pg_catalog.pg_attribute a
+            JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+            JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+            WHERE c.relkind = 'm'
+            AND n.nspname IN (${schemaParams})
+            AND a.attnum > 0
+            AND NOT a.attisdropped`
+                    : ''
+            }
+        `;
+        const { rows } = await this.runQuery(query, {}, undefined, names);
+        return this.parsePostgresCatalog(rows);
+    }
+
     protected parsePostgresCatalog(
         rows: Record<string, AnyType>[],
     ): WarehouseCatalog {

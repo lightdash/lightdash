@@ -7,6 +7,7 @@
 
 import { createApiTransport } from './apiTransport';
 import { getAppStateStore, type AppStateStore } from './appState';
+import { mountCaptureHotkey } from './captureHotkey';
 import { applyColorSchemeSeed, mountColorScheme } from './colorScheme';
 import { mountInspector } from './inspector';
 import { mountInsights } from './insights';
@@ -141,6 +142,7 @@ export function createClient(): LightdashClient {
             mountLineage(window.parent);
             mountColorScheme(window.parent);
             mountInsights(window.parent);
+            mountCaptureHotkey(window.parent);
             return new LightdashClient(
                 { apiKey: '', baseUrl: '', projectUuid },
                 createPostMessageTransport({
