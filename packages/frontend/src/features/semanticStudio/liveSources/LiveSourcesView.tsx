@@ -312,7 +312,9 @@ export const LiveSourceSummary: FC<{
         freshness.seconds === 0
             ? 'Every query calls the integration'
             : `A result answers the same query for everyone for ${formatFreshness(freshness.seconds)}${freshness.isDefault ? ', the default' : ''}`;
-    const inUse = fields?.fields.filter((field) => field.inUse).length;
+    // Every explore whose fields can be curated, not only the first
+    const allFields = fields?.explores.flatMap((explore) => explore.fields);
+    const inUse = allFields?.filter((field) => field.inUse).length;
     return (
         <Box className={classes.summary} aria-label="Live data source">
             <Stat label="Integration" value={row.integration} />
@@ -361,8 +363,8 @@ export const LiveSourceSummary: FC<{
             <Stat
                 label="Fields in use"
                 value={
-                    fields && inUse !== undefined
-                        ? `${inUse.toLocaleString()} of ${fields.fields.length.toLocaleString()}`
+                    allFields && inUse !== undefined
+                        ? `${inUse.toLocaleString()} of ${allFields.length.toLocaleString()}`
                         : '—'
                 }
             />
