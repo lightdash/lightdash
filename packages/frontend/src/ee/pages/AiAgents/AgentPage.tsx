@@ -349,6 +349,7 @@ const AgentPage = () => {
                                     : (shareUrl ?? '')
                             }
                             readOnly
+                            aria-label="Share link"
                             variant="unstyled"
                             className={styles.shareLinkInput}
                         />

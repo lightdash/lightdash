@@ -2974,6 +2974,7 @@ const AppGenerate: FC = () => {
                                 >
                                     <PromptComposer
                                         ref={promptEditorRef}
+                                        ariaLabel="App prompt"
                                         size={
                                             compact || activeAppUuid
                                                 ? 'sm'
