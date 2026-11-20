@@ -114,6 +114,20 @@ const streamOf = (content: string): AiAgentThreadStreamingState => ({
     timing: { startedAt: 0, firstTokenAt: 0, finishedAt: null },
 });
 
+const renderBubble = () =>
+    renderWithProviders(
+        <MemoryRouter>
+            <AssistantBubble
+                message={message}
+                hiddenSibling={null}
+                isLastMessage
+                canRetry
+                projectUuid="project"
+                agentUuid="agent"
+            />
+        </MemoryRouter>,
+    );
+
 describe('streaming an answer', () => {
     it('parses only the block still being written on each frame', async () => {
         const finished = Array.from(
@@ -123,18 +137,7 @@ describe('streaming an answer', () => {
         ).join('\n\n');
         let lastParagraph = 'Still writing';
         stream.set(streamOf(`${finished}\n\n${lastParagraph}`));
-        renderWithProviders(
-            <MemoryRouter>
-                <AssistantBubble
-                    message={message}
-                    hiddenSibling={null}
-                    isLastMessage
-                    canRetry
-                    projectUuid="project"
-                    agentUuid="agent"
-                />
-            </MemoryRouter>,
-        );
+        renderBubble();
         expect(await screen.findAllByRole('link')).toHaveLength(10);
 
         stream.parses = 0;
@@ -165,18 +168,7 @@ describe('streaming text after a tool call', () => {
             isPreliminary: false,
         };
         stream.set(streamOf('Looking for the right explore'));
-        renderWithProviders(
-            <MemoryRouter>
-                <AssistantBubble
-                    message={message}
-                    hiddenSibling={null}
-                    isLastMessage
-                    canRetry
-                    projectUuid="project"
-                    agentUuid="agent"
-                />
-            </MemoryRouter>,
-        );
+        renderBubble();
         await waitFor(() =>
             expect(document.body).toHaveTextContent(
                 'Looking for the right explore',
