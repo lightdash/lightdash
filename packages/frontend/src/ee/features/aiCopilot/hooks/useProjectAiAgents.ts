@@ -912,9 +912,7 @@ export const useAiAgentThread = (
                     `${getAiAgentPageBase(projectUuid, isEmbed)}/not-authorized`,
                 );
             } else if (!getAiAccessRefusal(error.error)) {
-                // onError runs per observer; a stable key shows one toast
                 showToastApiError({
-                    key: `ai-agent-thread-error-${threadUuid}`,
                     title: 'Failed to fetch AI agent thread',
                     apiError: error.error,
                 });
