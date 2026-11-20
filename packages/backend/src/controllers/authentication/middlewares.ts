@@ -28,7 +28,10 @@ import { requestContextFromExpress } from '../../auth/account/requestContext';
 import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
 import { getGrantOperationContract } from '../../auth/agentConnectionGrants/operationContracts';
 import { MobileOrgDisabledOAuthError } from '../../auth/mobileAppAccess';
-import { resolveOAuthScopeMode } from '../../auth/oauthScopes/mode';
+import {
+    isReadOnlyOAuthGrant,
+    resolveOAuthScopeMode,
+} from '../../auth/oauthScopes/mode';
 import {
     oauthApiResource,
     oauthMcpResource,
@@ -103,15 +106,20 @@ const hasWrongOAuthAudience = (
 const getOAuthScopePolicy = async (
     req: Request,
     user: SessionUser,
+    scopes: readonly string[],
     enforceGrant = false,
 ): Promise<OAuthScopePolicy | null> => {
-    const mode = await resolveOAuthScopeMode(
-        req.services.getFeatureFlagService(),
-        user,
-    );
-    if (mode === null && !enforceGrant) return null;
+    // Read-only grants are always enforced; wider grants follow the rollout flags.
+    const mode =
+        enforceGrant || isReadOnlyOAuthGrant(scopes)
+            ? 'enforce'
+            : await resolveOAuthScopeMode(
+                  req.services.getFeatureFlagService(),
+                  user,
+              );
+    if (mode === null) return null;
     return {
-        mode: enforceGrant ? 'enforce' : mode!,
+        mode,
         getRequest: () => {
             const route = req.route as { path: unknown } | undefined;
             return {
@@ -406,6 +414,7 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                         const scopePolicy = await getOAuthScopePolicy(
                             req,
                             user,
+                            token.scope ?? [],
                             grant !== null,
                         );
                         req.account = fromOauth(
@@ -565,6 +574,7 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                         const scopePolicy = await getOAuthScopePolicy(
                             req,
                             user,
+                            token.scope ?? [],
                             grant !== null,
                         );
                         req.account = fromOauth(
