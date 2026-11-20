@@ -1,3 +1,10 @@
+## [3.357.1](https://github.com/lightdash/lightdash/compare/3.357.0...3.357.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **dashboards:** keep the tile toolbar reachable from the title ([#33063](https://github.com/lightdash/lightdash/issues/33063)) ([ae8a724](https://github.com/lightdash/lightdash/commit/ae8a7241b49597d4cf193bdf34732f37a3798b29))
+
 # [3.357.0](https://github.com/lightdash/lightdash/compare/3.356.2...3.357.0) (2026-11-20)
 
 
