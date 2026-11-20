@@ -105,7 +105,13 @@ export const ModelSelector: FC<Props> = ({
                     }
                 >
                     <Group gap={6} wrap="nowrap" miw={0}>
-                        <TruncatedText maxWidth="100%" inline fz="xs" fw={600}>
+                        <TruncatedText
+                            maxWidth="100%"
+                            inline
+                            size="xs"
+                            fz="xs"
+                            fw={600}
+                        >
                             {selectedModel?.displayName ?? 'Select model'}
                         </TruncatedText>
                         {showReasoning && reasoningLabel && (
