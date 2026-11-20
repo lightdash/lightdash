@@ -92,6 +92,11 @@ export type LiveIntegration<
         ) => LiveExploreDefinition;
         /** Scanned fields kept out of the default field list. */
         isInternalField?: (apiName: string) => boolean;
+        /**
+         * Names of the explores besides the first that scans add fields to,
+         * each curated on its own. Omitted, only the first explore is scanned.
+         */
+        models?: readonly string[];
     };
     /** Defaults to DuckDB, which only runs the compiled explore's SQL shape. */
     warehouseSqlBuilder?: WarehouseSqlBuilder;

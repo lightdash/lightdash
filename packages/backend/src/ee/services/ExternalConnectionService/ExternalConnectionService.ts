@@ -83,13 +83,15 @@ import {
     getLiveExploreName,
     getLiveExploreNames,
     getLiveReservedExploreNames,
-    getLiveWideDefinition,
+    getLiveScannedModels,
     getLostLiveFieldIds,
     toScannedLiveSourceFields,
 } from '../../../services/QuerySourceService/live/explores/build';
 import {
     applyLiveSourceFieldChanges,
     getInitialLiveSourceFieldEdits,
+    getLiveFieldEditKey,
+    getLiveModelFieldInputs,
     getRequiredFieldNames,
     listLiveSourceFields,
 } from '../../../services/QuerySourceService/live/explores/fields';
@@ -1615,18 +1617,56 @@ export class ExternalConnectionService extends BaseService {
         if (changes.length === 0) {
             return this.readLiveSourceFields(connection, apiSource);
         }
-        const definition = getLiveWideDefinition(apiSource.connector);
-        const state =
-            await this.externalConnectionModel.getLiveSourceFieldState(
+        const [sourceName, state] = await Promise.all([
+            this.resolveLiveSourceName(connection, apiSource),
+            this.externalConnectionModel.getLiveSourceFieldState(
                 connectionUuid,
-            );
-        const knownNames = new Set([
-            ...definition.dimensions.map(({ name }) => name),
-            ...definition.metrics.map(({ name }) => name),
-            ...(state.lastScan?.fields ?? []).map(
-                (field) => field.definition.name,
             ),
         ]);
+        const models = getLiveScannedModels(apiSource.connector);
+        const scannedFields = state.lastScan?.fields ?? [];
+        const toModel = (exploreName: string | undefined) => {
+            const found =
+                exploreName === undefined
+                    ? models[0]
+                    : models.find(
+                          ({ definition }) =>
+                              getLiveExploreName(
+                                  sourceName,
+                                  definition.name,
+                              ) === exploreName,
+                      );
+            if (!found) {
+                throw new ParameterError(
+                    `"${exploreName}" isn't an explore of this source with fields to edit.`,
+                );
+            }
+            return found.model;
+        };
+        const knownNames = new Set(
+            models.flatMap(({ model, definition }) =>
+                [
+                    ...definition.dimensions.map(({ name }) => name),
+                    ...definition.metrics.map(({ name }) => name),
+                    ...getLiveModelFieldInputs({
+                        model,
+                        scannedFields,
+                        edits: {},
+                    }).scannedFields.map((field) => field.definition.name),
+                ].map((name) => getLiveFieldEditKey(model, name)),
+            ),
+        );
+        const requiredNames = new Set(
+            models.flatMap(({ model, definition }) =>
+                getRequiredFieldNames(definition).map((name) =>
+                    getLiveFieldEditKey(model, name),
+                ),
+            ),
+        );
+        const keyedChanges = changes.map(({ exploreName, ...change }) => ({
+            ...change,
+            name: getLiveFieldEditKey(toModel(exploreName), change.name),
+        }));
         const editor: LiveSourceFieldEditor = {
             userUuid: account.user.id,
             userName:
@@ -1638,9 +1678,9 @@ export class ExternalConnectionService extends BaseService {
             (current) =>
                 applyLiveSourceFieldChanges({
                     current,
-                    changes,
+                    changes: keyedChanges,
                     knownNames,
-                    requiredNames: new Set(getRequiredFieldNames(definition)),
+                    requiredNames,
                     editor,
                 }),
         );
@@ -1675,7 +1715,6 @@ export class ExternalConnectionService extends BaseService {
         apiSource: ExternalConnectionApiSource,
     ): Promise<LiveSourceFields> {
         const { externalConnectionUuid, projectUuid } = connection;
-        const definition = getLiveWideDefinition(apiSource.connector);
         const [sourceName, state] = await Promise.all([
             this.resolveLiveSourceName(connection, apiSource),
             this.externalConnectionModel.getLiveSourceFieldState(
@@ -1687,38 +1726,63 @@ export class ExternalConnectionService extends BaseService {
                 projectUuid,
                 getLiveExploreNames(apiSource.connector, sourceName),
             );
-        const exploreName = getLiveExploreName(sourceName, definition.name);
         const scannedFields = state.lastScan?.fields ?? [];
-        const fieldNames = [
-            ...definition.dimensions.map(({ name }) => name),
-            ...definition.metrics.map(({ name }) => name),
-            ...scannedFields.map((field) => field.definition.name),
-        ];
-        const usage = await this.savedChartModel.getChartCountPerField(
-            projectUuid,
-            fieldNames.map((name) => getItemId({ table: exploreName, name })),
+        const edits =
+            state.fields ??
+            getInitialLiveSourceFieldEdits({
+                scannedFields,
+                isExistingSource: true,
+            });
+        const explores = await Promise.all(
+            getLiveScannedModels(apiSource.connector).map(
+                async ({ model, definition }) => {
+                    const exploreName = getLiveExploreName(
+                        sourceName,
+                        definition.name,
+                    );
+                    const inputs = getLiveModelFieldInputs({
+                        model,
+                        scannedFields,
+                        edits,
+                    });
+                    const fieldNames = [
+                        ...definition.dimensions.map(({ name }) => name),
+                        ...definition.metrics.map(({ name }) => name),
+                        ...inputs.scannedFields.map(
+                            (field) => field.definition.name,
+                        ),
+                    ];
+                    const usage =
+                        await this.savedChartModel.getChartCountPerField(
+                            projectUuid,
+                            fieldNames.map((name) =>
+                                getItemId({ table: exploreName, name }),
+                            ),
+                        );
+                    return {
+                        exploreName,
+                        label: definition.label,
+                        fields: listLiveSourceFields({
+                            base: definition,
+                            ...inputs,
+                            usageByFieldName: Object.fromEntries(
+                                usage.map(({ fieldId, count }) => [
+                                    fieldId.slice(exploreName.length + 1),
+                                    count,
+                                ]),
+                            ),
+                        }),
+                    };
+                },
+            ),
         );
-        const usageByFieldName = Object.fromEntries(
-            usage.map(({ fieldId, count }) => [
-                fieldId.slice(exploreName.length + 1),
-                count,
-            ]),
-        );
+        const [first] = explores;
         return {
-            exploreName,
+            exploreName: first.exploreName,
             usedByChartCount,
             scannedAt: state.lastScan?.scannedAt ?? null,
-            fields: listLiveSourceFields({
-                base: definition,
-                scannedFields,
-                edits:
-                    state.fields ??
-                    getInitialLiveSourceFieldEdits({
-                        scannedFields,
-                        isExistingSource: true,
-                    }),
-                usageByFieldName,
-            }),
+            fields: first.fields,
+            explores,
         };
     }
 

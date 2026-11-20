@@ -1,5 +1,11 @@
-import { ApiConnectorType } from '@lightdash/common';
+import { ApiConnectorType, DimensionType } from '@lightdash/common';
 import { getLiveBaseLayer } from './build';
+import {
+    getInitialLiveSourceFieldEdits,
+    getLiveFieldEditKey,
+    getLiveModelFieldInputs,
+    type ScannedLiveSourceField,
+} from './fields';
 
 describe('built-in live source fields', () => {
     test.each(Object.values(ApiConnectorType))(
@@ -16,4 +22,77 @@ describe('built-in live source fields', () => {
             expect(undescribed).toEqual([]);
         },
     );
+});
+
+describe('fields of several scanned explores', () => {
+    const scanned = (name: string, model?: string): ScannedLiveSourceField => ({
+        kind: 'dimension',
+        definition: {
+            name,
+            apiName: name,
+            label: name,
+            type: DimensionType.STRING,
+            filterOperators: [],
+        },
+        isInternal: false,
+        ...(model ? { model } : {}),
+    });
+    const fields = [
+        scanned('amount'),
+        scanned('email', 'contacts'),
+        scanned('createdate', 'contacts'),
+        scanned('createdate', 'companies'),
+    ];
+
+    it('keeps the first explore’s edits under bare names, as stored before', () => {
+        expect(getLiveFieldEditKey(null, 'amount')).toBe('amount');
+        expect(getLiveFieldEditKey('contacts', 'email')).toBe('contacts.email');
+    });
+
+    it('gives each explore only its own fields and edits', () => {
+        const edits = {
+            amount: { inUse: true, lastEdit: null },
+            'contacts.createdate': { inUse: true, lastEdit: null },
+            'companies.createdate': { inUse: false, lastEdit: null },
+        };
+        const contacts = getLiveModelFieldInputs({
+            model: 'contacts',
+            scannedFields: fields,
+            edits,
+        });
+        expect(contacts.scannedFields.map((f) => f.definition.name)).toEqual([
+            'email',
+            'createdate',
+        ]);
+        expect(contacts.edits).toEqual({
+            createdate: { inUse: true, lastEdit: null },
+        });
+        const first = getLiveModelFieldInputs({
+            model: null,
+            scannedFields: fields,
+            edits,
+        });
+        expect(first.scannedFields.map((f) => f.definition.name)).toEqual([
+            'amount',
+        ]);
+        expect(first.edits).toEqual({
+            amount: { inUse: true, lastEdit: null },
+        });
+    });
+
+    it('keeps every explore’s scanned fields in use for a source built before curation', () => {
+        expect(
+            Object.keys(
+                getInitialLiveSourceFieldEdits({
+                    scannedFields: fields,
+                    isExistingSource: true,
+                }),
+            ),
+        ).toEqual([
+            'amount',
+            'contacts.email',
+            'contacts.createdate',
+            'companies.createdate',
+        ]);
+    });
 });

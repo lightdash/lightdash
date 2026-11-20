@@ -1144,9 +1144,17 @@ export const FieldDetailModal: FC<{
         connectionUuid: source.connectionUuid ?? '',
     });
     const save = () => {
-        update.mutate([toFieldChange(field.name, draft, saved)], {
-            onSuccess: () => setCommitted(draft),
-        });
+        update.mutate(
+            [
+                {
+                    ...toFieldChange(field.name, draft, saved),
+                    exploreName: explore.name,
+                },
+            ],
+            {
+                onSuccess: () => setCommitted(draft),
+            },
+        );
     };
     const facts = [
         field.table !== explore.name

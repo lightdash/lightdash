@@ -14,8 +14,11 @@ import {
     type LiveMetricDefinition,
 } from './definition';
 
-/** A field the integration offered at its last scan, beyond the built-in ones. */
-export type ScannedLiveSourceField =
+/**
+ * A field the integration offered at its last scan, beyond the built-in ones.
+ * `model` names the explore it belongs to; absent, it is the first explore's.
+ */
+export type ScannedLiveSourceField = (
     | {
           kind: 'dimension';
           definition: LiveDimensionDefinition;
@@ -25,7 +28,8 @@ export type ScannedLiveSourceField =
           kind: 'metric';
           definition: LiveMetricDefinition;
           isInternal: boolean;
-      };
+      }
+) & { model?: string };
 
 export type LiveSourceScan = {
     scannedAt: string;
@@ -42,7 +46,47 @@ export type LiveSourceFieldEdit = {
     lastEdit: LiveSourceFieldEditor | null;
 };
 
+/**
+ * Edits by field name. The first explore's fields keep their bare name;
+ * another scanned explore's are keyed `<model>.<name>`, so stored edits from
+ * before several explores were scanned read the same.
+ */
 export type LiveSourceFieldEdits = Record<string, LiveSourceFieldEdit>;
+
+/** The key of a field's edit; `model` is null for the first explore. */
+export const getLiveFieldEditKey = (model: string | null, name: string) =>
+    model === null ? name : `${model}.${name}`;
+
+/** One scanned explore's scanned fields and edits, keyed by bare field name. */
+export const getLiveModelFieldInputs = ({
+    model,
+    scannedFields,
+    edits,
+}: {
+    model: string | null;
+    scannedFields: ScannedLiveSourceField[];
+    edits: LiveSourceFieldEdits;
+}): {
+    scannedFields: ScannedLiveSourceField[];
+    edits: LiveSourceFieldEdits;
+} => {
+    const prefix = model === null ? null : `${model}.`;
+    return {
+        scannedFields: scannedFields.filter(
+            (field) => (field.model ?? null) === model,
+        ),
+        edits: Object.fromEntries(
+            Object.entries(edits).flatMap(([key, edit]) => {
+                if (prefix === null) {
+                    return key.includes('.') ? [] : [[key, edit]];
+                }
+                return key.startsWith(prefix)
+                    ? [[key.slice(prefix.length), edit]]
+                    : [];
+            }),
+        ),
+    };
+};
 
 /** How a source's fields are curated, as stored next to its settings. */
 export type LiveSourceFieldState = {
@@ -69,6 +113,7 @@ const scannedFieldSchema = z.discriminatedUnion('kind', [
             type: z.nativeEnum(DimensionType),
         }),
         isInternal: z.boolean(),
+        model: z.string().optional(),
     }),
     z.object({
         kind: z.literal('metric'),
@@ -77,6 +122,7 @@ const scannedFieldSchema = z.discriminatedUnion('kind', [
             format: z.string().optional(),
         }),
         isInternal: z.boolean(),
+        model: z.string().optional(),
     }),
 ]);
 
@@ -276,8 +322,8 @@ export const getInitialLiveSourceFieldEdits = ({
 }): LiveSourceFieldEdits =>
     isExistingSource
         ? Object.fromEntries(
-              scannedFields.map(({ definition }) => [
-                  definition.name,
+              scannedFields.map(({ definition, model }) => [
+                  getLiveFieldEditKey(model ?? null, definition.name),
                   { inUse: true, lastEdit: null },
               ]),
           )
