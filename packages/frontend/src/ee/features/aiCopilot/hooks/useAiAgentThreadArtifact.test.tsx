@@ -172,6 +172,14 @@ describe('useAiAgentThreadArtifact', () => {
         } as AiAgentThread;
         rerender({ currentThread: endsWithUserMessage });
         expect(result.current.isAutoOpenPending).toBe(false);
+
+        deepResearchRegistrationStateMock.mockReturnValue({
+            registrations: [],
+            isReady: true,
+            isInitialLoading: false,
+        });
+        rerender({ currentThread: regularArtifactThread });
+        expect(result.current.isAutoOpenPending).toBe(false);
     });
 
     it('keeps a Deep Research artifact closed when registration loading completes', () => {

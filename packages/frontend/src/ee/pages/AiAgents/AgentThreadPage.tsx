@@ -98,7 +98,6 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         threadUuid,
     );
 
-    // Auto-opens the latest artifact; the page waits while that is undecided
     const { isAutoOpenPending } = useAiAgentThreadArtifact({
         projectUuid,
         agentUuid,
