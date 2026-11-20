@@ -26,10 +26,11 @@ const newContentCalculations: NonNullable<UsageChartSpec['tableCalculations']> =
         },
         {
             name: cameBackShare,
-            displayName: 'Share who came back (%)',
+            displayName: 'Share who came back',
             type: TableCalculationType.NUMBER,
-            sql: `CASE WHEN \${content_reach.created_at_day} > CURRENT_DATE - INTERVAL 7 DAY THEN NULL ELSE ROUND(100.0 * \${content_reach.new_content_returning_viewers} / NULLIF(\${content_reach.new_content_first_week_viewers}, 0)) END`,
-            format: { type: CustomFormatType.NUMBER, round: 0 },
+            // A fraction with a percent format, so the table writes it as 42%
+            sql: `CASE WHEN \${content_reach.created_at_day} > CURRENT_DATE - INTERVAL 7 DAY THEN NULL ELSE 1.0 * \${content_reach.new_content_returning_viewers} / NULLIF(\${content_reach.new_content_first_week_viewers}, 0) END`,
+            format: { type: CustomFormatType.PERCENT, round: 0 },
         },
     ];
 
@@ -144,7 +145,7 @@ export const contentChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'sortable-pivot-table',
-            minVersion: '0.14.0',
+            minVersion: '0.14.2',
             fieldMapping: {
                 rowDimension: 'content_reach_content_name',
                 metric: [
@@ -161,7 +162,8 @@ export const contentChartSpecs: UsageChartSpec[] = [
                 initialSort: 'firstValue',
                 rowHeaderName: 'Content',
                 valueNames:
-                    'Viewers in first week,Came back later,Share who came back (%)',
+                    'Viewers in first week,Came back later,Share who came back',
+                useFieldFormats: true,
             },
             query: {
                 // The day it was created is what the calculations check its age against

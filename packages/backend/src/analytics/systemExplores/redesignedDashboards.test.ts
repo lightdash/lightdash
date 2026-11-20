@@ -1734,7 +1734,7 @@ describe('new content adoption', () => {
                         : Number(row.came_back_later),
                     row.came_back_share === null
                         ? null
-                        : Number(row.came_back_share),
+                        : Math.round(100 * Number(row.came_back_share)),
                 ]),
             ).toEqual(
                 expect.arrayContaining([
