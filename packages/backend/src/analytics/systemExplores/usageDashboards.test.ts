@@ -1406,11 +1406,12 @@ describe('built-in usage dashboards', () => {
             expect(rows.get('app-creators')![0]).not.toHaveProperty(
                 'data_app_events_unique_apps',
             );
+            // Person b also drew a chart tile with a custom chart type: that is not a data app load
             expect(rows.get('app-reader-detail')).toEqual([
                 expect.objectContaining({
                     data_app_reach_user_name: 'Alex',
                     data_app_reach_user_id: 'b',
-                    data_app_reach_total_loads: 3n,
+                    data_app_reach_total_loads: 2n,
                 }),
                 expect.objectContaining({
                     data_app_reach_user_name: 'Alex',
@@ -1421,7 +1422,7 @@ describe('built-in usage dashboards', () => {
             for (const key of ['app-audience', 'app-reader-trend']) {
                 expect(rows.get(key)).toEqual([
                     expect.objectContaining({
-                        data_app_reach_total_loads: 4n,
+                        data_app_reach_total_loads: 3n,
                         data_app_reach_distinct_viewers: 2n,
                     }),
                 ]);

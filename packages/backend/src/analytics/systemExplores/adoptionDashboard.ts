@@ -18,10 +18,12 @@ import {
 } from './peopleNoActivityCharts';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
 
+// Where a person opens a data app to use it. A custom chart type drawing a chart tile also records a
+// load, with the context "chart", but that is a chart being viewed, not a data app being used.
 const appViewingSurfaces: NonNullable<UsageChartSpec['filters']> = [
     {
         field: 'data_app_reach_view_context',
-        values: ['standalone', 'dashboard', 'chart'],
+        values: ['standalone', 'dashboard'],
     },
 ];
 const askAi: NonNullable<UsageChartSpec['filters']> = [
@@ -63,7 +65,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
     card({
         key: 'adoption-app-viewers-latest-day',
         name: 'People loading data apps',
-        description: `People who loaded a data app from a standalone page, dashboard or chart on the latest day in recorded history. ${latestDayNote}`,
+        description: `People who loaded a data app from a standalone page or dashboard on the latest day in recorded history. ${latestDayNote}`,
         explore: 'data_app_reach',
         day: reachDay,
         metric: 'data_app_reach_distinct_viewers',
@@ -152,7 +154,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-app-audience',
         name: 'Which data apps are people loading?',
         description:
-            'Recorded data app loads from standalone pages, dashboards and charts. Reloads count, and so do creators using their own apps. Builder previews, embeds, deliveries and older loads with unknown context are left out. A load does not confirm the app rendered or was read.',
+            'Recorded data app loads from standalone pages and dashboards. Reloads count, and so do creators using their own apps. Chart tiles drawn by a custom chart type, builder previews, embeds, deliveries and older loads with unknown context are left out. A load does not confirm the app rendered or was read.',
         explore: 'data_app_reach',
         by: 'data_app_reach_app_name',
         dimensions: [
@@ -229,7 +231,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-app-reader-trend',
         name: 'Data app loads and viewers by day',
         description:
-            'Loads and distinct identified viewers per day, from standalone pages, dashboards and charts. Older loads with unknown context appear in the surface breakdown instead. Daily viewer counts cannot be added up across days. Reloads count.',
+            'Loads and distinct identified viewers per day, from standalone pages and dashboards. Older loads with unknown context appear in the surface breakdown instead. Daily viewer counts cannot be added up across days. Reloads count.',
         explore: 'data_app_reach',
         dimensions: [reachDay],
         metrics: [
@@ -265,7 +267,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
                 ],
                 limit: allHistory,
                 description:
-                    'Loads per day, with one row for standalone pages, one for dashboards and one for charts. Each row has its own scale. Reloads count.',
+                    'Loads per day, with one row for standalone pages and one for dashboards. Each row has its own scale. Reloads count.',
             },
         },
     },
@@ -273,7 +275,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-app-reader-detail',
         name: 'Who loads each data app?',
         description:
-            'People who loaded data apps from standalone pages, dashboards and charts, by app. Creators loading their own apps count. The same person can appear for several apps, so rows cannot be added up to count people.',
+            'People who loaded data apps from standalone pages and dashboards, by app. Creators loading their own apps count. The same person can appear for several apps, so rows cannot be added up to count people.',
         explore: 'data_app_reach',
         by: 'data_app_reach_app_name',
         then: 'data_app_reach_user_name',
@@ -299,7 +301,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-app-first-audience',
         name: 'Where are data apps being loaded?',
         description:
-            'All recorded data app loads by surface, including builder previews, embeds, deliveries and older loads with unknown context. Viewers of embeds are not identified. For older loads with unknown context, viewers cannot be told apart from embed token issuers. Apps with no recorded loads are not shown.',
+            'All recorded data app loads by surface, including chart tiles drawn by a custom chart type, builder previews, embeds, deliveries and older loads with unknown context. Viewers of embeds are not identified. For older loads with unknown context, viewers cannot be told apart from embed token issuers. Apps with no recorded loads are not shown.',
         explore: 'data_app_reach',
         by: 'data_app_reach_view_context',
         metrics: [
@@ -585,7 +587,7 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Who is loading data apps, and where?',
                     description:
-                        'Trends and named viewers cover standalone pages, dashboards and charts. The surface breakdown adds builder previews, embeds, deliveries and unknown context.',
+                        'Trends and named viewers cover standalone pages and dashboards. The surface breakdown adds chart tiles drawn by a custom chart type, builder previews, embeds, deliveries and unknown context.',
                     charts: ['adoption-app-reader-trend'],
                     layout: 'row',
                     rowHeight: 8,
