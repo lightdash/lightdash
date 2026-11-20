@@ -68,7 +68,6 @@ describe('Analytics settings query scopes', () => {
             ['Overview', 'lightdash-analytics-home'],
             ['Agents & AI', 'lightdash-analytics-overview'],
             ['Queries', 'lightdash-analytics-query-activity'],
-            ['People', 'lightdash-analytics-people'],
             ['Content', 'lightdash-analytics-content'],
             ['Data apps', 'lightdash-analytics-apps'],
             ['Tools & operations', 'lightdash-analytics-tools'],

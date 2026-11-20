@@ -167,7 +167,7 @@ export const analyticsHeadlineMetrics = [
     {
         title: 'Active people',
         description: 'People with any recorded activity',
-        tab: 'people',
+        tab: 'adoption',
         query: activityTotals,
         metric: 'unique_users',
     },
@@ -346,29 +346,6 @@ export const analyticsTabs: {
                 ),
                 kind: 'donut',
             },
-        ],
-    },
-    {
-        id: 'people',
-        summary: null,
-        label: 'People',
-        description: 'Active people and Google Sheets use.',
-        dashboardSlug: 'lightdash-analytics-people',
-        charts: [
-            activeUsers,
-            topUsers,
-            ranking(
-                'Activity by source',
-                'activity',
-                ['stream'],
-                'total_events',
-            ),
-            ranking(
-                'People by project',
-                'activity',
-                ['project_id'],
-                'unique_users',
-            ),
         ],
     },
     {

@@ -366,7 +366,7 @@ describe('built-in usage dashboards', () => {
                 ('org','project','','2026-01-05',19,NULL),
                 ('org','project','   ','2026-01-05',23,'data_app_events')`);
             const chart = charts.find(({ slug }) =>
-                slug.endsWith('-power-users-queries-ai-and-exports'),
+                slug.endsWith('-home-most-active-people'),
             )!;
             const rows = (
                 await db.runAndReadAll(compile(chart).query)
@@ -518,17 +518,10 @@ describe('built-in usage dashboards', () => {
     });
 
     it('keeps the inactivity charts on Adoption only, with their fixed windows', () => {
-        // People no longer repeats them
+        // The People dashboard that repeated them is retired
         expect(
-            analyticsContentAsCode
-                .find(
-                    ({ dashboard }) =>
-                        dashboard.slug === 'lightdash-analytics-people',
-                )!
-                .charts.filter(
-                    ({ tableName }) => tableName === 'people_adoption',
-                ),
-        ).toEqual([]);
+            analyticsContentAsCode.map(({ dashboard }) => dashboard.slug),
+        ).not.toContain('lightdash-analytics-people');
         const inactivityCharts = analyticsContentAsCode
             .filter(
                 ({ dashboard }) =>

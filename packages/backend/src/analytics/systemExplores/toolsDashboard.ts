@@ -3,6 +3,7 @@ import {
     cloud,
     ranking,
     stackedByDay,
+    trend,
     trendByCategory,
 } from './chartBuilders';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
@@ -11,6 +12,9 @@ const toolDay = 'tool_activity_event_ts_day';
 const exportDay = 'export_events_event_ts_day';
 const mcp: NonNullable<UsageChartSpec['filters']> = [
     { field: 'tool_activity_source', values: ['mcp'] },
+];
+const googleSheets: NonNullable<UsageChartSpec['filters']> = [
+    { field: 'query_events_context', values: ['gsheets'] },
 ];
 
 export const toolsChartSpecs: UsageChartSpec[] = [
@@ -156,12 +160,34 @@ export const toolsChartSpecs: UsageChartSpec[] = [
         libraryDescription:
             'Finished downloads for each person. Open a person to see the file formats they downloaded.',
     }),
+    trend({
+        key: 'tools-google-sheets-queries-by-day',
+        name: 'Google Sheets queries by day',
+        description: '',
+        explore: 'query_events',
+        day: 'query_events_event_ts_day',
+        metric: 'query_events_total_queries',
+        filters: googleSheets,
+    }),
+    ranking({
+        key: 'tools-google-sheets-queries-by-person',
+        name: 'Google Sheets queries by person',
+        description:
+            'Queries each person ran through the Google Sheets integration in the selected period.',
+        explore: 'query_events',
+        by: 'query_events_user_name',
+        dimensions: ['query_events_user_name', 'query_events_user_id'],
+        metrics: ['query_events_total_queries'],
+        filters: googleSheets,
+        limit: 100,
+        fieldLabels: { query_events_user_name: 'Person' },
+    }),
 ];
 
 export const toolsDashboardSpec: UsageDashboardSpec = {
     key: 'lightdash-analytics-tools',
     name: 'Tools & operations',
-    description: 'MCP tool usage and downloads.',
+    description: 'MCP tool usage, downloads and Google Sheets.',
     tabs: [
         {
             key: 'mcp',
@@ -229,6 +255,23 @@ export const toolsDashboardSpec: UsageDashboardSpec = {
                     description: '',
                     note: false,
                     charts: ['export-audit-actor-content-and-outcome'],
+                    layout: 'row',
+                    rowHeight: 8,
+                },
+                {
+                    title: 'Google Sheets',
+                    caption: true,
+                    description:
+                        'Queries run through the Google Sheets integration, which is not everyone who reads the spreadsheet.',
+                    charts: ['tools-google-sheets-queries-by-day'],
+                    layout: 'row',
+                    rowHeight: 5,
+                },
+                {
+                    title: 'Google Sheets queries by person',
+                    description: '',
+                    note: false,
+                    charts: ['tools-google-sheets-queries-by-person'],
                     layout: 'row',
                     rowHeight: 8,
                 },

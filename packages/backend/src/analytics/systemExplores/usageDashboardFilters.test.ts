@@ -12,7 +12,6 @@ const filterOf = (slug: string, label: string) =>
 const settingsDashboards = [
     'lightdash-analytics-overview',
     'lightdash-analytics-query-activity',
-    'lightdash-analytics-people',
     'lightdash-analytics-content',
     'lightdash-analytics-apps',
     'lightdash-analytics-tools',

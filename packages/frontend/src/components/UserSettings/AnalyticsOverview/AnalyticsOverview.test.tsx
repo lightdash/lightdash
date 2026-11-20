@@ -311,7 +311,7 @@ describe('Analytics settings overview', () => {
             }),
         ).not.toBeInTheDocument();
         // A tab with no dashboard still draws its own charts
-        await userEvent.click(screen.getByRole('tab', { name: 'People' }));
+        await userEvent.click(screen.getByRole('tab', { name: 'Content' }));
         expect(screen.getByText('Last 30 days')).toBeVisible();
     });
 

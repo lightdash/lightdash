@@ -22,7 +22,6 @@ import { embedChartSpecs, embedDashboardSpec } from './embedDashboard';
 import { homeChartSpecs, homeDashboardSpec } from './homeDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
 import { noteRows, titledNote } from './noteLayout';
-import { peopleChartSpecs, peopleDashboardSpec } from './peopleDashboard';
 import { peopleNoActivityChartSpecs } from './peopleNoActivityCharts';
 import { toolsChartSpecs, toolsDashboardSpec } from './toolsDashboard';
 import { usageActivityOriginSql } from './usageActivityOrigin';
@@ -505,7 +504,6 @@ export const note = (
 
 const dashboardSpecs = [
     ...usageDashboardSpecs,
-    peopleDashboardSpec,
     contentDashboardSpec,
     dataAppsDashboardSpec,
     toolsDashboardSpec,
@@ -518,7 +516,6 @@ const dashboardSpecs = [
 const allChartSpecs: UsageChartSpec[] = [
     ...homeChartSpecs,
     ...usageChartSpecs,
-    ...peopleChartSpecs,
     ...contentChartSpecs,
     ...dataAppsChartSpecs,
     ...toolsChartSpecs,

@@ -137,84 +137,6 @@ type Tile = [
     fallback: string,
 ];
 const redesigned: Record<string, Record<string, Tile[]>> = {
-    'lightdash-analytics-people': {
-        activity: [
-            [
-                'people-active-latest-day',
-                0,
-                1,
-                18,
-                4,
-                'big-number-with-sparkline-trend',
-                'big_number',
-            ],
-            [
-                'people-recorded-activities',
-                18,
-                1,
-                9,
-                4,
-                'big-number-with-sparkline-trend',
-                'big_number',
-            ],
-            [
-                'people-queries',
-                27,
-                1,
-                9,
-                4,
-                'big-number-with-sparkline-trend',
-                'big_number',
-            ],
-            [
-                'daily-observed-active-people',
-                0,
-                5,
-                36,
-                5,
-                'vega-trellis',
-                'cartesian',
-            ],
-            [
-                'people-activity-by-type-and-day',
-                0,
-                10,
-                36,
-                7,
-                'customizable-cartesian-chart',
-                'cartesian',
-            ],
-            [
-                'power-users-queries-ai-and-exports',
-                0,
-                17,
-                36,
-                8,
-                'sortable-pivot-table',
-                'table',
-            ],
-        ],
-        channels: [
-            [
-                'people-google-sheets-queries-by-day',
-                0,
-                1,
-                36,
-                5,
-                'vega-trellis',
-                'cartesian',
-            ],
-            [
-                'google-sheets-query-audience',
-                0,
-                6,
-                36,
-                8,
-                'sortable-pivot-table',
-                'table',
-            ],
-        ],
-    },
     'lightdash-analytics-content': {
         audience: [
             [
@@ -507,6 +429,24 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'export-audit-actor-content-and-outcome',
                 0,
                 13,
+                36,
+                8,
+                'sortable-pivot-table',
+                'table',
+            ],
+            [
+                'tools-google-sheets-queries-by-day',
+                0,
+                22,
+                36,
+                5,
+                'vega-trellis',
+                'cartesian',
+            ],
+            [
+                'tools-google-sheets-queries-by-person',
+                0,
+                27,
                 36,
                 8,
                 'sortable-pivot-table',
@@ -1413,7 +1353,6 @@ describe('axis titles of the area charts', () => {
     // The trellis has no title options: it titles its axes with the labels of the fields it draws
     it.each([
         ['lightdash-analytics-home-people-by-day', 'Day', 'People'],
-        ['lightdash-analytics-home-queries-by-day', 'Day', 'Queries'],
         [
             'lightdash-analytics-home-agent-requests-by-day',
             'Day',
