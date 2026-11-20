@@ -1343,6 +1343,9 @@ importers:
       '@pierre/trees':
         specifier: 1.0.0
         version: 1.0.0(@pierre/theme@2.0.0)(@shikijs/themes@3.23.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(shiki@3.23.0)
+      '@pierre/words':
+        specifier: 0.2.2
+        version: 0.2.2(react@19.3.0)
       '@popsql/monaco-sql-languages':
         specifier: 0.2.0
         version: 0.2.0(monaco-editor@0.54.0)
@@ -1523,6 +1526,9 @@ importers:
       monaco-yaml:
         specifier: 5.4.0
         version: 5.4.0(monaco-editor@0.54.0)
+      node-emoji:
+        specifier: 2.2.0
+        version: 2.2.0
       polished:
         specifier: 4.2.2
         version: 4.2.2
@@ -5829,6 +5835,17 @@ packages:
       react:
         optional: true
       react-dom:
+        optional: true
+
+  '@pierre/words@0.2.2':
+    resolution: {integrity: sha512-gOMolXeQzPK9IVNDimh8pronqzpFISFxp+rhobKT8NYQsTOpDLQKgr0rjwZn3I/kHLF+Sqoe2aIO/R7H71IzwQ==}
+    peerDependencies:
+      '@pierre/highlights': '>=0.5.1'
+      react: ^18.3.1 || ^19.0.0
+    peerDependenciesMeta:
+      '@pierre/highlights':
+        optional: true
+      react:
         optional: true
 
   '@playwright/test@1.65.1':
@@ -21136,6 +21153,10 @@ snapshots:
       - '@pierre/theme'
       - '@shikijs/themes'
       - shiki
+
+  '@pierre/words@0.2.2(react@19.3.0)':
+    optionalDependencies:
+      react: 19.3.0
 
   '@playwright/test@1.65.1':
     dependencies:

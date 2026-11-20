@@ -57,6 +57,11 @@ import { Link } from 'react-router';
 import { type CustomRendererProps, type StreamdownProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import { AiMarkdownErrorBoundary } from '../../../../../components/common/AiMarkdown/AiMarkdownErrorBoundary';
+import { LazyWordsMarkdown } from '../../../../../components/common/AiMarkdown/LazyWordsMarkdown';
+import {
+    type WordsCodeBlockRenderer,
+    type WordsLinkProps,
+} from '../../../../../components/common/AiMarkdown/wordsContext';
 import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SemanticLayerProposalCard } from '../../../../../features/semanticStudio/SemanticLayerProposalCard';
@@ -121,7 +126,11 @@ import {
     MessageSourcesToggle,
 } from './MessageMemorySources';
 import { MessageTimingIndicator } from './MessageTimingIndicator';
-import { isContentType, rehypeAiAgentContentLinks } from './rehypeContentLinks';
+import {
+    getContentLinkProperties,
+    isContentType,
+    rehypeAiAgentContentLinks,
+} from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
 import { rehypeNodeCitations } from './rehypeNodeCitations';
 import { requiresSnowflakeReauthentication } from './requiresSnowflakeReauthentication';
@@ -302,6 +311,9 @@ const getLatestSuccessfulRunSqlLinkState = ({
     return null;
 };
 
+const SQL_LANGUAGES = ['sql', 'postgresql', 'bigquery', 'snowflake'];
+const DIFF_LANGUAGES = ['diff', 'patch'];
+
 const SqlMarkdownCodeBlock: FC<
     CustomRendererProps & { projectUuid: string; canOpenSqlRunner: boolean }
 > = ({ code, isIncomplete, projectUuid, canOpenSqlRunner }) => {
@@ -440,7 +452,7 @@ const AssistantBubbleContent: FC<{
         () => ({
             renderers: [
                 {
-                    language: ['sql', 'postgresql', 'bigquery', 'snowflake'],
+                    language: SQL_LANGUAGES,
                     component: (props: CustomRendererProps) => (
                         <SqlMarkdownCodeBlock
                             {...props}
@@ -450,7 +462,7 @@ const AssistantBubbleContent: FC<{
                     ),
                 },
                 {
-                    language: ['diff', 'patch'],
+                    language: DIFF_LANGUAGES,
                     component: DiffMarkdownCodeBlock,
                 },
             ],
@@ -522,6 +534,69 @@ const AssistantBubbleContent: FC<{
     const citationResolutionKey = resolvedNodes
         .map(({ nodeId }) => nodeId)
         .join(',');
+
+    const { data: wordsMarkdownFlag } = useServerFeatureFlag(
+        FeatureFlags.AiAgentWordsMarkdown,
+    );
+    const isWordsMarkdown = wordsMarkdownFlag?.enabled === true;
+    const wordsCodeBlocks = useMemo<WordsCodeBlockRenderer[]>(
+        () => [
+            {
+                languages: SQL_LANGUAGES,
+                component: (props) => (
+                    <SqlMarkdownCodeBlock
+                        {...props}
+                        projectUuid={projectUuid}
+                        canOpenSqlRunner={canOpenSqlRunner}
+                    />
+                ),
+            },
+            { languages: DIFF_LANGUAGES, component: DiffMarkdownCodeBlock },
+        ],
+        [canOpenSqlRunner, projectUuid],
+    );
+    const renderWordsLink = useCallback(
+        ({ attributes, text, children }: WordsLinkProps) => {
+            const props: Record<string, unknown> = {
+                ...attributes,
+                ...(attributes.href
+                    ? getContentLinkProperties(attributes.href)
+                    : null),
+            };
+            const contentType = isContentType(props['data-content-type'])
+                ? props['data-content-type']
+                : undefined;
+            if (contentType === 'node-citation') {
+                const node = resolvedNodes.find(
+                    ({ nodeId }) => nodeId === props['data-node-id'],
+                );
+                if (!node) return children;
+                props.title = node.title ?? undefined;
+                props['data-citation-figure'] = text;
+            }
+            return (
+                <ContentLink
+                    contentType={contentType}
+                    props={props}
+                    message={message}
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                    sqlRunnerLinkState={sqlRunnerLinkState}
+                    onDashboardLinkClick={onDashboardLinkClick}
+                >
+                    {children}
+                </ContentLink>
+            );
+        },
+        [
+            agentUuid,
+            message,
+            onDashboardLinkClick,
+            projectUuid,
+            resolvedNodes,
+            sqlRunnerLinkState,
+        ],
+    );
 
     // Writeback PR card metadata. The editDbtProject tool result instructs
     // the LLM not to print the PR URL inline (we surface it via a dedicated
@@ -744,7 +819,7 @@ const AssistantBubbleContent: FC<{
                             s.kind === 'text',
                     );
                     const latestTextSeg = textSegments[textSegments.length - 1];
-                    const finalAnswerMd = latestTextSeg ? (
+                    const streamdownAnswerMd = latestTextSeg ? (
                         <AiMarkdown
                             isStreaming={isStreaming}
                             allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
@@ -787,6 +862,23 @@ const AssistantBubbleContent: FC<{
                             {latestTextSeg.text}
                         </AiMarkdown>
                     ) : null;
+                    const finalAnswerMd =
+                        latestTextSeg && isWordsMarkdown ? (
+                            <LazyWordsMarkdown
+                                fallback={streamdownAnswerMd}
+                                isStreaming={isStreaming}
+                                className={clsx(
+                                    styles.answerMarkdown,
+                                    isStreaming && styles.streamingNarration,
+                                )}
+                                renderLink={renderWordsLink}
+                                codeBlocks={wordsCodeBlocks}
+                            >
+                                {latestTextSeg.text}
+                            </LazyWordsMarkdown>
+                        ) : (
+                            streamdownAnswerMd
+                        );
                     return (
                         <Stack
                             // Same rhythm as the finished turn, so nothing shifts when it settles.
@@ -915,48 +1007,85 @@ const AssistantBubbleContent: FC<{
                                 data-tour-label="Read the answer"
                                 data-tour-docs="agents.mdx#intro:2"
                             >
-                                <AiMarkdown
-                                    key={citationResolutionKey}
-                                    className={clsx(
-                                        styles.answerMarkdown,
-                                        styles.persistedAnswer,
-                                    )}
-                                    allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
-                                    rehypePlugins={answerRehypePlugins}
-                                    plugins={markdownPlugins}
-                                    components={{
-                                        ...MEMORY_CITATION_COMPONENTS,
-                                        a: ({ node, children, ...props }) => {
-                                            const contentType =
-                                                'data-content-type' in props &&
-                                                isContentType(
-                                                    props['data-content-type'],
-                                                )
-                                                    ? props['data-content-type']
-                                                    : undefined;
+                                {(() => {
+                                    const persistedStreamdownMd = (
+                                        <AiMarkdown
+                                            key={citationResolutionKey}
+                                            className={clsx(
+                                                styles.answerMarkdown,
+                                                styles.persistedAnswer,
+                                            )}
+                                            allowedTags={
+                                                MEMORY_CITATION_ALLOWED_TAGS
+                                            }
+                                            rehypePlugins={answerRehypePlugins}
+                                            plugins={markdownPlugins}
+                                            components={{
+                                                ...MEMORY_CITATION_COMPONENTS,
+                                                a: ({
+                                                    node,
+                                                    children,
+                                                    ...props
+                                                }) => {
+                                                    const contentType =
+                                                        'data-content-type' in
+                                                            props &&
+                                                        isContentType(
+                                                            props[
+                                                                'data-content-type'
+                                                            ],
+                                                        )
+                                                            ? props[
+                                                                  'data-content-type'
+                                                              ]
+                                                            : undefined;
 
-                                            return (
-                                                <ContentLink
-                                                    contentType={contentType}
-                                                    props={props}
-                                                    message={message}
-                                                    projectUuid={projectUuid}
-                                                    agentUuid={agentUuid}
-                                                    sqlRunnerLinkState={
-                                                        sqlRunnerLinkState
-                                                    }
-                                                    onDashboardLinkClick={
-                                                        onDashboardLinkClick
-                                                    }
-                                                >
-                                                    {children}
-                                                </ContentLink>
-                                            );
-                                        },
-                                    }}
-                                >
-                                    {messageContent}
-                                </AiMarkdown>
+                                                    return (
+                                                        <ContentLink
+                                                            contentType={
+                                                                contentType
+                                                            }
+                                                            props={props}
+                                                            message={message}
+                                                            projectUuid={
+                                                                projectUuid
+                                                            }
+                                                            agentUuid={
+                                                                agentUuid
+                                                            }
+                                                            sqlRunnerLinkState={
+                                                                sqlRunnerLinkState
+                                                            }
+                                                            onDashboardLinkClick={
+                                                                onDashboardLinkClick
+                                                            }
+                                                        >
+                                                            {children}
+                                                        </ContentLink>
+                                                    );
+                                                },
+                                            }}
+                                        >
+                                            {messageContent}
+                                        </AiMarkdown>
+                                    );
+                                    return isWordsMarkdown ? (
+                                        <LazyWordsMarkdown
+                                            fallback={persistedStreamdownMd}
+                                            isStreaming={false}
+                                            className={clsx(
+                                                styles.answerMarkdown,
+                                                styles.persistedAnswer,
+                                            )}
+                                            renderLink={renderWordsLink}
+                                            codeBlocks={wordsCodeBlocks}
+                                        >
+                                            {messageContent}
+                                        </LazyWordsMarkdown>
+                                    ) : (
+                                        persistedStreamdownMd
+                                    );
+                                })()}
                             </Box>
                         ) : null}
                     </>

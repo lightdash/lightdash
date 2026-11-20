@@ -313,7 +313,11 @@ describe('AiDataAppBuildCard', () => {
 
         expect(await screen.findByText('Revenue app')).toBeVisible();
         await waitFor(() =>
-            expect(mockedLightdashApi).toHaveBeenCalledTimes(1),
+            expect(
+                mockedLightdashApi.mock.calls.filter(
+                    ([request]) => !request.url.startsWith('/feature-flag/'),
+                ),
+            ).toHaveLength(1),
         );
         expect(WorkerStub.last).toBeNull();
         expect(store.getState().aiArtifact.preview).toBeNull();

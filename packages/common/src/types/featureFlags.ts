@@ -318,6 +318,11 @@ export enum FeatureFlags {
      * @lightdash/sdk < 3.245.0 (first with PR #32548): older SDKs crash the whole embed.
      */
     ComposerCharts = 'composer-charts',
+    /**
+     * Experiment, off by default; user or organization scope; no handler.
+     * Agent chat answers render with `@pierre/words` instead of Streamdown.
+     */
+    AiAgentWordsMarkdown = 'ai-agent-words-markdown',
 }
 
 export type FeatureFlag = {

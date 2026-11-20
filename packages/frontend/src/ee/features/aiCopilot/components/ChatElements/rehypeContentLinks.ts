@@ -151,47 +151,53 @@ const URL_MATCHERS: UrlMatcher[] = [
     },
 ];
 
-const processLink = (node: Element, href: string): void => {
+/** Attributes that turn an agent link into a content link, or null for a plain link. */
+export const getContentLinkProperties = (
+    href: string,
+): Record<string, string | undefined> | null => {
     const processor = LINK_PROCESSORS.find((p) =>
         p.matches ? p.matches(href) : href.includes(p.fragment),
     );
-    if (!processor) {
-        for (const matcher of URL_MATCHERS) {
-            const match = href.match(matcher.pattern);
-            if (!match) continue;
-
-            // A schedulable resource view URL plus ?scheduler_uuid is a
-            // scheduled delivery deep link; classify it as such so the click
-            // opens the delivery's edit modal instead of the resource preview.
-            const schedulerMatch = matcher.schedulable
-                ? href.match(/[?&]scheduler_uuid=([^&#]+)/)
-                : null;
-
-            node.properties = schedulerMatch
-                ? {
-                      ...node.properties,
-                      'data-content-type': 'scheduled-delivery-link',
-                      'data-scheduler-uuid': schedulerMatch[1],
-                      href,
-                  }
-                : {
-                      ...node.properties,
-                      'data-content-type': matcher.contentType,
-                      ...matcher.extractData(match),
-                      href,
-                  };
-            return;
-        }
-
-        return;
+    if (processor) {
+        return {
+            'data-content-type': processor.contentType,
+            href: processor.cleanUrl(href),
+            ...processor.extractData(href),
+        };
     }
 
-    node.properties = {
-        ...node.properties,
-        'data-content-type': processor.contentType,
-        href: processor.cleanUrl(href),
-        ...processor.extractData(href),
-    };
+    for (const matcher of URL_MATCHERS) {
+        const match = href.match(matcher.pattern);
+        if (!match) continue;
+
+        // A schedulable resource view URL plus ?scheduler_uuid is a
+        // scheduled delivery deep link; classify it as such so the click
+        // opens the delivery's edit modal instead of the resource preview.
+        const schedulerMatch = matcher.schedulable
+            ? href.match(/[?&]scheduler_uuid=([^&#]+)/)
+            : null;
+
+        return schedulerMatch
+            ? {
+                  'data-content-type': 'scheduled-delivery-link',
+                  'data-scheduler-uuid': schedulerMatch[1],
+                  href,
+              }
+            : {
+                  'data-content-type': matcher.contentType,
+                  ...matcher.extractData(match),
+                  href,
+              };
+    }
+
+    return null;
+};
+
+const processLink = (node: Element, href: string): void => {
+    const properties = getContentLinkProperties(href);
+    if (properties) {
+        node.properties = { ...node.properties, ...properties };
+    }
 };
 
 /**
