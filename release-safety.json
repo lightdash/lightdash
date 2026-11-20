@@ -1,28 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.353.0",
-  "previousVersion": "3.352.0",
-  "releaseDate": "2026-11-20T11:34:38.517Z",
+  "version": "3.353.1",
+  "previousVersion": "3.353.0",
+  "releaseDate": "2026-11-20T12:12:11.956Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261106120000_add_ai_thread_images.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_thread_file",
-          "ai_thread_image_object"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -34,60 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/dashboards/{dashboardUuidOrSlug}/schedulers — removed the optional property `results/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/AppScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/dashboards/{dashboardUuidOrSlug}/schedulers — removed the optional property `results/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/ChartScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/dashboards/{dashboardUuidOrSlug}/schedulers — removed the optional property `results/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/DashboardScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/dashboards/{dashboardUuidOrSlug}/schedulers — removed the optional property `results/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/SqlChartScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "POST /api/v1/dashboards/{dashboardUuidOrSlug}/schedulers — removed the optional property `results/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/AppScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "POST /api/v1/dashboards/{dashboardUuidOrSlug}/schedulers — removed the optional property `results/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/ChartScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "POST /api/v1/dashboards/{dashboardUuidOrSlug}/schedulers — removed the optional property `results/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/DashboardScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "POST /api/v1/dashboards/{dashboardUuidOrSlug}/schedulers — removed the optional property `results/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/SqlChartScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/projects/{projectUuid}/code/scheduledDeliveries — removed the optional property `results/scheduledDeliveries/items/anyOf[#/components/schemas/ChartScheduledDeliveryAsCode]/allOf[#/components/schemas/ScheduledDeliveryFormatAsCode]/anyOf[subschema #1]/options/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/projects/{projectUuid}/code/scheduledDeliveries — removed the optional property `results/scheduledDeliveries/items/anyOf[#/components/schemas/DashboardScheduledDeliveryAsCode]/allOf[#/components/schemas/ScheduledDeliveryFormatAsCode]/anyOf[subschema #1]/options/xlsxContent` from the response with the `200` status",
-        "POST /api/v1/projects/{projectUuid}/code/scheduledDeliveries/{slug} — removed the request property `anyOf[#/components/schemas/ChartScheduledDeliveryAsCode]/allOf[#/components/schemas/ScheduledDeliveryFormatAsCode]/anyOf[subschema #1]/options/xlsxContent`",
-        "POST /api/v1/projects/{projectUuid}/code/scheduledDeliveries/{slug} — removed the request property `anyOf[#/components/schemas/DashboardScheduledDeliveryAsCode]/allOf[#/components/schemas/ScheduledDeliveryFormatAsCode]/anyOf[subschema #1]/options/xlsxContent`",
-        "GET /api/v1/projects/{projectUuid}/scheduledDeliveries/code — removed the optional property `results/scheduledDeliveries/items/anyOf[#/components/schemas/ChartScheduledDeliveryAsCode]/allOf[#/components/schemas/ScheduledDeliveryFormatAsCode]/anyOf[subschema #1]/options/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/projects/{projectUuid}/scheduledDeliveries/code — removed the optional property `results/scheduledDeliveries/items/anyOf[#/components/schemas/DashboardScheduledDeliveryAsCode]/allOf[#/components/schemas/ScheduledDeliveryFormatAsCode]/anyOf[subschema #1]/options/xlsxContent` from the response with the `200` status",
-        "POST /api/v1/projects/{projectUuid}/scheduledDeliveries/{slug}/code — removed the request property `anyOf[#/components/schemas/ChartScheduledDeliveryAsCode]/allOf[#/components/schemas/ScheduledDeliveryFormatAsCode]/anyOf[subschema #1]/options/xlsxContent`",
-        "POST /api/v1/projects/{projectUuid}/scheduledDeliveries/{slug}/code — removed the request property `anyOf[#/components/schemas/DashboardScheduledDeliveryAsCode]/allOf[#/components/schemas/ScheduledDeliveryFormatAsCode]/anyOf[subschema #1]/options/xlsxContent`",
-        "GET /api/v1/projects/{projectUuid}/sqlRunner/saved/{savedSqlUuid}/schedulers — removed the optional property `results/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/AppScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/projects/{projectUuid}/sqlRunner/saved/{savedSqlUuid}/schedulers — removed the optional property `results/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/ChartScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/projects/{projectUuid}/sqlRunner/saved/{savedSqlUuid}/schedulers — removed the optional property `results/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/DashboardScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/projects/{projectUuid}/sqlRunner/saved/{savedSqlUuid}/schedulers — removed the optional property `results/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/SqlChartScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "POST /api/v1/projects/{projectUuid}/sqlRunner/saved/{savedSqlUuid}/schedulers — removed the request property `options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent`",
-        "POST /api/v1/projects/{projectUuid}/sqlRunner/saved/{savedSqlUuid}/schedulers — removed the optional property `results/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/AppScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `201` status",
-        "POST /api/v1/projects/{projectUuid}/sqlRunner/saved/{savedSqlUuid}/schedulers — removed the optional property `results/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/ChartScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `201` status",
-        "POST /api/v1/projects/{projectUuid}/sqlRunner/saved/{savedSqlUuid}/schedulers — removed the optional property `results/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/DashboardScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `201` status",
-        "POST /api/v1/projects/{projectUuid}/sqlRunner/saved/{savedSqlUuid}/schedulers — removed the optional property `results/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/SqlChartScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `201` status",
-        "GET /api/v1/saved/{chartUuid}/schedulers — removed the optional property `results/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/AppScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/saved/{chartUuid}/schedulers — removed the optional property `results/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/ChartScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/saved/{chartUuid}/schedulers — removed the optional property `results/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/DashboardScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/saved/{chartUuid}/schedulers — removed the optional property `results/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/SqlChartScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "POST /api/v1/saved/{chartUuid}/schedulers — removed the request property `options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent`",
-        "POST /api/v1/saved/{chartUuid}/schedulers — removed the optional property `results/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/AppScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "POST /api/v1/saved/{chartUuid}/schedulers — removed the optional property `results/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/ChartScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "POST /api/v1/saved/{chartUuid}/schedulers — removed the optional property `results/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/DashboardScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "POST /api/v1/saved/{chartUuid}/schedulers — removed the optional property `results/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/SqlChartScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/schedulers/user-schedulers — removed the optional property `results/data/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/AppScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/schedulers/user-schedulers — removed the optional property `results/data/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/ChartScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/schedulers/user-schedulers — removed the optional property `results/data/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/DashboardScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/schedulers/user-schedulers — removed the optional property `results/data/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/SqlChartScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/schedulers/{projectUuid}/list — removed the optional property `results/data/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/AppScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/schedulers/{projectUuid}/list — removed the optional property `results/data/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/ChartScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/schedulers/{projectUuid}/list — removed the optional property `results/data/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/DashboardScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/schedulers/{projectUuid}/list — removed the optional property `results/data/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/SqlChartScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/schedulers/{projectUuid}/logs — removed the optional property `results/data/schedulers/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/AppScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/schedulers/{projectUuid}/logs — removed the optional property `results/data/schedulers/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/ChartScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/schedulers/{projectUuid}/logs — removed the optional property `results/data/schedulers/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/DashboardScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "GET /api/v1/schedulers/{projectUuid}/logs — removed the optional property `results/data/schedulers/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/SqlChartScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "PATCH /api/v1/schedulers/{projectUuid}/reassign-owner — removed the optional property `results/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/AppScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "PATCH /api/v1/schedulers/{projectUuid}/reassign-owner — removed the optional property `results/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/ChartScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "PATCH /api/v1/schedulers/{projectUuid}/reassign-owner — removed the optional property `results/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/DashboardScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "PATCH /api/v1/schedulers/{projectUuid}/reassign-owner — removed the optional property `results/items/allOf[#/components/schemas/Scheduler]/anyOf[#/components/schemas/SqlChartScheduler]/allOf[#/components/schemas/SchedulerBase]/options/anyOf[#/components/schemas/SchedulerCsvOptions]/xlsxContent` from the response with the `200` status",
-        "… and 23 more advisory note(s)"
-      ],
-      "advisoryCount": 73
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,

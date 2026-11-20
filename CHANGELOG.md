@@ -1,3 +1,11 @@
+## [3.353.1](https://github.com/lightdash/lightdash/compare/3.353.0...3.353.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **ai-agents:** only the streaming answer re-renders while an agent answers ([#33036](https://github.com/lightdash/lightdash/issues/33036)) ([bdde344](https://github.com/lightdash/lightdash/commit/bdde3440c6bca5176a9eef38d458790b57ad15ac))
+* **s3:** release the S3 socket when a client aborts a streamed download ([#32955](https://github.com/lightdash/lightdash/issues/32955)) ([eb75280](https://github.com/lightdash/lightdash/commit/eb75280d68737850d57a7c1025f8b4a298a06f83))
+
 # [3.353.0](https://github.com/lightdash/lightdash/compare/3.352.0...3.353.0) (2026-11-20)
 
 
