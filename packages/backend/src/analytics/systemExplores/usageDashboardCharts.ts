@@ -48,8 +48,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
         dimensions: [
             'semantic_usage_field_label',
             'semantic_usage_table_name',
-            'semantic_usage_field_kind',
-            'semantic_usage_field_origin',
+            'semantic_usage_field_kind_name',
+            'semantic_usage_field_origin_name',
             'semantic_usage_field_id',
             'semantic_usage_project_id',
         ],
@@ -121,8 +121,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'semantic_usage_user_id',
             'semantic_usage_field_label',
             'semantic_usage_table_name',
-            'semantic_usage_field_kind',
-            'semantic_usage_field_origin',
+            'semantic_usage_field_kind_name',
+            'semantic_usage_field_origin_name',
             'semantic_usage_field_id',
             'semantic_usage_project_id',
         ],
@@ -145,7 +145,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         dimensions: [
             'semantic_usage_field_label',
             'semantic_usage_table_name',
-            'semantic_usage_field_origin',
+            'semantic_usage_field_origin_name',
             'semantic_usage_field_id',
             'semantic_usage_project_id',
             'semantic_usage_chart_name',
@@ -701,12 +701,12 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'query-failures-affected-people',
-        name: 'Query failures by users affected',
+        name: 'Query failures by people affected',
         description:
-            'Failed queries, ranked by users affected. Failures not linked to any content are still shown.',
+            'Failed queries, ranked by people affected. Failures not linked to any content are still shown.',
         explore: 'query_events',
+        // Every row is a failure, so the outcome is not a column
         dimensions: [
-            'query_events_status',
             'query_events_dashboard_name',
             'query_events_explore_name',
             'query_events_dashboard_id',
@@ -732,8 +732,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
         description: 'Older queries with unknown values are still shown.',
         explore: 'query_events',
         dimensions: [
-            'query_events_workload_origin',
-            'query_events_initiating_actor_type',
+            'query_events_workload_origin_name',
+            'query_events_initiating_actor_type_name',
             'query_events_context_name',
         ],
         metrics: ['query_events_total_queries'],
@@ -915,7 +915,10 @@ export const usageChartSpecs: UsageChartSpec[] = [
         description:
             'Queries by cache hit and by what ran or served them, such as the warehouse, the results cache or a pre-aggregate.',
         explore: 'query_events',
-        dimensions: ['query_events_cache_hit', 'query_events_execution_source'],
+        dimensions: [
+            'query_events_cache_hit_name',
+            'query_events_execution_source_name',
+        ],
         metrics: ['query_events_total_queries'],
         limit: 30,
         sorts: [

@@ -106,6 +106,9 @@ const dimensionFields = {
     projects: { key: 'project_id', label: 'Project name' },
 };
 
+// Shown in a plain-name field when nothing was recorded
+const notRecorded = 'Not recorded';
+
 const dimensionTypes: Record<CompactedColumnType, DimensionType> = {
     VARCHAR: DimensionType.STRING,
     TIMESTAMP: DimensionType.TIMESTAMP,
@@ -476,21 +479,40 @@ export const createAnalyticsExplores = (): Explore[] => {
         // A second field beside one whose values are code names, showing them in plain words
         const addPlainName = (
             column: string,
-            plainLabel: string,
             names: PlainNames = {},
+            plainLabel?: string,
         ) => {
             const recorded = table.dimensions[column];
             table.dimensions[`${column}_name`] = {
                 ...recorded,
                 name: `${column}_name`,
-                label: plainLabel,
+                label: plainLabel ?? `${recorded.label} name`,
                 type: DimensionType.STRING,
                 description: `${recorded.label} in plain words. Filter on ${recorded.label}, which holds the recorded value.`,
                 sql: plainNameSql(recorded.sql, names),
             };
         };
-        if (name === 'ai_usage')
-            addPlainName('feature', 'Feature name', aiFeatureNames);
+        if (name === 'ai_usage') addPlainName('feature', aiFeatureNames);
+        if (name === 'query_events') {
+            addPlainName('workload_origin', {
+                names: { app: 'Data app', mcp: 'MCP' },
+                missing: notRecorded,
+            });
+            addPlainName('initiating_actor_type', {
+                names: { registered_user: 'Signed-in person' },
+                missing: notRecorded,
+            });
+            addPlainName('cache_hit', {
+                names: { true: 'Cache hit', false: 'Cache miss' },
+                missing: notRecorded,
+            });
+            addPlainName('execution_source', { missing: notRecorded });
+            addPlainName('status', { missing: notRecorded });
+        }
+        if (name === 'semantic_usage') {
+            addPlainName('field_kind');
+            addPlainName('field_origin');
+        }
         if (table.dimensions.user_id)
             table.dimensions.user_id.label = 'User UUID';
         if (table.dimensions.project_id)

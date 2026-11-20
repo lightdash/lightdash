@@ -148,7 +148,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Failures',
                         description:
-                            'Ranked by users affected and failure count. Error messages and causes are not shown here; investigate them separately.',
+                            'Ranked by people affected and failure count. Error messages and causes are not shown here; investigate them separately.',
                         charts: ['query-failures-affected-people'],
                     },
                 ],
