@@ -1,0 +1,34 @@
+/* Sized so the whole bubble, with its own frame, stays within 420 by 480. */
+.thread {
+    display: flex;
+    flex-direction: column;
+    width: 420px;
+    max-width: 100%;
+    max-height: 420px;
+}
+
+.header {
+    flex: 0 0 auto;
+    padding-bottom: var(--mantine-spacing-xs);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.agentName {
+    min-width: 0;
+}
+
+/* The message list scrolls in here; the reply bar stays at the bottom. */
+.body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* The bubble already has a gutter: drop the composer's own. */
+.body [data-layout] {
+    padding-left: 0;
+    padding-right: 0;
+    padding-bottom: 0;
+}
