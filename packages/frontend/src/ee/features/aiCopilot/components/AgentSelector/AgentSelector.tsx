@@ -159,6 +159,7 @@ export const AgentSelector = ({
                             icon={IconChevronDown}
                             size="sm"
                             color="dimmed"
+                            className={styles.chevron}
                         />
                     </Group>
                 </UnstyledButton>

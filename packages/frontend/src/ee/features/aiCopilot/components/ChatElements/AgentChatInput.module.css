@@ -2,16 +2,23 @@
     position: relative;
 }
 
+/* Phones: let the selectors give up width so send stays in the card */
+.container[data-layout='card'] {
+    --composer-toolbar-section-min-width: 0;
+}
+
 .modelGroup {
     display: inline-flex;
     align-items: stretch;
     gap: 2px;
+    min-width: 0;
     border: 1px solid transparent;
     border-radius: var(--mantine-radius-xl);
     background: transparent;
 }
 
 .modelGroup > button {
+    min-width: 0;
     border-radius: var(--mantine-radius-xl);
     border: none;
 }
@@ -43,6 +50,7 @@
 }
 
 .controlsReveal {
+    min-width: 0;
     transition:
         opacity 160ms ease,
         transform 160ms ease;

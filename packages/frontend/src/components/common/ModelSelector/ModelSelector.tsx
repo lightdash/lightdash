@@ -103,12 +103,18 @@ export const ModelSelector: FC<Props> = ({
                         />
                     }
                 >
-                    <Group gap={6} wrap="nowrap">
-                        <Text size="xs" fw={600} span>
+                    <Group gap={6} wrap="nowrap" miw={0}>
+                        <Text size="xs" fw={600} span truncate="end">
                             {selectedModel?.displayName ?? 'Select model'}
                         </Text>
                         {showReasoning && reasoningLabel && (
-                            <Text size="xs" fw={500} c="dimmed" span>
+                            <Text
+                                size="xs"
+                                fw={500}
+                                c="dimmed"
+                                span
+                                flex="none"
+                            >
                                 {reasoningLabel}
                             </Text>
                         )}
