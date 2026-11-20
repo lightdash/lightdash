@@ -390,8 +390,14 @@ export const TurnSummaryCard: FC<{
                 };
             case 'pull_request':
                 return {
-                    icon: <MantineIcon icon={IconGitPullRequest} size={14} />,
-                    status: 'Pull request',
+                    icon: (
+                        <MantineIcon
+                            icon={IconCircleCheck}
+                            size={14}
+                            color="green"
+                        />
+                    ),
+                    status: 'Pull request opened',
                 };
             case 'gone':
                 return {
@@ -482,6 +488,11 @@ export const TurnSummaryCard: FC<{
             isLatest={isLatest}
             actions={actions}
             isGone={phase.kind === 'gone'}
+            isSettled={
+                phase.kind === 'published' ||
+                phase.kind === 'pull_request' ||
+                phase.kind === 'gone'
+            }
         >
             {publishing && draft ? (
                 <Suspense fallback={null}>

@@ -574,25 +574,24 @@ const AssistantBubbleContent: FC<{
                       : [];
               });
 
-    // A proposal still being checked has no card yet, so its place is held.
-    const isProposing =
-        isStreaming &&
-        (streamingState?.parts ?? []).some(
-            (part) =>
-                part.type === 'toolCall' &&
-                part.toolName === 'proposeSemanticLayerChange' &&
-                part.toolResult === null,
-        );
-
     // A turn still working says nothing of an attempt that failed: it may yet land the change.
     const showsTurnSummary =
         semanticLayerProposals.length > 0 &&
-        !isProposing &&
         !(
             isStreaming &&
             semanticLayerProposals.every(
                 ({ draftChangeUuid }) => !draftChangeUuid,
             )
+        );
+
+    // Once a turn proposes, its card's place is held until the card lands; a later proposal updates the card in place.
+    const isProposing =
+        isStreaming &&
+        !showsTurnSummary &&
+        (streamingState?.parts ?? []).some(
+            (part) =>
+                part.type === 'toolCall' &&
+                part.toolName === 'proposeSemanticLayerChange',
         );
 
     // General coding-agent (editRepo) PR card metadata — resolved the same way
@@ -736,9 +735,11 @@ const AssistantBubbleContent: FC<{
                             keyId: s.keyId,
                             display: s.display,
                         }));
-                    const pendingApprovalIds = streamingState
-                        ? getPendingApprovalIds(streamingState)
-                        : [];
+                    // Studio runs SQL unasked, so it never shows the prompt.
+                    const pendingApprovalIds =
+                        streamingState && !quietCards
+                            ? getPendingApprovalIds(streamingState)
+                            : [];
                     const textSegments = segments.filter(
                         (s): s is Extract<typeof s, { kind: 'text' }> =>
                             s.kind === 'text',
@@ -871,7 +872,9 @@ const AssistantBubbleContent: FC<{
                     projectUuid,
                     agentUuid,
                     threadUuid: message.threadUuid,
-                    pendingToolCallIds: getPendingPersistedApprovalIds(message),
+                    pendingToolCallIds: quietCards
+                        ? []
+                        : getPendingPersistedApprovalIds(message),
                     decidedToolCallIds: [],
                 };
                 // In Studio a turn that only changed the draft ends on its card; the line kept for history is not shown twice.

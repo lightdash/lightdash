@@ -45,14 +45,23 @@ const SAME_IN_EITHER_VIEW = new Set([
     // The draft is the person's own whichever view reads the models.
     'semantic-layer-draft',
     'semantic-layer-draft-state',
+    // Who may ask the agent is the same in either view; refetching it blanks the chat's composer.
+    'ai-access',
 ]);
 
 /** Ends the key of a query that asks for what is published by name, whatever view the page is in. */
 export const PUBLISHED_VIEW = 'published-view';
 
+// A chat thread is a conversation, not models: switching the view must not swap it for an older copy.
+const isAgentThread = (queryKey: QueryKey): boolean =>
+    queryKey.length === 5 &&
+    queryKey[0] === 'aiAgents' &&
+    queryKey[3] === 'threads';
+
 const isSameInEitherView = (queryKey: QueryKey): boolean =>
     SAME_IN_EITHER_VIEW.has(String(queryKey[0])) ||
-    queryKey.at(-1) === PUBLISHED_VIEW;
+    queryKey.at(-1) === PUBLISHED_VIEW ||
+    isAgentThread(queryKey);
 
 const PROJECT_IN_PATH = /\/projects\/([^/]+)/;
 
@@ -132,8 +141,11 @@ const switchView = (queryClient: QueryClient, write: () => void) => {
     const shown = queryClient
         .getQueryCache()
         .getAll()
-        .flatMap(({ queryKey, state }) =>
-            readsTheView(queryKey) && state.data !== undefined
+        .flatMap(({ queryKey, queryHash, state }) =>
+            readsTheView(queryKey) &&
+            state.data !== undefined &&
+            // Only what the page shows now; a third view's copy is older.
+            queryHash === hashQueryKeyByView(queryKey)
                 ? [{ queryKey, data: state.data }]
                 : [],
         );
