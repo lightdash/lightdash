@@ -36,6 +36,7 @@ import {
     agentRequestStartsMetrics,
     agentRequestStartsSql,
 } from '../../../analytics/systemExplores/agentRequests';
+import { modelProviders } from '../../../analytics/systemExplores/analyticsColorPalette';
 import {
     contentHealthColumns,
     contentHealthMetrics,
@@ -619,7 +620,31 @@ export const createAnalyticsExplores = (): Explore[] => {
             // Two fields cannot share a name in the field list
             recorded.label = `${recorded.label} (recorded value)`;
         };
-        if (name === 'ai_usage') addPlainName('feature', aiFeatureNames);
+        if (name === 'ai_usage') {
+            addPlainName('feature', aiFeatureNames);
+            // The provider read from the model's name, with the same prefixes that colour the model
+            // charts, so a Claude model reached through Bedrock still counts as Anthropic
+            table.dimensions.model_provider = {
+                ...table.dimensions.model,
+                name: 'model_provider',
+                label: 'Model provider',
+                description:
+                    'Provider worked out from the start of the model name: Anthropic, OpenAI, Google, or Other when the name matches none. Provider holds the recorded route, such as bedrock.',
+                sql: `CASE ${modelProviders
+                    .map(
+                        ({ label: provider, prefixes }) =>
+                            `WHEN ${prefixes
+                                .map(
+                                    (prefix) =>
+                                        `starts_with(lower(${table.dimensions.model.sql}), '${prefix}')`,
+                                )
+                                .join(' OR ')} THEN '${provider}'`,
+                    )
+                    .join(
+                        ' ',
+                    )} WHEN ${table.dimensions.model.sql} IS NULL THEN NULL ELSE 'Other' END`,
+            };
+        }
         if (name === 'query_events') {
             addPlainName('workload_origin', {
                 names: { app: 'Data app', mcp: 'MCP' },

@@ -8,6 +8,26 @@ import { type CreateColorPalette } from '@lightdash/common';
 export const modelProviderColors =
     'Anthropic=claude|anthropic|us.anthropic|eu.anthropic|apac.anthropic|global.anthropic=#6366F1;OpenAI=gpt|o1|o3|o4|openai|text-embedding=#34D399;Google=gemini|google=#FBBF24';
 
+// The same rule for code that cannot use the option: each provider with its name prefixes and colour.
+export const modelProviders = modelProviderColors.split(';').map((rule) => {
+    const [label, prefixes, color] = rule.split('=');
+    return { label, prefixes: prefixes.split('|'), color };
+});
+// A provider's largest model takes its colour; its next models take these lighter tints in turn.
+export const modelProviderTints: Record<string, string[]> = {
+    Anthropic: ['#6366F1', '#818CF8', '#A5B4FC', '#C7D2FE', '#E0E7FF'],
+    OpenAI: ['#34D399', '#6EE7B7', '#A7F3D0', '#D1FAE5', '#ECFDF5'],
+    Google: ['#FBBF24', '#FCD34D', '#FDE68A', '#FEF3C7', '#FFFBEB'],
+};
+// A model that matches no provider, darkest first
+export const unmatchedModelTints = [
+    '#ADB5BD',
+    '#CED4DA',
+    '#DEE2E6',
+    '#E9ECEF',
+    '#F1F3F5',
+];
+
 // Managed palette for the Analytics project. Library charts take their series
 // colours from the palette the host resolves, so every analytics dashboard
 // shares one theme. Vivid and pastel colours alternate so neighbouring stacked

@@ -704,7 +704,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 dimensions: [
                     'ai_usage_feature_name',
                     'ai_usage_model',
-                    'ai_usage_provider',
+                    'ai_usage_model_provider',
                 ],
                 metrics: ['ai_usage_total_tokens_used'],
                 tableCalculations: [
@@ -712,7 +712,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                         name: 'provider_tokens',
                         displayName: 'Provider tokens',
                         type: TableCalculationType.NUMBER,
-                        sql: 'SUM(${ai_usage.total_tokens_used}) OVER (PARTITION BY ${ai_usage.provider})',
+                        sql: 'SUM(${ai_usage.total_tokens_used}) OVER (PARTITION BY ${ai_usage.model_provider})',
                     },
                     {
                         name: 'model_tokens',
@@ -723,7 +723,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 ],
                 sorts: [
                     { fieldId: 'provider_tokens', descending: true },
-                    { fieldId: 'ai_usage_provider', descending: false },
+                    { fieldId: 'ai_usage_model_provider', descending: false },
                     { fieldId: 'model_tokens', descending: true },
                     { fieldId: 'ai_usage_total_tokens_used', descending: true },
                 ],

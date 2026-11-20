@@ -4,6 +4,7 @@ import {
     type DataAppVizSchema,
 } from '@lightdash/common';
 import { createAnalyticsExplores } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
+import { buildAiTokenDashboard } from './aiTokenDashboard';
 import { modelProviderColors } from './analyticsColorPalette';
 import {
     libraryChartFields,
@@ -530,6 +531,42 @@ describe('model colours', () => {
             .forEach((rule) =>
                 expect(rule).toMatch(/^[A-Za-z]+=[a-z0-9./|-]+=#[0-9A-F]{6}$/),
             );
+    });
+});
+
+describe('model colours on AI token usage', () => {
+    it('fills the two model charts by provider from the same prefixes, and no other breakdown', () => {
+        const specs = buildAiTokenDashboard().charts.flatMap((tokenChart) =>
+            tokenChart.chartConfig.type === ChartType.CUSTOM
+                ? [
+                      [
+                          tokenChart.slug,
+                          JSON.stringify(tokenChart.chartConfig.config?.spec),
+                      ] as const,
+                  ]
+                : [],
+        );
+        const byProvider = specs.filter(([, spec]) =>
+            spec.includes('"field":"group_color"'),
+        );
+        expect(byProvider.map(([slug]) => slug).sort()).toEqual([
+            'lightdash-analytics-ai-tokens-model-daily',
+            'lightdash-analytics-ai-tokens-model-rank',
+        ]);
+        byProvider.forEach(([, spec]) => {
+            // Every prefix of the shared rule, and each provider's own colour for its largest model
+            modelProviderColors.split(';').forEach((rule) => {
+                const [label, prefixes, color] = rule.split('=');
+                prefixes
+                    .split('|')
+                    .forEach((prefix) =>
+                        expect(spec).toContain(
+                            `indexof(lower(datum.group), '${prefix}') === 0`,
+                        ),
+                    );
+                expect(spec).toContain(`\\"${label}\\":[\\"${color}\\"`);
+            });
+        });
     });
 });
 

@@ -1384,15 +1384,27 @@ describe('Tokens by feature and model', () => {
                 ('org','1',CURRENT_TIMESTAMP,'agent','gpt-small','openai',10),
                 ('org','2',CURRENT_TIMESTAMP,'agent','gpt-big','openai',50),
                 ('org','3',CURRENT_TIMESTAMP,'agent','claude-a','anthropic',40),
-                ('org','4',CURRENT_TIMESTAMP,'data-app','claude-b','anthropic',70),
-                ('org','5',CURRENT_TIMESTAMP,'agent','gemini-x','google',5)`);
+                ('org','4',CURRENT_TIMESTAMP,'data-app','us.anthropic.claude-b','bedrock',70),
+                ('org','5',CURRENT_TIMESTAMP,'agent','gemini-x','google',5),
+                ('org','6',CURRENT_TIMESTAMP,'agent','my-deployment','azure',3)`);
             const rows = (
                 await db.runAndReadAll(sqlOf(heatmap))
             ).getRowObjectsJS();
             // The heatmap keeps its columns in the order the rows arrive
+            // Grouped by the provider in the model's name, so Claude through Bedrock sits with Anthropic
             expect([...new Set(rows.map((row) => row.ai_usage_model))]).toEqual(
-                ['claude-b', 'claude-a', 'gpt-big', 'gpt-small', 'gemini-x'],
+                [
+                    'us.anthropic.claude-b',
+                    'claude-a',
+                    'gpt-big',
+                    'gpt-small',
+                    'gemini-x',
+                    'my-deployment',
+                ],
             );
+            expect([
+                ...new Set(rows.map((row) => row.ai_usage_model_provider)),
+            ]).toEqual(['Anthropic', 'OpenAI', 'Google', 'Other']);
         } finally {
             db.closeSync();
             instance.closeSync();

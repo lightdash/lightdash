@@ -11,7 +11,12 @@ import {
     type ChartAsCode,
     type DashboardAsCode,
 } from '@lightdash/common';
-import { analyticsColorPalette } from './analyticsColorPalette';
+import {
+    analyticsColorPalette,
+    modelProviders,
+    modelProviderTints,
+    unmatchedModelTints,
+} from './analyticsColorPalette';
 import type { LibraryChartBinding } from './libraryCharts';
 import type { AnalyticsContentBundle } from './usageDashboardTypes';
 
@@ -106,8 +111,8 @@ const breakdowns: Breakdown[] = [
         label: "datum.ai_usage_model || 'Unknown model'",
         billingScope: false,
         descriptions: {
-            daily: 'All recorded tokens per day, for the five largest models plus Other.',
-            rank: "Each model's share of all recorded tokens, for the five largest models plus Other.",
+            daily: 'All recorded tokens per day, for the five largest models plus Other. Models are coloured and grouped by provider.',
+            rank: "Each model's share of all recorded tokens, for the five largest models plus Other. Models are coloured and grouped by provider.",
         },
     },
     {
@@ -267,6 +272,127 @@ const noReportedTokens = {
     },
 };
 
+// Groups models by provider, so a provider's models sit together and share its colour: the largest in
+// the provider's own colour and the next in lighter tints. A model that matches no provider is a light
+// grey, and Other keeps its grey. Runs on the grouped rows (the five largest groups and Other).
+const providerOf = `datum.group === '__other__' ? 'Other' : ${modelProviders
+    .map(
+        ({ label, prefixes }) =>
+            `${prefixes
+                .map(
+                    (prefix) =>
+                        `indexof(lower(datum.group), '${prefix}') === 0`,
+                )
+                .join(' || ')} ? '${label}' : `,
+    )
+    .join('')}'Unmatched'`;
+const providerColouring = [
+    { calculate: providerOf, as: 'provider' },
+    {
+        joinaggregate: [{ op: 'sum', field: 'tokens', as: 'provider_tokens' }],
+        groupby: ['provider'],
+    },
+    {
+        joinaggregate: [{ op: 'sum', field: 'tokens', as: 'group_tokens' }],
+        groupby: ['group'],
+    },
+    {
+        window: [{ op: 'dense_rank', as: 'provider_rank' }],
+        sort: [
+            { field: 'provider_tokens', order: 'descending' },
+            { field: 'provider', order: 'ascending' },
+        ],
+    },
+    {
+        window: [{ op: 'dense_rank', as: 'shade' }],
+        sort: [
+            { field: 'group_tokens', order: 'descending' },
+            { field: 'group', order: 'ascending' },
+        ],
+        groupby: ['provider'],
+    },
+    {
+        calculate:
+            "(datum.provider === 'Other' ? 90 : datum.provider_rank) * 10 + datum.shade",
+        as: 'group_order',
+    },
+    {
+        calculate: `datum.provider === 'Other' ? '#868e96' : (${JSON.stringify(modelProviderTints)}[datum.provider] || ${JSON.stringify(unmatchedModelTints)})[min(datum.shade, 5) - 1]`,
+        as: 'group_color',
+    },
+    {
+        calculate: "datum.group_color + '|' + datum.group_name",
+        as: 'legend_key',
+    },
+];
+
+// A legend drawn as marks, two to a row under the date axis: a square in each group's own colour and
+// its name. The chart's built-in legend can only take its colours from a fixed list.
+const legendEntries = [
+    completeRows,
+    {
+        aggregate: [{ op: 'min', field: 'group_order', as: 'group_order' }],
+        groupby: ['group_name', 'group_color'],
+    },
+    {
+        window: [{ op: 'row_number', as: 'entry' }],
+        sort: [{ field: 'group_order', order: 'ascending' }],
+    },
+    { calculate: '((datum.entry - 1) % 2) * (width / 2) + 6', as: 'entry_x' },
+    {
+        calculate: 'height + 36 + floor((datum.entry - 1) / 2) * 18',
+        as: 'entry_y',
+    },
+];
+const legendPosition = {
+    y: { field: 'entry_y', type: 'quantitative', scale: null, axis: null },
+};
+const providerLegend = [
+    {
+        transform: legendEntries,
+        mark: { type: 'square', size: 90, opacity: 1, aria: false },
+        encoding: {
+            x: {
+                field: 'entry_x',
+                type: 'quantitative',
+                scale: null,
+                axis: null,
+            },
+            ...legendPosition,
+            fill: {
+                field: 'group_color',
+                type: 'nominal',
+                scale: null,
+                legend: null,
+            },
+        },
+    },
+    {
+        transform: [
+            ...legendEntries,
+            { calculate: 'datum.entry_x + 12', as: 'entry_x' },
+        ],
+        mark: {
+            type: 'text',
+            align: 'left',
+            baseline: 'middle',
+            fontSize: 11,
+            color: '#868e96',
+            limit: { expr: 'max(60, width / 2 - 28)' },
+        },
+        encoding: {
+            x: {
+                field: 'entry_x',
+                type: 'quantitative',
+                scale: null,
+                axis: null,
+            },
+            ...legendPosition,
+            text: { field: 'group_name' },
+        },
+    },
+];
+
 const visualSpec = (
     breakdown: Breakdown,
     daily: boolean,
@@ -300,13 +426,26 @@ const visualSpec = (
             : []),
         { field: 'group', title: 'Group identity' },
     ];
+    const byProvider = breakdown.key === 'model';
     const color = {
-        field: 'group_name',
+        // By provider, each bar is filled with the colour worked out for it, and the legend entry
+        // carries that colour in front of the name ("#6366F1|claude-...") so it can draw the same one
+        field: byProvider ? 'legend_key' : 'group_name',
         type: 'nominal',
         sort: { field: 'group_order', op: 'min' },
         scale: { range: colors },
         legend: null,
     };
+    const fill = byProvider
+        ? {
+              fill: {
+                  field: 'group_color',
+                  type: 'nominal',
+                  scale: null,
+                  legend: null,
+              },
+          }
+        : {};
     const transform = [
         sourceRows,
         // Retain an all-null input only to render its missing-usage message.
@@ -374,6 +513,7 @@ const visualSpec = (
             ],
             groupby: [...(daily ? [day] : []), 'group', 'group_name'],
         },
+        ...(byProvider ? providerColouring : []),
         ...(daily
             ? [
                   {
@@ -417,9 +557,34 @@ const visualSpec = (
         const reportedAxisOpacity = {
             expr: "length(domain('color')) ? 1 : 0",
         };
+        const dailyColor = {
+            ...color,
+            legend: {
+                // An empty symbol legend collapses Vega's fit
+                // height to zero. Keep a transparent layout
+                // entry. Bars already expose each group and its
+                // value to assistive technology.
+                aria: false,
+                values: {
+                    expr: "length(domain('color')) ? domain('color') : ['']",
+                },
+                symbolOpacity: {
+                    expr: "length(domain('color')) ? 1 : 0",
+                },
+                labelLimit: {
+                    expr: 'min(140, max(60, (width - 64) / 2))',
+                },
+            },
+        };
         return {
             ...base,
-            padding: { left: 8, right: 12, top: 8, bottom: 10 },
+            // By provider, the legend is drawn in the bottom padding: three rows of two
+            padding: {
+                left: 8,
+                right: 12,
+                top: 8,
+                bottom: byProvider ? 60 : 10,
+            },
             layer: [
                 {
                     transform: [completeRows],
@@ -463,25 +628,7 @@ const visualSpec = (
                                 },
                             },
                         },
-                        color: {
-                            ...color,
-                            legend: {
-                                // An empty symbol legend collapses Vega's fit
-                                // height to zero. Keep a transparent layout
-                                // entry. Bars already expose each group and its
-                                // value to assistive technology.
-                                aria: false,
-                                values: {
-                                    expr: "length(domain('color')) ? domain('color') : ['']",
-                                },
-                                symbolOpacity: {
-                                    expr: "length(domain('color')) ? 1 : 0",
-                                },
-                                labelLimit: {
-                                    expr: 'min(140, max(60, (width - 64) / 2))',
-                                },
-                            },
-                        },
+                        ...(byProvider ? fill : { color: dailyColor }),
                         order: {
                             field: 'group_order',
                             type: 'quantitative',
@@ -490,6 +637,18 @@ const visualSpec = (
                         tooltip,
                     },
                 },
+                // The bars are filled directly, so an unseen layer keeps the colour scale the
+                // empty-state rules read, and the legend is drawn as marks under the axis
+                ...(byProvider
+                    ? [
+                          {
+                              transform: [completeRows],
+                              mark: { type: 'point', opacity: 0, size: 0 },
+                              encoding: { color: { ...color, legend: null } },
+                          },
+                          ...providerLegend,
+                      ]
+                    : []),
                 limitWarning,
                 noReportedTokens,
             ],
@@ -520,7 +679,11 @@ const visualSpec = (
             ),
             layer(
                 { type: 'bar', height: 8, cornerRadius: 3 },
-                { x: { field: 'share', ...shareScale }, color, tooltip },
+                {
+                    x: { field: 'share', ...shareScale },
+                    ...(byProvider ? fill : { color }),
+                    tooltip,
+                },
             ),
             layer(
                 {
