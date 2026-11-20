@@ -1,4 +1,5 @@
 import {
+    describeModelFragmentRefusal,
     endsTurnOnCard,
     listChangesToolDefinition,
     proposeSemanticLayerChangeToolDefinition,
@@ -40,7 +41,7 @@ const renderProposedModel = (
             : []),
         ...(refusals.length > 0
             ? [
-                  `  refusals: ${refusals.map(({ path, reason }) => `${path} (${reason})`).join(', ')}`,
+                  `  refusals: ${refusals.map(describeModelFragmentRefusal).join(' ')}`,
               ]
             : []),
         ...(error ? [`  error: ${error}`] : []),

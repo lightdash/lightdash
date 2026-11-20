@@ -226,6 +226,33 @@ describe('getProposeSemanticLayerChange', () => {
         ).toBe('Changed orders in the draft. Some parts were left out.');
     });
 
+    it('tells the agent why a part was refused in a sentence it can act on', async () => {
+        const output = await propose(
+            async () => ({
+                results: [
+                    {
+                        model: 'orders',
+                        status: 'failed',
+                        changes: [],
+                        refusals: [
+                            { path: 'dimensions.status', reason: 'name_taken' },
+                        ],
+                        error: 'None of this change to orders was added.',
+                        notes: [],
+                    },
+                ],
+                diffs: [],
+                draftChangeUuid: null,
+                startedChange: null,
+            }),
+            'label: Orders',
+        );
+        expect(output.result).toContain(
+            'refusals: dimensions.status uses a name another field of this model already has.',
+        );
+        expect(output.result).toContain('Nothing joined the draft.');
+    });
+
     it('says nothing joined the draft when no model passed', async () => {
         const output = await propose(
             async () => ({
