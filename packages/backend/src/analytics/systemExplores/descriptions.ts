@@ -33,6 +33,8 @@ export const analyticsTableDescriptions: Record<string, string> = {
         'The latest inventory of charts, dashboards and data apps, including items with no observed activity and soft-deleted items. Combines current ownership and known dependencies with retained usage. No observed activity does not prove an item is unused or safe to delete.',
     content_inventory:
         'The latest inventory of charts, dashboards and data apps, including zero-activity and soft-deleted items. Use for creation dates, ownership and current metadata without reading usage history. This is not a historical inventory.',
+    content_created:
+        'The latest inventory of charts, dashboards and data apps with a row for every day, so content created can be charted by day with zero on days when nothing was created. Use Content inventory for anything else.',
     semantic_usage:
         'Direct field references in captured semantic queries, with one row per query, field and role. Use this Explore to find which metrics and dimensions are queried. Counts are distinct and cannot be summed across fields or roles; SQL-only and older queries may have no field details.',
     data_app_reach:

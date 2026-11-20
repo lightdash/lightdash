@@ -17,7 +17,10 @@ import { createAnalyticsExplores } from '../../services/ProjectService/analytics
 import { MetricQueryBuilder } from '../../utils/QueryBuilder/MetricQueryBuilder';
 import { contentInventoryColumns } from '../eventStream/contentInventory';
 import { compactedStreamSchemas } from '../eventStream/registry';
-import { analyticsContentAsCode } from './sampleContent';
+import {
+    analyticsContentAsCode,
+    analyticsLibraryChartBindings,
+} from './sampleContent';
 
 const charts = analyticsContentAsCode
     .flatMap((bundle) => bundle.charts)
@@ -327,5 +330,60 @@ describe('Content inventory charts', () => {
                 isDonut: true,
             });
         }
+    });
+    it('gives the Content created card a point for every day, with the same total as the plain number', async () => {
+        const card = analyticsContentAsCode
+            .flatMap((bundle) => bundle.charts)
+            .find(
+                ({ slug }) =>
+                    slug === 'lightdash-analytics-home-content-created',
+            )!;
+        const binding = analyticsLibraryChartBindings.get(card.slug)!;
+        const run = async (metricQuery: MetricQuery) =>
+            (
+                await db.runAndReadAll(compile(metricQuery).query)
+            ).getRowObjectsJS();
+        const plainQuery = {
+            ...card.metricQuery,
+            filters: card.metricQuery.filters as Filters,
+        } as MetricQuery;
+        const [plain] = await run(plainQuery);
+        const byDay = await run({
+            ...plainQuery,
+            dimensions: binding.query!.dimensions,
+            sorts: binding.query!.sorts,
+            limit: binding.query!.limit,
+        });
+        const total = Number(plain.content_health_total_content);
+        expect(total).toBeGreaterThan(0);
+        expect(
+            byDay.reduce(
+                (sum, row) => sum + Number(row.content_health_total_content),
+                0,
+            ),
+        ).toBe(total);
+        // One row for each day since the first item was created, most of them zero
+        // (an item with no creation date has no day; the Date filter leaves it out)
+        const days = byDay
+            .filter((row) => row.content_health_created_at_day !== null)
+            .map((row) =>
+                new Date(row.content_health_created_at_day as Date).getTime(),
+            );
+        expect(days.length).toBeGreaterThan(30);
+        expect(
+            days.slice(1).every((day, index) => day - days[index] === 86400000),
+        ).toBe(true);
+        expect(
+            byDay.filter(
+                (row) => Number(row.content_health_total_content) === 0,
+            ).length,
+        ).toBeGreaterThan(days.length - 5);
+        // Every other inventory chart still reads the inventory as it is
+        expect(
+            analyticsContentAsCode
+                .flatMap((bundle) => bundle.charts)
+                .filter(({ tableName }) => tableName === 'content_created')
+                .map(({ slug }) => slug),
+        ).toEqual([card.slug]);
     });
 });

@@ -41,7 +41,10 @@ import {
     contentHealthMetrics,
     contentHealthSql,
 } from '../../../analytics/systemExplores/contentHealth';
-import { contentInventoryMetrics } from '../../../analytics/systemExplores/contentInventory';
+import {
+    contentCreatedByDaySql,
+    contentInventoryMetrics,
+} from '../../../analytics/systemExplores/contentInventory';
 import {
     contentReachColumns,
     contentReachMetrics,
@@ -220,6 +223,7 @@ export const analyticsExploreNames = [
     'content_reach',
     'content_health',
     'content_inventory',
+    'content_created',
     'agent_requests',
     'agent_request_starts',
     'agent_request_events',
@@ -235,7 +239,9 @@ export const analyticsExploreNames = [
 
 // Keep managed chart field IDs and existing filter targets stable.
 const getBaseTableName = (name: (typeof analyticsExploreNames)[number]) =>
-    name === 'content_inventory' ? 'content_health' : name;
+    name === 'content_inventory' || name === 'content_created'
+        ? 'content_health'
+        : name;
 
 /** Compile backend-owned system models without querying remote storage. */
 export const createAnalyticsExplores = (): Explore[] => {
@@ -317,6 +323,10 @@ export const createAnalyticsExplores = (): Explore[] => {
                 metrics: contentHealthMetrics,
             },
             content_inventory: {
+                columns: contentInventoryColumns,
+                metrics: contentInventoryMetrics,
+            },
+            content_created: {
                 columns: contentInventoryColumns,
                 metrics: contentInventoryMetrics,
             },
@@ -402,6 +412,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             name === 'content_reach' ||
             name === 'content_health' ||
             name === 'content_inventory' ||
+            name === 'content_created' ||
             name === 'agent_requests' ||
             name === 'agent_request_events' ||
             name === 'agent_evaluation_runs' ||
@@ -559,6 +570,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                           content_reach: contentReachSql,
                           content_health: contentHealthSql,
                           content_inventory: '"lightdash_content"',
+                          content_created: contentCreatedByDaySql,
                           agent_requests: agentRequestsSql,
                           agent_evaluation_runs: `"${usageDimensionTable('agent_evaluation_runs')}"`,
                           semantic_usage: semanticUsageSql,
@@ -635,6 +647,7 @@ export const createAnalyticsExplores = (): Explore[] => {
         if (
             name === 'content_health' ||
             name === 'content_inventory' ||
+            name === 'content_created' ||
             name === 'content_reach'
         ) {
             addPlainName('content_type', { names: contentTypeNames });
@@ -833,7 +846,11 @@ export const createAnalyticsExplores = (): Explore[] => {
             table.dimensions.last_seen_day.description =
                 'UTC date of the most recent observed or inferred activity, in YYYY-MM-DD form.';
         }
-        if (name === 'content_health' || name === 'content_inventory') {
+        if (
+            name === 'content_health' ||
+            name === 'content_inventory' ||
+            name === 'content_created'
+        ) {
             table.dimensions.org_id.hidden = true;
             table.dimensions.owner_status.description =
                 'Current ownership evidence. Not an organization member does not imply employment ended. Creators and editors are not inferred to be owners.';
@@ -907,6 +924,7 @@ export const createAnalyticsExplores = (): Explore[] => {
         } else if (
             name !== 'content_health' &&
             name !== 'content_inventory' &&
+            name !== 'content_created' &&
             name !== 'people_adoption' &&
             name !== 'people_membership' &&
             name !== 'embed_reach' &&

@@ -321,6 +321,7 @@ const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
 // Models named differently from the table their fields belong to
 const tableOfExplore: Record<string, string> = {
     content_inventory: 'content_health',
+    content_created: 'content_health',
     agent_request_starts: 'agent_requests',
 };
 

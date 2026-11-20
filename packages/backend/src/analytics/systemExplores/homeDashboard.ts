@@ -149,7 +149,8 @@ export const homeChartSpecs: UsageChartSpec[] = [
         name: 'Content created',
         description:
             'Charts and dashboards created in the selected period, including deleted ones. Content in preview projects is left out.',
-        explore: 'content_inventory',
+        // The model with a row for every day, so the trend has a point on days with nothing created
+        explore: 'content_created',
         day: 'content_health_created_at_day',
         metric: 'content_health_total_content',
         filters: [

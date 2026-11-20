@@ -16,6 +16,7 @@ export const usageDashboardProjectFilterLabel = 'Project';
 // Models named differently from the table their fields belong to
 const tableOfModel: Record<string, string> = {
     content_inventory: 'content_health',
+    content_created: 'content_health',
     agent_request_starts: 'agent_requests',
 };
 // These tables describe the present, not a period, so a date range does not apply to them
