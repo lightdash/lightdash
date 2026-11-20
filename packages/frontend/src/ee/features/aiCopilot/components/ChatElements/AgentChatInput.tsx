@@ -1800,7 +1800,6 @@ export const AgentChatInput = ({
                                                 gap="xs"
                                                 align="center"
                                                 wrap="nowrap"
-                                                miw={0}
                                             >
                                                 <AgentSelector
                                                     projectUuid={projectUuid!}
