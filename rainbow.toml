@@ -21,6 +21,14 @@ command = "PORT=3900 node packages/api-tests/stub/snowflake-ai-stub.mjs"
 port = 3900
 restart_on_inject = true           # re-exec with the fork's injected env, as the dev service does
 
+# Deterministic OpenAI-compatible model (emulate's `ai` service) for agent
+# streaming proofs. Idle unless an env opts in with AI_DEFAULT_PROVIDER=openai
+# and OPENAI_BASE_URL=http://localhost:4014/v1; replies are scripted in the seed.
+[[app.service]]
+name = "emulate-ai"
+command = "exec emulate start --service ai --port 4014 --seed scripts/rainbow/emulate-ai.yaml"
+port = 4014
+
 # Anyone with the URL can open an environment of this repo.
 [access]
 public = true
@@ -49,6 +57,8 @@ build = [
   "TURBO_TELEMETRY_DISABLED=1 TURBO_NO_UPDATE_NOTIFIER=1 pnpm turbo run build --filter=@lightdash/warehouses",
   # McpService reads the MCP chart app's HTML from dist; dist is gitignored.
   "pnpm -F @lightdash/mcp-chart-app build",
+  # Outside the workspace so the repo's .npmrc release-age floor does not apply (0.14.0 approved early).
+  "cd /tmp && npm install -g --no-audit --no-fund emulate@0.14.0",
   "pnpm cli-build && chmod 755 packages/cli/dist/index.js && ln -sf /usr/app/packages/cli/dist/index.js /usr/local/bin/lightdash",
   "python3 -m venv /usr/local/dbt1.12 && /usr/local/dbt1.12/bin/pip install -q 'dbt-core~=1.12.0' 'dbt-postgres~=1.10.0' 'dbt-snowflake~=1.12.0' 'dbt-bigquery~=1.12.0' 'dbt-databricks~=1.12.3' 'dbt-trino~=1.10.0' 'dbt-duckdb~=1.10.0' && ln -sf /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12",
   # The demo dbt project where the test suites expect it

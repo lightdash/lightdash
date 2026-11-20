@@ -1,0 +1,128 @@
+# Scripted model replies for the emulated AI service (emulate@0.14.0, `ai`).
+# An env opts in with AI_DEFAULT_PROVIDER=openai and
+# OPENAI_BASE_URL=http://localhost:4014/v1; unmatched requests echo the prompt.
+ai:
+  strict: false
+  timing:
+    ttftMs: 300
+    chunkDelayMs: 15
+  rules:
+    - id: long-markdown-answer
+      match: { textContains: "streaming markdown guide" }
+      reply:
+        - type: text
+          text: |
+            ## Order status guide
+
+            This answer is scripted by the preview's emulated model. Each section is a finished block once the next one starts streaming, and most paragraphs carry a link.
+
+            ### 1. Pending
+
+            Orders in **Pending** have passed every earlier step of the lifecycle. Count them separately from the neighbouring statuses, because each one answers a different question about revenue, stock and customer promises. Read the [pending definition](https://example.com/status/1) before comparing teams.
+
+            *Example:* out of 1,000 orders placed on Monday, 863 reached pending by Friday. The gap is normal when it matches last month, and worth a look when it grows week over week. The [weekly funnel](https://example.com/funnel/1) shows the trend.
+
+            ### 2. Confirmed
+
+            Orders in **Confirmed** have passed every earlier step of the lifecycle. Count them separately from the neighbouring statuses, because each one answers a different question about revenue, stock and customer promises. Read the [confirmed definition](https://example.com/status/2) before comparing teams.
+
+            *Example:* out of 1,000 orders placed on Monday, 826 reached confirmed by Friday. The gap is normal when it matches last month, and worth a look when it grows week over week. The [weekly funnel](https://example.com/funnel/2) shows the trend.
+
+            ### 3. Processing
+
+            Orders in **Processing** have passed every earlier step of the lifecycle. Count them separately from the neighbouring statuses, because each one answers a different question about revenue, stock and customer promises. Read the [processing definition](https://example.com/status/3) before comparing teams.
+
+            *Example:* out of 1,000 orders placed on Monday, 789 reached processing by Friday. The gap is normal when it matches last month, and worth a look when it grows week over week. The [weekly funnel](https://example.com/funnel/3) shows the trend.
+
+            Before you publish a number for this status:
+
+            - Check the counts sum to the total.
+            - Compare orders of the same age, see [cohort rules](https://example.com/cohort/3).
+            - State which date field you used.
+
+            ### 4. Packed
+
+            Orders in **Packed** have passed every earlier step of the lifecycle. Count them separately from the neighbouring statuses, because each one answers a different question about revenue, stock and customer promises. Read the [packed definition](https://example.com/status/4) before comparing teams.
+
+            *Example:* out of 1,000 orders placed on Monday, 752 reached packed by Friday. The gap is normal when it matches last month, and worth a look when it grows week over week. The [weekly funnel](https://example.com/funnel/4) shows the trend.
+
+            ### 5. Shipped
+
+            Orders in **Shipped** have passed every earlier step of the lifecycle. Count them separately from the neighbouring statuses, because each one answers a different question about revenue, stock and customer promises. Read the [shipped definition](https://example.com/status/5) before comparing teams.
+
+            *Example:* out of 1,000 orders placed on Monday, 715 reached shipped by Friday. The gap is normal when it matches last month, and worth a look when it grows week over week. The [weekly funnel](https://example.com/funnel/5) shows the trend.
+
+            ### 6. In transit
+
+            Orders in **In transit** have passed every earlier step of the lifecycle. Count them separately from the neighbouring statuses, because each one answers a different question about revenue, stock and customer promises. Read the [in transit definition](https://example.com/status/6) before comparing teams.
+
+            *Example:* out of 1,000 orders placed on Monday, 678 reached in transit by Friday. The gap is normal when it matches last month, and worth a look when it grows week over week. The [weekly funnel](https://example.com/funnel/6) shows the trend.
+
+            Before you publish a number for this status:
+
+            - Check the counts sum to the total.
+            - Compare orders of the same age, see [cohort rules](https://example.com/cohort/6).
+            - State which date field you used.
+
+            ```sql
+            select status, count(*) as orders
+            from orders
+            group by status
+            order by orders desc
+            ```
+
+            ### 7. Delivered
+
+            Orders in **Delivered** have passed every earlier step of the lifecycle. Count them separately from the neighbouring statuses, because each one answers a different question about revenue, stock and customer promises. Read the [delivered definition](https://example.com/status/7) before comparing teams.
+
+            *Example:* out of 1,000 orders placed on Monday, 641 reached delivered by Friday. The gap is normal when it matches last month, and worth a look when it grows week over week. The [weekly funnel](https://example.com/funnel/7) shows the trend.
+
+            ### 8. Completed
+
+            Orders in **Completed** have passed every earlier step of the lifecycle. Count them separately from the neighbouring statuses, because each one answers a different question about revenue, stock and customer promises. Read the [completed definition](https://example.com/status/8) before comparing teams.
+
+            *Example:* out of 1,000 orders placed on Monday, 604 reached completed by Friday. The gap is normal when it matches last month, and worth a look when it grows week over week. The [weekly funnel](https://example.com/funnel/8) shows the trend.
+
+            ### 9. Returned
+
+            Orders in **Returned** have passed every earlier step of the lifecycle. Count them separately from the neighbouring statuses, because each one answers a different question about revenue, stock and customer promises. Read the [returned definition](https://example.com/status/9) before comparing teams.
+
+            *Example:* out of 1,000 orders placed on Monday, 567 reached returned by Friday. The gap is normal when it matches last month, and worth a look when it grows week over week. The [weekly funnel](https://example.com/funnel/9) shows the trend.
+
+            Before you publish a number for this status:
+
+            - Check the counts sum to the total.
+            - Compare orders of the same age, see [cohort rules](https://example.com/cohort/9).
+            - State which date field you used.
+
+            | Status | Orders | Share |
+            | --- | ---: | ---: |
+            | Delivered | 700 | 70% |
+            | Returned | 42 | 4.2% |
+            | Cancelled | 50 | 5% |
+
+            ### 10. Refunded
+
+            Orders in **Refunded** have passed every earlier step of the lifecycle. Count them separately from the neighbouring statuses, because each one answers a different question about revenue, stock and customer promises. Read the [refunded definition](https://example.com/status/10) before comparing teams.
+
+            *Example:* out of 1,000 orders placed on Monday, 530 reached refunded by Friday. The gap is normal when it matches last month, and worth a look when it grows week over week. The [weekly funnel](https://example.com/funnel/10) shows the trend.
+
+            ### 11. Cancelled
+
+            Orders in **Cancelled** have passed every earlier step of the lifecycle. Count them separately from the neighbouring statuses, because each one answers a different question about revenue, stock and customer promises. Read the [cancelled definition](https://example.com/status/11) before comparing teams.
+
+            *Example:* out of 1,000 orders placed on Monday, 493 reached cancelled by Friday. The gap is normal when it matches last month, and worth a look when it grows week over week. The [weekly funnel](https://example.com/funnel/11) shows the trend.
+
+            ### 12. On hold
+
+            Orders in **On hold** have passed every earlier step of the lifecycle. Count them separately from the neighbouring statuses, because each one answers a different question about revenue, stock and customer promises. Read the [on hold definition](https://example.com/status/12) before comparing teams.
+
+            *Example:* out of 1,000 orders placed on Monday, 456 reached on hold by Friday. The gap is normal when it matches last month, and worth a look when it grows week over week. The [weekly funnel](https://example.com/funnel/12) shows the trend.
+
+            Before you publish a number for this status:
+
+            - Check the counts sum to the total.
+            - Compare orders of the same age, see [cohort rules](https://example.com/cohort/12).
+            - State which date field you used.
+
+            For definitions, see the [analyst glossary](https://example.com/glossary). All counts above are fictional.
