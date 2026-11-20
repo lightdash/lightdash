@@ -405,8 +405,9 @@ const buildChart = (
         dimensions: spec.dimensions,
         metrics: spec.metrics,
         metricOverrides: {
-            ...(spec.visualization &&
-            ['line', 'bar', 'scatter'].includes(spec.visualization)
+            ...(spec.compactCounts ||
+            (spec.visualization &&
+                ['line', 'bar', 'scatter'].includes(spec.visualization))
                 ? compactAxisOverrides(spec.metrics)
                 : {}),
             ...Object.fromEntries(
@@ -421,7 +422,14 @@ const buildChart = (
                         {
                             formatOptions: {
                                 type: CustomFormatType.PERCENT,
-                                round: 1,
+                                // An axis reads 80%, not 80.0%. A table keeps the decimal.
+                                round:
+                                    spec.visualization &&
+                                    ['line', 'bar', 'scatter'].includes(
+                                        spec.visualization,
+                                    )
+                                        ? 0
+                                        : 1,
                             },
                         },
                     ]),

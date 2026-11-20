@@ -245,13 +245,14 @@ describe('Analytics settings overview', () => {
                 (Date.parse(String(filterValue(query, 'end'))) -
                     Date.parse(String(filterValue(query, 'start')))) /
                 86_400_000;
-            if (days === 30 && query.metrics.includes('ai_usage_unique_users'))
+            if (days === 90 && query.metrics.includes('ai_usage_unique_users'))
                 return finishSummary.promise;
             return ready();
         });
         renderOverview();
         await userEvent.click(screen.getByRole('tab', { name: 'Agents & AI' }));
-        await userEvent.click(screen.getByText('Last 30 days'));
+        await userEvent.click(screen.getByText('Last 90 days'));
+        // Thirty days is the range the page opens on, so the test moves to one it has not loaded
         const monthlyQueries = () =>
             launched
                 .map(({ query }) => query)
@@ -259,7 +260,7 @@ describe('Analytics settings overview', () => {
                     (query) =>
                         Date.parse(String(filterValue(query, 'end'))) -
                             Date.parse(String(filterValue(query, 'start'))) ===
-                        30 * 86_400_000,
+                        90 * 86_400_000,
                 );
         // The headline numbers and their previous-period comparisons belong to Overview alone
         await waitFor(() => expect(monthlyQueries()).toHaveLength(3));
@@ -449,10 +450,10 @@ describe('Analytics settings overview', () => {
             expect.objectContaining({
                 id: 'date',
                 operator: FilterOperator.IN_BETWEEN,
-                values: ['2026-07-16', '2026-07-22'],
+                values: ['2026-06-23', '2026-07-22'],
             }),
         ]);
-        await userEvent.click(screen.getByText('Last 30 days'));
+        await userEvent.click(screen.getByText('Last 90 days'));
         await userEvent.click(
             screen.getByRole('combobox', { name: 'Project' }),
         );
@@ -463,7 +464,7 @@ describe('Analytics settings overview', () => {
             expect(await sent()).toEqual([
                 expect.objectContaining({
                     id: 'date',
-                    values: ['2026-06-23', '2026-07-22'],
+                    values: ['2026-04-24', '2026-07-22'],
                 }),
                 expect.objectContaining({
                     id: 'project',

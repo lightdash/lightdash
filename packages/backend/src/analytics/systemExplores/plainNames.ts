@@ -64,3 +64,17 @@ export const aiOutcomeNames: PlainNames = {
     names: { complete: 'Success', error: 'Error' },
     missing: 'Unknown outcome',
 };
+
+// Where a data app was loaded
+export const dataAppSurfaceNames: PlainNames = {
+    names: {
+        standalone: 'Standalone page',
+        dashboard: 'Dashboard',
+        builder: 'Builder preview',
+        delivery: 'Scheduled delivery',
+        chart: 'Custom chart tile',
+        embed: 'Embed',
+        unknown: 'Unknown',
+    },
+    missing: 'Unknown',
+};

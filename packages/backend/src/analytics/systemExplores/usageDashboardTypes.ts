@@ -32,6 +32,8 @@ export type UsageChartSpec = {
     fieldLabels?: Record<string, string>;
     // Fields the query needs that the plain table does not show
     hiddenColumns?: string[];
+    // Counts read 100K, not 100,000, for a table that is drawn as a chart
+    compactCounts?: true;
     // Column order of the plain table, when it is not dimensions, then metrics, then calculations
     columnOrder?: string[];
     visualization?: 'number' | 'line' | 'bar' | 'scatter' | 'donut';

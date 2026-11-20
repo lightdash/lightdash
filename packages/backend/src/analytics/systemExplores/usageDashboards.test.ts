@@ -418,16 +418,14 @@ describe('built-in usage dashboards', () => {
                     (sum, row) => sum + Number(row.user_activity_total_events),
                     0,
                 ),
-            ).toBe(129);
+            ).toBe(83);
+            // A ranking of people leaves out the activity with no person recorded
             expect(
                 rows.find(
                     ({ user_activity_user_id }) =>
                         user_activity_user_id === null,
                 ),
-            ).toMatchObject({
-                user_activity_activity_origin: 'AI, Query',
-                user_activity_total_events: 46n,
-            });
+            ).toBeUndefined();
             expect(
                 rows.filter(
                     ({ user_display_name }) => user_display_name === 'Alex',
@@ -1382,25 +1380,21 @@ describe('built-in usage dashboards', () => {
                 expect.arrayContaining([
                     expect.objectContaining({
                         data_app_outcomes_app_name: 'Sales',
-                        data_app_outcomes_view_context: 'standalone',
+                        data_app_outcomes_view_context_name: 'Standalone page',
                         data_app_outcomes_html_loaded: 1n,
-                        data_app_outcomes_sdk_started: 1n,
                         data_app_outcomes_runtime_error: 1n,
-                        data_app_outcomes_total_signals: 4n,
                     }),
                     expect.objectContaining({
-                        data_app_outcomes_view_context: 'builder',
+                        data_app_outcomes_view_context_name: 'Builder preview',
                         data_app_outcomes_html_loaded: 1n,
-                        data_app_outcomes_sdk_started: 1n,
                     }),
                     expect.objectContaining({
-                        data_app_outcomes_view_context: 'embed',
+                        data_app_outcomes_view_context_name: 'Embed',
                         data_app_outcomes_html_error: 1n,
                     }),
                     expect.objectContaining({
-                        data_app_outcomes_view_context: 'unknown',
+                        data_app_outcomes_view_context_name: 'Unknown',
                         data_app_outcomes_runtime_error: 0n,
-                        data_app_outcomes_total_signals: 1n,
                     }),
                 ]),
             );
@@ -1459,17 +1453,17 @@ describe('built-in usage dashboards', () => {
             expect(surfaces).toEqual(
                 expect.arrayContaining([
                     expect.objectContaining({
-                        data_app_reach_view_context: 'embed',
+                        data_app_reach_view_context_name: 'Embed',
                         data_app_reach_total_loads: 1n,
                         data_app_reach_distinct_viewers: 0n,
                     }),
                     expect.objectContaining({
-                        data_app_reach_view_context: 'unknown',
+                        data_app_reach_view_context_name: 'Unknown',
                         data_app_reach_total_loads: 1n,
                         data_app_reach_distinct_viewers: 1n,
                     }),
                     expect.objectContaining({
-                        data_app_reach_view_context: 'builder',
+                        data_app_reach_view_context_name: 'Builder preview',
                         data_app_reach_total_loads: 1n,
                     }),
                 ]),
@@ -1819,9 +1813,16 @@ describe('display fixes', () => {
                 .map((field) => metricQuery.metricOverrides?.[field]),
         );
         expect(rated.length).toBeGreaterThan(0);
+        // No decimal on a chart axis, one in a table
         rated.forEach((override) =>
-            expect(override).toEqual({
-                formatOptions: { type: 'percent', round: 1 },
+            expect([0, 1]).toContain(
+                (override as { formatOptions: { type: string; round: number } })
+                    .formatOptions.round,
+            ),
+        );
+        rated.forEach((override) =>
+            expect(override).toMatchObject({
+                formatOptions: { type: 'percent' },
             }),
         );
     });

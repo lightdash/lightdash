@@ -39,6 +39,29 @@ export const usageChartSpecs: UsageChartSpec[] = [
         sorts: [
             { fieldId: 'agent_evaluation_runs_event_ts_raw', descending: true },
         ],
+        // "Nov 19, 02:13": the recorded time shows to the millisecond with its offset
+        tableCalculations: [
+            {
+                name: 'run_finished',
+                displayName: 'Run finished (UTC)',
+                type: TableCalculationType.STRING,
+                sql: `strftime(\${agent_evaluation_runs.event_ts_raw}, '%b %-d, %H:%M')`,
+            },
+        ],
+        hiddenColumns: ['agent_evaluation_runs_event_ts_raw'],
+        columnOrder: [
+            'run_finished',
+            'agent_evaluation_runs_agent_name',
+            'agent_evaluation_runs_evaluation_name',
+            'agent_evaluation_runs_run_status_name',
+            'agent_evaluation_runs_pass_rate',
+            'agent_evaluation_runs_passed_assessments',
+            'agent_evaluation_runs_failed_assessments',
+            'agent_evaluation_runs_unassessed_results',
+            'agent_evaluation_runs_execution_errors',
+            'agent_evaluation_runs_event_ts_raw',
+            'agent_evaluation_runs_run_id',
+        ],
     },
     {
         key: 'most-used-fields',
@@ -141,7 +164,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'content-using-fields',
         name: 'Field use by content',
         description:
-            'Charts, dashboards and data apps whose queries used each field. Queries from exploring directly, and some others, are not linked to saved content.',
+            'Charts, dashboards and data apps whose queries used each field. Queries not linked to saved content, such as exploring directly, are left out.',
         explore: 'semantic_usage',
         dimensions: [
             'semantic_usage_field_label',
@@ -163,6 +186,49 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 field: 'semantic_usage_field_kind',
                 values: ['metric', 'dimension'],
             },
+            // Without this the busiest rows are all queries with no content, and say nothing
+            { field: 'semantic_usage_has_content', values: [true] },
+        ],
+        // One name and one type for each row, where three columns were mostly empty
+        tableCalculations: [
+            {
+                name: 'field_content_type',
+                displayName: 'Content type',
+                type: TableCalculationType.STRING,
+                sql: `CASE WHEN \${semantic_usage.chart_id} IS NOT NULL THEN 'Chart' WHEN \${semantic_usage.app_id} IS NOT NULL THEN 'Data app' ELSE 'Dashboard' END`,
+            },
+            {
+                name: 'field_content',
+                displayName: 'Content',
+                type: TableCalculationType.STRING,
+                sql: `CASE WHEN \${semantic_usage.chart_id} IS NOT NULL THEN COALESCE(\${semantic_usage.chart_name}, 'Unknown chart') WHEN \${semantic_usage.app_id} IS NOT NULL THEN COALESCE(\${semantic_usage.app_name}, 'Unknown data app') ELSE COALESCE(\${semantic_usage.dashboard_name}, 'Unknown dashboard') END`,
+            },
+            {
+                name: 'field_on_dashboard',
+                displayName: 'On dashboard',
+                type: TableCalculationType.STRING,
+                sql: `CASE WHEN \${semantic_usage.chart_id} IS NOT NULL AND \${semantic_usage.dashboard_id} IS NOT NULL THEN COALESCE(\${semantic_usage.dashboard_name}, 'Unknown dashboard') ELSE '' END`,
+            },
+        ],
+        hiddenColumns: [
+            'semantic_usage_chart_name',
+            'semantic_usage_dashboard_name',
+            'semantic_usage_app_name',
+        ],
+        columnOrder: [
+            'semantic_usage_field_label',
+            'semantic_usage_table_name',
+            'field_content',
+            'field_content_type',
+            'field_on_dashboard',
+            'semantic_usage_context_name',
+            'semantic_usage_total_queries',
+            'semantic_usage_field_origin_name',
+            'semantic_usage_field_id',
+            'semantic_usage_project_id',
+            'semantic_usage_chart_id',
+            'semantic_usage_dashboard_id',
+            'semantic_usage_app_id',
         ],
         limit: 50,
         sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
@@ -620,7 +686,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     {
         key: 'ai-consumption-by-person-feature-and-model',
         name: 'Tokens by person and model',
-        description: 'Tokens and AI calls for each person, model and feature.',
+        description:
+            'Tokens and AI calls for each person, model and feature. Usage with no person recorded is left out.',
         explore: 'ai_usage',
         dimensions: [
             'ai_usage_user_name',
@@ -629,6 +696,13 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'ai_usage_user_id',
         ],
         metrics: ['ai_usage_total_tokens_used', 'ai_usage_total_ai_calls'],
+        filters: [
+            {
+                field: 'ai_usage_user_id',
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
+        ],
         limit: 30,
         sorts: [
             {
@@ -666,7 +740,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 ],
                 limit: 24,
                 description:
-                    'Top 24 person and model pairs by tokens in the selected period, so a person near the cut-off can be missing their smaller models. Usage with no person recorded is grouped as No user recorded.',
+                    'Top 24 person and model pairs by tokens in the selected period, so a person near the cut-off can be missing their smaller models. Usage with no person recorded is left out.',
             },
         },
     },

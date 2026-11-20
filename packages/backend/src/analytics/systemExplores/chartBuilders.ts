@@ -349,7 +349,7 @@ export const ranking = ({
     metrics,
     dimensions,
     limit = 50,
-    libraryLimit = 500,
+    libraryLimit,
     libraryDescription,
     visualization,
     extraMetrics = [],
@@ -410,7 +410,9 @@ export const ranking = ({
                 dimensions: grouped,
                 metrics,
                 sorts: [{ fieldId: metrics[0], descending: true }],
-                limit: libraryLimit,
+                // A group's total adds up the rows under it, so a table grouped by two names asks for
+                // every row it can: a short list would leave the totals short of the same count elsewhere
+                limit: libraryLimit ?? (then ? 5000 : 500),
                 description: libraryDescription ?? spec.description,
             },
         },

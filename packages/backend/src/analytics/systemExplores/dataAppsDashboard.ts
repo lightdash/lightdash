@@ -269,7 +269,7 @@ export const dataAppsDashboardSpec: UsageDashboardSpec = {
                         'Most-used data apps and their projects. Unknown or deleted apps remain in totals.',
                     charts: ['top-apps'],
                     layout: 'row',
-                    rowHeight: 8,
+                    rowHeight: 6,
                 },
             ],
         },
