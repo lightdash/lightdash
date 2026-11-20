@@ -250,19 +250,30 @@ export const getLostLiveFieldIds = ({
     storedFieldIds,
     rebuilt,
     edits,
+    sourceName,
 }: {
     storedFieldIds: string[];
     rebuilt: Explore[];
     edits: LiveSourceFieldEdits;
+    /** Names the explores of edits keyed `<model>.<name>`. */
+    sourceName: string;
 }): string[] => {
+    // A bare key is the first explore's field; `<model>.<name>` another's
+    const toFieldId = (key: string) => {
+        const dot = key.indexOf('.');
+        return dot === -1
+            ? getItemId({ table: rebuilt[0].name, name: key })
+            : getItemId({
+                  table: getLiveExploreName(sourceName, key.slice(0, dot)),
+                  name: key.slice(dot + 1),
+              });
+    };
     const kept = new Set([
         ...rebuilt.flatMap(({ apiSource }) =>
             Object.keys(apiSource?.fields ?? {}),
         ),
-        ...Object.entries(edits).flatMap(([name, edit]) =>
-            edit.inUse === false
-                ? [getItemId({ table: rebuilt[0].name, name })]
-                : [],
+        ...Object.entries(edits).flatMap(([key, edit]) =>
+            edit.inUse === false ? [toFieldId(key)] : [],
         ),
     ]);
     return storedFieldIds.filter((fieldId) => !kept.has(fieldId));

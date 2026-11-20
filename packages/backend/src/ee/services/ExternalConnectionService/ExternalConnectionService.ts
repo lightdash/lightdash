@@ -1502,6 +1502,7 @@ export class ExternalConnectionService extends BaseService {
                             ),
                         rebuilt: explores,
                         edits,
+                        sourceName,
                     });
                     if (lost.length > 0) {
                         throw new UnexpectedServerError(
