@@ -1361,11 +1361,22 @@ describe('resolveMcpTools', () => {
         const liveExecute = vi.fn().mockResolvedValue({
             content: [{ type: 'text', text: 'found it' }],
         });
+        const liveInputSchema = jsonSchema({
+            type: 'object',
+            properties: {},
+            additionalProperties: false,
+        });
         vi.mocked(mcpSdk.createMCPClient).mockResolvedValue({
             serverInfo: { name: 'Lightdash Docs', version: '1.0.0' },
-            toolsFromDefinitions: () => ({
-                search_lightdash: { execute: liveExecute },
-                read_page: { execute: liveExecute },
+            tools: async () => ({
+                search_lightdash: {
+                    inputSchema: liveInputSchema,
+                    execute: liveExecute,
+                },
+                read_page: {
+                    inputSchema: liveInputSchema,
+                    execute: liveExecute,
+                },
             }),
             close,
         } as unknown as MCPClient);
@@ -1461,6 +1472,46 @@ describe('resolveMcpTools', () => {
             }),
         ]);
         expect(mcpSdk.createMCPClient).not.toHaveBeenCalled();
+    });
+
+    it('fails the tool call when the live tool schema no longer matches the stored one', async () => {
+        const server = getMcpServer({
+            name: 'Lightdash Docs',
+            enabledToolNames: ['search_lightdash'],
+        });
+        vi.mocked(aiAgentModel.listMcpServerTools).mockResolvedValue([
+            getStoredMcpTool('search_lightdash', 'search tool'),
+        ]);
+        const liveExecute = vi.fn();
+        vi.mocked(mcpSdk.createMCPClient).mockResolvedValue({
+            serverInfo: { name: 'Lightdash Docs', version: '1.0.0' },
+            tools: async () => ({
+                search_lightdash: {
+                    inputSchema: jsonSchema({
+                        type: 'object',
+                        properties: { workspace: { type: 'string' } },
+                        additionalProperties: false,
+                    }),
+                    execute: liveExecute,
+                },
+            }),
+            close: vi.fn().mockResolvedValue(undefined),
+        } as unknown as MCPClient);
+
+        const result = await runtimeClient.resolveTools({
+            mcpServers: [server],
+            userUuid: 'user-uuid',
+            debugLoggingEnabled: false,
+        });
+
+        await expect(
+            result.tools.mcp_lightdash_docs__search_lightdash.execute!(
+                { query: 'a' } as never,
+                { toolCallId: 'call-1', messages: [], context: {} },
+            ),
+        ).rejects.toThrow(/has changed since its tools were last refreshed/);
+        expect(liveExecute).not.toHaveBeenCalled();
+        await result.closeMcpClients();
     });
 
     it('fails the tool call and records the error when an on-demand connection fails', async () => {
