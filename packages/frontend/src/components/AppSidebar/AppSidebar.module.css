@@ -1,0 +1,35 @@
+.sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: var(--mantine-z-index-app);
+    width: var(--app-sidebar-width);
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-md);
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-xs);
+    overflow-y: auto;
+    background-color: var(--ld-color-page);
+    border-right: 1px solid var(--mantine-color-default-border);
+}
+
+.sidebar[data-has-banner='true'] {
+    top: var(--banner-height);
+}
+
+.sectionLabel {
+    padding-inline: var(--mantine-spacing-xs);
+    margin-bottom: rem(4px);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    color: var(--mantine-color-dimmed);
+}
+
+/* Pages size themselves from the navbar height, so with the sidebar in place
+   of the navbar that height is zero and the page starts after the sidebar. */
+:global(body:has(#app-sidebar)) {
+    --navbar-height: 0px;
+
+    padding-left: var(--app-sidebar-width);
+}
