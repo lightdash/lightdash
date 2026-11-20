@@ -1,5 +1,4 @@
 import { NotFoundError, type ApiError } from '@lightdash/common';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -24,16 +23,11 @@ beforeEach(() => {
 
 describe('useAiAgentThread', () => {
     it('shows one toast when several observers share a failed thread', async () => {
-        const client = new QueryClient({
-            defaultOptions: { queries: { retry: false } },
-        });
         renderWithProviders(
-            <QueryClientProvider client={client}>
-                <MemoryRouter>
-                    <Observer />
-                    <Observer />
-                </MemoryRouter>
-            </QueryClientProvider>,
+            <MemoryRouter>
+                <Observer />
+                <Observer />
+            </MemoryRouter>,
         );
 
         await waitFor(() =>
