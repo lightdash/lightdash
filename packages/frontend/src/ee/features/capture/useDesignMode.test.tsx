@@ -960,7 +960,7 @@ describe('useDesignMode', () => {
         expect(cancel).toHaveBeenCalledTimes(1);
         await waitFor(() => expect(api.session.bubbles).toHaveLength(0));
         expect(api.on).toBe(true);
-        expect(screen.queryByText('①')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Mark 1')).not.toBeInTheDocument();
     });
 
     it('Discard on a bubble choosing its agent calls the send off', async () => {
@@ -1090,7 +1090,7 @@ describe('useDesignMode', () => {
         );
         expect(api.session.active).toEqual({ kind: 'page' });
         expect(screen.getByText('Queued')).toBeInTheDocument();
-        expect(screen.getAllByText('①').length).toBeGreaterThan(0);
+        expect(screen.getByLabelText('Mark 1')).toBeInTheDocument();
 
         // The next mark opens a second bubble beside the queued one.
         await drawMark();
@@ -1208,7 +1208,7 @@ describe('useDesignMode', () => {
         const badgeTop = px(badge(), '--mark-top');
         // The pointer ended on the mark's right with no room on its left.
         expect(px(bubble(), '--bubble-left')).toBeGreaterThan(70);
-        expect(screen.getByText('①')).toBeInTheDocument();
+        expect(screen.getByLabelText('Mark 1')).toBeInTheDocument();
 
         scroll = { x: 0, y: 12 };
         await act(async () => {
@@ -1296,7 +1296,7 @@ describe('useDesignMode', () => {
             fireEvent.mouseMove(holdLayer(), { clientX: 20, clientY: 90 });
             await keyUp({ key: 'Alt' });
             await waitFor(() =>
-                expect(screen.getByText('②')).toBeInTheDocument(),
+                expect(screen.getByLabelText('Mark 2')).toBeInTheDocument(),
             );
             expect(api.session.bubbles[0].anchor).toEqual(first);
 
@@ -1305,7 +1305,7 @@ describe('useDesignMode', () => {
             fireEvent.mouseMove(holdLayer(), { clientX: 99, clientY: 40 });
             await keyUp({ key: 'Alt' });
             await waitFor(() =>
-                expect(screen.getByText('③')).toBeInTheDocument(),
+                expect(screen.getByLabelText('Mark 3')).toBeInTheDocument(),
             );
             expect(api.session.bubbles[0].anchor.x).toBeGreaterThan(first.x);
         } finally {

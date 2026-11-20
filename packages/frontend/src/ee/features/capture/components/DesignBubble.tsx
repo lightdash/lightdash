@@ -20,7 +20,6 @@ import {
     type ReactNode,
 } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { chipLabel } from '../chipLabel';
 import { type Bubble } from '../designSession';
 import { CAPTURE_IGNORE_ATTRIBUTE } from '../frameSource';
 import { DESIGN_INPUT_ATTRIBUTE } from '../holdKeys';
@@ -147,6 +146,20 @@ const DesignBubble: FC<Props> = ({
     const unsent =
         bubble.status === 'collecting' || bubble.status === 'picking-agent';
 
+    // A conversation with nothing collected has its own header: the close
+    // button sits in that row's corner instead of taking a row.
+    const bare = bubble.status === 'thread' && collected.length === 0;
+    const closeButton = (
+        <ActionIcon
+            size="sm"
+            className={bare ? classes.cornerClose : undefined}
+            aria-label={unsent ? 'Discard' : 'Close'}
+            onClick={unsent ? onDiscard : onClose}
+        >
+            <MantineIcon icon={IconX} />
+        </ActionIcon>
+    );
+
     return (
         <Paper
             className={classes.bubble}
@@ -162,29 +175,27 @@ const DesignBubble: FC<Props> = ({
                 } as CSSProperties
             }
         >
-            <Group gap="xs" wrap="nowrap" justify="space-between" mb={6}>
-                <Group gap={4}>
-                    {collected.map((mark) => (
-                        <Badge
-                            key={mark.number}
-                            circle
-                            color="red"
-                            variant="light"
-                        >
-                            {chipLabel(mark.number)}
-                        </Badge>
-                    ))}
+            {bare ? (
+                closeButton
+            ) : (
+                <Group gap="xs" wrap="nowrap" justify="space-between" mb={6}>
+                    <Group gap={4}>
+                        {collected.map((mark) => (
+                            <Badge
+                                key={mark.number}
+                                circle
+                                size="md"
+                                color="red"
+                                variant="filled"
+                                aria-label={`Mark ${mark.number}`}
+                            >
+                                {mark.number}
+                            </Badge>
+                        ))}
+                    </Group>
+                    {bubble.status !== 'sending' && closeButton}
                 </Group>
-                {bubble.status !== 'sending' && (
-                    <ActionIcon
-                        size="sm"
-                        aria-label={unsent ? 'Discard' : 'Close'}
-                        onClick={unsent ? onDiscard : onClose}
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                )}
-            </Group>
+            )}
             <Box>{body()}</Box>
         </Paper>
     );

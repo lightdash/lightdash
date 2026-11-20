@@ -19,6 +19,13 @@
     opacity: 0.15;
 }
 
+.cornerClose {
+    position: absolute;
+    top: 12px;
+    right: 10px;
+    z-index: 1;
+}
+
 .listening {
     animation: design-bubble-pulse 1.2s ease-in-out infinite;
 }

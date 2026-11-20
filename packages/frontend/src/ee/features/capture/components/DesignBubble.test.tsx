@@ -93,10 +93,10 @@ describe('DesignBubble', () => {
         expect(onSend).not.toHaveBeenCalled();
     });
 
-    it('shows a chip for each collected mark', () => {
+    it('shows a numbered chip for each collected mark', () => {
         setup(bubbleWith('text'));
-        expect(screen.getByText('①')).toBeInTheDocument();
-        expect(screen.getByText('②')).toBeInTheDocument();
+        expect(screen.getByLabelText('Mark 1')).toHaveTextContent('1');
+        expect(screen.getByLabelText('Mark 2')).toHaveTextContent('2');
     });
 
     it('Stop is shown while listening', () => {
