@@ -3,6 +3,7 @@ import {
     DimensionType,
     getHubspotPropertiesPath,
     getHubspotSearchPath,
+    HUBSPOT_OBJECTS,
     type HubspotObject,
 } from '@lightdash/common';
 import { z } from 'zod';
@@ -82,6 +83,7 @@ export const hubspotRequestSchema = z.discriminatedUnion('kind', [
     z
         .object({
             kind: z.literal('records'),
+            object: z.enum(HUBSPOT_OBJECTS),
             columns: z
                 .array(
                     z
@@ -107,6 +109,7 @@ export const hubspotRequestSchema = z.discriminatedUnion('kind', [
     z
         .object({
             kind: z.literal('count'),
+            object: z.enum(HUBSPOT_OBJECTS),
             filters: filtersSchema,
         })
         .strict(),
@@ -310,7 +313,6 @@ const runRecords = async (
 
 /** Runs one HubSpot search: the matching records, or how many there are. */
 export const runHubspotQuery = async ({
-    settings: { object },
     request,
     limit,
     calls,
@@ -319,26 +321,36 @@ export const runHubspotQuery = async ({
     HubspotRequest
 >): Promise<LiveRunResult> => {
     if (request.kind === 'count') {
-        return runCount(object, request.filters, calls);
+        return runCount(request.object, request.filters, calls);
     }
     assertMaxRows(limit, HUBSPOT_MAX_ROWS);
-    return runRecords(object, request, limit, calls);
+    return runRecords(request.object, request, limit, calls);
 };
 
-/** Reads the object's properties, which become its fields. */
+/**
+ * Reads each object's properties, which become its explore's fields: one
+ * call per object. The private app needs read access to all three.
+ */
 export const scanHubspotProperties = async ({
-    settings: { object },
     calls,
 }: {
-    settings: { object: HubspotObject };
     calls: LiveCalls;
-}): Promise<LiveScanResult> => ({
-    hubspotProperties: await calls.fetch(
-        {
-            method: 'GET',
-            path: getHubspotPropertiesPath(object),
-            body: undefined,
-        },
-        z.unknown(),
-    ),
-});
+}): Promise<LiveScanResult> => {
+    const lists = await Promise.all(
+        HUBSPOT_OBJECTS.map((object) =>
+            calls.fetch(
+                {
+                    method: 'GET',
+                    path: getHubspotPropertiesPath(object),
+                    body: undefined,
+                },
+                z.unknown(),
+            ),
+        ),
+    );
+    return {
+        hubspotProperties: Object.fromEntries(
+            HUBSPOT_OBJECTS.map((object, index) => [object, lists[index]]),
+        ),
+    };
+};

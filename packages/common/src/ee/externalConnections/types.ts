@@ -78,14 +78,13 @@ export type AttioApiSource = {
     object: string;
 };
 
-/** The HubSpot CRM objects a source can read, one per source. */
+/** The HubSpot CRM objects a source reads, one explore each. */
 export const HUBSPOT_OBJECTS = ['deals', 'contacts', 'companies'] as const;
 export type HubspotObject = (typeof HUBSPOT_OBJECTS)[number];
 
+/** The private app's token picks the HubSpot account, so nothing else is set. */
 export type HubspotApiSource = {
     connector: ApiConnectorType.HUBSPOT;
-    /** The CRM object the source reads: deals, contacts or companies. */
-    object: HubspotObject;
 };
 
 /** Connector settings of a live source; the server fixes its access rules. */

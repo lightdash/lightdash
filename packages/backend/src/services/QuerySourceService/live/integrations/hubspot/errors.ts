@@ -1,4 +1,5 @@
 import {
+    HUBSPOT_OBJECTS,
     TooManyRequestsError,
     UnexpectedServerError,
     WarehouseConnectionError,
@@ -19,10 +20,7 @@ const getRetryAfterSeconds = (headers: Record<string, string>) => {
 };
 
 /** Turns a HubSpot error response into an error that says what to change. */
-export const toHubspotError = (
-    response: LiveHttpResponse,
-    { object }: { object: string },
-): Error => {
+export const toHubspotError = (response: LiveHttpResponse): Error => {
     const parsed = errorSchema.safeParse(response.body);
     const message = parsed.success ? (parsed.data.message ?? '') : '';
     const detail = message ? `: ${message}` : '';
@@ -44,7 +42,12 @@ export const toHubspotError = (
     }
     if (response.status === 403) {
         return new WarehouseConnectionError(
-            `The HubSpot private app can't read ${object}${detail}. Give it the crm.objects.${object}.read and crm.schemas.${object}.read scopes.`,
+            `The HubSpot private app is missing a scope${detail}. Give it the read scopes for ${HUBSPOT_OBJECTS.join(
+                ', ',
+            )}: ${HUBSPOT_OBJECTS.map(
+                (object) =>
+                    `crm.objects.${object}.read and crm.schemas.${object}.read`,
+            ).join(', ')}.`,
         );
     }
     if (response.status >= 400 && response.status < 500) {

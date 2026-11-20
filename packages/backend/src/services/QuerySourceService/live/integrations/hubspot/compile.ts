@@ -12,11 +12,12 @@ import {
 import {
     getActiveFilterRules,
     getApiName,
+    getLiveDefinitionName,
     getLiveExplore,
     type LiveCompiledRequest,
 } from '../../explores/definition';
 import { getLiveDateRange, toAbsoluteDateRange } from '../../query/dateRange';
-import { HUBSPOT_COUNT_REASON } from './explores';
+import { HUBSPOT_COUNT_REASON, toHubspotObject } from './explores';
 import { type HubspotFilter, type HubspotRequest } from './run';
 
 // Placeholder for the open side of a one-sided date filter; never sent
@@ -253,6 +254,7 @@ export const compileHubspotQuery = ({
     today: string;
 }): LiveCompiledRequest => {
     const apiSource = getLiveExplore(explore);
+    const object = toHubspotObject(getLiveDefinitionName(explore));
     const itemsMap = getItemMap(explore);
     const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
     const typeOf = (fieldId: string): DimensionType => {
@@ -276,7 +278,11 @@ export const compileHubspotQuery = ({
         if (metricQuery.dimensions.length > 0) {
             throw new ParameterError(HUBSPOT_COUNT_REASON);
         }
-        const request: HubspotRequest = { kind: 'count', filters };
+        const request: HubspotRequest = {
+            kind: 'count',
+            object,
+            filters,
+        };
         return { query: JSON.stringify(request), localSorts: [] };
     }
 
@@ -288,6 +294,7 @@ export const compileHubspotQuery = ({
     const [sort] = metricQuery.sorts;
     const request: HubspotRequest = {
         kind: 'records',
+        object,
         columns: metricQuery.dimensions.map((fieldId) => ({
             name: apiName(fieldId),
             type: COLUMN_TYPE[typeOf(fieldId)] ?? 'string',

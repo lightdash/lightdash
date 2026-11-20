@@ -1,4 +1,10 @@
-import { DimensionType, FilterOperator, MetricType } from '@lightdash/common';
+import {
+    DimensionType,
+    FilterOperator,
+    HUBSPOT_OBJECTS,
+    MetricType,
+    type HubspotObject,
+} from '@lightdash/common';
 import { z } from 'zod';
 import type {
     LiveDimensionDefinition,
@@ -121,19 +127,54 @@ const countIncompatibility = (dimensions: LiveDimensionDefinition[]) => ({
     selectedOnly: true as const,
 });
 
-/** The built-in fields a record always has; a scan adds the object's properties. */
-export const HUBSPOT_RECORDS_EXPLORE: LiveExploreDefinition = {
-    name: 'records',
-    label: 'Records',
-    description: `Records of one HubSpot CRM object, read live from HubSpot, one row per record, at most ${HUBSPOT_MAX_ROWS.toLocaleString(
+const OBJECT_LABELS: Record<HubspotObject, string> = {
+    deals: 'Deals',
+    contacts: 'Contacts',
+    companies: 'Companies',
+};
+
+/**
+ * One CRM object's built-in fields, which every record has; a scan adds the
+ * object's properties. The explore is named after the object.
+ */
+const toObjectExplore = (object: HubspotObject): LiveExploreDefinition => ({
+    name: object,
+    label: OBJECT_LABELS[object],
+    description: `HubSpot ${object}, read live from HubSpot, one row per record, at most ${HUBSPOT_MAX_ROWS.toLocaleString(
         'en-US',
-    )} per query. Count gives the number of matching records without reading them.`,
+    )} per query. Count gives the number of matching ${object} without reading them.`,
     dimensions: BUILT_IN_DIMENSIONS,
     metrics: [COUNT],
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
     incompatible: [countIncompatibility(BUILT_IN_DIMENSIONS)],
+});
+
+/** Deals first: an integration's first explore is its main one. */
+export const HUBSPOT_EXPLORES = HUBSPOT_OBJECTS.map(toObjectExplore) as [
+    LiveExploreDefinition,
+    ...LiveExploreDefinition[],
+];
+
+/** One object's property list from a scan; anything else reads as none. */
+export const readHubspotProperties = (
+    scanned: unknown,
+    object: string,
+): unknown =>
+    scanned !== null &&
+    typeof scanned === 'object' &&
+    Object.hasOwn(scanned, object)
+        ? (scanned as Record<string, unknown>)[object]
+        : undefined;
+
+/** The CRM object an explore definition reads. */
+export const toHubspotObject = (definitionName: string): HubspotObject => {
+    const object = HUBSPOT_OBJECTS.find((name) => name === definitionName);
+    if (!object) {
+        throw new Error(`"${definitionName}" isn't a HubSpot object`);
+    }
+    return object;
 };
 
 /** HubSpot property types Lightdash reads, with how it filters them. */

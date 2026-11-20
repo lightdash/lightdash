@@ -19,12 +19,13 @@ import { toHubspotError } from './errors';
 import {
     HUBSPOT_BOOLEAN_FILTERS,
     HUBSPOT_DATE_FILTERS,
+    HUBSPOT_EXPLORES,
     HUBSPOT_MAX_PAGES,
     HUBSPOT_MAX_ROWS,
     HUBSPOT_NUMBER_FILTERS,
-    HUBSPOT_RECORDS_EXPLORE,
     HUBSPOT_TEXT_FILTERS,
     isInternalHubspotField,
+    readHubspotProperties,
     withHubspotPropertyFields,
 } from './explores';
 import {
@@ -42,11 +43,11 @@ export const hubspotIntegration = defineLiveIntegration({
     label: LABEL,
     settings: CATALOG.settings,
     origins: [HUBSPOT_ORIGIN],
-    access: ({ object }) => ({
-        pathPrefixes: [
+    access: () => ({
+        pathPrefixes: HUBSPOT_OBJECTS.flatMap((object) => [
             getHubspotPropertiesPath(object),
             getHubspotSearchPath(object),
-        ],
+        ]),
         // Records are searched with POST, properties read with GET
         methods: ['GET', 'POST'],
     }),
@@ -83,17 +84,9 @@ export const hubspotIntegration = defineLiveIntegration({
         },
         pushdown: ALL_PUSHDOWN_REFUSED,
     },
-    explores: [HUBSPOT_RECORDS_EXPLORE],
+    explores: HUBSPOT_EXPLORES,
     plannedModelNames: [],
-    validate: ({ object }) => {
-        if (!(HUBSPOT_OBJECTS as readonly string[]).includes(object)) {
-            throw new ParameterError(
-                `The HubSpot object must be one of ${HUBSPOT_OBJECTS.join(
-                    ', ',
-                )}`,
-            );
-        }
-    },
+    validate: () => {},
     checkAuth: ({ type }) => {
         if (type !== 'bearer_token') {
             throw new ParameterError(
@@ -101,7 +94,7 @@ export const hubspotIntegration = defineLiveIntegration({
             );
         }
     },
-    describeTarget: ({ settings: { object } }) => `HubSpot ${object}`,
+    describeTarget: () => 'HubSpot CRM: deals, contacts and companies',
     parseRequest: jsonRequest(`${LABEL} search`, hubspotRequestSchema),
     compile: ({ explore, metricQuery, now }) =>
         compileHubspotQuery({
@@ -110,14 +103,17 @@ export const hubspotIntegration = defineLiveIntegration({
             today: getIsoDateInTimeZone(now, 'UTC'),
         }),
     run: runHubspotQuery,
-    toError: (response, settings) => toHubspotError(response, settings),
+    toError: toHubspotError,
     summarizeTest: summarizeHubspotTest,
     scan: {
         read: scanHubspotProperties,
         withScannedFields: (definition, scan) =>
-            scan.hubspotProperties
-                ? withHubspotPropertyFields(definition, scan.hubspotProperties)
-                : definition,
+            withHubspotPropertyFields(
+                definition,
+                readHubspotProperties(scan.hubspotProperties, definition.name),
+            ),
         isInternalField: isInternalHubspotField,
+        // Deals is the first explore; contacts and companies are scanned too
+        models: HUBSPOT_OBJECTS.slice(1),
     },
 });

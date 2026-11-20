@@ -32,19 +32,27 @@ const connect = (
     responses.forEach((item) => send.mockResolvedValueOnce(item));
     return {
         send,
-        source: connectLiveSource(
-            hubspotIntegration,
-            { connector: ApiConnectorType.HUBSPOT, object },
-            send,
-        ),
+        source: {
+            object,
+            ...connectLiveSource(
+                hubspotIntegration,
+                { connector: ApiConnectorType.HUBSPOT },
+                send,
+            ),
+        },
     };
 };
 
+/** Runs a request on the object the source was connected for. */
 const run = (
     source: ReturnType<typeof connect>['source'],
     request: Record<string, unknown>,
     limit = 10,
-) => source.run({ query: JSON.stringify(request), limit });
+) =>
+    source.run({
+        query: JSON.stringify({ object: source.object, ...request }),
+        limit,
+    });
 
 const deals = (count: number, from = 0) =>
     Array.from({ length: count }, (_, index) => hubspotDeal(`${from + index}`));
@@ -304,43 +312,52 @@ describe('hubspotIntegration count', () => {
 });
 
 describe('hubspotIntegration scan and test', () => {
-    it('reads the object’s properties', async () => {
+    it('reads each object’s properties, one call per object', async () => {
         const { source, send } = connect(
             'deals',
             response(HUBSPOT_DEAL_PROPERTIES),
+            response({ results: [] }),
+            response({ results: [] }),
         );
 
         await expect(source.scan()).resolves.toEqual({
-            hubspotProperties: HUBSPOT_DEAL_PROPERTIES,
+            hubspotProperties: {
+                deals: HUBSPOT_DEAL_PROPERTIES,
+                contacts: { results: [] },
+                companies: { results: [] },
+            },
         });
-        expect(send).toHaveBeenCalledWith(
-            expect.objectContaining({
-                method: 'GET',
-                path: '/crm/v3/properties/deals',
-            }),
+        expect(send.mock.calls.map(([request]) => request.path)).toEqual([
+            '/crm/v3/properties/deals',
+            '/crm/v3/properties/contacts',
+            '/crm/v3/properties/companies',
+        ]);
+    });
+
+    it('reads a request for another object only on that object', async () => {
+        const { source, send } = connect(
+            'contacts',
+            response(hubspotSearchPage([hubspotDeal('1')], 1)),
+        );
+        await run(source, { kind: 'count', filters: [] });
+        expect(send.mock.calls[0][0].path).toBe(
+            '/crm/v3/objects/contacts/search',
         );
     });
 
-    it('summarizes the setup test as the object and its properties', () => {
-        expect(
-            summarizeHubspotTest(HUBSPOT_DEAL_PROPERTIES, { object: 'deals' }),
-        ).toEqual({
-            summary: 'Connected to your HubSpot deals',
-            facts: [{ label: 'Properties', value: '14' }],
+    it('summarizes the setup test as the account and its deal properties', () => {
+        expect(summarizeHubspotTest(HUBSPOT_DEAL_PROPERTIES)).toEqual({
+            summary: 'Connected to your HubSpot account',
+            facts: [{ label: 'Deal properties', value: '14' }],
         });
-        expect(
-            summarizeHubspotTest({ status: 'error' }, { object: 'deals' }),
-        ).toBe(null);
+        expect(summarizeHubspotTest({ status: 'error' })).toBe(null);
     });
 });
 
 describe('toHubspotError', () => {
-    const settings = { object: 'deals' };
-
     it('asks for a new token on 401', () => {
         const error = toHubspotError(
             response({ message: 'Authentication credentials not found.' }, 401),
-            settings,
         );
         expect(error).toBeInstanceOf(WarehouseConnectionError);
         expect(error.message).toContain('access token');
@@ -356,10 +373,10 @@ describe('toHubspotError', () => {
                 },
                 403,
             ),
-            settings,
         );
         expect(error).toBeInstanceOf(WarehouseConnectionError);
         expect(error.message).toContain('crm.objects.deals.read');
+        expect(error.message).toContain('crm.schemas.companies.read');
     });
 
     it('says when to retry on 429', () => {
@@ -367,7 +384,6 @@ describe('toHubspotError', () => {
             response({ message: 'Too many requests' }, 429, {
                 'retry-after': '2',
             }),
-            settings,
         );
         expect(error).toBeInstanceOf(TooManyRequestsError);
         expect(error.message).toContain('in 2 seconds');
@@ -383,7 +399,6 @@ describe('toHubspotError', () => {
                 },
                 400,
             ),
-            settings,
         );
         expect(error).toBeInstanceOf(WarehouseQueryError);
         expect(error.message).toContain(
@@ -392,7 +407,7 @@ describe('toHubspotError', () => {
     });
 
     it('reports a server error as unexpected', () => {
-        expect(toHubspotError(response('boom', 502), settings)).toBeInstanceOf(
+        expect(toHubspotError(response('boom', 502))).toBeInstanceOf(
             UnexpectedServerError,
         );
     });

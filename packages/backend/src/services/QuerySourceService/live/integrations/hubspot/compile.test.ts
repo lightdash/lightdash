@@ -15,21 +15,23 @@ import { compileLiveMetricQuery } from '../../explores/build';
 import { buildLiveExplore } from '../../explores/definition';
 import { compileHubspotQuery } from './compile';
 import {
+    HUBSPOT_EXPLORES,
     HUBSPOT_MAX_ROWS,
-    HUBSPOT_RECORDS_EXPLORE,
     isInternalHubspotField,
     withHubspotPropertyFields,
 } from './explores';
 import { HUBSPOT_DEAL_PROPERTIES } from './hubspot.fixtures';
 
+const [DEALS_EXPLORE] = HUBSPOT_EXPLORES;
+
 const DEFINITION = withHubspotPropertyFields(
-    HUBSPOT_RECORDS_EXPLORE,
+    DEALS_EXPLORE,
     HUBSPOT_DEAL_PROPERTIES,
 );
 
 const DEALS = buildLiveExplore({
     definition: DEFINITION,
-    exploreName: 'hubspot_records',
+    exploreName: 'hubspot_deals',
     label: 'HubSpot deals',
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.HUBSPOT,
@@ -40,7 +42,7 @@ const DEALS = buildLiveExplore({
     ),
 });
 
-const field = (name: string) => `hubspot_records_${name}`;
+const field = (name: string) => `hubspot_deals_${name}`;
 
 const rule = (
     name: string,
@@ -129,8 +131,8 @@ describe('HubSpot fields', () => {
     });
 
     it('keeps the built-in fields when the list is unreadable', () => {
-        expect(withHubspotPropertyFields(HUBSPOT_RECORDS_EXPLORE, {})).toBe(
-            HUBSPOT_RECORDS_EXPLORE,
+        expect(withHubspotPropertyFields(DEALS_EXPLORE, {})).toBe(
+            DEALS_EXPLORE,
         );
     });
 });
@@ -151,6 +153,7 @@ describe('compileHubspotQuery', () => {
             ),
         ).toEqual({
             kind: 'records',
+            object: 'deals',
             columns: [
                 { name: 'id', type: 'string' },
                 { name: 'dealname', type: 'string' },
@@ -311,6 +314,7 @@ describe('compileHubspotQuery', () => {
             ),
         ).toEqual({
             kind: 'count',
+            object: 'deals',
             filters: [
                 {
                     propertyName: 'dealstage',
