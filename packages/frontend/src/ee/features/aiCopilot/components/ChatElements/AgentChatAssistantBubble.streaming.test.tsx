@@ -153,3 +153,51 @@ describe('streaming an answer', () => {
         expect(stream.parses).toBeLessThanOrEqual(frames);
     });
 });
+
+describe('streaming text after a tool call', () => {
+    it('mounts the new text fresh so its words fade in', async () => {
+        const toolCall = {
+            type: 'toolCall' as const,
+            toolCallId: 'call',
+            toolName: 'findExplores',
+            toolArgs: {},
+            toolResult: null,
+            isPreliminary: false,
+        };
+        stream.set(streamOf('Looking for the right explore'));
+        renderWithProviders(
+            <MemoryRouter>
+                <AssistantBubble
+                    message={message}
+                    hiddenSibling={null}
+                    isLastMessage
+                    canRetry
+                    projectUuid="project"
+                    agentUuid="agent"
+                />
+            </MemoryRouter>,
+        );
+        await waitFor(() =>
+            expect(document.body).toHaveTextContent(
+                'Looking for the right explore',
+            ),
+        );
+        const firstWord = document.querySelector('[data-sd-animate]');
+        expect(firstWord).not.toBeNull();
+
+        const answer = 'Revenue grew last quarter';
+        await act(async () =>
+            stream.set({
+                ...streamOf(answer),
+                parts: [
+                    { type: 'text', text: 'Looking for the right explore' },
+                    toolCall,
+                    { type: 'text', text: answer },
+                ],
+            }),
+        );
+
+        await waitFor(() => expect(document.body).toHaveTextContent(answer));
+        expect(firstWord?.isConnected).toBe(false);
+    });
+});
