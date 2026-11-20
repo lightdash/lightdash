@@ -3,7 +3,6 @@ import { createHtmlRenderer } from '@pierre/words/html';
 import clsx from 'clsx';
 import { memo, useMemo, useRef, type FC, type ReactNode } from 'react';
 import styles from './AiMarkdown.module.css';
-import { AiMarkdownErrorBoundary } from './AiMarkdownErrorBoundary';
 import {
     WordsContext,
     type WordsCodeBlockRenderer,
@@ -99,20 +98,14 @@ export const WordsMarkdown: FC<WordsMarkdownProps> = ({
 
     return (
         <Box className={clsx(styles.aiMarkdown, className)}>
-            <AiMarkdownErrorBoundary>
-                <WordsContext.Provider value={context}>
-                    <Box data-words-markdown>
-                        {chunks.map((html, index) => (
-                            <WordsChunk
-                                key={index}
-                                html={html}
-                                withCaret={false}
-                            />
-                        ))}
-                        <WordsChunk html={pending} withCaret={isStreaming} />
-                    </Box>
-                </WordsContext.Provider>
-            </AiMarkdownErrorBoundary>
+            <WordsContext.Provider value={context}>
+                <Box data-words-markdown>
+                    {chunks.map((html, index) => (
+                        <WordsChunk key={index} html={html} withCaret={false} />
+                    ))}
+                    <WordsChunk html={pending} withCaret={isStreaming} />
+                </Box>
+            </WordsContext.Provider>
         </Box>
     );
 };
