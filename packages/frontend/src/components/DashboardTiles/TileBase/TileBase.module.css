@@ -159,7 +159,7 @@
     }
 
     /* The linked title follows the pointer's aim, not plain hover */
-    &:not(a):hover,
+    &:not([data-follows-aim]):hover,
     &[data-hovered='true'] {
         position: absolute;
         top: 0;

@@ -151,7 +151,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             : false);
     const isTitleLink =
         !isEditMode && tile.type !== DashboardTileTypes.MARKDOWN;
-    const followsTitleAim = isTitleLink && !minimal && !hideTitle;
+    // Touch keeps the plain :hover, which a tap makes sticky
+    const canHover = useMediaQuery('(hover: hover)', undefined, {
+        getInitialValueInEffect: false,
+    });
+    const followsTitleAim = isTitleLink && !minimal && !hideTitle && canHover;
     const { titleHovered, descriptionOpened, pointerHandlers } =
         useTileTitleAim({
             enabled: followsTitleAim,
@@ -573,6 +577,9 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                         className={styles.tileTitle}
                                         data-hidden={hideTitle}
                                         data-hovered={titleHovered}
+                                        data-follows-aim={
+                                            followsTitleAim || undefined
+                                        }
                                         ref={titleRef}
                                         href={titleHref}
                                         target="_blank"
