@@ -36,7 +36,7 @@ import {
     IconDotsVertical,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import {
@@ -69,6 +69,7 @@ import { TileCopyPlacement } from './TileCopyPlacement';
 import { TileHeaderPopoverContext } from './tileHeaderPopoverContext';
 import { TileSelectionToolbar } from './TileSelectionToolbar';
 import { useTileHeaderVariant } from './tileHeaderPrototype';
+import { useTitleAim } from './useTitleAim';
 import { type TileBaseProps } from './types';
 
 const HEADING_FLEX_ALIGN: Record<DashboardHeadingVerticalAlign, string> = {
@@ -127,7 +128,10 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     });
     const [titleHovered, setTitleHovered] = useState(false);
     const variant = useTileHeaderVariant();
-    const isPrototype = variant !== 'current';
+    // 'aim' keeps today's look and only changes who owns the pointer
+    const isAim = variant === 'aim';
+    const isPrototype = variant !== 'current' && !isAim;
+    const titleRef = useRef<HTMLAnchorElement>(null);
     // Prototype variants show the full title in the tooltip only when it is cut
     const [titleTruncated, setTitleTruncated] = useState(false);
     const measureTitle = (el: HTMLElement) =>
@@ -155,6 +159,12 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         (tile.type !== DashboardTileTypes.MARKDOWN
             ? tile.properties.hideTitle
             : false);
+    const titleAimHandlers = useTitleAim({
+        enabled: isAim && !isEditMode && !minimal && !hideTitle,
+        titleRef,
+        pillSelector: `.${styles.tileTooltip}`,
+        onTitleActiveChange: setTitleHovered,
+    });
     const belongsToDashboard: boolean =
         isDashboardChartTileType(tile) && !!tile.properties.belongsToDashboard;
 
@@ -435,7 +445,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     ) : null;
 
     return (
-        <div ref={containerRef} className={styles.tileWrapper}>
+        <div
+            ref={containerRef}
+            className={styles.tileWrapper}
+            {...titleAimHandlers}
+        >
             {containerHovered && isEditMode && !minimal && !focusedActions && (
                 <Paper
                     className={styles.dragHandleIcon}
@@ -562,6 +576,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                         ? !description && !titleTruncated
                                         : !description
                                 }
+                                opened={
+                                    isAim
+                                        ? titleHovered && !!description
+                                        : undefined
+                                }
                                 events={
                                     isPrototype
                                         ? { hover: true, focus: true, touch: false }
@@ -603,8 +622,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                         data-hidden={hideTitle}
                                         data-hovered={titleHovered}
                                         data-prototype={isPrototype || undefined}
+                                        data-aim={isAim || undefined}
+                                        ref={titleRef}
                                         href={titleHref}
                                         onMouseEnter={(e) => {
+                                            if (isAim) return;
                                             if (isPrototype)
                                                 measureTitle(e.currentTarget);
                                             else setTitleHovered(true);
@@ -613,9 +635,9 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                             if (isPrototype)
                                                 measureTitle(e.currentTarget);
                                         }}
-                                        onMouseLeave={() =>
-                                            setTitleHovered(false)
-                                        }
+                                        onMouseLeave={() => {
+                                            if (!isAim) setTitleHovered(false);
+                                        }}
                                         target="_blank"
                                     >
                                         {title}

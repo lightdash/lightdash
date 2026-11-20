@@ -158,7 +158,7 @@
         display: none;
     }
 
-    &:not([data-prototype]):hover,
+    &:not([data-prototype], [data-aim]):hover,
     &[data-hovered='true'] {
         position: absolute;
         top: 0;

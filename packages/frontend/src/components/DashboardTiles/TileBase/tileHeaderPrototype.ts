@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router';
 
 export const TILE_HEADER_VARIANTS = [
     { key: 'current', name: 'Current (main)' },
+    { key: 'aim', name: 'D: same look, pointer aim decides' },
     { key: 'inline', name: 'A: actions take room on hover' },
     { key: 'reserve', name: 'A2: actions always keep their room' },
     { key: 'fade', name: 'B: actions fade over the title end' },
