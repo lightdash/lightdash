@@ -15,6 +15,7 @@ import {
 import {
     getApiName,
     getLiveExplore,
+    getLiveLocalAggregates,
     type LiveCompiledRequest,
 } from '../../explores/definition';
 import { getLiveDateRange, toAbsoluteDateRange } from '../../query/dateRange';
@@ -23,6 +24,7 @@ import {
     isAttioChoiceProperty,
     parseAttioApiName,
 } from './attributes';
+import { ATTIO_RECORDS_EXPLORE } from './explores';
 import { type AttioRequest, type AttioSort } from './run';
 
 type AttioCondition = Record<string, unknown>;
@@ -275,6 +277,21 @@ export const compileAttioQuery = ({
         : null;
 
     const columns = metricQuery.dimensions.map(apiName);
+    if (metricQuery.metrics.length > 0) {
+        // Every record is read and grouped here, so the API's order is moot
+        const request: AttioRequest = {
+            columns: columns.length > 0 ? columns : ['record_id'],
+            ...(filter ? { filter } : {}),
+        };
+        return {
+            query: JSON.stringify(request),
+            localAggregates: getLiveLocalAggregates(
+                ATTIO_RECORDS_EXPLORE,
+                explore,
+                metricQuery,
+            ),
+        };
+    }
     const { sorts, localSorts } = toAttioSorts(
         metricQuery.sorts,
         apiName,

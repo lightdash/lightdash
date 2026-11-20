@@ -1,7 +1,8 @@
-import { DimensionType, FilterOperator } from '@lightdash/common';
+import { DimensionType, FilterOperator, MetricType } from '@lightdash/common';
 import type {
     LiveDimensionDefinition,
     LiveExploreDefinition,
+    LiveMetricDefinition,
 } from '../../explores/definition';
 
 /** Search takes a list of values per field, so "is" and "is not" take several. */
@@ -60,11 +61,23 @@ const text = (
 const date = (name: string, label: string, description: string) =>
     dimension(name, label, DimensionType.DATE, PYLON_DATE_FILTERS, description);
 
+/** Counted from the records read, grouped by the selected dimensions. */
+const count = (noun: string): LiveMetricDefinition => ({
+    name: 'count',
+    apiName: 'count',
+    label: 'Count',
+    description: `How many ${noun} match the filters, counted from the ${noun} read. A query that matches more than one query can read is refused.`,
+    type: MetricType.NUMBER,
+    filterOperators: [],
+    aggregation: { aggregation: 'additive' },
+    computed: { type: 'count' },
+});
+
 export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
     name: 'issues',
     label: 'Issues',
     description:
-        'Support issues (conversations and tickets) of one Pylon workspace, read live from issue search, one row per issue. One query reads at most 9,999 issues, created in the last 30 days unless the Created filter says otherwise. Dates are UTC days.',
+        'Support issues (conversations and tickets) of one Pylon workspace, read live from issue search, one row per issue, or grouped by the selected dimensions when Count is selected. One query reads at most 9,999 issues, created in the last 30 days unless the Created filter says otherwise. Dates are UTC days.',
     dimensions: [
         dimension(
             'number',
@@ -163,7 +176,7 @@ export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
             'The CSAT score the customer gave, when they answered the survey.',
         ),
     ],
-    metrics: [],
+    metrics: [count('issues')],
     maxDimensions: null,
     maxMetrics: null,
     dateRange: { dimension: 'created_at', defaultDays: 30 },
@@ -174,7 +187,7 @@ export const PYLON_ACCOUNTS_EXPLORE: LiveExploreDefinition = {
     name: 'accounts',
     label: 'Accounts',
     description:
-        'Customer accounts of one Pylon workspace, read live from account search, one row per account. One query reads at most 9,999 accounts.',
+        'Customer accounts of one Pylon workspace, read live from account search, one row per account, or grouped by the selected dimensions when Count is selected. One query reads at most 9,999 accounts.',
     dimensions: [
         text(
             'id',
@@ -228,7 +241,7 @@ export const PYLON_ACCOUNTS_EXPLORE: LiveExploreDefinition = {
             'The day of the latest message from the team, in UTC.',
         ),
     ],
-    metrics: [],
+    metrics: [count('accounts')],
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
@@ -239,7 +252,7 @@ export const PYLON_CONTACTS_EXPLORE: LiveExploreDefinition = {
     name: 'contacts',
     label: 'Contacts',
     description:
-        'Customer contacts of one Pylon workspace, read live from contact search, one row per contact. One query reads at most 9,999 contacts.',
+        'Customer contacts of one Pylon workspace, read live from contact search, one row per contact, or grouped by the selected dimensions when Count is selected. One query reads at most 9,999 contacts.',
     dimensions: [
         text(
             'id',
@@ -278,7 +291,7 @@ export const PYLON_CONTACTS_EXPLORE: LiveExploreDefinition = {
             "The contact's role in the customer portal.",
         ),
     ],
-    metrics: [],
+    metrics: [count('contacts')],
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,

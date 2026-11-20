@@ -95,21 +95,19 @@ const SOURCES = [
             repo: 'lightdash',
         },
         fields: { dimension: 'author', other: 'assignee', metric: 'count' },
-        // A search total can't be split by a dimension, so cases filter on
-        // it instead of selecting it
         date: 'created_at',
-        selectsDimension: false,
     },
     {
         apiSource: { connector: ApiConnectorType.PYLON },
-        // Record lists have no metrics
-        fields: { dimension: 'state', other: 'source' },
+        // Count is worked out from the records read
+        fields: { dimension: 'state', other: 'source', metric: 'count' },
         date: 'created_at',
     },
     {
         apiSource: { connector: ApiConnectorType.ATTIO, object: 'deals' },
-        // Built-in fields only: attributes come from a scan. No metrics.
-        fields: { dimension: 'record_id', other: 'record_id' },
+        // Built-in fields only: attributes come from a scan. Count is
+        // worked out from the records read.
+        fields: { dimension: 'record_id', other: 'record_id', metric: 'count' },
         date: 'created_at',
     },
 ] as const;

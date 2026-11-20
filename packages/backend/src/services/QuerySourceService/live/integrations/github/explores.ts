@@ -68,10 +68,11 @@ const SEARCH_COUNT: LiveMetricDefinition = {
     apiName: 'total_count',
     label: 'Count',
     description:
-        'How many match the filters, from the total GitHub reports for the search.',
+        'How many match the filters: the total GitHub reports for the search, or, split by a dimension, counted from at most 299 results read; more is refused.',
     type: MetricType.NUMBER,
     filterOperators: [],
     aggregation: { aggregation: 'additive' },
+    computed: { type: 'count' },
 };
 
 const searchDimensions = (noun: string): LiveDimensionDefinition[] => [
@@ -136,13 +137,6 @@ const searchDimensions = (noun: string): LiveDimensionDefinition[] => [
     ),
 ];
 
-const countIncompatibility = (dimensions: LiveDimensionDefinition[]) => ({
-    fields: [SEARCH_COUNT.name],
-    with: dimensions.map(({ name }) => name),
-    reason: "GitHub search returns one total, so Count can't be split by a dimension. Filter by it instead, or list rows without Count.",
-    selectedOnly: true as const,
-});
-
 const PULL_REQUEST_DIMENSIONS: LiveDimensionDefinition[] = [
     ...searchDimensions('pull request'),
     dimension(
@@ -166,13 +160,13 @@ export const GITHUB_PULL_REQUESTS_EXPLORE: LiveExploreDefinition = {
     name: 'pull_requests',
     label: 'Pull requests',
     description:
-        'Pull requests of one GitHub repository, read live from GitHub search. Count is the total for the filters; listing reads at most 1,000 pull requests.',
+        'Pull requests of one GitHub repository, read live from GitHub search. Count alone is the total for the filters; listing reads at most 999 pull requests, and Count split by a dimension at most 299.',
     dimensions: PULL_REQUEST_DIMENSIONS,
     metrics: [SEARCH_COUNT],
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
-    incompatible: [countIncompatibility(PULL_REQUEST_DIMENSIONS)],
+    incompatible: [],
 };
 
 const ISSUE_DIMENSIONS: LiveDimensionDefinition[] = [
@@ -197,13 +191,13 @@ export const GITHUB_ISSUES_EXPLORE: LiveExploreDefinition = {
     name: 'issues',
     label: 'Issues',
     description:
-        'Issues of one GitHub repository, without pull requests, read live from GitHub search. Count is the total for the filters; listing reads at most 1,000 issues.',
+        'Issues of one GitHub repository, without pull requests, read live from GitHub search. Count alone is the total for the filters; listing reads at most 999 issues, and Count split by a dimension at most 299.',
     dimensions: ISSUE_DIMENSIONS,
     metrics: [SEARCH_COUNT],
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
-    incompatible: [countIncompatibility(ISSUE_DIMENSIONS)],
+    incompatible: [],
 };
 
 const contributorMetric = (

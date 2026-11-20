@@ -6,6 +6,7 @@ exports[`live data source names > Attio explore names and field ids never change
     {
       "fieldIds": [
         "attio_records_attribute_count",
+        "attio_records_count",
         "attio_records_created_at",
         "attio_records_name",
         "attio_records_record_id",
@@ -325,6 +326,7 @@ exports[`live data source names > Pylon explore names and field ids never change
         "pylon_issues_account_id",
         "pylon_issues_account_name",
         "pylon_issues_assignee_email",
+        "pylon_issues_count",
         "pylon_issues_created_at",
         "pylon_issues_csat_score",
         "pylon_issues_first_response_minutes",
@@ -345,6 +347,7 @@ exports[`live data source names > Pylon explore names and field ids never change
     },
     {
       "fieldIds": [
+        "pylon_accounts_count",
         "pylon_accounts_created_at",
         "pylon_accounts_domain",
         "pylon_accounts_id",
@@ -361,6 +364,7 @@ exports[`live data source names > Pylon explore names and field ids never change
       "fieldIds": [
         "pylon_contacts_account_id",
         "pylon_contacts_account_name",
+        "pylon_contacts_count",
         "pylon_contacts_email",
         "pylon_contacts_id",
         "pylon_contacts_name",

@@ -108,8 +108,8 @@ describe('Attio scanned fields', () => {
         ]);
     });
 
-    it('adds no metrics', () => {
-        expect(names('metrics')).toEqual([]);
+    it('adds no metrics beyond the built-in Count', () => {
+        expect(names('metrics')).toEqual(['count count']);
     });
 
     it('keeps record and member ids out of the default field list', () => {

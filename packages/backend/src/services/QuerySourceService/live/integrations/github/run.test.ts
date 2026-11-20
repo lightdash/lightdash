@@ -9,7 +9,11 @@ import {
 import { githubIntegration } from '.';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
-import { GITHUB_MAX_QUERY_ROWS, GITHUB_STATS_RETRY_DELAYS_MS } from './run';
+import {
+    GITHUB_MAX_GROUPED_ROWS,
+    GITHUB_MAX_QUERY_ROWS,
+    GITHUB_STATS_RETRY_DELAYS_MS,
+} from './run';
 
 const response = (
     body: unknown,
@@ -148,6 +152,29 @@ describe('githubIntegration search', () => {
             page: '2',
         });
         expect(result.rows).toHaveLength(150);
+        expect(result.hasMoreRows).toBe(true);
+    });
+
+    it('reads a grouped search in at most three calls', async () => {
+        const fullPage = (start: number) =>
+            search(
+                5_000,
+                Array.from({ length: 100 }, (_, index) => item(start + index)),
+            );
+        const { source, send } = connect(
+            fullPage(1),
+            fullPage(101),
+            fullPage(201),
+        );
+
+        const result = await run(
+            source,
+            { kind: 'search', type: 'pr', q: '', columns: ['author'] },
+            GITHUB_MAX_GROUPED_ROWS,
+        );
+
+        expect(send).toHaveBeenCalledTimes(3);
+        expect(result.rows).toHaveLength(GITHUB_MAX_GROUPED_ROWS);
         expect(result.hasMoreRows).toBe(true);
     });
 

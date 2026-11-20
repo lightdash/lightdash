@@ -26,6 +26,7 @@ import {
 } from './explores';
 import {
     GITHUB_CALLS_PER_QUERY,
+    GITHUB_MAX_GROUPED_ROWS,
     GITHUB_MAX_QUERY_ROWS,
     githubRequestSchema,
     runGithubQuery,
@@ -66,9 +67,11 @@ export const githubIntegration = defineLiveIntegration({
         callsPerQuery: GITHUB_CALLS_PER_QUERY,
         timeoutMs: 30_000,
         maxRows: GITHUB_MAX_QUERY_ROWS,
+        maxGroupedRows: GITHUB_MAX_GROUPED_ROWS,
     },
-    // Search ANDs one flat list of qualifiers, one value each; counts come
-    // from the search total and can't be grouped. Dates are UTC days.
+    // Search ANDs one flat list of qualifiers, one value each; Count alone
+    // is the search total, and split by a dimension is counted from the
+    // results read. Dates are UTC days.
     capabilities: {
         filters: {
             operators: {
