@@ -92,7 +92,7 @@ import {
 } from '../../store/hooks';
 import {
     useAiAgentThreadMessageStreaming,
-    useAiAgentThreadStreamQuery,
+    useAiAgentMessageStream,
 } from '../../streaming/useAiAgentThreadStreamQuery';
 import { useBattleMessage } from '../Battle/BattleMessageContext';
 import { JevDecisionIndicator } from '../Battle/JevDecisionIndicator';
@@ -479,16 +479,10 @@ const AssistantBubbleContent: FC<{
     onDashboardLinkClick,
     artifactSlot,
 }) => {
-    const threadStreamingState = useAiAgentThreadStreamQuery(
+    const streamingState = useAiAgentMessageStream(
         message.threadUuid,
+        message.uuid,
     );
-    // The thread-level streaming state is shared across all messages on the
-    // thread. We must only use it for *this* message's bubble — otherwise the
-    // previous bubble would mirror the next prompt's parts.
-    const streamingState =
-        threadStreamingState?.messageUuid === message.uuid
-            ? threadStreamingState
-            : null;
     const isStreaming = useAiAgentThreadMessageStreaming(
         message.threadUuid,
         message.uuid,
@@ -1258,12 +1252,11 @@ export const AssistantBubble: FC<Props> = memo(
             setFeedbackText('');
         }, [closePopover]);
 
-        const threadStreamingState = useAiAgentThreadStreamQuery(
+        const streamingState = useAiAgentMessageStream(
             message.threadUuid,
+            message.uuid,
         );
-        const isRefused =
-            threadStreamingState?.messageUuid === message.uuid &&
-            threadStreamingState.connection.status === 'refused';
+        const isRefused = streamingState?.connection.status === 'refused';
         const isPending = message.status === 'pending' && !isRefused;
         const isStreaming = useAiAgentThreadMessageStreaming(
             message.threadUuid,
@@ -1272,9 +1265,8 @@ export const AssistantBubble: FC<Props> = memo(
         const isLoading = isStreaming || isPending;
         const showWritingSummary =
             isStreaming &&
-            threadStreamingState?.messageUuid === message.uuid &&
-            summaryPhaseOf(message, threadStreamingState.parts) ===
-                'awaitingSummary';
+            streamingState !== null &&
+            summaryPhaseOf(message, streamingState.parts) === 'awaitingSummary';
 
         // status flips to 'idle' only at stream end; artifacts land earlier.
         const isArtifactAvailable = !!(
@@ -1282,9 +1274,9 @@ export const AssistantBubble: FC<Props> = memo(
         );
 
         const pendingArtifactType =
-            isStreaming && threadStreamingState?.messageUuid === message.uuid
+            isStreaming && streamingState
                 ? getPendingArtifactType(
-                      threadStreamingState.parts,
+                      streamingState.parts,
                       isArtifactAvailable,
                   )
                 : null;

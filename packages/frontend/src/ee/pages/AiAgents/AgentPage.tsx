@@ -32,7 +32,7 @@ import { getAiAgentPageBase } from '../../features/aiCopilot/hooks/aiAgentRoutin
 import { useMyAiAgentMemories } from '../../features/aiCopilot/hooks/useAiAgentMemory';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentMemoryEnabled } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
-import { useEmitEmbedAgentContentEvents } from '../../features/aiCopilot/hooks/useEmitEmbedAgentContentEvents';
+import { EmbedAgentContentEvents } from '../../features/aiCopilot/hooks/useEmitEmbedAgentContentEvents';
 import {
     useProjectAiAgent as useAiAgent,
     useAiAgentThread,
@@ -80,12 +80,6 @@ const AgentPage = () => {
         threadUuid,
         { onError: () => undefined },
     );
-    useEmitEmbedAgentContentEvents({
-        projectUuid,
-        agentUuid,
-        threadUuid,
-        thread,
-    });
 
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
     const { track } = useTracking();
@@ -319,6 +313,12 @@ const AgentPage = () => {
                 ) : undefined
             }
         >
+            <EmbedAgentContentEvents
+                projectUuid={projectUuid}
+                agentUuid={agentUuid}
+                threadUuid={threadUuid}
+                thread={thread}
+            />
             <MantineModal
                 opened={isShareModalOpen}
                 onClose={closeShareModal}

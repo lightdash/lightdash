@@ -60,3 +60,11 @@ export const useEmitEmbedAgentContentEvents = ({
         dispatchEmbedEvent,
     ]);
 };
+
+// Renders nothing; keeps the per-frame stream subscription out of the page that mounts it.
+export const EmbedAgentContentEvents = (
+    props: Parameters<typeof useEmitEmbedAgentContentEvents>[0],
+) => {
+    useEmitEmbedAgentContentEvents(props);
+    return null;
+};
