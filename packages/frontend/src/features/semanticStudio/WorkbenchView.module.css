@@ -88,18 +88,6 @@
         0 1px 2px rgb(0 0 0 / 6%);
 }
 
-.liveDot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--mantine-color-green-6);
-    transition: box-shadow 140ms var(--ease-out);
-}
-
-.view[aria-selected='true'] .liveDot {
-    box-shadow: 0 0 0 3px var(--mantine-color-green-light);
-}
-
 .changeHeader {
     display: flex;
     flex-direction: column;
