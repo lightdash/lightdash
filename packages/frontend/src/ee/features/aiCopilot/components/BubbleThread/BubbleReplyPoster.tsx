@@ -1,16 +1,14 @@
-import { FeatureFlags, type AiPromptContextInput } from '@lightdash/common';
+import { FeatureFlags } from '@lightdash/common';
 import { useEffect, useRef, type FC } from 'react';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
-import { uploadCaptureImages } from '../../../dashboardCapture/uploadCaptureImages';
+import {
+    withThreadImages,
+    type MarkedMessage,
+} from '../../../capture/withThreadImages';
 import { useBubbleThreadPost } from './useBubbleThreadPost';
 
-export type BubbleReplyPost = (input: {
-    /** The message, worded for whether the marked images go with it. */
-    buildPrompt: (hasImages: boolean) => string;
-    images: File[];
-    context: AiPromptContextInput;
-}) => Promise<void>;
+export type BubbleReplyPost = (input: MarkedMessage) => Promise<void>;
 
 type Props = {
     projectUuid: string;
@@ -38,21 +36,16 @@ const BubbleReplyPoster: FC<Props> = ({
     const { post } = useBubbleThreadPost(projectUuid, agentUuid, threadId);
 
     const replyRef = useRef<BubbleReplyPost | null>(null);
-    replyRef.current = async ({ buildPrompt, images, context }) => {
-        const fileUuids =
-            canSendImages && images.length > 0
-                ? await uploadCaptureImages(lightdashApi, images)
-                : [];
+    replyRef.current = async (input) => {
+        const { prompt, context } = await withThreadImages(
+            lightdashApi,
+            canSendImages,
+            input,
+        );
         await post({
-            prompt: buildPrompt(fileUuids.length > 0),
+            prompt,
             toolHints: [],
-            context: [
-                ...context,
-                ...fileUuids.map((fileUuid) => ({
-                    type: 'thread_image' as const,
-                    fileUuid,
-                })),
-            ],
+            context,
             optimisticContext: undefined,
         });
     };

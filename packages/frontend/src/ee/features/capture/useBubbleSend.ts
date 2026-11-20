@@ -1,4 +1,4 @@
-import { FeatureFlags, type AiPromptContextInput } from '@lightdash/common';
+import { FeatureFlags } from '@lightdash/common';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
@@ -12,16 +12,10 @@ import {
 } from '../aiCopilot/components/Launcher/useAiAgentLauncherRouter';
 import { useDefaultAiAgent } from '../aiCopilot/components/Launcher/useDefaultAiAgent';
 import { useCreateAgentThreadMutation } from '../aiCopilot/hooks/useProjectAiAgents';
-import { uploadCaptureImages } from '../dashboardCapture/uploadCaptureImages';
 import { type DesignSendResult } from './types';
+import { withThreadImages, type MarkedMessage } from './withThreadImages';
 
-export type BubbleSendInput = {
-    bubbleId: string;
-    /** The message, worded for whether the marked images go with it. */
-    buildPrompt: (hasImages: boolean) => string;
-    images: File[];
-    context: AiPromptContextInput;
-};
+export type BubbleSendInput = MarkedMessage & { bubbleId: string };
 
 export type BubbleSendPicker = {
     bubbleId: string;
@@ -75,21 +69,12 @@ export const useBubbleSend = (
 
     const createFor = useCallback(
         async (input: BubbleSendInput, agentUuid: string) => {
-            const fileUuids =
-                canSendImages && input.images.length > 0
-                    ? await uploadCaptureImages(lightdashApi, input.images)
-                    : [];
-            return createThread({
-                agentUuid,
-                prompt: input.buildPrompt(fileUuids.length > 0),
-                context: [
-                    ...input.context,
-                    ...fileUuids.map((fileUuid) => ({
-                        type: 'thread_image' as const,
-                        fileUuid,
-                    })),
-                ],
-            });
+            const { prompt, context } = await withThreadImages(
+                lightdashApi,
+                canSendImages,
+                input,
+            );
+            return createThread({ agentUuid, prompt, context });
         },
         [canSendImages, createThread, lightdashApi],
     );
