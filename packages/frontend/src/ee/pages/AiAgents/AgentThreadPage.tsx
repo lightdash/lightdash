@@ -1,7 +1,14 @@
 import { subject } from '@casl/ability';
-import { Box, Center, Flex, Loader } from '@mantine/core';
+import { Box, Button, Center, Flex, Loader } from '@mantine/core';
+import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo } from 'react';
-import { useOutletContext, useParams, useSearchParams } from 'react-router';
+import {
+    Link,
+    useOutletContext,
+    useParams,
+    useSearchParams,
+} from 'react-router';
+import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import { ReviewVerificationPanel } from '../../features/aiCopilot/components/Admin/ReviewVerificationPanel';
@@ -22,6 +29,7 @@ import {
     type DeepResearchRunRegistration,
     type StartDeepResearchArgs,
 } from '../../features/aiCopilot/deepResearch/types';
+import { getAiAgentPageBase } from '../../features/aiCopilot/hooks/aiAgentRouting';
 import { useEmitEmbedAiAgentThreadChange } from '../../features/aiCopilot/hooks/embedAiAgentThreadChange';
 import {
     useAiAgentReviewItemByPreviewThread,
@@ -56,6 +64,7 @@ import {
 import { type AiAgentToolResult } from '../../features/aiCopilot/types';
 import { getDashboardNavigationUrlFromContentToolResult } from '../../features/aiCopilot/utils/contentToolResultNavigation';
 import useIsEmbedded from '../../providers/Embed/useIsEmbedded';
+import { useUiStrings } from '../../providers/Embed/useUiStrings';
 import { type AgentContext } from './AgentPage';
 
 const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
@@ -64,11 +73,13 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const [searchParams] = useSearchParams();
     const isEmbed = useIsEmbedded();
     const emitEmbedAiAgentThreadChange = useEmitEmbedAiAgentThreadChange();
+    const getUiString = useUiStrings();
     const { user } = useApp();
 
     const {
         data: thread,
         isLoading: isLoadingThread,
+        isError: isThreadError,
         refetch,
     } = useAiAgentThread(projectUuid!, agentUuid, threadUuid);
 
@@ -407,6 +418,32 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             },
         });
     };
+
+    if (!thread && isThreadError) {
+        // Iframe embeds read targetOrigin from the URL to post thread changes
+        const targetOrigin = searchParams.get('targetOrigin');
+        return (
+            <SuboptimalState
+                icon={IconAlertCircle}
+                title={getUiString('aiAgent.thread.loadError')}
+                action={
+                    <Button
+                        component={Link}
+                        to={{
+                            pathname: `${getAiAgentPageBase(projectUuid!, isEmbed)}/${agent.uuid}/threads`,
+                            search: targetOrigin
+                                ? `?${new URLSearchParams({ targetOrigin })}`
+                                : '',
+                        }}
+                        variant="default"
+                        size="xs"
+                    >
+                        {getUiString('aiAgent.thread.startNew')}
+                    </Button>
+                }
+            />
+        );
+    }
 
     if (
         isLoadingThread ||

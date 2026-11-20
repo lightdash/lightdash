@@ -73,10 +73,12 @@ const AgentPage = () => {
         agentUuid!,
     );
 
+    // The thread page reports load errors; a second handler would duplicate them
     const { data: thread } = useAiAgentThread(
         projectUuid!,
         agentUuid,
         threadUuid,
+        { onError: () => undefined },
     );
     useEmitEmbedAgentContentEvents({
         projectUuid,

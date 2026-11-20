@@ -671,6 +671,8 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.thread.boundDashboardUnavailable': 'Dashboard no longer available',
     'aiAgent.thread.boundChart': 'Linked chart',
     'aiAgent.thread.boundChartUnavailable': 'Chart no longer available',
+    'aiAgent.thread.loadError': 'This thread could not be loaded',
+    'aiAgent.thread.startNew': 'Start a new thread',
     'explorer.back': 'Back',
     'explorer.backToDashboard': 'Back to Dashboard',
     'explorer.backToChart': 'Back to Chart',
