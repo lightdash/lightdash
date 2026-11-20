@@ -20,11 +20,14 @@ vi.mock('../../../features/scopeTours/ScopeTourHost', () => ({
     default: () => null,
 }));
 
-vi.mock('../../NavBar', () => ({
-    default: () => (
-        <Box component="nav">
-            <Link to="/home">Home</Link>
-        </Box>
+vi.mock('../../AppSidebar/AppNavigationShell', () => ({
+    AppNavigationShell: ({ children }: { children: ReactNode }) => (
+        <>
+            <Box component="nav">
+                <Link to="/home">Home</Link>
+            </Box>
+            {children}
+        </>
     ),
 }));
 
