@@ -9,6 +9,7 @@ export const contentReachColumns: CompactedStreamColumn[] = [
     ...[
         'viewer_id',
         'returning_viewer_id',
+        'first_week_viewer_id',
         'first_week_returning_viewer_id',
         'known_verification_viewer_id',
         'verified_viewer_id',
@@ -41,6 +42,8 @@ SELECT *,
     floor(date_diff('day', content_created_at, event_ts) / 7.0)::BIGINT AS weeks_since_creation,
     CASE WHEN qualifying_view_at IS NOT NULL THEN user_id END AS viewer_id,
     CASE WHEN date_trunc('day', qualifying_view_at) > first_view_day THEN user_id END AS returning_viewer_id,
+    CASE WHEN qualifying_view_at < date_trunc('day', content_created_at) + INTERVAL 7 DAY
+        THEN user_id END AS first_week_viewer_id,
     CASE WHEN qualifying_view_at >= date_trunc('day', content_created_at) + INTERVAL 7 DAY
         AND first_view_day < date_trunc('day', content_created_at) + INTERVAL 7 DAY
         THEN user_id END AS first_week_returning_viewer_id,
@@ -69,6 +72,13 @@ export const contentReachMetrics: SystemMetricDefinition[] = [
             'Distinct users with a qualifying backend fetch on a later UTC day than their first captured qualifying backend fetch to the same content. First visits are calculated before date filters.',
         type: MetricType.COUNT_DISTINCT,
         column: 'returning_viewer_id',
+    },
+    {
+        name: 'first_week_viewers',
+        description:
+            'Distinct users with a qualifying backend fetch in the first seven UTC calendar days from content creation. Zero when the content was created before capture began.',
+        type: MetricType.COUNT_DISTINCT,
+        column: 'first_week_viewer_id',
     },
     {
         name: 'first_week_returning_viewers',

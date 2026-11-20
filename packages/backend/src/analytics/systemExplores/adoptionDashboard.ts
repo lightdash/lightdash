@@ -117,7 +117,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
                 settings: { unitOfTime: UnitOfTime.days, completed: true },
             },
         ],
-        titles: { category: 'Person', metric: 'Recorded activities' },
+        titles: { category: 'Person', metric: 'Activities' },
     }),
     ranking({
         key: 'adoption-dashboard-audience',

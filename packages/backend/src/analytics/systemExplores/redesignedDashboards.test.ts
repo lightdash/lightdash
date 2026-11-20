@@ -198,7 +198,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'new-content-adoption-creation-week-proxy',
                 0,
-                1,
+                2,
                 36,
                 8,
                 'sortable-pivot-table',
@@ -207,7 +207,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'content-creation-by-month',
                 0,
-                9,
+                10,
                 36,
                 7,
                 'customizable-cartesian-chart',
@@ -1346,6 +1346,73 @@ describe('library chart options', () => {
                     ),
                 ).toBe(false);
         });
+    });
+});
+
+describe('new content adoption', () => {
+    it('counts first-week viewers and who came back, and leaves it blank for content under a week old', async () => {
+        const chart = analyticsContentAsCode
+            .flatMap((bundle) => bundle.charts)
+            .find(({ slug }) =>
+                slug.endsWith('-new-content-adoption-creation-week-proxy'),
+            )!;
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            await db.run(
+                `CREATE TABLE content_views (${compactedStreamSchemas.content_views.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            const { contentInventoryColumns } =
+                await import('../eventStream/contentInventory');
+            await db.run(
+                `CREATE TABLE lightdash_content (${contentInventoryColumns.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            const view = (
+                content: string,
+                createdDaysAgo: number,
+                user: string,
+                viewedDaysAgo: number,
+            ) =>
+                `('org','project','dashboard','${content}','${content}','${user}','user',true,CURRENT_DATE - INTERVAL ${createdDaysAgo} DAY,CURRENT_DATE - INTERVAL ${viewedDaysAgo} DAY + INTERVAL 1 HOUR,'${content}-${user}-${viewedDaysAgo}')`;
+            await db.run(`INSERT INTO content_views (org_id,project_id,content_type,content_id,content_name,user_id,actor_type,is_qualifying,content_created_at,event_ts,event_id) VALUES
+                ${[
+                    // Twenty days old: a and b viewed it in the first week, only a came back
+                    view('old', 20, 'a', 19),
+                    view('old', 20, 'b', 18),
+                    view('old', 20, 'a', 5),
+                    // c first saw it after the first week, so is neither
+                    view('old', 20, 'c', 4),
+                    // Three days old: its first week is still running
+                    view('new', 3, 'a', 2),
+                    // Created long before anything was recorded
+                    view('ancient', 400, 'a', 6),
+                ].join(',')}`);
+            const rows = (
+                await db.runAndReadAll(sqlOf(chart))
+            ).getRowObjectsJS();
+            expect(
+                rows.map((row) => [
+                    row.content_reach_content_name,
+                    Number(row.content_reach_first_week_viewers),
+                    row.came_back_later === null
+                        ? null
+                        : Number(row.came_back_later),
+                    row.came_back_share === null
+                        ? null
+                        : Number(row.came_back_share),
+                ]),
+            ).toEqual([
+                ['old', 2, 1, 50],
+                ['new', 1, null, null],
+                ['ancient', 0, 0, null],
+            ]);
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
     });
 });
 

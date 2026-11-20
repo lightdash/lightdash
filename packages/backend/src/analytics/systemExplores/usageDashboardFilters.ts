@@ -29,6 +29,9 @@ const dateFieldOfTable: Record<string, string> = {
 // A chart of a table that describes the present can still count what was created in the period
 const dateFieldOfChart: Record<string, string> = {
     'lightdash-analytics-home-content-created': 'created_at_day',
+    // New content is content created in the period, whenever it was viewed
+    'lightdash-analytics-content-new-content-adoption-creation-week-proxy':
+        'content_created_at_day',
 };
 
 const tableOf = (chart: ChartAsCode) =>

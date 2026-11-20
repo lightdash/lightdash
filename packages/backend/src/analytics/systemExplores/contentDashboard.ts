@@ -1,8 +1,31 @@
+import { CustomFormatType, TableCalculationType } from '@lightdash/common';
 import { card, ranking, stackedByDay } from './chartBuilders';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
 
 const day = 'content_reach_event_ts_day';
 const allHistory = 'Uses all recorded history; the date filter does not apply.';
+
+const cameBack = 'came_back_later';
+const cameBackShare = 'came_back_share';
+
+const newContentCalculations: NonNullable<UsageChartSpec['tableCalculations']> =
+    [
+        {
+            // Nobody can have come back after the first week while it is still running
+            name: cameBack,
+            displayName: 'Came back later',
+            type: TableCalculationType.NUMBER,
+            sql: `CASE WHEN \${content_reach.content_created_at_day} > CURRENT_DATE - INTERVAL 7 DAY THEN NULL ELSE \${content_reach.first_week_returning_viewers} END`,
+            format: { type: CustomFormatType.NUMBER, round: 0 },
+        },
+        {
+            name: cameBackShare,
+            displayName: 'Share who came back (%)',
+            type: TableCalculationType.NUMBER,
+            sql: `CASE WHEN \${content_reach.content_created_at_day} > CURRENT_DATE - INTERVAL 7 DAY THEN NULL ELSE ROUND(100.0 * \${content_reach.first_week_returning_viewers} / NULLIF(\${content_reach.first_week_viewers}, 0)) END`,
+            format: { type: CustomFormatType.NUMBER, round: 0 },
+        },
+    ];
 
 // Charts of the Content dashboard. The verified share and the review list stay with the plain charts in
 // usageDashboardCharts.ts.
@@ -82,26 +105,80 @@ export const contentChartSpecs: UsageChartSpec[] = [
         libraryDescription:
             'Views of each dashboard, with the people who viewed it. Open a dashboard to see its people.',
     }),
-    ranking({
+    {
         key: 'new-content-adoption-creation-week-proxy',
-        name: 'New content adoption after the first week',
+        name: 'New content: who came back after the first week',
         description:
-            'Creation date stands in for launch date. Older content may have been created before recording began.',
+            'Content created in the selected period, with the people who viewed it in its first seven days and how many of them viewed it again later. Came back later is blank until the content is a week old.',
         explore: 'content_reach',
-        by: 'content_reach_content_name',
         dimensions: [
             'content_reach_content_name',
+            'content_reach_content_type_name',
             'content_reach_content_created_at_day',
             'content_reach_content_id',
             'content_reach_project_id',
         ],
         metrics: [
-            'content_reach_distinct_viewers',
+            'content_reach_first_week_viewers',
             'content_reach_first_week_returning_viewers',
         ],
+        tableCalculations: newContentCalculations,
+        // The plain table shows the count behind the blank; the calculation replaces it
+        hiddenColumns: ['content_reach_first_week_returning_viewers'],
+        fieldLabels: {
+            content_reach_first_week_viewers: 'Viewers in first week',
+        },
         limit: 30,
-        libraryLimit: 30,
-    }),
+        sorts: [
+            {
+                fieldId: 'content_reach_first_week_viewers',
+                descending: true,
+            },
+        ],
+        libraryChart: {
+            slug: 'sortable-pivot-table',
+            minVersion: '0.14.0',
+            fieldMapping: {
+                rowDimension: 'content_reach_content_name',
+                metric: [
+                    'content_reach_first_week_viewers',
+                    cameBack,
+                    cameBackShare,
+                ],
+            },
+            optionValues: {
+                showMiniBars: true,
+                showTotalsRow: false,
+                decimalPlaces: 0,
+                density: 'compact',
+                initialSort: 'firstValue',
+                rowHeaderName: 'Content',
+                valueNames:
+                    'Viewers in first week,Came back later,Share who came back (%)',
+            },
+            query: {
+                // The day it was created is what the calculations check its age against
+                dimensions: [
+                    'content_reach_content_name',
+                    'content_reach_content_created_at_day',
+                ],
+                metrics: [
+                    'content_reach_first_week_viewers',
+                    'content_reach_first_week_returning_viewers',
+                ],
+                sorts: [
+                    {
+                        fieldId: 'content_reach_first_week_viewers',
+                        descending: true,
+                    },
+                ],
+                limit: 30,
+                tableCalculations: newContentCalculations,
+                description:
+                    'Content created in the selected period, with the people who viewed it in its first seven days and how many of them viewed it again later. Came back later is blank until the content is a week old.',
+            },
+        },
+    },
     stackedByDay({
         key: 'content-creation-by-month',
         name: 'Content created by month',
@@ -223,7 +300,7 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'New content',
                     description:
-                        'People who viewed content in its first seven days and came back later are a sign of adoption. Counts include deleted items.',
+                        'People who viewed new content in its first seven days and came back later are a sign of adoption. Content created before the selected period is not listed.',
                     charts: ['new-content-adoption-creation-week-proxy'],
                     layout: 'row',
                     rowHeight: 8,
