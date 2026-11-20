@@ -124,7 +124,7 @@ const ThreadChartModalInner: FC<{ chart: SavedChart; onClose: () => void }> = ({
 };
 
 type Props = {
-    chartUuid: string | null;
+    chartUuid: string;
     projectUuid: string | undefined;
     onClose: () => void;
 };
@@ -141,12 +141,12 @@ const AiThreadChartEditorModal: FC<Props> = ({
     onClose,
 }) => {
     const { data: chart } = useSavedQuery({
-        uuidOrSlug: chartUuid ?? undefined,
+        uuidOrSlug: chartUuid,
         projectUuid,
-        useQueryOptions: { enabled: !!chartUuid && !!projectUuid },
+        useQueryOptions: { enabled: !!projectUuid },
     });
 
-    if (!chartUuid || !chart || chart.uuid !== chartUuid) return null;
+    if (!chart || chart.uuid !== chartUuid) return null;
 
     return (
         <ThreadChartModalInner

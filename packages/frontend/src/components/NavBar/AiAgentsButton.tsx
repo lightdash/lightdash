@@ -1,12 +1,4 @@
-import {
-    Anchor,
-    Button,
-    Center,
-    HoverCard,
-    Loader,
-    Stack,
-    Text,
-} from '@mantine/core';
+import { Anchor, Button, HoverCard, Stack, Text } from '@mantine/core';
 import { IconArrowRight } from '@tabler/icons-react';
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -18,6 +10,7 @@ import {
 import { useAiAgentOrgPermission } from '../../ee/features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentButtonVisibility } from '../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
+import EmptyStateLoader from '../common/EmptyStateLoader';
 import MantineIcon from '../common/MantineIcon';
 import { useNavBarPortalTarget } from './NavBarPortalContext';
 
@@ -185,13 +178,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
                 </Button>
             </HoverCard.Target>
             <HoverCard.Dropdown p="xs">
-                <Suspense
-                    fallback={
-                        <Center p="sm">
-                            <Loader size="xs" />
-                        </Center>
-                    }
-                >
+                <Suspense fallback={<EmptyStateLoader py="sm" />}>
                     <ReviewFindingsPreview
                         items={projectReviewItems.slice(0, PREVIEW_LIMIT)}
                         totalOpen={reviewCount}
