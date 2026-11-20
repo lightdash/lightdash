@@ -1,3 +1,10 @@
+## [3.354.1](https://github.com/lightdash/lightdash/compare/3.354.0...3.354.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **composer:** custom chart on composer tile fetches no explore ([#33056](https://github.com/lightdash/lightdash/issues/33056)) ([612fb43](https://github.com/lightdash/lightdash/commit/612fb4355c9895564e8172cc712bc534f5544a11))
+
 # [3.354.0](https://github.com/lightdash/lightdash/compare/3.353.1...3.354.0) (2026-11-20)
 
 
