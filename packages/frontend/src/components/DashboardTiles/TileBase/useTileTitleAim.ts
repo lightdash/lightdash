@@ -40,7 +40,13 @@ const isMovingToward = (from: Point, to: Point, box: Box) => {
 const textLines = (el: HTMLElement): Box[] => {
     const range = document.createRange();
     range.selectNodeContents(el);
-    return [...range.getClientRects()];
+    // Plain boxes: a DOMRect's bounds are getters that spreading drops
+    return [...range.getClientRects()].map(({ left, top, right, bottom }) => ({
+        left,
+        top,
+        right,
+        bottom,
+    }));
 };
 
 type TitleAim = 'title' | 'headingForActions' | 'elsewhere';
