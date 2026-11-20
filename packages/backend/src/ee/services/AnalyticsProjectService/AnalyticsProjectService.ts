@@ -58,11 +58,13 @@ import { UserModel } from '../../../models/UserModel';
 import type { SchedulerClient } from '../../../scheduler/SchedulerClient';
 import { BaseService } from '../../../services/BaseService';
 import { type CoderService } from '../../../services/CoderService/CoderService';
+import type { DashboardService } from '../../../services/DashboardService/DashboardService';
 import {
     analyticsExploreNames,
     createAnalyticsExplores,
 } from '../../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { AiAgentModel } from '../../models/AiAgentModel';
 import type { ProjectHomepageModel } from '../../models/ProjectHomepageModel';
 import type { AiAgentService } from '../AiAgentService/AiAgentService';
@@ -74,10 +76,11 @@ import {
     getManagedAdoptionAppCode,
     managedAdoptionAppSlug,
 } from './managedAdoptionApp';
+import { removeRetiredAnalyticsContent } from './retiredAnalyticsContent';
 
 type Dependencies = {
     analytics: Pick<LightdashAnalytics, 'track'>;
-    lightdashConfig: Pick<LightdashConfig, 'usageEvents'>;
+    lightdashConfig: Pick<LightdashConfig, 'usageEvents' | 'softDelete'>;
     appModel: Pick<
         AppModel,
         | 'getAppIncludingDeleted'
@@ -125,6 +128,9 @@ type Dependencies = {
         'getByContentUuids'
     >;
     dashboardModel: Pick<DashboardModel, 'find' | 'getByIdOrSlug'>;
+    // Lazy: only the removal of retired content needs them
+    getDashboardService: () => Pick<DashboardService, 'softDelete'>;
+    getSavedChartService: () => Pick<SavedChartService, 'softDelete'>;
     projectHomepageModel: Pick<
         ProjectHomepageModel,
         'createPublishedDefaultIfAbsent'
@@ -872,6 +878,32 @@ export class AnalyticsProjectService extends BaseService {
                     snapshotHash: contentHash(),
                     appliedByUserUuid: user.userUuid,
                     filePath: null,
+                });
+                // Last, and never fatal: content that is no longer defined in code
+                await removeRetiredAnalyticsContent(
+                    {
+                        lightdashConfig: this.dependencies.lightdashConfig,
+                        spaceModel: this.dependencies.spaceModel,
+                        dashboardModel: this.dependencies.dashboardModel,
+                        savedChartModel: this.dependencies.savedChartModel,
+                        contentVerificationModel:
+                            this.dependencies.contentVerificationModel,
+                        dashboardService:
+                            this.dependencies.getDashboardService(),
+                        savedChartService:
+                            this.dependencies.getSavedChartService(),
+                        logger: this.logger,
+                    },
+                    user,
+                    project.projectUuid,
+                ).catch((error: unknown) => {
+                    this.logger.warn(
+                        'Unable to remove retired analytics content',
+                        {
+                            projectUuid: project.projectUuid,
+                            error: getErrorMessage(error),
+                        },
+                    );
                 });
                 await this.syncAdoptionApp(user, project.projectUuid).catch(
                     (error: unknown) => {
