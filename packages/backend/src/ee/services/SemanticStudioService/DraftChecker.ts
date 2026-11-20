@@ -26,7 +26,11 @@ import { fromSession } from '../../../auth/account';
 import { type ProjectService } from '../../../services/ProjectService/ProjectService';
 import { type WarehouseSqlBuilderSettings } from '../../../services/ProjectService/warehouseSqlBuilderSettings';
 import { toModelPath, withWrites } from './draftFold';
-import { findChangedFields, findColumnError } from './draftLint';
+import {
+    findChangedFields,
+    findColumnError,
+    findMistypedDimensions,
+} from './draftLint';
 import {
     findCatalogTable,
     getRowCountSql,
@@ -149,6 +153,36 @@ const compileDocuments = async (
         postProcessors: [preAggregatePostProcessor],
     });
     return { explores, quote: warehouseSqlBuilder.getFieldQuoteChar() };
+};
+
+/** The fields of a model whose SQL a change adds or alters, by name; null when it leaves the fields, tables and joins as they were. */
+const findTouchedFields = (
+    explore: Explore,
+    before: Explore,
+): Set<string> | null => {
+    const base = explore.tables[explore.baseTable];
+    const was = before.tables[before.baseTable];
+    const fields = [
+        ...Object.values(base.dimensions).filter(
+            ({ name, compiledSql }) =>
+                was.dimensions[name]?.compiledSql !== compiledSql,
+        ),
+        ...Object.values(base.metrics).filter(
+            ({ name, compiledSql }) =>
+                was.metrics[name]?.compiledSql !== compiledSql,
+        ),
+    ].map(({ name }) => name);
+    const from = ({ tables, baseTable, joinedTables }: Explore) =>
+        JSON.stringify([
+            tables[baseTable].sqlTable,
+            joinedTables.map(({ table, compiledSqlOn }) => [
+                tables[table].sqlTable,
+                compiledSqlOn,
+            ]),
+        ]);
+    return fields.length === 0 && from(explore) === from(before)
+        ? null
+        : new Set(fields);
 };
 
 /** Checks drafted models against the compiler, the query builder and the warehouse before they may go live. */
@@ -321,9 +355,13 @@ export class DraftChecker {
         explore: Explore,
         quote: string,
         changedDimensions: Set<string>,
+        /** The fields to plan, by name; null plans them all. */
+        only: Set<string> | null = null,
     ): Promise<string | null> {
         const base = explore.tables[explore.baseTable];
         const alias = (name: string) => `${quote}${name}${quote}`;
+        const planned = ({ name }: { name: string }) =>
+            only === null || only.has(name);
         const tables = [
             base,
             ...explore.joinedTables.map(({ table }) => explore.tables[table]),
@@ -363,12 +401,25 @@ export class DraftChecker {
             `SELECT ${expressions.map((sql, index) => `${sql} AS c${index}`).join(',\n')}\nFROM ${from}`;
         const resolved = ({ compiledSql }: { compiledSql: string }) =>
             !compiledSql.includes('${');
-        const dimensions = Object.values(base.dimensions).filter(resolved);
+        const dimensions = Object.values(base.dimensions)
+            .filter(resolved)
+            .filter(planned);
         const metrics = Object.values(base.metrics)
             .filter(resolved)
+            .filter(planned)
             .filter(({ type }) => !POST_CALCULATION_METRICS.has(type))
             .map(({ compiledSql }) => compiledSql);
         try {
+            // With no field to plan, the tables and joins still are.
+            if (dimensions.length === 0 && metrics.length === 0) {
+                await this.projectService.runSqlQuery(
+                    user,
+                    projectUuid,
+                    select(['1']),
+                    { kind: 'original' },
+                );
+                return null;
+            }
             if (dimensions.length > 0) {
                 const { fields } = await this.projectService.runSqlQuery(
                     user,
@@ -408,6 +459,63 @@ export class DraftChecker {
         } catch (error) {
             return `The warehouse rejected this model: ${getErrorMessage(error)}`;
         }
+    }
+
+    /**
+     * Why a change leaves a model unusable. A warehouse failure the model already
+     * had on what is live is not the change's, unless what the change touches
+     * fails too; `already` carries it so a person can be told.
+     */
+    private async findNewModelError(
+        user: SessionUser,
+        projectUuid: string,
+        explore: Explore,
+        findBefore: () => Promise<Explore | null>,
+        quote: string,
+        changedDimensions: Set<string>,
+    ): Promise<{ error: string | null; already: string | null }> {
+        const queryError = await this.findQueryError(
+            user,
+            projectUuid,
+            explore,
+        );
+        if (queryError) {
+            return {
+                error: `This model does not work in a query: ${queryError}`,
+                already: null,
+            };
+        }
+        const error = await this.findWarehouseError(
+            user,
+            projectUuid,
+            explore,
+            quote,
+            changedDimensions,
+        );
+        if (error === null) return { error, already: null };
+        const before = await findBefore();
+        if (before === null) return { error, already: null };
+        const already = await this.findWarehouseError(
+            user,
+            projectUuid,
+            before,
+            quote,
+            new Set(),
+        );
+        if (already === null) return { error, already: null };
+        const touched = findTouchedFields(explore, before);
+        if (touched === null) return { error: null, already };
+        return {
+            error: await this.findWarehouseError(
+                user,
+                projectUuid,
+                explore,
+                quote,
+                changedDimensions,
+                touched,
+            ),
+            already,
+        };
     }
 
     /** Whether these dimensions identify one row of a table, read from at most a capped number of rows and kept for a while so a retry or an apply does not read them again. */
@@ -871,6 +979,8 @@ GROUP BY ${aliases.join(', ')}
         });
         // The catalog knows a table's columns, so a wrong name or type is caught before any query, in the same words on every warehouse.
         const inCatalog = new Set<string>();
+        // Dimensions the change leaves alone that do not fit their column, which is the usual cause of a model that already fails.
+        const mistypedAlready = new Map<string, string>();
         await Promise.all(
             [...writes].map(async ([name, contents]) => {
                 if (contents === null) return;
@@ -881,6 +991,19 @@ GROUP BY ${aliases.join(', ')}
                 );
                 if (!facts) return;
                 inCatalog.add(name);
+                const untouched = findMistypedDimensions(
+                    parseModelDocument(contents, toModelPath(name)).dimensions,
+                    facts.columns,
+                ).filter(
+                    (dimension) =>
+                        !changed.get(name)?.dimensions.has(dimension.name),
+                );
+                if (untouched.length > 0) {
+                    mistypedAlready.set(
+                        name,
+                        `${untouched.map((dimension) => `${dimension.name} reads a ${dimension.columnType} column but is typed ${dimension.type}`).join(', ')}.`,
+                    );
+                }
                 const error = findColumnError(
                     name,
                     contents,
@@ -907,6 +1030,11 @@ GROUP BY ${aliases.join(', ')}
             return { rejected, writes, explores: null, notes };
         }
 
+        // Compiled only once a check fails, to tell what the change broke from what already was.
+        const findLiveExplore = async (name: string) =>
+            (await this.compile(projectUuid, live)).explores
+                .filter(isCompiled)
+                .find((explore) => explore.name === name) ?? null;
         // Redefining a model can break those that join it.
         const usable = await Promise.all(
             afterCompile.explores
@@ -914,18 +1042,24 @@ GROUP BY ${aliases.join(', ')}
                 .filter((explore) => usesAnyModel(explore, writes))
                 .map(async (explore) => ({
                     name: explore.name,
-                    error: await this.findModelError(
+                    ...(await this.findNewModelError(
                         user,
                         projectUuid,
                         explore,
+                        () => findLiveExplore(explore.name),
                         afterCompile.quote,
                         // A model the catalog already vouched for needs no second opinion on its types.
                         inCatalog.has(explore.name)
                             ? new Set()
                             : (changed.get(explore.name)?.dimensions ??
                                   new Set()),
-                    ),
+                    )),
                 })),
+        );
+        const alreadyFailing = new Map(
+            usable.flatMap(({ name, error, already }) =>
+                error === null && already !== null ? [[name, already]] : [],
+            ),
         );
         const unusable = usable.flatMap(({ name, error }) =>
             error === null ? [] : [{ name, error }],
@@ -963,7 +1097,16 @@ GROUP BY ${aliases.join(', ')}
                 reject(name, measure.error);
                 return;
             }
-            if (measure.notes.length > 0) notes.set(name, measure.notes);
+            const already = alreadyFailing.get(name);
+            const modelNotes = [
+                ...(already === undefined
+                    ? []
+                    : [
+                          `${name} already had a problem before this change, which leaves it as it was. ${mistypedAlready.get(name) ?? already}`,
+                      ]),
+                ...measure.notes,
+            ];
+            if (modelNotes.length > 0) notes.set(name, modelNotes);
             if (measure.relationships.size > 0) {
                 writes.set(
                     name,

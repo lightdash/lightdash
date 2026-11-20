@@ -119,6 +119,22 @@ const COLUMN_REFERENCE = /\$\{TABLE\}\.(\w+)/g;
 const PLAIN_COLUMN = /^\s*\$\{TABLE\}\.(\w+)\s*$/;
 const MAX_LISTED_COLUMNS = 30;
 
+/** The dimensions that read one column and are typed differently from it. */
+export const findMistypedDimensions = (
+    dimensions: { name: string; type: DimensionType; sql: string }[],
+    columns: Map<string, DimensionType>,
+): { name: string; type: DimensionType; columnType: DimensionType }[] =>
+    dimensions.flatMap(({ name, type, sql }) => {
+        const column = PLAIN_COLUMN.exec(sql)?.[1];
+        const columnType =
+            column === undefined
+                ? undefined
+                : columns.get(column.toLowerCase());
+        return columnType !== undefined && columnType !== type
+            ? [{ name, type, columnType }]
+            : [];
+    });
+
 /** Why a model does not fit its table as the catalog describes it: a column that is not there, or a new dimension typed differently from its column. */
 export const findColumnError = (
     name: string,
@@ -144,18 +160,12 @@ export const findColumnError = (
         const known = [...columns.keys()];
         return `${name} reads ${missing.join(', ')}, which ${missing.length === 1 ? 'is not a column' : 'are not columns'} of its table. Its columns: ${known.slice(0, MAX_LISTED_COLUMNS).join(', ')}${known.length > MAX_LISTED_COLUMNS ? ', and more' : ''}.`;
     }
-    const mistyped = model.dimensions.flatMap((dimension) => {
-        const column = PLAIN_COLUMN.exec(dimension.sql)?.[1];
-        const columnType =
-            column === undefined
-                ? undefined
-                : columns.get(column.toLowerCase());
-        return changedDimensions.has(dimension.name) &&
-            columnType !== undefined &&
-            columnType !== dimension.type
-            ? [`${dimension.name} reads a ${columnType} column`]
-            : [];
-    });
+    const mistyped = findMistypedDimensions(model.dimensions, columns)
+        .filter((dimension) => changedDimensions.has(dimension.name))
+        .map(
+            ({ name: dimension, columnType }) =>
+                `${dimension} reads a ${columnType} column`,
+        );
     return mistyped.length > 0
         ? `${mistyped.join(', ')}, but ${mistyped.length === 1 ? 'is' : 'are'} typed differently. Use the column's type, or cast in sql to change it.`
         : null;
