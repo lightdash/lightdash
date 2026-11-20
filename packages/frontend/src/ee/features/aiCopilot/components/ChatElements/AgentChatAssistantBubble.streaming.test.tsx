@@ -74,44 +74,45 @@ vi.mock('./ToolCalls/WritebackDiffModal', () => ({
     WritebackDiffModal: () => null,
 }));
 
-const message = {
-    uuid: 'message',
-    threadUuid: 'thread',
+const message: AiAgentMessageAssistant = {
     role: 'assistant',
     status: 'pending',
-    message: '',
+    uuid: 'message',
+    threadUuid: 'thread',
+    message: null,
     errorMessage: null,
+    interrupted: false,
+    createdAt: new Date().toISOString(),
+    humanScore: null,
     toolCalls: [],
     toolResults: [],
-    artifacts: [],
     reasoning: [],
-    createdAt: new Date().toISOString(),
-    vizConfigOutput: null,
-    filtersOutput: null,
-    metricQuery: null,
-    humanScore: null,
-    user: { uuid: 'user', name: 'User' },
     savedQueryUuid: null,
-    interrupted: false,
-} as unknown as AiAgentMessageAssistant;
+    artifacts: null,
+    referencedArtifacts: null,
+    modelConfig: null,
+    tokenUsage: null,
+    responseTiming: null,
+    jevDecision: null,
+    loadout: null,
+};
 
-const streamOf = (content: string) =>
-    ({
-        threadUuid: 'thread',
-        messageUuid: 'message',
-        projectUuid: 'project',
-        agentUuid: 'agent',
-        autoApproveSql: false,
-        content,
-        parts: [{ type: 'text', text: content }],
-        connection: { status: 'streaming' },
-        wasInterrupted: false,
-        toolCalls: [],
-        reasoning: [],
-        decidedToolCallIds: [],
-        stepProgressMessages: [],
-        timing: {},
-    }) as unknown as AiAgentThreadStreamingState;
+const streamOf = (content: string): AiAgentThreadStreamingState => ({
+    threadUuid: 'thread',
+    messageUuid: 'message',
+    projectUuid: 'project',
+    agentUuid: 'agent',
+    autoApproveSql: false,
+    content,
+    parts: [{ type: 'text', text: content }],
+    connection: { status: 'streaming' },
+    wasInterrupted: false,
+    toolCalls: [],
+    reasoning: [],
+    decidedToolCallIds: [],
+    stepProgressMessages: [],
+    timing: { startedAt: 0, firstTokenAt: 0, finishedAt: null },
+});
 
 describe('streaming an answer', () => {
     it('parses only the block still being written on each frame', async () => {
@@ -120,8 +121,8 @@ describe('streaming an answer', () => {
             (_, i) =>
                 `Finished paragraph ${i} with [a link](https://x.io/${i}).`,
         ).join('\n\n');
-        let text = `${finished}\n\nStill writing`;
-        stream.set(streamOf(text));
+        let lastParagraph = 'Still writing';
+        stream.set(streamOf(`${finished}\n\n${lastParagraph}`));
         renderWithProviders(
             <MemoryRouter>
                 <AssistantBubble
@@ -139,12 +140,13 @@ describe('streaming an answer', () => {
         stream.parses = 0;
         const frames = 5;
         for (let frame = 0; frame < frames; frame += 1) {
-            text += ' more words';
-            const next = streamOf(text);
+            lastParagraph += ' more words';
+            const next = streamOf(`${finished}\n\n${lastParagraph}`);
             // eslint-disable-next-line no-await-in-loop
             await act(async () => stream.set(next));
         }
 
+        expect(await screen.findByText(lastParagraph)).toBeInTheDocument();
         expect(stream.parses).toBeGreaterThan(0);
         expect(stream.parses).toBeLessThanOrEqual(frames);
     });
