@@ -8,7 +8,7 @@ import {
 import { isEqual } from 'es-toolkit/compat';
 import { toModelPath } from './draftFold';
 
-// ponytail: a name match, so a window function reads as an aggregate too; parse the SQL if that turns up.
+// A name match, so a window function reads as an aggregate too; parse the SQL if that turns up.
 const AGGREGATE_CALL =
     /\b(sum|count|avg|min|max|median|count_if|approx_count_distinct|percentile_cont|percentile_disc|array_agg|string_agg|listagg)\s*\(/i;
 
@@ -86,6 +86,33 @@ export const findNewModelAdvice = (
               ]
             : []),
     ];
+};
+
+const METRIC_PATH = /(?:^|\.)metrics\.(\w+)(\.|$)/;
+const MAX_METRICS_TO_RUN = 10;
+
+/** The metrics a write adds or defines differently, as field ids: the ones worth running once on real rows. */
+export const findMetricsToRun = (
+    name: string,
+    changes: { path: string; action: string }[],
+    createdContents: string | null,
+): string[] => {
+    const metrics =
+        createdContents === null
+            ? changes.flatMap(({ path, action }) => {
+                  const [, metric, deeper] = METRIC_PATH.exec(path) ?? [];
+                  // A label or description leaves the number alone, and a removed metric has none.
+                  const changesTheNumber =
+                      action !== 'patched' &&
+                      !(action === 'removed' && deeper === '');
+                  return metric && changesTheNumber ? [metric] : [];
+              })
+            : metricsOf(
+                  parseModelDocument(createdContents, toModelPath(name)),
+              ).map(([metric]) => metric);
+    return [...new Set(metrics)]
+        .slice(0, MAX_METRICS_TO_RUN)
+        .map((metric) => `${name}_${metric}`);
 };
 
 const COLUMN_REFERENCE = /\$\{TABLE\}\.(\w+)/g;

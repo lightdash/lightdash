@@ -414,8 +414,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
 export const adoptionDashboardSpec: UsageDashboardSpec = {
     key: dashboardKey,
     name: 'Adoption',
-    description:
-        'See who is active, which apps and dashboards people use, and how Ask AI use develops. Updated nightly; charts use available captured history.',
+    description: 'Active people, content reach and Ask AI use.',
     filters: {
         dimensions: [
             {

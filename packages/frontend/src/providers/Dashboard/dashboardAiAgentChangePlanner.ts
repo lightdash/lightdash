@@ -1,8 +1,10 @@
 import {
     assertUnreachable,
     isDashboardChartTileType,
+    isDashboardComposerChartTile,
     isDashboardSqlChartTile,
     type DashboardChartTile,
+    type DashboardComposerChartTile,
     type DashboardSqlChartTile,
     type DashboardTile,
 } from '@lightdash/common';
@@ -20,7 +22,7 @@ type SuccessfulContentToolCall = Extract<StreamPart, { type: 'toolCall' }> & {
 };
 
 export type DashboardAiAgentChartRef = {
-    type: 'chart' | 'sql_chart';
+    type: 'chart' | 'sql_chart' | 'composer_chart';
     slug: string;
 };
 
@@ -117,6 +119,24 @@ export const planDashboardAiAgentChanges = ({
                 actions.push({ type: 'refreshChart', chart, focusTile: true });
                 break;
             }
+            case 'composer_chart': {
+                const chart: DashboardAiAgentChartRef = {
+                    type: 'composer_chart',
+                    slug: contentSlug,
+                };
+                // A create adds a tile, so the dashboard reloads to show it.
+                if (part.toolName === 'createContent') {
+                    if (getTargetDashboardSlug(part) === currentDashboardSlug) {
+                        actions.push({
+                            type: 'refreshDashboard',
+                            focusChart: chart,
+                        });
+                    }
+                    break;
+                }
+                actions.push({ type: 'refreshChart', chart, focusTile: true });
+                break;
+            }
             case 'dashboard': {
                 if (contentSlug !== currentDashboardSlug) break;
 
@@ -131,7 +151,7 @@ export const planDashboardAiAgentChanges = ({
             default:
                 return assertUnreachable(
                     part.toolArgs.type,
-                    `Unknown content type: ${part.toolArgs.type}`,
+                    'Unknown content type',
                 );
         }
     }
@@ -145,7 +165,8 @@ export const planDashboardAiAgentChanges = ({
 
 export type DashboardAiAgentChartTiles =
     | { type: 'chart'; tiles: DashboardChartTile[] }
-    | { type: 'sql_chart'; tiles: DashboardSqlChartTile[] };
+    | { type: 'sql_chart'; tiles: DashboardSqlChartTile[] }
+    | { type: 'composer_chart'; tiles: DashboardComposerChartTile[] };
 
 export const getDashboardTilesForChart = (
     tiles: DashboardTile[],
@@ -170,6 +191,16 @@ export const getDashboardTilesForChart = (
                         isDashboardSqlChartTile(tile) &&
                         tile.properties.chartSlug === chart.slug &&
                         !!tile.properties.savedSqlUuid,
+                ),
+            };
+        case 'composer_chart':
+            return {
+                type: 'composer_chart',
+                tiles: tiles.filter(
+                    (tile): tile is DashboardComposerChartTile =>
+                        isDashboardComposerChartTile(tile) &&
+                        tile.properties.chartSlug === chart.slug &&
+                        !!tile.properties.composerChartUuid,
                 ),
             };
         default:

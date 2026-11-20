@@ -221,12 +221,14 @@ type AiAgentThreadSetup = {
     boundDashboardUuid: string;
     boundChartUuid: string;
     threadContext: string;
+    initialPrompt: string;
 };
 
 const EMPTY_THREAD_SETUP: AiAgentThreadSetup = {
     boundDashboardUuid: '',
     boundChartUuid: '',
     threadContext: '',
+    initialPrompt: '',
 };
 
 const getThreadBinding = (
@@ -634,6 +636,18 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                                     rows={3}
                                     style={{ padding: '8px 10px' }}
                                 />
+                                <input
+                                    aria-label="Initial prompt"
+                                    placeholder="Question to ask as soon as a new thread opens"
+                                    value={threadSetupDraft.initialPrompt}
+                                    onChange={(event) =>
+                                        setThreadSetupDraft((current) => ({
+                                            ...current,
+                                            initialPrompt: event.target.value,
+                                        }))
+                                    }
+                                    style={{ padding: '8px 10px' }}
+                                />
                                 <div>
                                     <button
                                         type="button"
@@ -647,7 +661,8 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                             </div>
                             <p style={helperTextStyle}>
                                 Only threads started here get the binding and
-                                context. Set a dashboard or a chart; the
+                                context. The initial prompt is asked straight
+                                away and ignored when a thread is resumed. Set a dashboard or a chart; the
                                 dashboard wins when both are set. It must be in
                                 the token's embed space.
                             </p>
@@ -700,6 +715,10 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                                     binding={getThreadBinding(threadSetup)}
                                     threadContext={
                                         threadSetup.threadContext.trim() ||
+                                        undefined
+                                    }
+                                    initialPrompt={
+                                        threadSetup.initialPrompt.trim() ||
                                         undefined
                                     }
                                 />

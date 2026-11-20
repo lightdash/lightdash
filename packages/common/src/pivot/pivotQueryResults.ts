@@ -1615,11 +1615,11 @@ export const pivotResultsAsData = ({
                         : (column.underlyingId ??
                           column.baseId ??
                           column.fieldId);
+                const value = pickValue(row[column.fieldId]?.value, itemId);
                 return {
                     raw: row[column.fieldId]?.value?.raw ?? '',
-                    formatted:
-                        pickValue(row[column.fieldId]?.value, itemId) ||
-                        undefinedCharacter,
+                    // Only an empty cell takes the placeholder; a raw false or 0 is a value
+                    formatted: value === '' ? undefinedCharacter : value,
                     fieldId: column.fieldId,
                     itemId,
                 };

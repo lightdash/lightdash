@@ -10,6 +10,8 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useGetApp } from '../../../../features/apps/hooks/useGetApp';
+import { useComposerChart } from '../../../../features/composerCharts/hooks/useComposerChartRun';
+import { useSavedSqlChart } from '../../../../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useDashboardQuery } from '../../../../hooks/dashboard/useDashboard';
 import { useSavedQuery } from '../../../../hooks/useSavedQuery';
 import {
@@ -23,6 +25,8 @@ type Args = {
     dashboardUuidOrSlug?: string | null;
     dataAppUuidOrSlug?: string | null;
     documentUuid?: string | null;
+    sqlChartUuid?: string | null;
+    composerChartUuid?: string | null;
 };
 
 const sortPinnedContext = <
@@ -36,7 +40,7 @@ const sortPinnedContext = <
     });
 
 /**
- * Resolves a chart, dashboard and/or data app into the two shapes the AI
+ * Resolves a chart, SQL chart, composer chart, dashboard and/or data app into the two shapes the AI
  * agent thread-creation flow needs:
  *  - `contextInput`: the minimal payload sent to the API.
  *  - `previewItems`: the optimistic, hydrated items rendered in the UI
@@ -48,6 +52,8 @@ export const usePinnedContext = ({
     dashboardUuidOrSlug,
     dataAppUuidOrSlug,
     documentUuid,
+    sqlChartUuid,
+    composerChartUuid,
 }: Args) => {
     // Reuse the Document the page already loaded: fetching it again would
     // count a view. The server resolves the name when the prompt is sent.
@@ -71,8 +77,18 @@ export const usePinnedContext = ({
         dataAppUuidOrSlug ?? undefined,
     );
     const dataApp = appData?.pages[0];
+    const { data: sqlChart } = useSavedSqlChart(
+        { projectUuid: projectUuid ?? '', uuid: sqlChartUuid ?? undefined },
+        { enabled: !!projectUuid && !!sqlChartUuid },
+    );
+    const { data: composerChart } = useComposerChart(
+        projectUuid,
+        composerChartUuid ?? null,
+    );
     const isReady =
         (!chartUuidOrSlug || !!chart?.uuid) &&
+        (!sqlChartUuid || !!sqlChart?.savedSqlUuid) &&
+        (!composerChartUuid || !!composerChart?.uuid) &&
         (!dashboardUuidOrSlug || !!dashboard?.uuid) &&
         (!dataAppUuidOrSlug || !!dataApp?.appUuid);
 
@@ -106,8 +122,26 @@ export const usePinnedContext = ({
                 documentSlug: cachedDocument?.slug ?? null,
             });
         }
+        if (sqlChart?.savedSqlUuid) {
+            items.push({
+                type: 'sql_chart',
+                sqlChartUuid: sqlChart.savedSqlUuid,
+                sqlChartSlug: sqlChart.slug,
+            });
+        }
+        if (composerChart?.uuid) {
+            items.push({
+                type: 'composer_chart',
+                composerChartUuid: composerChart.uuid,
+                composerChartSlug: composerChart.slug,
+            });
+        }
         return sortPinnedContext(items);
     }, [
+        composerChart?.uuid,
+        composerChart?.slug,
+        sqlChart?.savedSqlUuid,
+        sqlChart?.slug,
         documentUuid,
         cachedDocument?.slug,
         chart?.uuid,
@@ -171,8 +205,33 @@ export const usePinnedContext = ({
                 pinnedVersionUuid: null,
             });
         }
+        if (sqlChart?.savedSqlUuid) {
+            items.push({
+                type: 'sql_chart',
+                sqlChartUuid: sqlChart.savedSqlUuid,
+                sqlChartSlug: sqlChart.slug,
+                displayName: sqlChart.name,
+                pinnedVersionUuid: null,
+            });
+        }
+        if (composerChart?.uuid) {
+            items.push({
+                type: 'composer_chart',
+                composerChartUuid: composerChart.uuid,
+                composerChartSlug: composerChart.slug,
+                displayName: composerChart.name,
+                pinnedVersionUuid: composerChart.versionUuid,
+            });
+        }
         return sortPinnedContext(items);
     }, [
+        composerChart?.uuid,
+        composerChart?.slug,
+        composerChart?.name,
+        composerChart?.versionUuid,
+        sqlChart?.savedSqlUuid,
+        sqlChart?.slug,
+        sqlChart?.name,
         documentUuid,
         cachedDocument?.slug,
         cachedDocument?.name,

@@ -1,5 +1,17 @@
-import { FeatureFlags, isAppVersionInProgress } from '@lightdash/common';
-import { ActionIcon, Box, Loader, Stack, Text, Tooltip } from '@mantine/core';
+import {
+    DATA_APP_VIZ_TEMPLATE,
+    FeatureFlags,
+    isAppVersionInProgress,
+} from '@lightdash/common';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    Loader,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { IconAppsOff, IconMaximize, IconMinimize } from '@tabler/icons-react';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
@@ -12,8 +24,12 @@ import {
     useRegisterLauncherAnalysisAdapter,
     type LauncherAnalysisAdapter,
 } from '../ee/features/aiCopilot/components/Launcher/launcherAnalysisAdapter';
+import { useDefaultAiAgent } from '../ee/features/aiCopilot/components/Launcher/useDefaultAiAgent';
+import { useProjectAiAgentButtonVisibility } from '../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { store as aiAgentStore } from '../ee/features/aiCopilot/store';
 import { openAnalysisPanel } from '../ee/features/aiCopilot/store/aiAgentLauncherSlice';
+import AppViewCapture from '../ee/features/appCapture/AppViewCapture';
+import { type CaptureHostHandle } from '../ee/features/capture';
 import {
     useDataAppAnalysisAvailability,
     useIsAnalysisEntryVisible,
@@ -26,13 +42,16 @@ import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import DataAppAiAgentContextBridge from '../features/apps/components/DataAppAiAgentContextBridge';
+import VoiceDesignButton from '../features/apps/components/VoiceDesignButton';
 import { getVisiblePreviewTokenError } from '../features/apps/hooks/previewTokenQueryOptions';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppInspector } from '../features/apps/hooks/useAppInspector';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useCanEditVerifiedDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
+import { useNewerAppVersion } from '../features/apps/hooks/useNewerAppVersion';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
+import { canCaptureOnAppView } from '../features/apps/utils/appViewCapture';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useRecordContentView } from '../hooks/useRecordContentView';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -47,6 +66,11 @@ export default function AppPreviewTest() {
     const explicitVersion = versionParam ? Number(versionParam) : undefined;
 
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const captureFlag = useServerFeatureFlag(FeatureFlags.DataAppCapture);
+    // Same check the agent launcher uses before it shows itself.
+    const canUseAgents = useProjectAiAgentButtonVisibility(projectUuid);
+    const defaultAgent = useDefaultAiAgent(projectUuid);
+    const hasCaptureAgent = defaultAgent.agents.length > 0;
 
     // Always fetch app to get creator info + latest ready version when needed.
     // The backend enforces space-aware view permissions and will 403 if the
@@ -111,6 +135,13 @@ export default function AppPreviewTest() {
         isLoading: isTokenLoading,
         error: tokenError,
     } = useAppPreviewToken(projectUuid, appUuid, version, 'standalone');
+
+    const { onNewerVersion, isOutdated } = useNewerAppVersion({
+        appUuid,
+        version,
+        tokenError,
+        refetchApp: appQuery.refetch,
+    });
 
     // Panel is opt-in here (most viewers aren't technical), but bridge events
     // are captured regardless so earlier queries show once it's opened.
@@ -208,6 +239,22 @@ export default function AppPreviewTest() {
         return capture();
     }, []);
 
+    // Voice Design: draw on the running app while talking; the recording goes
+    // to an agent thread that opens in the launcher on this page.
+    const previewBodyRef = useRef<HTMLDivElement>(null);
+    const captureRef = useRef<CaptureHostHandle>(null);
+    const [isCaptureRecording, setIsCaptureRecording] = useState(false);
+    const captureAvailable = canCaptureOnAppView({
+        flagEnabled: captureFlag.data?.enabled === true,
+        canUseAgents,
+        hasAgent: hasCaptureAgent,
+        hasPreview: Boolean(token && version !== undefined && !isFullscreen),
+    });
+    const getCaptureRegion = useCallback(
+        () => previewBodyRef.current?.getBoundingClientRect() ?? new DOMRect(),
+        [],
+    );
+
     if (dataAppsFlag.isLoading) {
         return null;
     }
@@ -217,6 +264,39 @@ export default function AppPreviewTest() {
 
     if (!projectUuid || !appUuid) {
         return <div>Missing route params</div>;
+    }
+
+    if (isOutdated && !appQuery.error) {
+        // Following the latest version: the refetch moves the page on to it.
+        if (!explicitVersion && appQuery.isFetching) {
+            return (
+                <Box mt="30vh">
+                    <SuboptimalState loading title="Loading latest version" />
+                </Box>
+            );
+        }
+        return (
+            <Box mt="30vh">
+                <SuboptimalState
+                    icon={IconAppsOff}
+                    title="This app has a newer version"
+                    description="Open the latest version to keep using this app."
+                    action={
+                        <Button
+                            onClick={() =>
+                                explicitVersion
+                                    ? navigate(
+                                          `/projects/${projectUuid}/apps/${appUuid}/view`,
+                                      )
+                                    : window.location.reload()
+                            }
+                        >
+                            Open latest version
+                        </Button>
+                    }
+                />
+            </Box>
+        );
     }
 
     const visibleTokenError = getVisiblePreviewTokenError(tokenError, !!token);
@@ -305,6 +385,7 @@ export default function AppPreviewTest() {
                     identityKey={identityKey}
                     onScreenshotAvailabilityChange={setScreenshotAvailable}
                     invalidateCache={invalidateCache}
+                    onNewerVersion={onNewerVersion}
                     urlStateSync
                     capabilities={{ gsheetExport: true }}
                     insights={
@@ -358,6 +439,7 @@ export default function AppPreviewTest() {
             )}
             {!isFullscreen && (
                 <AppHeader
+                    versionBadge={null}
                     projectUuid={projectUuid}
                     app={{
                         uuid: appUuid,
@@ -377,6 +459,17 @@ export default function AppPreviewTest() {
                     }}
                     rightSection={
                         <AppHeaderActions
+                            previewTools={
+                                captureAvailable && (
+                                    <VoiceDesignButton
+                                        onClick={() =>
+                                            captureRef.current?.start()
+                                        }
+                                        disabled={isCaptureRecording}
+                                    />
+                                )
+                            }
+                            openUrl={null}
                             capturedQueryCount={inspector.readyQueryCount}
                             fullscreenToggle={
                                 isFullscreenFeatureEnabled &&
@@ -417,7 +510,7 @@ export default function AppPreviewTest() {
                                 latestReadyVersion ? 'ready' : null
                             }
                             onRefresh={handleRefresh}
-                            refreshDisabled={version === undefined}
+                            refreshAvailable={version !== undefined}
                             captureThumbnail={null}
                             capturePreviewScreenshot={
                                 screenshotAvailable
@@ -425,7 +518,12 @@ export default function AppPreviewTest() {
                                     : null
                             }
                             previewVersion={version ?? null}
-                            onViewNetwork={inspector.show}
+                            network={{
+                                open: !inspector.hidden,
+                                onToggle: inspector.hidden
+                                    ? inspector.show
+                                    : inspector.hide,
+                            }}
                             onDeleted={() => {
                                 void navigate(`/projects/${projectUuid}/home`);
                             }}
@@ -462,8 +560,25 @@ export default function AppPreviewTest() {
                 data-tour-docs="data-apps.mdx#sharing-an-app:p4:1"
                 data-tour-resultdocs="data-apps.mdx#space-access:li1"
                 data-tour-return="none"
+                ref={previewBodyRef}
                 className={classes.previewBody}
             >
+                {captureAvailable && (
+                    <AppViewCapture
+                        ref={captureRef}
+                        projectUuid={projectUuid}
+                        // The server refuses chart types as attachments.
+                        attachedAppUuid={
+                            !firstPage ||
+                            firstPage.template === DATA_APP_VIZ_TEMPLATE
+                                ? null
+                                : firstPage.appUuid
+                        }
+                        appName={appName}
+                        getRegion={getCaptureRegion}
+                        onRecordingChange={setIsCaptureRecording}
+                    />
+                )}
                 {body}
             </Box>
         </Box>

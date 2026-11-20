@@ -10,7 +10,7 @@ import {
     isLockedRequiredMissingValue,
 } from '../dashboardFilters/FilterConfiguration/utils';
 import { useAppliedTileCount } from './useAppliedTileCount';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useControlsEditorSelector } from './useControlsEditor';
 
 // As the shipped requirement rules: `required` wins over a group, and a group
 // is met by another member that filters (enabled, with a value)
@@ -63,9 +63,9 @@ export const getApplyBlockedReason = ({
 export const useApplyBlockedReason = (
     rule: DashboardFilterRule,
 ): string | null => {
-    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
-    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
-    const editorFilters = useControlsSidebarSelector((c) => c.editorFilters);
+    const isPlaceholder = useControlsEditorSelector((c) => c.isPlaceholder);
+    const isViewer = useControlsEditorSelector((c) => c.isViewer);
+    const editorFilters = useControlsEditorSelector((c) => c.editorFilters);
     const getUiString = useUiStrings();
     const appliedTileCount = useAppliedTileCount(rule);
     if (isPlaceholder) return null;

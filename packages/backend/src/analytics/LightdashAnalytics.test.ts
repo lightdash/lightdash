@@ -1,8 +1,13 @@
-import { RequestMethod } from '@lightdash/common';
+import {
+    RequestMethod,
+    SchedulerFormat,
+    type Account,
+} from '@lightdash/common';
 import Analytics from '@rudderstack/rudder-sdk-node';
 import { EventEmitter } from 'events';
 import ExecutionContext from 'node-execution-context';
 import type { MockInstance } from 'vitest';
+import { buildAccount } from '../auth/account/account.mock';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import Logger from '../logging/logger';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
@@ -58,13 +63,25 @@ describe('LightdashAnalytics', () => {
             });
             const payload = {
                 event: 'query.completed',
-                userId: 'user',
+                ...(withSemanticUsage
+                    ? { anonymousId: 'embed' }
+                    : { userId: 'user' }),
                 properties: {
                     organizationId: 'org',
                     projectId: 'project',
                     isPreviewProject: false,
                     status: 'error',
                     errorMessage: 'column "private_field" does not exist',
+                    ...(withSemanticUsage
+                        ? {
+                              embeddedUsage: {
+                                  externalUserId: 'viewer',
+                                  tenantAttribute: 'brand',
+                                  tenantId: 'brand-a',
+                                  tokenFingerprint: null,
+                              },
+                          }
+                        : {}),
                     ...(withSemanticUsage
                         ? {
                               semanticUsage: {
@@ -85,6 +102,9 @@ describe('LightdashAnalytics', () => {
                     'query_events',
                     expect.objectContaining({
                         error: payload.properties.errorMessage,
+                        user_id: withSemanticUsage ? null : 'user',
+                        external_user_id: withSemanticUsage ? 'viewer' : null,
+                        embed_tenant_id: withSemanticUsage ? 'brand-a' : null,
                         semantic_lineage_status: withSemanticUsage
                             ? 'captured'
                             : null,
@@ -94,6 +114,12 @@ describe('LightdashAnalytics', () => {
                     }),
                 );
                 expect(track).toHaveBeenCalledTimes(1);
+                expect(track.mock.calls[0][0].properties).not.toHaveProperty(
+                    'embeddedUsage',
+                );
+                expect(
+                    metricEvent.mock.calls[0][0].properties,
+                ).not.toHaveProperty('embeddedUsage');
                 expect(track.mock.calls[0][0].properties).not.toHaveProperty(
                     'semanticUsage',
                 );
@@ -117,6 +143,83 @@ describe('LightdashAnalytics', () => {
             }
         },
     );
+
+    it('attributes CSV exports to the verified embed viewer only in usage storage', () => {
+        const writer = { push: vi.fn(), flush: vi.fn(), close: vi.fn() };
+        const eventEmitter = new EventEmitter();
+        const event = 'download_results.completed';
+        const metricEvent = vi.fn();
+        eventEmitter.on(`analytics.track.${event}`, metricEvent);
+        const analytics = new LightdashAnalytics({
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                rudder: { writeKey: 'test', dataPlaneUrl: 'notrack' },
+                usageEvents: {
+                    ...lightdashConfigMock.usageEvents,
+                    enabled: true,
+                },
+                prometheus: {
+                    ...lightdashConfigMock.prometheus,
+                    enabled: true,
+                    eventMetricsEnabled: true,
+                },
+            },
+            writeKey: 'notrack',
+            dataPlaneUrl: 'notrack',
+            options: { enable: false },
+            eventEmitter,
+            eventStreamSink: new EventStreamSink(eventStreamRegistry, writer),
+        });
+        const embed = buildAccount({ accountType: 'jwt' });
+        const account = {
+            ...embed,
+            authentication: {
+                ...embed.authentication,
+                data: {
+                    ...embed.authentication.data,
+                    user: { externalId: 'viewer' },
+                    userAttributes: { brand: 'brand-a', email: 'private' },
+                    usageAnalytics: { tenantAttribute: 'brand' },
+                },
+            },
+        };
+        const track = vi
+            .spyOn(Analytics.prototype, 'track')
+            .mockImplementation(() => {});
+        try {
+            analytics.trackAccount(account, {
+                event,
+                userId: account.user.id,
+                properties: {
+                    projectId: 'project',
+                    fileType: SchedulerFormat.CSV,
+                },
+            });
+            expect(writer.push).toHaveBeenCalledExactlyOnceWith(
+                'export_events',
+                expect.objectContaining({
+                    org_id: embed.organization.organizationUuid,
+                    user_id: null,
+                    query_id: null,
+                    external_user_id: 'viewer',
+                    embed_tenant_id: 'brand-a',
+                    embed_tenant_attribute: 'brand',
+                }),
+            );
+            expect(JSON.stringify(writer.push.mock.calls)).not.toContain(
+                'private',
+            );
+            expect(track).toHaveBeenCalledOnce();
+            expect(metricEvent).toHaveBeenCalledOnce();
+            for (const mock of [track, metricEvent]) {
+                expect(mock.mock.calls[0][0].properties).not.toHaveProperty(
+                    'embeddedUsage',
+                );
+            }
+        } finally {
+            track.mockRestore();
+        }
+    });
 
     it('tracks one aggregated feature flag check event per entry', () => {
         const analytics = new LightdashAnalytics({

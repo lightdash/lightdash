@@ -6,11 +6,14 @@ import {
     ConflictError,
     DashboardDAO,
     DashboardTileTypes,
+    FeatureFlags,
+    FeatureNotEnabledError,
     ForbiddenError,
     getDeepestPaths,
     getDocumentSavedChartLinks,
     getErrorMessage,
     isDashboardChartTileType,
+    isDashboardComposerChartTile,
     isDashboardDataAppTileType,
     isSubPath,
     mapDocumentCharts,
@@ -69,6 +72,13 @@ import type {
     SpaceAccessContextForCasl,
     SpacePermissionService,
 } from '../SpaceService/SpacePermissionService';
+import {
+    getComposerChartChanges,
+    preflightComposerChartChanges,
+    upsertComposerCharts,
+    type PromoteComposerChartModel,
+    type PromoteComposerChartService,
+} from './composerChartTiles';
 
 export type PromotedChart = {
     projectUuid: string;
@@ -152,6 +162,9 @@ type PromoteServiceArguments = {
         'findApp' | 'getLatestRenderableDataAppVizVersion'
     >;
     warehouseConnectionModel: ContentConnectionModels['warehouseConnectionModel'];
+    composerChartModel: PromoteComposerChartModel;
+    // A thunk: ComposerChartService reaches services that may depend on promotion.
+    getComposerChartService: () => PromoteComposerChartService;
 };
 
 type SavedSqlChart = Awaited<ReturnType<SavedSqlModel['getByUuid']>>;
@@ -238,6 +251,10 @@ export class PromoteService extends BaseService {
 
     private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
 
+    private readonly composerChartModel: PromoteComposerChartModel;
+
+    private readonly getComposerChartService: () => PromoteComposerChartService;
+
     constructor(args: PromoteServiceArguments) {
         super();
         this.agentActionLogModel = args.agentActionLogModel;
@@ -253,6 +270,8 @@ export class PromoteService extends BaseService {
         this.getDocumentService = args.getDocumentService;
         this.appModel = args.appModel;
         this.warehouseConnectionModel = args.warehouseConnectionModel;
+        this.composerChartModel = args.composerChartModel;
+        this.getComposerChartService = args.getComposerChartService;
     }
 
     private async getPromotedSqlChartBindings(
@@ -1388,6 +1407,15 @@ export class PromoteService extends BaseService {
                 appUuids.add(chartConfig.config.dataAppVizUuid);
             }
         });
+        (promotionChanges.composerCharts ?? []).forEach(({ data }) => {
+            const { chartConfig } = data.chart;
+            if (
+                chartConfig.type === ChartType.DATA_APP_VIZ &&
+                chartConfig.config?.dataAppVizUuid
+            ) {
+                appUuids.add(chartConfig.config.dataAppVizUuid);
+            }
+        });
         return Array.from(appUuids);
     }
 
@@ -1512,10 +1540,49 @@ export class PromoteService extends BaseService {
             };
         });
 
+        const updatedComposerCharts = promotionChanges.composerCharts?.map(
+            (change) => {
+                const { chartConfig } = change.data.chart;
+                if (
+                    chartConfig.type !== ChartType.DATA_APP_VIZ ||
+                    !chartConfig.config?.dataAppVizUuid
+                ) {
+                    return change;
+                }
+                const upstreamAppUuid = appUuidMap.get(
+                    chartConfig.config.dataAppVizUuid,
+                );
+                const upstreamAppVersion = appVersionMap.get(
+                    chartConfig.config.dataAppVizUuid,
+                );
+                if (!upstreamAppUuid || upstreamAppVersion === undefined) {
+                    return change;
+                }
+                return {
+                    ...change,
+                    data: {
+                        ...change.data,
+                        chart: {
+                            ...change.data.chart,
+                            chartConfig: {
+                                ...chartConfig,
+                                config: {
+                                    ...chartConfig.config,
+                                    dataAppVizUuid: upstreamAppUuid,
+                                    dataAppVizVersion: upstreamAppVersion,
+                                },
+                            },
+                        },
+                    },
+                };
+            },
+        );
+
         return {
             ...promotionChanges,
             dashboards: updatedDashboards,
             charts: updatedCharts,
+            composerCharts: updatedComposerCharts,
         };
     }
 
@@ -1558,12 +1625,35 @@ export class PromoteService extends BaseService {
         }));
     }
 
+    private async getUpstreamProjectForPromotion(
+        projectUuid: string,
+        organizationUuid: string | undefined,
+    ) {
+        const source = await this.projectModel.getSummary(projectUuid);
+        if (source.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError();
+        }
+        if (!source.upstreamProjectUuid) return undefined;
+
+        const upstream = await this.projectModel.getSummary(
+            source.upstreamProjectUuid,
+        );
+        if (upstream.organizationUuid !== source.organizationUuid) {
+            throw new ForbiddenError();
+        }
+        return upstream;
+    }
+
     async promoteChart(user: SessionUser, chartUuid: string) {
         const { projectUuid } =
             await this.savedChartModel.getSummary(chartUuid);
 
-        const { upstreamProjectUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const upstreamProjectUuid = (
+            await this.getUpstreamProjectForPromotion(
+                projectUuid,
+                user.organizationUuid,
+            )
+        )?.projectUuid;
         if (!upstreamProjectUuid) {
             throw new NotFoundError(
                 'This chart does not have an upstream project',
@@ -1635,8 +1725,12 @@ export class PromoteService extends BaseService {
         const { projectUuid } =
             await this.savedChartModel.getSummary(chartUuid);
 
-        const { upstreamProjectUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const upstreamProjectUuid = (
+            await this.getUpstreamProjectForPromotion(
+                projectUuid,
+                user.organizationUuid,
+            )
+        )?.projectUuid;
         if (!upstreamProjectUuid) {
             throw new NotFoundError(
                 'This chart does not have an upstream project',
@@ -1684,9 +1778,12 @@ export class PromoteService extends BaseService {
             projectUuid,
         });
 
-        const { upstreamProjectUuid } = await this.projectModel.getSummary(
-            savedSqlChart.project.projectUuid,
-        );
+        const upstreamProjectUuid = (
+            await this.getUpstreamProjectForPromotion(
+                savedSqlChart.project.projectUuid,
+                user.organizationUuid,
+            )
+        )?.projectUuid;
         if (!upstreamProjectUuid) {
             throw new NotFoundError(
                 'This chart does not have an upstream project',
@@ -1734,9 +1831,12 @@ export class PromoteService extends BaseService {
             projectUuid,
         });
 
-        const { upstreamProjectUuid } = await this.projectModel.getSummary(
-            savedSqlChart.project.projectUuid,
-        );
+        const upstreamProjectUuid = (
+            await this.getUpstreamProjectForPromotion(
+                savedSqlChart.project.projectUuid,
+                user.organizationUuid,
+            )
+        )?.projectUuid;
         if (!upstreamProjectUuid) {
             throw new NotFoundError(
                 'This chart does not have an upstream project',
@@ -1835,19 +1935,23 @@ export class PromoteService extends BaseService {
     }
 
     async getPromoteDashboardDiff(
-        user: SessionUser,
+        account: RegisteredAccount,
         dashboardUuidOrSlug: UuidOrSlug,
         options?: { projectUuid?: UUID },
     ) {
+        const user = toSessionUser(account);
         const dashboard = await this.getDashboardToPromote(
             user,
             dashboardUuidOrSlug,
             options?.projectUuid,
         );
 
-        const { upstreamProjectUuid } = await this.projectModel.getSummary(
-            dashboard.projectUuid,
-        );
+        const upstreamProjectUuid = (
+            await this.getUpstreamProjectForPromotion(
+                dashboard.projectUuid,
+                user.organizationUuid,
+            )
+        )?.projectUuid;
         if (!upstreamProjectUuid)
             throw new NotFoundError(
                 "This dashboard's project does not have an upstream project",
@@ -1894,14 +1998,21 @@ export class PromoteService extends BaseService {
             ),
         );
 
+        const composerCharts = await this.getAuthorizedComposerChartChanges(
+            account,
+            dashboard,
+            upstreamDashboard,
+        );
+
         const dataApps = await this.getDataAppDiffChanges(
             user,
             dashboard.projectUuid,
-            promotionChanges,
+            { ...promotionChanges, composerCharts },
         );
 
         return {
             ...promotionChanges,
+            composerCharts,
             sqlCharts: sqlCharts.map((sqlChartChange) => ({
                 action: sqlChartChange.action,
                 data: PromoteService.toPromotedSqlChartChange(sqlChartChange),
@@ -1945,11 +2056,18 @@ export class PromoteService extends BaseService {
             organizationUuid: user.organizationUuid ?? null,
         });
         const promotedDashboard = dashboardChange.data;
+        // Composer tiles need their charts upstream first; updateDashboard adds them
+        const composerTiles = promotedDashboard.tiles.filter(
+            isDashboardComposerChartTile,
+        );
         // Update dashboard with new space if it was created
         const newDashboard = await this.dashboardModel.create(
             promotedDashboard.spaceUuid,
             {
                 ...promotedDashboard,
+                tiles: promotedDashboard.tiles.filter(
+                    (tile) => !isDashboardComposerChartTile(tile),
+                ),
                 ownerUserUuid: promotedDashboard.owner?.userUuid ?? null,
                 forceSlug: true,
             },
@@ -1990,6 +2108,9 @@ export class PromoteService extends BaseService {
                     action: dashboardChange.action,
                     data: {
                         ...newDashboard,
+                        ...(composerTiles.length > 0 && {
+                            tiles: [...newDashboard.tiles, ...composerTiles],
+                        }),
                         spaceSlug: promotedDashboard.spaceSlug,
                         spacePath: promotedDashboard.spacePath,
                     },
@@ -2348,6 +2469,7 @@ export class PromoteService extends BaseService {
         );
 
         return {
+            ...promotionChanges,
             spaces: allSpaces,
             dashboards: updateDashboardWithSpace,
             charts: updateChartsWithSpace,
@@ -2817,6 +2939,50 @@ export class PromoteService extends BaseService {
         ];
     }
 
+    private async getAuthorizedComposerChartChanges(
+        account: RegisteredAccount,
+        dashboard: DashboardDAO,
+        upstreamDashboard: UpstreamDashboard,
+    ) {
+        if (!dashboard.tiles.some(isDashboardComposerChartTile)) return [];
+        // Unchanged charts skip the write checks, but their tiles still move upstream
+        if (
+            !(await this.getComposerChartService().isEnabled({
+                userUuid: account.user.userUuid,
+                organizationUuid: account.organization.organizationUuid!,
+            }))
+        ) {
+            throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
+        }
+        // The promote checks match the upstream space by path, not where the dashboard is now
+        if (upstreamDashboard.dashboard) {
+            await this.getComposerChartService().preflightDashboard(
+                account,
+                upstreamDashboard.projectUuid,
+                upstreamDashboard.dashboard.uuid,
+            );
+        }
+        const changes = await getComposerChartChanges(
+            this.composerChartModel,
+            dashboard.tiles,
+            {
+                projectUuid: upstreamDashboard.projectUuid,
+                dashboardUuid: upstreamDashboard.dashboard?.uuid ?? null,
+            },
+        );
+        await preflightComposerChartChanges(
+            this.composerChartModel,
+            this.getComposerChartService(),
+            account,
+            {
+                organizationUuid: account.organization.organizationUuid!,
+                projectUuid: upstreamDashboard.projectUuid,
+            },
+            changes,
+        );
+        return changes;
+    }
+
     async getPromotedDashboard(
         user: SessionUser,
         dashboard: DashboardDAO,
@@ -2909,24 +3075,27 @@ export class PromoteService extends BaseService {
             space: upstreamSpace,
             spaceAccessContext: upstreamCtx,
         };
-
         return { promotedDashboard, upstreamDashboard };
     }
 
     async promoteDashboard(
-        user: SessionUser,
+        account: RegisteredAccount,
         dashboardUuidOrSlug: UuidOrSlug,
         options?: { projectUuid?: UUID },
     ) {
+        const user = toSessionUser(account);
         const dashboard = await this.getDashboardToPromote(
             user,
             dashboardUuidOrSlug,
             options?.projectUuid,
         );
 
-        const { upstreamProjectUuid } = await this.projectModel.getSummary(
-            dashboard.projectUuid,
-        );
+        const upstreamProjectUuid = (
+            await this.getUpstreamProjectForPromotion(
+                dashboard.projectUuid,
+                user.organizationUuid,
+            )
+        )?.projectUuid;
         if (!upstreamProjectUuid)
             throw new NotFoundError(
                 "This dashboard's project does not have an upstream project",
@@ -2978,6 +3147,15 @@ export class PromoteService extends BaseService {
                     ),
             );
 
+            promotionChanges = {
+                ...promotionChanges,
+                composerCharts: await this.getAuthorizedComposerChartChanges(
+                    account,
+                    dashboard,
+                    upstreamDashboard,
+                ),
+            };
+
             const sqlChartBindings = await this.getPromotedSqlChartBindings(
                 dashboard.projectUuid,
                 upstreamProjectUuid,
@@ -3026,6 +3204,13 @@ export class PromoteService extends BaseService {
                 sqlChartBindings,
             );
 
+            promotionChanges = await upsertComposerCharts(
+                this.composerChartModel,
+                this.getComposerChartService(),
+                account,
+                promotionChanges,
+            );
+
             promotionChanges = await this.updateDashboard(
                 user,
                 promotionChanges,
@@ -3041,6 +3226,10 @@ export class PromoteService extends BaseService {
                     orphanedCharts.map((chart) =>
                         this.savedChartModel.permanentDelete(chart.uuid),
                     ),
+                );
+                await this.composerChartModel.deleteOrphans(
+                    upstreamDashboard.dashboard.uuid,
+                    new Set(),
                 );
             }
 
@@ -3282,16 +3471,17 @@ export class PromoteService extends BaseService {
             );
         }
         const source = { ...document, spaceUuid };
-        const { upstreamProjectUuid } =
-            await this.projectModel.getSummary(projectUuid);
-        if (!upstreamProjectUuid) {
+        const upstreamProject = await this.getUpstreamProjectForPromotion(
+            projectUuid,
+            account.organization.organizationUuid,
+        );
+        if (!upstreamProject) {
             throw new NotFoundError(
                 'This Document does not have an upstream project',
             );
         }
+        const { projectUuid: upstreamProjectUuid } = upstreamProject;
         const ability = this.createAuditedAbility(account);
-        const upstreamProject =
-            await this.projectModel.getSummary(upstreamProjectUuid);
         if (ability.cannot('view', subject('Project', upstreamProject))) {
             throw new NotFoundError('Upstream project not found');
         }

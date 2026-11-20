@@ -310,6 +310,7 @@ const renderCells = (
                     </Box>
                     <Box className={styles.full}>
                         <AppVersionNarration
+                            summary={null}
                             narration={state.narration}
                             isLive
                         />

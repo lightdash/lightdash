@@ -3,6 +3,9 @@ import {
     type AiAgentMessageAssistant,
     type AiAgentMessageUser,
     type AiMcpServer,
+    DBT_SAVE_CARD_REPLY,
+    describeSemanticLayerProposals,
+    getEditDbtProjectCardExtras,
     isToolEditDbtProjectResult,
     isToolProposeSemanticLayerChangeResult,
     isToolEditRepoResult,
@@ -44,6 +47,7 @@ import { clsx } from 'clsx';
 import {
     memo,
     useCallback,
+    useContext,
     useMemo,
     useState,
     type FC,
@@ -52,9 +56,12 @@ import {
 import { Link } from 'react-router';
 import { type CustomRendererProps, type StreamdownProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
+import { AiMarkdownErrorBoundary } from '../../../../../components/common/AiMarkdown/AiMarkdownErrorBoundary';
 import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SemanticLayerProposalCard } from '../../../../../features/semanticStudio/SemanticLayerProposalCard';
+import { TurnCardSkeleton } from '../../../../../features/semanticStudio/TurnCard';
+import { TurnSummaryCard } from '../../../../../features/semanticStudio/TurnSummaryCard';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
 import useApp from '../../../../../providers/App/useApp';
@@ -125,9 +132,8 @@ import {
     LiveActivityCard,
     type LiveActivityToolGroup,
 } from './ToolCalls/LiveActivityCard';
+import { QuietCardsContext, StudioAskContext } from './ToolCalls/quietCards';
 import { toReasoningTexts } from './ToolCalls/reasoningHelpers';
-import { StepFailureSummary } from './ToolCalls/StepFailureSummary';
-import { getMessageFinalStepFailure } from './ToolCalls/utils/getFinalStepFailure';
 import { getRunSqlLinkStateFromArgs } from './ToolCalls/utils/runSqlLinkState';
 import {
     getPendingApprovalIds,
@@ -529,7 +535,7 @@ const AssistantBubbleContent: FC<{
     const editDbtProjectResult: {
         metadata: ToolEditDbtProjectOutput['metadata'];
     } | null = (() => {
-        const writebackResult = message.toolResults.find(
+        const writebackResult = message.toolResults.findLast(
             isToolEditDbtProjectResult,
         );
         if (writebackResult) return { metadata: writebackResult.metadata };
@@ -544,6 +550,8 @@ const AssistantBubbleContent: FC<{
         return { metadata: liveOutput.metadata };
     })();
 
+    const quietCards = useContext(QuietCardsContext);
+    const askStudio = useContext(StudioAskContext);
     // Persisted once the turn is saved; until then the stream carries them.
     const persistedProposals: SemanticLayerProposal[] = message.toolResults
         .filter(isToolProposeSemanticLayerChangeResult)
@@ -565,6 +573,27 @@ const AssistantBubbleContent: FC<{
                       ? [output.metadata]
                       : [];
               });
+
+    // A proposal still being checked has no card yet, so its place is held.
+    const isProposing =
+        isStreaming &&
+        (streamingState?.parts ?? []).some(
+            (part) =>
+                part.type === 'toolCall' &&
+                part.toolName === 'proposeSemanticLayerChange' &&
+                part.toolResult === null,
+        );
+
+    // A turn still working says nothing of an attempt that failed: it may yet land the change.
+    const showsTurnSummary =
+        semanticLayerProposals.length > 0 &&
+        !isProposing &&
+        !(
+            isStreaming &&
+            semanticLayerProposals.every(
+                ({ draftChangeUuid }) => !draftChangeUuid,
+            )
+        );
 
     // General coding-agent (editRepo) PR card metadata — resolved the same way
     // as editDbtProject (persisted result, then live streaming part), but kept
@@ -845,17 +874,16 @@ const AssistantBubbleContent: FC<{
                     pendingToolCallIds: getPendingPersistedApprovalIds(message),
                     decidedToolCallIds: [],
                 };
-                const finalStepFailure =
-                    isStreaming || isPending
-                        ? null
-                        : getMessageFinalStepFailure(message);
-                const hasAnswerText = messageContent.length > 0;
-                const failureSummary = finalStepFailure ? (
-                    <StepFailureSummary
-                        failure={finalStepFailure}
-                        projectUuid={projectUuid}
-                    />
-                ) : null;
+                // In Studio a turn that only changed the draft ends on its card; the line kept for history is not shown twice.
+                const cardReply =
+                    semanticLayerProposals.length > 0
+                        ? describeSemanticLayerProposals(semanticLayerProposals)
+                        : editDbtProjectResult
+                          ? DBT_SAVE_CARD_REPLY
+                          : null;
+                const hasAnswerText =
+                    messageContent.length > 0 &&
+                    !(quietCards && messageContent.trim() === cardReply);
                 return (
                     <>
                         <LiveActivityCard
@@ -877,8 +905,6 @@ const AssistantBubbleContent: FC<{
                                 isLive: isStreaming,
                             }}
                         />
-                        {/* With prose, the failure detail sits after it, next to the recovery actions. */}
-                        {!hasAnswerText && failureSummary}
                         {artifactSlot}
                         {hasAnswerText ? (
                             <Box
@@ -933,7 +959,6 @@ const AssistantBubbleContent: FC<{
                                 </AiMarkdown>
                             </Box>
                         ) : null}
-                        {hasAnswerText && failureSummary}
                     </>
                 );
             })()}
@@ -968,19 +993,48 @@ const AssistantBubbleContent: FC<{
                 message={message}
                 streamParts={streamingState?.parts}
             />
-            {semanticLayerProposals.map((proposal, index) => (
-                <SemanticLayerProposalCard
-                    key={index}
-                    projectUuid={projectUuid}
-                    proposal={proposal}
-                />
-            ))}
+            {quietCards && isProposing ? <TurnCardSkeleton /> : null}
+            {quietCards
+                ? showsTurnSummary && (
+                      <AiMarkdownErrorBoundary
+                          fallback={
+                              <Text fz="sm">
+                                  {describeSemanticLayerProposals(
+                                      semanticLayerProposals,
+                                  )}
+                              </Text>
+                          }
+                      >
+                          <TurnSummaryCard
+                              projectUuid={projectUuid}
+                              proposals={semanticLayerProposals}
+                              onAsk={askStudio}
+                              isLatest={isLastMessage}
+                          />
+                      </AiMarkdownErrorBoundary>
+                  )
+                : semanticLayerProposals.map((proposal, index) => (
+                      <SemanticLayerProposalCard
+                          key={index}
+                          projectUuid={projectUuid}
+                          proposal={proposal}
+                      />
+                  ))}
             {editDbtProjectResult && (
                 <AiEditDbtProjectToolCall
                     metadata={editDbtProjectResult.metadata}
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
                     threadUuid={message.threadUuid}
+                    startedAt={message.createdAt}
+                    isLatest={isLastMessage}
+                    note={
+                        getEditDbtProjectCardExtras(
+                            message.toolCalls.findLast(
+                                ({ toolName }) => toolName === 'editDbtProject',
+                            )?.toolArgs,
+                        ).note
+                    }
                 />
             )}
             {editRepoMetadata && (
@@ -1034,6 +1088,7 @@ export const AssistantBubble: FC<Props> = memo(
         mcpServers,
         onDashboardLinkClick,
     }) => {
+        const quietCards = useContext(QuietCardsContext);
         const artifact = useAiAgentStoreSelector(selectArtifactPreview);
         const dispatch = useAiAgentStoreDispatch();
         const writingSummaryLabel = useUiString(
@@ -1338,8 +1393,10 @@ export const AssistantBubble: FC<Props> = memo(
                     <Group
                         gap={0}
                         className={styles.messageActions}
-                        // Earlier answers reveal their actions on hover or focus.
-                        data-persistent={isLastMessage || hasRating}
+                        // Earlier answers reveal their actions on hover or focus; in a narrow side chat every answer does.
+                        data-persistent={
+                            !quietCards && (isLastMessage || hasRating)
+                        }
                         // Walkthrough: rating the answer feeds the Issues loop.
                         // See scripts/scope-tours.
                         data-tour-scope="create:AiAgentThread"
@@ -1359,7 +1416,8 @@ export const AssistantBubble: FC<Props> = memo(
                             }
                         />
 
-                        {(!hasRating || upVoted) && (
+                        {/* A narrow side chat keeps only copy; rating and timing belong to the full thread. */}
+                        {!quietCards && (!hasRating || upVoted) && (
                             <ActionIcon
                                 color="ldGray.9"
                                 aria-label="upvote"
@@ -1382,7 +1440,7 @@ export const AssistantBubble: FC<Props> = memo(
                             </ActionIcon>
                         )}
 
-                        {(!hasRating || downVoted) && (
+                        {!quietCards && (!hasRating || downVoted) && (
                             <Popover
                                 width={500}
                                 position="top-start"
@@ -1504,7 +1562,7 @@ export const AssistantBubble: FC<Props> = memo(
                                 decision={message.jevDecision}
                             />
                         )}
-                        {canViewDebugInfo && (
+                        {canViewDebugInfo && !quietCards && (
                             <MessageTimingIndicator
                                 responseTiming={message.responseTiming}
                                 isWinner={battle.isWinner}

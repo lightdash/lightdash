@@ -22,7 +22,7 @@ import {
 import { ActionIcon, Box, Group, Menu, Text } from '@mantine/core';
 import {
     IconCopy,
-    IconDots,
+    IconDotsVertical,
     IconFilter,
     IconMinus,
     IconPencil,
@@ -39,6 +39,10 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import {
+    isFilterableOnLiveSource,
+    useApiSourceExplore,
+} from '../../../features/externalConnections/liveSources/apiSourceExplore';
 import {
     DeleteMergeTableCalculationModal,
     MergeTableCalculationFormatModal,
@@ -89,6 +93,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
     const tableName = useExplorerSelector(selectTableName);
+    const apiSource = useApiSourceExplore(tableName);
     const dispatch = useExplorerDispatch();
     const projectUuid = useProjectUuid();
     const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
@@ -226,24 +231,28 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     </>
                 ) : null}
 
-                {isFilterableField(item) && !isPopAdditionalMetric && (
-                    <>
-                        <Menu.Item
-                            leftSection={<MantineIcon icon={IconFilter} />}
-                            onClick={() => {
-                                track({ name: EventName.ADD_FILTER_CLICKED });
-                                addFilter(item, undefined);
-                            }}
-                        >
-                            Filter by{' '}
-                            <Text span>
-                                "{getItemLabelWithoutTableName(item)}"
-                            </Text>
-                        </Menu.Item>
+                {isFilterableField(item) &&
+                    isFilterableOnLiveSource(apiSource, item) &&
+                    !isPopAdditionalMetric && (
+                        <>
+                            <Menu.Item
+                                leftSection={<MantineIcon icon={IconFilter} />}
+                                onClick={() => {
+                                    track({
+                                        name: EventName.ADD_FILTER_CLICKED,
+                                    });
+                                    addFilter(item, undefined);
+                                }}
+                            >
+                                Filter by{' '}
+                                <Text span>
+                                    "{getItemLabelWithoutTableName(item)}"
+                                </Text>
+                            </Menu.Item>
 
-                        <Menu.Divider />
-                    </>
-                )}
+                            <Menu.Divider />
+                        </>
+                    )}
 
                 {!isPopAdditionalMetric && (
                     <>
@@ -360,24 +369,27 @@ const ContextMenu: FC<ContextMenuProps> = ({
         const hideRemove = hideSqlAuthoringActions && !!savedChart;
         return (
             <>
-                {isFilterableField(item) && (
-                    <>
-                        <Menu.Item
-                            leftSection={<MantineIcon icon={IconFilter} />}
-                            onClick={() => {
-                                track({ name: EventName.ADD_FILTER_CLICKED });
-                                addFilter(item, undefined);
-                            }}
-                        >
-                            Filter by{' '}
-                            <Text span fw={500}>
-                                {getItemLabelWithoutTableName(item)}
-                            </Text>
-                        </Menu.Item>
+                {isFilterableField(item) &&
+                    isFilterableOnLiveSource(apiSource, item) && (
+                        <>
+                            <Menu.Item
+                                leftSection={<MantineIcon icon={IconFilter} />}
+                                onClick={() => {
+                                    track({
+                                        name: EventName.ADD_FILTER_CLICKED,
+                                    });
+                                    addFilter(item, undefined);
+                                }}
+                            >
+                                Filter by{' '}
+                                <Text span fw={500}>
+                                    {getItemLabelWithoutTableName(item)}
+                                </Text>
+                            </Menu.Item>
 
-                        <Menu.Divider />
-                    </>
-                )}
+                            <Menu.Divider />
+                        </>
+                    )}
 
                 {!hideSqlAuthoringActions && (
                     <>
@@ -534,7 +546,7 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                                 bg="transparent"
                                 aria-label="Context menu"
                             >
-                                <MantineIcon icon={IconDots} />
+                                <MantineIcon icon={IconDotsVertical} />
                             </ActionIcon>
                         </Menu.Target>
 

@@ -11,7 +11,7 @@ import {
     IconStar,
     IconStarFilled,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useCallback, useEffect, useState, type FC } from 'react';
 import { Link, useBlocker, useLocation, useNavigate } from 'react-router';
 import {
     PendingReviewBadge,
@@ -40,8 +40,7 @@ import { useSchedulerDeepLink } from '../../../features/scheduler/hooks/useSched
 import { isLeavingTrainingCopy } from '../../../features/scopeTours/trainingCopy';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
-import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
-import { useFavorites } from '../../../hooks/favorites/useFavorites';
+import { useFavoriteToggle } from '../../../hooks/favorites/useFavoriteToggle';
 import { useChartPermissions } from '../../../hooks/useChartPermissions';
 import { useExploreConnectionName } from '../../../hooks/useConnectionBadges';
 import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
@@ -202,12 +201,9 @@ const SavedChartsHeader: FC = () => {
 
     const isValidQuery = useExplorerSelector(selectIsValidQuery);
 
-    const { data: favorites } = useFavorites(projectUuid);
-    const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
-    const isChartFavorited = useMemo(
-        () => favorites?.some((f) => f.data.uuid === savedChart?.uuid) ?? false,
-        [favorites, savedChart?.uuid],
-    );
+    const { isFavorite, toggle: toggleFavorite } =
+        useFavoriteToggle(projectUuid);
+    const isChartFavorited = !!savedChart && isFavorite(savedChart.uuid);
 
     const {
         enabled: isFullscreenEnabled,
@@ -517,12 +513,10 @@ const SavedChartsHeader: FC = () => {
                                             variant="transparent"
                                             isFavorite={isChartFavorited}
                                             onToggle={() => {
-                                                toggleFavorite({
-                                                    contentType:
-                                                        ContentType.CHART,
-                                                    contentUuid:
-                                                        savedChart.uuid,
-                                                });
+                                                toggleFavorite(
+                                                    ContentType.CHART,
+                                                    savedChart.uuid,
+                                                );
                                             }}
                                         />
                                     </>
@@ -687,10 +681,10 @@ const SavedChartsHeader: FC = () => {
                                 />
                             }
                             onClick={() =>
-                                toggleFavorite({
-                                    contentType: ContentType.CHART,
-                                    contentUuid: savedChart.uuid,
-                                })
+                                toggleFavorite(
+                                    ContentType.CHART,
+                                    savedChart.uuid,
+                                )
                             }
                         >
                             {isChartFavorited ? 'Favorited' : 'Favorite'}

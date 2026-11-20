@@ -323,6 +323,7 @@ export type AgentResultReadDecision =
     | 'allowed'
     | 'other_person'
     | 'agent_unavailable'
+    | 'data_access_off'
     | 'not_applicable';
 
 export type AgentResultReadAccess = {
@@ -343,6 +344,8 @@ export const getAgentClaimMismatchMessage = (
             return 'An AI agent produced these results for another person. Run the query again to see them with your own access.';
         if (decision === 'agent_unavailable')
             return 'These results came from an AI agent you can no longer use. Run the query again to see them with your own access.';
+        if (decision === 'data_access_off')
+            return "These results came from an AI agent and can no longer be read with this agent's Data Access. Run the query again to see them with your own access.";
         return 'An AI agent produced these results. Run the query again to see them with your own access.';
     }
     if (stored.agentIdentity === null)

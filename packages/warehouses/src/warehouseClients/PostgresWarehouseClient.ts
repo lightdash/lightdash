@@ -31,10 +31,10 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import * as pg from 'pg';
 import { PoolConfig, QueryResult, types } from 'pg';
-import { Writable } from 'stream';
 import * as tls from 'tls';
 import { rootCertificates } from 'tls';
 import { normalizeUnicode } from '../utils/sql';
+import { createRowBatchWriter } from '../utils/streamRows';
 import './pgProtocolGuard';
 import QueryStream from './PgQueryStream';
 import WarehouseBaseClient from './WarehouseBaseClient';
@@ -571,45 +571,30 @@ export class PostgresClient<
                         { type: DimensionType }
                     > | null = null;
 
-                    const writable = new Writable({
-                        objectMode: true,
-                        async write(
-                            chunk: {
-                                row: AnyType;
-                                fields: QueryResult<AnyType>['fields'];
-                            },
-                            encoding,
-                            callback,
-                        ) {
+                    const writable = createRowBatchWriter(
+                        (chunk: {
+                            row: AnyType;
+                            fields: QueryResult<AnyType>['fields'];
+                        }) => {
                             receivedRow = true;
-                            try {
-                                if (cachedFields === null) {
-                                    cachedFields =
-                                        PostgresClient.convertQueryResultFields(
-                                            chunk.fields,
-                                        );
-                                    reportPhase(
-                                        'query',
-                                        performance.now() - queryStart,
+                            if (cachedFields === null) {
+                                cachedFields =
+                                    PostgresClient.convertQueryResultFields(
+                                        chunk.fields,
                                     );
-                                    fetchStart = performance.now();
-                                    startStep('fetch');
-                                }
-                                rowsFetched += 1;
-                                await streamCallback({
-                                    fields: cachedFields,
-                                    rows: [chunk.row],
-                                });
-                                callback();
-                            } catch (writeError) {
-                                if (writeError instanceof Error) {
-                                    callback(writeError);
-                                } else {
-                                    callback(new Error(String(writeError)));
-                                }
+                                reportPhase(
+                                    'query',
+                                    performance.now() - queryStart,
+                                );
+                                fetchStart = performance.now();
+                                startStep('fetch');
                             }
+                            rowsFetched += 1;
+                            return chunk.row;
                         },
-                    });
+                        (rows) =>
+                            streamCallback({ fields: cachedFields!, rows }),
+                    );
 
                     // Wait for writable to finish processing all async callbacks
                     // (not 'end' on readable - async write callbacks may still be in flight)
@@ -934,6 +919,44 @@ export class PostgresClient<
         `;
         const { rows } = await this.runQuery(query, tags, undefined, values);
 
+        return this.parsePostgresCatalog(rows);
+    }
+
+    async getSchemaColumns(
+        schemas: { database: string; schema: string }[],
+    ): Promise<WarehouseCatalog> {
+        const names = [...new Set(schemas.map(({ schema }) => schema))];
+        if (names.length === 0) return {};
+        const schemaParams = names.map((_, index) => `$${index + 1}`).join(',');
+        // A session only sees its own database, so no catalog filter is needed
+        const query = `
+            SELECT table_catalog,
+                   table_schema,
+                   table_name,
+                   column_name,
+                   data_type
+            FROM information_schema.columns
+            WHERE table_schema IN (${schemaParams})
+            ${
+                (await this.supportsMatviews())
+                    ? `
+            UNION ALL
+            SELECT current_database() AS table_catalog,
+                   n.nspname AS table_schema,
+                   c.relname AS table_name,
+                   a.attname AS column_name,
+                   pg_catalog.format_type(a.atttypid, NULL) AS data_type
+            FROM pg_catalog.pg_attribute a
+            JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+            JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+            WHERE c.relkind = 'm'
+            AND n.nspname IN (${schemaParams})
+            AND a.attnum > 0
+            AND NOT a.attisdropped`
+                    : ''
+            }
+        `;
+        const { rows } = await this.runQuery(query, {}, undefined, names);
         return this.parsePostgresCatalog(rows);
     }
 

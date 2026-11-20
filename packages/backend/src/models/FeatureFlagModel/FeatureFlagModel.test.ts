@@ -156,6 +156,7 @@ const buildFakeWriteDatabase = ({
 
 describe('FeatureFlagModel', () => {
     describe.each([
+        FeatureFlags.MobileQrSignIn,
         FeatureFlags.DbtPartialParse,
         FeatureFlags.AgentIdentity,
         FeatureFlags.BigqueryWorkloadIdentityAuth,
@@ -824,5 +825,198 @@ describe('FeatureFlagModel', () => {
             });
             expect(warnSpy).toHaveBeenCalled();
         });
+    });
+});
+
+describe('mobile QR deployment defaults', () => {
+    it.each([false, true])(
+        'uses the deployment database default: %s',
+        async (enabled) => {
+            const model = buildModel(
+                { previewFeatureFlags: { enabled: false } },
+                buildFakeDatabase({ flag: { default_enabled: enabled } }),
+            );
+            expect(
+                await model.get({ featureFlagId: FeatureFlags.MobileQrSignIn }),
+            ).toEqual({ id: FeatureFlags.MobileQrSignIn, enabled });
+        },
+    );
+
+    it('resolves Console overrides with only organization context and no ENV enable', async () => {
+        const rows: FakeRows = {
+            flag: { default_enabled: false },
+            orgOverride: {
+                organization_uuid: dbUser.organizationUuid,
+                enabled: true,
+            },
+        };
+        const model = buildModel(
+            {
+                previewFeatureFlags: { enabled: false },
+                enabledFeatureFlags: new Set(),
+                disabledFeatureFlags: new Set(),
+            },
+            buildFakeDatabase(rows),
+        );
+        const get = (organizationUuid = dbUser.organizationUuid) =>
+            model.get({
+                featureFlagId: FeatureFlags.MobileQrSignIn,
+                user: { organizationUuid },
+            });
+        expect((await get()).enabled).toBe(true);
+        expect((await get('other-org')).enabled).toBe(false);
+        rows.orgOverride!.enabled = false;
+        expect((await get()).enabled).toBe(false);
+    });
+
+    it('preserves preview enablement and organization opt-out', async () => {
+        const rows: FakeRows = {};
+        const model = buildModel(
+            { previewFeatureFlags: { enabled: true } },
+            buildFakeDatabase(rows),
+        );
+        const get = () =>
+            model.get({
+                featureFlagId: FeatureFlags.MobileQrSignIn,
+                user: { organizationUuid: dbUser.organizationUuid },
+            });
+        expect((await get()).enabled).toBe(true);
+        rows.orgOverride = { enabled: false };
+        expect((await get()).enabled).toBe(false);
+    });
+});
+
+describe('mobile app access', () => {
+    const productionConfig: Partial<LightdashConfig> = {
+        previewFeatureFlags: { enabled: false },
+        enabledFeatureFlags: new Set(),
+        disabledFeatureFlags: new Set(),
+    };
+    const getFrom = (
+        model: FeatureFlagModel,
+        organizationUuid = dbUser.organizationUuid,
+        userUuid?: string,
+    ) =>
+        model.get({
+            featureFlagId: FeatureFlags.MobileAppAccess,
+            user: { organizationUuid, userUuid },
+        });
+
+    it('is on for an organization with no flag row and no ENV setting', async () => {
+        const model = buildModel(productionConfig, buildFakeDatabase({}));
+        expect((await getFrom(model)).enabled).toBe(true);
+    });
+
+    it('is on when the flag row has no default', async () => {
+        const model = buildModel(
+            productionConfig,
+            buildFakeDatabase({ flag: { default_enabled: null } }),
+        );
+        expect((await getFrom(model)).enabled).toBe(true);
+    });
+
+    it('turns off for one organization, leaves another on, and turns on again without restart', async () => {
+        const rows: FakeRows = {
+            flag: { default_enabled: null },
+            orgOverride: {
+                organization_uuid: dbUser.organizationUuid,
+                enabled: false,
+            },
+        };
+        const model = buildModel(productionConfig, buildFakeDatabase(rows));
+        expect((await getFrom(model)).enabled).toBe(false);
+        expect((await getFrom(model, 'other-org')).enabled).toBe(true);
+        rows.orgOverride!.enabled = true;
+        expect((await getFrom(model)).enabled).toBe(true);
+        rows.orgOverride!.enabled = false;
+        expect((await getFrom(model)).enabled).toBe(false);
+        rows.orgOverride = undefined;
+        expect((await getFrom(model)).enabled).toBe(true);
+    });
+
+    it('ignores user overrides', async () => {
+        const rows: FakeRows = {
+            flag: { default_enabled: null },
+            userOverride: { enabled: true },
+            orgOverride: {
+                organization_uuid: dbUser.organizationUuid,
+                enabled: false,
+            },
+        };
+        const model = buildModel(productionConfig, buildFakeDatabase(rows));
+        expect(
+            (await getFrom(model, dbUser.organizationUuid, VALID_USER_UUID))
+                .enabled,
+        ).toBe(false);
+        rows.userOverride = { enabled: false };
+        rows.orgOverride = undefined;
+        expect(
+            (await getFrom(model, dbUser.organizationUuid, VALID_USER_UUID))
+                .enabled,
+        ).toBe(true);
+    });
+
+    it('follows an explicit instance default of off', async () => {
+        const model = buildModel(
+            productionConfig,
+            buildFakeDatabase({ flag: { default_enabled: false } }),
+        );
+        expect((await getFrom(model)).enabled).toBe(false);
+    });
+
+    it('is off for every organization when the ENV disable list has it', async () => {
+        const model = buildModel(
+            {
+                ...productionConfig,
+                disabledFeatureFlags: new Set([FeatureFlags.MobileAppAccess]),
+            },
+            buildFakeDatabase({}),
+        );
+        expect((await getFrom(model)).enabled).toBe(false);
+        expect((await getFrom(model, 'other-org')).enabled).toBe(false);
+    });
+
+    it('is forced on by the ENV enable list, which an organization override cannot undo outside previews', async () => {
+        const model = buildModel(
+            {
+                ...productionConfig,
+                enabledFeatureFlags: new Set([FeatureFlags.MobileAppAccess]),
+            },
+            buildFakeDatabase({
+                flag: { default_enabled: null },
+                orgOverride: {
+                    organization_uuid: dbUser.organizationUuid,
+                    enabled: false,
+                },
+            }),
+        );
+        expect((await getFrom(model)).enabled).toBe(true);
+    });
+
+    it('lets an organization override turn it off in a preview environment', async () => {
+        const rows: FakeRows = {};
+        const model = buildModel(
+            { previewFeatureFlags: { enabled: true } },
+            buildFakeDatabase(rows),
+        );
+        expect((await getFrom(model)).enabled).toBe(true);
+        rows.orgOverride = {
+            organization_uuid: dbUser.organizationUuid,
+            enabled: false,
+        };
+        expect((await getFrom(model)).enabled).toBe(false);
+        expect((await getFrom(model, 'other-org')).enabled).toBe(true);
+    });
+
+    it('stays on and logs a warning when the database read fails', async () => {
+        const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
+        const model = buildModel(productionConfig, throwingDatabase);
+        expect((await getFrom(model)).enabled).toBe(true);
+        expect(warn).toHaveBeenCalledWith(
+            expect.stringContaining(
+                `Failed to check feature flag ${FeatureFlags.MobileAppAccess} from database`,
+            ),
+        );
+        warn.mockRestore();
     });
 });

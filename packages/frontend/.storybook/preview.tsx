@@ -13,7 +13,7 @@ import MantineProvider from '../src/providers/MantineProvider';
 
 // Theme toggle button component
 const ThemeToggle = () => {
-    const { colorScheme, toggleColorScheme } = useAppColorScheme();
+    const { colorScheme, setColorSchemePreference } = useAppColorScheme();
 
     return (
         <Group
@@ -27,7 +27,11 @@ const ThemeToggle = () => {
             }}
         >
             <ActionIcon
-                onClick={() => toggleColorScheme()}
+                onClick={() =>
+                    setColorSchemePreference(
+                        colorScheme === 'dark' ? 'light' : 'dark',
+                    )
+                }
                 variant="default"
                 size="lg"
                 aria-label="Toggle color scheme"

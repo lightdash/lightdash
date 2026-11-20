@@ -43,6 +43,15 @@ export class ProjectCompileLogModel {
         return row.project_compile_log_id;
     }
 
+    /** The job of the project's last explore save; null when it had none, or it ran outside a job. */
+    async findLatestJobUuid(projectUuid: string): Promise<string | null> {
+        const row = await this.database(ProjectCompileLogTableName)
+            .where('project_uuid', projectUuid)
+            .orderBy('created_at', 'desc')
+            .first('job_uuid');
+        return row?.job_uuid ?? null;
+    }
+
     async getLogs({
         organizationUuid,
         projectUuid,

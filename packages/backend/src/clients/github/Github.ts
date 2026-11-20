@@ -347,7 +347,7 @@ export const getLastCommit = async ({
     }
 };
 
-export const getFileContent = async ({
+const readGithubFile = async ({
     fileName,
     owner,
     repo,
@@ -381,7 +381,14 @@ export const getFileContent = async ({
                 response.data.content,
                 'base64',
             ).toString('utf-8');
-            return { content, sha: response.data.sha };
+            return {
+                content,
+                sha: response.data.sha,
+                // Over 1 MB the API returns no content, so `content` is empty.
+                isTooLarge:
+                    'encoding' in response.data &&
+                    response.data.encoding === 'none',
+            };
         }
 
         throw new NotFoundError('file not found');
@@ -396,6 +403,26 @@ export const getFileContent = async ({
         logGithubRateLimit(error, `getContent ${fileName}`);
         throw new UnexpectedGitError(getErrorMessage(error));
     }
+};
+
+export const getFileContent = async (
+    args: Parameters<typeof readGithubFile>[0],
+) => {
+    const { content, sha } = await readGithubFile(args);
+    return { content, sha };
+};
+
+/** Like getFileContent, but a file too large for the API throws instead of reading as empty. */
+export const getWholeFileContent = async (
+    args: Parameters<typeof readGithubFile>[0],
+) => {
+    const { content, sha, isTooLarge } = await readGithubFile(args);
+    if (isTooLarge) {
+        throw new UnexpectedGitError(
+            `file ${args.fileName} is too large to read through the GitHub API`,
+        );
+    }
+    return { content, sha };
 };
 
 /**
@@ -447,7 +474,7 @@ export const getRepoTree = async ({
     installationId?: string;
     token?: string;
 }): Promise<{
-    files: { path: string; size: number }[];
+    files: { path: string; size: number; sha: string }[];
     truncated: boolean;
     /** The tree's own hash: two listings with the same one hold the same files. */
     sha: string;
@@ -476,6 +503,7 @@ export const getRepoTree = async ({
             .map((entry) => ({
                 path: entry.path as string,
                 size: entry.size ?? 0,
+                sha: entry.sha ?? '',
             }));
         return {
             files,
@@ -616,6 +644,31 @@ export const createBranch = async ({
         throw toGitWriteError(error);
     }
 };
+export const deleteBranch = async ({
+    owner,
+    repo,
+    branch,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    branch: string;
+    installationId?: string;
+    token?: string;
+}): Promise<void> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    try {
+        await octokit.rest.git.deleteRef({
+            owner,
+            repo,
+            ref: `heads/${branch}`,
+            headers,
+        });
+    } catch (error) {
+        throw toGitWriteError(error);
+    }
+};
 export const getBranchHeadSha = async ({
     owner,
     repo,
@@ -638,6 +691,59 @@ export const getBranchHeadSha = async ({
             headers,
         });
         return data.object.sha;
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
+/** The files that differ between two commits, also when they diverged; null when there are too many to list. */
+export const getFilesChangedSince = async ({
+    owner,
+    repo,
+    base,
+    head,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    base: string;
+    head: string;
+    installationId?: string;
+    token?: string;
+}): Promise<string[] | null> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    // A three-dot compare lists the files changed since the merge base, so a diverged pair is compared both ways.
+    const compare = async (from: string, to: string) =>
+        (
+            await octokit.rest.repos.compareCommitsWithBasehead({
+                owner,
+                repo,
+                basehead: `${from}...${to}`,
+                // Files are listed on the first page whatever its size; commits are not needed.
+                per_page: 1,
+                headers,
+            })
+        ).data;
+    try {
+        const forward = await compare(base, head);
+        if (forward.status === 'identical') return [];
+        const compares =
+            forward.status === 'ahead'
+                ? [forward]
+                : [forward, await compare(head, base)];
+        const files = compares.flatMap((data) => data.files ?? []);
+        // Each compare lists at most 300 files.
+        if (compares.some((data) => (data.files ?? []).length >= 300)) {
+            return null;
+        }
+        return [
+            ...new Set(
+                files.flatMap(({ filename, previous_filename: previous }) =>
+                    previous ? [filename, previous] : [filename],
+                ),
+            ),
+        ];
     } catch (e) {
         throw new UnexpectedGitError(getErrorMessage(e));
     }
@@ -1072,6 +1178,8 @@ export const getPullRequest = async ({
     state: 'open' | 'closed';
     merged: boolean;
     headRef: string;
+    /** The head commit, kept by GitHub after the branch is deleted. */
+    headSha: string;
     /** Full name (`owner/repo`) of the PR's head — differs from the base when the PR comes from a fork. */
     headRepoFullName: string | null;
     /** GitHub's mergeability (null until GitHub finishes computing it). */
@@ -1102,6 +1210,7 @@ export const getPullRequest = async ({
             state: response.data.state === 'closed' ? 'closed' : 'open',
             merged: response.data.merged === true,
             headRef: response.data.head.ref,
+            headSha: response.data.head.sha,
             headRepoFullName: response.data.head.repo?.full_name ?? null,
             mergeable: response.data.mergeable,
             mergeableState: response.data.mergeable_state,
@@ -1170,22 +1279,32 @@ export const mergePullRequest = async ({
 }): Promise<{ merged: boolean; sha: string | null }> => {
     const { octokit, headers } = getOctokit(installationId, token);
 
-    try {
-        const response = await octokit.rest.pulls.merge({
-            owner,
-            repo,
-            pull_number: pullNumber,
-            sha,
-            headers,
-        });
+    let lastError: unknown;
+    // A repository can switch any of these off, and GitHub then refuses that one by name.
+    for (const mergeMethod of ['merge', 'squash', 'rebase'] as const) {
+        try {
+            // eslint-disable-next-line no-await-in-loop
+            const response = await octokit.rest.pulls.merge({
+                owner,
+                repo,
+                pull_number: pullNumber,
+                sha,
+                merge_method: mergeMethod,
+                headers,
+            });
 
-        return {
-            merged: response.data.merged === true,
-            sha: response.data.sha ?? null,
-        };
-    } catch (e) {
-        throw new UnexpectedGitError(getErrorMessage(e));
+            return {
+                merged: response.data.merged === true,
+                sha: response.data.sha ?? null,
+            };
+        } catch (e) {
+            lastError = e;
+            if (!/not allowed on this repository/i.test(getErrorMessage(e))) {
+                break;
+            }
+        }
     }
+    throw new UnexpectedGitError(getErrorMessage(lastError));
 };
 
 // Closes a PR without merging it (sets state to `closed`). Reversible — it can

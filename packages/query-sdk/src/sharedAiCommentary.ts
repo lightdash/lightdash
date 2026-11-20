@@ -172,7 +172,8 @@ export function useSharedAiCommentary(
             generate,
             saveEdit,
             remove,
-            canGenerate: ai.available,
+            // Generating saves to shared state; pointless when that is refused.
+            canGenerate: ai.available && meta.error?.code !== 'forbidden',
             generating: ai.loading,
             error: ai.error,
             meta,

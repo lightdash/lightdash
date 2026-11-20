@@ -9,7 +9,7 @@ import {
 import { canTileTakeFilter, getTabCounts, getTileField } from './peers';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
-/** Tiles the filter is on, over every tab: the rail's count. */
+/** Tiles the filter is on, over every tab: the editor's count. */
 export const useAppliedTileCount = (rule: DashboardFilterRule): number => {
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);

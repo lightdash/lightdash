@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createPortal } from 'react-dom';
@@ -10,6 +11,9 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import DashboardChartEditorModal from '../../DashboardTiles/DashboardChartEditorModal';
 
 vi.mock('../../MonacoEditor', () => ({ default: () => null }));
+vi.mock('../../../hooks/health/useHealth', () => ({
+    default: () => ({ data: undefined }),
+}));
 vi.mock('../../../hooks/useContentAuthoringEnabled', () => ({
     useContentAuthoringEnabled: () => true,
 }));

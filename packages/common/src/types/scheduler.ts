@@ -940,6 +940,8 @@ export type CompileProjectPayload = TraceTaskBase & {
     // Apply charts and dashboards as code from the repo once compiled
     syncContentAfterCompile?: boolean;
     compilationSource?: CompilationSource;
+    // Saves only what changed since the last compile when the worker can tell; full otherwise
+    incremental?: boolean;
 };
 
 export type PreAggregateMaterializationTrigger =
@@ -1047,6 +1049,7 @@ export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
     attachmentDownloadName?: string;
     conditionalFormattings?: ConditionalFormattingConfig[];
     showColumnTotals?: boolean;
+    showSubtotals?: boolean;
     encodedJwt?: string;
     /**
      * Access mode for the persistent URL of the exported file. Set to SIGNED

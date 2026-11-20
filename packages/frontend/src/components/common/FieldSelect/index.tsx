@@ -51,6 +51,8 @@ type FieldSelectProps<T extends Item = Item> = Omit<
     /** Fields not in the query yet, offered under an "Add to query" group.
      *  Picking one reaches `onChange` like any other item. */
     addItems?: T[];
+    /** Heading of the `addItems` group. */
+    addItemsGroupLabel?: string;
     /** Items from `items` to lift into a leading "Suggested" group, in the
      *  order given; they leave their table group so each is listed once. */
     suggestedItems?: T[];
@@ -69,6 +71,7 @@ const FieldSelectComponent = <T extends Item = Item>({
     item,
     items,
     addItems,
+    addItemsGroupLabel = ADD_TO_QUERY_GROUP_LABEL,
     suggestedItems,
     loading = false,
     onChange,
@@ -256,7 +259,8 @@ const FieldSelectComponent = <T extends Item = Item>({
                     : isCustomDimension(i)
                       ? tableLabelMap.get(i.table)
                       : undefined
-                : undefined,
+                : // Search never matches the group heading
+                  '',
             description: isField(i) ? i.description : undefined,
             disabled: inactiveItemIds.includes(getItemId(i)),
         }));
@@ -291,7 +295,7 @@ const FieldSelectComponent = <T extends Item = Item>({
             ...ungrouped,
             ...groupedData,
             ...(addEntries.length > 0
-                ? [{ group: ADD_TO_QUERY_GROUP_LABEL, items: addEntries }]
+                ? [{ group: addItemsGroupLabel, items: addEntries }]
                 : []),
         ];
     }, [
@@ -302,9 +306,13 @@ const FieldSelectComponent = <T extends Item = Item>({
         hasGrouping,
         tableLabelMap,
         inactiveItemIds,
+        addItemsGroupLabel,
     ]);
 
     const getUiString = useUiStrings();
+
+    // Icons follow the control: the default size overpowers xs text
+    const isCompact = rest.size === 'xs';
 
     const renderOption = useCallback(
         ({ option, checked }: { option: ComboboxItem; checked?: boolean }) => {
@@ -342,6 +350,7 @@ const FieldSelectComponent = <T extends Item = Item>({
                         <FieldIcon
                             className={classes.optionIcon}
                             item={fieldItem}
+                            size={isCompact ? 14 : 'lg'}
                         />
                         <Text
                             span
@@ -358,14 +367,14 @@ const FieldSelectComponent = <T extends Item = Item>({
                         </Text>
                         {checked && (
                             <Box component="span" ml="auto" display="flex">
-                                <CheckIcon size={12} />
+                                <CheckIcon size={isCompact ? 9 : 12} />
                             </Box>
                         )}
                     </Group>
                 </Tooltip>
             );
         },
-        [rest.size, getUiString],
+        [rest.size, isCompact, getUiString],
     );
 
     return (
@@ -380,7 +389,11 @@ const FieldSelectComponent = <T extends Item = Item>({
                 groupLabel: classes.separatorLabel,
             }}
             renderOption={renderOption}
-            leftSection={item ? <FieldIcon item={item} /> : undefined}
+            leftSection={
+                item ? (
+                    <FieldIcon item={item} size={isCompact ? 14 : 'lg'} />
+                ) : undefined
+            }
             placeholder={rest.placeholder ?? 'Search field...'}
             nothingFoundMessage={getUiString('filters.config.noMatchingFields')}
             allowDeselect={false}

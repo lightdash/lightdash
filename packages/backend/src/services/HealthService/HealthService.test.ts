@@ -231,6 +231,46 @@ describe('health', () => {
             expect(health.ai.isAmbientAiEnabled).toBe(expected);
         },
     );
+    it.each([
+        [true, true],
+        [false, false],
+    ])(
+        'reports voice transcription available only with a transcription key (key %s)',
+        async (hasTranscriptionKey, expected) => {
+            const service = new HealthService({
+                organizationModel:
+                    organizationModel as unknown as OrganizationModel,
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    ai: {
+                        ...lightdashConfigMock.ai,
+                        copilot: {
+                            ...lightdashConfigMock.ai.copilot,
+                            providers: {
+                                ...lightdashConfigMock.ai.copilot.providers,
+                                openai: hasTranscriptionKey
+                                    ? lightdashConfigMock.ai.copilot.providers
+                                          .openai
+                                    : undefined,
+                            },
+                        },
+                    },
+                } as typeof lightdashConfigMock,
+                licenseService,
+                migrationModel: migrationModel as unknown as MigrationModel,
+                organizationSettingsModel:
+                    organizationSettingsModel as unknown as OrganizationSettingsModel,
+                learnSandboxService: learnSandboxServiceMock,
+                instanceBrandService,
+                featureFlagModel: featureFlagModelMock,
+            });
+            const health = await service.getHealthState(undefined);
+            expect(health.ai.voiceTranscriptionAvailable).toBe(expected);
+            expect(JSON.stringify(health)).not.toContain(
+                lightdashConfigMock.ai.copilot.providers.openai!.apiKey,
+            );
+        },
+    );
     it('Should return last version as undefined when fails fetch', async () => {
         (getDockerHubVersion as import('vitest').Mock).mockImplementationOnce(
             () => undefined,

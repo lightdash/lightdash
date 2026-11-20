@@ -390,12 +390,12 @@ describe('AiAgentService composer v2 artifact chart stage', () => {
         ]);
         expect(submitted[2]).toMatchObject({
             sourceType: QuerySourceType.DUCKDB,
-            sql: 'SELECT "order_month" AS "composer_result_order_month", "status" AS "composer_result_status", "order_count" AS "composer_result_order_count" FROM "node_result"',
+            sql: 'SELECT "order_month" AS "order_month", "status" AS "status", "order_count" AS "order_count" FROM "node_result"',
             references: { node_result: 'orders_vs_target' },
             pivotConfiguration: {
-                indexColumn: [{ reference: 'composer_result_order_month' }],
-                groupByColumns: [{ reference: 'composer_result_status' }],
-                valuesColumns: [{ reference: 'composer_result_order_count' }],
+                indexColumn: [{ reference: 'order_month' }],
+                groupByColumns: [{ reference: 'status' }],
+                valuesColumns: [{ reference: 'order_count' }],
             },
         });
         expect(result).toMatchObject({
@@ -452,9 +452,9 @@ describe('AiAgentService composer v2 artifact chart stage', () => {
             querySourceService.submitQueries.mock.calls[0][0].queries[2],
         ).toMatchObject({
             pivotConfiguration: {
-                indexColumn: [{ reference: 'composer_result_order_month' }],
-                groupByColumns: [{ reference: 'composer_result_status' }],
-                valuesColumns: [{ reference: 'composer_result_order_count' }],
+                indexColumn: [{ reference: 'order_month' }],
+                groupByColumns: [{ reference: 'status' }],
+                valuesColumns: [{ reference: 'order_count' }],
             },
         });
         expect(result).toMatchObject({ chartStage: { status: 'ok' } });

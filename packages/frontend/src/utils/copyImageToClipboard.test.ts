@@ -35,7 +35,7 @@ describe('copyImageToClipboard', () => {
         } as any;
 
         // Mock document and canvas
-        global.document = {
+        vi.stubGlobal('document', {
             createElement: vi.fn().mockImplementation(() => ({
                 width: 100,
                 height: 100,
@@ -46,7 +46,7 @@ describe('copyImageToClipboard', () => {
                     callback(new Blob());
                 }),
             })),
-        } as any;
+        });
 
         // Mock ClipboardItem
         global.ClipboardItem = class {

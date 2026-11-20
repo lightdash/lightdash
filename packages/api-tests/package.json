@@ -15,7 +15,8 @@
         "test:api": "vitest run --config vitest.config.ts",
         "test:unit": "vitest run --config vitest.unit.config.ts",
         "eval:semantic-studio": "vitest run --config vitest.evals.config.ts evals/semanticStudio.eval.ts",
-        "test:api:watch": "vitest watch --config vitest.config.ts"
+        "test:api:watch": "vitest watch --config vitest.config.ts",
+        "composer-dashboard": "tsx scripts/composer-dashboard.ts"
     },
     "dependencies": {
         "@lightdash/common": "workspace:*",
@@ -28,6 +29,6 @@
         "pg": "8.13.1",
         "tsrs": "0.21.0-ts7.1.0-beta",
         "typescript": "7.0.2",
-        "vitest": "4.1.11"
+        "vitest": "5.1.0"
     }
 }

@@ -14,6 +14,7 @@ const PREVIEW_TOKEN_AUDIENCE = 'app-preview';
 export type PreviewTokenPayload = {
     type: typeof PREVIEW_TOKEN_TYPE;
     appUuid: string;
+    appSlug?: string;
     version: number;
     userUuid: string;
     organizationUuid: string;
@@ -82,6 +83,7 @@ export const mintPreviewToken = (
     projectUuid: string,
     browserImageOrigins: string[] = [],
     viewContext: PreviewTokenPayload['viewContext'] = 'unknown',
+    appSlug?: string,
 ): string => {
     const normalizedOrigins = normalizeBrowserImageOrigins(browserImageOrigins);
     if (!normalizedOrigins) {
@@ -92,6 +94,7 @@ export const mintPreviewToken = (
         {
             type: PREVIEW_TOKEN_TYPE,
             appUuid,
+            appSlug,
             version,
             userUuid,
             organizationUuid,

@@ -1,4 +1,4 @@
-import { getItemId } from '../utils/item';
+import { getItemId, RESULT_COLUMN_TABLE } from '../utils/item';
 import {
     BinType,
     convertFieldRefToFieldId,
@@ -54,6 +54,17 @@ describe('field util functions', () => {
             expect(
                 getItemId({ table: 'table_test', name: 'field_test.nested' }),
             ).toEqual('table_test_field_test__nested');
+        });
+        it('should return the column name for result column fields', () => {
+            expect(
+                getItemId({ table: RESULT_COLUMN_TABLE, name: 'revenue' }),
+            ).toEqual('revenue');
+            expect(
+                getItemId({
+                    table: RESULT_COLUMN_TABLE,
+                    name: 'orders.status',
+                }),
+            ).toEqual('orders__status');
         });
         it('should return item id for custom dimensions', async () => {
             const bin: CustomBinDimension = {

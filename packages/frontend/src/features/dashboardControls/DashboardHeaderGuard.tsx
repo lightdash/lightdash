@@ -7,7 +7,7 @@ import { useIsControlEdited } from './useIsControlEdited';
 type Props = ComponentProps<typeof DashboardHeader>;
 
 // While a filter is edited the header is inert, Save and Cancel included:
-// Apply or Cancel in the rail ends the filter, then Save ends the dashboard.
+// Apply or Cancel in the editor ends the filter, then Save ends the dashboard.
 // A viewer's filter leaves the dashboard as it is: nothing to lock
 export const DashboardHeaderGuard: FC<Props> = (props) => {
     // A filter or a parameter control, edited in edit mode

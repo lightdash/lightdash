@@ -19,17 +19,20 @@ import {
     type ParametersValuesMap,
 } from '@lightdash/common';
 import { createSelector } from '@reduxjs/toolkit';
-import type { ExplorerStoreState } from '.';
 import {
     ExplorerSection,
     type MapExtent,
 } from '../../../providers/Explorer/types';
 import { cleanConfig } from '../../../providers/Explorer/utils';
+import type { ExplorerRootState } from './history';
 
 const EMPTY_METRIC_OVERRIDES: MetricOverrides = {};
 const EMPTY_PARAMETERS: ParametersValuesMap = {};
 
 // Base selectors
+// Selectors read the explorer alone, so they also take a state without history
+type ExplorerStoreState = Pick<ExplorerRootState, 'explorer'>;
+
 const selectExplorerState = (state: ExplorerStoreState) => state.explorer;
 
 // Unsaved chart version for rendering
@@ -59,6 +62,16 @@ export const selectMetricQuery = createSelector(
     (unsavedChartVersion) => unsavedChartVersion.metricQuery,
 );
 
+// Chart, results and SQL have nothing to show until a field is selected
+export const selectHasSelectedFields = createSelector(
+    [selectMetricQuery],
+    (metricQuery) =>
+        metricQuery.dimensions.length +
+            metricQuery.metrics.length +
+            metricQuery.tableCalculations.length >
+        0,
+);
+
 const selectExpandedSections = createSelector(
     [selectExplorerState],
     (explorer) => explorer.expandedSections,
@@ -76,19 +89,22 @@ export const selectIsParametersExpanded = createSelector(
 );
 
 export const selectIsVisualizationExpanded = createSelector(
-    [selectExpandedSections],
-    (expandedSections) =>
+    [selectExpandedSections, selectHasSelectedFields],
+    (expandedSections, hasSelectedFields) =>
+        hasSelectedFields &&
         expandedSections.includes(ExplorerSection.VISUALIZATION),
 );
 
 export const selectIsSqlExpanded = createSelector(
-    [selectExpandedSections],
-    (expandedSections) => expandedSections.includes(ExplorerSection.SQL),
+    [selectExpandedSections, selectHasSelectedFields],
+    (expandedSections, hasSelectedFields) =>
+        hasSelectedFields && expandedSections.includes(ExplorerSection.SQL),
 );
 
 export const selectIsResultsExpanded = createSelector(
-    [selectExpandedSections],
-    (expandedSections) => expandedSections.includes(ExplorerSection.RESULTS),
+    [selectExpandedSections, selectHasSelectedFields],
+    (expandedSections, hasSelectedFields) =>
+        hasSelectedFields && expandedSections.includes(ExplorerSection.RESULTS),
 );
 
 export const selectIsVisualizationConfigOpen = createSelector(

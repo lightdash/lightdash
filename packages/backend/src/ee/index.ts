@@ -1,9 +1,11 @@
 import express, { Express } from 'express';
 import { AppArguments } from '../App';
+import { isMobileAppAccessEnabled } from '../auth/mobileAppAccess';
 import {
     createPullRequestComment,
     getInstallationToken,
     getPullRequest,
+    getPullRequestComments,
 } from '../clients/github/Github';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
@@ -70,6 +72,7 @@ import { ReleaseHighlightsModel } from './models/ReleaseHighlightsModel';
 import { SandboxRegistryModel } from './models/SandboxRegistryModel';
 import { SchedulerAiAugmentationModel } from './models/SchedulerAiAugmentationModel';
 import { ScimRequestLogModel } from './models/ScimRequestLogModel';
+import { SemanticStudioWorkspaceModel } from './models/SemanticStudioWorkspaceModel';
 import { ServiceAccountModel } from './models/ServiceAccountModel';
 import { createLightdashPgWireHandlers } from './postgresWire/lightdashHandlers';
 import { PostgresWireServer } from './postgresWire/PostgresWireServer';
@@ -107,6 +110,7 @@ import { AppStateService } from './services/AppStateService/AppStateService';
 import { PreAggregateStrategy } from './services/AsyncQueryService/PreAggregateStrategy';
 import { PreAggregationDuckDbClient } from './services/AsyncQueryService/PreAggregationDuckDbClient';
 import { PreAggregationExternalResolver } from './services/AsyncQueryService/PreAggregationExternalResolver';
+import { BillingService } from './services/BillingService/BillingService';
 import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
 import { ContentReviewNotificationService } from './services/ContentReviewNotificationService/ContentReviewNotificationService';
@@ -133,6 +137,7 @@ import { createPlaygroundAppFileStore } from './services/ProjectService/playgrou
 import { provisionPlaygroundProject } from './services/ProjectService/provisionPlaygroundProject';
 import { seedTrainingCopyAgentDocuments } from './services/ProjectService/seedPlaygroundAgentDocuments';
 import { seedPlaygroundContent } from './services/ProjectService/seedPlaygroundContent';
+import { seedTrainingCopyDeepResearchDocument } from './services/ProjectService/seedPlaygroundDeepResearchDocument';
 import { seedPlaygroundMetricsTrees } from './services/ProjectService/seedPlaygroundMetricsTrees';
 import { ReleaseHighlightsService } from './services/ReleaseHighlightsService/ReleaseHighlightsService';
 import { RoadmapService } from './services/RoadmapService/RoadmapService';
@@ -198,7 +203,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 context,
             }) =>
                 new AnalyticsProjectService({
+                    analytics: context.lightdashAnalytics,
                     lightdashConfig: context.lightdashConfig,
+                    appModel: models.getAppModel(),
+                    getAppGenerateService: () =>
+                        repository.getAppGenerateService<AppGenerateService>(),
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     getAiAgentService: () =>
                         repository.getAiAgentService<AiAgentService>(),
@@ -237,6 +246,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 const scheduler =
                     clients.getSchedulerClient() as CommercialSchedulerClient;
                 const apnsClient = clients.getApnsClient();
+                const isMobileAccessEnabled = (organizationUuid: string) =>
+                    isMobileAppAccessEnabled(
+                        models.getFeatureFlagModel(),
+                        organizationUuid,
+                    );
                 const reconciler = new MobilePushNotificationReconciler({
                     notificationStore,
                     threadStore,
@@ -244,6 +258,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     fcmClient: clients.getFcmClient(),
                     scheduler,
                     analytics: context.lightdashAnalytics,
+                    isMobileAppAccessEnabled: isMobileAccessEnabled,
                     completionAlert: undefined,
                 });
                 return new MobilePushNotificationService({
@@ -256,6 +271,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     reconciler,
                     analytics: context.lightdashAnalytics,
                     apnsClient,
+                    isMobileAppAccessEnabled: isMobileAccessEnabled,
                 });
             },
             oauthService: ({ models, context, repository }) =>
@@ -274,6 +290,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                 userId,
                                 clientId,
                             }),
+                    onMobileAccessDenied: (grant) =>
+                        models
+                            .getMobilePushNotificationModel<MobilePushNotificationModel>()
+                            .deleteInstallationsOfGrant(grant),
                 }),
             linearAppService: ({ models, context, utils }) => {
                 const aiAgentReviewNotificationModel =
@@ -427,6 +447,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     projectModelDocumentModel:
                         models.getProjectModelDocumentModel<ProjectModelDocumentModel>(),
+                    workspaceModel:
+                        models.getSemanticStudioWorkspaceModel<SemanticStudioWorkspaceModel>(),
                     projectService: repository.getProjectService(),
                     validationService: repository.getValidationService(),
                     repoModels: new RepoModelSource({
@@ -434,6 +456,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             models.getGithubAppInstallationsModel(),
                     }),
                     savedChartModel: models.getSavedChartModel(),
+                    jobModel: models.getJobModel(),
+                    projectCompileLogModel: models.getProjectCompileLogModel(),
+                    writebackPreviewService:
+                        repository.getWritebackPreviewService<WritebackPreviewService>(),
+                    aiWritebackService:
+                        repository.getAiWritebackService<AiWritebackService>(),
+                    fileStorageClient: clients.getFileStorageClient(),
                 }),
             homepageRecommendedActionSkipsService: ({ models }) =>
                 new HomepageRecommendedActionSkipsService({
@@ -549,6 +578,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         createPullRequestComment,
                         getInstallationToken,
                         getPullRequest,
+                        getPullRequestComments,
                     },
                 }),
             externalSourceService: ({ context, models, clients }) =>
@@ -574,14 +604,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 registry.register(
                     new ApiQuerySource({
                         asyncQueryService: repository.getAsyncQueryService(),
-                        getApiConnector: (
-                            account,
-                            projectUuid,
-                            connectionUuid,
-                        ) =>
+                        getLiveSource: (account, projectUuid, connectionUuid) =>
                             repository
                                 .getExternalConnectionService<ExternalConnectionService>()
-                                .getApiConnector(
+                                .getLiveSource(
                                     account,
                                     projectUuid,
                                     connectionUuid,
@@ -641,6 +667,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getSpacePermissionService(),
                     coderService: repository.getCoderService(),
                     documentService: repository.getDocumentService(),
+                    composerChartService: repository.getComposerChartService(),
                     dashboardService: repository.getDashboardService(),
                     projectService: repository.getProjectService(),
                     promoteService: repository.getPromoteService(),
@@ -675,11 +702,18 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     }),
                     contentVerificationModel:
                         models.getContentVerificationModel(),
+                    contentDraftModel: models.getContentDraftModel(),
                 }),
             roadmapService: ({ context }) =>
                 new RoadmapService({
                     analytics: context.lightdashAnalytics,
                     lightdashConfig: context.lightdashConfig,
+                }),
+            billingService: ({ context, models }) =>
+                new BillingService({
+                    analytics: context.lightdashAnalytics,
+                    lightdashConfig: context.lightdashConfig,
+                    featureFlagModel: models.getFeatureFlagModel(),
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({
@@ -774,6 +808,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     dashboardModel: models.getDashboardModel(),
                     savedChartService: repository.getSavedChartService(),
                     savedSqlService: repository.getSavedSqlService(),
+                    composerChartService: repository.getComposerChartService(),
                     savedChartModel: models.getSavedChartModel(),
                     coderService: repository.getCoderService(),
                     contentService: repository.getContentService(),
@@ -862,6 +897,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     dashboardService: repository.getDashboardService(),
                     documentService: repository.getDocumentService(),
                     savedChartService: repository.getSavedChartService(),
+                    savedSqlService: repository.getSavedSqlService(),
+                    composerChartService: repository.getComposerChartService(),
                     contentService: repository.getContentService(),
                     aiCreditService:
                         repository.getAiCreditService<AiCreditService>(),
@@ -962,6 +999,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiAgentService<AiAgentService>(),
                     dashboardService: repository.getDashboardService(),
                     savedChartService: repository.getSavedChartService(),
+                    featureFlagModel: models.getFeatureFlagModel(),
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
                         featureFlagModel: models.getFeatureFlagModel(),
@@ -1072,8 +1110,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         aiModelCatalog,
                     }),
                 }),
-            schedulerAiAugmentationService: ({ models, repository }) =>
+            schedulerAiAugmentationService: ({ models, repository, context }) =>
                 new SchedulerAiAugmentationService({
+                    lightdashConfig: context.lightdashConfig,
                     agentPermissionService:
                         repository.getAgentPermissionService(),
                     featureFlagModel: models.getFeatureFlagModel(),
@@ -1092,8 +1131,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiAgentService<AiAgentService>(),
                     aiService: repository.getAiService<AiService>(),
                 }),
-            appStateService: ({ models, repository }) =>
+            appStateService: ({ models, repository, context }) =>
                 new AppStateService({
+                    analytics: context.lightdashAnalytics,
                     appStateModel: models.getAppStateModel<AppStateModel>(),
                     appModel: models.getAppModel(),
                     projectModel: models.getProjectModel(),
@@ -1407,13 +1447,34 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                 }),
                             analytics: context.lightdashAnalytics,
                         }),
-                    seedTrainingCopyEnterpriseContent: (args) =>
-                        seedTrainingCopyAgentDocuments({
-                            ...args,
-                            aiAgentModel: models.getAiAgentModel(),
-                            aiAgentDocumentModel:
-                                models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
-                        }),
+                    seedTrainingCopyEnterpriseContent: async (args) => {
+                        // Each sample seeds on its own, so one failing still
+                        // leaves the other in the copy.
+                        const results = await Promise.allSettled([
+                            seedTrainingCopyAgentDocuments({
+                                ...args,
+                                aiAgentModel: models.getAiAgentModel(),
+                                aiAgentDocumentModel:
+                                    models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
+                            }),
+                            args.spaceUuid &&
+                                seedTrainingCopyDeepResearchDocument({
+                                    projectUuid: args.projectUuid,
+                                    spaceUuid: args.spaceUuid,
+                                    createdByUserUuid: args.createdByUserUuid,
+                                    documentModel: models.getDocumentModel(),
+                                    aiDeepResearchRunModel:
+                                        models.getAiDeepResearchRunModel<AiDeepResearchRunModel>(),
+                                    aiAgentModel:
+                                        models.getAiAgentModel<AiAgentModel>(),
+                                }),
+                        ]);
+                        const failure = results.find(
+                            (result): result is PromiseRejectedResult =>
+                                result.status === 'rejected',
+                        );
+                        if (failure) throw failure.reason;
+                    },
                     provisionTrainingProject: ({ user, projectService }) =>
                         provisionTrainingProject({
                             user,
@@ -1506,6 +1567,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     refreshTokenRotation: models.getRefreshTokenRotation(),
                     aiAccessService: repository.getAiAccessService(),
                     getDocumentService: () => repository.getDocumentService(),
+                    getComposerChartService: () =>
+                        repository.getComposerChartService(),
                     contentDraftModel: models.getContentDraftModel(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
@@ -1565,14 +1628,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getPersistentDownloadFileService(),
                     organizationAccessService:
                         repository.getOrganizationAccessService(),
-                    getApiSourceConnector: (
+                    getLiveSourceForExplore: (
                         account,
                         projectUuid,
                         connectionUuid,
                     ) =>
                         repository
                             .getExternalConnectionService<ExternalConnectionService>()
-                            .getApiSourceConnector(
+                            .getLiveSourceForExplore(
                                 account,
                                 projectUuid,
                                 connectionUuid,
@@ -1752,6 +1815,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new HomepageRecommendedActionSkipsModel({ database }),
             projectModelDocumentModel: ({ database }) =>
                 new ProjectModelDocumentModel({ database }),
+            semanticStudioWorkspaceModel: ({ database }) =>
+                new SemanticStudioWorkspaceModel({ database }),
             aiAgentModel: ({ database, utils }) =>
                 new AiAgentModel({
                     database,
@@ -1932,6 +1997,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 aiUsageLedgerModel: context.models.getAiUsageLedgerModel(),
                 learnSandboxService:
                     context.serviceRepository.getLearnSandboxService(),
+                composerChartService:
+                    context.serviceRepository.getComposerChartService(),
                 managedAgentService:
                     context.serviceRepository.getManagedAgentService<ManagedAgentService>(),
                 appGenerateService:

@@ -98,13 +98,6 @@ describe('StartOfWeekSelect', () => {
         ).toBeInTheDocument();
     });
 
-    it('shows no alert for a dbt Cloud / GitHub connection when the timezone flag is on', async () => {
-        mockFlag(true);
-        renderStartOfWeekSelect({ dbt: githubDbt, startOfWeek: 0 });
-
-        await expectNoAlert();
-    });
-
     it('shows the CLI option alert with the day name when the timezone flag is off for a CLI-deployed project', async () => {
         mockFlag(false);
         renderStartOfWeekSelect({ dbt: cliDeployedDbt, startOfWeek: 0 });

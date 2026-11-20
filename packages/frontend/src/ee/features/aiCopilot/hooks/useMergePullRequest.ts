@@ -1,7 +1,7 @@
 import {
     type ApiError,
     type CiChecks,
-    type MergePullRequestResult,
+    type WritebackMergeResult,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type LightdashApi } from '../../../../api';
@@ -18,8 +18,8 @@ const mergePullRequest = (
     lightdashApi: LightdashApi,
     projectUuid: string,
     { prUrl, sha }: MergeArgs,
-): Promise<MergePullRequestResult> =>
-    lightdashApi<MergePullRequestResult>({
+): Promise<WritebackMergeResult> =>
+    lightdashApi<WritebackMergeResult>({
         version: 'v1',
         url: `/ee/projects/${projectUuid}/ai-writeback/merge-pull-request`,
         method: 'POST',
@@ -37,7 +37,7 @@ export const useMergePullRequest = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
 
-    return useMutation<MergePullRequestResult, ApiError, MergeArgs>({
+    return useMutation<WritebackMergeResult, ApiError, MergeArgs>({
         mutationFn: (args) => mergePullRequest(lightdashApi, projectUuid, args),
         onSuccess: (result, { prUrl }) => {
             // No success toast — the PR card flips to its "Merged" state with

@@ -1396,7 +1396,8 @@ export class AppModel {
                 `${AppsTableName}.description`,
                 `${AppsTableName}.icon`,
                 `${AppsTableName}.add_analysis_dismissed_at`,
-                `${AppsTableName}.created_by_user_uuid`,
+                // Aliased: `app_versions.*` already has the version author's uuid.
+                `${AppsTableName}.created_by_user_uuid as app_created_by_user_uuid`,
                 `${AppsTableName}.space_uuid`,
                 `${SpaceTableName}.name as space_name`,
                 `${AppsTableName}.template`,
@@ -1426,7 +1427,7 @@ export class AppModel {
                 description: string;
                 icon: string | null;
                 add_analysis_dismissed_at: Date | null;
-                created_by_user_uuid: string;
+                app_created_by_user_uuid: string;
                 space_uuid: string | null;
                 space_name: string | null;
                 template: DbApp['template'];
@@ -1451,7 +1452,7 @@ export class AppModel {
             description,
             icon,
             add_analysis_dismissed_at: addAnalysisDismissedAt,
-            created_by_user_uuid: createdByUserUuid,
+            app_created_by_user_uuid: createdByUserUuid,
             space_uuid: spaceUuid,
             space_name: spaceName,
             template,
@@ -1473,7 +1474,7 @@ export class AppModel {
                     description: string;
                     icon: string | null;
                     add_analysis_dismissed_at: Date | null;
-                    created_by_user_uuid: string;
+                    app_created_by_user_uuid: string;
                     space_uuid: string | null;
                     space_name: string | null;
                     template: DbApp['template'];

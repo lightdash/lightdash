@@ -31,6 +31,7 @@ describe('metric query intent review', () => {
             });
             const tool = getRunMetricQuery({
                 agentContext: new AgentContext([validExplore]),
+                getExplore: async () => validExplore,
                 decisions,
                 runAsyncQuery,
                 maxLimit: 50,
@@ -88,6 +89,7 @@ describe('metric query intent review', () => {
         });
         const tool = getRunMetricQuery({
             agentContext: new AgentContext([validExplore]),
+            getExplore: async () => validExplore,
             runAsyncQuery,
             maxLimit: 50,
         });
@@ -149,6 +151,7 @@ const executeTool = async (
         runAsyncQuery,
         maxLimit: 500,
         agentContext: new AgentContext([validExplore]),
+        getExplore: async () => validExplore,
     });
     if (metricQueryTool.execute === undefined) {
         throw new Error('Expected the tool to define execute');

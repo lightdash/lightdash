@@ -9,6 +9,7 @@ import {
 /* eslint-disable max-classes-per-file */
 import { type AnyType } from './any';
 import { type DbtLog } from './job';
+import { MOBILE_ORG_DISABLED_CODE } from './mobileSignIn';
 import type { SharedSignInExpiry } from './sharedSignIn';
 import type { WarehousePhaseTimings, WarehouseQueryPhase } from './warehouse';
 
@@ -68,6 +69,9 @@ export class ForbiddenError extends LightdashError {
 }
 
 export const FEATURE_NOT_ENABLED_CODE = 'feature_not_enabled';
+
+/** On a 403: the data app version in use is no longer the latest ready one. */
+export const DATA_APP_NEWER_VERSION_CODE = 'data_app_newer_version';
 
 export class FeatureNotEnabledError extends ForbiddenError {
     constructor(featureFlagId: string) {
@@ -174,6 +178,24 @@ export class DeactivatedAccountError extends LightdashError {
             statusCode: 403,
             data,
         });
+    }
+}
+
+export class MobileOrgDisabledError
+    extends LightdashError
+    implements ExpectedError
+{
+    constructor(organizationUuid: string) {
+        super({
+            message: "Mobile access isn't enabled for your organisation",
+            name: 'MobileOrgDisabledError',
+            statusCode: 401,
+            data: { code: MOBILE_ORG_DISABLED_CODE, organizationUuid },
+        });
+    }
+
+    get isExpected(): true {
+        return true;
     }
 }
 

@@ -403,6 +403,7 @@ export class MicrosoftTeamsClient {
                                 switch (f.type) {
                                     case PartialFailureType.DASHBOARD_CHART:
                                     case PartialFailureType.DASHBOARD_SQL_CHART:
+                                    case PartialFailureType.DASHBOARD_COMPOSER_CHART:
                                         return {
                                             type: 'TextBlock',
                                             text: `- **${f.chartName}:** ${f.error}`,
@@ -478,6 +479,7 @@ export class MicrosoftTeamsClient {
                             switch (f.type) {
                                 case PartialFailureType.DASHBOARD_CHART:
                                 case PartialFailureType.DASHBOARD_SQL_CHART:
+                                case PartialFailureType.DASHBOARD_COMPOSER_CHART:
                                     return {
                                         type: 'TextBlock',
                                         text: `- **${f.chartName}:** ${f.error}`,

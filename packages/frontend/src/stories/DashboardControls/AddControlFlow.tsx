@@ -1,7 +1,7 @@
 import { Box, Paper, SimpleGrid, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { ControlsBar } from '../../features/dashboardControls/ControlsBar';
-import { ControlsSidebarProvider } from '../../features/dashboardControls/ControlsSidebarProvider';
+import { ControlsEditorProvider } from '../../features/dashboardControls/ControlsEditorProvider';
 import { DateZoomTileOverlays } from '../../features/dashboardControls/DateZoomTileOverlay';
 import { DateZoomTilesBar } from '../../features/dashboardControls/DateZoomTilesBar';
 import { FilterBarPopoversProvider } from '../../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
@@ -16,7 +16,7 @@ export const AddControlFlow: FC<{
     withTiles?: boolean;
 }> = ({ isEditMode = true, withTiles = false }) => {
     return (
-        <ControlsSidebarProvider isEditMode={isEditMode}>
+        <ControlsEditorProvider isEditMode={isEditMode}>
             <FilterBarPopoversProvider>
                 <ControlsBar
                     isEditMode={isEditMode}
@@ -69,6 +69,6 @@ export const AddControlFlow: FC<{
                     <DateZoomTilesBar />
                 </>
             )}
-        </ControlsSidebarProvider>
+        </ControlsEditorProvider>
     );
 };

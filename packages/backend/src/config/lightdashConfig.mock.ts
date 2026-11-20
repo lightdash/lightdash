@@ -195,7 +195,6 @@ export const lightdashConfigMock: LightdashConfig = {
     results: {
         cacheStateTimeSeconds: 0,
         cacheEnabled: null,
-        autocompleteEnabled: false,
         s3: {
             endpoint: 'mock_endpoint',
             bucket: 'mock_bucket',
@@ -220,6 +219,7 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
         pollInterval: 1000,
         jobTimeout: 0,
+        queryPollingTimeout: 5 * 60 * 1000,
         shutdownTimeout: 60_000,
         tasks: ALL_TASK_NAMES,
         quiesce: {
@@ -349,7 +349,6 @@ export const lightdashConfigMock: LightdashConfig = {
                     apiKey: 'mock_api_key',
                     modelName: 'gpt-5.4',
                     embeddingModelName: 'text-embedding-3-small',
-                    zeroDataRetention: false,
                     useChatCompletions: false,
                     customHeaders: {},
                     supportsStreaming: true,
@@ -472,6 +471,9 @@ export const lightdashConfigMock: LightdashConfig = {
     dashboardComments: {
         enabled: true,
     },
+    mergeQueryAuthoring: {
+        enabled: true,
+    },
     externalSources: {
         maxFileSizeBytes: 100 * 1024 * 1024,
         maxRows: 1_000_000,
@@ -490,6 +492,7 @@ export const lightdashConfigMock: LightdashConfig = {
         parquetEnabled: false,
         materializationMaxRows: null,
         duckdbQueryMemoryLimit: null,
+        duckdbWriteMemoryLimit: '256MB',
         s3: {
             endpoint: 'mock_endpoint',
             bucket: 'mock_preagg_bucket',

@@ -9,10 +9,12 @@ import {
     PivotConfig,
     PivotConfiguration,
     type AgentIdentityClaim,
+    type AnalyticsActivityWindow,
     type AndFilterGroup,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiSourcePayload,
     type CacheMetadata,
+    type ComposerChartRunSource,
     type ConditionalFormattingConfig,
     type DashboardFilters,
     type DateZoom,
@@ -43,14 +45,45 @@ import {
     type WarehouseTypes,
 } from '@lightdash/common';
 import type { OnboardingFlow } from '../../analytics/LightdashAnalytics';
+import type { LightdashConfig } from '../../config/parseConfig';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
 import type { ConnectionRouteWithOriginal } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import type {
     QueryComposer,
     TotalConfiguration,
 } from '../../utils/QueryBuilder/QueryComposer';
+import type { ComposerRunBinding } from '../ComposerChartService/ComposerRunBinding';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
-import type { MeteredApiConnector } from '../QuerySourceService/api/ApiConnector';
+import type { MeteredLiveSource } from '../QuerySourceService/live/calls';
+import type { QueryPollingSource } from './queryPollingSource';
+
+/** Who vouches for a query's content: the caller, or a stored chart the caller may view. */
+export type RequestAuthority = { kind: 'request' };
+export type DocumentAuthority = {
+    kind: 'document';
+    context: DocumentQueryContext;
+};
+export type ComposerAuthority = {
+    kind: 'composer';
+    binding: ComposerRunBinding;
+};
+export type QueryRunAuthority =
+    | RequestAuthority
+    | DocumentAuthority
+    | ComposerAuthority;
+
+export const REQUEST_AUTHORITY: RequestAuthority = { kind: 'request' };
+
+export const getDocumentQueryContext = (
+    authority: QueryRunAuthority,
+): DocumentQueryContext | undefined =>
+    authority.kind === 'document' ? authority.context : undefined;
+
+/** The trusted stamp a bound composer run leaves on its query history row. */
+export const getComposerChartSource = (
+    authority: QueryRunAuthority,
+): ComposerChartRunSource | undefined =>
+    authority.kind === 'composer' ? authority.binding.stamp : undefined;
 
 export type CommonAsyncQueryArgs = {
     querySurface?: QuerySurface;
@@ -96,6 +129,7 @@ export type DownloadAsyncQueryResultsArgs = Omit<
     expirationSecondsOverride?: number;
     conditionalFormattings?: ConditionalFormattingConfig[];
     showColumnTotals?: boolean;
+    showSubtotals?: boolean;
 };
 
 export type ScheduleDownloadAsyncQueryResultsArgs = Omit<
@@ -114,7 +148,8 @@ export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
-    documentQueryContext?: DocumentQueryContext;
+    /** Absent means the caller's own query, under every write gate. */
+    authority?: QueryRunAuthority;
     metricQuery: MetricQuery;
     limit?: number | null | undefined;
     dataAppPreviewToken?: string;
@@ -145,6 +180,7 @@ export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
     // Silent-drop semantics for fields outside the chart's explore — unlike
     // filterOverrides, which fails the run on unknown fields.
     dashboardFilters?: DashboardFilters;
+    includeUnpublishedDraft?: boolean;
 };
 
 export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
@@ -205,6 +241,7 @@ export type PreAggregationRoute = {
 };
 
 export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
+    authority?: RequestAuthority | ComposerAuthority;
     sql: string;
     limit?: number;
     pivotConfiguration?: PivotConfiguration;
@@ -233,6 +270,7 @@ export type EstimateAsyncSqlQueryArgs = Pick<
 >;
 
 export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
+    authority?: RequestAuthority | ComposerAuthority;
     sql: string;
     limit?: number;
     /** Table name -> queryUuid of a previous async query to expose as that table. */
@@ -242,6 +280,7 @@ export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncPythonQueryArgs = CommonAsyncQueryArgs & {
+    authority?: RequestAuthority | ComposerAuthority;
     /** Python source defining run(inputs, params) -> pandas.DataFrame. */
     code: string;
     limit?: number;
@@ -252,7 +291,7 @@ export type ExecuteAsyncPythonQueryArgs = CommonAsyncQueryArgs & {
 export type ExecuteAsyncApiQueryArgs = CommonAsyncQueryArgs & {
     connectionUuid: string;
     /** Resolved through the connection, which checks the caller may use it. */
-    connector: MeteredApiConnector;
+    source: MeteredLiveSource;
     payload: ApiSourcePayload;
     limit?: number;
 };
@@ -265,7 +304,7 @@ export type ExecuteAsyncExternalSqlQueryArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
-    documentQueryContext?: DocumentQueryContext;
+    authority?: RequestAuthority | DocumentAuthority;
     mergeQuery: MergeQuery;
     mode: MergeQueryExecutionMode;
     chart?: MergeQueryChart;
@@ -324,6 +363,7 @@ export type PollingOptions = {
     initialBackoffMs?: number;
     maxBackoffMs?: number;
     timeoutMs?: number;
+    source?: QueryPollingSource;
 };
 
 /**
@@ -334,6 +374,14 @@ export const SCHEDULER_POLLING_OPTIONS: PollingOptions = {
     initialBackoffMs: 2000,
     maxBackoffMs: 5000,
 };
+
+export const getSchedulerPollingOptions = (
+    lightdashConfig: Pick<LightdashConfig, 'scheduler'>,
+): PollingOptions => ({
+    ...SCHEDULER_POLLING_OPTIONS,
+    timeoutMs: lightdashConfig.scheduler.queryPollingTimeout,
+    source: 'scheduler',
+});
 
 /** A pre-built client that runs the query instead of the project warehouse. */
 export type WarehouseClientOverride = {
@@ -349,6 +397,7 @@ export type WarehouseExecutionSource =
     | WarehouseClientOverride['executionSource'];
 
 export type RunAsyncWarehouseQueryArgs = {
+    analyticsActivityWindow?: AnalyticsActivityWindow;
     authMethod?: QueryResultProducer['authMethod'];
     resultEntitlementFingerprint?: string | null;
     agentIdentity?: AgentIdentityClaim | null;
@@ -489,6 +538,7 @@ export type QueryHistoryActor = {
 };
 
 export type ExecuteAsyncDuckdbSourceQueryArgs = CommonAsyncQueryArgs & {
+    authority?: RequestAuthority | ComposerAuthority;
     sql: string;
     limit?: number;
     /** Table name -> queryUuid of a previous async query to expose as that table. */

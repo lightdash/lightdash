@@ -5,8 +5,11 @@
         "analyzeFieldImpact",
         "getMetadata",
         "grepFields",
+        "grepWarehouseColumns",
+        "listChanges",
         "proposeSemanticLayerChange",
         "readSemanticModel",
+        "runMetricQuery",
         "runSql",
         "searchFieldValues",
         "searchSemanticLayer"

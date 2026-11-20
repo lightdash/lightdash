@@ -138,6 +138,9 @@ describe.each([false, true])(
                 agentActionLogModel: { insert: insertAgentAction },
                 schedulerClient: { slackAiArtifactImages },
                 aiAgentModel: {
+                    findSlackChannelServiceAccount: vi
+                        .fn()
+                        .mockResolvedValue(null),
                     findSlackPrompt: vi.fn().mockResolvedValue(slackPrompt),
                     getThreadMessages: vi.fn().mockResolvedValue([]),
                     findThread: vi.fn().mockResolvedValue({ agentUuid: null }),

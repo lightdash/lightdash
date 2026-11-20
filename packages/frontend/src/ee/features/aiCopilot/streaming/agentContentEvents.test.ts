@@ -14,7 +14,7 @@ const successMetadata = (uuid: string, slug: string) => ({
 
 const editPart = (
     toolCallId: string,
-    type: 'chart' | 'dashboard' | 'sql_chart',
+    type: 'chart' | 'dashboard' | 'sql_chart' | 'composer_chart',
     uuid: string,
     overrides: Partial<{ isPreliminary: boolean; status: string }> = {},
 ) =>
@@ -115,7 +115,7 @@ describe('planAgentContentEvents', () => {
         ]);
     });
 
-    it('skips handled, unfinished, failed and SQL chart tool calls', () => {
+    it('skips handled, unfinished, failed and unsupported chart tool calls', () => {
         const plan = planAgentContentEvents({
             parts: [
                 editPart('handled', 'dashboard', 'd1'),
@@ -124,6 +124,7 @@ describe('planAgentContentEvents', () => {
                 }),
                 editPart('failed', 'chart', 'c1', { status: 'error' }),
                 editPart('sql', 'sql_chart', 's1'),
+                editPart('composer', 'composer_chart', 'cc1'),
             ],
             handledToolCallIds: new Set(['handled']),
         });

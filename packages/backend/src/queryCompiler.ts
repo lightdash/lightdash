@@ -29,6 +29,8 @@ import {
     MetricQuery,
     MetricType,
     PivotConfiguration,
+    quoteFieldReference,
+    resolveAdditionalMetricsSql,
     TableCalculation,
     TableCalculationTemplate,
     type WarehouseSqlBuilder,
@@ -40,7 +42,6 @@ import {
 } from '@lightdash/formula';
 import { mapAdapterToFormulaDialect } from './formulaDialectMapper';
 import { compileTableCalculationFromTemplate } from './tableCalculationTemplateQueryCompiler';
-import { resolveAdditionalMetricsSql } from './utils/embedCompiledSql';
 import { getDimensionFromId } from './utils/QueryBuilder/utils';
 
 const formatFormulaError = (displayName: string, error: unknown): string => {
@@ -404,11 +405,14 @@ export function compilePostCalculationMetric({
     }
 
     const groupByColumns = pivotConfiguration?.groupByColumns ?? [];
-    const q = warehouseSqlBuilder.getFieldQuoteChar();
+    const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+    const adapterType = warehouseSqlBuilder.getAdapterType();
+    const quoteReference = (reference: string) =>
+        quoteFieldReference(reference, fieldQuoteChar, adapterType);
     const partitionByClause: string | undefined =
         groupByColumns.length > 0
             ? `PARTITION BY ${groupByColumns
-                  .map((col) => `${q}${col.reference}${q}`)
+                  .map(({ reference }) => quoteReference(reference))
                   .join(', ')}`
             : undefined;
 
@@ -445,7 +449,7 @@ export function compilePostCalculationMetric({
         const indexPartitionByClause: string | undefined =
             isPivoted && indexColumns.length > 0
                 ? `PARTITION BY ${indexColumns
-                      .map((col) => `${q}${col.reference}${q}`)
+                      .map(({ reference }) => quoteReference(reference))
                       .join(', ')}`
                 : undefined;
         return (

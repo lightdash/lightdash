@@ -13,7 +13,12 @@ import { postgresWarehouseConfig } from '../helpers/projects';
 const REPLY_TIMEOUT_MS = 840_000;
 
 type ThreadMessages = {
-    messages: { role: string; status?: string; message: string | null }[];
+    messages: {
+        role: string;
+        status?: string;
+        message: string | null;
+        toolCalls?: { toolName: string }[];
+    }[];
 };
 
 /**
@@ -21,7 +26,7 @@ type ThreadMessages = {
  * each case asks for one thing in a fresh thread and scores what lands in the
  * person's draft. Cases run in order and build on the draft so far.
  */
-describe.sequential('Semantic Studio agent', () => {
+describe('Semantic Studio agent', { concurrent: false }, () => {
     let admin: ApiClient;
     let projectUuid: string;
     let agentUuid: string;
@@ -61,8 +66,10 @@ describe.sequential('Semantic Studio agent', () => {
                 },
             },
         );
+        const reply = settled.results.messages.at(-1);
         return {
-            response: settled.results.messages.at(-1)?.message ?? '',
+            response: reply?.message ?? '',
+            toolNames: (reply?.toolCalls ?? []).map(({ toolName }) => toolName),
             draft: await readDraft(),
         };
     };
@@ -124,6 +131,8 @@ describe.sequential('Semantic Studio agent', () => {
                 userAccess: [],
                 spaceAccess: [],
                 enableDataAccess: true,
+                // Nobody is there to approve a query, and an unanswered approval ends the reply.
+                enableSqlAutoApproval: true,
                 enableSelfImprovement: false,
                 version: 2,
             },
@@ -165,10 +174,12 @@ describe.sequential('Semantic Studio agent', () => {
     });
 
     it('adds a metric without touching anything else', async () => {
-        const { draft } = await ask(
+        const { draft, toolNames } = await ask(
             'Add a metric for the number of distinct customers who placed an order.',
         );
         expectSound(draft);
+        // A new metric is run on the draft before the turn ends.
+        expect(toolNames).toContain('runMetricQuery');
         const changes = changesOf(draft);
         expect(changes.length).toBeGreaterThan(0);
         expect(changes.every(({ action }) => action === 'added')).toBe(true);

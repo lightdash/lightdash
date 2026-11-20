@@ -1,24 +1,34 @@
 import {
+    assertUnreachable,
     FeatureFlags,
     type ApiError,
     type ApiResponse,
+    type SaveSemanticLayerDraftModelRequest,
     type SemanticLayerDraft,
     type SemanticLayerDraftedModels,
     type SemanticLayerDraftState,
     type SemanticLayerDraftApplyResult,
     type SemanticLayerDraftImpact,
+    type SemanticLayerDraftModelSave,
     type SemanticLayerDraftMoveDirection,
     type SemanticLayerDraftUsage,
+    type SemanticLayerTouchedField,
     type SemanticLayerModelCode,
     type SemanticLayerStatus,
+    type SemanticLayerStoredModels,
+    type SemanticStudioBranchCompile,
+    type SemanticStudioCheckout,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../providers/App/useApp';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
+import { useCheckedOutView } from './developmentView';
+import { canWriteProjectBranch } from './permissions';
 
-const DRAFT_KEY = 'semantic-layer-draft';
+export const DRAFT_KEY = 'semantic-layer-draft';
 const DRAFT_STATE_KEY = 'semantic-layer-draft-state';
 const MODEL_KEY = 'semantic-layer-model';
 const PENDING_POLL_MS = 2000;
@@ -62,25 +72,130 @@ const useGet = <T extends ApiResponse['results']>(
     });
 };
 
-const useStatus = (projectUuid: string) =>
+/** Whether this person can change this project's models here and what applying does; undefined until read. */
+export const useSemanticLayerStatus = (projectUuid: string) =>
     useGet<SemanticLayerStatus>(
         ['semantic-layer-status', projectUuid],
         projectUuid,
         '/status',
-        true,
+        projectUuid !== '',
     ).data;
+
+export const CHECKOUT_KEY = 'semantic-studio-checkout';
+export const WORKSPACES_KEY = 'semantic-studio-workspaces';
+
+/** The draft this person has checked out, which the whole app shows them; null on what is published. */
+export const useDraftCheckout = (projectUuid: string | undefined) =>
+    useGet<SemanticStudioCheckout | null>(
+        [CHECKOUT_KEY, projectUuid ?? null],
+        projectUuid ?? '',
+        '/checkout',
+        !!projectUuid,
+        (checkout) => checkout?.branchCompile?.status === 'compiling',
+    );
+
+/** The checked-out draft, kept as what every request on this project's pages reads. */
+export const useDraftCheckoutView = (
+    projectUuid: string | undefined,
+    projectUrlIdentifier: string | undefined,
+): SemanticStudioCheckout | null => {
+    const { data } = useDraftCheckout(projectUuid);
+    const sync = useCheckedOutView();
+    const identifiers =
+        data && projectUuid
+            ? [projectUuid, projectUrlIdentifier].filter(Boolean).join(' ')
+            : null;
+    const shown = data
+        ? `${data.workspaceUuid}:${String(data.branchCompile?.compiledAt ?? '')}`
+        : null;
+    useEffect(() => {
+        // Unknown until read; a page that cannot read it keeps what it has.
+        if (data === undefined) return;
+        sync(identifiers, shown);
+    }, [data, identifiers, shown, sync]);
+    return data ?? null;
+};
+
+/** What a draft's branch compile tells the person; null once it is ready. */
+export const describeBranchCompile = (
+    compile: SemanticStudioBranchCompile,
+): string | null => {
+    switch (compile.status) {
+        case 'ready':
+            return null;
+        case 'compiling':
+            return compile.hasExplores
+                ? 'Compiling the latest edit.'
+                : 'Compiling. Published models show until it is ready.';
+        case 'failed':
+            return 'The latest compile failed.';
+        default:
+            return assertUnreachable(compile.status, 'Unknown compile status');
+    }
+};
+
+/** Compiles the checked-out draft's branch again. */
+export const useCompileCheckout = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+    return useMutation<SemanticStudioCheckout | null, ApiError>({
+        mutationFn: () =>
+            lightdashApi<SemanticStudioCheckout | null>({
+                url: toUrl(projectUuid, '/checkout/compile'),
+                method: 'POST',
+                body: undefined,
+            }),
+        onSuccess: (checkout) =>
+            queryClient.setQueryData([CHECKOUT_KEY, projectUuid], checkout),
+        onError: ({ error }) =>
+            showToastApiError({
+                title: 'Could not compile again',
+                apiError: error,
+            }),
+    });
+};
 
 /** Whether this person can change this project's models here. */
 export const useCanEditSemanticLayer = (projectUuid: string): boolean =>
-    useStatus(projectUuid)?.enabled === true;
+    useSemanticLayerStatus(projectUuid)?.enabled === true;
 
 /** Whether changes here go through a draft; false on a dbt project, where the agent edits the repository in a pull request. */
 export const useKeepsSemanticLayerDraft = (projectUuid: string): boolean =>
-    useStatus(projectUuid)?.appliesAs !== 'dbt_pull_request';
+    useSemanticLayerStatus(projectUuid)?.appliesAs !== 'dbt_pull_request';
 
 /** Whether applying a draft opens a pull request on the project's repository instead of going live. */
 export const useAppliesAsPullRequest = (projectUuid: string): boolean =>
-    useStatus(projectUuid)?.appliesAs === 'pull_request';
+    useSemanticLayerStatus(projectUuid)?.appliesAs === 'pull_request';
+
+/** How publishing lands: live here, merged into the repository, or as a pull request for someone who can merge it. */
+export type PublishMode = 'live' | 'merge' | 'pull_request';
+
+export const usePublishMode = (projectUuid: string): PublishMode => {
+    const asPullRequest = useAppliesAsPullRequest(projectUuid);
+    const { user } = useApp();
+    if (!asPullRequest) return 'live';
+    return user.data?.organizationUuid &&
+        canWriteProjectBranch(
+            user.data.ability,
+            user.data.organizationUuid,
+            projectUuid,
+        )
+        ? 'merge'
+        : 'pull_request';
+};
+
+/** The models whose YAML the project keeps; empty for someone who cannot change the project. */
+export const useSemanticLayerStoredModels = (
+    projectUuid: string,
+    enabled: boolean,
+) =>
+    useGet<SemanticLayerStoredModels>(
+        [MODEL_KEY, projectUuid],
+        projectUuid,
+        '/models',
+        enabled,
+    );
 
 /** A model's YAML and history; null when the project keeps no such model or this person cannot change it. */
 export const useSemanticLayerModel = (projectUuid: string, modelName: string) =>
@@ -101,6 +216,18 @@ export const useSemanticLayerDraft = (
         projectUuid,
         '/draft',
         enabled,
+    );
+
+/** One of this person's workspaces, replayed on what is live; nothing is read for null. */
+export const useSemanticLayerWorkspaceDraft = (
+    projectUuid: string,
+    workspaceUuid: string | null,
+) =>
+    useGet<SemanticLayerDraft>(
+        [DRAFT_KEY, projectUuid, 'workspace', workspaceUuid],
+        projectUuid,
+        `/workspaces/${workspaceUuid ?? ''}/draft`,
+        workspaceUuid !== null,
     );
 
 /**
@@ -126,6 +253,9 @@ export const useDraftFreshness = (projectUuid: string) => {
         seen.current = fingerprint;
         // The first value is what the draft on screen was already read against.
         if (previous === null || previous === fingerprint) return;
+        void queryClient.invalidateQueries({
+            queryKey: ['semantic-studio-workspaces', projectUuid],
+        });
         // A read already under way, as after a write here, sees the change.
         if (queryClient.isFetching({ queryKey: [DRAFT_KEY, projectUuid] }))
             return;
@@ -169,13 +299,42 @@ export const useSemanticLayerDraftUsage = (projectUuid: string) =>
         true,
     );
 
+/** Saved content that reads fields a pull request redefines or removes. */
+export const useSemanticLayerFieldUsage = (
+    projectUuid: string,
+    fields: SemanticLayerTouchedField[],
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<SemanticLayerDraftUsage, ApiError>({
+        queryKey: ['semantic-layer-field-usage', projectUuid, fields],
+        queryFn: () =>
+            lightdashApi<SemanticLayerDraftUsage>({
+                url: toUrl(projectUuid, '/field-usage'),
+                method: 'POST',
+                body: JSON.stringify({ fields }),
+            }),
+        enabled: fields.length > 0,
+        retry: false,
+        staleTime: 60_000,
+    });
+};
+
 export const useRefreshSemanticLayerDraft = (projectUuid: string) => {
     const queryClient = useQueryClient();
     return useCallback(
         () =>
-            queryClient.invalidateQueries({
-                queryKey: [DRAFT_KEY, projectUuid],
-            }),
+            // The agent's edit can start a draft and check it out, so everything that reads the draft moves with it.
+            Promise.all(
+                [
+                    [DRAFT_KEY, projectUuid],
+                    [DRAFT_STATE_KEY, projectUuid],
+                    [CHECKOUT_KEY, projectUuid],
+                    [WORKSPACES_KEY, projectUuid],
+                    ['tables'],
+                ].map((queryKey) =>
+                    queryClient.invalidateQueries({ queryKey }),
+                ),
+            ),
         [queryClient, projectUuid],
     );
 };
@@ -193,7 +352,8 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
         method: 'POST' | 'DELETE';
         body: string | undefined;
     };
-    errorTitle: string;
+    /** Null when the caller shows the error itself. */
+    errorTitle: string | null;
     changesLive: boolean;
 }) => {
     const lightdashApi = useLightdashApi();
@@ -213,15 +373,25 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
                 [
                     [DRAFT_KEY, projectUuid],
                     [DRAFT_STATE_KEY, projectUuid],
-                    // Explores read the draft while the development view is on.
+                    // Sending a draft gives its workspace a pull request, and publishing ends it.
+                    [WORKSPACES_KEY, projectUuid],
+                    [CHECKOUT_KEY, projectUuid],
+                    // Explore reads the checked-out draft, on this page or any other.
                     ['tables'],
-                    ...(changesLive ? [[MODEL_KEY, projectUuid]] : []),
+                    ...(changesLive
+                        ? [
+                              [MODEL_KEY, projectUuid],
+                              ['preAggregateMaterializations', projectUuid],
+                          ]
+                        : []),
                 ].map((queryKey) =>
                     queryClient.invalidateQueries({ queryKey }),
                 ),
             ),
         onError: ({ error }) => {
-            showToastApiError({ title: errorTitle, apiError: error });
+            if (errorTitle !== null) {
+                showToastApiError({ title: errorTitle, apiError: error });
+            }
             // A refusal often means the draft on screen is out of date.
             void queryClient.invalidateQueries({
                 queryKey: [DRAFT_KEY, projectUuid],
@@ -232,10 +402,13 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
 
 /** Takes the draft live, or one model of it. */
 export const useApplySemanticLayerDraft = (projectUuid: string) =>
-    useWrite<SemanticLayerDraftApplyResult, string | null>({
+    useWrite<
+        SemanticLayerDraftApplyResult,
+        { model: string | null; merge: boolean }
+    >({
         projectUuid,
-        request: (model) => ({
-            path: `${toDraftPath(model)}/apply`,
+        request: ({ model, merge }) => ({
+            path: `${toDraftPath(model)}/apply${merge ? '?merge=true' : ''}`,
             method: 'POST',
             body: undefined,
         }),
@@ -294,6 +467,22 @@ export const useKeepDraftModel = (projectUuid: string) =>
         changesLive: false,
     });
 
+/** Saves a hand edit of a model's YAML into the draft, starting one on Published. */
+export const useSaveDraftModel = (projectUuid: string) =>
+    useWrite<
+        SemanticLayerDraftModelSave,
+        { model: string } & SaveSemanticLayerDraftModelRequest
+    >({
+        projectUuid,
+        request: ({ model, base, content }) => ({
+            path: `${toDraftPath(model)}/edit`,
+            method: 'POST',
+            body: JSON.stringify({ base, content }),
+        }),
+        errorTitle: null,
+        changesLive: false,
+    });
+
 /** Leaves one part of a drafted model as it is live. */
 export const useTakeLiveDraftPart = (projectUuid: string) =>
     useWrite<undefined, { model: string; path: string }>({
@@ -303,7 +492,7 @@ export const useTakeLiveDraftPart = (projectUuid: string) =>
             method: 'POST',
             body: JSON.stringify({ path }),
         }),
-        errorTitle: 'Could not take the live version',
+        errorTitle: 'Could not take the published version',
         changesLive: false,
     });
 

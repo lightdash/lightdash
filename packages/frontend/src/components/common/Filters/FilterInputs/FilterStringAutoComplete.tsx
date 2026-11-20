@@ -42,7 +42,6 @@ import {
     classifyFieldValueSearchError,
     type FieldValueSearchErrorKind,
 } from '../../../../hooks/fieldValueSearchError';
-import useHealth from '../../../../hooks/health/useHealth';
 import {
     MAX_AUTOCOMPLETE_RESULTS,
     useFieldValues,
@@ -248,8 +247,6 @@ const FilterStringAutoComplete: FC<Props> = ({
         throw new Error('projectUuid is required in FiltersProvider');
     }
 
-    const { data: healthData } = useHealth();
-
     const [search, setSearch] = useState('');
     const [pastePopUpOpened, setPastePopUpOpened] = useState(false);
     const [tempPasteValues, setTempPasteValues] = useState<
@@ -284,6 +281,7 @@ const FilterStringAutoComplete: FC<Props> = ({
         isInitialLoading,
         results,
         refreshedAt,
+        hasCachedResults,
         refetch,
         reset,
         error,
@@ -619,8 +617,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                                 ) : null
                             }
                             footer={
-                                healthData?.hasCacheAutocompleResults &&
-                                canRefreshAutocomplete ? (
+                                hasCachedResults && canRefreshAutocomplete ? (
                                     <RefreshIndicator
                                         refreshedAtRef={refreshedAtRef}
                                         onRefresh={() => {

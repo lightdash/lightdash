@@ -58,6 +58,7 @@ const makePrompt = (): AiWebAppPrompt => ({
     threadUuid: 'thread-uuid',
     threadCreatedFrom: 'web_app',
     threadEmbedSpaceUuid: null,
+    threadEmbedOwnerIdentifier: null,
     externalUserId: null,
     createdByUserUuid: 'user-uuid',
     userUuid: 'user-uuid',

@@ -42,5 +42,13 @@
     {
         "column": "data_app_analyses.dashboard_uuid",
         "reason": "Previous releases never join data_app_analyses to dashboards or any table carrying dashboard_uuid; every existing query filters data_app_analyses on its own columns (app_id, created_by_user_uuid, content_hash)."
+    },
+    {
+        "column": "ai_agent_slack_integration.service_account_uuid",
+        "reason": "FK named after the referenced service_accounts primary key. The previous release never joins ai_agent_slack_integration with service_accounts or scim_request_logs, so no existing query becomes ambiguous during a rolling deploy."
+    },
+    {
+        "column": "dashboard_tile_headings.config",
+        "reason": "Previous releases read dashboard_tile_headings only in the two dashboard tile queries, which select table-qualified columns and join none of the other tables that have a config column, and in the preview copy, which reads it without a join."
     }
 ]

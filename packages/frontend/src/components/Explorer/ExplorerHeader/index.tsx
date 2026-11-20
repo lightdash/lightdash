@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
+    FeatureFlags,
     getEmbedWriteSpaceUuids,
     type UiStringKey,
 } from '@lightdash/common';
@@ -32,6 +33,7 @@ import {
 } from '../../../hooks/useExploreWarehouseConnection';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useVerificationSavePrompt } from '../../../hooks/useVerificationSavePrompt';
 import { Can } from '../../../providers/Ability';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
@@ -46,6 +48,7 @@ import RefreshDbtButton from '../../RefreshDbtButton';
 import SaveChartButton from '../SaveChartButton';
 import { useExplorerResultsData } from '../VisualizationCard/useExplorerResultsData';
 import classes from './ExplorerHeader.module.css';
+import { ExplorerHistoryButtons } from './ExplorerHistoryButtons';
 import QueryWarnings from './QueryWarnings';
 
 const getBackButtonLabelKey = (
@@ -73,6 +76,9 @@ const ExplorerHeader: FC = memo(() => {
     const { backDestination, onBackToDashboard } = useEmbed();
     const backButtonLabel = useUiString(getBackButtonLabelKey(backDestination));
     const ability = useAbilityContext();
+    const isUndoRedoEnabled =
+        useServerFeatureFlag(FeatureFlags.ExplorerUndoRedo).data?.enabled ===
+        true;
 
     // Get state from Redux and new hook
     const limit = useExplorerSelector(selectQueryLimit);
@@ -215,7 +221,7 @@ const ExplorerHeader: FC = memo(() => {
             )}
 
             <Box>
-                <RefreshDbtButton />
+                <RefreshDbtButton variant="subtle" />
             </Box>
 
             <Group gap="xs">
@@ -266,8 +272,19 @@ const ExplorerHeader: FC = memo(() => {
                         <QueryWarnings queryWarnings={queryWarnings} />
                     )}
 
-                <RefreshButton size="xs" />
-
+                <Can
+                    I="update"
+                    this={subject('Explore', {
+                        organizationUuid: user.data?.organizationUuid,
+                        projectUuid,
+                    })}
+                >
+                    <ShareShortLinkButton
+                        variant="subtle"
+                        disabled={!isValidQuery}
+                        url={urlToShare}
+                    />
+                </Can>
                 {/* Saved charts save from the page header (SavedChartsHeader)
                     or the editor modal's header actions. Embeds have no such
                     header, so they keep the button ("Save changes") here */}
@@ -288,18 +305,8 @@ const ExplorerHeader: FC = memo(() => {
                             </div>
                         </Tooltip>
                     )}
-                <Can
-                    I="update"
-                    this={subject('Explore', {
-                        organizationUuid: user.data?.organizationUuid,
-                        projectUuid,
-                    })}
-                >
-                    <ShareShortLinkButton
-                        disabled={!isValidQuery}
-                        url={urlToShare}
-                    />
-                </Can>
+                {isUndoRedoEnabled && <ExplorerHistoryButtons />}
+                <RefreshButton size="xs" />
             </Group>
         </Group>
     );

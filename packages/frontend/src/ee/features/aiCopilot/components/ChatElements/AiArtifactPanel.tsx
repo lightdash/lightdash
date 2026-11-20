@@ -19,6 +19,7 @@ import { memo, useMemo, useState, type FC } from 'react';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../../../components/common/InlineErrorState';
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
+import { ArtifactLoadingSketch } from '../../../../../features/composerCharts/lineage/ArtifactLoadingSketch';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
@@ -56,7 +57,6 @@ import {
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 import { isArtifactRevision } from './ArtifactButton/artifactCardMeta';
 import { ArtifactWindowControls } from './ArtifactFocusToggle';
-import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 import { ArtifactPanelHeading } from './ArtifactPanelHeading';
 import { ChatElementsUtils } from './utils';
 
@@ -380,6 +380,17 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
                 <AiComposerArtifactPanel
                     key={artifact.versionUuid}
                     initialView="chart"
+                    savedComposerChart={
+                        artifactData.savedComposerChartUuid &&
+                        artifactData.savedComposerChartDashboardUuid
+                            ? {
+                                  composerChartUuid:
+                                      artifactData.savedComposerChartUuid,
+                                  dashboardUuid:
+                                      artifactData.savedComposerChartDashboardUuid,
+                              }
+                            : null
+                    }
                     projectUuid={artifact.projectUuid}
                     agentUuid={artifact.agentUuid}
                     source={{

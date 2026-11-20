@@ -18,7 +18,6 @@ const CORE_TOOLS: readonly AgentToolName[] = [
     'getProjectInfo',
     'listKnowledgeDocuments',
     'getKnowledgeDocumentContent',
-    'readPinnedThread',
     'resolveUrl',
     'runSavedChart',
     'generateHashes',
@@ -92,23 +91,29 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             'getMetadata',
             'searchSemanticLayer',
             'analyzeFieldImpact',
+            'listChanges',
             ...onlyIf(input.semanticStudioDrafts, [
                 'readSemanticModel',
                 'proposeSemanticLayerChange',
             ]),
+            // A dbt draft compiles after the turn, so a query there could read what is published and pass for the draft.
+            ...onlyIf(input.semanticStudioDrafts && input.enableDataAccess, [
+                'runMetricQuery',
+            ]),
             ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
-            ...onlyIf(input.canRunSql, ['runSql']),
+            ...onlyIf(input.canRunSql, ['runSql', 'grepWarehouseColumns']),
         ],
         sections: ['semanticStudio'],
         skills: [],
         accepts: input.semanticStudioDrafts
-            ? ['sqlCatalog', 'projectContext']
+            ? ['sqlCatalog', 'projectContext', 'askUser']
             : [
                   'sqlCatalog',
                   'projectContext',
                   'repoDiscovery',
                   'writeback',
                   'pullRequests',
+                  'askUser',
               ],
     }),
     deep_research_worker: (input) => ({
@@ -140,6 +145,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             'legacyDashboards',
             'sqlCatalog',
             'projectContext',
+            'readPinnedThread',
         ],
     }),
 };

@@ -182,6 +182,7 @@ function buildService(
         } as never,
         coderService: {} as never,
         documentService: {} as never,
+        composerChartService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: promoteService as never,
@@ -189,6 +190,7 @@ function buildService(
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
         chartRegistryClient: {} as never,
+        contentDraftModel: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,
             verify: async () => undefined,

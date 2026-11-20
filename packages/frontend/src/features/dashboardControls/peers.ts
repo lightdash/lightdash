@@ -214,7 +214,7 @@ export const getFilterFields = (
     ),
 ];
 
-// What the rail lists: the filter's fields, then the columns SQL chart tiles
+// What the editor lists: the filter's fields, then the columns SQL chart tiles
 // are mapped to, as the tile cards show them
 export const getFilterRows = (
     rule: DashboardFilterRule,

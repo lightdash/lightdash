@@ -1,0 +1,44 @@
+import { ApiConnectorType } from '../../types/querySources';
+
+/** One hour for every integration until usage shows which need another window. */
+const DEFAULT_CACHE_TTL_SECONDS = 60 * 60;
+
+/**
+ * How long a live data source's result answers the same query for everyone
+ * on the source, before the next query calls the integration again.
+ */
+export const LIVE_SOURCE_DEFAULT_CACHE_TTL_SECONDS: Record<
+    ApiConnectorType,
+    number
+> = {
+    [ApiConnectorType.POSTHOG]: DEFAULT_CACHE_TTL_SECONDS,
+    [ApiConnectorType.GA4]: DEFAULT_CACHE_TTL_SECONDS,
+    [ApiConnectorType.SEARCH_CONSOLE]: DEFAULT_CACHE_TTL_SECONDS,
+    [ApiConnectorType.META_ADS]: DEFAULT_CACHE_TTL_SECONDS,
+    [ApiConnectorType.GOOGLE_ADS]: DEFAULT_CACHE_TTL_SECONDS,
+    [ApiConnectorType.LINKEDIN_ADS]: DEFAULT_CACHE_TTL_SECONDS,
+    [ApiConnectorType.YOUTUBE_ANALYTICS]: DEFAULT_CACHE_TTL_SECONDS,
+    [ApiConnectorType.GITHUB]: DEFAULT_CACHE_TTL_SECONDS,
+    [ApiConnectorType.PYLON]: DEFAULT_CACHE_TTL_SECONDS,
+    [ApiConnectorType.ATTIO]: DEFAULT_CACHE_TTL_SECONDS,
+};
+
+/** 0 makes every query call the integration. */
+export const LIVE_SOURCE_CACHE_TTL_MIN_SECONDS = 0;
+export const LIVE_SOURCE_CACHE_TTL_MAX_SECONDS = 24 * 60 * 60;
+
+/** The source's own window when an admin set one, otherwise its integration's. */
+export const getLiveSourceCacheTtlSeconds = (
+    connector: ApiConnectorType,
+    override: number | null | undefined,
+): number => override ?? LIVE_SOURCE_DEFAULT_CACHE_TTL_SECONDS[connector];
+
+export const isValidLiveSourceCacheTtlSeconds = (value: number): boolean =>
+    Number.isInteger(value) &&
+    value >= LIVE_SOURCE_CACHE_TTL_MIN_SECONDS &&
+    value <= LIVE_SOURCE_CACHE_TTL_MAX_SECONDS;
+
+/** Null puts the source back on its integration's default. */
+export type ApiUpdateLiveSourceCacheRequest = {
+    ttlSeconds: number | null;
+};

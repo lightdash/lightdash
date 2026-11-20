@@ -24,6 +24,7 @@ import {
     LIVE_SOURCE_CATALOG,
     type LiveSourceCatalogEntry,
 } from './liveSourceCatalog';
+import { ProjectCacheOffAlert } from './ProjectCacheOffAlert';
 
 const CUSTOM_LIVE_SOURCE_ID = 'custom';
 
@@ -129,6 +130,7 @@ export const AddLiveSourceModal: FC<Props> = ({
             cancelLabel={false}
         >
             <Stack gap="sm">
+                <ProjectCacheOffAlert projectUuid={projectUuid} />
                 <SimpleGrid cols={{ base: 1, xs: 2, sm: 3 }} spacing="sm">
                     {orderedEntries.map((entry) =>
                         isAvailableLiveSource(entry) ? (

@@ -2,15 +2,11 @@ import {
     type AnyType,
     type AiDeepResearchEntryPoint,
     type AiDeepResearchEventsPage,
-    type AiDeepResearchChartData,
     type AiDeepResearchRequestBody,
     type AiDeepResearchRun,
     type ApiAiDeepResearchEventsResponse,
     type ApiAiDeepResearchRunListResponse,
     type ApiAiDeepResearchRunResponse,
-    type ApiAiDeepResearchChartResponse,
-    type ApiAiAgentThreadMessageVizQuery,
-    type ApiAiAgentThreadMessageVizQueryResponse,
     type ApiError,
     isAiDeepResearchRunTerminal,
 } from '@lightdash/common';
@@ -38,7 +34,6 @@ import {
     toDeepResearchRegistration,
 } from '../deepResearch/runProgress';
 import {
-    type DeepResearchReportView,
     type DeepResearchRunRegistration,
     type StartDeepResearchArgs,
 } from '../deepResearch/types';
@@ -149,32 +144,6 @@ const cancelDeepResearch = (
         method: 'POST',
         body: JSON.stringify({}),
     }) as Promise<ApiAiDeepResearchRunResponse['results']>;
-
-const refreshDeepResearchChart = (
-    lightdashApi: LightdashApi,
-    projectUuid: string,
-    runUuid: string,
-    chartKey: string,
-) =>
-    lightdashApi<AnyType>({
-        version: 'v1',
-        url: `${getBaseUrl(projectUuid)}/${runUuid}/charts/${encodeURIComponent(chartKey)}/refresh`,
-        method: 'POST',
-        body: JSON.stringify({}),
-    }) as Promise<ApiAiAgentThreadMessageVizQueryResponse['results']>;
-
-const getDeepResearchChart = (
-    lightdashApi: LightdashApi,
-    projectUuid: string,
-    runUuid: string,
-    queryUuid: string,
-) =>
-    lightdashApi<AnyType>({
-        version: 'v1',
-        url: `${getBaseUrl(projectUuid)}/${runUuid}/charts/${encodeURIComponent(queryUuid)}`,
-        method: 'GET',
-        body: undefined,
-    }) as Promise<ApiAiDeepResearchChartResponse['results']>;
 
 type StartMutationVariables = StartDeepResearchArgs & {
     promptUuid: string;
@@ -520,7 +489,6 @@ export const useDeepResearchRun = (
             getDeepResearchRunRefetchInterval(
                 run,
                 DEEP_RESEARCH_POLL_INTERVAL_MS,
-                Date.now(),
                 getPollFailureForQuery(pollFailure.current, queryIdentity),
             ),
         onSuccess: () => {
@@ -562,7 +530,6 @@ export const useDeepResearchRun = (
                 ? getDeepResearchRunRefetchInterval(
                       undefined,
                       DEEP_RESEARCH_POLL_INTERVAL_MS,
-                      Date.now(),
                       getPollFailureForQuery(
                           eventsPollFailure.current,
                           queryIdentity,
@@ -598,59 +565,19 @@ export const useDeepResearchRun = (
     };
 };
 
-export const useDeepResearchReport = (
+/** A run on its own, for the old report URL to find where it went. */
+export const useDeepResearchRunQuery = (
     projectUuid: string | undefined,
     runUuid: string | undefined,
 ) => {
     const lightdashApi = useLightdashApi();
-
-    const queryIdentity = `${projectUuid}:${runUuid}`;
-    const pollFailure = useRef<PollFailureState | undefined>(undefined);
-    const runQuery = useQuery<AiDeepResearchRun, ApiError>({
+    return useQuery<AiDeepResearchRun, ApiError>({
         queryKey: [DEEP_RESEARCH_QUERY_KEY, projectUuid, runUuid],
         queryFn: () =>
             getDeepResearchRun(lightdashApi, projectUuid ?? '', runUuid ?? ''),
         enabled: !!projectUuid && !!runUuid,
-        refetchInterval: (run) =>
-            getDeepResearchRunRefetchInterval(
-                run,
-                DEEP_RESEARCH_POLL_INTERVAL_MS,
-                Date.now(),
-                getPollFailureForQuery(pollFailure.current, queryIdentity),
-            ),
-        onSuccess: () => {
-            pollFailure.current = undefined;
-        },
-        onError: (error) => {
-            pollFailure.current = {
-                queryIdentity,
-                error,
-                failureCount:
-                    (getPollFailureForQuery(pollFailure.current, queryIdentity)
-                        ?.failureCount ?? 0) + 1,
-            };
-        },
+        retry: false,
     });
-    const report = useMemo<DeepResearchReportView | undefined>(
-        () =>
-            runQuery.data
-                ? {
-                      uuid: runQuery.data.aiDeepResearchRunUuid,
-                      projectUuid: runQuery.data.projectUuid,
-                      agentUuid: runQuery.data.agentUuid,
-                      threadUuid: runQuery.data.aiThreadUuid,
-                      question: runQuery.data.prompt,
-                      completedAt: runQuery.data.completedAt,
-                      sourceCount: null,
-                      resultMarkdown: runQuery.data.resultMarkdown,
-                      isReportExpired: runQuery.data.isReportExpired,
-                      document: runQuery.data.document,
-                  }
-                : undefined,
-        [runQuery.data],
-    );
-
-    return { ...runQuery, data: report };
 };
 
 export const useCancelDeepResearchMutation = (
@@ -676,66 +603,6 @@ export const useCancelDeepResearchMutation = (
                 apiError: error,
             });
         },
-    });
-};
-
-/**
- * Re-executes the stored metric query behind a warehouse-backed report
- * chart. Report charts use this as their only render path.
- */
-export const useDeepResearchChartLiveQuery = ({
-    projectUuid,
-    runUuid,
-    chartKey,
-}: {
-    projectUuid: string;
-    runUuid: string;
-    chartKey: string;
-}) => {
-    const lightdashApi = useLightdashApi();
-    return useQuery<ApiAiAgentThreadMessageVizQuery, ApiError>({
-        queryKey: [
-            DEEP_RESEARCH_QUERY_KEY,
-            projectUuid,
-            runUuid,
-            'charts',
-            chartKey,
-            'live',
-        ],
-        queryFn: () =>
-            refreshDeepResearchChart(
-                lightdashApi,
-                projectUuid,
-                runUuid,
-                chartKey,
-            ),
-        refetchOnMount: 'always',
-        refetchOnWindowFocus: false,
-    });
-};
-
-export const useDeepResearchChartQuery = ({
-    projectUuid,
-    runUuid,
-    queryUuid,
-}: {
-    projectUuid: string;
-    runUuid: string;
-    queryUuid: string;
-}) => {
-    const lightdashApi = useLightdashApi();
-    return useQuery<AiDeepResearchChartData, ApiError>({
-        queryKey: [
-            DEEP_RESEARCH_QUERY_KEY,
-            projectUuid,
-            runUuid,
-            'charts',
-            queryUuid,
-        ],
-        queryFn: () =>
-            getDeepResearchChart(lightdashApi, projectUuid, runUuid, queryUuid),
-        staleTime: Infinity,
-        refetchOnWindowFocus: false,
     });
 };
 

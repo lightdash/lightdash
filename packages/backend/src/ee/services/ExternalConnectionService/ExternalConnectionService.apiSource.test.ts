@@ -11,11 +11,12 @@ import {
     type ExternalConnection,
 } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
-import { getApiSourceDefinitionHashes } from '../../../services/QuerySourceService/api/apiSourceExplores';
+import { getLiveDefinitionHashes } from '../../../services/QuerySourceService/live/explores/build';
 import {
     type LiveSourceFieldEdits,
     type LiveSourceFieldState,
-} from '../../../services/QuerySourceService/api/liveSourceFields';
+} from '../../../services/QuerySourceService/live/explores/fields';
+import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
 import { type DeletedLiveSource } from '../../models/ExternalConnectionModel';
@@ -113,6 +114,9 @@ const buildService = ({
         tryCountApiSourceCall: vi.fn().mockResolvedValue(true),
         releaseApiSourceCallLease: vi.fn().mockResolvedValue(undefined),
         insertApiSourceCall: vi.fn().mockResolvedValue(undefined),
+        setLiveSourceCacheTtl: vi.fn().mockResolvedValue(undefined),
+        purgeLiveSourceCache: vi.fn().mockResolvedValue(undefined),
+        rotateSecret: vi.fn().mockResolvedValue(undefined),
         getApiSourceUsage: vi.fn().mockResolvedValue([]),
         setApiSourceSchema: vi.fn().mockResolvedValue(undefined),
         getApiSourceSchemas: vi.fn().mockResolvedValue(new Map()),
@@ -211,7 +215,7 @@ const buildService = ({
         getChartCountPerField: vi.fn().mockResolvedValue([]),
         getChartCountForExplores: vi.fn().mockResolvedValue(chartCount),
     };
-    const analytics = { track: vi.fn() };
+    const analytics = { track: vi.fn(), trackAccount: vi.fn() };
     const schedulerClient = {
         scanApiSourceSchema: vi.fn().mockResolvedValue({ jobId: 'job-1' }),
     };
@@ -299,14 +303,10 @@ beforeEach(() => {
 describe('ExternalConnectionService api sources', () => {
     it('runs a PostHog query through the guarded fetch with the stored key', async () => {
         const { service } = buildService();
-        const connector = await service.getApiConnector(
-            account,
-            'proj-1',
-            'conn-1',
-        );
+        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
 
-        const result = await connector.execute({
-            payload: { kind: 'query', query: 'SELECT 1 AS a' },
+        const result = await runLiveRequest(source, {
+            query: 'SELECT 1 AS a',
             limit: 10,
         });
 
@@ -323,7 +323,7 @@ describe('ExternalConnectionService api sources', () => {
             connections: [posthogConnection({ apiSource: null })],
         });
         await expect(
-            service.getApiConnector(account, 'proj-1', 'conn-1'),
+            service.getLiveSource(account, 'proj-1', 'conn-1'),
         ).rejects.toThrow(ParameterError);
     });
 
@@ -332,14 +332,14 @@ describe('ExternalConnectionService api sources', () => {
             connections: [posthogConnection({ kind: 'data_app' })],
         });
         await expect(
-            service.getApiConnector(account, 'proj-1', 'conn-1'),
+            service.getLiveSource(account, 'proj-1', 'conn-1'),
         ).rejects.toThrow(ParameterError);
     });
 
     it('refuses an account that cannot view the connection', async () => {
         const { service } = buildService({ canView: false });
         await expect(
-            service.getApiConnector(account, 'proj-1', 'conn-1'),
+            service.getLiveSource(account, 'proj-1', 'conn-1'),
         ).rejects.toThrow(ForbiddenError);
     });
 
@@ -348,33 +348,19 @@ describe('ExternalConnectionService api sources', () => {
             new SecureFetchError('timeout', 'timed out'),
         );
         const { service } = buildService();
-        const connector = await service.getApiConnector(
-            account,
-            'proj-1',
-            'conn-1',
-        );
+        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
         await expect(
-            connector.execute({
-                payload: { kind: 'query', query: 'SELECT 1 AS a' },
-                limit: 10,
-            }),
+            runLiveRequest(source, { query: 'SELECT 1 AS a', limit: 10 }),
         ).rejects.toThrow(TimeoutError);
     });
 
     it('logs a finished query with what its calls cost', async () => {
-        const { service, externalConnectionModel } = buildService();
-        const connector = await service.getApiConnector(
-            account,
-            'proj-1',
-            'conn-1',
-        );
-        await connector.execute({
-            payload: { kind: 'query', query: 'SELECT 1 AS a' },
-            limit: 10,
-        });
+        const { service, externalConnectionModel, analytics } = buildService();
+        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
+        await runLiveRequest(source, { query: 'SELECT 1 AS a', limit: 10 });
         const { bodyText } = await mockSecureFetch.mock.results[0].value;
 
-        await connector.logCall({
+        await source.logCall({
             queryUuid: 'query-1',
             context: QueryExecutionContext.AI,
             query: 'SELECT 1 AS a',
@@ -385,6 +371,7 @@ describe('ExternalConnectionService api sources', () => {
             rowCount: 1,
             columnCount: 2,
             truncated: false,
+            cacheHit: false,
         });
 
         expect(
@@ -406,7 +393,29 @@ describe('ExternalConnectionService api sources', () => {
             column_count: 2,
             truncated: false,
             response_bytes: Buffer.byteLength(bodyText, 'utf8'),
+            cache_hit: false,
         });
+        const [, trackedEvent] = analytics.trackAccount.mock.calls[0];
+        expect(trackedEvent).toMatchObject({
+            event: 'live_source.query_finished',
+            properties: {
+                externalConnectionUuid: 'conn-1',
+                projectId: 'proj-1',
+                context: QueryExecutionContext.AI,
+                outcome: 'ok',
+                errorOrigin: null,
+                errorCode: null,
+                cacheHit: false,
+                apiCalls: 1,
+                providerStatus: 200,
+                durationMs: 120,
+                rowCount: 1,
+                truncated: false,
+                responseBytes: Buffer.byteLength(bodyText, 'utf8'),
+            },
+        });
+        // The query text can hold filter values, so it stays out of analytics.
+        expect(JSON.stringify(trackedEvent)).not.toContain('SELECT 1 AS a');
     });
 
     it('counts a call that never got a response, and never fails on logging', async () => {
@@ -417,25 +426,18 @@ describe('ExternalConnectionService api sources', () => {
         externalConnectionModel.insertApiSourceCall.mockRejectedValue(
             new Error('database is down'),
         );
-        const connector = await service.getApiConnector(
-            account,
-            'proj-1',
-            'conn-1',
-        );
+        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
         await expect(
-            connector.execute({
-                payload: { kind: 'query', query: 'SELECT 1 AS a' },
-                limit: 10,
-            }),
+            runLiveRequest(source, { query: 'SELECT 1 AS a', limit: 10 }),
         ).rejects.toThrow(TimeoutError);
 
-        expect(connector.usage()).toEqual({
+        expect(source.usage()).toEqual({
             apiCalls: 1,
             responseBytes: 0,
             providerStatus: null,
         });
         await expect(
-            connector.logCall({
+            source.logCall({
                 queryUuid: 'query-1',
                 context: QueryExecutionContext.AI,
                 query: 'SELECT 1 AS a',
@@ -446,8 +448,73 @@ describe('ExternalConnectionService api sources', () => {
                 rowCount: null,
                 columnCount: null,
                 truncated: null,
+                cacheHit: false,
             }),
         ).resolves.toBeUndefined();
+    });
+
+    it('tells a failure of ours from the integration failing', async () => {
+        const { service, analytics } = buildService();
+        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
+        const call = {
+            queryUuid: 'query-3',
+            context: QueryExecutionContext.AI,
+            query: 'SELECT 1 AS a',
+            rowLimit: 10,
+            errorMessage: 'failed',
+            durationMs: 10,
+            rowCount: null,
+            columnCount: null,
+            truncated: null,
+            cacheHit: false,
+        };
+
+        await source.logCall({ ...call, outcome: 'timeout' });
+        await source.logCall({ ...call, outcome: 'invalid_request' });
+
+        const tracked = analytics.trackAccount.mock.calls.map(
+            ([, event]) => event.properties,
+        );
+        expect(tracked).toEqual([
+            expect.objectContaining({
+                errorOrigin: 'integration',
+                errorCode: 'live_source.upstream.timeout',
+            }),
+            expect.objectContaining({
+                errorOrigin: 'internal',
+                errorCode: 'live_source.internal.invalid_request',
+            }),
+        ]);
+    });
+
+    it('logs a reused result as a cache hit that made no API calls', async () => {
+        const { service, externalConnectionModel, analytics } = buildService();
+        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
+
+        await source.logCall({
+            queryUuid: 'query-2',
+            context: QueryExecutionContext.AI,
+            query: 'SELECT 1 AS a',
+            rowLimit: 10,
+            outcome: 'ok',
+            errorMessage: null,
+            durationMs: 8,
+            rowCount: 1,
+            columnCount: 2,
+            truncated: null,
+            cacheHit: true,
+        });
+
+        expect(
+            externalConnectionModel.insertApiSourceCall,
+        ).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({ cache_hit: true, api_calls: 0 }),
+        );
+        const [, trackedEvent] = analytics.trackAccount.mock.calls[0];
+        expect(trackedEvent).toMatchObject({
+            event: 'live_source.query_finished',
+            properties: { cacheHit: true, apiCalls: 0 },
+        });
     });
 
     it('shows usage only to accounts that manage connections', async () => {
@@ -668,7 +735,7 @@ describe('ExternalConnectionService live source writes', () => {
         );
     });
 
-    it('tracks a live source by kind and connector', async () => {
+    it('tracks a live source by kind and integration', async () => {
         const { service, analytics } = buildService();
         await service.create(account, 'proj-1', postHogCreate);
         await service.delete(account, 'proj-1', 'conn-1');
@@ -679,14 +746,14 @@ describe('ExternalConnectionService live source writes', () => {
                 event: 'external_connection.created',
                 properties: expect.objectContaining({
                     connectionKind: 'live_source',
-                    connector: ApiConnectorType.POSTHOG,
+                    integration: ApiConnectorType.POSTHOG,
                 }),
             }),
             expect.objectContaining({
                 event: 'external_connection.deleted',
                 properties: expect.objectContaining({
                     connectionKind: 'live_source',
-                    connector: ApiConnectorType.POSTHOG,
+                    integration: ApiConnectorType.POSTHOG,
                 }),
             }),
         ]);
@@ -738,6 +805,106 @@ describe('ExternalConnectionService live source writes', () => {
         await expect(
             service.update(account, 'proj-1', 'conn-1', { apiSource: null }),
         ).rejects.toThrow(ParameterError);
+    });
+});
+
+describe('ExternalConnectionService live source cache', () => {
+    it('shares results across the source with its integration window by default', async () => {
+        const { service } = buildService();
+        const source = await service.getLiveSourceForExplore(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+        expect(source.cache).toEqual({
+            scope: { kind: 'source' },
+            ttlSeconds: 3_600,
+            purgedAt: null,
+        });
+    });
+
+    it('uses the admin window and purge time when set', async () => {
+        const purgedAt = new Date('2026-11-17T12:00:00Z');
+        const { service } = buildService({
+            connections: [
+                posthogConnection({
+                    cacheTtlSeconds: 900,
+                    cachePurgedAt: purgedAt,
+                }),
+            ],
+        });
+        const source = await service.getLiveSourceForExplore(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+        expect(source.cache).toMatchObject({ ttlSeconds: 900, purgedAt });
+    });
+
+    it.each([0, 900, 86_400, null])(
+        'saves a window of %s',
+        async (ttlSeconds) => {
+            const { service, externalConnectionModel } = buildService();
+            await service.updateLiveSourceCache(account, 'proj-1', 'conn-1', {
+                ttlSeconds,
+            });
+            expect(
+                externalConnectionModel.setLiveSourceCacheTtl,
+            ).toHaveBeenCalledExactlyOnceWith('conn-1', ttlSeconds);
+        },
+    );
+
+    it.each([-1, 1.5, 86_401])('rejects a window of %s', async (ttlSeconds) => {
+        const { service, externalConnectionModel } = buildService();
+        await expect(
+            service.updateLiveSourceCache(account, 'proj-1', 'conn-1', {
+                ttlSeconds,
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(
+            externalConnectionModel.setLiveSourceCacheTtl,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('purges the source cache from now', async () => {
+        const { service, externalConnectionModel } = buildService();
+        const before = Date.now();
+        await service.purgeLiveSourceCache(account, 'proj-1', 'conn-1');
+        const [[uuid, at]] =
+            externalConnectionModel.purgeLiveSourceCache.mock.calls;
+        expect(uuid).toBe('conn-1');
+        expect(at.getTime()).toBeGreaterThanOrEqual(before);
+    });
+
+    it('only lets people who manage the source change its cache', async () => {
+        const { service, externalConnectionModel } = buildService({
+            canManage: false,
+        });
+        await expect(
+            service.purgeLiveSourceCache(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow();
+        await expect(
+            service.updateLiveSourceCache(account, 'proj-1', 'conn-1', {
+                ttlSeconds: 60,
+            }),
+        ).rejects.toThrow();
+        expect(
+            externalConnectionModel.purgeLiveSourceCache,
+        ).not.toHaveBeenCalled();
+        expect(
+            externalConnectionModel.setLiveSourceCacheTtl,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('refuses connections that are not live data sources', async () => {
+        const { service } = buildService({
+            connections: [
+                posthogConnection({ kind: 'data_app', apiSource: null }),
+            ],
+        });
+        await expect(
+            service.purgeLiveSourceCache(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow('is not a live data source');
     });
 });
 
@@ -889,6 +1056,54 @@ describe('ExternalConnectionService live source explores', () => {
         expect(projectModel.replaceApiSourceExplores).not.toHaveBeenCalled();
     });
 
+    it("stops reusing the old target's results when the target changes", async () => {
+        respondToScan('ok');
+        const { service, externalConnectionModel } = buildService();
+        const target = {
+            connector: ApiConnectorType.POSTHOG,
+            projectId: '999',
+        } as const;
+        externalConnectionModel.update.mockResolvedValue(
+            posthogConnection({ apiSource: target }),
+        );
+
+        await service.update(account, 'proj-1', 'conn-1', {
+            apiSource: target,
+        });
+
+        expect(
+            externalConnectionModel.purgeLiveSourceCache,
+        ).toHaveBeenCalledExactlyOnceWith('conn-1', expect.any(Date));
+    });
+
+    it("stops reusing the old key's results when the secret changes", async () => {
+        respondToScan('ok');
+        const { service, externalConnectionModel } = buildService();
+
+        await service.update(account, 'proj-1', 'conn-1', {
+            secret: 'phx_new',
+        });
+        await service.rotateSecret(account, 'proj-1', 'conn-1', 'phx_newer');
+
+        expect(
+            externalConnectionModel.purgeLiveSourceCache,
+        ).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps reusing results after a rename', async () => {
+        respondToScan('ok');
+        const { service, externalConnectionModel } = buildService();
+        externalConnectionModel.update.mockResolvedValue(
+            posthogConnection({ name: 'Renamed' }),
+        );
+
+        await service.update(account, 'proj-1', 'conn-1', { name: 'Renamed' });
+
+        expect(
+            externalConnectionModel.purgeLiveSourceCache,
+        ).not.toHaveBeenCalled();
+    });
+
     describe('AI hint', () => {
         it('rebuilds from the stored scan, without calling the integration', async () => {
             const { service, projectModel, externalConnectionModel } =
@@ -947,7 +1162,7 @@ describe('ExternalConnectionService live source explores', () => {
             },
         ];
         const currentHashes = Object.values(
-            getApiSourceDefinitionHashes(ApiConnectorType.POSTHOG),
+            getLiveDefinitionHashes(ApiConnectorType.POSTHOG),
         ).map((definitionHash) => ({
             connectionUuid: 'conn-1',
             definitionHash,
@@ -1698,11 +1913,11 @@ describe('ExternalConnectionService live source explores', () => {
 
     it('answers explore queries for accounts that cannot view the connection', async () => {
         const { service } = buildService({ canView: false });
-        const connector = await service.getApiSourceConnector(
+        const source = await service.getLiveSourceForExplore(
             account,
             'proj-1',
             'conn-1',
         );
-        expect(connector.describe().connector).toBe(ApiConnectorType.POSTHOG);
+        expect(source.integration.connector).toBe(ApiConnectorType.POSTHOG);
     });
 });

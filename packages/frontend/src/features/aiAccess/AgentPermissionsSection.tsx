@@ -59,7 +59,7 @@ export const AgentPermissionsSection = ({
         <>
             <SettingsSection
                 label="Permissions"
-                description="What agents may do for a person."
+                description="What agents can do when they act for a person."
             >
                 <SettingsCard>
                     <Stack gap="md">
@@ -87,8 +87,8 @@ export const AgentPermissionsSection = ({
                         )}
                         <Stack gap="sm">
                             <SettingRow
-                                title="What agents can do"
-                                description="Choose a preset, or pick each capability."
+                                title="Agent scope permissions"
+                                description="These permissions only narrow what the person can do in Lightdash. They never add to it."
                             />
                             <AgentCapabilityChoices
                                 choice={choice}

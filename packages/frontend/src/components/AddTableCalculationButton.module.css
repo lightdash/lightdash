@@ -1,0 +1,60 @@
+/* One more header cell at the table's right edge, holding a + that opens the
+   add menu */
+.edgeColumn {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    background: var(--mantine-color-ldGray-0);
+}
+
+/* Light blue at rest, like the Visualize button; solid blue when hovered or open */
+.edgeColumn svg {
+    box-sizing: border-box;
+    width: 20px;
+    height: 20px;
+    padding: 4px;
+    color: var(--mantine-color-blue-light-color);
+    background: var(--mantine-color-blue-light);
+    border-radius: 6px;
+    transition:
+        transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
+        background-color 160ms ease,
+        color 160ms ease,
+        box-shadow 160ms ease;
+}
+
+.edgeColumn:hover svg,
+.edgeColumn:focus-visible svg,
+.edgeColumn[aria-expanded='true'] svg {
+    color: var(--mantine-color-white);
+    background: var(--mantine-color-blue-filled);
+    transform: rotate(90deg) scale(1.1);
+}
+
+.menuItem {
+    align-items: center;
+    padding: 8px;
+}
+
+/* Hovering the card spells the icon out as an add action */
+.headerButton {
+    gap: 1px;
+    width: auto;
+    min-width: var(--ai-size);
+    padding-inline: 4px;
+}
+
+/* Collapsed to nothing until the card is hovered, then slides in */
+.headerButton .plus {
+    width: 0;
+    opacity: 0;
+    transition:
+        width 140ms ease,
+        opacity 140ms ease;
+}
+
+[data-collapsable-card]:hover .headerButton .plus {
+    width: 12px;
+    opacity: 1;
+}

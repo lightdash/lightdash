@@ -11,3 +11,12 @@
     overflow-x: hidden;
     overflow-y: auto;
 }
+
+.stackFile {
+    flex: none;
+    max-height: 480px;
+    overflow: auto;
+    color-scheme: var(--diff-color-scheme);
+    --diffs-font-size: 12px;
+    --diffs-line-height: 18px;
+}

@@ -1,0 +1,123 @@
+.toolbar {
+    --toolbar-ink: var(--mantine-color-body);
+    --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 0;
+    transform-origin: bottom left;
+    /* Above the tabs until they stick, then under them, as the tile's menu */
+    z-index: calc(
+        var(--dashboard-tabs-zindex) + 1 - (var(--tabs-stuck, 0) * 2)
+    );
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px;
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-ldGray-9);
+    color: var(--toolbar-ink);
+    box-shadow: var(--mantine-shadow-md);
+    white-space: nowrap;
+    cursor: default;
+    /* Grows out of the tile corner it hangs from */
+    transition:
+        opacity 150ms var(--ease-out-strong),
+        transform 150ms var(--ease-out-strong);
+
+    &[data-align='end'] {
+        left: auto;
+        right: 0;
+        transform-origin: bottom right;
+    }
+
+    /* The first row has the filters bar above it */
+    &[data-side='bottom'] {
+        bottom: auto;
+        top: calc(100% + 8px);
+        transform-origin: top left;
+
+        &[data-align='end'] {
+            transform-origin: top right;
+        }
+    }
+}
+
+@starting-style {
+    .toolbar {
+        opacity: 0;
+        transform: scale(0.96);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .toolbar {
+        transition: opacity 150ms ease;
+    }
+
+    @starting-style {
+        .toolbar {
+            transform: none;
+        }
+    }
+}
+
+/* A zoomed canvas scales its tiles; the toolbar keeps its size */
+:global([data-canvas-zoom][data-zoomed]) .toolbar {
+    scale: calc(1 / var(--canvas-zoom));
+}
+
+/* The tile is held in place while its shadow moves */
+:global(.react-grid-item.react-draggable-dragging) .toolbar,
+:global(.react-grid-item.resizing) .toolbar {
+    visibility: hidden;
+}
+
+.label {
+    padding: 0 var(--mantine-spacing-xs);
+    font-size: var(--mantine-font-size-xs);
+    color: color-mix(in srgb, var(--toolbar-ink) 60%, transparent);
+}
+
+.action {
+    height: 26px;
+    padding: 0 var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+    color: inherit;
+    transition:
+        background-color 100ms ease,
+        color 100ms ease,
+        transform 120ms ease-out;
+
+    @media (hover: hover) and (pointer: fine) {
+        &:hover {
+            background: color-mix(in srgb, var(--toolbar-ink) 14%, transparent);
+        }
+
+        &[data-danger]:hover {
+            background: var(--mantine-color-red-6);
+            color: var(--mantine-color-white);
+        }
+    }
+
+    &[aria-pressed='true'] {
+        background: color-mix(in srgb, var(--toolbar-ink) 24%, transparent);
+    }
+
+    &:active {
+        transform: scale(0.97);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--mantine-color-blue-4);
+        outline-offset: 1px;
+    }
+}
+
+.divider {
+    width: 1px;
+    height: 16px;
+    margin: 0 var(--mantine-spacing-xxs, 4px);
+    background: color-mix(in srgb, var(--toolbar-ink) 25%, transparent);
+}

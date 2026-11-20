@@ -18,6 +18,8 @@ const state = vi.hoisted(() => ({
     isLoading: false,
     submit: vi.fn(),
     login: vi.fn(),
+    isPickingAgent: false,
+    waitingPrompt: null as string | null,
 }));
 vi.mock('../../../../../features/aiAccess/api', () => ({
     useMyAiAccess: () => ({
@@ -107,9 +109,20 @@ vi.mock('./useLauncherDock', () => ({
 vi.mock('./useAiAgentLauncherRouter', () => ({
     useAiAgentLauncherRouter: () => ({
         handleSubmit: state.submit,
-        isLocked: false,
-        isPickingAgent: false,
-        sortedCandidates: [],
+        isLocked: state.isPickingAgent,
+        isPickingAgent: state.isPickingAgent,
+        sortedCandidates: state.isPickingAgent
+            ? [
+                  {
+                      agentUuid: 'agent-2',
+                      name: 'Finance agent',
+                      description: null,
+                      agent: undefined,
+                      isRecommended: true,
+                  },
+              ]
+            : [],
+        waitingPrompt: state.waitingPrompt,
     }),
 }));
 vi.mock('./LauncherPanelFrame', () => ({
@@ -141,6 +154,8 @@ describe('LauncherPanel AI access', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         state.isLoading = false;
+        state.isPickingAgent = false;
+        state.waitingPrompt = null;
         state.refusal = {
             code: 'ai_access_refused',
             reason: AiAccessRefusalReason.NEEDS_SIGN_IN,
@@ -208,4 +223,28 @@ describe('LauncherPanel AI access', () => {
             ).not.toBeInTheDocument();
         },
     );
+});
+
+describe('LauncherPanel agent picker', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        state.isLoading = false;
+        state.refusal = null;
+        state.isPickingAgent = true;
+        state.waitingPrompt = 'Why did revenue drop in March?';
+    });
+
+    it('shows the message waiting for an agent above the choices', () => {
+        renderWithProviders(panel(null));
+        expect(screen.getByText('Your message')).toBeInTheDocument();
+        expect(
+            screen.getByText('Why did revenue drop in March?'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('Choose an agent to send it to'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: /Finance agent/ }),
+        ).toBeInTheDocument();
+    });
 });

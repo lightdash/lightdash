@@ -168,6 +168,7 @@ const buildScenario = () => {
         } as never,
         coderService: {} as never,
         documentService: {} as never,
+        composerChartService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
@@ -178,6 +179,7 @@ const buildScenario = () => {
         appRuntimeS3: null,
         appThumbnailClient: buildAppThumbnailClientMock({ appModel, storage }),
         chartRegistryClient: {} as never,
+        contentDraftModel: {} as never,
         contentVerificationModel: {} as never,
     });
     vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(true);

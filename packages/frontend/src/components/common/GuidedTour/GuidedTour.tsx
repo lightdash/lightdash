@@ -18,6 +18,10 @@ import {
     useRef,
     useState,
 } from 'react';
+import {
+    useTourTracking,
+    type TourTracking,
+} from '../../../hooks/useTourTracking';
 import { cardLayout } from './cardLayout';
 import styles from './GuidedTour.module.css';
 
@@ -32,6 +36,11 @@ export type GuidedTourStep = {
      * can span pages (homepage, then a list page, then back).
      */
     route?: string;
+    /**
+     * For a centered step (`target: null`): controls to ring together, each
+     * cut out of the dim, when one step is about several places on the page.
+     */
+    highlights?: string[];
     /**
      * Let the learner act on the page: no click-blocking layer, only the dim
      * and the spotlight ring. Used when the step is "do this", not "look at
@@ -95,6 +104,8 @@ export type TourPoint = { x: number; y: number };
 type GuidedTourProps = {
     steps: GuidedTourStep[];
     opened: boolean;
+    /** From `useOnboardingTour`; null for a tour that is not tracked. */
+    tracking: TourTracking | null;
     onClose: () => void;
     /** Fired on Got it at the last step, before `onClose`; not on Skip. */
     onFinish?: () => void;
@@ -716,9 +727,82 @@ const BLOCKER_HANDLERS = {
     onContextMenu: swallow,
 };
 
+const HIGHLIGHT_RADIUS = 8;
+
+const roundedRectPath = (r: DOMRect) => {
+    const x = r.left - SPOTLIGHT_PADDING;
+    const y = r.top - SPOTLIGHT_PADDING;
+    const w = r.width + SPOTLIGHT_PADDING * 2;
+    const h = r.height + SPOTLIGHT_PADDING * 2;
+    const c = HIGHLIGHT_RADIUS;
+    return `M${x + c} ${y}h${w - c * 2}a${c} ${c} 0 0 1 ${c} ${c}v${h - c * 2}a${c} ${c} 0 0 1 ${-c} ${c}h${c * 2 - w}a${c} ${c} 0 0 1 ${-c} ${-c}v${c * 2 - h}a${c} ${c} 0 0 1 ${c} ${-c}z`;
+};
+
+/** Viewport rects of every selector that is on the page, kept current. */
+const useHighlightRects = (selectors: string[] | undefined): DOMRect[] => {
+    const [rects, setRects] = useState<DOMRect[]>([]);
+    const key = selectors?.join('\n') ?? '';
+    useEffect(() => {
+        if (key === '') {
+            setRects([]);
+            return;
+        }
+        let frame = 0;
+        let last: DOMRect[] = [];
+        const tick = () => {
+            const next = key
+                .split('\n')
+                .map((selector) => document.querySelector(selector))
+                .filter((el) => el !== null)
+                .map((el) => el.getBoundingClientRect());
+            if (
+                next.length !== last.length ||
+                next.some((r, i) => !sameRect(r, last[i]))
+            ) {
+                last = next;
+                setRects(next);
+            }
+            frame = requestAnimationFrame(tick);
+        };
+        tick();
+        return () => cancelAnimationFrame(frame);
+    }, [key]);
+    return rects;
+};
+
+/** The dim with a hole and a ring for each highlighted control. */
+const Highlights: FC<{ rects: DOMRect[] }> = ({ rects }) => (
+    <>
+        <Box
+            className={clsx(styles.dim, styles.dimCutout)}
+            __vars={{
+                // The outer rectangle is far larger than any window
+                '--tour-cutout': `path(evenodd, "M0 0H99999V99999H0Z${rects
+                    .map(roundedRectPath)
+                    .join('')}")`,
+            }}
+        />
+        {rects.map((r, index) => (
+            <Box
+                // eslint-disable-next-line react/no-array-index-key
+                key={index}
+                className={styles.highlight}
+                data-tour-highlight
+                __vars={{
+                    '--tour-top': `${r.top - SPOTLIGHT_PADDING}px`,
+                    '--tour-left': `${r.left - SPOTLIGHT_PADDING}px`,
+                    '--tour-width': `${r.width + SPOTLIGHT_PADDING * 2}px`,
+                    '--tour-height': `${r.height + SPOTLIGHT_PADDING * 2}px`,
+                }}
+            />
+        ))}
+    </>
+);
+
 export const GuidedTour: FC<GuidedTourProps> = ({
     steps,
     opened,
+    tracking,
     onClose,
     onFinish,
     onStepChange,
@@ -755,6 +839,9 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     useEffect(() => setCheckMessage(null), [stepIndex]);
     const spotlightSelector = busy && step?.busy ? step.busy : resolvedSelector;
     const rect = useTargetRect(spotlightSelector, opened);
+    const highlightRects = useHighlightRects(
+        opened && step?.target === null ? step.highlights : undefined,
+    );
     // How the last step change happened: Next glides the ring from the old
     // control to the new one; a click on the control shrinks the ring into a
     // beacon at the click (the control usually vanishes: a menu item, a link)
@@ -947,13 +1034,23 @@ export const GuidedTour: FC<GuidedTourProps> = ({
 
     const isLast = stepIndex === steps.length - 1;
 
-    const handleClose = useCallback(() => {
+    const { trackEnded } = useTourTracking({
+        tracking,
+        opened,
+        stepIndex: step ? stepIndex : null,
+        stepCount: steps.length,
+    });
+    const close = useCallback(() => {
         // Whatever the walkthrough left open goes with it: the host shows the
         // completion dialog on the page behind, and a menu floats over it.
         closeOpenDropdowns(null);
         setStepIndex(0);
         onClose();
     }, [onClose]);
+    const handleClose = useCallback(() => {
+        trackEnded('dismissed');
+        close();
+    }, [trackEnded, close]);
     // Centre of the control whose click advanced the tour, for the host to
     // keep: a remount mid-tour then resumes as a beacon at that point.
     const clickPointRef = useRef<TourPoint | null>(null);
@@ -967,12 +1064,13 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     );
     const handleNext = useCallback(() => {
         if (isLast) {
+            trackEnded('completed');
             onFinish?.();
-            handleClose();
+            close();
             return;
         }
         goToStep(stepIndex + 1);
-    }, [isLast, onFinish, handleClose, goToStep, stepIndex]);
+    }, [isLast, trackEnded, onFinish, close, goToStep, stepIndex]);
     const handleBack = () => goToStep(Math.max(0, stepIndex - 1));
 
     // A step that lives on another page asks the host to go there first.
@@ -1584,7 +1682,9 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                         }}
                     />
                 )}
-                {shownRect ? (
+                {highlightRects.length > 0 ? (
+                    <Highlights rects={highlightRects} />
+                ) : shownRect ? (
                     <Spotlight
                         rect={shownRect}
                         gliding={gliding}

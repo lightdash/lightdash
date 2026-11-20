@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/common",
-  "version": "3.234.4",
+  "version": "3.351.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -119,6 +119,6 @@
     "oxlint": "1.75.0",
     "tsrs": "0.21.0-ts7.1.0-beta",
     "typescript": "7.0.2",
-    "vitest": "4.1.11"
+    "vitest": "5.1.0"
   }
 }

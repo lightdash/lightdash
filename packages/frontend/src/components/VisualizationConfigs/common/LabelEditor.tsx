@@ -9,7 +9,6 @@ import {
     useState,
     type FC,
 } from 'react';
-import { useDeepCompareEffect } from 'react-use';
 import { getLightdashMonacoTheme } from '../../../features/sqlRunner/utils/monaco';
 import { useEditorTheme } from '../../../hooks/useEditorTheme';
 import '../../../styles/monaco.css';
@@ -146,7 +145,7 @@ export const LabelEditor: FC<LabelEditorProps> = ({
         EditorProps['options'] | undefined
     >();
 
-    useDeepCompareEffect(() => {
+    useEffect(() => {
         const containerId = 'monaco-overflow-container';
         let container = document.getElementById(containerId);
         if (!container) {
@@ -162,7 +161,7 @@ export const LabelEditor: FC<LabelEditorProps> = ({
             overflowWidgetsDomNode: container,
             readOnly,
         });
-    }, [monacoOptions, readOnly]);
+    }, [readOnly]);
 
     const beforeMount: BeforeMount = useCallback(
         (monaco) => {

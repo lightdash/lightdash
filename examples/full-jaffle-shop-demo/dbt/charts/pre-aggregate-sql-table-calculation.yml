@@ -1,0 +1,48 @@
+name: Pre-aggregate SQL table calculation
+description: Monthly order totals pivoted by month, with a pivot_offset SQL table calculation
+tableName: orders
+metricQuery:
+  exploreName: orders
+  dimensions:
+    - orders_order_date_month
+    - orders_status
+  metrics:
+    - orders_total_order_amount
+  filters: {}
+  sorts:
+    - fieldId: orders_order_date_month
+      descending: true
+  limit: 500
+  metricOverrides: {}
+  dimensionOverrides: {}
+  tableCalculations:
+    - name: monthly_diff
+      displayName: Monthly diff
+      sql: ${orders.total_order_amount} - pivot_offset(${orders.total_order_amount}, -1)
+      type: number
+  additionalMetrics: []
+  customDimensions: []
+chartConfig:
+  type: table
+  config:
+    columns: {}
+    metricsAsRows: false
+    showSubtotals: false
+    hideRowNumbers: false
+    showTableNames: false
+    showResultsTotal: false
+    showRowCalculation: false
+    showColumnCalculation: false
+    conditionalFormattings: []
+pivotConfig:
+  columns:
+    - orders_order_date_month
+tableConfig:
+  columnOrder:
+    - orders_order_date_month
+    - orders_status
+    - orders_total_order_amount
+    - monthly_diff
+slug: pre-aggregate-sql-table-calculation
+spaceSlug: jaffle-shop
+version: 1

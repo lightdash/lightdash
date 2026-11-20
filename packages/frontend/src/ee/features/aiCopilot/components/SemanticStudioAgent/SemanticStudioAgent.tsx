@@ -1,6 +1,5 @@
 import {
     type AiAgentSummary,
-    type AiAgentThread,
     type AiPromptContext,
     type AiPromptContextInput,
 } from '@lightdash/common';
@@ -11,26 +10,39 @@ import {
     Center,
     Group,
     Loader,
-    Stack,
     Text,
     Tooltip,
 } from '@mantine/core';
 import {
     IconArrowBackUp,
-    IconGitPullRequest,
+    IconMessagePlus,
     IconLayoutSidebarRightCollapse,
     IconPlus,
 } from '@tabler/icons-react';
-import { useEffect, useEffectEvent, useRef, type FC } from 'react';
+import { uniqBy } from 'es-toolkit/compat';
+import {
+    memo,
+    useEffect,
+    useEffectEvent,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { Provider } from 'react-redux';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SidebarPosition } from '../../../../../components/common/Page/types';
+import {
+    withStudioChatCode,
+    isStudioChatRefDrag,
+    readStudioChatRefDrop,
+    type StudioChatRef,
+} from '../../../../../features/semanticStudio/studioChatRefs';
+import { STUDIO_STARTERS } from '../../../../../features/semanticStudio/studioStarters';
 import { useKeepsSemanticLayerDraft } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import useSidebarResize from '../../../../../hooks/useSidebarResize';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
 import {
-    useAiAgentThread,
     useCreateAgentThreadMessageMutation,
     useCreateAgentThreadMutation,
 } from '../../hooks/useProjectAiAgents';
@@ -38,17 +50,27 @@ import { store } from '../../store';
 import { AiAgentThreadStreamAbortControllerContextProvider } from '../../streaming/AiAgentThreadStreamAbortControllerContextProvider';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
-import { QuietCardsContext } from '../ChatElements/ToolCalls/quietCards';
+import {
+    QuietCardsContext,
+    StudioAskContext,
+} from '../ChatElements/ToolCalls/quietCards';
 import classes from './SemanticStudioAgent.module.css';
 import { StudioChatEmptyState } from './StudioChatEmptyState';
+import { StudioChatRefChips } from './StudioChatRefChips';
 import {
     useChatOpen,
     useStudioAgent,
+    useStudioThread,
     type StoredThread,
 } from './useSemanticStudioChat';
-import { useStudioPullRequest } from './useStudioPullRequest';
 
 type OpenModel = { modelName: string | null; fieldName: string | null };
+
+type Attached = {
+    attached: StudioChatRef[];
+    onDetach: (ref: StudioChatRef) => void;
+    onAttachedSent: () => void;
+};
 
 type AskedPrompt = { prompt: string | null; onPromptTaken: () => void };
 
@@ -60,36 +82,60 @@ type Submitted = {
 
 const withOpenModel = (
     { modelName, fieldName }: OpenModel,
+    attached: StudioChatRef[],
     { message, context, optimisticContext }: Submitted,
 ) => {
-    const item = modelName
-        ? [{ type: 'semantic_model' as const, modelName, fieldName }]
-        : [];
+    const refs = [
+        ...(modelName ? [{ modelName, fieldName }] : []),
+        ...attached
+            .filter(({ code }) => code === null)
+            .map((ref) => ({
+                modelName: ref.modelName,
+                fieldName: ref.fieldName,
+            })),
+    ];
+    const items = uniqBy(
+        refs,
+        (ref) => `${ref.modelName}:${ref.fieldName ?? ''}`,
+    ).map((ref) => ({ type: 'semantic_model' as const, ...ref }));
+    const code = attached.flatMap((ref) => (ref.code ? [ref.code] : []));
     return {
-        prompt: message,
-        context: [...item, ...(context ?? [])],
-        optimisticContext: [...item, ...(optimisticContext ?? [])],
+        prompt: withStudioChatCode(message, code),
+        context: [...items, ...(context ?? [])],
+        optimisticContext: [...items, ...(optimisticContext ?? [])],
     };
+};
+
+/** Whether a model or field is being dragged anywhere on the page. */
+const useStudioChatRefDragging = () => {
+    const [isDragging, setIsDragging] = useState(false);
+    useEffect(() => {
+        const onStart = (event: DragEvent) => {
+            if (event.dataTransfer && isStudioChatRefDrag(event.dataTransfer))
+                setIsDragging(true);
+        };
+        const onEnd = () => setIsDragging(false);
+        window.addEventListener('dragstart', onStart);
+        window.addEventListener('dragend', onEnd);
+        window.addEventListener('drop', onEnd);
+        return () => {
+            window.removeEventListener('dragstart', onStart);
+            window.removeEventListener('dragend', onEnd);
+            window.removeEventListener('drop', onEnd);
+        };
+    }, []);
+    return isDragging;
 };
 
 const PANEL_WIDTH = 360;
 const PANEL_MIN_WIDTH = 300;
-
-/** Whether the agent's latest reply proposes a change that no pull request carries yet. */
-const hasOpenProposal = (messages: AiAgentThread['messages']): boolean => {
-    const last = messages.findLast(({ role }) => role === 'assistant');
-    return (
-        last?.role === 'assistant' &&
-        (last.message ?? '').includes('```diff') &&
-        !last.toolCalls.some(({ toolName }) => toolName === 'editDbtProject')
-    );
-};
 
 const useStartThread = (
     projectUuid: string,
     agent: AiAgentSummary,
     onCreated: (thread: StoredThread) => void,
     openModel: OpenModel,
+    { attached, onAttachedSent }: Attached,
 ) => {
     const sqlMode = useAiAgentSqlModeAvailable(projectUuid);
     const { mutateAsync: createThread, isLoading } =
@@ -103,13 +149,17 @@ const useStartThread = (
         });
     return {
         isLoading,
-        start: (submitted: Submitted) =>
+        start: (submitted: Submitted) => {
             void createThread({
                 agentUuid: agent.uuid,
                 createdFrom: 'semantic_studio',
                 enableSqlMode: sqlMode,
-                ...withOpenModel(openModel, submitted),
-            }),
+                // Studio runs the agent's SQL without asking for approval.
+                autoApproveSql: true,
+                ...withOpenModel(openModel, attached, submitted),
+            });
+            onAttachedSent();
+        },
     };
 };
 
@@ -135,25 +185,10 @@ const useAskedPrompt = (
     }, [prompt]);
 };
 
-// Worded for any warehouse: a starter must not assume what the data is about.
-const STARTERS = [
-    {
-        label: "See what's in my warehouse",
-        prompt: 'Look through my warehouse and tell me what is worth modelling first.',
-    },
-    {
-        label: 'Model a table',
-        prompt: 'Pick the table most worth modelling first and model it.',
-    },
-    {
-        label: 'Suggest my first metrics',
-        prompt: 'Look at my data and suggest the first few metrics to define.',
-    },
-];
-
 const NewThread: FC<
     OpenModel &
-        AskedPrompt & {
+        AskedPrompt &
+        Attached & {
             projectUuid: string;
             agent: AiAgentSummary;
             onCreated: (thread: StoredThread) => void;
@@ -168,11 +203,17 @@ const NewThread: FC<
     prompt,
     onPromptTaken,
     showStarters,
+    attached,
+    onDetach,
+    onAttachedSent,
 }) => {
-    const { start, isLoading } = useStartThread(projectUuid, agent, onCreated, {
-        modelName,
-        fieldName,
-    });
+    const { start, isLoading } = useStartThread(
+        projectUuid,
+        agent,
+        onCreated,
+        { modelName, fieldName },
+        { attached, onDetach, onAttachedSent },
+    );
     useAskedPrompt({ prompt, onPromptTaken }, (message) => start({ message }));
     const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
     return (
@@ -180,7 +221,7 @@ const NewThread: FC<
             <StudioChatEmptyState keepsDraft={keepsDraft}>
                 {showStarters ? (
                     <Group gap="xs" justify="center">
-                        {STARTERS.map(({ label, prompt: starter }) => (
+                        {STUDIO_STARTERS.map(({ label, prompt: starter }) => (
                             <Button
                                 key={label}
                                 size="xs"
@@ -194,7 +235,9 @@ const NewThread: FC<
                     </Group>
                 ) : null}
             </StudioChatEmptyState>
+            <StudioChatRefChips refs={attached} onRemove={onDetach} />
             <AgentChatInput
+                allowAttachments={false}
                 accessCalloutVariant="inline"
                 loading={isLoading}
                 onSubmit={start}
@@ -209,7 +252,8 @@ const NewThread: FC<
 
 const ExistingThread: FC<
     OpenModel &
-        AskedPrompt & {
+        AskedPrompt &
+        Attached & {
             projectUuid: string;
             agent: AiAgentSummary;
             threadUuid: string;
@@ -222,13 +266,16 @@ const ExistingThread: FC<
     fieldName,
     prompt,
     onPromptTaken,
+    attached,
+    onDetach,
+    onAttachedSent,
 }) => {
     const sqlMode = useAiAgentSqlModeAvailable(projectUuid);
     const {
         data: thread,
         isLoading,
         refetch,
-    } = useAiAgentThread(projectUuid, agent.uuid, threadUuid);
+    } = useStudioThread(projectUuid, agent.uuid, threadUuid);
     const { isStreaming, isThreadPending } = usePendingThreadRefetch(
         thread,
         threadUuid,
@@ -240,104 +287,88 @@ const ExistingThread: FC<
             agent.uuid,
             threadUuid,
         );
-    useAskedPrompt(
-        { prompt, onPromptTaken },
-        (message) =>
-            void sendMessage({
-                enableSqlMode: sqlMode,
-                ...withOpenModel({ modelName, fieldName }, { message }),
-            }),
-    );
-    const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
-    const pullRequest = useStudioPullRequest(projectUuid);
-    const isRequestingPullRequest = useRef(false);
+    const send = (submitted: Submitted) => {
+        void sendMessage({
+            enableSqlMode: sqlMode,
+            autoApproveSql: true,
+            ...withOpenModel({ modelName, fieldName }, attached, submitted),
+        });
+        onAttachedSent();
+    };
+    useAskedPrompt({ prompt, onPromptTaken }, (message) => send({ message }));
+    // The composer stays put while the conversation loads, so opening one never blanks the panel.
     if (isLoading || !thread) {
         return (
-            <Center flex={1}>
-                <Loader size="sm" color="gray" />
-            </Center>
+            <>
+                <Center flex={1}>
+                    <Loader size="sm" color="gray" />
+                </Center>
+                <StudioChatRefChips refs={attached} onRemove={onDetach} />
+                <AgentChatInput
+                    allowAttachments={false}
+                    accessCalloutVariant="inline"
+                    loading
+                    onSubmit={send}
+                    placeholder="What should I build or change?"
+                    projectUuid={projectUuid}
+                    agentUuid={agent.uuid}
+                    threadUuid={threadUuid}
+                    fullWidth
+                />
+            </>
         );
     }
     const isBusy = isSending || isStreaming || isThreadPending;
     return (
-        <AgentChatDisplay
-            thread={thread}
-            agentName={agent.name}
-            enableAutoScroll
-            projectUuid={projectUuid}
-            agentUuid={agent.uuid}
-            renderArtifactsInline
+        <StudioAskContext.Provider
+            value={isBusy ? null : (message) => send({ message })}
         >
-            {!keepsDraft && !isBusy && hasOpenProposal(thread.messages) ? (
-                <div className={classes.pullRequestPrompt}>
-                    <Stack className={classes.pullRequestCard} gap="sm">
-                        <Group gap="sm" wrap="nowrap">
-                            <span className={classes.pullRequestIcon}>
-                                <MantineIcon
-                                    icon={IconGitPullRequest}
-                                    size={16}
-                                />
-                            </span>
-                            <Stack gap={0} flex={1} miw={0}>
-                                <Text fz="sm" fw={500}>
-                                    {pullRequest?.isOpen
-                                        ? 'Add this to your pull request?'
-                                        : 'Happy with this change?'}
-                                </Text>
-                                <Text fz="xs" c="dimmed">
-                                    {pullRequest?.isOpen
-                                        ? 'Commits it to the same pull request.'
-                                        : 'You can try it once its preview builds.'}
-                                </Text>
-                            </Stack>
-                        </Group>
-                        <Button
-                            size="xs"
-                            fullWidth
-                            onClick={() => {
-                                if (isRequestingPullRequest.current) return;
-                                isRequestingPullRequest.current = true;
-                                void sendMessage({
-                                    enableSqlMode: sqlMode,
-                                    prompt: pullRequest?.isOpen
-                                        ? 'Save this to the pull request.'
-                                        : 'Open the pull request.',
-                                    // The pull request tools only join a turn that carries this hint.
-                                    toolHints: ['editDbtProject'],
-                                }).finally(() => {
-                                    isRequestingPullRequest.current = false;
-                                });
-                            }}
-                        >
-                            {pullRequest?.isOpen
-                                ? 'Save to pull request'
-                                : 'Open pull request'}
-                        </Button>
-                    </Stack>
-                </div>
-            ) : null}
-            <AgentChatInput
-                accessCalloutVariant="inline"
-                loading={isBusy}
-                onSubmit={(submitted) =>
-                    void sendMessage({
-                        enableSqlMode: sqlMode,
-                        ...withOpenModel({ modelName, fieldName }, submitted),
-                    })
-                }
-                placeholder="What should I build or change?"
-                messageCount={thread.messages.length}
+            <AgentChatDisplay
+                thread={thread}
+                agentName={agent.name}
+                enableAutoScroll
                 projectUuid={projectUuid}
                 agentUuid={agent.uuid}
-                threadUuid={threadUuid}
-                fullWidth
-            />
-        </AgentChatDisplay>
+                renderArtifactsInline
+                onChoiceSelect={
+                    isBusy ? undefined : (message) => send({ message })
+                }
+            >
+                {thread.messages.length === 0 && !isBusy ? (
+                    <Text fz="xs" c="dimmed" ta="center" px="md" pb="xs">
+                        You edited this draft by hand. Ask for more here, or
+                        publish it when it is ready.
+                    </Text>
+                ) : null}
+                <StudioChatRefChips refs={attached} onRemove={onDetach} />
+                <AgentChatInput
+                    allowAttachments={false}
+                    accessCalloutVariant="inline"
+                    loading={isBusy}
+                    onSubmit={send}
+                    placeholder="What should I build or change?"
+                    messageCount={thread.messages.length}
+                    projectUuid={projectUuid}
+                    agentUuid={agent.uuid}
+                    threadUuid={threadUuid}
+                    fullWidth
+                />
+            </AgentChatDisplay>
+        </StudioAskContext.Provider>
     );
 };
 
 type AgentProps = OpenModel &
-    AskedPrompt & { projectUuid: string; showStarters: boolean };
+    AskedPrompt &
+    Attached & {
+        projectUuid: string;
+        showStarters: boolean;
+        onAttach: (ref: StudioChatRef) => void;
+    };
+
+// The panel renders on every move of its resize handle; the thread only when what it is given changes.
+const ExistingThreadMemo = memo(ExistingThread);
+const NewThreadMemo = memo(NewThread);
 
 const SemanticStudioAgentPanel: FC<AgentProps> = ({
     projectUuid,
@@ -346,17 +377,24 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
     prompt,
     onPromptTaken,
     showStarters,
+    attached,
+    onAttach,
+    onDetach,
+    onAttachedSent,
 }) => {
+    const [isDropping, setIsDropping] = useState(false);
+    const isDragging = useStudioChatRefDragging();
     const {
         isEnabled,
         agent,
         thread,
+        isLoadingAgents,
         setStored,
         startNewThread,
         previousThread,
         returnToPreviousThread,
     } = useStudioAgent(projectUuid);
-    const [isOpen, setIsOpen] = useChatOpen();
+    const [isOpen, setIsOpen] = useChatOpen(projectUuid);
 
     const { sidebarRef, sidebarWidth, isResizing, startResizing } =
         useSidebarResize({
@@ -365,7 +403,14 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
             position: SidebarPosition.RIGHT,
         });
 
-    if (!isEnabled || !agent) return null;
+    if (!isEnabled) return null;
+    if (!agent) {
+        return isLoadingAgents ? (
+            <Box className={classes.panel} p="md">
+                <Loader size="sm" />
+            </Box>
+        ) : null;
+    }
     if (!isOpen) return null;
     return (
         <QuietCardsContext.Provider value>
@@ -374,7 +419,39 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
                 className={classes.panel}
                 w={sidebarWidth}
                 data-quiet-cards
+                data-dragging={isDragging || undefined}
+                data-dropping={isDropping || undefined}
+                // Capture, so the editor inside never pastes the dragged name as text.
+                onDragOverCapture={(event) => {
+                    if (!isStudioChatRefDrag(event.dataTransfer)) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    event.dataTransfer.dropEffect = 'copy';
+                    setIsDropping(true);
+                }}
+                onDragLeave={(event) => {
+                    if (
+                        !event.currentTarget.contains(
+                            event.relatedTarget as Node | null,
+                        )
+                    )
+                        setIsDropping(false);
+                }}
+                onDropCapture={(event) => {
+                    if (!isStudioChatRefDrag(event.dataTransfer)) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setIsDropping(false);
+                    const ref = readStudioChatRefDrop(event.dataTransfer);
+                    if (ref) onAttach(ref);
+                }}
             >
+                {isDragging || isDropping ? (
+                    <div className={classes.dropHint}>
+                        <MantineIcon icon={IconMessagePlus} size={20} />
+                        Drop here to ask about it
+                    </div>
+                ) : null}
                 <Box
                     className={classes.resizeHandle}
                     data-resizing={isResizing}
@@ -418,7 +495,7 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
                 </Group>
                 <Box className={classes.body}>
                     {thread ? (
-                        <ExistingThread
+                        <ExistingThreadMemo
                             key={thread.threadUuid}
                             projectUuid={projectUuid}
                             agent={thread.agent}
@@ -427,9 +504,12 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
                             fieldName={fieldName}
                             prompt={prompt}
                             onPromptTaken={onPromptTaken}
+                            attached={attached}
+                            onDetach={onDetach}
+                            onAttachedSent={onAttachedSent}
                         />
                     ) : (
-                        <NewThread
+                        <NewThreadMemo
                             projectUuid={projectUuid}
                             agent={agent}
                             onCreated={setStored}
@@ -438,6 +518,9 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
                             fieldName={fieldName}
                             prompt={prompt}
                             onPromptTaken={onPromptTaken}
+                            attached={attached}
+                            onDetach={onDetach}
+                            onAttachedSent={onAttachedSent}
                         />
                     )}
                 </Box>

@@ -19,6 +19,7 @@ const schemas: Record<string, CompactedStreamColumn[]> = {
             'agent_request_events',
             'data_app_events',
             'mcp_tool_calls',
+            'export_events',
         ].map((name) => [
             name,
             compactedStreamSchemas[name as keyof typeof compactedStreamSchemas],
@@ -102,6 +103,7 @@ describe('People adoption', () => {
             event_ts: date,
             is_qualifying: true,
             actor_type: 'user',
+            content_type: 'dashboard',
             ...extra,
         });
     const rows = async (sql: string) =>
@@ -269,6 +271,7 @@ describe('People adoption', () => {
                 workload_origin: origin,
                 initiating_actor_type: actor,
                 scheduler_id: scheduler,
+                context: 'exploreView',
             });
             const [person] = await rows(`SELECT * FROM ${peopleAdoptionSql}`);
             expect(person).toMatchObject({
@@ -277,6 +280,8 @@ describe('People adoption', () => {
                 active_30d: kind === 'human',
                 no_observed_activity: kind !== 'human',
                 active_days_30d: kind === 'human' ? '1' : '0',
+                flow_bits: kind === 'human' ? '1' : '0',
+                parts_used: kind === 'human' ? '4' : '0',
             });
             for (const [classification, field] of [
                 ['human', 'last_observed_activity_at'],
@@ -390,6 +395,220 @@ describe('People adoption', () => {
                 people_adoption_lapsed_people_30d: '1',
             },
         ]);
+    });
+
+    it('queries feature bits as native dimensions and counts repeated use once', async () => {
+        const features = [
+            [
+                'content_views',
+                {
+                    is_qualifying: true,
+                    actor_type: 'user',
+                    content_type: 'dashboard',
+                },
+                1,
+            ],
+            [
+                'content_views',
+                {
+                    is_qualifying: true,
+                    actor_type: 'user',
+                    content_type: 'sql_chart',
+                },
+                2,
+            ],
+            [
+                'query_events',
+                {
+                    workload_origin: 'interactive',
+                    initiating_actor_type: 'registered_user',
+                    context: 'metricsExplorer',
+                },
+                4,
+            ],
+            [
+                'agent_request_events',
+                { stage: 'created', prompt_id: 'prompt', surface: 'slack' },
+                8,
+            ],
+            ['mcp_tool_calls', { actor_type: 'user' }, 16],
+            ['data_app_events', { event_name: 'data_app.view' }, 32],
+            ['data_app_events', { event_name: 'data_app.iterated' }, 64],
+            [
+                'export_events',
+                { event_name: 'download_results.completed' },
+                128,
+            ],
+        ] as const;
+        await member('all');
+        for (const [table, details, bit] of features) {
+            const user = String(bit);
+            await member(user);
+            const event = {
+                org_id: 'org',
+                event_ts: '2026-10-01 12:00:00',
+                ...details,
+            };
+            await insert(table, { ...event, user_id: user });
+            await insert(table, { ...event, user_id: 'all' });
+        }
+        await view('all');
+        const result = await rows(
+            compile(
+                [
+                    'user_id',
+                    'flow_bits',
+                    'parts_used',
+                    'last_seen',
+                    'last_seen_bin',
+                    'last_seen_day',
+                ],
+                ['total_members'],
+            ),
+        );
+        expect(result).toHaveLength(features.length + 1);
+        expect(result).toEqual(
+            expect.arrayContaining(
+                features.map(([_table, _details, bit]) =>
+                    expect.objectContaining({
+                        people_adoption_user_id: String(bit),
+                        people_adoption_flow_bits: '1',
+                        people_adoption_parts_used: String(bit),
+                        people_adoption_total_members: '1',
+                    }),
+                ),
+            ),
+        );
+        expect(
+            result.find((row) => row.people_adoption_user_id === 'all'),
+        ).toEqual({
+            people_adoption_user_id: 'all',
+            people_adoption_flow_bits: '1',
+            people_adoption_parts_used: '255',
+            people_adoption_last_seen: 'd7',
+            people_adoption_last_seen_bin: '0',
+            people_adoption_last_seen_day: '2026-10-01',
+            people_adoption_total_members: '1',
+        });
+        expect(
+            result.find((row) => row.people_adoption_user_id === '128'),
+        ).toMatchObject({
+            people_adoption_last_seen: 'never',
+            people_adoption_last_seen_bin: 'never',
+            people_adoption_last_seen_day: null,
+        });
+    });
+
+    it('keeps activity outside the Adoption app definitions out of its feature and flow bits', async () => {
+        await member('excluded');
+        const event = {
+            org_id: 'org',
+            user_id: 'excluded',
+            event_ts: '2026-10-01',
+        };
+        await view('excluded', '2026-10-01', { is_qualifying: false });
+        await view('excluded', '2026-10-01', { actor_type: 'embed' });
+        await insert('query_events', {
+            ...event,
+            workload_origin: 'interactive',
+            initiating_actor_type: 'user',
+            context: 'dashboardView',
+        });
+        await insert('agent_request_events', {
+            ...event,
+            stage: 'created',
+            prompt_id: 'prompt',
+            surface: 'mcp',
+        });
+        await insert('mcp_tool_calls', {
+            ...event,
+            actor_type: 'service_account',
+        });
+        await insert('data_app_events', {
+            ...event,
+            event_name: 'data_app.duplicated',
+        });
+        await insert('export_events', {
+            ...event,
+            event_name: 'download_results.error',
+        });
+        await insert('export_events', {
+            ...event,
+            event_name: 'download_results.completed',
+            context: 'scheduledDelivery',
+        });
+        const [person] = await rows(`SELECT * FROM ${peopleAdoptionSql}`);
+        expect(person).toMatchObject({
+            flow_bits: '0',
+            parts_used: '0',
+            active_days_30d: '1',
+            last_seen: 'd7',
+            last_inferred_activity_at: '2026-10-01 00:00:00',
+        });
+    });
+
+    it('uses closed UTC days for feature windows and recency independently within each organization', async () => {
+        const cases = [
+            ['seven', '2026-09-25', '1', '1', 'd7', '0'],
+            ['eight', '2026-09-24', '1', '1', 'd30', '0'],
+            ['recent', '2026-09-04', '7', '1', 'd30', '2'],
+            ['preceding-thirty', '2026-09-02', '2', '1', 'd30', '2'],
+            [
+                'preceding-thirty-one',
+                '2026-09-01 23:59:59',
+                '2',
+                '0',
+                'older',
+                '3',
+            ],
+            ['preceding-start', '2026-08-07', '2', '0', 'older', '5'],
+            ['historical', '2026-08-06 23:59:59', '4', '0', 'older', '5'],
+            ['eighty-nine-days', '2026-07-04', '4', '0', 'older', '8'],
+            ['ninety-days', '2026-07-03', '4', '0', 'older', '9'],
+            ['today', '2026-10-02', '0', '0', 'never', 'never'],
+            ['future', '2026-10-03', '0', '0', 'never', 'never'],
+        ] as const;
+        for (const [user, date] of cases) {
+            await member(user);
+            await view(user, date);
+        }
+        await view('recent', '2026-08-26');
+        await view('recent', '2026-08-01');
+        await member('today', {
+            org_id: 'other',
+            snapshot_at: '2026-10-01',
+        });
+        await view('today', '2026-10-01', { org_id: 'other' });
+        await insert('mcp_tool_calls', {
+            org_id: 'other',
+            user_id: 'today',
+            event_ts: '2026-09-30',
+            actor_type: 'user',
+        });
+        const people = await rows(`SELECT * FROM ${peopleAdoptionSql}`);
+        expect(people).toHaveLength(cases.length + 1);
+        for (const [user, date, flow, parts, recency, bin] of cases) {
+            expect(
+                people.find(
+                    (row) => row.org_id === 'org' && row.user_id === user,
+                ),
+            ).toMatchObject({
+                flow_bits: flow,
+                parts_used: parts,
+                last_seen: recency,
+                last_seen_bin: bin,
+                last_seen_day: recency === 'never' ? null : date.slice(0, 10),
+            });
+        }
+        expect(people.find((row) => row.org_id === 'other')).toMatchObject({
+            user_id: 'today',
+            flow_bits: '1',
+            parts_used: '16',
+            last_seen: 'd7',
+            last_seen_bin: '0',
+            last_seen_day: '2026-09-30',
+            last_observed_activity_at: null,
+        });
     });
 
     it('does not multiply people across duplicate events, projects or groups; isolates orgs and filters denominators', async () => {

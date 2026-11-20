@@ -21,12 +21,14 @@ import {
     IconChevronDown,
     IconChevronLeft,
     IconChevronRight,
+    IconGitBranch,
     IconPlus,
     IconSearch,
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { matchRoutes, useLocation, useMatch, useNavigate } from 'react-router';
+import { useDraftCheckout } from '../../features/semanticStudio/useSemanticLayerModel';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
     useActiveProjectUuid,
@@ -41,6 +43,7 @@ import { getProjectUrlIdentifier } from '../../utils/projectUrl';
 import MantineIcon from '../common/MantineIcon';
 import AppColorSchemeScope from './AppColorSchemeScope';
 import { CreatePreviewModal } from './CreatePreviewProjectModal';
+import { DraftCheckoutSection } from './DraftCheckoutSection';
 import { getNavBarMenuProps } from './NavBarPortalContext';
 import classes from './ProjectSwitcher.module.css';
 import { isPlaygroundProject, splitSwitcherProjects } from './switcherProjects';
@@ -96,8 +99,40 @@ const ExpiryBadge: FC<{ expiresAt: Date | null }> = ({ expiresAt }) => {
 const SwitcherLabel: FC<{
     activeProjectName: string;
     upstreamProjectName: string | null;
-}> = ({ activeProjectName, upstreamProjectName }) => {
+    /** The draft the person has checked out on this project, or null on what is published. */
+    draftName: string | null;
+}> = ({ activeProjectName, upstreamProjectName, draftName }) => {
     const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
+
+    if (draftName && !upstreamProjectName) {
+        return (
+            <Group gap={6} wrap="nowrap" miw={0}>
+                <MantineIcon
+                    icon={IconGitBranch}
+                    size="sm"
+                    color="yellow.5"
+                    className={classes.breadcrumbSeparator}
+                />
+                <Tooltip label={activeProjectName} disabled={!isTruncated}>
+                    <Text
+                        ref={truncatedRef}
+                        truncate
+                        fw={500}
+                        fz="xs"
+                        className={classes.previewName}
+                    >
+                        {activeProjectName}
+                    </Text>
+                </Tooltip>
+                <MantineIcon
+                    icon={IconChevronDown}
+                    size="sm"
+                    color="dimmed"
+                    className={classes.breadcrumbSeparator}
+                />
+            </Group>
+        );
+    }
 
     if (!upstreamProjectName) {
         return (
@@ -325,6 +360,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
         useActiveProjectUuid({ projectUuid: projectRoute?.projectUuid });
     // Fetch only the active project for the button label (lightweight)
     const { data: activeProject } = useProject(activeProjectUuid);
+    const { data: draftCheckout } = useDraftCheckout(activeProjectUuid);
     const activeProjectUrlIdentifier = activeProject
         ? getProjectUrlIdentifier(activeProject)
         : activeProjectUuid;
@@ -603,7 +639,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
             >
                 <Menu.Target>
                     <Button
-                        aria-label={`Switch project, current: ${activeProject?.name ?? 'none'}`}
+                        aria-label={`Switch project, current: ${activeProject?.name ?? 'none'}${draftCheckout ? `, on the draft ${draftCheckout.name}` : ''}`}
                         variant="default"
                         size="xs"
                         className={classes.targetButton}
@@ -614,6 +650,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                                 activeProject?.name ?? 'Select a project'
                             }
                             upstreamProjectName={upstreamProject?.name ?? null}
+                            draftName={draftCheckout?.name ?? null}
                         />
                     </Button>
                 </Menu.Target>
@@ -623,6 +660,12 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                     mah="calc(100dvh - 24px)"
                     className={classes.scrollableDropdown}
                 >
+                    {draftCheckout && activeProjectUuid ? (
+                        <DraftCheckoutSection
+                            projectUuid={activeProjectUuid}
+                            checkout={draftCheckout}
+                        />
+                    ) : null}
                     {isLoadingProjects ? (
                         <Box p="lg" ta="center">
                             <Text {...MENU_TEXT_PROPS}>

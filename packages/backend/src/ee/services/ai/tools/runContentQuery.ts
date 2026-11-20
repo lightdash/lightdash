@@ -16,9 +16,13 @@ import { stringify } from 'csv-stringify/sync';
 import { type QueryReviewer } from '../decisions/queryReview';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
+    ComposerChartSummary,
+    ComposerChartTileRef,
+    GetComposerChartFn,
     GetSavedChartFn,
     GetSqlChartFn,
     RunAsyncQueryFn,
+    RunComposerChartQueryFn,
     RunSavedChartQueryFn,
     RunSqlChartQueryFn,
     RunSqlJobFn,
@@ -49,7 +53,12 @@ import {
     type SqlApprovalCopy,
     type SqlApprovalDependencies,
 } from './sqlApprovalGate';
-import { RUN_SQL_REJECTED_RESULT, SqlNotApprovedError } from './sqlApprovals';
+import {
+    RUN_SQL_REJECTED_RESULT,
+    SqlNotApprovedError,
+    sqlNotApprovedOutput,
+    type SqlNotApprovedOutput,
+} from './sqlApprovals';
 
 // Null when SQL mode is off for the agent.
 export type ContentSqlQuerying = {
@@ -67,6 +76,8 @@ type Dependencies = {
     getSavedChart: GetSavedChartFn;
     getSqlChart: GetSqlChartFn;
     runSqlChartQuery: RunSqlChartQueryFn;
+    getComposerChart: GetComposerChartFn;
+    runComposerChartQuery: RunComposerChartQueryFn;
     validateContent: ValidateContentFn;
     maxLimit: number;
     maxContextRows: number;
@@ -78,7 +89,8 @@ const toolDefinition = runContentQueryToolDefinition.for('agent');
 
 type RunContentQueryResult =
     | ExecuteStructuredToolResult<ToolRunContentQueryStructuredContent>
-    | ExecuteToolErrorResult;
+    | ExecuteToolErrorResult
+    | SqlNotApprovedOutput;
 
 type RowsOutcome = Extract<
     ToolRunContentQueryStructuredContent,
@@ -177,6 +189,25 @@ const describeSqlChart = ({ uuid, slug, name, sql }: SqlChartSummary) => ({
 const describeSqlChartHeader = ({ name, slug, sql }: SqlChartSummary) =>
     `SQL chart "${name}" (${slug}):\n\`\`\`sql\n${sql}\n\`\`\`\n`;
 
+const describeComposerChart = ({
+    uuid,
+    slug,
+    name,
+    terminalNodeId,
+}: ComposerChartSummary) => ({
+    chartUuid: uuid,
+    slug,
+    name,
+    terminalNodeId,
+});
+
+const describeComposerChartHeader = ({
+    name,
+    slug,
+    terminalNodeId,
+}: ComposerChartSummary) =>
+    `Composer chart "${name}" (${slug}), rows of its final node "${terminalNodeId}":\n`;
+
 /** The CSV and structured rows for results keyed by column name. */
 const buildSqlRowsOutput = (
     {
@@ -216,6 +247,8 @@ export const getRunContentQuery = ({
     getSavedChart,
     getSqlChart,
     runSqlChartQuery,
+    getComposerChart,
+    runComposerChartQuery,
     validateContent,
     maxLimit,
     maxContextRows,
@@ -269,7 +302,7 @@ export const getRunContentQuery = ({
                 });
             } catch (e) {
                 if (e instanceof SqlNotApprovedError) {
-                    return await persistIfResumed(toolFailure(e.message));
+                    return await persistIfResumed(sqlNotApprovedOutput(e));
                 }
                 throw e;
             }
@@ -295,6 +328,7 @@ export const getRunContentQuery = ({
                         outcome: 'dataAccessDisabled' as const,
                         chart: null,
                         sqlChart: null,
+                        composerChart: null,
                     },
                 });
             }
@@ -331,6 +365,7 @@ export const getRunContentQuery = ({
                     outcome: 'rows' as const,
                     chart: null,
                     sqlChart: null,
+                    composerChart: null,
                     ...output.table,
                     review: review === '' ? null : review,
                     truncationNote: output.truncationNote,
@@ -363,6 +398,7 @@ export const getRunContentQuery = ({
                         outcome: 'dataAccessDisabled' as const,
                         chart: null,
                         sqlChart: describeSqlChart(sqlChart),
+                        composerChart: null,
                     },
                 };
             }
@@ -397,6 +433,7 @@ export const getRunContentQuery = ({
                     outcome: 'rows' as const,
                     chart: null,
                     sqlChart: describeSqlChart(sqlChart),
+                    composerChart: null,
                     ...output.table,
                     review: review === '' ? null : review,
                     truncationNote: output.truncationNote,
@@ -404,6 +441,60 @@ export const getRunContentQuery = ({
             };
         } catch (error) {
             return toolErrorOutput(error, 'Error running SQL chart.');
+        }
+    };
+
+    // Stored pipelines were approved when saved, so a run asks for nothing.
+    const runComposerChart = async (
+        args: ComposerChartTileRef,
+    ): Promise<RunContentQueryResult> => {
+        try {
+            await updateProgress('Running composer chart...');
+
+            if (!enableDataAccess) {
+                const composerChart = await getComposerChart(args);
+                return {
+                    result: `${describeComposerChartHeader(composerChart)}Data access is disabled for this agent. Read the chart with readContent and reason about its pipeline; do not assume specific row values.`,
+                    metadata: { status: 'success' as const },
+                    structuredContent: {
+                        outcome: 'dataAccessDisabled' as const,
+                        chart: null,
+                        sqlChart: null,
+                        composerChart: describeComposerChart(composerChart),
+                    },
+                };
+            }
+
+            const { composerChart, ...results } =
+                await runComposerChartQuery(args);
+            const header = describeComposerChartHeader(composerChart);
+            if (results.rowCount === 0) {
+                return {
+                    result: `${header}${NO_RESULTS_RETRY_PROMPT}`,
+                    metadata: { status: 'success' as const },
+                    structuredContent: {
+                        outcome: 'noResults' as const,
+                        review: null,
+                    },
+                };
+            }
+
+            const output = buildSqlRowsOutput(results, maxContextRows);
+            return {
+                result: `${header}${output.csv}`,
+                metadata: { status: 'success' as const },
+                structuredContent: {
+                    outcome: 'rows' as const,
+                    chart: null,
+                    sqlChart: null,
+                    composerChart: describeComposerChart(composerChart),
+                    ...output.table,
+                    review: null,
+                    truncationNote: output.truncationNote,
+                },
+            };
+        } catch (error) {
+            return toolErrorOutput(error, 'Error running composer chart.');
         }
     };
 
@@ -419,6 +510,15 @@ export const getRunContentQuery = ({
         execute: async ({ source }, { toolCallId }) => {
             if (source.type === 'sql') {
                 return runSqlSource(source, toolCallId);
+            }
+            if (
+                source.type === 'dashboardChart' &&
+                source.chartType === 'composer_chart'
+            ) {
+                return runComposerChart({
+                    chartSlug: source.chartSlug,
+                    dashboardSlug: source.dashboardSlug,
+                });
             }
             if (
                 (source.type === 'chart' || source.type === 'dashboardChart') &&
@@ -458,6 +558,7 @@ export const getRunContentQuery = ({
                             structuredContent: {
                                 outcome: 'dataAccessDisabled',
                                 sqlChart: null,
+                                composerChart: null,
                                 chart: describeSavedChartStructure(
                                     uuid,
                                     name,
@@ -560,6 +661,7 @@ export const getRunContentQuery = ({
                         structuredContent: {
                             outcome: 'rows',
                             sqlChart: null,
+                            composerChart: null,
                             chart: describeSavedChartSpec(
                                 uuid,
                                 name,
@@ -620,6 +722,7 @@ export const getRunContentQuery = ({
                             outcome: 'dataAccessDisabled',
                             chart: null,
                             sqlChart: null,
+                            composerChart: null,
                         },
                     };
                 }
@@ -687,6 +790,7 @@ export const getRunContentQuery = ({
                         outcome: 'rows',
                         chart: null,
                         sqlChart: null,
+                        composerChart: null,
                         ...table,
                         columns: table.columns.map(({ label }) => ({
                             fieldId: null,

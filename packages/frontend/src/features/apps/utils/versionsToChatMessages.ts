@@ -128,6 +128,7 @@ export function versionsToChatMessages(
                 clarifications,
                 timestamp: new Date(v.createdAt),
                 userName: getVersionAuthorName(v),
+                userUuid: v.createdByUser?.userUuid ?? null,
             },
         ];
 

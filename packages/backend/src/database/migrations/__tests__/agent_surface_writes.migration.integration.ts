@@ -491,6 +491,9 @@ describe('trusted surface to persisted chart identity', () => {
                 findLatestProgressByRunUuids: vi.fn().mockResolvedValue([]),
             },
             aiThreadFileModel: { findForThread: vi.fn().mockResolvedValue([]) },
+            aiWritebackService: {
+                canReadSourceCode: vi.fn().mockResolvedValue(false),
+            },
             aiAgentSkillModel: {
                 findBoundToAgent: vi.fn().mockResolvedValue([]),
             },
@@ -545,6 +548,7 @@ describe('trusted surface to persisted chart identity', () => {
             threadCreatedFrom:
                 surface === AgentActorSurface.SLACK_AGENT ? 'slack' : 'web_app',
             threadEmbedSpaceUuid: null,
+            threadEmbedOwnerIdentifier: null,
             externalUserId: null,
             ...(surface === AgentActorSurface.SLACK_AGENT
                 ? { slackUserId: 'slack-user' }

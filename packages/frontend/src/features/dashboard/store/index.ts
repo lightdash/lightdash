@@ -89,6 +89,8 @@ export {
     selectCanUndoTileLayout,
     selectCanvasBackground,
     selectCanvasZoom,
+    selectIsTileSelected,
+    selectIsTileTextFocusPending,
     selectControlOrder,
     selectControlSections,
     selectDashboardCustomMetrics,
@@ -127,6 +129,7 @@ export {
     selectAllFilterableFieldsMap,
     selectDashboard,
     selectEmbedDashboard,
+    selectFilterableFieldsByTileUuid,
 } from './dashboardSourceSelectors';
 export { getDashboardContextView } from './contextView';
 export * from './hooks';

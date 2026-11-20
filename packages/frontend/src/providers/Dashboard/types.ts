@@ -126,6 +126,10 @@ export type DashboardContextType = {
     setSavedParameters: Dispatch<SetStateAction<DashboardParameters>>;
     clearAllParameters: () => void;
     setParameter: (key: string, value: ParameterValue | null) => void;
+    /** Runtime picks for every control that sets each key */
+    setParameterPicks: Dispatch<
+        SetStateAction<Record<string, ParameterValue | null>>
+    >;
     addParameterReferences: (
         tileUuid: string,
         references: string[] | null,
@@ -137,6 +141,7 @@ export type DashboardContextType = {
     setTileVirtualViewSavedParameters: (
         tileUuid: string,
         values: ParametersValuesMap,
+        isPartial: boolean,
     ) => void;
     addParameterDefinitions: (parameters: ParameterDefinitions) => void;
     setPinnedParameters: (parameters: string[]) => void;

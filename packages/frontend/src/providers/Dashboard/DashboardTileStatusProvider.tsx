@@ -1,5 +1,6 @@
 import {
     isDashboardChartTileType,
+    isDashboardComposerChartTile,
     isDashboardDataAppTileType,
     isDashboardSqlChartTile,
     isTileInPagedExport,
@@ -40,6 +41,13 @@ import {
     type TilePreAggregateStatus,
 } from './types';
 import useDashboardContext from './useDashboardContext';
+
+// Tiles that report ready or errored; screenshots wait for each of them.
+const isScreenshotAwaitedTile = (tile: Dashboard['tiles'][number]) =>
+    isDashboardChartTileType(tile) ||
+    isDashboardSqlChartTile(tile) ||
+    isDashboardDataAppTileType(tile) ||
+    isDashboardComposerChartTile(tile);
 
 export type DashboardTileStatusProviderProps = {
     dashboardTiles: Dashboard['tiles'] | undefined;
@@ -237,12 +245,7 @@ const DashboardTileStatusProvider: React.FC<
                     (t): t is string => t !== null,
                 );
                 return dashboardTiles
-                    .filter(
-                        (tile) =>
-                            isDashboardChartTileType(tile) ||
-                            isDashboardSqlChartTile(tile) ||
-                            isDashboardDataAppTileType(tile),
-                    )
+                    .filter(isScreenshotAwaitedTile)
                     .filter((tile) =>
                         isTileInPagedExport(tile, resolvedTabUuids),
                     )
@@ -251,12 +254,7 @@ const DashboardTileStatusProvider: React.FC<
             // Stacked multi-tab image: mirror MinimalDashboard, which renders
             // orphans for any selection, with or without the null sentinel.
             return dashboardTiles
-                .filter(
-                    (tile) =>
-                        isDashboardChartTileType(tile) ||
-                        isDashboardSqlChartTile(tile) ||
-                        isDashboardDataAppTileType(tile),
-                )
+                .filter(isScreenshotAwaitedTile)
                 .filter((tile) =>
                     isTileInSelectedTabs(tile, schedulerTabsSelected),
                 )
@@ -266,12 +264,7 @@ const DashboardTileStatusProvider: React.FC<
         if (dashboardTabs && dashboardTabs.length > 0 && !activeTab) return [];
 
         return dashboardTiles
-            .filter(
-                (tile) =>
-                    isDashboardChartTileType(tile) ||
-                    isDashboardSqlChartTile(tile) ||
-                    isDashboardDataAppTileType(tile),
-            )
+            .filter(isScreenshotAwaitedTile)
             .filter(isTileOnActiveTab)
             .map((tile) => tile.uuid);
     }, [

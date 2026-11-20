@@ -123,12 +123,12 @@ function buildService({
                 },
             }),
         ),
-        deleteUserState: vi.fn().mockResolvedValue(undefined),
+        deleteUserState: vi.fn().mockResolvedValue(true),
         upsertSharedState: vi.fn().mockResolvedValue({
             outcome: 'written',
             entry: sharedEntry,
         }),
-        deleteSharedState: vi.fn().mockResolvedValue(undefined),
+        deleteSharedState: vi.fn().mockResolvedValue(true),
         getSharedHistory: vi.fn().mockResolvedValue([]),
         getAdminOverview: vi.fn().mockResolvedValue({
             shared: [],
@@ -159,14 +159,16 @@ function buildService({
                     : flagEnabled,
         })),
     };
+    const analytics = { track: vi.fn() };
     const service = new AppStateService({
+        analytics,
         appStateModel,
         appModel,
         projectModel,
         spacePermissionService,
         featureFlagModel,
     } as never);
-    return { service, appStateModel, featureFlagModel };
+    return { service, appStateModel, featureFlagModel, analytics };
 }
 
 describe('AppStateService', () => {
@@ -253,7 +255,11 @@ describe('AppStateService', () => {
             appStateModel.getSnapshot.mockResolvedValue(stored);
             await expect(
                 service.getSnapshot(consumerAccount(), 'proj-1', 'app-1'),
-            ).resolves.toEqual({ user: stored.user, shared: {} });
+            ).resolves.toEqual({
+                user: stored.user,
+                shared: {},
+                sharedAccess: 'none',
+            });
         });
 
         it('still gives users with Explore the shared values', async () => {
@@ -614,6 +620,145 @@ describe('AppStateService', () => {
                 'targets',
                 { limit: 200, beforeVersion: 7 },
             );
+        });
+    });
+
+    describe('usage analytics', () => {
+        const base = {
+            organizationId: 'org-1',
+            projectId: 'proj-1',
+            appUuid: 'app-1',
+        };
+
+        it('tracks a read with key counts', async () => {
+            const { service, appStateModel, analytics } = buildService();
+            appStateModel.getSnapshot.mockResolvedValue({
+                user: { a: { value: 1, updatedAt: '' } },
+                shared: { b: sharedEntry, c: sharedEntry },
+            });
+            await service.getSnapshot(sessionAccount(), 'proj-1', 'app-1');
+            expect(analytics.track).toHaveBeenCalledExactlyOnceWith({
+                event: 'data_app.state.read',
+                userId: 'viewer-1',
+                properties: {
+                    ...base,
+                    viewer: 'user',
+                    userKeyCount: 1,
+                    sharedKeyCount: 2,
+                },
+            });
+        });
+
+        it('tracks an embed read without a user id', async () => {
+            const { service, analytics } = buildService();
+            await service.getSnapshot(embeddedAccount(), 'proj-1', 'app-1');
+            expect(analytics.track).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    event: 'data_app.state.read',
+                    userId: '00000000-0000-0000-0000-000000000000',
+                    properties: expect.objectContaining({ viewer: 'embed' }),
+                }),
+            );
+        });
+
+        it('tracks user and shared writes with the value size', async () => {
+            const { service, analytics } = buildService();
+            await service.setUserState(
+                sessionAccount(),
+                'proj-1',
+                'app-1',
+                'secret-key',
+                { note: 'secret-value' },
+            );
+            await service.setSharedState(
+                sessionAccount(),
+                'proj-1',
+                'app-1',
+                'secret-key',
+                { note: 'secret-value' },
+                null,
+            );
+            const valueBytes = JSON.stringify({ note: 'secret-value' }).length;
+            expect(analytics.track.mock.calls).toEqual([
+                [
+                    {
+                        event: 'data_app.state.set',
+                        userId: 'viewer-1',
+                        properties: { ...base, scope: 'user', valueBytes },
+                    },
+                ],
+                [
+                    {
+                        event: 'data_app.state.set',
+                        userId: 'viewer-1',
+                        properties: { ...base, scope: 'shared', valueBytes },
+                    },
+                ],
+            ]);
+            expect(JSON.stringify(analytics.track.mock.calls)).not.toMatch(
+                /secret-key|secret-value/,
+            );
+        });
+
+        it('tracks deletes only when a row was removed', async () => {
+            const { service, appStateModel, analytics } = buildService();
+            await service.deleteUserState(
+                sessionAccount(),
+                'proj-1',
+                'app-1',
+                'k',
+            );
+            await service.deleteSharedState(
+                sessionAccount(OrganizationMemberRole.ADMIN),
+                'proj-1',
+                'app-1',
+                'k',
+            );
+            expect(
+                analytics.track.mock.calls.map(([e]) => [
+                    e.event,
+                    e.properties.scope,
+                ]),
+            ).toEqual([
+                ['data_app.state.deleted', 'user'],
+                ['data_app.state.deleted', 'shared'],
+            ]);
+
+            analytics.track.mockClear();
+            appStateModel.deleteUserState.mockResolvedValue(false);
+            await service.deleteUserState(
+                sessionAccount(),
+                'proj-1',
+                'app-1',
+                'k',
+            );
+            expect(analytics.track).not.toHaveBeenCalled();
+        });
+
+        it('tracks nothing for a refused or failed write', async () => {
+            const { service, appStateModel, analytics } = buildService();
+            appStateModel.upsertUserState.mockResolvedValue({
+                outcome: 'over_cap',
+            });
+            await expect(
+                service.setUserState(
+                    sessionAccount(),
+                    'proj-1',
+                    'app-1',
+                    'k',
+                    1,
+                ),
+            ).rejects.toBeInstanceOf(ParameterError);
+            await expect(
+                service.setUserState(
+                    embeddedAccount(),
+                    'proj-1',
+                    'app-1',
+                    'k',
+                    1,
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(analytics.track).not.toHaveBeenCalled();
         });
     });
 });

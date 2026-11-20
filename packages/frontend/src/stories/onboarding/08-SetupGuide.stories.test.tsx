@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { MantineProvider } from '@mantine/core';
 import { composeStories } from '@storybook/react-vite';
 import { render, screen } from '@testing-library/react';

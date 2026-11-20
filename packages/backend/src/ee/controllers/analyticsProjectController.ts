@@ -1,14 +1,17 @@
 import {
     AnalyticsHistoryBackfillStatus,
     AnalyticsProjectStatus,
+    AnalyticsProjectView,
     ApiErrorPayload,
     ApiSuccess,
     ApiSuccessEmpty,
     assertRegisteredAccount,
+    assertSessionAuth,
     EnsureAnalyticsProjectResult,
     UUID,
 } from '@lightdash/common';
 import {
+    Body,
     Delete,
     Get,
     Middlewares,
@@ -75,6 +78,25 @@ export class AnalyticsProjectController extends BaseController {
                 .getAnalyticsProjectService<AnalyticsProjectService>()
                 .getStatus(toSessionUser(req.account)),
         };
+    }
+
+    /**
+     * Record an authenticated analytics visit and its source.
+     * @summary Track analytics visit
+     */
+    @Post('/view')
+    @Middlewares([isAuthenticated])
+    @OperationId('TrackAnalyticsProjectView')
+    async trackView(
+        @Request() req: express.Request,
+        @Body() body: AnalyticsProjectView,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        assertSessionAuth(req.account);
+        await this.services
+            .getAnalyticsProjectService<AnalyticsProjectService>()
+            .trackView(req.account, body);
+        return { status: 'ok', results: undefined };
     }
 
     /** @summary Ensure internal analytics project */

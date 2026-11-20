@@ -4,7 +4,13 @@ import {
     type ExternalConnectionApiUsage,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { toLiveSourceRows } from './liveSourceRows';
+import {
+    formatFreshness,
+    formatCacheHits,
+    getLiveSourceFreshness,
+    toLiveSourceRows,
+    type LiveSourceConnection,
+} from './liveSourceRows';
 
 const connection = (
     overrides: Partial<ExternalConnection>,
@@ -23,6 +29,7 @@ const usage = (
 ): ExternalConnectionApiUsage => ({
     externalConnectionUuid,
     apiCalls: 1234,
+    cacheHits: 56,
     responseBytes: 361_113,
     medianDurationMs: 600,
     ...overrides,
@@ -73,11 +80,15 @@ describe('toLiveSourceRows', () => {
         expect(used.usage).toEqual({
             dataRead: expect.stringMatching(/KB|kB/),
             apiCalls: (1234).toLocaleString(),
+            cacheHits: '56',
+            cacheHitsLabel: '56 hits',
             medianLatency: '600ms',
         });
         expect(unused.usage).toEqual({
             dataRead: expect.any(String),
             apiCalls: '0',
+            cacheHits: '0',
+            cacheHitsLabel: '0 hits',
             medianLatency: null,
         });
     });
@@ -87,7 +98,58 @@ describe('toLiveSourceRows', () => {
         expect(row.usage).toEqual({
             dataRead: '—',
             apiCalls: '—',
+            cacheHits: '—',
+            cacheHitsLabel: null,
             medianLatency: null,
+        });
+    });
+});
+
+describe('formatCacheHits', () => {
+    it.each([
+        [0, '0 hits'],
+        [1, '1 hit'],
+        [2, '2 hits'],
+        [1_204, `${(1_204).toLocaleString()} hits`],
+    ])('describes %s as %s', (count, label) => {
+        expect(formatCacheHits(count)).toBe(label);
+    });
+});
+
+describe('live source freshness', () => {
+    it.each([
+        [0, 'Always fetch'],
+        [30, '30 sec'],
+        [60, '1 min'],
+        [900, '15 min'],
+        [3_600, '1 hour'],
+        [86_400, '24 hours'],
+    ])('describes %s seconds as %s', (seconds, label) => {
+        expect(formatFreshness(seconds)).toBe(label);
+    });
+
+    it('uses the integration default until an admin sets a window', () => {
+        const posthog = {
+            apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '1' },
+        } as LiveSourceConnection;
+        expect(getLiveSourceFreshness(posthog)).toMatchObject({
+            seconds: 3_600,
+            isDefault: true,
+            label: '1 hour (default)',
+        });
+        expect(
+            getLiveSourceFreshness({ ...posthog, cacheTtlSeconds: 300 }),
+        ).toMatchObject({
+            seconds: 300,
+            isDefault: false,
+            label: '5 min',
+        });
+        expect(
+            getLiveSourceFreshness({ ...posthog, cacheTtlSeconds: 0 }),
+        ).toMatchObject({
+            seconds: 0,
+            isDefault: false,
+            label: 'Always fetch',
         });
     });
 });

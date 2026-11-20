@@ -9,7 +9,7 @@ A request to chart a single-number answer asks for the breakdown behind it: visu
 
 nodeId names a node from a successful query call in this thread, in this turn or an earlier one, so a result can be visualized again with a different vizConfig without rerunning query. vizConfig references are that node's result columns, as listed in its query result.
 
-Show related metrics that answer one comparison over the same x in one visualize call, unless the user asks for separate charts: same-scale metrics in y, and a metric on a different scale in y2 instead. When they need more scales than y and y2 hold, or bars and lines together, use a custom chart type whose slots fit, when the project has one. Call visualize on the same node again for a different x or chart, not once per metric.
+Show same-scale metrics that answer one comparison over the same x in one visualize call, together in y, unless the user asks for separate charts. A metric on a different scale joins them on y2 when the user asks to see them together or the two read as a pair (revenue and its margin %); otherwise it gets its own visualize call on the same node, because two axes make unrelated metrics look correlated. When they need more scales than y and y2 hold, or bars and lines together, use a custom chart type whose slots fit, when the project has one. Call visualize on the same node again for a different x or chart.
 
 Pie and series-split charts return readability notes when they have many slices or series.`;
 
@@ -26,7 +26,7 @@ const toolVisualizeArgsSchemaV1 = createToolSchema()
             .nullish()
             .default(null)
             .describe(
-                'One sentence on what the card shows, only when the title is not enough. Null otherwise.',
+                'One sentence on what the card shows, when the title is not enough or the last period is partial. Null otherwise.',
             ),
         vizConfig: composerChartVizConfigSchema,
     })

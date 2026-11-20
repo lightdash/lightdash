@@ -6,14 +6,14 @@ import {
     Badge,
     Box,
     Button,
+    Code,
     Group,
     Loader,
     Menu,
-    Paper,
     Stack,
     Text,
-    ThemeIcon,
     Tooltip,
+    VisuallyHidden,
 } from '@mantine/core';
 import { WorkerPoolContextProvider } from '@pierre/diffs/react';
 import {
@@ -21,14 +21,12 @@ import {
     IconDots,
     IconExternalLink,
     IconEye,
-    IconGitPullRequest,
-    IconTable,
-    IconWorldUpload,
-    IconX,
+    IconFileCode,
+    IconPlayerPlay,
 } from '@tabler/icons-react';
-import { countBy, sortBy, uniqBy } from 'es-toolkit/compat';
-import { useEffect, useRef, useState, type FC } from 'react';
-import { Navigate, useSearchParams } from 'react-router';
+import { sortBy, uniqBy } from 'es-toolkit/compat';
+import { useContext, useEffect, useRef, useState, type FC } from 'react';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import Callout from '../../components/common/Callout';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
@@ -36,7 +34,10 @@ import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
+import { TryIt } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/TryItButton';
+import { useStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useProject } from '../../hooks/useProject';
 import { ChangeDiff } from './ChangeDiff';
 import { DevelopmentBar } from './DevelopmentBar';
 import { useDevelopmentView } from './developmentView';
@@ -45,58 +46,37 @@ import {
     DraftUsage,
     MetricComparison,
     ModelNotices,
-    DraftExplainer,
     PublishChecklist,
     PublishSummary,
 } from './DraftInsights';
+import { MarkPublishedContext } from './draftMarks';
+import { cannotApply, describePublisher } from './draftState';
+import { FieldChangeIcon } from './KindTypeIcon';
 import {
     CHANGE_KIND_LABELS,
     count,
+    countChangedLines,
+    countPublishedChanges,
     describeModelChange,
     DRAFT_PARAM,
     DRAFT_REVIEW,
     getChangeKind,
+    listFieldChanges,
+    listPublishedParts,
     refusalText,
-    type ChangeKind,
 } from './modelCode';
 import classes from './SemanticLayerDraft.module.css';
+import { getSemanticStudioUrl } from './urls';
 import {
-    useAppliesAsPullRequest,
     useApplySemanticLayerDraft,
+    usePublishMode,
     useCheckSemanticLayerDraftImpact,
     useDiscardSemanticLayerDraft,
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
 } from './useSemanticLayerModel';
-
-const KIND_NOUNS: [ChangeKind, string][] = [
-    ['new', 'new model'],
-    ['changed', 'changed model'],
-    ['removed', 'removed model'],
-];
-
-const summarizeDraftModels = ({ models }: SemanticLayerDraft) => {
-    const totals = countBy(models, getChangeKind);
-    return KIND_NOUNS.flatMap(([kind, noun]) =>
-        totals[kind] ? [count(totals[kind], noun)] : [],
-    ).join(', ');
-};
-
-/** Whether the draft, or one model of it, fails its checks. */
-const cannotApply = (
-    { changes, errors }: SemanticLayerDraft,
-    model: string | null,
-) => {
-    const inScope = (name: string) => model === null || name === model;
-    return (
-        errors.some((error) => inScope(error.model)) ||
-        changes.some((change) =>
-            change.models.some(
-                (entry) => inScope(entry.model) && entry.error !== null,
-            ),
-        )
-    );
-};
+import { useDraftPullRequest } from './useStudioCheckout';
+import { LineCounts } from './WorkbenchRail';
 
 /** How many models of the draft, or the one named, still have a part to choose between. */
 const countConflicts = (
@@ -199,7 +179,7 @@ const DraftImpact: FC<{ projectUuid: string; model: string | null }> = ({
     );
 };
 
-const ApplyModal: FC<{
+export const ApplyModal: FC<{
     projectUuid: string;
     draft: SemanticLayerDraft;
     model: string | null;
@@ -207,12 +187,66 @@ const ApplyModal: FC<{
 }> = ({ projectUuid, draft, model, onClose }) => {
     const impact = useSemanticLayerDraftImpact(projectUuid, model);
     const apply = useApplySemanticLayerDraft(projectUuid);
-    const asPullRequest = useAppliesAsPullRequest(projectUuid);
-    const { showToastSuccess } = useToaster();
+    const mode = usePublishMode(projectUuid);
+    const asPullRequest = mode === 'pull_request';
+    const { showToastSuccess, showToastWarning } = useToaster();
+    const navigate = useNavigate();
+    const markPublished = useContext(MarkPublishedContext);
     const scoped = draft.models.filter(
         (entry) => model === null || entry.model === model,
     );
-    const confirmLabel = asPullRequest ? 'Open pull request' : 'Publish';
+    /** Marks what went live, and opens the model when the publish touched only one. */
+    const followThrough = (isLive: boolean) => {
+        if (isLive) {
+            markPublished(
+                new Map(
+                    scoped.map((entry) => [
+                        entry.model,
+                        listFieldChanges(
+                            entry.model,
+                            draft.changes.flatMap((change) =>
+                                change.models
+                                    .filter(
+                                        (part) => part.model === entry.model,
+                                    )
+                                    .flatMap((part) => part.changes),
+                            ),
+                            entry,
+                        ),
+                    ]),
+                ),
+            );
+        }
+        const only = scoped.length === 1 ? scoped[0] : null;
+        // A model a pull request adds or removes has no page to open yet.
+        if (
+            only &&
+            only.contentAfter !== null &&
+            (only.contentBefore !== null || isLive)
+        ) {
+            void navigate(
+                getSemanticStudioUrl(projectUuid, {
+                    ref: { type: 'explore', exploreId: only.model },
+                }),
+            );
+        }
+    };
+    const sent = useDraftPullRequest() !== null;
+    const sendLabel = sent ? 'Update pull request' : 'Open pull request';
+    const confirmLabel = asPullRequest ? sendLabel : 'Publish';
+    const { data: project } = useProject(projectUuid);
+    const branch =
+        project?.dbtConnection && 'branch' in project.dbtConnection
+            ? project.dbtConnection.branch
+            : null;
+    const into = branch ? (
+        <>
+            {' '}
+            into <Code>{branch}</Code>
+        </>
+    ) : null;
+    const changes = countPublishedChanges(draft, model);
+    const them = changes === 1 ? 'it' : 'them';
     // Applying never waits for the check: an unchecked draft is applied knowingly, like one that breaks something.
     const isRisky =
         impact.data?.status !== 'done' || impact.data.breaks.length > 0;
@@ -220,14 +254,10 @@ const ApplyModal: FC<{
         <MantineModal
             opened
             onClose={onClose}
-            icon={asPullRequest ? IconGitPullRequest : IconWorldUpload}
             title={
-                asPullRequest ? 'Open a pull request' : 'Publish to everyone'
-            }
-            subtitle={
                 asPullRequest
-                    ? `${scoped.length} ${scoped.length === 1 ? 'model goes' : 'models go'} to your repository. Nothing is live until it merges.`
-                    : `${scoped.length} ${scoped.length === 1 ? 'model goes' : 'models go'} live for everyone on this project.`
+                    ? sendLabel
+                    : `Publish ${count(changes, 'change')}`
             }
             confirmLabel={isRisky ? `${confirmLabel} anyway` : confirmLabel}
             confirmLoading={apply.isLoading}
@@ -235,54 +265,85 @@ const ApplyModal: FC<{
                 (entry) => entry.reconciliation?.state === 'conflict',
             )}
             onConfirm={() =>
-                apply.mutate(model, {
-                    onSuccess: ({ failures, pullRequestUrl }) => {
+                // A promise, since the bar holding this modal leaves with the draft before a callback would run.
+                void apply.mutateAsync({ model, merge: mode === 'merge' }).then(
+                    ({ failures, pullRequestUrl, merge }) => {
                         if (failures.length > 0) return;
                         if (pullRequestUrl) {
+                            const action = {
+                                children: 'View pull request',
+                                icon: IconExternalLink,
+                                onClick: () =>
+                                    window.open(
+                                        pullRequestUrl,
+                                        '_blank',
+                                        'noopener',
+                                    ),
+                            };
+                            if (merge && !merge.merged) {
+                                showToastWarning({
+                                    title: 'Pull request opened, not merged',
+                                    subtitle: merge.reason,
+                                    action,
+                                });
+                            } else {
+                                showToastSuccess({
+                                    title: merge?.merged
+                                        ? 'Published'
+                                        : sent
+                                          ? 'Pull request updated'
+                                          : 'Pull request opened',
+                                    subtitle: merge?.merged
+                                        ? 'Updating for everyone.'
+                                        : undefined,
+                                    action,
+                                });
+                            }
+                        } else {
                             showToastSuccess({
-                                title: 'Pull request opened',
-                                action: {
-                                    children: 'View pull request',
-                                    icon: IconExternalLink,
-                                    onClick: () =>
-                                        window.open(
-                                            pullRequestUrl,
-                                            '_blank',
-                                            'noopener',
-                                        ),
-                                },
+                                title: 'Published for everyone',
                             });
                         }
+                        followThrough(
+                            !pullRequestUrl || merge?.merged === true,
+                        );
                         onClose();
                     },
-                })
+                    // The hook reports a failed publish.
+                    () => {},
+                )
             }
         >
             <Stack gap="md">
+                <Text fz="sm" c="dimmed">
+                    {mode === 'pull_request' ? (
+                        <>
+                            {sent ? 'Updates the' : 'Opens a'} pull request
+                            {into}. Nothing is published until it merges.
+                        </>
+                    ) : mode === 'merge' ? (
+                        <>
+                            Merges{into}. Everyone on this project sees {them}{' '}
+                            once it updates.
+                        </>
+                    ) : (
+                        `Everyone on this project sees ${them} right away. You can undo from each model's History tab.`
+                    )}
+                </Text>
                 <PublishSummary
                     projectUuid={projectUuid}
                     draft={draft}
                     model={model}
                 />
-                <Stack gap={6}>
-                    <Text fz="xs" fw={500} c="dimmed">
-                        Checks
-                    </Text>
-                    <PublishChecklist
-                        draft={draft}
-                        model={model}
-                        breaks={
-                            impact.data?.status === 'done'
-                                ? impact.data.breaks.length
-                                : null
-                        }
-                    />
-                </Stack>
-                {asPullRequest ? null : (
-                    <Text fz="xs" c="dimmed">
-                        You can undo this from each model's History tab.
-                    </Text>
-                )}
+                <PublishChecklist
+                    draft={draft}
+                    model={model}
+                    breaks={
+                        impact.data?.status === 'done'
+                            ? impact.data.breaks.length
+                            : null
+                    }
+                />
                 <DraftImpact projectUuid={projectUuid} model={model} />
                 <MessageList
                     variant="danger"
@@ -296,71 +357,54 @@ const ApplyModal: FC<{
     );
 };
 
-const DiscardButton: FC<{
-    label: string;
-    disabled: boolean;
-    onConfirm: () => void;
-}> = ({ label, disabled, onConfirm }) => {
-    const [armed, setArmed] = useState(false);
-    return (
-        <Button
-            size="xs"
-            variant={armed ? 'light' : 'subtle'}
-            color={armed ? 'red' : undefined}
-            disabled={disabled}
-            onMouseLeave={() => setArmed(false)}
-            onBlur={() => setArmed(false)}
-            onClick={() => {
-                setArmed(!armed);
-                if (armed) onConfirm();
-            }}
-        >
-            {armed ? 'Confirm discard' : label}
-        </Button>
-    );
-};
-
-/** Discard and apply, for the whole draft when `model` is null. */
-const DraftActions: FC<{
+/** Publishing or discarding one model on its own, tucked into a menu: the bar above publishes the draft. */
+const ModelActions: FC<{
     projectUuid: string;
     draft: SemanticLayerDraft;
-    model: string | null;
+    model: string;
 }> = ({ projectUuid, draft, model }) => {
     const discard = useDiscardSemanticLayerDraft(projectUuid);
+    const asPullRequest = usePublishMode(projectUuid) === 'pull_request';
     const [applying, setApplying] = useState(false);
-    const isAll = model === null && draft.models.length > 1;
+    const [armed, setArmed] = useState(false);
     const hasConflict = countConflicts(draft, model) > 0;
     const blocked = hasConflict || cannotApply(draft, model);
-    const hasModels = draft.models.length > 0;
-    const discardLabel = isAll ? 'Discard all' : 'Discard';
+    const blockedReason = hasConflict
+        ? 'Choose which version to keep first.'
+        : 'Some changes no longer pass their checks.';
     return (
-        <Group gap="xs" wrap="nowrap" flex="none">
-            <DiscardButton
-                label={hasModels ? discardLabel : 'Clear draft'}
-                disabled={discard.isLoading}
-                onConfirm={() => discard.mutate(model)}
-            />
-            {hasModels ? (
-                <Tooltip
-                    label={
-                        hasConflict
-                            ? 'Choose which version to keep first.'
-                            : 'Some changes no longer pass their checks.'
-                    }
-                    disabled={!blocked}
-                >
-                    <Button
-                        size="xs"
-                        variant={model === null ? 'filled' : 'default'}
-                        data-disabled={blocked || undefined}
+        <>
+            <Menu position="bottom-end" onClose={() => setArmed(false)}>
+                <Menu.Target>
+                    <ActionIcon size="sm" aria-label={`More for ${model}`}>
+                        <MantineIcon icon={IconDots} />
+                    </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                    <Menu.Item
+                        disabled={blocked}
+                        title={blocked ? blockedReason : undefined}
+                        onClick={() => setApplying(true)}
+                    >
+                        {asPullRequest
+                            ? 'Open pull request for this model only'
+                            : 'Publish this model only'}
+                    </Menu.Item>
+                    <Menu.Item
+                        color="red"
+                        closeMenuOnClick={armed}
+                        disabled={discard.isLoading}
                         onClick={() => {
-                            if (!blocked) setApplying(true);
+                            if (armed) discard.mutate(model);
+                            setArmed(!armed);
                         }}
                     >
-                        {isAll ? 'Publish all' : 'Publish'}
-                    </Button>
-                </Tooltip>
-            ) : null}
+                        {armed
+                            ? 'Click again to discard'
+                            : "Discard this model's changes"}
+                    </Menu.Item>
+                </Menu.Dropdown>
+            </Menu>
             {applying ? (
                 <ApplyModal
                     projectUuid={projectUuid}
@@ -369,36 +413,9 @@ const DraftActions: FC<{
                     onClose={() => setApplying(false)}
                 />
             ) : null}
-        </Group>
+        </>
     );
 };
-
-/** Switches the person's own queries between the live models and their changes in development. */
-const PreviewToggle: FC<{
-    isPreviewing: boolean;
-    onChange: (next: boolean) => void;
-}> = ({ isPreviewing, onChange }) => (
-    <Tooltip
-        multiline
-        w={240}
-        label={
-            isPreviewing
-                ? 'Back to live. Explore and your charts are reading your changes.'
-                : 'Try my changes. Explore and your charts read them, and only you see it.'
-        }
-    >
-        <ActionIcon
-            size="md"
-            variant={isPreviewing ? 'light' : 'default'}
-            color={isPreviewing ? 'orange' : undefined}
-            aria-label={isPreviewing ? 'Back to live' : 'Try my changes'}
-            aria-pressed={isPreviewing}
-            onClick={() => onChange(!isPreviewing)}
-        >
-            <MantineIcon icon={IconEye} />
-        </ActionIcon>
-    </Tooltip>
-);
 
 /** Says so once when someone publishes to a model this person has in development, since the page does not reload for it. */
 const usePublishedUnderNotice = (draft: SemanticLayerDraft | undefined) => {
@@ -415,7 +432,7 @@ const usePublishedUnderNotice = (draft: SemanticLayerDraft | undefined) => {
                           {
                               key: `${model}@${new Date(publishedSince.at).getTime()}`,
                               model,
-                              by: publishedSince.by,
+                              publisher: describePublisher(publishedSince),
                               isConflict: reconciliation?.state === 'conflict',
                           },
                       ]
@@ -426,10 +443,10 @@ const usePublishedUnderNotice = (draft: SemanticLayerDraft | undefined) => {
         if (known === null) return;
         current
             .filter(({ key }) => !known.has(key))
-            .forEach(({ model, by, isConflict }) =>
+            .forEach(({ model, publisher, isConflict }) =>
                 isConflict
                     ? showToastWarning({
-                          title: `${by ?? 'Someone'} changed a part of ${model} that you changed too`,
+                          title: `${publisher.subject} changed a part of ${model}${publisher.where} that this draft changes too`,
                           subtitle:
                               'Choose which version to keep before you publish.',
                           action: {
@@ -442,7 +459,7 @@ const usePublishedUnderNotice = (draft: SemanticLayerDraft | undefined) => {
                           },
                       })
                     : showToastInfo({
-                          title: `${by ?? 'Someone'} published a change to ${model}`,
+                          title: `${publisher.subject} published a change to ${model}${publisher.where}`,
                           subtitle:
                               'It is outside what you changed, and your changes sit on top of it.',
                       }),
@@ -459,7 +476,14 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const [publishing, setPublishing] = useState(false);
     const [discarding, setDiscarding] = useState(false);
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
+    const [isTrying, setIsTrying] = useState(false);
     const discard = useDiscardSemanticLayerDraft(projectUuid);
+    const { startNewThread } = useStudioAgent(projectUuid);
+    const asPullRequest = usePublishMode(projectUuid) === 'pull_request';
+    const sendLabel =
+        useDraftPullRequest() !== null
+            ? 'Update pull request'
+            : 'Open pull request';
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
     const check = useCheckSemanticLayerDraftImpact(projectUuid);
     const isEmpty = !draft || draft.changes.length === 0;
@@ -472,142 +496,171 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const reviewing = searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW;
     const blocked = cannotApply(draft, null);
     const conflicts = countConflicts(draft, null);
+    // A removed model has nothing to open.
+    const tryModel =
+        draft.models.find((entry) => getChangeKind(entry) !== 'removed')
+            ?.model ?? null;
     return (
-        <DevelopmentBar
-            summary={
-                <Text fz="xs" c="dimmed" truncate>
-                    {draft.models.length > 0
-                        ? summarizeDraftModels(draft)
-                        : 'Nothing new to publish'}
-                </Text>
-            }
-        >
-            <PreviewToggle
-                isPreviewing={isPreviewing}
-                onChange={setIsPreviewing}
-            />
-            {reviewing ? null : (
-                <Button
-                    size="xs"
-                    variant="default"
-                    onClick={() =>
-                        setSearchParams({ [DRAFT_PARAM]: DRAFT_REVIEW })
-                    }
-                >
-                    Review
-                </Button>
-            )}
-            {conflicts > 0 ? (
-                <Tooltip label="Someone published to a part you changed too. Choose which version to keep, then publish.">
-                    <Button
-                        size="xs"
-                        variant="default"
-                        leftSection={
-                            <MantineIcon
-                                icon={IconAlertTriangle}
-                                size={14}
-                                color="yellow"
-                            />
-                        }
-                        onClick={() => {
-                            if (!reviewing) {
+        <>
+            <DevelopmentBar
+                summary={
+                    draft.models.length > 0 ? null : (
+                        <Text fz="xs" c="dimmed" truncate>
+                            Nothing new to publish
+                        </Text>
+                    )
+                }
+            >
+                {tryModel ? (
+                    <Tooltip
+                        multiline
+                        w={240}
+                        label="Opens Explore over this page with your changes. Only you see them until you publish."
+                    >
+                        <Button
+                            size="xs"
+                            variant="subtle"
+                            color="gray"
+                            flex="none"
+                            leftSection={
+                                <MantineIcon icon={IconPlayerPlay} size={12} />
+                            }
+                            onClick={() => setIsTrying(true)}
+                        >
+                            Try it
+                        </Button>
+                    </Tooltip>
+                ) : null}
+                {conflicts > 0 ? (
+                    <Tooltip label="Someone published to a part you changed too. Choose which version to keep, then publish.">
+                        <Button
+                            size="xs"
+                            variant="default"
+                            leftSection={
+                                <MantineIcon
+                                    icon={IconAlertTriangle}
+                                    size={14}
+                                    color="yellow"
+                                />
+                            }
+                            onClick={() => {
+                                if (!reviewing) {
+                                    setSearchParams({
+                                        [DRAFT_PARAM]: DRAFT_REVIEW,
+                                    });
+                                    return;
+                                }
+                                document
+                                    .querySelector('[data-conflict]')
+                                    ?.scrollIntoView({
+                                        behavior: 'smooth',
+                                        block: 'center',
+                                    });
+                            }}
+                        >
+                            Resolve {count(conflicts, 'conflict')}
+                        </Button>
+                    </Tooltip>
+                ) : draft.models.length > 0 ? (
+                    <Tooltip
+                        label="Some changes no longer pass their checks."
+                        disabled={!blocked}
+                    >
+                        <Button
+                            size="xs"
+                            data-disabled={blocked || undefined}
+                            onClick={() => {
+                                if (!blocked) setPublishing(true);
+                            }}
+                        >
+                            {asPullRequest ? sendLabel : 'Publish'}
+                        </Button>
+                    </Tooltip>
+                ) : null}
+                <Menu position="bottom-end" withinPortal>
+                    <Menu.Target>
+                        <ActionIcon
+                            size="md"
+                            aria-label="More actions"
+                            variant="subtle"
+                            color="gray"
+                        >
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        {tryModel ? (
+                            <Menu.Item
+                                component={Link}
+                                to={`/projects/${projectUuid}/tables/${encodeURIComponent(tryModel)}`}
+                            >
+                                Open in Explore
+                            </Menu.Item>
+                        ) : null}
+                        <Menu.Item
+                            disabled={
+                                check.isLoading ||
+                                impact.data?.status === 'checking'
+                            }
+                            onClick={() => {
+                                check.mutate(undefined);
                                 setSearchParams({
                                     [DRAFT_PARAM]: DRAFT_REVIEW,
                                 });
-                                return;
-                            }
-                            document
-                                .querySelector('[data-conflict]')
-                                ?.scrollIntoView({
-                                    behavior: 'smooth',
-                                    block: 'center',
-                                });
-                        }}
-                    >
-                        Resolve {count(conflicts, 'conflict')}
-                    </Button>
-                </Tooltip>
-            ) : draft.models.length > 0 ? (
-                <Tooltip
-                    label="Some changes no longer pass their checks."
-                    disabled={!blocked}
-                >
-                    <Button
-                        size="xs"
-                        data-disabled={blocked || undefined}
-                        onClick={() => {
-                            if (!blocked) setPublishing(true);
-                        }}
-                    >
-                        Publish
-                    </Button>
-                </Tooltip>
-            ) : null}
-            <Menu position="bottom-end" withinPortal>
-                <Menu.Target>
-                    <ActionIcon
-                        size="md"
-                        aria-label="More actions"
-                        variant="default"
-                    >
-                        <MantineIcon icon={IconDots} />
-                    </ActionIcon>
-                </Menu.Target>
-                <Menu.Dropdown>
-                    <Menu.Item
-                        disabled={
-                            check.isLoading ||
-                            impact.data?.status === 'checking'
+                            }}
+                        >
+                            Check saved charts and dashboards
+                        </Menu.Item>
+                        <Menu.Divider />
+                        <Menu.Item
+                            color="red"
+                            onClick={() => setDiscarding(true)}
+                        >
+                            Discard draft
+                        </Menu.Item>
+                    </Menu.Dropdown>
+                </Menu>
+                {discarding ? (
+                    <MantineModal
+                        opened
+                        variant="delete"
+                        title="Discard draft"
+                        description={`${count(draft.changes.length, 'change')} in this draft will be removed. Published stays as it is, and this cannot be undone.`}
+                        confirmLabel="Discard"
+                        confirmLoading={discard.isLoading}
+                        onClose={() => setDiscarding(false)}
+                        onConfirm={() =>
+                            discard.mutate(null, {
+                                onSuccess: () => {
+                                    setDiscarding(false);
+                                    // The chat that built the draft goes with it; it stays one step back.
+                                    startNewThread();
+                                },
+                            })
                         }
-                        onClick={() => {
-                            check.mutate(undefined);
-                            setSearchParams({ [DRAFT_PARAM]: DRAFT_REVIEW });
-                        }}
-                    >
-                        Check saved charts and dashboards
-                    </Menu.Item>
-                    <Menu.Divider />
-                    <Menu.Item color="red" onClick={() => setDiscarding(true)}>
-                        Discard all changes
-                    </Menu.Item>
-                </Menu.Dropdown>
-            </Menu>
-            {reviewing ? (
-                <Tooltip label="Close review">
-                    <ActionIcon
-                        size="md"
-                        aria-label="Close review"
-                        onClick={() => setSearchParams({})}
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                </Tooltip>
-            ) : null}
-            {discarding ? (
-                <MantineModal
-                    opened
-                    variant="delete"
-                    title="Discard all changes"
-                    description={`${count(draft.changes.length, 'change')} in development will be removed. Nothing live changes, and this cannot be undone.`}
-                    confirmLabel="Discard"
-                    confirmLoading={discard.isLoading}
-                    onClose={() => setDiscarding(false)}
-                    onConfirm={() =>
-                        discard.mutate(null, {
-                            onSuccess: () => setDiscarding(false),
-                        })
-                    }
-                />
-            ) : null}
-            {publishing ? (
-                <ApplyModal
+                    />
+                ) : null}
+                {publishing ? (
+                    <ApplyModal
+                        projectUuid={projectUuid}
+                        draft={draft}
+                        model={null}
+                        onClose={() => setPublishing(false)}
+                    />
+                ) : null}
+            </DevelopmentBar>
+            {isTrying ? (
+                <TryIt
                     projectUuid={projectUuid}
-                    draft={draft}
-                    model={null}
-                    onClose={() => setPublishing(false)}
+                    models={draft.models
+                        .filter((entry) => getChangeKind(entry) !== 'removed')
+                        .map(({ model }) => model)}
+                    previewProjectUuid={null}
+                    prUrl={null}
+                    onClose={() => setIsTrying(false)}
                 />
             ) : null}
-        </DevelopmentBar>
+        </>
     );
 };
 
@@ -637,6 +690,8 @@ const DraftNotes: FC<{ draft: SemanticLayerDraft }> = ({ draft }) => {
     );
 };
 
+const CHANGE_GLYPHS = { new: '+', changed: '~', removed: '−' };
+
 type DraftProps = { projectUuid: string; draft: SemanticLayerDraft };
 
 type DraftReviewProps = DraftProps & {
@@ -644,39 +699,12 @@ type DraftReviewProps = DraftProps & {
     onAskAgent: (prompt: string) => void;
 };
 
-export const DraftReviewHeading: FC<DraftProps> = ({ projectUuid, draft }) => {
-    const [isPreviewing, setIsPreviewing] = useDevelopmentView();
-    return (
-        <Group className={classes.heading} gap="xs" wrap="nowrap">
-            <Badge color="orange" flex="none">
-                In development
-            </Badge>
-            <Text fz="sm" fw={500} truncate flex={1}>
-                {draft.models.length > 0
-                    ? summarizeDraftModels(draft)
-                    : 'Already live, nothing to publish'}
-            </Text>
-            {draft.models.length > 0 ? (
-                <PreviewToggle
-                    isPreviewing={isPreviewing}
-                    onChange={setIsPreviewing}
-                />
-            ) : null}
-            <DraftActions
-                projectUuid={projectUuid}
-                draft={draft}
-                model={null}
-            />
-        </Group>
-    );
-};
-
 export const DraftReview: FC<DraftReviewProps> = ({
     projectUuid,
     draft,
     onAskAgent,
 }) => {
-    const asPullRequest = useAppliesAsPullRequest(projectUuid);
+    const publishesHere = usePublishMode(projectUuid) === 'live';
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
     // A check that is running or found something is worth reading; one not yet run is asked for from the menu.
     const showsImpact =
@@ -692,7 +720,6 @@ export const DraftReview: FC<DraftReviewProps> = ({
     );
     return (
         <Stack gap="md" className={classes.review}>
-            <DraftExplainer asPullRequest={asPullRequest} />
             <MessageList
                 variant="danger"
                 title="This cannot be applied yet"
@@ -713,40 +740,51 @@ export const DraftReview: FC<DraftReviewProps> = ({
                         modelChange.model,
                         modelChange,
                     );
+                    const fields = listPublishedParts(draft, modelChange);
                     return (
-                        <Paper
+                        <Box
                             key={modelChange.model}
+                            component="section"
                             className={classes.model}
                         >
+                            {/* A file's header, as an editor shows one: its name, what it models, how much moved. */}
                             <Group
                                 className={classes.modelHead}
                                 gap="xs"
                                 wrap="nowrap"
                             >
-                                <ThemeIcon
-                                    variant="light"
-                                    color="indigo"
-                                    size={24}
-                                    radius="sm"
+                                <MantineIcon
+                                    icon={IconFileCode}
+                                    color="dimmed"
+                                />
+                                <Text
+                                    component="h3"
+                                    fz="sm"
+                                    fw={500}
+                                    truncate
+                                    flex={1}
+                                    miw={0}
                                 >
-                                    <MantineIcon icon={IconTable} size={14} />
-                                </ThemeIcon>
-                                <Box miw={0} flex={1}>
-                                    <Text
-                                        component="h3"
-                                        fz="sm"
-                                        fw={500}
-                                        truncate
-                                    >
-                                        {title}
+                                    {modelChange.model}.yml
+                                    <Text span inherit fw={400} c="dimmed">
+                                        {` · ${[
+                                            title,
+                                            subtitle ??
+                                                (fields.length === 0
+                                                    ? CHANGE_KIND_LABELS[
+                                                          getChangeKind(
+                                                              modelChange,
+                                                          )
+                                                      ]
+                                                    : null),
+                                        ]
+                                            .filter(Boolean)
+                                            .join(' · ')}`}
                                     </Text>
-                                    <Text fz="xs" c="dimmed" truncate>
-                                        {subtitle ??
-                                            CHANGE_KIND_LABELS[
-                                                getChangeKind(modelChange)
-                                            ]}
-                                    </Text>
-                                </Box>
+                                </Text>
+                                <LineCounts
+                                    counts={countChangedLines(modelChange)}
+                                />
                                 {modelChange.reconciliation?.state ===
                                 'conflict' ? (
                                     <Badge color="yellow" flex="none">
@@ -757,29 +795,80 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                         )}
                                     </Badge>
                                 ) : null}
-                                {draft.models.length > 1 ? (
-                                    <DraftActions
+                                {draft.models.length > 1 && publishesHere ? (
+                                    <ModelActions
                                         projectUuid={projectUuid}
                                         draft={draft}
                                         model={modelChange.model}
                                     />
                                 ) : null}
                             </Group>
+                            {fields.length > 0 ? (
+                                <Box className={classes.fields}>
+                                    {fields.map((field) => (
+                                        <Group
+                                            key={`${field.kind}:${field.name}`}
+                                            gap={6}
+                                            wrap="nowrap"
+                                        >
+                                            <Text
+                                                span
+                                                fz="xs"
+                                                className={classes.glyph}
+                                                data-change={field.change}
+                                                aria-hidden
+                                            >
+                                                {CHANGE_GLYPHS[field.change]}
+                                            </Text>
+                                            <FieldChangeIcon field={field} />
+                                            <Text fz="xs" truncate>
+                                                <VisuallyHidden>
+                                                    {
+                                                        CHANGE_KIND_LABELS[
+                                                            field.change
+                                                        ]
+                                                    }{' '}
+                                                    {field.kind}{' '}
+                                                </VisuallyHidden>
+                                                {field.label}
+                                                {field.detail ? (
+                                                    <Text
+                                                        span
+                                                        inherit
+                                                        c="dimmed"
+                                                    >
+                                                        {` · ${field.detail}`}
+                                                    </Text>
+                                                ) : null}
+                                            </Text>
+                                        </Group>
+                                    ))}
+                                </Box>
+                            ) : null}
                             <ModelNotices
                                 projectUuid={projectUuid}
                                 model={modelChange}
                             />
-                            <ChangeDiff
-                                modelName={modelChange.model}
-                                change={modelChange}
-                                variant="full"
-                            />
+                            {/* Until the choice is made the diff would only repeat both versions. */}
+                            {modelChange.reconciliation?.state ===
+                            'conflict' ? (
+                                <Text fz="xs" c="dimmed" p="sm">
+                                    The code shows once you choose which version
+                                    to keep.
+                                </Text>
+                            ) : (
+                                <ChangeDiff
+                                    modelName={modelChange.model}
+                                    change={modelChange}
+                                    variant="full"
+                                />
+                            )}
                             <MetricComparison
                                 projectUuid={projectUuid}
                                 draft={draft}
                                 model={modelChange}
                             />
-                        </Paper>
+                        </Box>
                     );
                 })}
             </WorkerPoolContextProvider>

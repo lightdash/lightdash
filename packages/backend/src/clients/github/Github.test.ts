@@ -2,9 +2,13 @@ import { NotFoundError, UnexpectedGitError } from '@lightdash/common';
 import { Octokit } from '@octokit/rest';
 import {
     createFile,
+    getFileContent,
+    getFilesChangedSince,
     getLastCommit,
     getRepoTree,
+    getWholeFileContent,
     isGithubRateLimitError,
+    mergePullRequest,
     searchRepoCode,
 } from './Github';
 
@@ -14,6 +18,9 @@ const mockGetTree = vi.fn();
 const mockSearchCode = vi.fn();
 const mockListCommits = vi.fn();
 const mockCreateOrUpdateFileContents = vi.fn();
+const mockGetContent = vi.fn();
+const mockMerge = vi.fn();
+const mockCompare = vi.fn();
 (Octokit as unknown as import('vitest').Mock).mockImplementation(
     // eslint-disable-next-line prefer-arrow-callback
     function MockOctokit() {
@@ -23,8 +30,11 @@ const mockCreateOrUpdateFileContents = vi.fn();
                 repos: {
                     listCommits: mockListCommits,
                     createOrUpdateFileContents: mockCreateOrUpdateFileContents,
+                    getContent: mockGetContent,
+                    compareCommitsWithBasehead: mockCompare,
                 },
                 search: { code: mockSearchCode },
+                pulls: { merge: mockMerge },
             },
             hook: { after: vi.fn(), error: vi.fn() },
         };
@@ -280,5 +290,115 @@ describe('getLastCommit', () => {
         const promise = getLastCommit(args);
         await expect(promise).rejects.toBeInstanceOf(UnexpectedGitError);
         await expect(promise).rejects.toThrow('Bad gateway');
+    });
+});
+
+describe('reading a file over 1 MB', () => {
+    const args = {
+        owner: 'acme',
+        repo: 'jaffle',
+        fileName: 'models/big.yml',
+        branch: 'main',
+        token: 't',
+    };
+    beforeEach(() => {
+        mockGetContent.mockResolvedValue({
+            data: { content: '', encoding: 'none', sha: 'f' },
+        });
+    });
+
+    it('reads as empty for existing callers', async () => {
+        await expect(getFileContent(args)).resolves.toEqual({
+            content: '',
+            sha: 'f',
+        });
+    });
+
+    it('throws for a caller that must not read it as empty', async () => {
+        await expect(getWholeFileContent(args)).rejects.toThrow(/too large/);
+    });
+});
+
+describe('mergePullRequest', () => {
+    const args = { owner: 'o', repo: 'r', pullNumber: 1, token: 't' };
+
+    beforeEach(() => {
+        mockMerge.mockReset();
+    });
+
+    it('falls back to a method the repository allows', async () => {
+        mockMerge
+            .mockRejectedValueOnce(
+                octokitError(
+                    405,
+                    {},
+                    'Merge commits are not allowed on this repository.',
+                ),
+            )
+            .mockResolvedValueOnce({ data: { merged: true, sha: 'abc' } });
+
+        await expect(mergePullRequest(args)).resolves.toEqual({
+            merged: true,
+            sha: 'abc',
+        });
+        expect(mockMerge.mock.calls.map(([c]) => c.merge_method)).toEqual([
+            'merge',
+            'squash',
+        ]);
+    });
+
+    it('does not retry a pull request that cannot be merged', async () => {
+        mockMerge.mockRejectedValue(
+            octokitError(405, {}, 'Pull Request is not mergeable'),
+        );
+
+        await expect(mergePullRequest(args)).rejects.toBeInstanceOf(
+            UnexpectedGitError,
+        );
+        expect(mockMerge).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('getFilesChangedSince', () => {
+    const changed = () =>
+        getFilesChangedSince({
+            owner: 'acme',
+            repo: 'shop',
+            base: 'compiled',
+            head: 'branch',
+            token: 't',
+        });
+    const compared = (status: string, filenames: string[]) => ({
+        data: { status, files: filenames.map((filename) => ({ filename })) },
+    });
+
+    beforeEach(() => mockCompare.mockReset());
+
+    it('lists what a later commit changed with one compare', async () => {
+        mockCompare.mockResolvedValueOnce(compared('ahead', ['a.yml']));
+        await expect(changed()).resolves.toEqual(['a.yml']);
+        expect(mockCompare).toHaveBeenCalledTimes(1);
+    });
+
+    it('lists what either side changed since the merge base when the two diverged', async () => {
+        mockCompare
+            .mockResolvedValueOnce(compared('diverged', ['a.yml', 'b.yml']))
+            .mockResolvedValueOnce(compared('diverged', ['b.yml', 'c.yml']));
+        await expect(changed()).resolves.toEqual(['a.yml', 'b.yml', 'c.yml']);
+        expect(mockCompare).toHaveBeenLastCalledWith(
+            expect.objectContaining({ basehead: 'branch...compiled' }),
+        );
+    });
+
+    it('gives up on a compare too long to list', async () => {
+        mockCompare
+            .mockResolvedValueOnce(compared('behind', []))
+            .mockResolvedValueOnce(
+                compared(
+                    'ahead',
+                    Array.from({ length: 300 }, (_, i) => `${i}.yml`),
+                ),
+            );
+        await expect(changed()).resolves.toBeNull();
     });
 });

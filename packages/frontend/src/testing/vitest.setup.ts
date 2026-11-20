@@ -10,9 +10,7 @@ import mockResizeObserver from './__mocks__/implementations/resizeObserver.mock'
 import mockScrollIntoView from './__mocks__/implementations/scrollIntoView.mock';
 import ReactMarkdownPreview from './__mocks__/modules/ReactMarkdwnPreview.mock';
 
-// Node's built-in fetch (undici) bypasses nock and disableNetConnect below.
-// Use node-fetch (http-module-backed) so requests stay interceptable and
-// hermetic, matching what `isomorphic-fetch` resolved to here before.
+// Keep the http-module-backed fetch consistent across tests and Node versions.
 vi.stubGlobal('fetch', nodeFetch);
 
 vi.mock('@uiw/react-markdown-preview', () => ({
@@ -23,7 +21,12 @@ vi.mock('@uiw/react-markdown-preview/nohighlight', () => ({
 }));
 
 beforeAll(() => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation((message) => {
+        // Stop render loops before their repeated warnings exhaust the worker heap.
+        if (String(message).startsWith('Maximum update depth exceeded')) {
+            throw new Error(String(message));
+        }
+    });
 
     mockMatchMedia();
     mockResizeObserver();

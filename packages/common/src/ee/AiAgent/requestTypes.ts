@@ -9,6 +9,7 @@ import { type PullRequestProvider } from '../../types/gitIntegration';
 import { type ParametersValuesMap } from '../../types/parameters';
 import { type ChartKind } from '../../types/savedCharts';
 import { type TraceTaskBase } from '../../types/scheduler';
+import { type DateGranularity } from '../../types/timeFrames';
 import {
     type AiAgentEvidenceExcerpt,
     type AiAgentJudgeProjectContextEntry,
@@ -51,11 +52,35 @@ export type AiDashboardActiveTab = {
     name: string;
 };
 
+export type AiDashboardTileRef = {
+    uuid: string;
+    name: string;
+};
+
+export type AiDashboardDateZoomControl = {
+    uuid: string;
+    name: string;
+    /** The viewer's pick, else the control's saved grain */
+    granularity: DateGranularity | string;
+    /** False: the saved grain when the context was attached, which the saved config supersedes */
+    isViewerPick: boolean;
+    tiles: AiDashboardTileRef[];
+};
+
+export type AiDashboardTileParameters = {
+    tile: AiDashboardTileRef;
+    parameters: ParametersValuesMap;
+};
+
 export type AiDashboardRuntimeOverrides = {
     activeTab?: AiDashboardActiveTab;
     dashboardFilters?: AiDashboardFilters;
     dashboardParameters?: ParametersValuesMap;
     dateZoom?: DateZoom | null;
+    /** Every named date zoom on the dashboard; absent when it has none */
+    dateZoomControls?: AiDashboardDateZoomControl[];
+    /** The values each tile runs with; present only when the viewer's picks on parameter controls change them */
+    tileParameters?: AiDashboardTileParameters[];
 };
 
 export type AiThread = {
@@ -203,8 +228,8 @@ export type CreateWebAppThread = {
     agentUuid: string | null;
     // Every write space of the embed token; the first one is used for attribution.
     embedSpaceUuids?: string[];
-    // The embed token's viewer; owns the thread when the token has no write spaces.
-    embedExternalUserId?: string | null;
+    // The embed token's thread owner: its threadOwnershipIdentifier, else its viewer.
+    embedOwnerIdentifier?: string | null;
     battleProfile?: AiAgentBattleProfile | null;
     binding?: AiThreadBinding | null;
     threadContext?: string | null;
@@ -266,6 +291,8 @@ export type AiWebAppPrompt = AiPrompt & {
     userUuid: string;
     /** Set when the thread belongs to an embedded agent chat. */
     threadEmbedSpaceUuid: string | null;
+    /** Thread owner from the embed token that started the thread. */
+    threadEmbedOwnerIdentifier: string | null;
     /** Viewer id from the embed token that sent this prompt. */
     externalUserId: string | null;
 };
@@ -295,6 +322,18 @@ export type AiPromptContextItemInput =
           dashboardUuid: string;
           dashboardSlug?: string | null;
           runtimeOverrides?: AiDashboardRuntimeOverrides;
+      }
+    | {
+          // A saved SQL chart; the server snapshots its name and latest version.
+          type: 'sql_chart';
+          sqlChartUuid: string;
+          sqlChartSlug: string | null;
+      }
+    | {
+          // A dashboard's composer chart; the server snapshots its name and latest version.
+          type: 'composer_chart';
+          composerChartUuid: string;
+          composerChartSlug: string | null;
       }
     | {
           type: 'thread';
@@ -463,6 +502,20 @@ export type AiPromptContextItem =
           pinnedVersionUuid: string | null;
           displayName: string | null;
           runtimeOverrides: AiDashboardRuntimeOverrides | null;
+      }
+    | {
+          type: 'sql_chart';
+          sqlChartUuid: string;
+          sqlChartSlug: string | null;
+          pinnedVersionUuid: string | null;
+          displayName: string | null;
+      }
+    | {
+          type: 'composer_chart';
+          composerChartUuid: string;
+          composerChartSlug: string | null;
+          pinnedVersionUuid: string | null;
+          displayName: string | null;
       }
     | {
           type: 'thread';

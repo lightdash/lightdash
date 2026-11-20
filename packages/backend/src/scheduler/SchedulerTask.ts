@@ -4,8 +4,10 @@ import {
     appendUuidQueryParam,
     applyChartFilterOverrides,
     applyDimensionOverrides,
+    assertRegisteredAccount,
     assertUnreachable,
     BackfillDefaultUserSpacesPayload,
+    canEmbedViewerResolveTileParameters,
     CompileProjectPayload,
     convertReplaceableFieldMatchMapToReplaceCustomFields,
     CreateProject,
@@ -13,6 +15,7 @@ import {
     CreateSchedulerLog,
     CreateSchedulerTarget,
     DashboardChartTile,
+    DashboardComposerChartTile,
     DashboardFilterRule,
     DashboardFilters,
     DashboardSqlChartTile,
@@ -25,18 +28,22 @@ import {
     ExportContentPayload,
     ExportCsvDashboardPayload,
     ExportDocumentPdfPayload,
+    FeatureNotEnabledError,
     FieldReferenceError,
     FieldType,
     ForbiddenError,
     formatRows,
     friendlyName,
     getColumnOrderFromVizTableConfig,
+    getComposerChartDisplayedQueryUuid,
+    getComposerChartExportLabels,
     getConditionalFormattingsFromChartConfig,
     getCronCadence,
     getCustomLabelsFromTableConfig,
     getCustomLabelsFromVizTableConfig,
     getDownloadPivotConfig,
     getDownloadPivotOptions,
+    getEmbedParameterValues,
     getErrorMessage,
     getHiddenFieldsFromVizTableConfig,
     getHiddenTableFields,
@@ -47,6 +54,7 @@ import {
     getSchedulerResourceTypeAndId,
     getSchedulerUuid,
     getShowColumnTotalsFromChartConfig,
+    getShowSubtotalsFromChartConfig,
     getSourceSchedulerUuid,
     GoogleSheetsQuotaError,
     GoogleSheetsTransientError,
@@ -59,12 +67,12 @@ import {
     isCreateSchedulerMsTeamsTarget,
     isCreateSchedulerSlackTarget,
     isDashboardChartTileType,
+    isDashboardComposerChartTile,
     isDashboardScheduler,
     isDashboardSqlChartTile,
     isDashboardValidationError,
     isDataAppValidationError,
     isJwtUser,
-    isParameterInteractivityEnabled,
     isSchedulerCsvOptions,
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
@@ -166,7 +174,7 @@ import {
     LightdashAnalytics,
     parseAnalyticsLimit,
 } from '../analytics/LightdashAnalytics';
-import { toSessionUser } from '../auth/account';
+import { fromSession, toSessionUser } from '../auth/account';
 import { type AgentConnectionGrantService } from '../auth/agentConnectionGrants/AgentConnectionGrantService';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../clients/FileStorage/FileStorageClient';
@@ -202,8 +210,16 @@ import {
 } from '../services/AgentPermissionService/agentWorkAuthority';
 import { agentExecutionContext } from '../services/AiAccessService/agentExecutionContext';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
-import { SCHEDULER_POLLING_OPTIONS } from '../services/AsyncQueryService/types';
+import {
+    getSchedulerPollingOptions,
+    type DownloadAsyncQueryResultsArgs,
+    type PollingOptions,
+} from '../services/AsyncQueryService/types';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
+import type {
+    ComposerChartRunContext,
+    ComposerChartService,
+} from '../services/ComposerChartService/ComposerChartService';
 import { ContentAsCodeWritebackService } from '../services/ContentAsCodeWritebackService/ContentAsCodeWritebackService';
 import {
     CsvService,
@@ -223,7 +239,10 @@ import {
     getDashboardTileParameterLayer,
     getEnabledParameterControls,
 } from '../services/ProjectService/parameters';
-import { ProjectService } from '../services/ProjectService/ProjectService';
+import {
+    ProjectService,
+    type IncrementalCompileResult,
+} from '../services/ProjectService/ProjectService';
 import { RenameService } from '../services/RenameService/RenameService';
 import { SchedulerService } from '../services/SchedulerService/SchedulerService';
 import {
@@ -299,6 +318,7 @@ export type SchedulerTaskArguments = {
     googleChatClient: GoogleChatClient;
     renameService: RenameService;
     asyncQueryService: AsyncQueryService;
+    composerChartService: ComposerChartService;
     persistentDownloadFileService: PersistentDownloadFileService;
     preAggregateModel: PreAggregateModel;
     preAggregateMaterializationService: PreAggregateMaterializationService;
@@ -618,6 +638,8 @@ export default class SchedulerTask {
 
     protected readonly learnSandboxService: LearnSandboxService;
 
+    protected readonly composerChartService: ComposerChartService;
+
     private readonly getAgentConnectionGrantService: SchedulerTaskArguments['getAgentConnectionGrantService'];
 
     constructor(args: SchedulerTaskArguments) {
@@ -660,6 +682,11 @@ export default class SchedulerTask {
             args.agentConnectionApprovalRequestModel;
         this.aiUsageLedgerModel = args.aiUsageLedgerModel;
         this.learnSandboxService = args.learnSandboxService;
+        this.composerChartService = args.composerChartService;
+    }
+
+    protected get schedulerPollingOptions(): PollingOptions {
+        return getSchedulerPollingOptions(this.lightdashConfig);
     }
 
     /**
@@ -1379,7 +1406,7 @@ export default class SchedulerTask {
                                     onlyRaw: csvOptions?.formatted === false,
                                     expirationSecondsOverride,
                                 },
-                                SCHEDULER_POLLING_OPTIONS,
+                                this.schedulerPollingOptions,
                             );
 
                         // Downloads the rerun replacement when one exists,
@@ -1665,9 +1692,13 @@ export default class SchedulerTask {
                                         getShowColumnTotalsFromChartConfig(
                                             chart.chartConfig.config,
                                         ),
+                                    showSubtotals:
+                                        getShowSubtotalsFromChartConfig(
+                                            chart.chartConfig.config,
+                                        ),
                                     expirationSecondsOverride,
                                 },
-                                SCHEDULER_POLLING_OPTIONS,
+                                this.schedulerPollingOptions,
                             );
                         csvUrl = {
                             filename:
@@ -1738,14 +1769,29 @@ export default class SchedulerTask {
                                 ),
                             );
 
+                        // An embed export runs with its token's values and only
+                        // the viewer's values it allows, over the saved ones.
+                        const requestedParameters = isJwtUser(account)
+                            ? getEmbedParameterValues(
+                                  account.access.parameters,
+                                  exportOptions?.parameters,
+                              )
+                            : exportOptions?.parameters;
+
                         // Ad-hoc exports send the parameter values currently
                         // applied on the dashboard, which replace the saved
                         // defaults the same way exported filters do.
-                        const finalParameters: ParametersValuesMap =
-                            exportOptions?.parameters ?? {
-                                ...convertedDashboardParameters,
-                                ...schedulerParameters,
-                            };
+                        const finalParameters: ParametersValuesMap = isJwtUser(
+                            account,
+                        )
+                            ? {
+                                  ...convertedDashboardParameters,
+                                  ...requestedParameters,
+                              }
+                            : (requestedParameters ?? {
+                                  ...convertedDashboardParameters,
+                                  ...schedulerParameters,
+                              });
                         const parameterControls =
                             await getEnabledParameterControls({
                                 featureFlagModel: this.featureFlagModel,
@@ -1773,7 +1819,7 @@ export default class SchedulerTask {
                                       tileUuid,
                                       chartSavedValues: {},
                                       requestParameters:
-                                          exportOptions?.parameters ??
+                                          requestedParameters ??
                                           schedulerParameters,
                                       userParameterNames,
                                   }).dashboardValues;
@@ -1794,7 +1840,7 @@ export default class SchedulerTask {
                         const getExportTileParameters = (tileUuid: string) =>
                             controlsEnabled &&
                             (!isJwtUser(account) ||
-                                isParameterInteractivityEnabled(
+                                canEmbedViewerResolveTileParameters(
                                     account.access.parameters,
                                 ))
                                 ? exportOptions?.tileParameters?.[tileUuid]
@@ -1809,11 +1855,14 @@ export default class SchedulerTask {
                                     tile,
                                 ): tile is
                                     | DashboardChartTile
-                                    | DashboardSqlChartTile =>
+                                    | DashboardSqlChartTile
+                                    | DashboardComposerChartTile =>
                                     (isDashboardChartTileType(tile) &&
                                         !!tile.properties.savedChartUuid) ||
                                     (isDashboardSqlChartTile(tile) &&
-                                        !!tile.properties.savedSqlUuid),
+                                        !!tile.properties.savedSqlUuid) ||
+                                    (isDashboardComposerChartTile(tile) &&
+                                        !!tile.properties.composerChartUuid),
                             ),
                             dashboard.tabs,
                         ).filter((tile) =>
@@ -1821,29 +1870,40 @@ export default class SchedulerTask {
                         );
 
                         // Metadata for tracking failures - order matches the promises
-                        const chartMetadata = exportableTiles.map((tile) =>
-                            isDashboardChartTileType(tile)
-                                ? {
-                                      tileUuid: tile.uuid,
-                                      chartUuid:
-                                          tile.properties.savedChartUuid!,
-                                      // Use tile name as initial chart name, will be updated with actual chart name on success
-                                      chartName:
-                                          tile.properties.title ||
-                                          tile.properties.chartName ||
-                                          'Unknown Chart',
-                                      type: 'chart' as const,
-                                  }
-                                : {
-                                      tileUuid: tile.uuid,
-                                      chartUuid: tile.properties.savedSqlUuid!,
-                                      chartName:
-                                          tile.properties.title ||
-                                          tile.properties.chartName ||
-                                          'Unknown SQL Chart',
-                                      type: 'sql_chart' as const,
-                                  },
-                        );
+                        const chartMetadata = exportableTiles.map((tile) => {
+                            if (isDashboardChartTileType(tile)) {
+                                return {
+                                    tileUuid: tile.uuid,
+                                    chartUuid: tile.properties.savedChartUuid!,
+                                    // Use tile name as initial chart name, will be updated with actual chart name on success
+                                    chartName:
+                                        tile.properties.title ||
+                                        tile.properties.chartName ||
+                                        'Unknown Chart',
+                                    type: 'chart' as const,
+                                };
+                            }
+                            if (isDashboardSqlChartTile(tile)) {
+                                return {
+                                    tileUuid: tile.uuid,
+                                    chartUuid: tile.properties.savedSqlUuid!,
+                                    chartName:
+                                        tile.properties.title ||
+                                        tile.properties.chartName ||
+                                        'Unknown SQL Chart',
+                                    type: 'sql_chart' as const,
+                                };
+                            }
+                            return {
+                                tileUuid: tile.uuid,
+                                chartUuid: tile.properties.composerChartUuid!,
+                                chartName:
+                                    tile.properties.title ||
+                                    tile.properties.chartName ||
+                                    'Unknown Composer Chart',
+                                type: 'composer_chart' as const,
+                            };
+                        });
 
                         const downloadChartTileResults = async ({
                             chartUuid,
@@ -1922,9 +1982,14 @@ export default class SchedulerTask {
                                             getShowColumnTotalsFromChartConfig(
                                                 chart.chartConfig.config,
                                             ),
+                                        showSubtotals:
+                                            getShowSubtotalsFromChartConfig(
+                                                chart.chartConfig.config,
+                                            ),
                                         expirationSecondsOverride,
                                     },
-                                    SCHEDULER_POLLING_OPTIONS,
+                                    this.schedulerPollingOptions,
+                                    dashboardUuid,
                                 );
                             return {
                                 chartName: chart.name,
@@ -2010,7 +2075,8 @@ export default class SchedulerTask {
                                             ),
                                         expirationSecondsOverride,
                                     },
-                                    SCHEDULER_POLLING_OPTIONS,
+                                    this.schedulerPollingOptions,
+                                    dashboardUuid,
                                 );
                             return {
                                 chartName: chart.name,
@@ -2024,17 +2090,76 @@ export default class SchedulerTask {
                             };
                         };
 
+                        const downloadComposerChartTileResults = async ({
+                            chartUuid,
+                            tileUuid,
+                        }: {
+                            chartUuid: string;
+                            tileUuid: string;
+                        }) => {
+                            const composerTileParameters =
+                                getExportTileParameters(tileUuid);
+                            const { chartName, queryUuid, fileUrl, s3FileUrl } =
+                                await this.exportComposerChartTile({
+                                    account,
+                                    projectUuid,
+                                    dashboardUuid,
+                                    tileUuid,
+                                    composerChartUuid: chartUuid,
+                                    dashboardFilters,
+                                    parameters: composerTileParameters
+                                        ? composerTileParameters.parameters
+                                        : getTileParameters(tileUuid),
+                                    excludedParameterKeys:
+                                        composerTileParameters?.excludedParameterKeys ??
+                                        [],
+                                    invalidateCache: !useCachedResults,
+                                    dateZoom: dateZoom ?? null,
+                                    context:
+                                        QueryExecutionContext.SCHEDULED_DELIVERY,
+                                    download: {
+                                        accessMode: downloadAccessMode,
+                                        type: downloadFileType,
+                                        onlyRaw:
+                                            csvOptions?.formatted === false,
+                                        expirationSecondsOverride,
+                                    },
+                                });
+                            return {
+                                chartName,
+                                filename: chartName,
+                                path: fileUrl,
+                                localPath: s3FileUrl ?? fileUrl,
+                                truncated: false,
+                                queryUuid,
+                            };
+                        };
+
                         const results = await Promise.allSettled(
-                            chartMetadata.map(({ type, chartUuid, tileUuid }) =>
-                                type === 'chart'
-                                    ? downloadChartTileResults({
-                                          chartUuid,
-                                          tileUuid,
-                                      })
-                                    : downloadSqlChartTileResults({
-                                          chartUuid,
-                                          tileUuid,
-                                      }),
+                            chartMetadata.map(
+                                ({ type, chartUuid, tileUuid }) => {
+                                    switch (type) {
+                                        case 'chart':
+                                            return downloadChartTileResults({
+                                                chartUuid,
+                                                tileUuid,
+                                            });
+                                        case 'sql_chart':
+                                            return downloadSqlChartTileResults({
+                                                chartUuid,
+                                                tileUuid,
+                                            });
+                                        case 'composer_chart':
+                                            return downloadComposerChartTileResults(
+                                                { chartUuid, tileUuid },
+                                            );
+                                        default:
+                                            return assertUnreachable(
+                                                type,
+                                                'Unknown exportable tile type',
+                                            );
+                                    }
+                                },
                             ),
                         );
 
@@ -2079,23 +2204,39 @@ export default class SchedulerTask {
                                     `Failed to generate CSV for ${metadata.chartName} (${metadata.chartUuid}) in scheduled delivery: ${result.reason}`,
                                 );
 
-                                if (metadata.type === 'chart') {
-                                    return {
-                                        type: PartialFailureType.DASHBOARD_CHART,
-                                        chartUuid: metadata.chartUuid,
-                                        chartName: metadata.chartName,
-                                        tileUuid: metadata.tileUuid,
-                                        error: getErrorMessage(result.reason),
-                                    } satisfies PartialFailure;
+                                const error = getErrorMessage(result.reason);
+                                switch (metadata.type) {
+                                    case 'chart':
+                                        return {
+                                            type: PartialFailureType.DASHBOARD_CHART,
+                                            chartUuid: metadata.chartUuid,
+                                            chartName: metadata.chartName,
+                                            tileUuid: metadata.tileUuid,
+                                            error,
+                                        } satisfies PartialFailure;
+                                    case 'sql_chart':
+                                        return {
+                                            type: PartialFailureType.DASHBOARD_SQL_CHART,
+                                            savedSqlUuid: metadata.chartUuid,
+                                            chartName: metadata.chartName,
+                                            tileUuid: metadata.tileUuid,
+                                            error,
+                                        } satisfies PartialFailure;
+                                    case 'composer_chart':
+                                        return {
+                                            type: PartialFailureType.DASHBOARD_COMPOSER_CHART,
+                                            composerChartUuid:
+                                                metadata.chartUuid,
+                                            chartName: metadata.chartName,
+                                            tileUuid: metadata.tileUuid,
+                                            error,
+                                        } satisfies PartialFailure;
+                                    default:
+                                        return assertUnreachable(
+                                            metadata,
+                                            'Unknown exportable tile type',
+                                        );
                                 }
-
-                                return {
-                                    type: PartialFailureType.DASHBOARD_SQL_CHART,
-                                    savedSqlUuid: metadata.chartUuid,
-                                    chartName: metadata.chartName,
-                                    tileUuid: metadata.tileUuid,
-                                    error: getErrorMessage(result.reason),
-                                } satisfies PartialFailure;
                             });
 
                         // Log partial failures if any
@@ -3217,6 +3358,14 @@ export default class SchedulerTask {
                                       ),
                               }
                             : undefined,
+                        !account && payload.incremental === true
+                            ? () =>
+                                  this.compileIncrementally(
+                                      user,
+                                      payload.projectUuid,
+                                      payload.jobUuid,
+                                  )
+                            : undefined,
                     );
                     if (revalidate) await revalidate();
                     await this.schedulerService.logSchedulerJob({
@@ -3278,6 +3427,15 @@ export default class SchedulerTask {
         );
     }
 
+    // Only the commercial worker can patch a dbt manifest, so this one always runs the full compile.
+    protected async compileIncrementally(
+        _user: SessionUser,
+        _projectUuid: string,
+        _jobUuid: string,
+    ): Promise<IncrementalCompileResult | null> {
+        return null;
+    }
+
     // Files that could not be applied fail the step so the job details say why
     private async syncContentFromRepo(
         user: SessionUser,
@@ -3285,6 +3443,7 @@ export default class SchedulerTask {
     ): Promise<void> {
         const summary = await this.contentAsCodeWritebackService.pullFromGit(
             user,
+            fromSession(user),
             projectUuid,
         );
         if (summary.failures.length > 0) {
@@ -3904,7 +4063,7 @@ export default class SchedulerTask {
                 pivotConfiguration,
                 parameters: payload.parameters,
             },
-            SCHEDULER_POLLING_OPTIONS,
+            this.schedulerPollingOptions,
         );
 
         onQueryComplete();
@@ -4625,7 +4784,7 @@ export default class SchedulerTask {
                             ? scheduler.parameters
                             : undefined,
                     },
-                    SCHEDULER_POLLING_OPTIONS,
+                    this.schedulerPollingOptions,
                 );
 
                 if (thresholds !== undefined && thresholds.length > 0) {
@@ -4852,7 +5011,7 @@ export default class SchedulerTask {
                                               userParameterNames,
                                           }).dashboardValues,
                             },
-                            SCHEDULER_POLLING_OPTIONS,
+                            this.schedulerPollingOptions,
                         );
                         const showTableNames = isTableChartConfig(
                             chart.chartConfig.config,
@@ -4952,7 +5111,7 @@ export default class SchedulerTask {
                             context:
                                 QueryExecutionContext.SCHEDULED_GSHEETS_SQL_CHART,
                         },
-                        SCHEDULER_POLLING_OPTIONS,
+                        this.schedulerPollingOptions,
                     );
 
                 await this.googleDriveClient.uploadMetadata(
@@ -5602,7 +5761,7 @@ export default class SchedulerTask {
                                 schedulerFilters: chartFilterOverrides,
                                 parameters: chartParameterOverrides,
                             },
-                            SCHEDULER_POLLING_OPTIONS,
+                            this.schedulerPollingOptions,
                         );
 
                     const evaluation = SchedulerTask.evaluateThreshold(
@@ -6633,7 +6792,7 @@ export default class SchedulerTask {
                     const tileParameters =
                         payload.tileParameters !== undefined &&
                         isJwtUser(overrideAccount) &&
-                        isParameterInteractivityEnabled(
+                        canEmbedViewerResolveTileParameters(
                             overrideAccount.access.parameters,
                         ) &&
                         (await areDashboardControlsEnabled({
@@ -6958,9 +7117,46 @@ export default class SchedulerTask {
                         ),
                     );
 
+                const composerChartTilePromises = dashboard.tiles
+                    .filter(isDashboardComposerChartTile)
+                    .filter((tile) => !!tile.properties.composerChartUuid)
+                    .filter(isInSelectedTab)
+                    .map((tile) =>
+                        limit(async () => {
+                            const { chartName, fileUrl, s3FileUrl } =
+                                await this.exportComposerChartTile({
+                                    account,
+                                    projectUuid,
+                                    dashboardUuid,
+                                    tileUuid: tile.uuid,
+                                    composerChartUuid:
+                                        tile.properties.composerChartUuid!,
+                                    dashboardFilters,
+                                    parameters: {},
+                                    excludedParameterKeys: [],
+                                    invalidateCache: true,
+                                    dateZoom: dateZoom ?? null,
+                                    context: QueryExecutionContext.CSV,
+                                    download: {
+                                        accessMode:
+                                            PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                                        type: DownloadFileType.CSV,
+                                        onlyRaw: false,
+                                    },
+                                });
+                            return {
+                                chartName,
+                                filename: chartName,
+                                fileUrl,
+                                s3FileUrl,
+                            };
+                        }),
+                    );
+
                 const results = await Promise.allSettled([
                     ...chartTilePromises,
                     ...sqlChartTilePromises,
+                    ...composerChartTilePromises,
                 ]);
 
                 const successfulResults = results.filter(
@@ -7018,6 +7214,94 @@ export default class SchedulerTask {
                 return { url, numFailures: failedCount };
             },
         );
+    }
+
+    private async exportComposerChartTile({
+        account,
+        projectUuid,
+        dashboardUuid,
+        tileUuid,
+        composerChartUuid,
+        dashboardFilters,
+        parameters,
+        excludedParameterKeys,
+        invalidateCache,
+        dateZoom,
+        context,
+        download,
+    }: {
+        account: AccountType;
+        projectUuid: string;
+        dashboardUuid: string;
+        tileUuid: string;
+        composerChartUuid: string;
+        dashboardFilters: DashboardFilters;
+        parameters: ParametersValuesMap;
+        excludedParameterKeys: string[];
+        invalidateCache: boolean;
+        dateZoom: DateZoom | null;
+        context: ComposerChartRunContext;
+        download: Pick<
+            DownloadAsyncQueryResultsArgs,
+            'accessMode' | 'type' | 'onlyRaw' | 'expirationSecondsOverride'
+        >;
+    }): Promise<{
+        chartName: string;
+        queryUuid: string;
+        fileUrl: string;
+        s3FileUrl?: string;
+    }> {
+        assertRegisteredAccount(account);
+        const chart = await this.composerChartService.get(
+            account,
+            projectUuid,
+            composerChartUuid,
+        );
+        const run = await this.composerChartService
+            .run(
+                account,
+                projectUuid,
+                composerChartUuid,
+                {
+                    dashboardUuid,
+                    tileUuid,
+                    dashboardFilters,
+                    parameters,
+                    excludedParameterKeys,
+                    invalidateCache,
+                    dateZoom,
+                },
+                context,
+            )
+            .catch((error) => {
+                if (error instanceof FeatureNotEnabledError) {
+                    throw new ForbiddenError(
+                        'Not included: composer charts are not enabled for this account',
+                    );
+                }
+                throw error;
+            });
+        const queryUuid = getComposerChartDisplayedQueryUuid(
+            run,
+            chart.pipeline.terminalNodeId,
+        );
+        if (!queryUuid) {
+            throw new UnexpectedServerError(
+                'The composer chart run returned no result to export',
+            );
+        }
+        const { fileUrl, s3FileUrl } =
+            await this.asyncQueryService.downloadSyncQueryResults(
+                {
+                    ...download,
+                    account,
+                    projectUuid,
+                    queryUuid,
+                    customLabels: getComposerChartExportLabels(run.fields),
+                },
+                this.schedulerPollingOptions,
+            );
+        return { chartName: chart.name, queryUuid, fileUrl, s3FileUrl };
     }
 
     private async exportCsvForChartTile({
@@ -7082,7 +7366,7 @@ export default class SchedulerTask {
                     pivotConfig: downloadPivotConfig,
                     columnOrder: chart.tableConfig.columnOrder,
                 },
-                SCHEDULER_POLLING_OPTIONS,
+                this.schedulerPollingOptions,
             );
         return {
             chartName: chart.name,
@@ -7162,7 +7446,7 @@ export default class SchedulerTask {
                             : undefined,
                     ),
                 },
-                SCHEDULER_POLLING_OPTIONS,
+                this.schedulerPollingOptions,
             );
         return {
             chartName: chart.name,

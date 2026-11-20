@@ -306,9 +306,6 @@ const runRow = (overrides: Record<string, unknown> = {}) => ({
     terminal_reason: null,
     failure_stage: null,
     entry_point: 'ask_ai',
-    result_markdown: null,
-    report_expires_at: null,
-    report_expired_at: null,
     budget_snapshot: budget,
     execution_context_snapshot: executionContextSnapshot,
     input_tokens: null,
@@ -708,7 +705,6 @@ describe('AiDeepResearchService', () => {
                     findByPromptScoped: vi.fn().mockResolvedValue(
                         runRow({
                             status: 'completed',
-                            result_markdown: 'Private result',
                         }),
                     ),
                 },
@@ -1064,27 +1060,6 @@ describe('AiDeepResearchService', () => {
     });
 
     describe('access and cancellation', () => {
-        it('does not expose checkpoint markdown before terminal completion', async () => {
-            const { service } = buildService({
-                model: {
-                    findByUuidScoped: vi.fn().mockResolvedValue(
-                        runRow({
-                            status: 'running',
-                            result_markdown: 'Unverified checkpoint',
-                        }),
-                    ),
-                },
-            });
-
-            const run = await service.getRun(
-                userWithProjectAccess(),
-                'project-1',
-                'run-1',
-            );
-
-            expect(run.resultMarkdown).toBeNull();
-        });
-
         it('does not expose a run through a different project path', async () => {
             const { service, model, projectModel } = buildService({
                 model: {
@@ -1115,7 +1090,6 @@ describe('AiDeepResearchService', () => {
                             status: 'cancelled',
                             cancellation_requested_at: new Date(),
                             completed_at: new Date(),
-                            result_markdown: 'Private result',
                         }),
                     ),
                 },
@@ -1135,7 +1109,6 @@ describe('AiDeepResearchService', () => {
             expect(model.requestCancellation).toHaveBeenCalledWith('run-1');
             expect(run.status).toBe('cancelled');
             expect(run.cancellationRequestedAt).not.toBeNull();
-            expect(run.resultMarkdown).toBeNull();
             expect(run.executionContextSnapshot).toBeNull();
             expect(
                 aiAgentService.assertDeepResearchAccess,
@@ -1168,33 +1141,6 @@ describe('AiDeepResearchService', () => {
                     threadUuid: 'thread-1',
                 },
             );
-        });
-
-        it('redacts report data immediately after its expiry boundary', async () => {
-            const reportExpiresAt = new Date('2026-07-01T00:00:00.000Z');
-            const { service } = buildService({
-                model: {
-                    findByUuidScoped: vi.fn().mockResolvedValue(
-                        runRow({
-                            status: 'completed',
-                            completed_at: new Date('2026-06-01T00:00:00.000Z'),
-                            result_markdown: 'Expired private report',
-                            report_expires_at: reportExpiresAt,
-                        }),
-                    ),
-                },
-            });
-
-            const run = await service.getRun(
-                userWithProjectAccess(),
-                'project-1',
-                'run-1',
-            );
-
-            expect(run.resultMarkdown).toBeNull();
-            expect(run.reportExpiresAt).toBe(reportExpiresAt.toISOString());
-            expect(run.reportExpiredAt).toBeNull();
-            expect(run.isReportExpired).toBe(true);
         });
 
         it('returns the persisted terminal reason', async () => {
@@ -1640,7 +1586,6 @@ describe('AiDeepResearchService', () => {
                             status: 'completed',
                             started_at: new Date('2026-07-13T12:00:01.000Z'),
                             completed_at: new Date('2026-07-13T12:00:06.000Z'),
-                            result_markdown: null,
                             ...persistedMetrics,
                         }),
                     ),
@@ -1741,6 +1686,27 @@ describe('AiDeepResearchService', () => {
             }) => {
                 const { service, analytics } = buildService({
                     executor: vi.fn().mockResolvedValue(executorResult),
+                    // A partial run publishes what it found as a Document.
+                    aiAgentModel: {
+                        findToolResultsByToolCallIds: vi.fn().mockResolvedValue(
+                            status === 'partially_completed'
+                                ? [
+                                      {
+                                          promptUuid: 'prompt-1',
+                                          toolCallId:
+                                              'deep-research-run-1-document',
+                                          toolName: 'createContent',
+                                          metadata: {
+                                              status: 'success',
+                                              uuid: '3f1d9a52-1d1c-4b7e-9a51-0d8c2f6e7a10',
+                                              name: 'Revenue investigation',
+                                              slug: 'revenue-investigation',
+                                          },
+                                      },
+                                  ]
+                                : [],
+                        ),
+                    },
                     model: {
                         findByUuid: vi.fn().mockResolvedValue(
                             runRow({
@@ -1751,10 +1717,6 @@ describe('AiDeepResearchService', () => {
                                 completed_at: new Date(
                                     '2026-07-13T12:00:06.000Z',
                                 ),
-                                result_markdown:
-                                    status === 'partially_completed'
-                                        ? reportMarkdown
-                                        : null,
                                 failure_stage: failureStage,
                                 ...persistedMetrics,
                             }),
@@ -1845,7 +1807,6 @@ describe('AiDeepResearchService', () => {
                         runRow({
                             status: 'completed',
                             completed_at: new Date('2026-07-13T12:00:06.000Z'),
-                            result_markdown: reportMarkdown,
                             ...persistedMetrics,
                         }),
                     ),
@@ -2798,306 +2759,6 @@ describe('AiDeepResearchService', () => {
                 expect(evidencePack.workerFindings).toEqual([]);
             },
         );
-    });
-
-    describe('getChart', () => {
-        const queryHistory = {
-            queryUuid: chart.queryUuid,
-            createdAt: new Date('2026-07-14T12:00:00.000Z'),
-            context: QueryExecutionContext.AI,
-            projectUuid: 'project-1',
-            organizationUuid: 'org-1',
-            createdByUserUuid: 'user-1',
-            createdByActorType: 'session',
-            status: QueryHistoryStatus.READY,
-            resultsFileName: 'evidence.jsonl',
-            resultsExpiresAt: new Date('2099-07-15T12:00:00.000Z'),
-            metricQuery: {
-                exploreName: 'orders',
-                dimensions: ['orders_order_month'],
-                metrics: ['orders_total_revenue'],
-                filters: {},
-                sorts: [],
-                limit: 500,
-                tableCalculations: [],
-                additionalMetrics: [],
-            },
-            fields: {},
-        };
-
-        it('hydrates a referenced chart from run-scoped query provenance', async () => {
-            const { service } = buildService({
-                model: {
-                    findByUuidScoped: vi
-                        .fn()
-                        .mockResolvedValue(
-                            runRow({ result_markdown: chartReportMarkdown }),
-                        ),
-                },
-                aiAgentModel: {
-                    getToolCallsAndResultsForPrompt: vi
-                        .fn()
-                        .mockResolvedValue(chartProvenance()),
-                },
-                queryHistoryModel: {
-                    getByQueryUuid: vi.fn().mockResolvedValue(queryHistory),
-                },
-            });
-
-            await expect(
-                service.getChart({
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
-                    aiDeepResearchRunUuid: 'run-1',
-                    queryUuid: chart.queryUuid,
-                }),
-            ).resolves.toMatchObject({
-                source: 'warehouse',
-                queryUuid: chart.queryUuid,
-                title: chart.title,
-                chartConfig: chart.chartConfig,
-                metricQuery: queryHistory.metricQuery,
-            });
-        });
-
-        it('rejects matching query metadata from a different run', async () => {
-            const { service, queryHistoryModel } = buildService({
-                model: {
-                    findByUuidScoped: vi
-                        .fn()
-                        .mockResolvedValue(
-                            runRow({ result_markdown: chartReportMarkdown }),
-                        ),
-                },
-                aiAgentModel: {
-                    getToolCallsAndResultsForPrompt: vi
-                        .fn()
-                        .mockResolvedValue(chartProvenance('foreign-run')),
-                },
-                queryHistoryModel: {
-                    getByQueryUuid: vi.fn().mockResolvedValue(queryHistory),
-                },
-            });
-
-            await expect(
-                service.getChart({
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
-                    aiDeepResearchRunUuid: 'run-1',
-                    queryUuid: chart.queryUuid,
-                }),
-            ).rejects.toBeInstanceOf(NotFoundError);
-            expect(queryHistoryModel.getByQueryUuid).not.toHaveBeenCalled();
-        });
-    });
-
-    describe('refreshChart', () => {
-        const refreshQueryHistory = {
-            queryUuid: chart.queryUuid,
-            createdAt: new Date('2026-07-14T12:00:00.000Z'),
-            context: QueryExecutionContext.AI,
-            projectUuid: 'project-1',
-            organizationUuid: 'org-1',
-            createdByUserUuid: 'user-1',
-            createdByActorType: 'session',
-            status: QueryHistoryStatus.READY,
-            resultsFileName: null,
-            resultsExpiresAt: new Date('2026-07-15T12:00:00.000Z'),
-            metricQuery: {
-                exploreName: 'orders',
-                dimensions: ['orders_order_month'],
-                metrics: ['orders_total_revenue'],
-                filters: {},
-                sorts: [],
-                limit: 500,
-                tableCalculations: [],
-                additionalMetrics: [],
-                timezone: 'Europe/London',
-            },
-            fields: {},
-        };
-
-        it.each([
-            ['api', QuerySurface.API],
-            ['web_app', QuerySurface.APP],
-        ] as const)(
-            're-executes the %s report chart with surface %s',
-            async (threadCreatedFrom, querySurface) => {
-                const { service, asyncQueryService } = buildService({
-                    model: {
-                        findByUuidScoped: vi.fn().mockResolvedValue(
-                            runRow({
-                                result_markdown: chartReportMarkdown,
-                            }),
-                        ),
-                    },
-                    aiAgentModel: {
-                        findWebAppPrompt: vi
-                            .fn()
-                            .mockResolvedValue({ threadCreatedFrom }),
-                        getToolCallsAndResultsForPrompt: vi
-                            .fn()
-                            .mockResolvedValue(chartProvenance()),
-                    },
-                    queryHistoryModel: {
-                        getByQueryUuid: vi
-                            .fn()
-                            .mockResolvedValue(refreshQueryHistory),
-                    },
-                    asyncQueryService: {
-                        executeAsyncMetricQuery: vi.fn().mockResolvedValue({
-                            queryUuid: 'query-2',
-                            cacheMetadata: { cacheHit: true },
-                            metricQuery: refreshQueryHistory.metricQuery,
-                            fields: {},
-                            warnings: [],
-                        }),
-                    },
-                });
-
-                const result = await service.refreshChart({
-                    account: fromSession(userWithProjectAccess()),
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
-                    aiDeepResearchRunUuid: 'run-1',
-                    chartKey: chart.queryUuid,
-                });
-
-                expect(
-                    asyncQueryService.executeAsyncMetricQuery,
-                ).toHaveBeenCalledWith({
-                    account: expect.objectContaining({
-                        user: expect.objectContaining({ id: 'user-1' }),
-                    }),
-                    projectUuid: 'project-1',
-                    metricQuery: refreshQueryHistory.metricQuery,
-                    context: QueryExecutionContext.AI,
-                    querySurface,
-                    pivotConfiguration: undefined,
-                });
-                expect(result).toEqual({
-                    source: 'semantic',
-                    type: AiResultType.QUERY_RESULT,
-                    mergeQuery: null,
-                    query: {
-                        queryUuid: 'query-2',
-                        cacheMetadata: { cacheHit: true },
-                        metricQuery: refreshQueryHistory.metricQuery,
-                        fields: {},
-                        warnings: [],
-                        parameterReferences: [],
-                        usedParametersValues: {},
-                        resolvedTimezone: 'Europe/London',
-                    },
-                    metadata: {
-                        title: chart.title,
-                        description: null,
-                    },
-                });
-            },
-        );
-
-        it('pivots the refreshed query by the chart group-by dimension', async () => {
-            const groupedChartConfig = {
-                ...chart.chartConfig,
-                yAxisMetrics: ['orders_unique_order_count'],
-                groupBy: ['orders_status'],
-            };
-            const groupedMetricQuery = {
-                ...refreshQueryHistory.metricQuery,
-                dimensions: ['orders_order_month', 'orders_status'],
-                metrics: ['orders_unique_order_count'],
-            };
-            const { service, asyncQueryService } = buildService({
-                model: {
-                    findByUuidScoped: vi
-                        .fn()
-                        .mockResolvedValue(
-                            runRow({ result_markdown: chartReportMarkdown }),
-                        ),
-                },
-                aiAgentModel: {
-                    getToolCallsAndResultsForPrompt: vi.fn().mockResolvedValue([
-                        {
-                            ...chartProvenance()[0],
-                            toolCall: {
-                                ...chartProvenance()[0].toolCall,
-                                toolArgs: {
-                                    ...chartToolArgs,
-                                    queryConfig: {
-                                        ...chartToolArgs.queryConfig,
-                                        dimensions:
-                                            groupedMetricQuery.dimensions,
-                                        metrics: groupedMetricQuery.metrics,
-                                    },
-                                    chartConfig: groupedChartConfig,
-                                },
-                            },
-                        },
-                    ]),
-                },
-                queryHistoryModel: {
-                    getByQueryUuid: vi.fn().mockResolvedValue({
-                        ...refreshQueryHistory,
-                        metricQuery: groupedMetricQuery,
-                    }),
-                },
-                asyncQueryService: {
-                    executeAsyncMetricQuery: vi.fn().mockResolvedValue({
-                        queryUuid: 'query-2',
-                        cacheMetadata: { cacheHit: true },
-                        metricQuery: groupedMetricQuery,
-                        fields: {},
-                        warnings: [],
-                    }),
-                },
-            });
-
-            await service.refreshChart({
-                account: fromSession(userWithProjectAccess()),
-                user: userWithProjectAccess(),
-                projectUuid: 'project-1',
-                aiDeepResearchRunUuid: 'run-1',
-                chartKey: chart.queryUuid,
-            });
-
-            expect(
-                asyncQueryService.executeAsyncMetricQuery,
-            ).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    metricQuery: groupedMetricQuery,
-                    pivotConfiguration: expect.objectContaining({
-                        groupByColumns: [{ reference: 'orders_status' }],
-                        valuesColumns: [
-                            expect.objectContaining({
-                                reference: 'orders_unique_order_count',
-                            }),
-                        ],
-                    }),
-                }),
-            );
-        });
-
-        it('rejects a chart key that is not part of the persisted report', async () => {
-            const { service, asyncQueryService } = buildService({
-                model: {
-                    findByUuidScoped: vi.fn().mockResolvedValue(runRow()),
-                },
-            });
-
-            await expect(
-                service.refreshChart({
-                    account: fromSession(userWithProjectAccess()),
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
-                    aiDeepResearchRunUuid: 'run-1',
-                    chartKey: chart.queryUuid,
-                }),
-            ).rejects.toBeInstanceOf(NotFoundError);
-            expect(
-                asyncQueryService.executeAsyncMetricQuery,
-            ).not.toHaveBeenCalled();
-        });
     });
 
     describe('listEvents', () => {

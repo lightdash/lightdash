@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    APP_VERSION_CANCELLED_BY_USER,
     ChartKind,
     DATA_APP_VIZ_TEMPLATE,
     FeatureFlags,
@@ -18,26 +19,21 @@ import {
     ActionIcon,
     Badge,
     Box,
-    Button,
     Divider,
     Group,
     Image,
     Loader,
-    Menu,
     SegmentedControl,
     Stack,
     Text,
     Tooltip,
     useMatches,
 } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure, useElementSize } from '@mantine/hooks';
 import {
     IconAppsOff,
-    IconAppWindow,
-    IconCheck,
+    IconArrowForwardUp,
     IconArrowUp,
-    IconBrush,
-    IconExternalLink,
     IconFileDescription,
     IconHistory,
     IconLayoutDashboard,
@@ -57,13 +53,7 @@ import {
     type FC,
 } from 'react';
 import { flushSync } from 'react-dom';
-import {
-    Link,
-    Navigate,
-    useLocation,
-    useNavigate,
-    useParams,
-} from 'react-router';
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router';
 import { validate as isUuidString, v4 as uuid4 } from 'uuid';
 import { AiMarkdown } from '../components/common/AiMarkdown';
 import MantineIcon from '../components/common/MantineIcon';
@@ -76,6 +66,12 @@ import ResizableSplitter from '../components/common/ResizableSplitter';
 import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { getAiAgentThreadPath } from '../ee/features/aiCopilot/hooks/aiAgentRouting';
+import {
+    CaptureHost,
+    type CaptureHostHandle,
+    type CaptureResult,
+    type CaptureSurface,
+} from '../ee/features/capture';
 import AddAnalysisOffer from '../features/apps/analysis/AddAnalysisOffer';
 import AnalysisOffChip from '../features/apps/analysis/AnalysisOffChip';
 import { useDataAppAnalysisAvailability } from '../features/apps/analysis/useDataAppAnalysisAvailability';
@@ -86,6 +82,7 @@ import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import {
     AttachButton,
     ModelPicker,
+    CaptureButton,
     ScreenshotButton,
     SelectedAttachmentSection,
     SelectedDashboardSection,
@@ -104,16 +101,27 @@ import AppHistoryDrawer from '../features/apps/components/AppHistoryDrawer';
 import AppPreview from '../features/apps/components/AppPreview';
 import AppUpgradeModal from '../features/apps/components/AppUpgradeModal';
 import AppVersionNarration from '../features/apps/components/AppVersionNarration';
-import ClarificationQuestionList from '../features/apps/components/ClarificationQuestionList';
+import BuildFailedCard from '../features/apps/components/BuildFailedCard';
+import BuildProgressCard from '../features/apps/components/BuildProgressCard';
+import { formatElapsed } from '../features/apps/components/buildStepUtils';
+import ClarificationStepper from '../features/apps/components/ClarificationStepper';
 import ClearAgentContextAction from '../features/apps/components/ClearAgentContextAction';
 import ConnectionChip from '../features/apps/components/ConnectionChip';
 import { ElementPickerButton } from '../features/apps/components/ElementPickerButton';
 import { ElementRefPill } from '../features/apps/components/ElementRefPill';
 import LoadingDots from '../features/apps/components/LoadingDots';
+import {
+    PreviewBuilding,
+    PreviewBuildingPill,
+    PreviewNotAppliedPill,
+    PreviewEmpty,
+} from '../features/apps/components/PreviewBuildState';
 import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestions';
 import { RestoreAppVersionModal } from '../features/apps/components/RestoreAppVersionModal';
 import { SampleDataButton } from '../features/apps/components/SampleDataButton';
+import StoppedDivider from '../features/apps/components/StoppedDivider';
 import ThreadDivider from '../features/apps/components/ThreadDivider';
+import UndoChangeButton from '../features/apps/components/UndoChangeButton';
 import { ViewingOlderVersionCard } from '../features/apps/components/ViewingOlderVersionCard';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
@@ -159,6 +167,11 @@ import {
     isSupportedAppImage,
 } from '../features/apps/utils/appFileAttachments';
 import { getAppPageGate } from '../features/apps/utils/appPageGate';
+import { getBuildStageIndex } from '../features/apps/utils/buildStage';
+import {
+    imagesThatFit,
+    summaryToContent,
+} from '../features/apps/utils/captureAttachments';
 import {
     emptyChatMessage,
     mergeChatMessages,
@@ -172,6 +185,7 @@ import {
     refToWireString,
 } from '../features/apps/utils/elementRefs';
 import { getHistoryLiveBuild } from '../features/apps/utils/historyLiveBuild';
+import { captureTranscriber } from '../features/apps/utils/transcribeCapture';
 import { getVersionNarration } from '../features/apps/utils/versionNarration';
 import { versionsToThreadChat } from '../features/apps/utils/versionsToChatMessages';
 import DataAppVizResultCard from '../features/chartTypes/components/DataAppVizResultCard';
@@ -193,6 +207,7 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import classes from './AppGenerate.module.css';
 
 // ChatChart and ChatMessage are imported from `features/apps/utils/chatMessage`
@@ -209,6 +224,24 @@ const AppResourceImage: FC<{
     return <Image src={data.imageUrl} className={className} alt="Attached" />;
 };
 
+const NO_THEME_LABEL = 'No theme';
+
+/** Your own prompts stay unsigned, with the time on hover; others stay named. */
+const UserMessageMeta: FC<{
+    message: ChatMessage;
+    currentUserUuid: string | null;
+}> = ({ message, currentUserUuid }) => {
+    const senderName =
+        message.userUuid === currentUserUuid ? null : message.userName;
+    return (
+        <ChatBubbleMeta
+            timestamp={message.timestamp}
+            userName={senderName}
+            className={senderName ? undefined : classes.userMetaOnHover}
+        />
+    );
+};
+
 const TemplateChip: FC<{ template: DataAppTemplate }> = ({ template }) => {
     const t = getTemplate(template);
     return (
@@ -217,66 +250,6 @@ const TemplateChip: FC<{ template: DataAppTemplate }> = ({ template }) => {
         </Badge>
     );
 };
-
-const NO_THEME_LABEL = 'No theme';
-
-const ThemeChip: FC<{
-    themeName: string;
-    selectedThemeUuid: string | null;
-    themes: { designUuid: string; name: string; isDefault?: boolean }[];
-    disabled?: boolean;
-    onThemeChange: (designUuid: string | null) => void;
-}> = ({ themeName, selectedThemeUuid, themes, disabled, onThemeChange }) => (
-    <Menu position="top-start">
-        <Menu.Target>
-            <Badge
-                component="button"
-                type="button"
-                size="md"
-                leftSection={<MantineIcon icon={IconBrush} size={12} />}
-                disabled={disabled}
-                className={classes.themeBadge}
-            >
-                {themeName}
-            </Badge>
-        </Menu.Target>
-        <Menu.Dropdown>
-            <Menu.Item
-                leftSection={
-                    selectedThemeUuid === null ? (
-                        <MantineIcon icon={IconCheck} size={14} />
-                    ) : undefined
-                }
-                disabled={disabled}
-                onClick={() => onThemeChange(null)}
-            >
-                {NO_THEME_LABEL}
-            </Menu.Item>
-            {themes.length > 0 && <Menu.Divider />}
-            {themes.map((theme) => (
-                <Menu.Item
-                    key={theme.designUuid}
-                    leftSection={
-                        selectedThemeUuid === theme.designUuid ? (
-                            <MantineIcon icon={IconCheck} size={14} />
-                        ) : undefined
-                    }
-                    disabled={disabled}
-                    onClick={() => onThemeChange(theme.designUuid)}
-                >
-                    <Group gap="xs">
-                        <Text size="sm">{theme.name}</Text>
-                        {theme.isDefault && (
-                            <Text size="xs" c="dimmed">
-                                Default
-                            </Text>
-                        )}
-                    </Group>
-                </Menu.Item>
-            ))}
-        </Menu.Dropdown>
-    </Menu>
-);
 
 /** A small informational badge shown on assistant bubbles for versions that
  *  were uploaded with a custom dependency set. Lists `name@version` per line
@@ -359,6 +332,8 @@ const AppGenerate: FC = () => {
     // reads on submit via `getText()` and tracks emptiness via the
     // `onEmptyChange` callback for the submit button's disabled state.
     const promptEditorRef = useRef<PromptComposerHandle | null>(null);
+    // History slides over exactly the chat column, leaving the preview clear.
+    const { ref: chatPanelRef, width: chatPanelWidth } = useElementSize();
     const [isPromptEmpty, setIsPromptEmpty] = useState(true);
     // Synchronous lock for `handleSubmit`. The mutation's `isLoading` only
     // flips true after the upload + clarify awaits resolve, leaving a
@@ -439,9 +414,8 @@ const AppGenerate: FC = () => {
     } = useTrackedAppStateEvents();
     // Parent-owned visibility so the X dismisses the panel completely and the
     // user re-opens it from the dots menu — same model as preview, for
-    // consistency. Defaults to visible because the builder is the technical
-    // workflow where seeing queries as they fire is the point.
-    const [networkPanelHidden, setNetworkPanelHidden] = useState(false);
+    // consistency. Starts hidden; selecting a lineage node opens it.
+    const [networkPanelHidden, setNetworkPanelHidden] = useState(true);
     const handleLineageSelected = useCallback(
         (event: { queryUuid: string }) => {
             setNetworkPanelHidden(false);
@@ -691,7 +665,7 @@ const AppGenerate: FC = () => {
             onOpen: () => invalidateAppData(activeAppUuid),
         });
     const { mutateAsync: uploadFile } = useAppFileUpload();
-    const { showToastError, showToastWarning } = useToaster();
+    const { showToastError, showToastWarning, showToastSuccess } = useToaster();
     const { mutateAsync: uploadThumbnail } = useAppThumbnailUpload();
 
     // Raw live-preview capture handed to the move modal (via header actions
@@ -706,8 +680,10 @@ const AppGenerate: FC = () => {
         return capture();
     }, []);
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const captureFlag = useServerFeatureFlag(FeatureFlags.DataAppCapture);
     const isChartStudioAvailable = useChartStudioAvailable();
     const { user, health } = useApp();
+    const lightdashApi = useLightdashApi();
     const sampleDataEnabled = health.data?.dataApps.sampleDataEnabled !== false;
     // Org switch for screenshots, file attachments and thumbnails. Hides the
     // affordances below; the backend rejects the uploads regardless.
@@ -803,6 +779,11 @@ const AppGenerate: FC = () => {
     // "Build" on the question bubble.
     const hasPendingClarification = clarification.pending !== null;
     const isClarifying = clarification.clarifyingPrompt !== null;
+    const buildStageIndex = getBuildStageIndex(
+        latestBuildingVersion?.status ?? null,
+        liveNarration.activity,
+    );
+
     // Server-side work that warrants showing a placeholder assistant bubble.
     // Excludes `isSubmitting` (client-side upload — too early to claim
     // generation has started) and `hasPendingClarification` (drives its own
@@ -904,6 +885,7 @@ const AppGenerate: FC = () => {
             ),
         [historyMessages, localMessages, maxHistoryVersion],
     );
+    const lastMessage = messages[messages.length - 1];
 
     // The starter-template wizard only shows for v1 of a brand-new app -
     // before the URL has an appUuid and before any messages exist.
@@ -942,6 +924,25 @@ const AppGenerate: FC = () => {
                 .find((v) => v.status === 'ready') ?? null
         );
     }, [allVersions]);
+
+    // The ready version before the latest one: where quick undo goes back to.
+    const undoTargetVersion = useMemo(() => {
+        if (!latestReadyVersion) return null;
+        return (
+            [...allVersions]
+                .sort((a, b) => b.version - a.version)
+                .find(
+                    (v) =>
+                        v.status === 'ready' &&
+                        v.version < latestReadyVersion.version,
+                )?.version ?? null
+        );
+    }, [allVersions, latestReadyVersion]);
+
+    const appViewUrl =
+        activeAppUuid && latestReadyVersion
+            ? `/projects/${projectUuid}/apps/${activeAppUuid}/view`
+            : null;
 
     // Last Claude model used on this app, sourced from the most recent
     // version (any status — a still-building version's model is already a
@@ -1020,10 +1021,6 @@ const AppGenerate: FC = () => {
                     role: 'user',
                     content: prompt,
                     timestamp: new Date(),
-                    userName:
-                        [user.data?.firstName, user.data?.lastName]
-                            .filter((s): s is string => !!s && s.length > 0)
-                            .join(' ') || null,
                     submittedAtVersion: maxHistoryVersion,
                 },
             ]);
@@ -1076,8 +1073,6 @@ const AppGenerate: FC = () => {
             invalidateAppData,
             resetIterate,
             modelRequest,
-            user.data?.firstName,
-            user.data?.lastName,
         ],
     );
 
@@ -1096,6 +1091,9 @@ const AppGenerate: FC = () => {
         latestVersionDesign?.designUuid === currentThemeUuid
             ? latestVersionDesign.name
             : null;
+    const showThemePicker = newAppLanding || hasThemeChipSource;
+    // Icon-only composer in the chat column and on phones.
+    const iconToolbar = compact || !newAppLanding;
     const displayThemeName: string | null = hasThemeChipSource
         ? currentThemeUuid
             ? (orgThemes.find((t) => t.designUuid === currentThemeUuid)?.name ??
@@ -1222,6 +1220,51 @@ const AppGenerate: FC = () => {
     const [analysisInUseScope, setAnalysisInUseScope] = useState<string | null>(
         null,
     );
+
+    // Voice Design: the preview area is the drawable surface.
+    const previewContentRef = useRef<HTMLDivElement>(null);
+    const captureHandlerRef = useRef<(result: CaptureResult) => void>(() => {});
+    const captureAvailable = Boolean(
+        projectUuid &&
+        previewApp &&
+        captureFlag.data?.enabled &&
+        capturesEnabled,
+    );
+    const voiceTranscriptionAvailable =
+        health.data?.ai.voiceTranscriptionAvailable;
+    const captureSurface = useMemo<CaptureSurface | null>(
+        () =>
+            captureAvailable && projectUuid
+                ? {
+                      getRegion: () =>
+                          previewContentRef.current?.getBoundingClientRect() ??
+                          new DOMRect(),
+                      captureImages: true,
+                      grabAppImage: capturePreviewScreenshot,
+                      resolveTarget: null,
+                      transcribe: captureTranscriber(
+                          lightdashApi,
+                          projectUuid,
+                          voiceTranscriptionAvailable,
+                      ),
+                      onCapture: (result) => captureHandlerRef.current(result),
+                  }
+                : null,
+        [
+            captureAvailable,
+            capturePreviewScreenshot,
+            lightdashApi,
+            projectUuid,
+            voiceTranscriptionAvailable,
+        ],
+    );
+    const captureRef = useRef<CaptureHostHandle>(null);
+    // The preview is a sealed iframe, so the app forwards the capture hotkey.
+    const handleCaptureHotkey = useCallback(
+        () => captureRef.current?.toggle(),
+        [],
+    );
+    const [isCaptureRecording, setIsCaptureRecording] = useState(false);
     const handleInsightsInUse = useCallback(
         () => setAnalysisInUseScope(previewScope),
         [previewScope],
@@ -1272,15 +1315,98 @@ const AppGenerate: FC = () => {
         [activeAppUuid, latestReadyVersion],
     );
 
-    // Build the `version` prop for an assistant bubble's `ChatBubbleMeta`.
-    // Extracted so the arrow-function `onPreview` captures a `number` rather
-    // than `number | null` — TS won't carry inline ternary narrowing into a
-    // closure, but it does narrow this function's parameter directly.
-    const buildBubbleVersionInfo = (bubbleVersion: number) => ({
-        version: bubbleVersion,
-        isActive: previewApp?.version === bubbleVersion,
-        onPreview: () => pinPreviewToVersion(bubbleVersion),
-    });
+    // Undo = restore the previous ready version as a new one; redo restores the undone one.
+    const restoreAsUndo = (version: number, undone: number | null) => {
+        if (!activeAppUuid || !projectUuid) return;
+        restoreVersionMutate(
+            { projectUuid, appUuid: activeAppUuid, version },
+            {
+                onSuccess: (result) => {
+                    setPin(null);
+                    showToastSuccess({
+                        title:
+                            undone === null ? 'Change redone' : 'Change undone',
+                        subtitle: `v${result.version} restores v${version}.`,
+                        action:
+                            undone === null
+                                ? undefined
+                                : {
+                                      children: 'Redo',
+                                      icon: IconArrowForwardUp,
+                                      onClick: () =>
+                                          restoreAsUndo(undone, null),
+                                  },
+                    });
+                },
+                onError: (error) =>
+                    showToastError({
+                        title: "Couldn't undo the change",
+                        subtitle: error.error?.message,
+                    }),
+            },
+        );
+    };
+    const undoLatestChange = () => {
+        if (undoTargetVersion === null || !latestReadyVersion) return;
+        restoreAsUndo(undoTargetVersion, latestReadyVersion.version);
+    };
+
+    const editPrompt = (text: string) => {
+        const composer = promptEditorRef.current;
+        if (!composer) return;
+        composer.clear();
+        composer.insertContent([
+            { type: 'paragraph', content: [{ type: 'text', text }] },
+        ]);
+        composer.focus();
+    };
+
+    // Retry / Edit prompt for the latest failed turn; older failures are history.
+    const failedTurnActions = (index: number) => {
+        const prompt = messages[index - 1];
+        const isLastTurn = index === messages.length - 1;
+        const promptText =
+            isLastTurn && prompt?.role === 'user' && prompt.content !== ''
+                ? prompt.content
+                : null;
+        const canRetry =
+            promptText !== null &&
+            activeAppUuid !== undefined &&
+            prompt.charts.length === 0 &&
+            prompt.files.length === 0 &&
+            prompt.imageResourceIds.length === 0 &&
+            prompt.imagePreviewUrls.length === 0 &&
+            prompt.dashboardName === null &&
+            prompt.externalConnections.length === 0 &&
+            prompt.clarifications.length === 0;
+        return {
+            onRetry:
+                canRetry && promptText
+                    ? () => submitCannedPrompt(promptText)
+                    : null,
+            onEditPrompt: promptText ? () => editPrompt(promptText) : null,
+        };
+    };
+
+    const renderFailedCard = (content: string, index: number) => {
+        if (content === APP_VERSION_CANCELLED_BY_USER) {
+            return <StoppedDivider />;
+        }
+        const { onRetry, onEditPrompt } = failedTurnActions(index);
+        return (
+            <BuildFailedCard
+                message={content}
+                fallbackVersion={
+                    index === messages.length - 1
+                        ? (latestReadyVersion?.version ?? null)
+                        : null
+                }
+                onRetry={onRetry}
+                onEditPrompt={onEditPrompt}
+                disabled={isLoading}
+            />
+        );
+    };
 
     // Chip listing the custom packages installed for a version's build.
     const renderVersionDepsChip = (bubbleVersion: number) => {
@@ -1669,6 +1795,25 @@ const AppGenerate: FC = () => {
         });
     };
 
+    captureHandlerRef.current = (result) => {
+        const { fit, dropped } = imagesThatFit(
+            result.images,
+            fileAttachments.length,
+            MAX_APP_FILES_PER_VERSION,
+        );
+        fit.forEach((image) => void handleFileAttach(image, 'screenshot'));
+        if (dropped > 0) {
+            showToastWarning({
+                title: `${dropped} capture images did not fit`,
+                subtitle: `You can attach up to ${MAX_APP_FILES_PER_VERSION} files per message.`,
+            });
+        }
+        promptEditorRef.current?.insertContent(
+            summaryToContent(result.summary),
+        );
+        promptEditorRef.current?.focus();
+    };
+
     const handlePaste = (e: React.ClipboardEvent) => {
         const items = e.clipboardData?.files;
         if (items && items.length > 0) {
@@ -1920,10 +2065,6 @@ const AppGenerate: FC = () => {
                     externalConnections: sentConnections,
                     dashboardName: sentDashboardName,
                     timestamp: new Date(),
-                    userName:
-                        [user.data?.firstName, user.data?.lastName]
-                            .filter((s): s is string => !!s && s.length > 0)
-                            .join(' ') || null,
                     // Snapshot the highest server version known at submit time.
                     // Once history catches up past this number the optimistic
                     // bubble is dropped by `mergeChatMessages` — even if the
@@ -2003,10 +2144,6 @@ const AppGenerate: FC = () => {
                     role: 'user',
                     content: text,
                     timestamp: new Date(),
-                    userName:
-                        [user.data?.firstName, user.data?.lastName]
-                            .filter((s): s is string => !!s && s.length > 0)
-                            .join(' ') || null,
                     submittedAtVersion: maxHistoryVersion,
                 },
             ]);
@@ -2080,7 +2217,7 @@ const AppGenerate: FC = () => {
                 <ResizableSplitter.Pane
                     id="app-chat"
                     defaultSize={newAppLanding ? 100 : 30}
-                    min={newAppLanding ? 100 : '300px'}
+                    min={newAppLanding ? 100 : '360px'}
                     max={newAppLanding ? 100 : 50}
                     data-collapsed={isChatPanelCollapsed || undefined}
                     className={`${classes.chatPanelOuter}${
@@ -2088,6 +2225,7 @@ const AppGenerate: FC = () => {
                     }`}
                 >
                     <Box
+                        ref={chatPanelRef}
                         className={`${classes.chatPanel}${
                             newAppLanding ? ` ${classes.chatPanelCompose}` : ''
                         }`}
@@ -2102,20 +2240,34 @@ const AppGenerate: FC = () => {
                                     onToggle={handleToggleChatPanel}
                                 />
                                 {activeAppUuid && (
-                                    <Tooltip label="Show project history">
-                                        <ActionIcon
-                                            size="md"
-                                            className={classes.sidebarHistory}
-                                            onClick={openHistory}
-                                            aria-label="Show project history"
+                                    <Group
+                                        gap={4}
+                                        wrap="nowrap"
+                                        className={classes.sidebarHistory}
+                                    >
+                                        <ClearAgentContextAction
+                                            projectUuid={projectUuid}
+                                            appUuid={activeAppUuid}
+                                            disabled={isLoading}
+                                        />
+                                        <Tooltip
+                                            label="History"
+                                            position="bottom"
+                                            openDelay={200}
                                         >
-                                            <MantineIcon
-                                                icon={IconHistory}
-                                                size={16}
-                                                stroke={1.7}
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
+                                            <ActionIcon
+                                                variant="subtle"
+                                                color="gray"
+                                                size="md"
+                                                onClick={openHistory}
+                                                aria-label="Show project history"
+                                            >
+                                                <MantineIcon
+                                                    icon={IconHistory}
+                                                />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                    </Group>
                                 )}
                             </Box>
                         )}
@@ -2214,19 +2366,19 @@ const AppGenerate: FC = () => {
                                                         classes.userMessage
                                                     }
                                                 >
+                                                    <UserMessageMeta
+                                                        message={msg}
+                                                        currentUserUuid={
+                                                            user.data
+                                                                ?.userUuid ??
+                                                            null
+                                                        }
+                                                    />
                                                     <Box
                                                         className={
                                                             classes.userBubble
                                                         }
                                                     >
-                                                        <ChatBubbleMeta
-                                                            timestamp={
-                                                                msg.timestamp
-                                                            }
-                                                            userName={
-                                                                msg.userName
-                                                            }
-                                                        />
                                                         {msg.content === '' ? (
                                                             // Uploaded-from-source
                                                             // versions have no
@@ -2546,25 +2698,6 @@ const AppGenerate: FC = () => {
                                                             classes.assistantBubble
                                                         }
                                                     >
-                                                        <ChatBubbleMeta
-                                                            timestamp={
-                                                                msg.timestamp
-                                                            }
-                                                            userName={null}
-                                                            version={
-                                                                msg.status ===
-                                                                    'ready' &&
-                                                                msg.version !==
-                                                                    null
-                                                                    ? buildBubbleVersionInfo(
-                                                                          msg.version,
-                                                                      )
-                                                                    : undefined
-                                                            }
-                                                            className={
-                                                                classes.assistantBubbleMeta
-                                                            }
-                                                        />
                                                         {msg.version !== null &&
                                                             renderVersionDepsChip(
                                                                 msg.version,
@@ -2577,6 +2710,16 @@ const AppGenerate: FC = () => {
                                                                     msg.activity,
                                                             }}
                                                             isLive={false}
+                                                            summary={{
+                                                                label:
+                                                                    msg.durationMs !==
+                                                                        null &&
+                                                                    msg.durationMs >=
+                                                                        1000
+                                                                        ? `Worked for ${formatElapsed(msg.durationMs)}`
+                                                                        : 'Build log',
+                                                                at: msg.timestamp,
+                                                            }}
                                                         />
                                                         {msg.vizSchema ? (
                                                             msg.version !==
@@ -2603,17 +2746,43 @@ const AppGenerate: FC = () => {
                                                             )
                                                         ) : msg.status !==
                                                           'error' ? (
-                                                            <AiMarkdown>
+                                                            <AiMarkdown
+                                                                className={
+                                                                    classes.completionNote
+                                                                }
+                                                            >
                                                                 {msg.content}
                                                             </AiMarkdown>
                                                         ) : (
-                                                            <Text
-                                                                size="sm"
-                                                                c="red"
-                                                            >
-                                                                {msg.content}
-                                                            </Text>
+                                                            renderFailedCard(
+                                                                msg.content,
+                                                                i,
+                                                            )
                                                         )}
+                                                        {msg.status ===
+                                                            'ready' &&
+                                                            msg.version !==
+                                                                null &&
+                                                            msg.version ===
+                                                                latestReadyVersion?.version &&
+                                                            undoTargetVersion !==
+                                                                null &&
+                                                            !isAgentWorking &&
+                                                            !isVerifiedLocked && (
+                                                                <UndoChangeButton
+                                                                    previousVersion={
+                                                                        undoTargetVersion
+                                                                    }
+                                                                    loading={
+                                                                        isRestoringVersion &&
+                                                                        restoreTargetVersion ===
+                                                                            null
+                                                                    }
+                                                                    onUndo={
+                                                                        undoLatestChange
+                                                                    }
+                                                                />
+                                                            )}
                                                     </Box>
                                                 </Box>
                                             ),
@@ -2623,40 +2792,20 @@ const AppGenerate: FC = () => {
                                         <Box
                                             className={classes.clarifyContainer}
                                         >
-                                            <Text size="sm">
-                                                A few quick questions:
-                                            </Text>
-                                            <ClarificationQuestionList
+                                            <ClarificationStepper
                                                 questions={
                                                     clarification.pending
                                                         .questions
                                                 }
                                                 answers={clarification.answers}
                                                 onAnswer={clarification.answer}
+                                                onSkip={() =>
+                                                    clarification.build(true)
+                                                }
+                                                onBuild={() =>
+                                                    clarification.build(false)
+                                                }
                                             />
-                                            <Group gap="xs" justify="flex-end">
-                                                <Button
-                                                    variant="subtle"
-                                                    size="xs"
-                                                    onClick={() =>
-                                                        clarification.build(
-                                                            true,
-                                                        )
-                                                    }
-                                                >
-                                                    Skip
-                                                </Button>
-                                                <Button
-                                                    size="xs"
-                                                    onClick={() =>
-                                                        clarification.build(
-                                                            false,
-                                                        )
-                                                    }
-                                                >
-                                                    Build
-                                                </Button>
-                                            </Group>
                                         </Box>
                                     ) : (
                                         isAgentWorking && (
@@ -2684,70 +2833,29 @@ const AppGenerate: FC = () => {
                                                             </Text>
                                                         ) : (
                                                             <>
-                                                                <AppVersionNarration
+                                                                <BuildProgressCard
+                                                                    version={
+                                                                        latestBuildingVersion?.version ??
+                                                                        null
+                                                                    }
                                                                     narration={
                                                                         liveNarration
                                                                     }
-                                                                    isLive
+                                                                    statusMessage={
+                                                                        latestBuildingVersion &&
+                                                                        latestBuildingVersion.status !==
+                                                                            'generating'
+                                                                            ? latestBuildingVersion.statusMessage
+                                                                            : null
+                                                                    }
+                                                                    // The preview's stepper shows the stage until a version exists.
+                                                                    showStage={
+                                                                        !!previewApp
+                                                                    }
+                                                                    stageIndex={
+                                                                        buildStageIndex
+                                                                    }
                                                                 />
-                                                                {latestBuildingVersion?.status ===
-                                                                'generating' ? (
-                                                                    // A status line here would duplicate the live
-                                                                    // previews of the Reasoning/Activity rows above.
-                                                                    <Text
-                                                                        size="sm"
-                                                                        c="dimmed"
-                                                                        className={
-                                                                            classes.workingLine
-                                                                        }
-                                                                    >
-                                                                        Working
-                                                                        on your
-                                                                        app —
-                                                                        feel
-                                                                        free to
-                                                                        switch
-                                                                        tabs or
-                                                                        close
-                                                                        this one{' '}
-                                                                        <LoadingDots />
-                                                                    </Text>
-                                                                ) : latestBuildingVersion?.statusMessage ? (
-                                                                    <AiMarkdown
-                                                                        className={
-                                                                            classes.statusMarkdown
-                                                                        }
-                                                                        components={{
-                                                                            p: ({
-                                                                                node: _node,
-                                                                                children,
-                                                                                ...rest
-                                                                            }) => (
-                                                                                <p
-                                                                                    {...rest}
-                                                                                >
-                                                                                    {
-                                                                                        children
-                                                                                    }{' '}
-                                                                                    <LoadingDots />
-                                                                                </p>
-                                                                            ),
-                                                                        }}
-                                                                    >
-                                                                        {
-                                                                            latestBuildingVersion.statusMessage
-                                                                        }
-                                                                    </AiMarkdown>
-                                                                ) : (
-                                                                    <Text
-                                                                        size="sm"
-                                                                        c="dimmed"
-                                                                    >
-                                                                        Generating
-                                                                        your app{' '}
-                                                                        <LoadingDots />
-                                                                    </Text>
-                                                                )}
                                                             </>
                                                         )}
                                                     </Box>
@@ -2813,7 +2921,7 @@ const AppGenerate: FC = () => {
                                     />
                                 )}
                                 {((!newAppLanding &&
-                                    (displayTemplate || displayThemeName)) ||
+                                    (displayTemplate || showThemePicker)) ||
                                     availableConnectionAliases.length > 0 ||
                                     analysisOffReason !== null) && (
                                     <Group gap="xs" pb="xs">
@@ -2822,16 +2930,18 @@ const AppGenerate: FC = () => {
                                                 template={displayTemplate}
                                             />
                                         )}
-                                        {!newAppLanding && displayThemeName && (
-                                            <ThemeChip
-                                                themeName={displayThemeName}
-                                                selectedThemeUuid={
-                                                    currentThemeUuid
-                                                }
-                                                themes={orgThemes}
+                                        {!newAppLanding && showThemePicker && (
+                                            <ThemePicker
+                                                compact
+                                                chip
+                                                value={currentThemeUuid}
+                                                onChange={handleThemeChange}
                                                 disabled={isAgentWorking}
-                                                onThemeChange={
-                                                    handleThemeChange
+                                                fallbackLabel={
+                                                    currentThemeUuid &&
+                                                    displayThemeName
+                                                        ? displayThemeName
+                                                        : undefined
                                                 }
                                             />
                                         )}
@@ -2864,11 +2974,19 @@ const AppGenerate: FC = () => {
                                 >
                                     <PromptComposer
                                         ref={promptEditorRef}
-                                        size={compact ? 'sm' : 'md'}
+                                        size={
+                                            compact || activeAppUuid
+                                                ? 'sm'
+                                                : 'md'
+                                        }
                                         placeholder={
                                             isVerifiedLocked
                                                 ? 'This app is verified. Ask an admin to unverify it before editing.'
-                                                : 'Describe the app you want to build...'
+                                                : activeAppUuid && !previewApp
+                                                  ? 'Add details for your app…'
+                                                  : activeAppUuid
+                                                    ? 'Ask for a change, e.g. “add a region filter”…'
+                                                    : 'Describe the app you want to build…'
                                         }
                                         autoFocus
                                         // Editable while the agent works so the next prompt
@@ -3074,9 +3192,14 @@ const AppGenerate: FC = () => {
                                             )
                                         }
                                         toolbarLeft={
-                                            <Group gap={4}>
+                                            <Group
+                                                gap={4}
+                                                className={
+                                                    classes.composerTools
+                                                }
+                                            >
                                                 <AttachButton
-                                                    iconOnly={compact}
+                                                    iconOnly={iconToolbar}
                                                     selectedCharts={
                                                         selectedCharts
                                                     }
@@ -3156,34 +3279,6 @@ const AppGenerate: FC = () => {
                                                         activeAppUuid
                                                     }
                                                 />
-                                                {previewApp &&
-                                                    screenshotAvailable &&
-                                                    capturesEnabled && (
-                                                        <ScreenshotButton
-                                                            onClick={() =>
-                                                                void handleCaptureScreenshot()
-                                                            }
-                                                            disabled={
-                                                                isSubmitting ||
-                                                                fileAttachments.length >=
-                                                                    MAX_APP_FILES_PER_VERSION
-                                                            }
-                                                            loading={
-                                                                isCapturingScreenshot ||
-                                                                isCapturingThumbnail
-                                                            }
-                                                        />
-                                                    )}
-                                                {elementPicker.available && (
-                                                    <ElementPickerButton
-                                                        enabled={
-                                                            elementPicker.enabled
-                                                        }
-                                                        onToggle={
-                                                            elementPicker.toggle
-                                                        }
-                                                    />
-                                                )}
                                                 {showVizSampleConsent && (
                                                     <SampleDataButton
                                                         enabled={
@@ -3219,10 +3314,15 @@ const AppGenerate: FC = () => {
                                                 {newAppLanding && (
                                                     <ThemePicker
                                                         compact
-                                                        iconOnly={compact}
                                                         value={currentThemeUuid}
                                                         onChange={
                                                             handleThemeChange
+                                                        }
+                                                        fallbackLabel={
+                                                            currentThemeUuid &&
+                                                            displayThemeName
+                                                                ? displayThemeName
+                                                                : undefined
                                                         }
                                                     />
                                                 )}
@@ -3280,15 +3380,6 @@ const AppGenerate: FC = () => {
                                         }
                                         toolbarRight={
                                             <Group gap="xs">
-                                                {activeAppUuid && (
-                                                    <ClearAgentContextAction
-                                                        projectUuid={
-                                                            projectUuid
-                                                        }
-                                                        appUuid={activeAppUuid}
-                                                        disabled={isLoading}
-                                                    />
-                                                )}
                                                 <ModelPicker
                                                     value={selectedModel}
                                                     onChange={handleModelChange}
@@ -3373,6 +3464,21 @@ const AppGenerate: FC = () => {
                         <Box className={classes.previewPanel}>
                             {activeAppUuid && (
                                 <AppHeader
+                                    // The latest version needs no label; history has the numbers.
+                                    versionBadge={
+                                        previewApp && isViewingOlderVersion ? (
+                                            <Badge
+                                                size="md"
+                                                variant="light"
+                                                color="yellow"
+                                                className={
+                                                    classes.headerVersionBadge
+                                                }
+                                            >
+                                                Viewing v{previewApp.version}
+                                            </Badge>
+                                        ) : null
+                                    }
                                     projectUuid={projectUuid}
                                     app={{
                                         uuid: activeAppUuid,
@@ -3396,9 +3502,64 @@ const AppGenerate: FC = () => {
                                     }}
                                     rightSection={
                                         <AppHeaderActions
+                                            previewTools={
+                                                (elementPicker.available ||
+                                                    captureSurface ||
+                                                    (previewApp &&
+                                                        screenshotAvailable &&
+                                                        capturesEnabled)) && (
+                                                    <>
+                                                        {elementPicker.available && (
+                                                            <ElementPickerButton
+                                                                inHeader
+                                                                enabled={
+                                                                    elementPicker.enabled
+                                                                }
+                                                                onToggle={
+                                                                    elementPicker.toggle
+                                                                }
+                                                            />
+                                                        )}
+                                                        {previewApp &&
+                                                            screenshotAvailable &&
+                                                            capturesEnabled && (
+                                                                <ScreenshotButton
+                                                                    onClick={() =>
+                                                                        void handleCaptureScreenshot()
+                                                                    }
+                                                                    disabled={
+                                                                        isSubmitting ||
+                                                                        fileAttachments.length >=
+                                                                            MAX_APP_FILES_PER_VERSION
+                                                                    }
+                                                                    loading={
+                                                                        isCapturingScreenshot ||
+                                                                        isCapturingThumbnail
+                                                                    }
+                                                                />
+                                                            )}
+                                                        {captureSurface && (
+                                                            <CaptureButton
+                                                                onClick={() =>
+                                                                    captureRef.current?.start()
+                                                                }
+                                                                disabled={
+                                                                    isSubmitting ||
+                                                                    isCaptureRecording
+                                                                }
+                                                            />
+                                                        )}
+                                                    </>
+                                                )
+                                            }
                                             fullscreenToggle={null}
                                             onEdit={null}
-                                            shareUrl={null}
+                                            shareUrl={
+                                                appViewUrl
+                                                    ? `${window.location.origin}${appViewUrl}`
+                                                    : null
+                                            }
+                                            openUrl={appViewUrl}
                                             projectUuid={projectUuid}
                                             appUuid={activeAppUuid}
                                             upgrade={{
@@ -3425,7 +3586,7 @@ const AppGenerate: FC = () => {
                                                 null
                                             }
                                             onRefresh={handleRefreshPreview}
-                                            refreshDisabled={!previewApp}
+                                            refreshAvailable={!!previewApp}
                                             captureThumbnail={{
                                                 onCapture: () =>
                                                     void captureThumbnail(),
@@ -3443,9 +3604,13 @@ const AppGenerate: FC = () => {
                                             previewVersion={
                                                 previewApp?.version ?? null
                                             }
-                                            onViewNetwork={() =>
-                                                setNetworkPanelHidden(false)
-                                            }
+                                            network={{
+                                                open: !networkPanelHidden,
+                                                onToggle: () =>
+                                                    setNetworkPanelHidden(
+                                                        (hidden) => !hidden,
+                                                    ),
+                                            }}
                                             capturedQueryCount={countReadyQueriesSinceBoundary(
                                                 trackedQueries,
                                                 versionQueryBoundaryRef.current,
@@ -3455,25 +3620,8 @@ const AppGenerate: FC = () => {
                                                     `/projects/${projectUuid}/apps/generate`,
                                                 )
                                             }
-                                            navItem={
-                                                previewApp ? (
-                                                    <Menu.Item
-                                                        component={Link}
-                                                        to={`/projects/${projectUuid}/apps/${previewApp.appUuid}/view`}
-                                                        target="_blank"
-                                                        leftSection={
-                                                            <MantineIcon
-                                                                icon={
-                                                                    IconExternalLink
-                                                                }
-                                                                size={14}
-                                                            />
-                                                        }
-                                                    >
-                                                        Preview latest
-                                                    </Menu.Item>
-                                                ) : null
-                                            }
+                                            // "Open app" in the header covers the view page.
+                                            navItem={null}
                                             askAiItem={null}
                                         />
                                     }
@@ -3481,6 +3629,11 @@ const AppGenerate: FC = () => {
                             )}
                             {activeAppUuid && (
                                 <AppHistoryDrawer
+                                    width={
+                                        chatPanelWidth > 0
+                                            ? chatPanelWidth
+                                            : null
+                                    }
                                     opened={isHistoryOpen}
                                     onClose={closeHistory}
                                     versions={allVersions}
@@ -3553,6 +3706,7 @@ const AppGenerate: FC = () => {
                                 )}
 
                             <Box
+                                ref={previewContentRef}
                                 className={classes.previewContent}
                                 // Walkthrough result for create:DataApp: a
                                 // finished app in the builder, the seeded one
@@ -3566,6 +3720,11 @@ const AppGenerate: FC = () => {
                                 data-tour-return="none"
                                 data-tour-resultdocs="data-apps.mdx#restoring-an-earlier-version:1"
                             >
+                                <CaptureHost
+                                    ref={captureRef}
+                                    surface={captureSurface}
+                                    onRecordingChange={setIsCaptureRecording}
+                                />
                                 {previewApp ? (
                                     <AppPreview
                                         ref={previewRef}
@@ -3619,6 +3778,11 @@ const AppGenerate: FC = () => {
                                             analysisController.handleAction
                                         }
                                         onInsightsInUse={handleInsightsInUse}
+                                        onCaptureHotkey={
+                                            captureSurface
+                                                ? handleCaptureHotkey
+                                                : undefined
+                                        }
                                         onInsightInstructionsChange={
                                             setInsightInstructions
                                         }
@@ -3629,14 +3793,48 @@ const AppGenerate: FC = () => {
                                             analysisController.setMountedQueryUuids
                                         }
                                     />
+                                ) : isAgentWorking && !isClarifying ? (
+                                    <PreviewBuilding
+                                        stageIndex={buildStageIndex}
+                                    />
                                 ) : (
-                                    <Box className={classes.previewEmpty}>
-                                        <IconAppWindow size={48} stroke={1} />
-                                        <Text size="sm">
-                                            Your app preview will appear here
-                                        </Text>
-                                    </Box>
+                                    <PreviewEmpty
+                                        failed={messages.some(
+                                            (m) => m.status === 'error',
+                                        )}
+                                        onRetry={
+                                            lastMessage?.status === 'error'
+                                                ? failedTurnActions(
+                                                      messages.length - 1,
+                                                  ).onRetry
+                                                : null
+                                        }
+                                        disabled={isLoading}
+                                    />
                                 )}
+                                {previewApp &&
+                                    !isAgentWorking &&
+                                    lastMessage?.role === 'assistant' &&
+                                    lastMessage.status === 'error' && (
+                                        <PreviewNotAppliedPill
+                                            version={previewApp.version}
+                                            stopped={
+                                                lastMessage.content ===
+                                                APP_VERSION_CANCELLED_BY_USER
+                                            }
+                                        />
+                                    )}
+                                {previewApp &&
+                                    isAgentWorking &&
+                                    !isClarifying && (
+                                        <PreviewBuildingPill
+                                            version={
+                                                latestBuildingVersion?.version ??
+                                                null
+                                            }
+                                            showingVersion={previewApp.version}
+                                        />
+                                    )}
                                 {!networkPanelHidden && (
                                     <AppInspectorPanel
                                         queries={trackedQueries}

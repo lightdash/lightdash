@@ -18,20 +18,22 @@ This skill is shared with Lightdash's native agent, so its workflows use camelCa
 - Use `generate_hashes` for native `generateHashes`.
 - Replace `runContentQuery` with `run_metric_query` to check a chart's governed semantic-layer `metricQuery`. Do not use `run_sql` for this check.
 - Use `run_sql` where a workflow runs `runContentQuery` with `source.type: "sql"` or `chartType: "sql_chart"`; for a saved SQL chart, pass the `sql` from `read_content`.
+- Use `query` where a workflow runs `runContentQuery` with `chartType: "composer_chart"`; pass the pipeline from `read_content`.
 
 ## What You Can Do
 
-| Task                          | Tools/Action                                                    | References                            |
-| ----------------------------- | --------------------------------------------------------------- | ------------------------------------- |
-| Read dashboards and charts    | `readContent`                                                   | `dashboard-reference`, chart refs     |
-| Create, read, edit SQL charts | `createContent` / `readContent` / `editContent`, `sql_chart`    | `sql-chart-reference`                 |
-| Read data apps (read-only)    | `readContent` with `type: data_app`                             | manifest-shaped JSON, no source code  |
-| Edit dashboards               | `editContent` with RFC6902 JSON Patch                           | `dashboard-reference`                 |
-| Edit charts and tiles         | `editContent`, then update referencing dashboards if needed     | Chart refs, `dashboard-reference`     |
-| Create charts                 | `grepFields`, `getMetadata`, `runContentQuery`, `createContent` | Chart refs                            |
-| Create dashboards             | `grepFields`, `getMetadata`, `createContent`                    | `dashboard-reference`, best practices |
-| Add period comparisons        | Edit chart `metricQuery` and config                             | `period-over-period-reference`        |
-| Check changed metric queries  | `runContentQuery` with `source.type: "metricQuery"`             | Chart refs                            |
+| Task                               | Tools/Action                                                      | References                            |
+| ---------------------------------- | ----------------------------------------------------------------- | ------------------------------------- |
+| Read dashboards and charts         | `readContent`                                                     | `dashboard-reference`, chart refs     |
+| Create, read, edit SQL charts      | `createContent` / `readContent` / `editContent`, `sql_chart`      | `sql-chart-reference`                 |
+| Create, read, edit composer charts | `createContent` / `readContent` / `editContent`, `composer_chart` | `composer-chart-reference`            |
+| Read data apps (read-only)         | `readContent` with `type: data_app`                               | manifest-shaped JSON, no source code  |
+| Edit dashboards                    | `editContent` with RFC6902 JSON Patch                             | `dashboard-reference`                 |
+| Edit charts and tiles              | `editContent`, then update referencing dashboards if needed       | Chart refs, `dashboard-reference`     |
+| Create charts                      | `grepFields`, `getMetadata`, `runContentQuery`, `createContent`   | Chart refs                            |
+| Create dashboards                  | `grepFields`, `getMetadata`, `createContent`                      | `dashboard-reference`, best practices |
+| Add period comparisons             | Edit chart `metricQuery` and config                               | `period-over-period-reference`        |
+| Check changed metric queries       | `runContentQuery` with `source.type: "metricQuery"`               | Chart refs                            |
 
 Rules:
 
@@ -82,6 +84,8 @@ To add or retarget a dashboard filter, take each tile's explore and field ids fr
 
 When `config.controlOrder` is present, add a `{ "kind": "filter", "slug": ... }` entry with the new filter's `slug` where it should sit on the filter bar, and remove a deleted filter's entry. Control slugs only link entries within the edit and are never saved. See `Control order` in `dashboard-reference`.
 
+To put a filter in an existing section, set its `sectionSlug` to a `slug` from `config.controlSections`. Group controls into sections only when the user asks or the dashboard already uses them, and read `Control sections` in `dashboard-reference` before creating, renaming or removing one. A patch that changes something else leaves `controlSections`, every `sectionSlug`, `dateZoomConfig` and `controlOrder` as read.
+
 ### Edit Charts and Dashboard Tiles
 
 1. Call `readContent` for the chart slug.
@@ -101,6 +105,8 @@ When `config.controlOrder` is present, add a `{ "kind": "filter", "slug": ... }`
 4. Check the chart: call `runContentQuery` with `source.type: "metricQuery"` and the chart's `tableName`/`metricQuery` as it will be saved.
 5. Call `createContent` with the checked chart JSON.
 
+When explore fields cannot produce the chart, read `sql-chart-reference` before going further: it says what to offer the user.
+
 For a weekly chart of "the last 12 weeks up to today" where every week starts on its first day, put the `inThePast` filter on the week dimension (e.g. `orders_order_date_week`, `completed: false`, `unitOfTime: weeks`, `values: [12]`), not on the day or raw date. That gives 12 weekly rows: 11 full weeks plus the current week to date. The same filter on a day field starts mid-week, so the first week is partial.
 
 ### Create Dashboards
@@ -113,9 +119,7 @@ For a weekly chart of "the last 12 weeks up to today" where every week starts on
 
 ### Create and Edit SQL Charts
 
-Use SQL charts only when the semantic layer cannot express the question. Always read `sql-chart-reference` first. A dashboard of SQL charts references their persisted slugs in `sql_chart` tiles.
-
-To edit a SQL chart, read it, then patch it with `editContent` (`type: sql_chart`).
+Always read `sql-chart-reference` first: it says when to create a SQL chart, and how to save, edit and place one on a dashboard.
 
 ## Editing Charts
 
@@ -231,6 +235,7 @@ For period comparisons, read `period-over-period-reference` in addition to the c
 - `custom-viz-reference` - Vega-Lite
 - `period-over-period-reference` - PoP comparisons
 - `sql-chart-reference` - Charts saved from raw warehouse SQL, their approval step, and dashboards built from them
+- `composer-chart-reference` - Dashboard charts drawn from a pipeline of queries: creating, reading, testing and editing them
 - `field-formatting-reference` - Chart-level field formatting overrides for metrics and dimensions
 
 ### Dashboards

@@ -68,6 +68,7 @@ describe('Tool activity with real DuckDB', () => {
             ('org','project','user','agent','2026-09-28','tool_call','prompt','same','run_query','success',300),
             ('org','project','user','agent','2026-09-28','tool_call','prompt','same','run_query','success',300),
             ('org','project',NULL,'agent','2026-09-28','tool_call','prompt','legacy','old_tool',NULL,400),
+            ('org','project','user','agent','2026-09-28','tool_call','prompt','unapproved','run_sql','rejected',250),
             ('org','project','user','agent','2026-09-28','step','prompt',NULL,NULL,NULL,500)`);
     });
     afterAll(() => {
@@ -75,7 +76,7 @@ describe('Tool activity with real DuckDB', () => {
         instance?.closeSync();
     });
 
-    it('counts calls once, retains unknown outcomes, and computes the known-outcome error rate', async () => {
+    it('counts calls once, keeps unknown and unapproved outcomes, and computes the known-outcome error rate', async () => {
         const rows = (
             await db.runAndReadAll(
                 compile(
@@ -93,7 +94,7 @@ describe('Tool activity with real DuckDB', () => {
         ).getRowObjectsJson();
         expect(rows).toEqual([
             expect.objectContaining({
-                tool_activity_total_calls: '4',
+                tool_activity_total_calls: '5',
                 tool_activity_failed_calls: '1',
                 tool_activity_unique_users: '1',
                 tool_activity_unique_actors: '2',
@@ -101,6 +102,15 @@ describe('Tool activity with real DuckDB', () => {
                 tool_activity_error_rate: 1 / 3,
             }),
         ]);
+        const byStatus = (
+            await db.runAndReadAll(
+                compile(['tool_activity_status'], ['total_calls']),
+            )
+        ).getRowObjectsJson();
+        expect(byStatus).toContainEqual({
+            tool_activity_status: 'rejected',
+            tool_activity_total_calls: '1',
+        });
     });
 
     it('executes dimension/metric combinations without join fanout or total changes', async () => {
@@ -143,7 +153,7 @@ describe('Tool activity with real DuckDB', () => {
                                 sum + Number(row.tool_activity_total_calls),
                             0,
                         ),
-                    ).toBe(4);
+                    ).toBe(5);
             }
         }
     });
@@ -159,7 +169,7 @@ describe('Tool activity with real DuckDB', () => {
                     `SELECT count(*) AS n FROM ${toolActivitySql}`,
                 )
             ).getRowObjectsJson(),
-        ).toEqual([{ n: '6' }]);
+        ).toEqual([{ n: '7' }]);
         await db.run('DELETE FROM mcp_tool_calls');
         await db.run('DELETE FROM agent_steps');
         const rows = (

@@ -1,0 +1,139 @@
+import { FocusTrap, Text, Title, UnstyledButton } from '@mantine/core';
+import { useDocumentVisibility } from '@mantine/hooks';
+import { IconX } from '@tabler/icons-react';
+import { useState, type ReactNode } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { MOBILE_SIGN_IN_STRINGS } from '../mobileStrings';
+import { AskUpsell } from './AskUpsell';
+import { BrowseUpsell } from './BrowseUpsell';
+import { ChartFitUpsell } from './ChartFitUpsell';
+import { DashboardUpsell } from './DashboardUpsell';
+import { type MobileUpsellChoice } from './getMobileUpsell';
+import classes from './MobileUpsell.module.css';
+import { PinnedUpsell } from './PinnedUpsell';
+import {
+    MOBILE_PITCH_DISMISS_STRINGS,
+    type MobilePitchDismissReason,
+} from './pitchDismiss';
+import { PitchDismissReasons } from './PitchDismissReasons';
+import { PlatformsUpsell } from './PlatformsUpsell';
+import { UPSELL_STRINGS } from './upsellStrings';
+
+type SignInParts = {
+    isIdle: boolean;
+    isWaitingForScan: boolean;
+    isSignedIn: boolean;
+    title: ReactNode;
+    qr: ReactNode;
+    details: ReactNode;
+    status: ReactNode;
+};
+
+type PitchDismiss = {
+    onDismiss?: (reason: MobilePitchDismissReason) => void;
+};
+
+const GRAPHICS = {
+    1: AskUpsell,
+    2: DashboardUpsell,
+    3: BrowseUpsell,
+    4: PinnedUpsell,
+    5: ChartFitUpsell,
+    6: PlatformsUpsell,
+};
+
+export const MobileUpsellFrame = ({
+    variation,
+    isIdle,
+    isWaitingForScan,
+    isSignedIn,
+    title,
+    qr,
+    details,
+    status,
+    onDismiss,
+}: SignInParts & PitchDismiss & { variation: MobileUpsellChoice }) => {
+    const visibility = useDocumentVisibility();
+    const [askingWhy, setAskingWhy] = useState(false);
+    const copy = UPSELL_STRINGS[variation];
+    const Graphic = GRAPHICS[variation];
+    const canDismiss = onDismiss !== undefined && isIdle && !isSignedIn;
+    if (askingWhy && canDismiss && onDismiss) {
+        return (
+            <div
+                className={classes.frame}
+                data-mobile-upsell={variation}
+                data-paused={visibility === 'hidden'}
+            >
+                <PitchDismissReasons onPick={onDismiss} />
+            </div>
+        );
+    }
+    return (
+        <div
+            className={classes.frame}
+            data-mobile-upsell={variation}
+            data-paused={visibility === 'hidden'}
+        >
+            {/* The popover traps focus and would otherwise focus the first
+                button, Not interested, so one Enter would dismiss the pitch
+                and record a reason the user never chose. The trap prefers the
+                first autofocus element, so render this only while Not
+                interested is shown: when a phone is confirming, focus must go
+                to Decline. */}
+            {canDismiss && <FocusTrap.InitialFocus />}
+            {canDismiss && (
+                <UnstyledButton
+                    type="button"
+                    className={classes.dismiss}
+                    onClick={() => setAskingWhy(true)}
+                >
+                    <span className={classes.dismissLabel}>
+                        {MOBILE_PITCH_DISMISS_STRINGS.action}
+                    </span>
+                    <MantineIcon icon={IconX} size="sm" />
+                </UnstyledButton>
+            )}
+            <div className={classes.pitch}>
+                <Title order={3} className={classes.headline}>
+                    {copy.headline}
+                </Title>
+                <Text size="sm" className={classes.support}>
+                    {copy.support}
+                </Text>
+            </div>
+            <div className={classes.signIn}>
+                <div className={classes.signInTitle}>{title}</div>
+                {isSignedIn ? (
+                    details
+                ) : (
+                    <div className={classes.panel} data-step-active={!isIdle}>
+                        <div className={classes.qrColumn}>
+                            {qr}
+                            {isWaitingForScan && (
+                                <Text
+                                    fz="xs"
+                                    c="dimmed"
+                                    className={classes.rescanHint}
+                                >
+                                    {MOBILE_SIGN_IN_STRINGS.rescanHint}
+                                </Text>
+                            )}
+                        </div>
+                        <div className={classes.side} data-idle={isIdle}>
+                            <div className={classes.stage} aria-hidden="true">
+                                <Graphic />
+                            </div>
+                            {!isIdle && (
+                                <div className={classes.sideStep}>
+                                    {details}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+                {status}
+            </div>
+        </div>
+    );
+};

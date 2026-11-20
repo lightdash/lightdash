@@ -18,7 +18,16 @@ const composerBuiltinChartVizTypeSchema = z.enum([
 
 export const composerBuiltinChartVizConfigSchemaV1 = z.object({
     type: composerBuiltinChartVizTypeSchema.describe(
-        'Chart type. area is a filled line.',
+        `Chart type, chosen by what the reader does with the result:
+- bar: compare or rank categories.
+- line: follow change over time or another ordered x.
+- table: read exact values across several columns, or more rows than a chart can label.
+- area: a filled line, for one total over time or the parts that add up to it.
+- pie: 2 to 6 non-negative parts of one whole; more parts read better as a bar.
+- scatter: how two measures relate, one point per entity.
+- funnel: ordered stages of one process.
+- big_number: one value as a card, when the user asks for the card or wants to save it; a figure otherwise goes in the answer text.
+A custom chart type is chosen the same way: by its own description first, then as the built-in type it most resembles.`,
     ),
     x: refSchema
         .nullish()
@@ -31,27 +40,29 @@ export const composerBuiltinChartVizConfigSchemaV1 = z.object({
         .nullish()
         .default(null)
         .describe(
-            'Value columns. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy.',
+            'Value columns, one series each on bar/line/area/scatter. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy.',
         ),
     groupBy: z
         .array(refSchema)
         .nullish()
         .default(null)
         .describe(
-            'Columns that split y into one series per value. bar/line/area/scatter only. Must not include x.',
+            'Columns that split y into one series per value. A reader tells about 6 series apart at a glance, so prefer a coarser split when the choice is yours and keep a split the user asked for. bar/line/area/scatter only. Must not include x.',
         ),
     stack: z
         .boolean()
         .nullish()
         .default(null)
         .describe(
-            'bar: stack series on top of each other. area always stacks. Ignored elsewhere.',
+            'bar: stack series (several y columns, or a groupBy split) on top of each other, for parts that add up to a total (sums and counts; averages, ratios and distinct counts sit side by side). area always stacks. Ignored elsewhere.',
         ),
     horizontal: z
         .boolean()
         .nullish()
         .default(null)
-        .describe('bar only: draw bars horizontally.'),
+        .describe(
+            'bar only: draw bars horizontally, for long labels or more than about 12 categories.',
+        ),
     y2: refSchema
         .nullish()
         .default(null)

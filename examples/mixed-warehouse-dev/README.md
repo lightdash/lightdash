@@ -28,10 +28,12 @@ macro so the configured schema is used as written.
 | `ducklake` | DuckDB (DuckLake) | `ducklake.main.duck_events` | None, local files |
 | `athena` | Athena | `awsdatacatalog.athena_spike.xp_fixture_types` | Development bundle `athena` |
 | `clickhouse` | ClickHouse | `analytics.ch_sessions` | None, local Docker (`docker-compose.yml`) |
-| `redshift` | Redshift **stand-in** on Postgres | `redshift_standin.public.rs_orders` | ldenv Postgres |
-| `postgres` | Postgres | `<jaffle warehouse db>.jaffle.orders` | ldenv Postgres (`PG_WAREHOUSE_DATABASE`) |
+| `redshift` | Redshift **stand-in** on Postgres | `redshift_standin.public.rs_orders` | a Postgres server |
+| `postgres` | Postgres | `<jaffle warehouse db>.jaffle.orders` | a Postgres server (`PG_WAREHOUSE_DATABASE`) |
 
 ## Credentials
+
+Set `PGHOST`, `PGPORT`, `PGUSER` and `PGPASSWORD` for a Postgres server.
 
 Deliver the `bigquery` and `snowflake` development bundles to the worktree's
 `.env.development.local` with the encrypted envelope flow
@@ -105,7 +107,7 @@ screenshots.
 (user and password `lightdash`). Seed it with `analytics.ch_sessions`, then
 parse the `clickhouse` project.
 
-The Redshift stand-in is a `redshift_standin` database on the ldenv Postgres,
+The Redshift stand-in is a `redshift_standin` database on a Postgres server,
 queried through Lightdash's Redshift client. It checks the Redshift code paths
 and the Postgres-compatible dialect, not Redshift itself.
 

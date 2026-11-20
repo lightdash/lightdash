@@ -11,9 +11,18 @@ export type SemanticLayerApplyMode =
     | 'pull_request'
     | 'dbt_pull_request';
 
+export type SemanticLayerBlocker =
+    | 'no_access'
+    | 'unsupported_connection'
+    | 'no_repository_access'
+    | 'github_app_missing'
+    | 'models_from_outside'
+    | 'preview_project';
+
 export type SemanticLayerStatus = {
     /** Whether this person can change this project's models from Semantic Studio. */
     enabled: boolean;
+    blocker: SemanticLayerBlocker | null;
     /** How a change lands: `live` applies a draft here, `pull_request` sends a draft to the project's repository, and `dbt_pull_request` has the agent edit the dbt project in a pull request, with no draft. */
     appliesAs: SemanticLayerApplyMode;
 };
@@ -55,6 +64,81 @@ export type SemanticLayerModelCode = {
 
 export type ApiSemanticLayerModelResponse =
     ApiSuccess<SemanticLayerModelCode | null>;
+
+/** The models whose YAML the project keeps, as opposed to ones deployed from elsewhere. */
+export type SemanticLayerStoredModels = { models: string[] };
+
+export type ApiSemanticLayerStoredModelsResponse =
+    ApiSuccess<SemanticLayerStoredModels>;
+
+/** A project's model files in its repository, at a change's pull request or the branch it deploys from. */
+export type SemanticStudioSources = {
+    branch: string;
+    prUrl: string | null;
+    /** Paths relative to the dbt project, YAML and SQL only. */
+    files: string[];
+};
+
+export type ApiSemanticStudioSourcesResponse =
+    ApiSuccess<SemanticStudioSources>;
+
+export type SemanticStudioSourceFile = {
+    revision: string | null;
+    path: string;
+    content: string | null;
+};
+
+export type ApiSemanticStudioSourceFileResponse =
+    ApiSuccess<SemanticStudioSourceFile>;
+
+export type SaveSemanticStudioSourceRequest = {
+    /** The revision the edit was based on, null for a new file; older clients omit it and skip the check. */
+    revision?: string | null;
+    path: string;
+    content: string;
+    /** The change's open pull request to add the commit to, or null to open one. */
+    prUrl: string | null;
+    /** The Studio conversation the change belongs to, so Try it sees the edit. */
+    threadUuid: string | null;
+};
+
+/** `failed` carries why the edit was not saved; `checked` is false when only dbt can check it, such as SQL. */
+export type SemanticStudioSourceSave =
+    | {
+          status: 'saved';
+          prUrl: string;
+          prAction: 'opened' | 'updated';
+          commitSha: string;
+          checked: boolean;
+          /** The revision of the file as saved, for the next save to be based on. */
+          revision: string;
+      }
+    | { status: 'failed'; error: string };
+
+export type ApiSemanticStudioSourceSaveResponse =
+    ApiSuccess<SemanticStudioSourceSave>;
+
+/** A hand edit of one model's whole YAML, saved into the person's draft. */
+export type SaveSemanticLayerDraftModelRequest = {
+    /** The model's YAML the edit started from, so an edit made over a newer version is refused. */
+    base: string;
+    content: string;
+};
+
+/** `failed` carries why the edit was not saved, and the draft is left as it was. */
+export type SemanticLayerDraftModelSave =
+    | {
+          status: 'saved';
+          draftChangeUuid: string;
+          /** The draft this started because the person was on Published; null otherwise. */
+          startedChange: { workspaceUuid: string; name: string } | null;
+          /** The model as the draft now holds it. */
+          content: string;
+      }
+    | { status: 'failed'; error: string };
+
+export type ApiSemanticLayerDraftModelSaveResponse =
+    ApiSuccess<SemanticLayerDraftModelSave>;
 
 /** How one model's part of a change fared when it was checked on top of a draft. */
 export type SemanticLayerDraftItemResult = {
@@ -138,8 +222,8 @@ export type SemanticLayerDraftModel = {
     reconciliation: SemanticLayerDraftReconciliation | null;
     /** Other people with unpublished changes to this model, and the parts each is changing; never the content. */
     alsoChanging: SemanticLayerDrafter[];
-    /** The latest change someone else published to this model since this draft first touched it; null when none. */
-    publishedSince: { by: string | null; at: Date } | null;
+    /** The latest change published to this model since this draft first touched it, from another person or another of yours; null when none. */
+    publishedSince: { by: string | null; at: Date; isYours: boolean } | null;
 };
 
 /** What became of a change that left the draft. */
@@ -148,6 +232,19 @@ export type SemanticLayerSettledDraftChange = {
     status: 'applied' | 'discarded' | 'undone';
     /** The pull request an applied change was sent as; null when it went live on the server. */
     pullRequestUrl: string | null;
+    /** The models the change touched. */
+    models: string[];
+};
+
+/** What this person's changes waiting in an open pull request do to one model, against what is live. */
+export type SemanticLayerInReviewModel = {
+    model: string;
+    pullRequestUrl: string;
+    changes: ModelFragmentChange[];
+    /** Null when the pull request creates the model. */
+    contentBefore: string | null;
+    /** Null when the pull request removes the model. */
+    contentAfter: string | null;
 };
 
 export type SemanticLayerDraft = {
@@ -157,6 +254,7 @@ export type SemanticLayerDraft = {
     /** Models the draft leaves unable to compile. */
     errors: { model: string; message: string }[];
     settled: SemanticLayerSettledDraftChange[];
+    inReview: SemanticLayerInReviewModel[];
     /** Every model other people have unpublished changes to, whether or not this draft touches it. */
     othersDrafting: { model: string; drafters: SemanticLayerDrafter[] }[];
 };
@@ -182,6 +280,8 @@ export type SemanticLayerDraftApplyResult = {
     failures: { model: string; error: string }[];
     /** The pull request the draft was sent as, for a project whose models live in a repository; null otherwise. */
     pullRequestUrl: string | null;
+    /** Whether that pull request merged when publishing asked for it, and why not; null when no merge was asked. */
+    merge: { merged: true } | { merged: false; reason: string } | null;
 };
 
 export type ApiSemanticLayerDraftApplyResponse =
@@ -225,6 +325,18 @@ export type SemanticLayerDraftFieldUsage = {
     scheduledDeliveries: number;
 };
 
+/** A field a change redefines or removes, to look up in saved content. */
+export type SemanticLayerTouchedField = {
+    model: string;
+    fieldId: string;
+    label: string;
+    kind: 'changed' | 'removed';
+};
+
+export type SemanticLayerFieldUsageBody = {
+    fields: SemanticLayerTouchedField[];
+};
+
 /** Saved content that reads what the draft changes: what to look at before publishing, whether or not anything breaks. */
 export type SemanticLayerDraftUsage = {
     fields: SemanticLayerDraftFieldUsage[];
@@ -251,3 +363,89 @@ export type ApiSemanticLayerDraftTakeLiveRequest = {
 export type ApiSemanticLayerDraftMoveRequest = {
     direction: SemanticLayerDraftMoveDirection;
 };
+
+export type SemanticStudioWorkspacePullRequestState =
+    | 'open'
+    | 'merged'
+    | 'closed';
+
+/** One piece of Studio work from its first proposed change until it is live or discarded. */
+export type SemanticStudioWorkspace = {
+    workspaceUuid: string;
+    projectUuid: string;
+    name: string;
+    threadUuid: string | null;
+    agentUuid: string | null;
+    owner: { userUuid: string; name: string };
+    isMine: boolean;
+    /** The one your chat writes to and your development view reads. */
+    isActive: boolean;
+    /** The latest pull request its conversation opened, with its state when last checked. */
+    pullRequest: {
+        url: string;
+        state: SemanticStudioWorkspacePullRequestState | null;
+    } | null;
+    createdAt: Date;
+    updatedAt: Date;
+    finishedAt: Date | null;
+    /** Whether any of its draft went live here, without a pull request. */
+    publishedLive: boolean;
+};
+
+export type SemanticStudioWorkspaces = {
+    /** Your unfinished workspaces, the active one first. */
+    mine: SemanticStudioWorkspace[];
+    /** Others' unfinished workspaces in this project, to be aware of. */
+    others: SemanticStudioWorkspace[];
+    /** Your workspaces finished in the last two weeks, newest first. */
+    recent: SemanticStudioWorkspace[];
+};
+
+export type ApiSemanticStudioWorkspacesResponse =
+    ApiSuccess<SemanticStudioWorkspaces>;
+
+export type ApiSemanticStudioWorkspaceResponse =
+    ApiSuccess<SemanticStudioWorkspace>;
+
+export type SemanticStudioBranchCompileStatus =
+    | 'compiling'
+    | 'ready'
+    | 'failed';
+
+/** Where the compile of a dbt change's branch stands. */
+export type SemanticStudioBranchCompile = {
+    status: SemanticStudioBranchCompileStatus;
+    /** Null until a compile has read the branch. */
+    branch: string | null;
+    /** Why the latest compile failed; null otherwise. */
+    error: string | null;
+    /** Whether a compile has succeeded; until one has, Explore shows what is published. */
+    hasExplores: boolean;
+    requestedAt: Date;
+    compiledAt: Date | null;
+};
+
+/** The change a person has checked out in a project, which the whole app shows them. */
+export type SemanticStudioCheckout = {
+    workspaceUuid: string;
+    name: string;
+    appliesAs: SemanticLayerApplyMode;
+    /** Null for a change kept on the server, and for a dbt change with no compile asked for yet. */
+    branchCompile: SemanticStudioBranchCompile | null;
+};
+
+/** The pull request of the checked-out draft, so a stale page cannot publish another one. */
+export type SemanticStudioPublishBody = {
+    prUrl: string;
+};
+
+/** Null when the person is on what is published. */
+export type ApiSemanticStudioCheckoutResponse =
+    ApiSuccess<SemanticStudioCheckout | null>;
+
+export type SemanticStudioWorkspaceStartBody = {
+    threadUuid: string | null;
+    name: string;
+};
+
+export type SemanticStudioWorkspaceRenameBody = { name: string };

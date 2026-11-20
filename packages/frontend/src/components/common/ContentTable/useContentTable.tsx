@@ -436,6 +436,7 @@ export const useContentTable = <TData extends RowData>(
     const table = useReactTable({
         data: options.data,
         columns,
+        autoResetPageIndex: options.autoResetPageIndex,
         columnResizeMode: options.columnResizeMode ?? 'onChange',
         enableColumnResizing: options.enableColumnResizing ?? false,
         enableMultiSort: options.enableMultiSort,

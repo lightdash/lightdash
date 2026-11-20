@@ -41,7 +41,11 @@ export const getDescribeWarehouseTable = ({
                     resolvedDatabase,
                     partitioning,
                     warehouseType,
-                } = await describeWarehouseTable({ table, schema, database });
+                } = await describeWarehouseTable({
+                    table,
+                    schema: schema ?? null,
+                    database: database ?? null,
+                });
 
                 const qualifiedName = [
                     resolvedDatabase ?? database,

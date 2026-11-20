@@ -40,6 +40,8 @@ import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { BaseService } from '../BaseService';
 import { ProjectService } from '../ProjectService/ProjectService';
 
+const UPDATED_SERVICE_ACCOUNT_DESCRIPTION = 'Updated service account';
+
 type InstanceConfigurationServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -519,28 +521,43 @@ export class InstanceConfigurationService extends BaseService {
                 await this.serviceAccountModel.getAllForOrganization(orgUuid, [
                     ServiceAccountScope.ORG_ADMIN,
                 ]);
+            // Reuse the account a previous restart created: deleting it keeps
+            // its user as an org admin, so recreating adds one per restart.
+            const reusableServiceAccount = existingServiceAccounts.find(
+                (sa) => sa.description === UPDATED_SERVICE_ACCOUNT_DESCRIPTION,
+            );
+            const staleServiceAccounts = existingServiceAccounts.filter(
+                (sa) => sa.uuid !== reusableServiceAccount?.uuid,
+            );
             this.logger.debug(
-                `Update instance: Deleting ${existingServiceAccounts.length} existing service accounts`,
+                `Update instance: Deleting ${staleServiceAccounts.length} existing service accounts`,
             );
 
-            // We will delete all existing service accounts with the org admin scope
-            // before creating a new one.
+            // All other service accounts with the org admin scope are deleted.
             await Promise.all(
-                existingServiceAccounts.map((sa) =>
+                staleServiceAccounts.map((sa) =>
                     this.serviceAccountModel?.delete(sa.uuid),
                 ),
             );
 
-            await this.serviceAccountModel.save(
-                undefined, // user
-                {
-                    organizationUuid: orgUuid,
+            if (reusableServiceAccount) {
+                await this.serviceAccountModel.replaceToken({
+                    serviceAccountUuid: reusableServiceAccount.uuid,
+                    token: config.serviceAccount.token,
                     expiresAt: config.serviceAccount.expirationTime,
-                    description: 'Updated service account',
-                    scopes: [ServiceAccountScope.ORG_ADMIN],
-                },
-                config.serviceAccount.token,
-            );
+                });
+            } else {
+                await this.serviceAccountModel.save(
+                    undefined, // user
+                    {
+                        organizationUuid: orgUuid,
+                        expiresAt: config.serviceAccount.expirationTime,
+                        description: UPDATED_SERVICE_ACCOUNT_DESCRIPTION,
+                        scopes: [ServiceAccountScope.ORG_ADMIN],
+                    },
+                    config.serviceAccount.token,
+                );
+            }
 
             this.logger.info(
                 `Update instance: Updated service account for org ${orgUuid}`,

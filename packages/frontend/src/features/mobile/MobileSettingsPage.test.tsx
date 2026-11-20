@@ -147,7 +147,10 @@ describe('MobileSettingsPage with mobile-qr-sign-in on', () => {
         expect(
             await screen.findByRole('img', { name: QR_NAME }),
         ).toBeInTheDocument();
-        expect(screen.getByText('Waiting for scan')).toBeVisible();
+        expect(screen.getByText('Waiting for scan')).toHaveAttribute(
+            'aria-live',
+            'polite',
+        );
         expect(
             screen.queryByText(/Expires|minutes|\d+:\d{2}/),
         ).not.toBeInTheDocument();
@@ -203,17 +206,26 @@ describe('MobileSettingsPage with mobile-qr-sign-in on', () => {
     it('pauses link polling while the user already has the app', async () => {
         mockLink({});
         renderWithProviders(<MobileSettingsPage />);
-        expect(useMobileAppLink).toHaveBeenLastCalledWith({ isPaused: false });
+        expect(useMobileAppLink).toHaveBeenLastCalledWith({
+            isPaused: false,
+            enabled: true,
+        });
 
         await userEvent.click(
             screen.getByRole('button', { name: 'I already have the app' }),
         );
-        expect(useMobileAppLink).toHaveBeenLastCalledWith({ isPaused: true });
+        expect(useMobileAppLink).toHaveBeenLastCalledWith({
+            isPaused: true,
+            enabled: true,
+        });
 
         await userEvent.click(
             screen.getByRole('button', { name: 'Show code' }),
         );
-        expect(useMobileAppLink).toHaveBeenLastCalledWith({ isPaused: false });
+        expect(useMobileAppLink).toHaveBeenLastCalledWith({
+            isPaused: false,
+            enabled: true,
+        });
     });
 
     it('announces a scan and opens the sign-in step with its code', async () => {

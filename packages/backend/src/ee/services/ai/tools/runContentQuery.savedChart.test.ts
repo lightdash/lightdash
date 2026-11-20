@@ -21,6 +21,8 @@ const makeDependencies = (savedLimit: number) => {
             metricQuery,
         }),
         getSqlChart: vi.fn(),
+        getComposerChart: vi.fn(),
+        runComposerChartQuery: vi.fn(),
         runSqlChartQuery: vi.fn(),
         validateContent: vi.fn(),
         maxLimit: 500,

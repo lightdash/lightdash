@@ -38,6 +38,7 @@ import {
     Routes,
     useLocation,
     useNavigate,
+    type InitialEntry,
 } from 'react-router';
 import { createLightdashApi } from '../src/api';
 import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
@@ -49,6 +50,12 @@ import {
 } from '../src/ee/features/embed/EmbedDashboard/types';
 import {
     LightdashEventType,
+    type AppEventPayload,
+    type ChartContentState,
+    type ChartExportRequest,
+    type ContentStateChangedPayload,
+    type DashboardContentState,
+    type ExploreContentState,
     type LightdashEvent,
     type LightdashEventHandler,
 } from '../src/ee/features/embed/events/types';
@@ -169,6 +176,8 @@ type AiAgentProps = Omit<
     // Applied to threads started here; an existing thread keeps its own
     binding?: AiThreadBinding;
     threadContext?: string;
+    // Sent as the first message of a new thread; ignored with threadUuid
+    initialPrompt?: string;
     // Keeps the agent on its thread: dashboard and chart links render static
     // and "Explore from here" is hidden
     disableNavigation?: boolean;
@@ -367,6 +376,12 @@ const getAiAgentPath = ({
         ? `/embed/${projectUuid}/ai-agents/${agentUuid}/threads/${threadUuid}`
         : `/embed/${projectUuid}/ai-agents/${agentUuid}/threads`;
 
+// An existing thread already has its first message
+const getNewThreadPrompt = (
+    initialPrompt: string | undefined,
+    threadUuid: string | undefined,
+) => (threadUuid ? undefined : initialPrompt?.trim() || undefined);
+
 const getAiAgentEmbedUrl = ({
     agentUuid,
     disableNavigation,
@@ -375,6 +390,7 @@ const getAiAgentEmbedUrl = ({
     targetOrigin,
     theme,
     followSystemTheme,
+    initialPrompt,
     threadSetup,
     threadUuid,
     token,
@@ -386,6 +402,7 @@ const getAiAgentEmbedUrl = ({
     targetOrigin?: string;
     theme: ColorScheme | undefined;
     followSystemTheme: boolean;
+    initialPrompt?: string;
     threadSetup: EmbedAiAgentThreadSetup | null;
     threadUuid?: string;
     token: string;
@@ -406,7 +423,12 @@ const getAiAgentEmbedUrl = ({
         url.searchParams.set('targetOrigin', targetOrigin);
     }
 
-    url.hash = buildEmbedHash(token, threadSetup, disableNavigation);
+    url.hash = buildEmbedHash(
+        token,
+        threadSetup,
+        disableNavigation,
+        initialPrompt,
+    );
     return url.toString();
 };
 
@@ -493,7 +515,7 @@ const SdkProviders: FC<
         token: string;
         projectUuid?: string;
         // Starts the router here and leaves routing to the children
-        initialEntry?: string;
+        initialEntry?: InitialEntry;
         onError?: SdkErrorHandler;
     }>
 > = ({
@@ -1117,6 +1139,7 @@ const IframeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
     agentUuid,
     binding,
     disableNavigation = false,
+    initialPrompt,
     instanceUrl,
     onError,
     onEvent,
@@ -1196,28 +1219,67 @@ const IframeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
         return () => window.removeEventListener('message', handleMessage);
     }, [agentUuid, instanceOrigin, onThreadChange, tokenContext]);
 
-    if (!tokenContext) {
-        return null;
+    const threadSetup = getEmbedAiAgentThreadSetup({ binding, threadContext });
+    const newThreadPrompt = getNewThreadPrompt(initialPrompt, threadUuid);
+    const embedUrlOptions = tokenContext
+        ? {
+              agentUuid,
+              disableNavigation,
+              instanceUrl,
+              projectUuid: tokenContext.projectUuid,
+              targetOrigin,
+              theme: iframeTheme,
+              followSystemTheme: theme === 'system',
+              threadSetup,
+              threadUuid,
+              token: tokenContext.token,
+          }
+        : null;
+    const baseUrl = embedUrlOptions
+        ? getAiAgentEmbedUrl(embedUrlOptions)
+        : null;
+    // The iframe keeps the prompt it loaded with: clearing the prop must not
+    // change src or key, or the viewer loses their thread
+    const [loaded, setLoaded] = useState({
+        baseUrl,
+        seenPrompt: newThreadPrompt,
+        prompt: newThreadPrompt,
+        generation: 0,
+    });
+    let current = loaded;
+    if (baseUrl !== loaded.baseUrl) {
+        current = {
+            ...loaded,
+            baseUrl,
+            seenPrompt: newThreadPrompt,
+            prompt: newThreadPrompt,
+        };
+    } else if (newThreadPrompt !== loaded.seenPrompt) {
+        current = newThreadPrompt
+            ? {
+                  ...loaded,
+                  seenPrompt: newThreadPrompt,
+                  prompt: newThreadPrompt,
+                  generation: loaded.generation + 1,
+              }
+            : { ...loaded, seenPrompt: undefined };
+    }
+    if (current !== loaded) {
+        setLoaded(current);
     }
 
-    const threadSetup = getEmbedAiAgentThreadSetup({ binding, threadContext });
+    if (!embedUrlOptions) {
+        return null;
+    }
 
     return (
         <iframe
             // A hash-only src change doesn't reload the embed, so remount it
-            key={buildEmbedHash('', threadSetup, disableNavigation)}
+            key={`${buildEmbedHash('', threadSetup, disableNavigation)}:${current.generation}`}
             title="AI agent"
             src={getAiAgentEmbedUrl({
-                agentUuid,
-                disableNavigation,
-                instanceUrl,
-                projectUuid: tokenContext.projectUuid,
-                targetOrigin,
-                theme: iframeTheme,
-                followSystemTheme: theme === 'system',
-                threadSetup,
-                threadUuid,
-                token: tokenContext.token,
+                ...embedUrlOptions,
+                initialPrompt: current.prompt,
             })}
             style={{
                 width: '100%',
@@ -1232,19 +1294,31 @@ const IframeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
 };
 
 // Follows threadUuid/agentUuid prop changes from the host
-const AiAgentRouteSync: FC<{ path: string; hasThread: boolean }> = ({
-    path,
-    hasThread,
-}) => {
+const AiAgentRouteSync: FC<{
+    path: string;
+    hasThread: boolean;
+    initialPrompt: string | undefined;
+}> = ({ path, hasThread, initialPrompt }) => {
     const navigate = useNavigate();
     const { pathname } = useLocation();
     const pathnameRef = useRef(pathname);
     pathnameRef.current = pathname;
     const lastPathRef = useRef(path);
+    const lastPromptRef = useRef(initialPrompt);
 
     useEffect(() => {
-        if (lastPathRef.current === path) return;
+        const pathChanged = lastPathRef.current !== path;
+        const promptChanged = lastPromptRef.current !== initialPrompt;
         lastPathRef.current = path;
+        lastPromptRef.current = initialPrompt;
+        // A new prompt always starts a new thread, even from an open one
+        if (initialPrompt && (pathChanged || promptChanged)) {
+            void navigate(path, {
+                state: { autoSubmitPrompt: initialPrompt },
+            });
+            return;
+        }
+        if (!pathChanged) return;
         const current = pathnameRef.current;
         // A thread path also matches its message subroutes; the new-thread
         // path is a prefix of every thread, so it must match exactly
@@ -1252,7 +1326,7 @@ const AiAgentRouteSync: FC<{ path: string; hasThread: boolean }> = ({
             current === path || (hasThread && current.startsWith(`${path}/`));
         if (isOnPath) return;
         void navigate(path);
-    }, [navigate, path, hasThread]);
+    }, [navigate, path, hasThread, initialPrompt]);
 
     return null;
 };
@@ -1263,6 +1337,7 @@ const NativeAiAgentLayout: FC<{
     embedToken: string;
     threadSetup: EmbedAiAgentThreadSetup | null;
     hasThread: boolean;
+    initialPrompt: string | undefined;
     onEvent: AiAgentProps['onEvent'];
     onThreadChange: AiAgentProps['onThreadChange'];
     path: string;
@@ -1272,6 +1347,7 @@ const NativeAiAgentLayout: FC<{
     disableNavigation,
     embedToken,
     hasThread,
+    initialPrompt,
     onEvent,
     onThreadChange,
     path,
@@ -1313,7 +1389,11 @@ const NativeAiAgentLayout: FC<{
             aiAgentNavigationDisabled={disableNavigation}
         >
             <AiAgentsCoreProvider>
-                <AiAgentRouteSync path={path} hasThread={hasThread} />
+                <AiAgentRouteSync
+                    path={path}
+                    hasThread={hasThread}
+                    initialPrompt={initialPrompt}
+                />
                 <Outlet />
             </AiAgentsCoreProvider>
         </EmbedProvider>
@@ -1333,6 +1413,7 @@ const NativeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
     agentUuid,
     binding,
     disableNavigation = false,
+    initialPrompt,
     instanceUrl,
     onError,
     onEvent,
@@ -1375,6 +1456,7 @@ const NativeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
         projectUuid: tokenContext.projectUuid,
         threadUuid,
     });
+    const newThreadPrompt = getNewThreadPrompt(initialPrompt, threadUuid);
 
     return (
         <div
@@ -1390,7 +1472,14 @@ const NativeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
                 <SdkProviders
                     token={tokenContext.token}
                     projectUuid={tokenContext.projectUuid}
-                    initialEntry={path}
+                    initialEntry={
+                        newThreadPrompt
+                            ? {
+                                  pathname: path,
+                                  state: { autoSubmitPrompt: newThreadPrompt },
+                              }
+                            : path
+                    }
                     styles={styles}
                     theme={theme}
                     onError={onError}
@@ -1404,6 +1493,7 @@ const NativeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
                                     disableNavigation={disableNavigation}
                                     embedToken={tokenContext.token}
                                     hasThread={threadUuid !== undefined}
+                                    initialPrompt={newThreadPrompt}
                                     onEvent={onEvent}
                                     onThreadChange={onThreadChange}
                                     path={path}
@@ -1566,6 +1656,12 @@ export type {
     MetricsCatalogFilter,
     LightdashEvent,
     LightdashEventHandler,
+    AppEventPayload,
+    ContentStateChangedPayload,
+    DashboardContentState,
+    ChartContentState,
+    ChartExportRequest,
+    ExploreContentState,
     SdkError,
     SdkErrorKind,
     SdkUiOverrides,

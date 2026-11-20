@@ -447,3 +447,149 @@ An existing extra cannot change its type with either flag value; add a new
 connection instead. It does not remove
 saved connections or change query execution. Mixed-type extras keep their own
 user-credential requirement; same-type extras still inherit the original's.
+
+### Previews inherit across warehouses
+
+`preview-inherits-across-warehouses` is off by default; organisation scope. With
+it on, a CLI preview on a different Snowflake warehouse than its parent inherits
+the parent's connection settings. It applies when a preview is created or its
+credentials are refreshed from the CLI; saved previews are not changed.
+
+### Composer charts
+
+`composer-charts` is off by default; organisation scope. It gates composer
+charts shown as dashboard tiles.
+
+Rollout rule: do not enable it for an organisation that embeds dashboards with
+`@lightdash/sdk` until its apps run version **3.245.0** or later, the first
+SDK release containing PR #32548. Older SDKs throw on the unknown
+`composer_chart` tile type, and the whole embedded dashboard shows the error
+fallback. Turning the flag off later
+does not hide tiles already added. Iframe embeds and the web app are not
+affected. Check an organisation's SDK versions in request logs before enabling:
+`sdkVersion`, or `clientVersion` for SDKs older than 0.2617.0.
+
+### Mobile app access
+
+`mobile-app-access` is on by default. It decides whether an organisation can use
+the mobile apps. It has a handler that supplies the default; overrides and the
+generic ENV lists still apply. It resolves for the organisation only: user
+overrides are ignored.
+
+A mobile token is an OAuth token of a client registered with a
+`com.lightdash.mobile:` redirect URI. The server reads the client and the
+organisation from the stored token row. It never trusts a request header.
+
+With the flag off for an organisation, the server:
+
+- denies every request that carries a mobile access token with HTTP 401,
+  `MobileOrgDisabledError`, `data.code = "mobile_org_disabled"` and
+  `data.organizationUuid`;
+- denies refresh for a mobile client with HTTP 400 `invalid_grant` and does not
+  consume the refresh token;
+- denies every other grant for a mobile client, and QR claim, cancel, probe and
+  redeem, with HTTP 403 `access_denied`;
+- sends a browser sign-in for a mobile client back to the app with
+  `error=access_denied`;
+- refuses QR code creation on the web with reason `mobile_app_disabled`;
+- sends no push notification and no live activity update for the organisation;
+- refuses a new push installation, push-to-start token or live activity
+  registration with the 401 above, for any credential, and creates no start
+  attempts for a new prompt;
+- removes the push installations of a mobile grant when it denies that grant,
+  together with the installations the same person registered with a cookie
+  session;
+- removes the push installations a person registered with a cookie session
+  when it answers that person with the 401 above on the health check or on a
+  push registration route.
+
+OAuth responses carry `error_description = "mobile_org_disabled"` and
+`organization_uuid`. The organisation is always the one the presented
+credential belongs to. `GET /api/v1/mobile/access` is the health check for the
+apps: 200 when enabled, the 401 above when disabled.
+
+Web sessions, personal access tokens, service accounts, the CLI, MCP clients and
+other organisations are not affected. `POST /api/v1/oauth/revoke` still works.
+
+**Console.** Create the flag with no default. A default of off disables mobile
+access for every organisation in that deployment. Add an organisation override
+set to off to disable one organisation. Remove the override, or set it to on, to
+enable it again. To hide the Mobile settings page for that organisation, turn
+`mobile-settings` off as well.
+
+**Propagation.** The server reads the flag on each check and keeps no cache. A
+Console change applies to the next request. A response that is already streaming
+finishes.
+
+**Enable again.** The server keeps no revocation record. New sign-ins work at
+once, and an unexpired token works again. An app that received the denial has
+deleted its tokens, so the person signs in again. A device that the
+server answered with the denial has no push installation left, so it receives
+pushes again only after the app registers one, which needs a valid sign-in.
+This does not depend on a request from the app to remove the installation. A
+device that stayed offline for the whole time keeps its installation and its
+sign-in.
+
+**ENV.** `LIGHTDASH_DISABLE_FEATURE_FLAGS=mobile-app-access` turns mobile access
+off for the whole deployment. `LIGHTDASH_ENABLE_FEATURE_FLAGS=mobile-app-access`
+forces it on, and Console cannot turn it off there. ENV changes need a restart.
+
+**Limits.**
+
+- An app that stays offline keeps its cached data until it next contacts the
+  server.
+- The 401 and `invalid_grant` pair makes app versions that do not know the code
+  sign out through their expired-session path.
+- The apps can also sign in with a password and a cookie session. The server
+  cannot tell that session from a web session and does not deny it. The apps
+  call the health check, which answers 401 for a cookie session too; that check
+  is not a security control.
+- A person who registers an OAuth client of their own with another redirect URI
+  keeps the API access that the CLI has. A personal access token that a person
+  created earlier also keeps working. The flag controls the apps, not the API.
+- The token exchange grant (QR code and Microsoft ID token) accepts mobile
+  clients only.
+- The sign-in redirect carries `organization_uuid` only when it goes to the
+  app's own redirect scheme.
+- If the database read for the flag fails, the resolver logs a warning and uses
+  the default, which is on.
+
+### Mobile QR sign-in and source project support
+
+`mobile-qr-sign-in` is the QR sign-in feature flag. `mobile-app-access` is checked
+first and refuses every QR action when it is off. Authenticated backend
+availability and mint checks resolve it for the user's organisation through the
+standard resolver. The web menu uses the server-resolved flag. Console organisation
+overrides work with ENV enable unset. Deployment defaults and generic ENV precedence
+apply as described above. Console changes apply to the next backend check and UI
+refetch; ENV changes require an API restart. Other mobile settings, mode, user and
+project access checks still apply.
+
+`GET /api/v1/mobile/sign-in-capabilities` advertises implemented protocol support,
+not QR availability or permission. Its static response always has `schemaVersion: 1`
+and `capabilities.mobile_sign_in_source_project: 1`, independent of flags, sessions,
+users and organisations. It resolves no flags and sends `Cache-Control: no-store`.
+
+Mint validates optional source project access, organisation and DEFAULT type.
+Token exchange returns stored context only when `include_source_project=true`.
+The web makes one uncached, bounded discovery request per mint attempt with a source
+project. Unknown or failed discovery uses the exact legacy mint shape. It retains
+no positive result. Disabling QR sign-in still refuses mint and normal QR actions;
+static protocol discovery grants no access and issues no code or token.
+
+## BigQuery OAuth Drive access
+
+`bigquery-oauth-drive-access` is organization-scoped and off by default. When on,
+"Sign in with Google" for BigQuery (`/login/bigquery`) also requests
+`https://www.googleapis.com/auth/drive.readonly`, so personal BigQuery
+credentials can query external tables backed by Google Sheets or other Drive
+files. BigQuery rejects `drive.file`, `spreadsheets` and `spreadsheets.readonly`
+for these tables.
+
+`drive.readonly` is a restricted Google scope. Only enable the flag for an
+organization once the instance's OAuth app is verified for it; until then users
+see Google's unverified-app screen, which counts towards the 100-user cap.
+Existing users must sign in to BigQuery again to grant the scope. The Google
+login with `AUTH_GOOGLE_INCLUDE_BIGQUERY_SCOPE` does not request it, because the
+organization is unknown at login. Disabling the flag stops new requests for the
+scope; it does not revoke tokens already granted.

@@ -1040,6 +1040,15 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:Billing',
+        description: 'Open the organization billing portal',
+        isEnterprise: true,
+        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        dependencies: [],
+        level: 'organization',
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:OrganizationColorPalette',
         description:
             'Create, edit, delete, and activate organization color palettes',
@@ -1272,6 +1281,14 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.DATA,
         dependencies: [{ name: 'view:Project' }, { name: 'manage:Explore' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:ComposerChart',
+        description: 'Save composer charts onto dashboards',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
