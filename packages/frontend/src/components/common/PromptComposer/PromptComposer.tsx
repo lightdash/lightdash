@@ -301,7 +301,6 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                 content,
             );
             setHeightRange(range);
-            // A smaller dock since the last resize clamps the editor itself, not just the value.
             if (editorHeight !== null && range.now !== editorHeight) {
                 setEditorHeight(range.now);
             }
