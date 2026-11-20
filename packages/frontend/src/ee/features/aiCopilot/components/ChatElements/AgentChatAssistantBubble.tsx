@@ -45,16 +45,22 @@ import {
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import {
+    createContext,
     memo,
     useCallback,
     useContext,
     useMemo,
     useState,
+    type ComponentProps,
     type FC,
     type ReactNode,
 } from 'react';
 import { Link } from 'react-router';
-import { type CustomRendererProps, type StreamdownProps } from 'streamdown';
+import {
+    type CustomRendererProps,
+    type ExtraProps,
+    type StreamdownProps,
+} from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import { AiMarkdownErrorBoundary } from '../../../../../components/common/AiMarkdown/AiMarkdownErrorBoundary';
 import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
@@ -302,11 +308,34 @@ const getLatestSuccessfulRunSqlLinkState = ({
     return null;
 };
 
-const SqlMarkdownCodeBlock: FC<
-    CustomRendererProps & { projectUuid: string; canOpenSqlRunner: boolean }
-> = ({ code, isIncomplete, projectUuid, canOpenSqlRunner }) => {
+type AnswerMarkdownContextValue = {
+    message: AiAgentMessageAssistant;
+    projectUuid: string;
+    agentUuid: string;
+    sqlRunnerLinkState: SqlRunnerLinkState | null;
+    onDashboardLinkClick: ((url: string) => void) | undefined;
+};
+
+// Renderers read per-message state here so their identity never changes:
+// streamdown re-parses every finished block when a renderer changes.
+const AnswerMarkdownContext = createContext<AnswerMarkdownContextValue | null>(
+    null,
+);
+
+const useAnswerMarkdownContext = () => {
+    const value = useContext(AnswerMarkdownContext);
+    if (!value) throw new Error('Answer markdown rendered without context');
+    return value;
+};
+
+const SqlMarkdownCodeBlock: FC<CustomRendererProps> = ({
+    code,
+    isIncomplete,
+}) => {
+    const { projectUuid, sqlRunnerLinkState } = useAnswerMarkdownContext();
     const sql = code.trim();
-    const canOpen = canOpenSqlRunner && !isIncomplete && sql.length > 0;
+    const canOpen =
+        sqlRunnerLinkState !== null && !isIncomplete && sql.length > 0;
 
     return (
         <Box className={styles.sqlMarkdownCodeBlock}>
@@ -344,6 +373,75 @@ const SqlMarkdownCodeBlock: FC<
         </Box>
     );
 };
+
+const AnswerMarkdownLink: FC<ComponentProps<'a'> & ExtraProps> = ({
+    node: _node,
+    children,
+    ...props
+}) => {
+    const {
+        message,
+        projectUuid,
+        agentUuid,
+        sqlRunnerLinkState,
+        onDashboardLinkClick,
+    } = useAnswerMarkdownContext();
+    const contentType =
+        'data-content-type' in props &&
+        isContentType(props['data-content-type'])
+            ? props['data-content-type']
+            : undefined;
+    return (
+        <ContentLink
+            contentType={contentType}
+            props={props}
+            message={message}
+            projectUuid={projectUuid}
+            agentUuid={agentUuid}
+            sqlRunnerLinkState={sqlRunnerLinkState}
+            onDashboardLinkClick={onDashboardLinkClick}
+        >
+            {children}
+        </ContentLink>
+    );
+};
+
+const ANSWER_MARKDOWN_COMPONENTS: StreamdownProps['components'] = {
+    ...MEMORY_CITATION_COMPONENTS,
+    a: AnswerMarkdownLink,
+};
+
+const ANSWER_MARKDOWN_PLUGINS: StreamdownProps['plugins'] = {
+    renderers: [
+        {
+            language: ['sql', 'postgresql', 'bigquery', 'snowflake'],
+            component: SqlMarkdownCodeBlock,
+        },
+        {
+            language: ['diff', 'patch'],
+            component: DiffMarkdownCodeBlock,
+        },
+    ],
+};
+
+const AnswerMarkdown: FC<{
+    context: AnswerMarkdownContextValue;
+    className: string;
+    rehypePlugins: StreamdownProps['rehypePlugins'];
+    isStreaming: boolean;
+    children: string;
+}> = ({ context, children, ...props }) => (
+    <AnswerMarkdownContext.Provider value={context}>
+        <AiMarkdown
+            {...props}
+            allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
+            plugins={ANSWER_MARKDOWN_PLUGINS}
+            components={ANSWER_MARKDOWN_COMPONENTS}
+        >
+            {children}
+        </AiMarkdown>
+    </AnswerMarkdownContext.Provider>
+);
 
 /**
  * The streamed part carrying a tool's finished output. The streaming slice
@@ -435,27 +533,28 @@ const AssistantBubbleContent: FC<{
         message,
         streamParts: streamingState?.parts,
     });
-    const canOpenSqlRunner = !!sqlRunnerLinkState;
-    const markdownPlugins = useMemo(
+    // Rebuilt every frame while streaming, so key the context on its values.
+    const sqlRunnerSql = sqlRunnerLinkState?.sql ?? null;
+    const sqlRunnerLimit = sqlRunnerLinkState?.limit;
+    const answerMarkdownContext = useMemo<AnswerMarkdownContextValue>(
         () => ({
-            renderers: [
-                {
-                    language: ['sql', 'postgresql', 'bigquery', 'snowflake'],
-                    component: (props: CustomRendererProps) => (
-                        <SqlMarkdownCodeBlock
-                            {...props}
-                            projectUuid={projectUuid}
-                            canOpenSqlRunner={canOpenSqlRunner}
-                        />
-                    ),
-                },
-                {
-                    language: ['diff', 'patch'],
-                    component: DiffMarkdownCodeBlock,
-                },
-            ],
+            message,
+            projectUuid,
+            agentUuid,
+            onDashboardLinkClick,
+            sqlRunnerLinkState:
+                sqlRunnerSql === null
+                    ? null
+                    : { sql: sqlRunnerSql, limit: sqlRunnerLimit },
         }),
-        [canOpenSqlRunner, projectUuid],
+        [
+            message,
+            projectUuid,
+            agentUuid,
+            onDashboardLinkClick,
+            sqlRunnerSql,
+            sqlRunnerLimit,
+        ],
     );
     // After streaming ends there's a brief window where the client has
     // refetched the thread but the persisted message.message hasn't landed
@@ -746,47 +845,17 @@ const AssistantBubbleContent: FC<{
                     );
                     const latestTextSeg = textSegments[textSegments.length - 1];
                     const finalAnswerMd = latestTextSeg ? (
-                        <AiMarkdown
+                        <AnswerMarkdown
+                            context={answerMarkdownContext}
                             isStreaming={isStreaming}
-                            allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
                             className={clsx(
                                 styles.answerMarkdown,
                                 isStreaming && styles.streamingNarration,
                             )}
                             rehypePlugins={answerRehypePlugins}
-                            plugins={markdownPlugins}
-                            components={{
-                                ...MEMORY_CITATION_COMPONENTS,
-                                a: ({ node, children, ...props }) => {
-                                    const contentType =
-                                        'data-content-type' in props &&
-                                        isContentType(
-                                            props['data-content-type'],
-                                        )
-                                            ? props['data-content-type']
-                                            : undefined;
-                                    return (
-                                        <ContentLink
-                                            contentType={contentType}
-                                            props={props}
-                                            message={message}
-                                            projectUuid={projectUuid}
-                                            agentUuid={agentUuid}
-                                            sqlRunnerLinkState={
-                                                sqlRunnerLinkState
-                                            }
-                                            onDashboardLinkClick={
-                                                onDashboardLinkClick
-                                            }
-                                        >
-                                            {children}
-                                        </ContentLink>
-                                    );
-                                },
-                            }}
                         >
                             {latestTextSeg.text}
-                        </AiMarkdown>
+                        </AnswerMarkdown>
                     ) : null;
                     return (
                         <Stack
@@ -918,48 +987,18 @@ const AssistantBubbleContent: FC<{
                                 data-tour-label="Read the answer"
                                 data-tour-docs="agents.mdx#intro:2"
                             >
-                                <AiMarkdown
+                                <AnswerMarkdown
                                     key={citationResolutionKey}
+                                    context={answerMarkdownContext}
+                                    isStreaming={false}
                                     className={clsx(
                                         styles.answerMarkdown,
                                         styles.persistedAnswer,
                                     )}
-                                    allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
                                     rehypePlugins={answerRehypePlugins}
-                                    plugins={markdownPlugins}
-                                    components={{
-                                        ...MEMORY_CITATION_COMPONENTS,
-                                        a: ({ node, children, ...props }) => {
-                                            const contentType =
-                                                'data-content-type' in props &&
-                                                isContentType(
-                                                    props['data-content-type'],
-                                                )
-                                                    ? props['data-content-type']
-                                                    : undefined;
-
-                                            return (
-                                                <ContentLink
-                                                    contentType={contentType}
-                                                    props={props}
-                                                    message={message}
-                                                    projectUuid={projectUuid}
-                                                    agentUuid={agentUuid}
-                                                    sqlRunnerLinkState={
-                                                        sqlRunnerLinkState
-                                                    }
-                                                    onDashboardLinkClick={
-                                                        onDashboardLinkClick
-                                                    }
-                                                >
-                                                    {children}
-                                                </ContentLink>
-                                            );
-                                        },
-                                    }}
                                 >
                                     {messageContent}
-                                </AiMarkdown>
+                                </AnswerMarkdown>
                             </Box>
                         ) : null}
                     </>
