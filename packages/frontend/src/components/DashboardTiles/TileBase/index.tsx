@@ -125,7 +125,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const { isHovered: chartHovered, ...chartHoveredProps } = useDelayedHover({
         delay: 500,
     });
-    const [titleAimed, setTitleAimed] = useState(false);
     const titleRef = useRef<HTMLAnchorElement>(null);
     const [isMenuOpen, toggleMenu] = useToggle([false, true]);
     const [openHeaderPopovers, setOpenHeaderPopovers] = useState<
@@ -150,19 +149,14 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         (tile.type !== DashboardTileTypes.MARKDOWN
             ? tile.properties.hideTitle
             : false);
-    // Only the view-mode title anchor follows the pointer's aim
-    const isTitleAnchor =
-        !minimal &&
-        !isEditMode &&
-        !hideTitle &&
-        tile.type !== DashboardTileTypes.MARKDOWN;
-    const titleAimHandlers = useTileTitleAim({
-        enabled: isTitleAnchor,
+    const isTitleLink =
+        !isEditMode && tile.type !== DashboardTileTypes.MARKDOWN;
+    const followsTitleAim = isTitleLink && !minimal && !hideTitle;
+    const { titleHovered, pointerHandlers } = useTileTitleAim({
+        enabled: followsTitleAim,
         titleRef,
         actionsSelector: `.${styles.tileTooltip}`,
-        onTitleActiveChange: setTitleAimed,
     });
-    const titleHovered = isTitleAnchor && titleAimed;
     const belongsToDashboard: boolean =
         isDashboardChartTileType(tile) && !!tile.properties.belongsToDashboard;
 
@@ -428,7 +422,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         <div
             ref={containerRef}
             className={styles.tileWrapper}
-            {...titleAimHandlers}
+            {...pointerHandlers}
         >
             {containerHovered && isEditMode && !minimal && !focusedActions && (
                 <Paper
@@ -553,7 +547,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             <Tooltip
                                 disabled={!description}
                                 opened={
-                                    isTitleAnchor ? titleHovered : undefined
+                                    followsTitleAim ? titleHovered : undefined
                                 }
                                 label={
                                     <Text
@@ -566,8 +560,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                 position="top-start"
                                 maw={400}
                             >
-                                {isEditMode ||
-                                tile.type === DashboardTileTypes.MARKDOWN ? (
+                                {!isTitleLink ? (
                                     <Text
                                         className={styles.tileTitle}
                                         data-hidden={hideTitle}

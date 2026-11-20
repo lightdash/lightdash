@@ -14,7 +14,7 @@ describe('resolveTitleAim', () => {
                 ...layout,
                 point: { x: 310, y: 170 },
                 from: null,
-                titleActive: false,
+                titleHovered: false,
             }),
         ).toBe('elsewhere');
     });
@@ -25,7 +25,7 @@ describe('resolveTitleAim', () => {
                 ...layout,
                 point: { x: 400, y: 185 },
                 from: null,
-                titleActive: true,
+                titleHovered: true,
             }),
         ).toBe('elsewhere');
     });
@@ -36,7 +36,7 @@ describe('resolveTitleAim', () => {
                 ...layout,
                 point: { x: 100, y: 205 },
                 from: null,
-                titleActive: true,
+                titleHovered: true,
             }),
         ).toBe('title');
     });
@@ -47,15 +47,18 @@ describe('resolveTitleAim', () => {
                 ...layout,
                 point: { x: 200, y: 178 },
                 from: { x: 100, y: 180 },
-                titleActive: true,
+                titleHovered: true,
             }),
         ).toBe('headingForActions');
+    });
+
+    it('keeps the title while the pointer moves away from the actions', () => {
         expect(
             resolveTitleAim({
                 ...layout,
                 point: { x: 150, y: 180 },
                 from: { x: 200, y: 178 },
-                titleActive: false,
+                titleHovered: false,
             }),
         ).toBe('title');
     });
