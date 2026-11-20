@@ -343,9 +343,8 @@ const DataAppVizRenderer: FC<Props> = ({
     const metricQuery = resultsData?.metricQuery;
     const sourceQueryUuid = resultsData?.queryUuid;
 
-    // Explore-independent gating, mirroring regular chart context menus: no
-    // query (builder canvas/sample previews), no permission, custom bin
-    // dimensions, embeds and screenshot renders all disable underlying data.
+    // Explore-independent gating, mirroring regular chart context menus; no
+    // query means a builder canvas or sample preview.
     const underlyingDataPreconditions =
         enableContextMenu &&
         !!sourceQueryUuid &&
