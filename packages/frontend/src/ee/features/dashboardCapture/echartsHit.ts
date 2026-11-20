@@ -48,6 +48,7 @@ type EcData = { seriesIndex: unknown; dataIndex: unknown };
 type SeriesData = {
     count: () => number;
     getItemLayout: (index: number) => unknown;
+    getLayout: (key: string) => unknown;
 };
 type SeriesModel = {
     subType: string;
@@ -162,12 +163,18 @@ const nearestPoint = (
     const data = series.getData();
     const count = data.count();
     if (count > SNAP_MAX_POINTS) return null;
+    // A line keeps every point in one flat list; a scatter keeps one each.
+    const flat = data.getLayout('points');
+    const points = ArrayBuffer.isView(flat)
+        ? (flat as unknown as ArrayLike<number>)
+        : null;
     let best: ReturnType<typeof nearestPoint> = null;
     for (let index = 0; index < count; index++) {
-        const layout = data.getItemLayout(index);
-        if (!Array.isArray(layout)) continue;
-        const px = Number(layout[0]);
-        const py = Number(layout[1]);
+        const layout: unknown = points ? null : data.getItemLayout(index);
+        const own = Array.isArray(layout) ? (layout as unknown[]) : null;
+        if (!points && !own) continue;
+        const px = Number(points ? points[index * 2] : own?.[0]);
+        const py = Number(points ? points[index * 2 + 1] : own?.[1]);
         if (!Number.isFinite(px) || !Number.isFinite(py)) continue;
         const distance = Math.hypot(px - x, py - y);
         if (!best || distance < best.distance) {
