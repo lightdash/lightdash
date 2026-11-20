@@ -22,7 +22,7 @@ vi.mock('../../hooks/health/useHealth', () => ({
 }));
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({
-        data: { id: 'mobile-qr-sign-in', enabled: true },
+        data: { id: 'mobile-app-access', enabled: true },
     }),
 }));
 

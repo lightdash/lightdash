@@ -1,4 +1,4 @@
-import { FeatureFlags, type MobileAppLink } from '@lightdash/common';
+import { type MobileAppLink } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -15,7 +15,6 @@ import {
     IconCheck,
     IconCircleCheck,
     IconCopy,
-    IconDeviceMobile,
     IconQrcodeOff,
 } from '@tabler/icons-react';
 import {
@@ -34,7 +33,6 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../components/common/Settings/SettingsPage';
 import useHealth from '../../hooks/health/useHealth';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { CloudMobileSignInView } from './CloudMobileSignInView';
 import { getHost } from './mobileFormat';
 import classes from './MobileSettingsPage.module.css';
@@ -206,42 +204,6 @@ const useFocusAfterScan = (
     }, [isScanned, target]);
 };
 
-const GetAppView: FC<ViewProps> = ({ host, appLink }) => {
-    const heading = useRef<HTMLHeadingElement>(null);
-    useFocusAfterScan(appLink.isScanned, heading);
-
-    return (
-        <SettingsCard withBorder>
-            <Stack gap="md">
-                <Group justify="space-between" wrap="nowrap">
-                    <Group gap="xs" wrap="nowrap">
-                        <MantineIcon icon={IconDeviceMobile} />
-                        <Title
-                            order={5}
-                            ref={heading}
-                            tabIndex={-1}
-                            className={classes.stepTitle}
-                        >
-                            {MOBILE_STRINGS.getAppTitle}
-                        </Title>
-                    </Group>
-                    {appLink.isScanned && <OpenedOnPhone />}
-                </Group>
-                {!appLink.isScanned && (
-                    <QrCodePanel
-                        link={appLink.link}
-                        hasFailed={appLink.hasFailed}
-                        onRetry={appLink.retry}
-                        onHasApp={null}
-                    />
-                )}
-                <StoreBadges />
-                <SignInHost host={host} />
-            </Stack>
-        </SettingsCard>
-    );
-};
-
 const getStepTwoState = (
     isStepOneDone: boolean,
     phase: MobileSignInPhase,
@@ -338,25 +300,19 @@ export const MobileSettingsPage: FC = () => {
         isPaused: hasApp,
         enabled: isCloudMobileSetup === false,
     });
-    const { data: qrSignInFlag } = useServerFeatureFlag(
-        FeatureFlags.MobileQrSignIn,
-    );
-
     if (isCloudMobileSetup === null) return null;
 
     return (
         <SettingsPage title={MOBILE_STRINGS.pageTitle}>
             {isCloudMobileSetup ? (
                 <CloudMobileSignInView host={host} />
-            ) : qrSignInFlag?.enabled ? (
+            ) : (
                 <SignInStepsView
                     host={host}
                     appLink={appLink}
                     hasApp={hasApp}
                     setHasApp={setHasApp}
                 />
-            ) : (
-                <GetAppView host={host} appLink={appLink} />
             )}
             <VisuallyHidden role="status" aria-live="polite">
                 {appLink.isScanned ? MOBILE_STRINGS.openedOnPhone : ''}

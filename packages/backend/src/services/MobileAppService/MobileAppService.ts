@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     TooManyRequestsError,
@@ -11,7 +10,6 @@ import {
 import { validate as isValidUuid } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import {
     hashMobileAppLinkKey,
     MOBILE_APP_LINK_TTL_MINUTES,
@@ -34,7 +32,6 @@ type MobileAppLinkModelMethods = Pick<
 
 type MobileAppServiceArguments = {
     mobileAppLinkModel: MobileAppLinkModelMethods;
-    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     analytics: Pick<LightdashAnalytics, 'track'>;
     lightdashConfig: Pick<LightdashConfig, 'siteUrl'>;
     now?: () => Date;
@@ -46,8 +43,6 @@ const startOfWindow = (date: Date, windowMs: number): Date =>
 export class MobileAppService extends BaseService {
     private readonly mobileAppLinkModel: MobileAppLinkModelMethods;
 
-    private readonly featureFlagModel: Pick<FeatureFlagModel, 'get'>;
-
     private readonly analytics: Pick<LightdashAnalytics, 'track'>;
 
     private readonly lightdashConfig: Pick<LightdashConfig, 'siteUrl'>;
@@ -56,35 +51,26 @@ export class MobileAppService extends BaseService {
 
     constructor({
         mobileAppLinkModel,
-        featureFlagModel,
         analytics,
         lightdashConfig,
         now,
     }: MobileAppServiceArguments) {
         super({ serviceName: 'MobileAppService' });
         this.mobileAppLinkModel = mobileAppLinkModel;
-        this.featureFlagModel = featureFlagModel;
         this.analytics = analytics;
         this.lightdashConfig = lightdashConfig;
         this.now = now ?? (() => new Date());
     }
 
-    private async assertEnabled(user: SessionUser): Promise<string> {
+    private static assertOrganization(user: SessionUser): string {
         if (!user.organizationUuid) {
             throw new ForbiddenError(MOBILE_APP_STRINGS.noOrganization);
-        }
-        const { enabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.MobileSettings,
-        });
-        if (!enabled) {
-            throw new ForbiddenError(MOBILE_APP_STRINGS.notEnabled);
         }
         return user.organizationUuid;
     }
 
     async createLink(user: SessionUser): Promise<MobileAppLink> {
-        const organizationUuid = await this.assertEnabled(user);
+        const organizationUuid = MobileAppService.assertOrganization(user);
         const mints = await this.mobileAppLinkModel.incrementRateCounter({
             keyHash: hashMobileAppLinkKey(`user:${user.userUuid}`),
             operation: 'mint',
@@ -120,7 +106,7 @@ export class MobileAppService extends BaseService {
         user: SessionUser,
         linkUuid: string,
     ): Promise<MobileAppLinkStatus> {
-        await this.assertEnabled(user);
+        MobileAppService.assertOrganization(user);
         const link = isValidUuid(linkUuid)
             ? await this.mobileAppLinkModel.findForUser(linkUuid, user.userUuid)
             : null;

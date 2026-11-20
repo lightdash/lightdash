@@ -607,8 +607,7 @@ other organisations are not affected. `POST /api/v1/oauth/revoke` still works.
 **Console.** Create the flag with no default. A default of off disables mobile
 access for every organisation in that deployment. Add an organisation override
 set to off to disable one organisation. Remove the override, or set it to on, to
-enable it again. To hide the Mobile settings page for that organisation, turn
-`mobile-settings` off as well.
+enable it again.
 
 **Propagation.** The server reads the flag on each check and keeps no cache. A
 Console change applies to the next request. A response that is already streaming
@@ -649,14 +648,9 @@ forces it on, and Console cannot turn it off there. ENV changes need a restart.
 
 ### Mobile QR sign-in and source project support
 
-`mobile-qr-sign-in` is the QR sign-in feature flag. `mobile-app-access` is checked
-first and refuses every QR action when it is off. Authenticated backend
-availability and mint checks resolve it for the user's organisation through the
-standard resolver. The web menu uses the server-resolved flag. Console organisation
-overrides work with ENV enable unset. Deployment defaults and generic ENV precedence
-apply as described above. Console changes apply to the next backend check and UI
-refetch; ENV changes require an API restart. Other mobile settings, mode, user and
-project access checks still apply.
+QR sign-in has no feature flag of its own. It needs Cloud mode, and
+`mobile-app-access` refuses every QR action when it is off. Mode, user and project
+access checks still apply.
 
 `GET /api/v1/mobile/sign-in-capabilities` advertises implemented protocol support,
 not QR availability or permission. Its static response always has `schemaVersion: 1`
@@ -667,8 +661,8 @@ Mint validates optional source project access, organisation and DEFAULT type.
 Token exchange returns stored context only when `include_source_project=true`.
 The web makes one uncached, bounded discovery request per mint attempt with a source
 project. Unknown or failed discovery uses the exact legacy mint shape. It retains
-no positive result. Disabling QR sign-in still refuses mint and normal QR actions;
-static protocol discovery grants no access and issues no code or token.
+no positive result. Static protocol discovery grants no access and issues no code
+or token.
 
 ## BigQuery OAuth Drive access
 
