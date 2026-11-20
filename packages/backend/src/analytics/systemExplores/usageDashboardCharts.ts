@@ -566,8 +566,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
         dimensions: ['agent_requests_retry_count'],
         metrics: [
             'agent_requests_total_requests',
-            'agent_requests_total_retry_overhead_ms',
-            'agent_requests_average_request_latency_ms',
+            'agent_requests_total_retry_overhead_s',
+            'agent_requests_average_request_latency_s',
             'agent_requests_total_request_tokens',
         ],
         limit: 30,
@@ -583,11 +583,11 @@ export const usageChartSpecs: UsageChartSpec[] = [
             fieldMapping: {
                 x: 'agent_requests_retry_count',
                 m1: 'agent_requests_total_requests',
-                m2: 'agent_requests_average_request_latency_ms',
+                m2: 'agent_requests_average_request_latency_s',
             },
             optionValues: {
                 m1Name: 'Agent requests',
-                m2Name: 'Average latency (ms)',
+                m2Name: 'Average latency (s)',
                 seriesType: 'bar',
                 m2Type: 'line',
                 dualAxis: true,
@@ -596,13 +596,13 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 showSymbols: true,
                 xName: 'Retries',
                 yName: 'Agent requests',
-                yRightName: 'Average latency (ms)',
+                yRightName: 'Average latency (s)',
             },
             query: {
                 dimensions: ['agent_requests_retry_count'],
                 metrics: [
                     'agent_requests_total_requests',
-                    'agent_requests_average_request_latency_ms',
+                    'agent_requests_average_request_latency_s',
                 ],
                 sorts: [
                     {
@@ -848,8 +848,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
         metrics: [
             'query_events_total_queries',
             'query_events_unique_users',
-            'query_events_p95_response_time_ms',
-            'query_events_avg_warehouse_execution_time_ms',
+            'query_events_p95_response_time_s',
+            'query_events_avg_warehouse_execution_time_s',
         ],
         filters: [
             {
@@ -862,7 +862,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         sorts: [
             {
                 descending: true,
-                fieldId: 'query_events_p95_response_time_ms',
+                fieldId: 'query_events_p95_response_time_s',
             },
         ],
         libraryChart: {
@@ -871,11 +871,11 @@ export const usageChartSpecs: UsageChartSpec[] = [
             fieldMapping: {
                 x: 'query_events_dashboard_name',
                 m1: 'query_events_total_queries',
-                m2: 'query_events_p95_response_time_ms',
+                m2: 'query_events_p95_response_time_s',
             },
             optionValues: {
                 m1Name: 'Queries',
-                m2Name: 'P95 response time (ms)',
+                m2Name: 'P95 response time (s)',
                 xName: 'Dashboard',
                 seriesType: 'bar',
                 m2Type: 'scatter',
@@ -885,7 +885,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 xLabelAutoRotate: false,
                 xLabelRotate: 45,
                 yName: 'Queries',
-                yRightName: 'P95 response time (ms)',
+                yRightName: 'P95 response time (s)',
             },
             query: null,
         },

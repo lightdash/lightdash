@@ -240,13 +240,13 @@ export const withAnalyticsChartPresentation = (
             chart.chartConfig.config?.selectedField?.includes('tokens');
         let style = chart.chartConfig.config?.style;
         if (isTokens) style = Compact.AUTO;
-        // Keep counts and millisecond values exact; preserve other explicit formats.
+        // Keep counts and duration values exact; preserve other explicit formats.
         else if (style === Compact.AUTO) style = undefined;
         let { name } = chart;
         if (chart.slug.endsWith('-avg-execution-time'))
-            name = 'Average warehouse time (ms)';
+            name = 'Average warehouse time (s)';
         if (chart.slug.endsWith('-p90-execution-time'))
-            name = 'P90 warehouse time (ms)';
+            name = 'P90 warehouse time (s)';
         return {
             ...chart,
             name,

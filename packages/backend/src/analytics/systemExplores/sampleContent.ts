@@ -628,9 +628,9 @@ export const analyticsSampleDashboards = [
             ),
             chart(
                 'avg-execution-time',
-                'Average warehouse execution (ms)',
+                'Average warehouse execution (s)',
                 'query_events',
-                'avg_warehouse_execution_time_ms',
+                'avg_warehouse_execution_time_s',
                 undefined,
                 {
                     latestDay: true,
@@ -640,9 +640,9 @@ export const analyticsSampleDashboards = [
                         slug: 'big-number-with-sparkline-trend',
                         minVersion: '0.7.1',
                         fieldMapping: {
-                            value: 'query_events_avg_warehouse_execution_time_ms',
+                            value: 'query_events_avg_warehouse_execution_time_s',
                             sparklineMetric:
-                                'query_events_avg_warehouse_execution_time_ms',
+                                'query_events_avg_warehouse_execution_time_s',
                             time: 'query_events_event_ts_day',
                         },
                         optionValues: {
@@ -657,7 +657,7 @@ export const analyticsSampleDashboards = [
                         query: {
                             dimensions: ['query_events_event_ts_day'],
                             metrics: [
-                                'query_events_avg_warehouse_execution_time_ms',
+                                'query_events_avg_warehouse_execution_time_s',
                             ],
                             sorts: [
                                 {
@@ -674,9 +674,9 @@ export const analyticsSampleDashboards = [
             ),
             chart(
                 'p90-execution-time',
-                'P90 warehouse execution (ms)',
+                'P90 warehouse execution (s)',
                 'query_events',
-                'p90_warehouse_execution_time_ms',
+                'p90_warehouse_execution_time_s',
                 undefined,
                 {
                     latestDay: true,
@@ -686,9 +686,9 @@ export const analyticsSampleDashboards = [
                         slug: 'big-number-with-sparkline-trend',
                         minVersion: '0.7.1',
                         fieldMapping: {
-                            value: 'query_events_p90_warehouse_execution_time_ms',
+                            value: 'query_events_p90_warehouse_execution_time_s',
                             sparklineMetric:
-                                'query_events_p90_warehouse_execution_time_ms',
+                                'query_events_p90_warehouse_execution_time_s',
                             time: 'query_events_event_ts_day',
                         },
                         optionValues: {
@@ -703,7 +703,7 @@ export const analyticsSampleDashboards = [
                         query: {
                             dimensions: ['query_events_event_ts_day'],
                             metrics: [
-                                'query_events_p90_warehouse_execution_time_ms',
+                                'query_events_p90_warehouse_execution_time_s',
                             ],
                             sorts: [
                                 {
@@ -823,15 +823,15 @@ export const analyticsSampleDashboards = [
                 'query-latency-by-day',
                 'Warehouse time by day (average and P90)',
                 'query_events',
-                'avg_warehouse_execution_time_ms',
+                'avg_warehouse_execution_time_s',
                 'event_ts_day',
                 {
-                    extraMetrics: ['p90_warehouse_execution_time_ms'],
+                    extraMetrics: ['p90_warehouse_execution_time_s'],
                     seriesNames: ['Average', 'P90'],
                     colors: ['#12B886', '#F59F00'],
-                    axisLabel: 'Warehouse time (ms)',
+                    axisLabel: 'Warehouse time (s)',
                     description:
-                        'Average and P90 warehouse execution time per day, in milliseconds. Queries with no timing are left out. This is warehouse time only, not end-to-end response time.',
+                        'Average and P90 warehouse execution time per day, in seconds. Queries with no timing are left out. This is warehouse time only, not end-to-end response time.',
                 },
             ),
         ],

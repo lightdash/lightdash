@@ -179,16 +179,16 @@ export const embedChartSpecs: UsageChartSpec[] = [
     }),
     seriesByDay({
         key: 'embed-query-latency',
-        name: 'Response time for successful queries (ms)',
+        name: 'Response time for successful queries (s)',
         description:
             'Median and P95 backend time, from the start of the request, for successful embedded queries that have timing. Includes queueing and result storage. Leaves out transfer to and rendering in the browser, cancelled queries and older queries with no timing.',
         explore: 'query_events',
         day: queryDay,
         series: [
-            { metric: 'query_events_p50_response_time_ms', name: 'Median' },
-            { metric: 'query_events_p95_response_time_ms', name: 'P95' },
+            { metric: 'query_events_p50_response_time_s', name: 'Median' },
+            { metric: 'query_events_p95_response_time_s', name: 'P95' },
         ],
-        yName: 'Response time (ms)',
+        yName: 'Response time (s)',
         seriesType: 'line',
         filters: [
             ...embedQueries,

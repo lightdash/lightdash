@@ -1702,11 +1702,11 @@ describe('display fixes', () => {
         expect(retries.chartConfig.config?.columns).toMatchObject({
             agent_requests_retry_count: { name: 'Retries' },
             agent_requests_total_requests: { name: 'Agent requests' },
-            agent_requests_total_retry_overhead_ms: {
-                name: 'Time on failed attempts (ms)',
+            agent_requests_total_retry_overhead_s: {
+                name: 'Time on failed attempts (s)',
             },
-            agent_requests_average_request_latency_ms: {
-                name: 'Average latency (ms)',
+            agent_requests_average_request_latency_s: {
+                name: 'Average latency (s)',
             },
             agent_requests_total_request_tokens: { name: 'Tokens' },
         });
@@ -1727,8 +1727,8 @@ describe('display fixes', () => {
         expect(slow.chartConfig.config?.columns).toMatchObject({
             query_events_dashboard_name: { name: 'Dashboard' },
             query_events_total_queries: { name: 'Queries' },
-            query_events_p95_response_time_ms: {
-                name: 'P95 response time (ms)',
+            query_events_p95_response_time_s: {
+                name: 'P95 response time (s)',
             },
         });
         // A blank axis name would fall back to the raw field label.
@@ -1765,16 +1765,31 @@ describe('display fixes', () => {
     const byKey = (key: string) =>
         charts.find(({ slug }) => slug === `${prefix}${key}`)!;
 
-    it('shows millisecond metrics as whole numbers and leaves others alone', () => {
+    it('shows durations in seconds with one decimal, from measures recorded in milliseconds', () => {
         const retries = byKey('agent-retries-latency-and-consumption');
-        expect(retries.metricQuery.metricOverrides).toEqual({
-            agent_requests_total_retry_overhead_ms: {
-                formatOptions: { type: 'number', round: 0 },
-            },
-            agent_requests_average_request_latency_ms: {
-                formatOptions: { type: 'number', round: 0 },
-            },
+        // The seconds measures carry their own format, so the chart overrides nothing
+        expect(retries.metricQuery.metricOverrides).toEqual({});
+        const { metrics } = explores.find(
+            ({ name }) => name === 'agent_requests',
+        )!.tables.agent_requests;
+        expect(metrics.average_request_latency_s).toMatchObject({
+            label: 'Average request latency (seconds)',
+            type: metrics.average_request_latency_ms.type,
+            formatOptions: { type: 'number', round: 1 },
         });
+        expect(metrics.average_request_latency_s.sql).toBe(
+            `${metrics.average_request_latency_ms.sql} / 1000.0`,
+        );
+        // No dashboard chart shows a duration in milliseconds
+        expect(
+            analyticsContentAsCode.flatMap(({ charts: all }) =>
+                all.flatMap(({ slug, metricQuery }) =>
+                    metricQuery.metrics
+                        .filter((field) => field.endsWith('_ms'))
+                        .map((field) => `${slug}: ${field}`),
+                ),
+            ),
+        ).toEqual([]);
         expect(
             byKey('agent-requests-trend').metricQuery.metricOverrides,
         ).toEqual({});
@@ -1802,12 +1817,11 @@ describe('display fixes', () => {
         ).toMatchObject({
             xName: 'Retries',
             yName: 'Agent requests',
-            yRightName: 'Average latency (ms)',
+            yRightName: 'Average latency (s)',
         });
     });
 
-    it('shows Queries latency in whole milliseconds with titled axes', () => {
-        const rounded = { formatOptions: { type: 'number', round: 0 } };
+    it('shows Queries latency in seconds with titled axes', () => {
         const bySuffix = (key: string) =>
             charts.find(
                 ({ slug }) =>
@@ -1815,21 +1829,20 @@ describe('display fixes', () => {
                     slug.endsWith(`-${key}`),
             )!;
         const slow = bySuffix('slow-dashboards-tail-latency-and-demand');
-        expect(slow.metricQuery.metricOverrides).toEqual({
-            query_events_p95_response_time_ms: rounded,
-            query_events_avg_warehouse_execution_time_ms: rounded,
-        });
+        expect(slow.metricQuery.metricOverrides).toEqual({});
+        expect(slow.metricQuery.metrics).toContain(
+            'query_events_p95_response_time_s',
+        );
         expect(
             analyticsLibraryChartBindings.get(slow.slug)?.optionValues,
         ).toMatchObject({
             yName: 'Queries',
-            yRightName: 'P95 response time (ms)',
+            yRightName: 'P95 response time (s)',
         });
         ['avg-execution-time', 'p90-execution-time'].forEach((key) => {
             const [metric] = bySuffix(key).metricQuery.metrics;
-            expect(bySuffix(key).metricQuery.metricOverrides).toEqual({
-                [metric]: rounded,
-            });
+            expect(metric).toMatch(/_warehouse_execution_time_s$/);
+            expect(bySuffix(key).metricQuery.metricOverrides).toEqual({});
         });
     });
 

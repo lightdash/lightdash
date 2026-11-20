@@ -340,6 +340,22 @@ export const createAnalyticsExplores = (): Explore[] => {
             ]),
         );
 
+        // Every duration is recorded in milliseconds. Dashboards show seconds, so each such measure has a
+        // twin in seconds with one decimal.
+        for (const { column, ...definition } of modelDefinition.metrics) {
+            if (definition.name.endsWith('_ms')) {
+                const secondsName = `${definition.name.slice(0, -3)}_s`;
+                metrics[secondsName] = {
+                    ...base,
+                    ...definition,
+                    name: secondsName,
+                    label: `${friendlyName(definition.name.slice(0, -3))} (seconds)`,
+                    description: `${definition.description} Shown in seconds.`,
+                    sql: `\${${column}} / 1000.0`,
+                    formatOptions: { type: CustomFormatType.NUMBER, round: 1 },
+                };
+            }
+        }
         if (name === 'tool_activity') {
             metrics.error_rate = {
                 ...base,

@@ -150,7 +150,7 @@ export const contentChartSpecs: UsageChartSpec[] = [
         key: 'high-compute-dashboards-audience-versus-warehouse-time',
         name: 'Dashboards by warehouse time (top 25)',
         description:
-            'Top 25 dashboards by warehouse execution time (ms), across all recorded history. The date filter does not apply. Each point is a dashboard; open the underlying results to see names.',
+            'Top 25 dashboards by warehouse execution time (s), across all recorded history. The date filter does not apply. Each point is a dashboard; open the underlying results to see names.',
         explore: 'content_health',
         by: 'content_health_content_name',
         dimensions: [
@@ -160,7 +160,7 @@ export const contentChartSpecs: UsageChartSpec[] = [
             'content_health_project_id',
         ],
         metrics: [
-            'content_health_total_warehouse_execution_time_ms',
+            'content_health_total_warehouse_execution_time_s',
             'content_health_total_observed_queries',
         ],
         filters: [
@@ -171,8 +171,8 @@ export const contentChartSpecs: UsageChartSpec[] = [
         fieldLabels: { content_health_content_name: 'Dashboard' },
         visualization: 'scatter',
         xField: 'content_health_observed_viewers',
-        yFields: ['content_health_total_warehouse_execution_time_ms'],
-        libraryDescription: `Top 25 dashboards by warehouse execution time (ms), with the queries they ran. ${allHistory}`,
+        yFields: ['content_health_total_warehouse_execution_time_s'],
+        libraryDescription: `Top 25 dashboards by warehouse execution time (s), with the queries they ran. ${allHistory}`,
     }),
 ];
 

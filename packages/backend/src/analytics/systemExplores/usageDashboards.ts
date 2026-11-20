@@ -363,8 +363,8 @@ export const compactAxisOverrides = (metrics: string[]) =>
         metrics
             .filter(
                 (field) =>
-                    !['_ms', '_rate', '_coverage', '_share'].some((suffix) =>
-                        field.endsWith(suffix),
+                    !['_ms', '_s', '_rate', '_coverage', '_share'].some(
+                        (suffix) => field.endsWith(suffix),
                     ),
             )
             .map((field) => [
