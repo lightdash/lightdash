@@ -68,8 +68,6 @@
 .miniChart {
     height: 60px;
     padding: 4px;
-    align-items: flex-end;
-    justify-content: center;
 }
 
 .miniChartBar {

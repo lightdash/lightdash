@@ -93,7 +93,13 @@ const PaletteOptionRow: FC<{ name: string; swatches: SwatchSet | null }> = ({
 );
 
 const MiniBarChart: FC<{ colors: string[] }> = ({ colors }) => (
-    <Group gap={3} wrap="nowrap" className={classes.miniChart}>
+    <Group
+        gap={3}
+        wrap="nowrap"
+        align="flex-end"
+        justify="center"
+        className={classes.miniChart}
+    >
         {colors.slice(0, SWATCH_LIMIT).map((color, i) => (
             <Box
                 key={`${color}-${i}`}
