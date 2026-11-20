@@ -237,7 +237,12 @@ oauthRouter.get('/authorize', async (req, res, next) => {
             code_challenge,
             code_challenge_method,
         } = req.query;
-        if (!client_id || !redirect_uri) {
+        if (
+            typeof client_id !== 'string' ||
+            typeof redirect_uri !== 'string' ||
+            !client_id ||
+            !redirect_uri
+        ) {
             return res.status(400).send('Missing required parameters');
         }
 
@@ -331,6 +336,7 @@ oauthRouter.get('/authorize', async (req, res, next) => {
                 action: '/api/v1/oauth/authorize',
                 client_id: client_id as string,
                 client_name: clientName,
+                redirect_uri,
                 scope: scopeString,
                 scopes: parseScopeString(scopeString),
                 user: {

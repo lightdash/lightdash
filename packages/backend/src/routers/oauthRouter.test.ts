@@ -897,11 +897,41 @@ describe('OAuth authorize redirects', () => {
         expect(response.body).toContain('action="/api/v1/oauth/authorize"');
         expect(response.body).not.toContain('warehouse agent');
         expect(createHash('sha256').update(response.body).digest('hex')).toBe(
-            '65958e01412262970916671ca04c8d1b9bd2dc48517145d78891a38323394536',
+            '67baacad17a4d0b2aa0c695a392b1d4202be0340c9776a78aa88f4c4dd89b009',
         );
         expect(oauthService.getClientDisplayName).toHaveBeenCalledWith(
             'client-id',
         );
+    });
+
+    it('shows the redirect destination on the approve page', async () => {
+        const response = await requestAuthorizePage({
+            query: {
+                client_id: 'mcp-registered',
+                redirect_uri: 'https://attacker.example/callback?x=1',
+                state: 'request-state',
+            },
+            oauthService: createOAuthService(),
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.body).toContain(
+            'You will be redirected to <strong>https://attacker.example</strong> after you authorize.',
+        );
+    });
+
+    it('rejects a repeated redirect_uri before rendering the approve page', async () => {
+        const oauthService = createOAuthService();
+
+        const response = await requestAuthorizePage({
+            query: {},
+            rawQuery:
+                'client_id=client-id&redirect_uri=https%3A%2F%2Fregistered.example%2Fcallback&redirect_uri=https%3A%2F%2Fattacker.example%2Fcallback',
+            oauthService,
+        });
+
+        expect(response.status).toBe(400);
+        expect(oauthService.getClientDisplayName).not.toHaveBeenCalled();
     });
 
     it.each([
