@@ -70,7 +70,7 @@ const OmnibarPreview: FC<Props> = ({ item, spaceName }) => {
     return (
         <Box className={classes.container}>
             <Group gap="xs" wrap="nowrap">
-                <OmnibarItemIcon item={item} />
+                <OmnibarItemIcon item={item} size="lg" />
                 <Text size="xs" fw={500} className={classes.kicker}>
                     {getKickerLabel(item)}
                 </Text>

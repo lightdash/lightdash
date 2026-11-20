@@ -43,13 +43,6 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { getListedDocumentAccess } from '../../../features/documents/listedDocumentAccess';
 import {
-    IconAppWindow,
-    IconChartBar,
-    IconFolder,
-    IconFileText,
-    IconLayoutDashboard,
-} from '../../../features/iconLab/switchableIcons';
-import {
     useContentBulkAction,
     useInfiniteContent,
     type ContentArgs,
@@ -60,6 +53,13 @@ import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFla
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
 import useApp from '../../../providers/App/useApp';
+import {
+    BarChartIcon,
+    DashboardIcon,
+    DataAppIcon,
+    DocumentIcon,
+    SpaceIcon,
+} from '../ContentIcons';
 import {
     ContentTable,
     useContentTable,
@@ -470,30 +470,30 @@ const InfiniteResourceTable = ({
                     <Group>
                         {documentCount !== undefined && (
                             <AttributeCount
-                                Icon={IconFileText}
+                                Icon={DocumentIcon}
                                 count={documentCount}
                                 name="Documents"
                             />
                         )}
                         <AttributeCount
-                            Icon={IconLayoutDashboard}
+                            Icon={DashboardIcon}
                             count={dashboardCount}
                             name="Dashboards"
                         />
                         <AttributeCount
-                            Icon={IconChartBar}
+                            Icon={BarChartIcon}
                             count={chartCount}
                             name="Charts"
                         />
                         {dataAppsEnabled && (
                             <AttributeCount
-                                Icon={IconAppWindow}
+                                Icon={DataAppIcon}
                                 count={appCount}
                                 name="Data apps"
                             />
                         )}
                         <AttributeCount
-                            Icon={IconFolder}
+                            Icon={SpaceIcon}
                             count={childSpaceCount}
                             name="Spaces"
                         />

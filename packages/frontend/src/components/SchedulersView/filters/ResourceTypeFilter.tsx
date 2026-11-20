@@ -1,9 +1,6 @@
 import { Box, SegmentedControl, Text, Tooltip } from '@mantine/core';
-import {
-    IconChartBar,
-    IconLayoutDashboard,
-} from '../../../features/iconLab/switchableIcons';
 import { type useSchedulerFilters } from '../../../features/scheduler/hooks/useSchedulerFilters';
+import { BarChartIcon, DashboardIcon } from '../../common/ContentIcons';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './ResourceTypeFilter.module.css';
 
@@ -40,7 +37,7 @@ export const ResourceTypeFilter = ({
             label: (
                 <Tooltip label="Show only chart schedulers" maw={200}>
                     <Box>
-                        <MantineIcon icon={IconChartBar} {...iconProps} />
+                        <MantineIcon icon={BarChartIcon} {...iconProps} />
                     </Box>
                 </Tooltip>
             ),
@@ -50,10 +47,7 @@ export const ResourceTypeFilter = ({
             label: (
                 <Tooltip label="Show only dashboard schedulers" maw={200}>
                     <Box>
-                        <MantineIcon
-                            icon={IconLayoutDashboard}
-                            {...iconProps}
-                        />
+                        <MantineIcon icon={DashboardIcon} {...iconProps} />
                     </Box>
                 </Tooltip>
             ),

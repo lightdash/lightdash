@@ -8,11 +8,11 @@ import { Button, Group, Stack, Text, Textarea } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconArrowRight, IconSend } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { SpaceIcon } from '../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
-import { IconBox } from '../../../../components/common/ResourceIcon';
+import { ContentIcon } from '../../../../components/common/ResourceIcon';
 import SpaceSelector from '../../../../components/common/SpaceSelector/SpaceSelector';
-import { IconFolder } from '../../../../features/iconLab/switchableIcons';
 import {
     usePersonalSpace,
     useSpaceSummaries,
@@ -192,10 +192,9 @@ const RequestReviewModal: FC<Props> = ({
                             wrap="nowrap"
                             className={classes.summary}
                         >
-                            <IconBox
+                            <ContentIcon
                                 icon={getContentTypeIcon(contentType)}
                                 color={getContentTypeColor(contentType)}
-                                boxSize={28}
                                 size="lg"
                             />
                             <Text fz="sm" fw={500} lineClamp={1}>
@@ -203,7 +202,7 @@ const RequestReviewModal: FC<Props> = ({
                             </Text>
                             <MantineIcon icon={IconArrowRight} color="dimmed" />
                             <Group gap={4} wrap="nowrap" flex="0 0 auto">
-                                <MantineIcon icon={IconFolder} color="dimmed" />
+                                <MantineIcon icon={SpaceIcon} color="dimmed" />
                                 <Text fz="sm" fw={500}>
                                     {targetSpace?.name ?? 'Shared space'}
                                 </Text>

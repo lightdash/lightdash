@@ -1,24 +1,37 @@
-import { Box, Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import MantineIcon from '../components/common/MantineIcon';
 import {
-    CONTENT_ICON_ROWS,
-    type ContentIconRow,
-} from '../features/iconLab/contentIconRows';
-import { CONTENT_ICON_SETS } from '../features/iconLab/contentIconSets';
-import { type ContentIconSetKey } from '../features/iconLab/contentIconSetStore';
+    AreaChartIcon,
+    BarChartIcon,
+    BigNumberIcon,
+    CustomChartTypeIcon,
+    DashboardIcon,
+    DataAppIcon,
+    DocumentIcon,
+    FunnelChartIcon,
+    GaugeChartIcon,
+    LineChartIcon,
+    MapChartIcon,
+    MixedChartIcon,
+    PieChartIcon,
+    SankeyChartIcon,
+    ScatterChartIcon,
+    SpaceIcon,
+    TableIcon,
+    TreemapChartIcon,
+    VegaChartIcon,
+} from '../components/common/ContentIcons';
+import MantineIcon, {
+    type MantineIconProps,
+} from '../components/common/MantineIcon';
+import { ContentIcon } from '../components/common/ResourceIcon';
 
-type StoryArgs = { set: ContentIconSetKey; typeColour: boolean };
+type StoryArgs = { typeColour: boolean };
 
 const meta: Meta<StoryArgs> = {
     title: 'Icons/Content icons',
-    args: { set: 'a', typeColour: true },
+    args: { typeColour: true },
     argTypes: {
-        set: {
-            control: 'inline-radio',
-            options: ['current', 'a'],
-            description: 'current is the Tabler set, a is the redrawn set',
-        },
         typeColour: {
             control: 'boolean',
             description: 'Colour each icon by content type, or draw it grey',
@@ -29,44 +42,71 @@ const meta: Meta<StoryArgs> = {
 export default meta;
 type Story = StoryObj<StoryArgs>;
 
-const SET_NAMES: Record<ContentIconSetKey, string> = {
-    current: 'Current (Tabler)',
-    a: 'New',
+type IconEntry = {
+    icon: MantineIconProps['icon'];
+    label: string;
+    color: string;
 };
 
-const colorOf = (row: ContentIconRow, typeColour: boolean) =>
-    typeColour ? row.color : 'ldGray.6';
+const CHART_COLOR = 'blue.6';
 
-const EXAMPLE_ROWS: { name: ContentIconRow['name']; title: string }[] = [
-    { name: 'dashboard', title: 'Revenue overview' },
-    { name: 'table', title: 'Orders by status' },
-    { name: 'bar', title: 'Weekly signups' },
-    { name: 'space', title: 'Finance' },
-    { name: 'line', title: 'Churn over time' },
-    { name: 'dataApp', title: 'Pricing calculator' },
-    { name: 'bigNumber', title: 'Net revenue' },
-    { name: 'document', title: 'Q3 board notes' },
-    { name: 'dataAppViz', title: 'Cohort heatmap' },
+const ICONS: IconEntry[] = [
+    { icon: DashboardIcon, label: 'Dashboard', color: 'green.6' },
+    { icon: SpaceIcon, label: 'Space', color: 'violet.6' },
+    { icon: DataAppIcon, label: 'Data app', color: 'orange.6' },
+    { icon: DocumentIcon, label: 'Document', color: 'ldGray.6' },
+    { icon: TableIcon, label: 'Table', color: CHART_COLOR },
+    { icon: BarChartIcon, label: 'Bar', color: CHART_COLOR },
+    { icon: LineChartIcon, label: 'Line', color: CHART_COLOR },
+    { icon: AreaChartIcon, label: 'Area', color: CHART_COLOR },
+    { icon: MixedChartIcon, label: 'Mixed', color: CHART_COLOR },
+    { icon: ScatterChartIcon, label: 'Scatter', color: CHART_COLOR },
+    { icon: PieChartIcon, label: 'Pie', color: CHART_COLOR },
+    { icon: BigNumberIcon, label: 'Big number', color: CHART_COLOR },
+    { icon: FunnelChartIcon, label: 'Funnel', color: CHART_COLOR },
+    { icon: TreemapChartIcon, label: 'Treemap', color: CHART_COLOR },
+    { icon: GaugeChartIcon, label: 'Gauge', color: CHART_COLOR },
+    { icon: MapChartIcon, label: 'Map', color: CHART_COLOR },
+    { icon: SankeyChartIcon, label: 'Sankey', color: CHART_COLOR },
+    { icon: VegaChartIcon, label: 'Vega (legacy)', color: CHART_COLOR },
+    {
+        icon: CustomChartTypeIcon,
+        label: 'Custom chart type, no icon chosen',
+        color: CHART_COLOR,
+    },
 ];
 
-/** Every icon in the chosen set at the three sizes the app draws it. */
+const ROW_TITLES = [
+    'Revenue overview',
+    'Finance',
+    'Pricing calculator',
+    'Q3 board notes',
+    'Orders by status',
+    'Weekly signups',
+    'Churn over time',
+];
+
+const colorOf = (entry: IconEntry, typeColour: boolean) =>
+    typeColour ? entry.color : 'ldGray.6';
+
+/** Every content icon at the three sizes the app draws it: 16, 20 and 40px. */
 export const AllIcons: Story = {
-    render: ({ set, typeColour }) => (
+    render: ({ typeColour }) => (
         <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="md" p="md">
-            {CONTENT_ICON_ROWS.map((row) => (
-                <Paper key={row.name} p="md">
+            {ICONS.map((entry) => (
+                <Paper key={entry.label} p="md">
                     <Stack gap="sm">
                         <Group gap="lg" align="center">
                             {[16, 20, 40].map((size) => (
                                 <MantineIcon
                                     key={size}
-                                    icon={CONTENT_ICON_SETS[set][row.name]}
+                                    icon={entry.icon}
                                     size={size}
-                                    color={colorOf(row, typeColour)}
+                                    color={colorOf(entry, typeColour)}
                                 />
                             ))}
                         </Group>
-                        <Text fz="sm">{row.label}</Text>
+                        <Text fz="sm">{entry.label}</Text>
                     </Stack>
                 </Paper>
             ))}
@@ -74,76 +114,26 @@ export const AllIcons: Story = {
     ),
 };
 
-/** The Tabler set next to the redrawn set, one row per icon. */
-export const CurrentVsNew: Story = {
-    argTypes: { set: { table: { disable: true } } },
+/** The icon beside a title and a meta line, as content lists draw it. */
+export const InContentRows: Story = {
     render: ({ typeColour }) => (
-        <Stack gap={0} p="md" maw={560}>
-            <Group gap="md" py="xs">
-                <Box w={220} />
-                {(['current', 'a'] as const).map((key) => (
-                    <Text key={key} fz="sm" fw={600} w={120}>
-                        {SET_NAMES[key]}
-                    </Text>
-                ))}
-            </Group>
-            {CONTENT_ICON_ROWS.map((row) => (
-                <Group key={row.name} gap="md" py={6}>
-                    <Text fz="sm" w={220}>
-                        {row.label}
-                    </Text>
-                    {(['current', 'a'] as const).map((key) => (
-                        <Group key={key} gap="md" w={120} wrap="nowrap">
-                            <MantineIcon
-                                icon={CONTENT_ICON_SETS[key][row.name]}
-                                size={16}
-                                color={colorOf(row, typeColour)}
-                            />
-                            <MantineIcon
-                                icon={CONTENT_ICON_SETS[key][row.name]}
-                                size={20}
-                                color={colorOf(row, typeColour)}
-                            />
-                            <MantineIcon
-                                icon={CONTENT_ICON_SETS[key][row.name]}
-                                size={40}
-                                color={colorOf(row, typeColour)}
-                            />
-                        </Group>
-                    ))}
+        <Paper maw={420} m="md">
+            {ROW_TITLES.map((title, index) => (
+                <Group key={title} gap="sm" wrap="nowrap" p="sm">
+                    <ContentIcon
+                        icon={ICONS[index].icon}
+                        color={colorOf(ICONS[index], typeColour)}
+                    />
+                    <Stack gap={0}>
+                        <Text fz="sm" fw={600}>
+                            {title}
+                        </Text>
+                        <Text fz="xs" c="dimmed">
+                            {ICONS[index].label}
+                        </Text>
+                    </Stack>
                 </Group>
             ))}
-        </Stack>
-    ),
-};
-
-/** Bare 20px icons beside a title and a meta line, as content lists draw them. */
-export const InContentRows: Story = {
-    render: ({ set, typeColour }) => (
-        <Paper maw={420} m="md">
-            {EXAMPLE_ROWS.map((example) => {
-                const row = CONTENT_ICON_ROWS.find(
-                    (candidate) => candidate.name === example.name,
-                );
-                if (!row) return null;
-                return (
-                    <Group key={example.name} gap="sm" wrap="nowrap" p="sm">
-                        <MantineIcon
-                            icon={CONTENT_ICON_SETS[set][row.name]}
-                            size={20}
-                            color={colorOf(row, typeColour)}
-                        />
-                        <Stack gap={0}>
-                            <Text fz="sm" fw={600}>
-                                {example.title}
-                            </Text>
-                            <Text fz="xs" c="dimmed">
-                                {row.label}
-                            </Text>
-                        </Stack>
-                    </Group>
-                );
-            })}
         </Paper>
     ),
 };

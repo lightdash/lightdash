@@ -20,18 +20,18 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import {
+    BarChartIcon,
+    DashboardIcon,
+    DataAppIcon,
+    DocumentIcon,
+    SpaceIcon,
+    TableIcon,
+} from '../../../components/common/ContentIcons';
 import CalendarRangePicker from '../../../components/common/DatePickers/CalendarRangePicker';
 import { type CalendarDateRange } from '../../../components/common/DatePickers/types';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
-import {
-    IconAppWindow,
-    IconChartBar,
-    IconFolder,
-    IconFileText,
-    IconLayoutDashboard,
-    IconTable,
-} from '../../iconLab/switchableIcons';
 import { allSearchItemTypes } from '../types/searchItem';
 import { getDateFilterLabel } from '../utils/getDateFilterLabel';
 import { getSearchItemLabel } from '../utils/getSearchItemLabel';
@@ -45,24 +45,24 @@ const getOmnibarItemIcon = (itemType: SearchItemType) => {
         case SearchItemType.FIELD:
             return IconRectangle;
         case SearchItemType.DOCUMENT:
-            return IconFileText;
+            return DocumentIcon;
         case SearchItemType.DASHBOARD:
-            return IconLayoutDashboard;
+            return DashboardIcon;
         case SearchItemType.DASHBOARD_TAB:
             return IconLayoutNavbarInactive;
 
         case SearchItemType.CHART:
-            return IconChartBar;
+            return BarChartIcon;
         case SearchItemType.SPACE:
-            return IconFolder;
+            return SpaceIcon;
         case SearchItemType.TABLE:
-            return IconTable;
+            return TableIcon;
         case SearchItemType.PAGE:
             return IconBrowser;
         case SearchItemType.SQL_CHART:
             return IconCodeCircle;
         case SearchItemType.DATA_APP:
-            return IconAppWindow;
+            return DataAppIcon;
         case SearchItemType.SETTINGS:
             return IconSettings;
         default:

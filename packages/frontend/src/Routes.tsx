@@ -518,15 +518,6 @@ const METRICS_ROUTES: RouteObject[] = [
 
 // Routes that use ProjectLayout (fixed NavBar)
 const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
-    {
-        path: 'icon-lab',
-        lazy: async () => ({
-            Component: await loadLazyRouteDefault(
-                './pages/IconLab',
-                () => import('./pages/IconLab'),
-            ),
-        }),
-    },
     ...TABLES_ROUTES,
     ...SQL_RUNNER_ROUTES,
     ...CHART_ROUTES,

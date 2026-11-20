@@ -1,17 +1,17 @@
 import { ContentType, FeatureFlags } from '@lightdash/common';
 import { Box, Divider, SegmentedControl, Text, Tooltip } from '@mantine/core';
 import type { FC } from 'react';
+import {
+    BarChartIcon,
+    CustomChartTypeIcon,
+    DashboardIcon,
+    DataAppIcon,
+    DocumentIcon,
+    SpaceIcon,
+} from '../../../components/common/ContentIcons';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useChartTypesEnabled } from '../../chartTypes/hooks/useChartTypesEnabled';
-import {
-    IconAppWindow,
-    IconChartBar,
-    IconFolder,
-    IconFileText,
-    IconLayoutDashboard,
-    IconPuzzle,
-} from '../../iconLab/switchableIcons';
 import {
     CHART_TYPES_FILTER_VALUE,
     type DeletedContentTypeFilter,
@@ -55,7 +55,7 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
             label: (
                 <Tooltip label="Show only deleted charts" maw={200}>
                     <Box>
-                        <MantineIcon icon={IconChartBar} {...iconProps} />
+                        <MantineIcon icon={BarChartIcon} {...iconProps} />
                     </Box>
                 </Tooltip>
             ),
@@ -65,10 +65,7 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
             label: (
                 <Tooltip label="Show only deleted dashboards">
                     <Box>
-                        <MantineIcon
-                            icon={IconLayoutDashboard}
-                            {...iconProps}
-                        />
+                        <MantineIcon icon={DashboardIcon} {...iconProps} />
                     </Box>
                 </Tooltip>
             ),
@@ -78,7 +75,7 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
             label: (
                 <Tooltip label="Show only deleted documents">
                     <Box aria-label="Documents">
-                        <MantineIcon icon={IconFileText} {...iconProps} />
+                        <MantineIcon icon={DocumentIcon} {...iconProps} />
                     </Box>
                 </Tooltip>
             ),
@@ -91,7 +88,7 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
                           <Tooltip label="Show only deleted data apps">
                               <Box aria-label="Data apps">
                                   <MantineIcon
-                                      icon={IconAppWindow}
+                                      icon={DataAppIcon}
                                       {...iconProps}
                                   />
                               </Box>
@@ -108,7 +105,7 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
                           <Tooltip label="Show only deleted custom chart types">
                               <Box aria-label="Custom chart types">
                                   <MantineIcon
-                                      icon={IconPuzzle}
+                                      icon={CustomChartTypeIcon}
                                       {...iconProps}
                                   />
                               </Box>
@@ -122,7 +119,7 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
             label: (
                 <Tooltip label="Show only deleted spaces">
                     <Box>
-                        <MantineIcon icon={IconFolder} {...iconProps} />
+                        <MantineIcon icon={SpaceIcon} {...iconProps} />
                     </Box>
                 </Tooltip>
             ),

@@ -8,7 +8,6 @@ import {
 import {
     Box,
     Indicator,
-    Paper,
     Tooltip,
     type IndicatorProps,
     type TooltipProps,
@@ -18,13 +17,12 @@ import {
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
 import { useRef, useState, type FC, type ReactNode } from 'react';
-import { useIconBoxStyleKey } from '../../../features/iconLab/iconBoxStyleStore';
 import {
-    IconAppWindow,
-    IconFolder,
-    IconFileText,
-    IconLayoutDashboard,
-} from '../../../features/iconLab/switchableIcons';
+    DashboardIcon,
+    DataAppIcon,
+    DocumentIcon,
+    SpaceIcon,
+} from '../ContentIcons';
 import MantineIcon, { type MantineIconProps } from '../MantineIcon';
 import classes from './ResourceIcon.module.css';
 import { getChartIcon } from './utils';
@@ -33,23 +31,19 @@ interface ResourceIconProps {
     item: ResourceViewItem;
 }
 
-interface IconBoxProps extends MantineIconProps {
+interface ContentIconProps extends MantineIconProps {
     color: string;
-    bg?: string;
     icon: TablerIconType;
-    boxSize?: number;
 }
 
-export const IconBox: FC<IconBoxProps> = ({
+/** A content type icon as lists, cards and pickers draw it: bare, tinted with its own colour. */
+export const ContentIcon: FC<ContentIconProps> = ({
     color,
     icon,
     size = 'lg',
-    bg = 'ldGray.0',
-    boxSize = 32,
     ...mantineIconProps
-}) => {
-    const boxStyle = useIconBoxStyleKey();
-    const iconElement = (
+}) => (
+    <Box className={classes.contentIcon}>
         <MantineIcon
             icon={icon}
             color={color}
@@ -59,30 +53,14 @@ export const IconBox: FC<IconBoxProps> = ({
             strokeWidth={1.6}
             {...mantineIconProps}
         />
-    );
-
-    if (boxStyle === 'none') {
-        return <Box className={classes.iconBare}>{iconElement}</Box>;
-    }
-
-    return (
-        <Paper
-            w={boxSize}
-            h={boxSize}
-            radius="md"
-            bg={bg}
-            className={classes.iconBox}
-        >
-            {iconElement}
-        </Paper>
-    );
-};
+    </Box>
+);
 
 export const ChartIcon: FC<{
     chartKind: ChartKind | undefined;
     color?: string;
 }> = ({ chartKind, color }) => (
-    <IconBox
+    <ContentIcon
         icon={getChartIcon(chartKind)}
         color={color ?? 'blue.6'}
         className={
@@ -94,15 +72,15 @@ export const ChartIcon: FC<{
 export const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
-            return <IconBox icon={IconLayoutDashboard} color="green.6" />;
+            return <ContentIcon icon={DashboardIcon} color="green.6" />;
         case ResourceViewItemType.SPACE:
-            return <IconBox icon={IconFolder} color="violet.6" />;
+            return <ContentIcon icon={SpaceIcon} color="violet.6" />;
         case ResourceViewItemType.CHART:
             return <ChartIcon chartKind={item.data.chartKind} />;
         case ResourceViewItemType.DATA_APP:
-            return <IconBox icon={IconAppWindow} color="orange.6" />;
+            return <ContentIcon icon={DataAppIcon} color="orange.6" />;
         case ResourceViewItemType.DOCUMENT:
-            return <IconBox icon={IconFileText} color="dimmed" />;
+            return <ContentIcon icon={DocumentIcon} color="dimmed" />;
         default:
             return assertUnreachable(item, 'Resource type not supported');
     }

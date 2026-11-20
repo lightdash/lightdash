@@ -29,9 +29,12 @@ import {
     IconSparkles,
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC, type ReactNode } from 'react';
+import {
+    BarChartIcon,
+    TableIcon,
+} from '../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useExportDashboardContentPreview } from '../../../../../hooks/dashboard/useDashboard';
-import { IconChartBar, IconTable } from '../../../../iconLab/switchableIcons';
 import { CUSTOM_WIDTH_OPTIONS } from '../../../constants';
 import { useSchedulerFormContext } from '../schedulerFormContext';
 import classes from './SchedulerDeliveryModal.module.css';
@@ -195,8 +198,8 @@ export const SchedulerPreviewPanel: FC<Props> = ({
         format === SchedulerFormat.PDF
             ? IconFileTypePdf
             : format === SchedulerFormat.IMAGE
-              ? IconChartBar
-              : IconTable;
+              ? BarChartIcon
+              : TableIcon;
 
     const exportPreviewMutation = useExportDashboardContentPreview();
     const [previewUrl, setPreviewUrl] = useState<string>();

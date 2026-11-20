@@ -18,6 +18,7 @@ import {
 import { IconInbox, IconSettings } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
+import { SpaceIcon } from '../../../../components/common/ContentIcons';
 import {
     ContentTable,
     useContentTable,
@@ -25,8 +26,7 @@ import {
 } from '../../../../components/common/ContentTable';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import Page from '../../../../components/common/Page/Page';
-import { IconBox } from '../../../../components/common/ResourceIcon';
-import { IconFolder } from '../../../../features/iconLab/switchableIcons';
+import { ContentIcon } from '../../../../components/common/ResourceIcon';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
 import useApp from '../../../../providers/App/useApp';
@@ -110,10 +110,9 @@ const ContentReviewRequestsPage: FC = () => {
                         const { content, contentType } = row.original;
                         return (
                             <Group gap="sm" wrap="nowrap">
-                                <IconBox
+                                <ContentIcon
                                     icon={getContentTypeIcon(contentType)}
                                     color={getContentTypeColor(contentType)}
-                                    boxSize={28}
                                     size="md"
                                 />
                                 <Stack gap={0} miw={0}>
@@ -164,7 +163,7 @@ const ContentReviewRequestsPage: FC = () => {
                     size: 180,
                     Cell: ({ row }) => (
                         <Group gap={6} wrap="nowrap">
-                            <MantineIcon icon={IconFolder} color="dimmed" />
+                            <MantineIcon icon={SpaceIcon} color="dimmed" />
                             <Text fz="sm" truncate="end">
                                 {row.original.targetSpaceName ??
                                     'Deleted space'}

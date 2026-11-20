@@ -20,13 +20,13 @@ import {
 } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useRef, type FC } from 'react';
-import {
-    IconAppWindow,
-    IconLayoutDashboard,
-    IconTable,
-} from '../../../features/iconLab/switchableIcons';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useDeleteValidation } from '../../../hooks/validation/useValidation';
+import {
+    DashboardIcon,
+    DataAppIcon,
+    TableIcon,
+} from '../../common/ContentIcons';
 import {
     ContentTable,
     useContentTable,
@@ -34,7 +34,7 @@ import {
     type ContentTableVirtualizer,
 } from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
-import { ChartIcon, IconBox } from '../../common/ResourceIcon';
+import { ChartIcon, ContentIcon } from '../../common/ResourceIcon';
 import {
     dedupeContentItems,
     getDeletableContentItem,
@@ -55,10 +55,10 @@ const Icon = ({ validationError }: { validationError: ValidationResponse }) => {
     if (isChartValidationError(validationError))
         return <ChartIcon chartKind={validationError.chartKind} />;
     if (isDashboardValidationError(validationError))
-        return <IconBox icon={IconLayoutDashboard} color="green.8" />;
+        return <ContentIcon icon={DashboardIcon} color="green.8" />;
     if (isDataAppValidationError(validationError))
-        return <IconBox icon={IconAppWindow} color="orange.6" />;
-    return <IconBox icon={IconTable} color="indigo.6" />;
+        return <ContentIcon icon={DataAppIcon} color="orange.6" />;
+    return <ContentIcon icon={TableIcon} color="indigo.6" />;
 };
 
 const getErrorName = (validationError: ValidationResponse) => {

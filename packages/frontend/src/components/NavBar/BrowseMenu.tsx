@@ -30,13 +30,6 @@ import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { ReviewRequestsMenuItem } from '../../ee/features/contentReview';
 import { useChartTypesEnabled } from '../../features/chartTypes/hooks/useChartTypesEnabled';
-import {
-    IconAppWindow,
-    IconFileText,
-    IconFolder,
-    IconLayoutDashboard,
-    IconPuzzle,
-} from '../../features/iconLab/switchableIcons';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import { canOpenSemanticStudio } from '../../features/semanticStudio/permissions';
 import { useFavorites } from '../../hooks/favorites/useFavorites';
@@ -45,6 +38,13 @@ import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
 import useApp from '../../providers/App/useApp';
 import scrollAreaClasses from '../../styles/ScrollArea.module.css';
+import {
+    CustomChartTypeIcon,
+    DashboardIcon,
+    DataAppIcon,
+    DocumentIcon,
+    SpaceIcon,
+} from '../common/ContentIcons';
 import MantineIcon from '../common/MantineIcon';
 import { PolymorphicGroupButton } from '../common/PolymorphicGroupButton';
 import TruncatedText from '../common/TruncatedText';
@@ -83,15 +83,15 @@ const getFavoriteItemUrl = (
 const getFavoriteItemIcon = (item: ResourceViewItem) => {
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
-            return IconLayoutDashboard;
+            return DashboardIcon;
         case ResourceViewItemType.CHART:
             return IconChartAreaLine;
         case ResourceViewItemType.SPACE:
-            return IconFolder;
+            return SpaceIcon;
         case ResourceViewItemType.DATA_APP:
-            return IconAppWindow;
+            return DataAppIcon;
         case ResourceViewItemType.DOCUMENT:
-            return IconFileText;
+            return DocumentIcon;
         default:
             return assertUnreachable(item, `Unknown favorite item type`);
     }
@@ -201,7 +201,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 <Menu.Item
                     component={Link}
                     to={`/projects/${projectUrlIdentifier}/dashboards`}
-                    leftSection={<MantineIcon icon={IconLayoutDashboard} />}
+                    leftSection={<MantineIcon icon={DashboardIcon} />}
                     data-tour-nav="all-dashboards"
                     data-tour-hint="Open All dashboards"
                 >
@@ -221,7 +221,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 <Menu.Item
                     component={Link}
                     to={`/projects/${projectUrlIdentifier}/documents`}
-                    leftSection={<MantineIcon icon={IconFileText} />}
+                    leftSection={<MantineIcon icon={DocumentIcon} />}
                     data-tour-nav="all-documents"
                     data-tour-hint="Open All documents"
                 >
@@ -232,7 +232,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     <Menu.Item
                         component={Link}
                         to={`/projects/${projectUuid}/apps`}
-                        leftSection={<MantineIcon icon={IconAppWindow} />}
+                        leftSection={<MantineIcon icon={DataAppIcon} />}
                         // Anchor for scope walkthroughs (data-tour-via)
                         data-tour-nav="all-apps"
                         data-tour-hint="Open All data apps"
@@ -245,7 +245,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     <Menu.Item
                         component={Link}
                         to={`/projects/${projectUrlIdentifier}/chart-studio`}
-                        leftSection={<MantineIcon icon={IconPuzzle} />}
+                        leftSection={<MantineIcon icon={CustomChartTypeIcon} />}
                     >
                         Chart Studio
                     </Menu.Item>
@@ -358,7 +358,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                                     to={`/projects/${projectUrlIdentifier}/spaces/${space.uuid}`}
                                                     leftSection={
                                                         <MantineIcon
-                                                            icon={IconFolder}
+                                                            icon={SpaceIcon}
                                                         />
                                                     }
                                                 >

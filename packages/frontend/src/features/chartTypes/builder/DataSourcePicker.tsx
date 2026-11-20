@@ -35,6 +35,7 @@ import {
     type ReactNode,
     type Ref,
 } from 'react';
+import { TableIcon } from '../../../components/common/ContentIcons';
 import InlineErrorState from '../../../components/common/InlineErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ChartIcon } from '../../../components/common/ResourceIcon';
@@ -44,7 +45,6 @@ import { useExplores } from '../../../hooks/useExplores';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
 import { useAttachResourceLink } from '../../apps/hooks/useAttachResourceLink';
-import { IconTable } from '../../iconLab/switchableIcons';
 import classes from './DataSourcePicker.module.css';
 import { type ExploreSourceControls } from './exploreSource';
 import { type SavedChartSourceControls } from './savedChartSource';
@@ -434,7 +434,7 @@ const PickerBody: FC<BodyProps> = ({
                             className={classes.row}
                         >
                             <MantineIcon
-                                icon={IconTable}
+                                icon={TableIcon}
                                 size={14}
                                 color="dimmed"
                                 className={classes.suggestionIcon}
@@ -470,7 +470,7 @@ const PickerBody: FC<BodyProps> = ({
                                     }
                                     icon={
                                         <MantineIcon
-                                            icon={IconTable}
+                                            icon={TableIcon}
                                             size={14}
                                             color="dimmed"
                                         />

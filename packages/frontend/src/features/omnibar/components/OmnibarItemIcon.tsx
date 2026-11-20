@@ -3,7 +3,7 @@ import { IconAlertTriangle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import {
-    IconBox,
+    ContentIcon,
     ResourceIndicator,
 } from '../../../components/common/ResourceIcon';
 import { type SearchItem } from '../types/searchItem';
@@ -12,16 +12,15 @@ import { getOmnibarItemColor, getOmnibarItemIcon } from './utils';
 
 type Props = {
     item: SearchItem;
-    boxSize?: number;
+    size: 'md' | 'lg';
 };
 
-export const OmnibarItemIcon: FC<Props> = ({ item, boxSize }) => {
+export const OmnibarItemIcon: FC<Props> = ({ item, size }) => {
     return (
-        <IconBox
+        <ContentIcon
             color={getOmnibarItemColor(item.type)}
             icon={getOmnibarItemIcon(item)}
-            boxSize={boxSize}
-            size={boxSize !== undefined && boxSize < 32 ? 'md' : 'lg'}
+            size={size}
         />
     );
 };
@@ -33,7 +32,7 @@ type OmnibarItemIconWithIndicatorProps = Props & {
 
 export const OmnibarItemIconWithIndicator: FC<
     OmnibarItemIconWithIndicatorProps
-> = ({ item, boxSize, projectUuid, canUserManageValidation }) =>
+> = ({ item, size, projectUuid, canUserManageValidation }) =>
     item.item && 'validationErrors' in item.item ? (
         <ResourceIndicator
             iconProps={{
@@ -76,6 +75,6 @@ export const OmnibarItemIconWithIndicator: FC<
                 )
             }
         >
-            <OmnibarItemIcon item={item} boxSize={boxSize} />
+            <OmnibarItemIcon item={item} size={size} />
         </ResourceIndicator>
     ) : null;

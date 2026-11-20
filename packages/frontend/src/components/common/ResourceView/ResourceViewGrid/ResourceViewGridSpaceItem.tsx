@@ -2,14 +2,14 @@ import { FeatureFlags, type ResourceViewSpaceItem } from '@lightdash/common';
 import { Box, Flex, Group, Paper, Stack, Text } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { type FC, type ReactNode } from 'react';
-import {
-    IconAppWindow,
-    IconChartBar,
-    IconFolder,
-    IconLayoutDashboard,
-    IconFileText,
-} from '../../../../features/iconLab/switchableIcons';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
+import {
+    BarChartIcon,
+    DashboardIcon,
+    DataAppIcon,
+    DocumentIcon,
+    SpaceIcon,
+} from '../../ContentIcons';
 import { ResourceIcon } from '../../ResourceIcon';
 import ResourceViewActionMenu, {
     type ResourceViewActionMenuCommonProps,
@@ -62,27 +62,27 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                     <Group gap="sm">
                         {item.data.documentCount !== undefined && (
                             <AttributeCount
-                                Icon={IconFileText}
+                                Icon={DocumentIcon}
                                 count={item.data.documentCount}
                                 name="Documents"
                             />
                         )}
                         <AttributeCount
-                            Icon={IconLayoutDashboard}
+                            Icon={DashboardIcon}
                             count={item.data.dashboardCount}
                         />
                         <AttributeCount
-                            Icon={IconChartBar}
+                            Icon={BarChartIcon}
                             count={item.data.chartCount}
                         />
                         {dataAppsEnabled && (
                             <AttributeCount
-                                Icon={IconAppWindow}
+                                Icon={DataAppIcon}
                                 count={item.data.appCount}
                             />
                         )}
                         <AttributeCount
-                            Icon={IconFolder}
+                            Icon={SpaceIcon}
                             count={item.data.childSpaceCount}
                         />
                     </Group>
