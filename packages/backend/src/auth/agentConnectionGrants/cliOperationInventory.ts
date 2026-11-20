@@ -246,7 +246,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             ['apiV1Router GET /health'],
         ),
         refused(
-            'handlers/createProject.ts:333',
+            'handlers/createProject.ts:363',
             'POST',
             '`/api/v1/org/projects`',
             ['OrganizationController.createProject'],
@@ -801,7 +801,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Project lifecycle and warehouse configuration changes are refused in v1.',
         ),
         allowed(
-            'handlers/preview.ts:409',
+            'handlers/preview.ts:412',
             'GET',
             '`/api/v1/projects/${config.context.project}`',
             ['ProjectController.getProject'],
@@ -816,14 +816,14 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Project lifecycle and warehouse configuration changes are refused in v1.',
         ),
         refused(
-            'handlers/preview.ts:322',
+            'handlers/preview.ts:325',
             'GET',
             '`/api/v1/projects/${projectUuid}/warehouse-connections/${connection.warehouseConnectionUuid}`',
             ['WarehouseConnectionController.getWarehouseConnection'],
             'Project lifecycle and warehouse configuration changes are refused in v1.',
         ),
         refused(
-            'handlers/preview.ts:333',
+            'handlers/preview.ts:336',
             'PATCH',
             '`/api/v1/projects/${projectUuid}/warehouse-connections/${connection.warehouseConnectionUuid}`',
             ['WarehouseConnectionController.updateWarehouseConnection'],

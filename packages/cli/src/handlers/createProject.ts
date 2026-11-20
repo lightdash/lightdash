@@ -4,7 +4,6 @@ import {
     DbtProjectType,
     getLatestSupportDbtVersion,
     HealthState,
-    ParseError,
     ProjectType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
@@ -106,9 +105,9 @@ const isSnowflakeSsoEnabled = async (): Promise<boolean> => {
     return response?.auth?.snowflake?.enabled ?? false;
 };
 
-const applySnowflakeSsoHandling = async (
+export const applySnowflakeSsoHandling = async (
     credentials: CreateWarehouseCredentials,
-): Promise<CreateWarehouseCredentials> => {
+): Promise<CreateWarehouseCredentials | null> => {
     if (credentials.type !== WarehouseTypes.SNOWFLAKE) {
         return credentials;
     }
@@ -131,10 +130,13 @@ We will ask for user credentials again on the Lightdash UI.\n`,
                 requireUserCredentials: true,
             };
         }
-        throw new ParseError(
-            `Your dbt profile uses a Snowflake OAuth access token, which can't be saved as project credentials because it expires.
-Enable Snowflake OAuth authentication on the Lightdash server, or rerun with --no-warehouse-credentials.`,
+        console.error(
+            styles.warning(
+                `Your dbt profile uses a Snowflake OAuth access token, which can't be saved as project credentials because it expires.
+Snowflake OAuth authentication is disabled on the server. Continuing without storing warehouse credentials, as with --no-warehouse-credentials.`,
+            ),
         );
+        return null;
     }
 
     if (
@@ -185,7 +187,7 @@ type LoadWarehouseCredentialsOptions = {
 };
 
 type LoadWarehouseCredentialsResult = {
-    credentials: CreateWarehouseCredentials;
+    credentials: CreateWarehouseCredentials | null;
     targetName: string;
     dbtVersionOption: DbtVersionOption;
     isDbtCloudCLI: boolean;
@@ -320,14 +322,14 @@ export const createProject = async (
             );
             return undefined;
         }
-        credentials = loaded.credentials;
+        credentials = loaded.credentials ?? undefined;
         targetName = loaded.targetName;
         isDbtCloudCLI = loaded.isDbtCloudCLI;
         dbtVersionOption = loaded.dbtVersionOption;
 
         if (
             options.disableTimestampConversion !== undefined &&
-            credentials.type === WarehouseTypes.SNOWFLAKE
+            credentials?.type === WarehouseTypes.SNOWFLAKE
         ) {
             credentials = {
                 ...credentials,
@@ -342,7 +344,7 @@ export const createProject = async (
         warehouseConnection: credentials,
         copyWarehouseConnectionFromUpstreamProject:
             isDbtCloudCLI ||
-            (options.warehouseCredentials === false &&
+            (credentials === undefined &&
                 options.upstreamProjectUuid !== undefined),
         dbtConnection: {
             type: DbtProjectType.NONE,
