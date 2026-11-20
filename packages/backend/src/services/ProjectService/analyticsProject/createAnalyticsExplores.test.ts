@@ -31,6 +31,7 @@ describe('createAnalyticsExplores', () => {
             'content_reach',
             'content_health',
             'content_inventory',
+            'content_created',
         ]) {
             const explore = explores.find((item) => item.name === name)!;
             const table = explore.tables[explore.baseTable];
@@ -61,10 +62,11 @@ describe('createAnalyticsExplores', () => {
         expect(ai.tables.ai_usage.dimensions.agent_name.hidden).toBe(false);
         const exports = explores.find(({ name }) => name === 'export_events')!;
         expect(exports.tables.export_events.dimensions).toMatchObject({
-            chart_name: { label: 'Chart name', hidden: false },
+            // Names a dashboard tile can show are labelled the way a tile would name them
+            chart_name: { label: 'Chart', hidden: false },
             chart_slug: { label: 'Chart slug', hidden: false },
             chart_url: { label: 'Chart url', hidden: false },
-            dashboard_name: { label: 'Dashboard name', hidden: false },
+            dashboard_name: { label: 'Dashboard', hidden: false },
             dashboard_slug: { label: 'Dashboard slug', hidden: false },
             dashboard_url: { label: 'Dashboard url', hidden: false },
             chart_id: { hidden: false },
@@ -291,6 +293,8 @@ describe('createAnalyticsExplores', () => {
             'content_reach',
             'content_health',
             'content_inventory',
+            // The inventory with a row for every day, for content created by day
+            'content_created',
             'agent_requests',
             'agent_request_starts',
             'agent_request_events',
