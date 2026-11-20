@@ -16,7 +16,6 @@ export const useAiAgentThreadStreamQuery = (threadUuid: string) => {
     return threadStream;
 };
 
-// Other messages select a stable null, so they skip re-rendering while one streams.
 export const useAiAgentMessageStream = (
     threadUuid: string,
     messageUuid: string,
@@ -32,7 +31,6 @@ export const useAiAgentThreadStreaming = (threadUuid: string) =>
         return threadStream?.connection.status === 'streaming';
     });
 
-// A primitive, so callers re-render only when a turn starts or ends.
 export const useAiAgentThreadActiveMessageUuid = (threadUuid: string) =>
     useAiAgentStoreSelector((state) => {
         const threadStream = state.aiAgentThreadStream[threadUuid];

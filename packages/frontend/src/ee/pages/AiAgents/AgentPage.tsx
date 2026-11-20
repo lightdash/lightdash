@@ -224,23 +224,39 @@ const AgentPage = () => {
         threadUuid,
     ]);
 
+    // Mounted in every branch so a save is reported while the agent loads.
+    const embedEventsEmitter = (
+        <EmbedAgentContentEventsEmitter
+            projectUuid={projectUuid}
+            agentUuid={agentUuid}
+            threadUuid={threadUuid}
+            thread={thread}
+        />
+    );
+
     if (isLoadingAgent) {
         return (
-            <Center h="100vh">
-                <Loader color="gray" />
-            </Center>
+            <>
+                {embedEventsEmitter}
+                <Center h="100vh">
+                    <Loader color="gray" />
+                </Center>
+            </>
         );
     }
 
     if (!agent) {
         return (
-            <Navigate
-                to={
-                    isEmbed
-                        ? `${getAiAgentPageBase(projectUuid!, isEmbed)}/not-authorized`
-                        : getAiAgentPageBase(projectUuid!, isEmbed)
-                }
-            />
+            <>
+                {embedEventsEmitter}
+                <Navigate
+                    to={
+                        isEmbed
+                            ? `${getAiAgentPageBase(projectUuid!, isEmbed)}/not-authorized`
+                            : getAiAgentPageBase(projectUuid!, isEmbed)
+                    }
+                />
+            </>
         );
     }
 
@@ -252,12 +268,7 @@ const AgentPage = () => {
 
     return (
         <>
-            <EmbedAgentContentEventsEmitter
-                projectUuid={projectUuid}
-                agentUuid={agentUuid}
-                threadUuid={threadUuid}
-                thread={thread}
-            />
+            {embedEventsEmitter}
             <AiAgentPageLayout
                 isEmbed={isEmbed}
                 setIsAgentSidebarCollapsed={setIsAgentSidebarCollapsed}
