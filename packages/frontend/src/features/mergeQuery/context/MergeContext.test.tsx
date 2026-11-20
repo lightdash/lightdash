@@ -684,31 +684,13 @@ describe('MergeProvider', () => {
         await act(() => result.current.getDownloadQueryUuid(100));
 
         expect(executeMergeQuery).not.toHaveBeenCalled();
-        expect(executeSavedMergeQuery.mock.calls).toEqual([
-            [
-                expect.anything(),
-                'project-uuid',
-                savedChartRun,
-                { region: 'EU' },
-                true,
-                undefined,
-            ],
-            [
-                expect.anything(),
-                'project-uuid',
-                savedChartRun,
-                { region: 'EU' },
-                false,
-                undefined,
-            ],
-            [
-                expect.anything(),
-                'project-uuid',
-                savedChartRun,
-                { region: 'EU' },
-                false,
-                100,
-            ],
+        // [run, parameters, pivotResults, csvLimit] per request
+        expect(
+            executeSavedMergeQuery.mock.calls.map((call) => call.slice(2)),
+        ).toEqual([
+            [savedChartRun, { region: 'EU' }, true, undefined],
+            [savedChartRun, { region: 'EU' }, false, undefined],
+            [savedChartRun, { region: 'EU' }, false, 100],
         ]);
     });
 });

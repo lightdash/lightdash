@@ -188,6 +188,7 @@ import {
 } from './api/parameters';
 import { type ApiGetSpotlightTableConfig } from './api/spotlight';
 import { type ApiSuccessEmpty } from './api/success';
+import { type UUID } from './api/uuid';
 import { type Account } from './auth';
 import {
     type ApiAwsWebIdentityAudienceResponse,
@@ -1219,7 +1220,7 @@ export type ApiExecuteAsyncMergeQueryRequest = Omit<
 
 /** Runs a saved chart's own merge, named by the chart rather than sent. */
 export type ApiExecuteAsyncSavedMergeQueryRequest = {
-    savedChartUuid: string;
+    savedChartUuid: UUID;
     context?: QueryExecutionContext;
     invalidateCache?: boolean;
     parameters: ParametersValuesMap;

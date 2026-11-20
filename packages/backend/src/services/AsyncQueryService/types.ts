@@ -325,7 +325,7 @@ export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncSavedChartMergeQueryArgs = CommonAsyncQueryArgs & {
-    savedChartUuid: string;
+    savedChartUuid: UUID;
     mode: MergeQueryExecutionMode;
     pivotResults: boolean;
     includeUnpublishedDraft: boolean;
