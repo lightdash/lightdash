@@ -290,20 +290,24 @@ const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
             hideRowNumbers: true,
             columns: {
                 ...Object.fromEntries(
-                    spec.dimensions
-                        .filter((field) => field.endsWith('_id'))
-                        .map((field) => [field, { visible: false }]),
-                ),
-                ...Object.fromEntries(
-                    (spec.hiddenColumns ?? []).map((field) => [
-                        field,
-                        { visible: false },
-                    ]),
-                ),
-                ...Object.fromEntries(
                     Object.entries(labels).map(([field, name]) => [
                         field,
                         { name },
+                    ]),
+                ),
+                // After the names, so a hidden column that also has a name stays hidden
+                ...Object.fromEntries(
+                    [
+                        ...spec.dimensions.filter((field) =>
+                            field.endsWith('_id'),
+                        ),
+                        ...(spec.hiddenColumns ?? []),
+                    ].map((field) => [
+                        field,
+                        {
+                            ...(labels[field] ? { name: labels[field] } : {}),
+                            visible: false,
+                        },
                     ]),
                 ),
                 // The ranking behind a top-categories filter is not something to read

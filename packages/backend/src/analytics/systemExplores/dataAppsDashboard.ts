@@ -36,11 +36,18 @@ export const dataAppsChartSpecs: UsageChartSpec[] = [
         key: 'apps-viewers-latest-day',
         name: 'Data app viewers',
         description:
-            'People who loaded a data app on the latest day in the selected period. Anonymous visitors are not counted.',
+            'People who loaded a data app from a standalone page or dashboard on the latest day in the selected period. Builder previews, embeds and deliveries are not counted, the same as on Adoption.',
         explore: 'data_app_events',
         day,
         metric: 'data_app_events_unique_viewers',
-        filters: loads,
+        // The surfaces a person views a data app on, so this agrees with Adoption > People & content
+        filters: [
+            { field: 'data_app_events_event_name', values: ['data_app.view'] },
+            {
+                field: 'data_app_events_view_context',
+                values: ['standalone', 'dashboard'],
+            },
+        ],
         latestDay: true,
         hero: true,
     }),

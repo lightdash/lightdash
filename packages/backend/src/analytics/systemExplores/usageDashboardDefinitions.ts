@@ -129,7 +129,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         // with its rows, so this height shows about nine and scrolls for the rest
                         layout: 'row',
                         widths: [16, 20],
-                        rowHeight: 6,
+                        rowHeight: 7,
                     },
                 ],
             },

@@ -195,7 +195,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         // Data apps are created a few times a quarter. A count for each day is a row of lone spikes,
         // so the chart adds them up: it climbs a step each time a data app is created.
         key: 'adoption-apps-created-by-day',
-        name: 'Data apps over time',
+        name: 'Data apps, running total by week',
         description:
             'Data apps in the latest inventory, added up week by week from the day each was created. Includes deleted data apps, not custom chart types.',
         explore: 'content_created',
@@ -217,7 +217,8 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
             minVersion: '0.18.6',
             fieldMapping: { x: appWeek, m1: appRunningTotal.name },
             optionValues: {
-                seriesType: 'step',
+                // Filled, like the other trend tiles
+                seriesType: 'area',
                 xAxisType: 'time',
                 // The day as well as the month: a tick for each week would repeat the month's name
                 xTimeFormat: '{MMM} {d}',

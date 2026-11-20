@@ -4,6 +4,7 @@ import {
     TableCalculationType,
 } from '@lightdash/common';
 import { modelProviderColors } from './analyticsColorPalette';
+import { numberCard } from './chartBuilders';
 import { monthlyQueryComparisonCharts } from './monthlyQueryComparisonCharts';
 import type { UsageChartSpec } from './usageDashboardTypes';
 
@@ -263,6 +264,11 @@ export const usageChartSpecs: UsageChartSpec[] = [
         visualization: 'number',
         // The number shown is the share, not the first measure
         yFields: ['field_list_share'],
+        libraryChart: numberCard(
+            'field_list_share',
+            'Of all queries in the selected period',
+            true,
+        ),
     },
     {
         key: 'agent-requests-trend',
@@ -872,7 +878,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         visualization: 'number',
         libraryChart: {
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.7.1',
+            minVersion: '0.8.2',
             fieldMapping: {
                 value: failedTokens,
                 sparklineMetric: failedTokens,
@@ -883,6 +889,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 valueAggregation: 'sum',
                 style: 'compact',
                 showComparison: false,
+                sizeMode: 'preset',
+                bigNumberSize: 6,
+                reserveComparisonSpace: false,
                 secondaryLabel: 'of all tokens used by agent requests',
                 colorSparklineByTrend: false,
                 showSparklineArea: true,
@@ -918,7 +927,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'slow-dashboards-tail-latency-and-demand',
-        name: 'Slow dashboards: P95 response time (top 20)',
+        name: 'Slow dashboards: P95 response time in seconds (top 20)',
         description:
             'The 20 dashboards with the longest P95 response time in the selected period. A dashboard with few queries can rank high on one slow query.',
         explore: 'query_events',
@@ -983,6 +992,11 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
         ],
         visualization: 'number',
+        libraryChart: numberCard(
+            'content_reach_verified_audience_share',
+            'Of viewers of content with a known status',
+            true,
+        ),
     },
     {
         key: 'warehouse-versus-cached-demand',

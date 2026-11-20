@@ -3,7 +3,7 @@ import {
     FilterOperator,
     TableCalculationType,
 } from '@lightdash/common';
-import { card, ranking, stackedByDay } from './chartBuilders';
+import { card, numberCard, ranking, stackedByDay } from './chartBuilders';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
 
 const day = 'content_reach_event_ts_day';
@@ -192,7 +192,7 @@ export const contentChartSpecs: UsageChartSpec[] = [
         // A running total reads well however little content there is: it only ever rises, where bars
         // for each month are a few uneven columns on a small instance
         key: 'content-creation-by-month',
-        name: 'Content over time',
+        name: 'Content, running total by week',
         description:
             'Charts, dashboards and data apps in the latest inventory, added up week by week from the day each was created. Includes deleted items; the date filter does not apply.',
         explore: 'content_created',
@@ -271,22 +271,25 @@ export const contentChartSpecs: UsageChartSpec[] = [
                 'Has recorded activity',
                 'Activity observed',
                 'Charts, dashboards and data apps with at least one recorded view, query or load.',
+                'Viewed, queried or loaded at least once',
             ],
             [
                 'content-without-activity-in-use',
                 'No recorded activity, still in use',
                 'No activity observed; known dependency',
                 'Content with no recorded activity that a dashboard tile or a switched-on schedule still uses.',
+                'On a dashboard or a schedule that is switched on',
             ],
             [
                 'content-without-activity',
                 'No recorded activity',
                 'No activity observed; coverage incomplete',
                 'Content with no recorded activity and nothing known to use it, which is not proof it is safe to delete.',
+                'Nothing known uses it',
             ],
         ] as const
     ).map(
-        ([key, name, status, description]): UsageChartSpec => ({
+        ([key, name, status, description, meaning]): UsageChartSpec => ({
             key,
             name,
             description: `${description} ${allHistory}`,
@@ -299,6 +302,7 @@ export const contentChartSpecs: UsageChartSpec[] = [
             limit: 1,
             sorts: [],
             visualization: 'number',
+            libraryChart: numberCard('content_health_total_content', meaning),
         }),
     ),
     ranking({
@@ -336,28 +340,52 @@ export const contentChartSpecs: UsageChartSpec[] = [
             content_health_total_enabled_schedules: 'Schedules switched on',
             content_health_total_dashboard_references: 'Dashboards using it',
         },
-        libraryDescription: `Content with no recorded activity, by status; open a status to see its items and what still uses them. ${allHistory}`,
+        libraryDescription: `Content with no recorded activity, by status, with its items and what still uses them. ${allHistory}`,
+        // The items are the point of the tile, so the statuses start open
+        expanded: true,
     }),
-    ranking({
-        key: 'content-ownership-current-snapshot',
-        name: 'Dashboard ownership',
-        description:
-            'Dashboards by the status of their owner. Owner status reflects current Lightdash membership, not whether the person is still employed.',
-        explore: 'content_inventory',
-        by: 'content_health_owner_status_name',
-        dimensions: ['content_health_owner_status_name'],
-        metrics: ['content_health_total_content'],
-        // Only dashboards have an owner
-        filters: [
-            { field: 'content_health_content_type', values: ['dashboard'] },
-        ],
-        limit: 30,
-        // Drawn as a donut: see withAnalyticsChartPresentation
-        visualization: 'bar',
-        fieldLabels: { content_health_total_content: 'Dashboards' },
-        libraryDescription:
-            'Dashboards by the status of their owner. Owner status reflects current Lightdash membership, not whether the person is still employed.',
-    }),
+    {
+        ...ranking({
+            key: 'content-ownership-current-snapshot',
+            name: 'Dashboard ownership',
+            description:
+                'Dashboards by the status of their owner. Owner status reflects current Lightdash membership, not whether the person is still employed.',
+            explore: 'content_inventory',
+            by: 'content_health_owner_status_name',
+            dimensions: ['content_health_owner_status_name'],
+            metrics: ['content_health_total_content'],
+            // Only dashboards have an owner
+            filters: [
+                { field: 'content_health_content_type', values: ['dashboard'] },
+            ],
+            limit: 30,
+            // Drawn as a donut: see withAnalyticsChartPresentation
+            visualization: 'bar',
+            fieldLabels: { content_health_total_content: 'Dashboards' },
+            libraryDescription:
+                'Dashboards by the status of their owner. Owner status reflects current Lightdash membership, not whether the person is still employed.',
+        }),
+        // A few statuses: one bar each, with the count beside it
+        libraryChart: {
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.18.6',
+            fieldMapping: {
+                x: 'content_health_owner_status_name',
+                m1: 'content_health_total_content',
+            },
+            optionValues: {
+                seriesType: 'bar',
+                orientation: 'horizontal',
+                m1Name: 'Dashboards',
+                showDataLabels: true,
+                lightdashLabels: false,
+                showAxisTitles: false,
+                showLegend: false,
+                yIntegerTicks: true,
+            },
+            query: null,
+        },
+    },
     ranking({
         key: 'content-owners-needing-review',
         name: 'Dashboards with a missing or inactive owner',
@@ -393,7 +421,8 @@ export const contentChartSpecs: UsageChartSpec[] = [
             content_health_owner_name: 'Owner',
             content_health_last_viewed_at_day: 'Last viewed',
         },
-        libraryDescription: `Dashboards whose owner is deactivated, not a member, unknown or not set, by owner status; open a status to see them, most-viewed first. ${allHistory}`,
+        libraryDescription: `Dashboards whose owner is deactivated, not a member, unknown or not set, by owner status, most-viewed first. ${allHistory}`,
+        expanded: true,
     }),
     ranking({
         key: 'high-compute-dashboards-audience-versus-warehouse-time',
@@ -500,6 +529,9 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                         'content-without-activity-in-use',
                         'content-without-activity',
                     ],
+                    // One compact row of cards
+                    layout: 'row',
+                    rowHeight: 4,
                 },
                 {
                     title: 'Review candidates',
@@ -509,8 +541,8 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                         'review-candidates-activity-and-known-dependencies',
                     ],
                     layout: 'row',
-                    // Three activity statuses at most until a reader opens one
-                    rowHeight: 5,
+                    // The statuses start open: room for about ten items, more by scrolling
+                    rowHeight: 7,
                 },
             ],
         },
@@ -522,13 +554,19 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                     title: 'Current ownership',
                     description:
                         'Only dashboards have an owner. Give a new owner to the dashboards listed here whose owner is deactivated, not a member or missing.',
-                    // Both lists are a few rows long, so they share one short row
-                    charts: [
-                        'content-ownership-current-snapshot',
-                        'content-owners-needing-review',
-                    ],
+                    // A bar for each owner status, then the dashboards to fix, full width
+                    charts: ['content-ownership-current-snapshot'],
                     layout: 'row',
-                    rowHeight: 5,
+                    rowHeight: 4,
+                },
+                {
+                    title: 'Dashboards to fix',
+                    description: '',
+                    note: false,
+                    charts: ['content-owners-needing-review'],
+                    layout: 'row',
+                    // About eight rows
+                    rowHeight: 6,
                 },
                 {
                     title: 'Warehouse time by dashboard',

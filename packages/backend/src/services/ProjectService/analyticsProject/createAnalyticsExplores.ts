@@ -210,6 +210,9 @@ const metricLabels: Record<string, Record<string, string>> = {
     tool_activity: { total_calls: 'Tool calls' },
     export_events: { total_downloads: 'Downloads' },
     semantic_usage: { total_queries: 'Queries' },
+    people_adoption: {
+        people_without_observed_activity: 'People who have not used Lightdash',
+    },
 };
 // What a plain-name field is called, by the column it is made from
 const plainNameLabels: Record<string, string> = {

@@ -1,4 +1,5 @@
 import { TableCalculationType } from '@lightdash/common';
+import { numberCard } from './chartBuilders';
 import type { UsageChartSpec } from './usageDashboardTypes';
 
 const eligiblePeople: NonNullable<UsageChartSpec['filters']> = [
@@ -28,6 +29,10 @@ export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
         limit: 1,
         sorts: [],
         visualization: 'number',
+        libraryChart: numberCard(
+            'people_adoption_people_without_observed_activity',
+            'Members with no activity of their own',
+        ),
     },
     {
         key: 'people-without-observed-activity-detail',

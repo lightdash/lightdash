@@ -1671,18 +1671,11 @@ describe('built-in usage dashboards', () => {
                     ),
             );
             expect(loadCharts.length).toBeGreaterThanOrEqual(6);
+            // Either by leaving out chart tiles, or by naming the surfaces a person views one on
             loadCharts.forEach(({ metricQuery }) =>
-                expect(metricQuery.filters.dimensions).toMatchObject({
-                    and: expect.arrayContaining([
-                        expect.objectContaining({
-                            target: {
-                                fieldId: 'data_app_events_view_context',
-                            },
-                            operator: FilterOperator.NOT_EQUALS,
-                            values: ['chart'],
-                        }),
-                    ]),
-                }),
+                expect(JSON.stringify(metricQuery.filters.dimensions)).toMatch(
+                    /"data_app_events_view_context"\},"operator":"notEquals","values":\["chart"\]|"data_app_events_view_context"\},"operator":"equals","values":\["standalone","dashboard"\]/,
+                ),
             );
             await db.run('DELETE FROM lightdash_content');
             const withoutInventory = (
