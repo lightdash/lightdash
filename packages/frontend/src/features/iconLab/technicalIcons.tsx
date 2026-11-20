@@ -3,7 +3,7 @@ import { createContentIcon } from './createContentIcon';
 
 const SHARP = { linecap: 'butt', linejoin: 'miter' } as const;
 
-/* D: technical. Square corners, mitred joins, hairlines for the secondary detail. */
+/* D: technical. Square corners, mitred joins, flat line ends. */
 export const TECHNICAL_ICONS: ContentIconSet = {
     dashboard: createContentIcon(
         'TechnicalDashboard',
@@ -18,12 +18,6 @@ export const TECHNICAL_ICONS: ContentIconSet = {
         'TechnicalSpace',
         <>
             <path d="M3.5 4.5h6l2 2.5h9v12.5h-17z" />
-            <path
-                d="M3.5 10h17"
-                fill="none"
-                strokeWidth="1"
-                strokeOpacity="0.5"
-            />
         </>,
         SHARP,
     ),
@@ -41,12 +35,7 @@ export const TECHNICAL_ICONS: ContentIconSet = {
         <>
             <path d="M5 3.5h9l5 5v12h-14z" />
             <path d="M14 3.5v5h5" fill="none" />
-            <path
-                d="M8 13h8M8 16.5h5"
-                fill="none"
-                strokeWidth="1"
-                strokeOpacity="0.5"
-            />
+            <path d="M8 13h8M8 16.5h4.5" fill="none" />
         </>,
         SHARP,
     ),
@@ -54,13 +43,7 @@ export const TECHNICAL_ICONS: ContentIconSet = {
         'TechnicalTable',
         <>
             <rect x="3.5" y="3.5" width="17" height="17" />
-            <path d="M3.5 9h17" fill="none" />
-            <path
-                d="M3.5 14.75h17M9.25 9v11.5M15 9v11.5"
-                fill="none"
-                strokeWidth="1"
-                strokeOpacity="0.5"
-            />
+            <path d="M3.5 9.5h17M3.5 15h17M9.5 9.5v11" fill="none" />
         </>,
         SHARP,
     ),
@@ -85,13 +68,8 @@ export const TECHNICAL_ICONS: ContentIconSet = {
     line: createContentIcon(
         'TechnicalLine',
         <>
-            <path
-                d="M3.5 3.5v17h17"
-                fill="none"
-                strokeWidth="1"
-                strokeOpacity="0.5"
-            />
-            <path d="M6 16.5l4 -5.5l4 3l6 -8" fill="none" />
+            <path d="M3.5 15.5l5 -6l4.5 3.5l7.5 -8.5" fill="none" />
+            <path d="M3.5 20.5h17" fill="none" />
         </>,
         SHARP,
     ),
@@ -99,12 +77,6 @@ export const TECHNICAL_ICONS: ContentIconSet = {
         'TechnicalArea',
         <>
             <path d="M3.5 20.5v-6.5l5 -5.5l4.5 3.5l7.5 -8v16.5z" />
-            <path
-                d="M8.5 8.5v12M13 12v8.5"
-                fill="none"
-                strokeWidth="1"
-                strokeOpacity="0.5"
-            />
         </>,
         SHARP,
     ),
@@ -121,16 +93,10 @@ export const TECHNICAL_ICONS: ContentIconSet = {
     scatter: createContentIcon(
         'TechnicalScatter',
         <>
-            <path
-                d="M3.5 3.5v17h17"
-                fill="none"
-                strokeWidth="1"
-                strokeOpacity="0.5"
-            />
-            <circle cx="8" cy="15.5" r="1.75" />
-            <circle cx="11.5" cy="9.5" r="1.75" />
-            <circle cx="16" cy="13" r="1.75" />
-            <circle cx="18.5" cy="6" r="1.75" />
+            <circle cx="7" cy="16.5" r="2.75" />
+            <circle cx="10.5" cy="7.5" r="2" />
+            <circle cx="16.5" cy="12.5" r="2.25" />
+            <circle cx="18.5" cy="5.25" r="1.75" />
         </>,
         SHARP,
     ),
@@ -139,12 +105,6 @@ export const TECHNICAL_ICONS: ContentIconSet = {
         <>
             <circle cx="12" cy="12" r="8.5" />
             <path d="M12 3.5v8.5h8.5" fill="none" />
-            <path
-                d="M12 12l-6 6"
-                fill="none"
-                strokeWidth="1"
-                strokeOpacity="0.5"
-            />
         </>,
         SHARP,
     ),
@@ -160,12 +120,7 @@ export const TECHNICAL_ICONS: ContentIconSet = {
         'TechnicalFunnel',
         <>
             <path d="M3.5 3.5h17l-5.5 17h-6z" />
-            <path
-                d="M5.28 9h13.44M7.06 14.5h9.88"
-                fill="none"
-                strokeWidth="1"
-                strokeOpacity="0.5"
-            />
+            <path d="M5.28 9h13.44M7.06 14.5h9.88" fill="none" />
         </>,
         SHARP,
     ),
@@ -173,13 +128,7 @@ export const TECHNICAL_ICONS: ContentIconSet = {
         'TechnicalTreemap',
         <>
             <rect x="3.5" y="3.5" width="17" height="17" />
-            <path d="M11 3.5v17" fill="none" />
-            <path
-                d="M11 12.5h9.5M15.75 12.5v8"
-                fill="none"
-                strokeWidth="1"
-                strokeOpacity="0.5"
-            />
+            <path d="M11 3.5v17M11 12.5h9.5M15.75 12.5v8" fill="none" />
         </>,
         SHARP,
     ),
@@ -188,12 +137,6 @@ export const TECHNICAL_ICONS: ContentIconSet = {
         <>
             <path d="M5.07 18.25a8 8 0 1 1 13.86 0" fill="none" />
             <path d="M12 14.25l3.5 -4.5" fill="none" />
-            <path
-                d="M12 6.25v2.25M5.3 11.2l2.1 .8"
-                fill="none"
-                strokeWidth="1"
-                strokeOpacity="0.5"
-            />
         </>,
         SHARP,
     ),
@@ -201,12 +144,7 @@ export const TECHNICAL_ICONS: ContentIconSet = {
         'TechnicalMap',
         <>
             <path d="M3.5 6.5l5.5 -2.5l6 2.5l5.5 -2.5v13.5l-5.5 2.5l-6 -2.5l-5.5 2.5z" />
-            <path
-                d="M9 4v13.5M15 6.5v13.5"
-                fill="none"
-                strokeWidth="1"
-                strokeOpacity="0.5"
-            />
+            <path d="M9 4v13.5M15 6.5v13.5" fill="none" />
         </>,
         SHARP,
     ),
