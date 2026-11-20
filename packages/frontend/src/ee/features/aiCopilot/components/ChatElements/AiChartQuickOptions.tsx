@@ -156,8 +156,12 @@ export const AiChartQuickOptions = ({
         downloadModalOpened,
         { open: openDownloadModal, close: closeDownloadModal },
     ] = useDisclosure(false);
-    // Menu items unmount with the dropdown, so dialogs they open return focus here.
+    // Menu items unmount with the dropdown, so dialogs they open start and end on the trigger.
     const quickActionsTargetRef = useRef<HTMLButtonElement>(null);
+    const fromMenu = (openDialog: () => void) => () => {
+        quickActionsTargetRef.current?.focus();
+        openDialog();
+    };
     const withFocusReturn = (closeDialog: () => void) => () => {
         closeDialog();
         quickActionsTargetRef.current?.focus();
@@ -581,7 +585,7 @@ export const AiChartQuickOptions = ({
                         </Menu.Label>
                         {canExportImage && (
                             <AiChartImageExportMenuItem
-                                onClick={openExportImageModal}
+                                onClick={fromMenu(openExportImageModal)}
                             />
                         )}
                         {canDownloadResults && (
@@ -589,7 +593,7 @@ export const AiChartQuickOptions = ({
                                 leftSection={
                                     <MantineIcon icon={IconTableExport} />
                                 }
-                                onClick={openDownloadModal}
+                                onClick={fromMenu(openDownloadModal)}
                             >
                                 Download results
                             </Menu.Item>
@@ -633,7 +637,7 @@ export const AiChartQuickOptions = ({
                                     </Menu.Item>
                                     {canCreateScheduledDeliveries && (
                                         <Menu.Item
-                                            onClick={openSchedule}
+                                            onClick={fromMenu(openSchedule)}
                                             leftSection={
                                                 <MantineIcon icon={IconSend} />
                                             }
@@ -676,7 +680,7 @@ export const AiChartQuickOptions = ({
                                                 ? undefined
                                                 : 'none'
                                         }
-                                        onClick={() => open()}
+                                        onClick={fromMenu(open)}
                                         disabled={isDisabled || !savedData}
                                         leftSection={
                                             <MantineIcon
@@ -708,7 +712,7 @@ export const AiChartQuickOptions = ({
                         {!!compiledSql && (
                             <Menu.Item
                                 leftSection={<MantineIcon icon={IconEye} />}
-                                onClick={openSqlModal}
+                                onClick={fromMenu(openSqlModal)}
                             >
                                 View SQL
                             </Menu.Item>
