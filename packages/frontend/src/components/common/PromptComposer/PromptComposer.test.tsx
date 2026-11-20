@@ -215,19 +215,32 @@ describe('PromptComposer resize handle', () => {
         expect(resizedHeight(handle)).toBe(40);
     });
 
-    it('reports the rendered editor height within its limits', () => {
+    it('reports the rendered editor height as it is resized', () => {
+        // jsdom has no layout: the editor renders at its resized height, else 100px.
         const clientHeight = vi
             .spyOn(HTMLElement.prototype, 'clientHeight', 'get')
-            .mockReturnValue(100);
-        renderWithProviders(
-            <PromptComposer ariaLabel="Prompt" resizeHandle="top" />,
-        );
-        const handle = getHandle();
-        const value = (name: string) => Number(handle.getAttribute(name));
+            .mockImplementation(function (this: HTMLElement) {
+                if (!this.classList.contains('mantine-RichTextEditor-content'))
+                    return 0;
+                const resized = this.closest<HTMLElement>(
+                    '[data-variant]',
+                )?.style.getPropertyValue('--composer-editor-height');
+                return Number.parseFloat(resized ?? '') || 100;
+            });
+        try {
+            renderWithProviders(
+                <PromptComposer ariaLabel="Prompt" resizeHandle="top" />,
+            );
+            const handle = getHandle();
+            const value = (name: string) => Number(handle.getAttribute(name));
+            expect(value('aria-valuenow')).toBe(100);
 
-        expect(value('aria-valuenow')).toBe(100);
-        expect(value('aria-valuemin')).toBeLessThanOrEqual(100);
-        expect(value('aria-valuemax')).toBeGreaterThanOrEqual(100);
-        clientHeight.mockRestore();
+            fireEvent.keyDown(handle, { key: 'ArrowUp', shiftKey: true });
+            expect(value('aria-valuenow')).toBe(164);
+            expect(value('aria-valuemin')).toBeLessThan(100);
+            expect(value('aria-valuemax')).toBeGreaterThan(164);
+        } finally {
+            clientHeight.mockRestore();
+        }
     });
 });
