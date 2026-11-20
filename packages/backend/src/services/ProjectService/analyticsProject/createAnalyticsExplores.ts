@@ -171,7 +171,12 @@ const metricLabels: Record<string, Record<string, string>> = {
         runtime_error: 'Runtime errors',
     },
     embed_reach: { total_loads: 'Loads' },
-    content_health: { total_content: 'Content' },
+    content_health: {
+        total_content: 'Content',
+        total_observed_views: 'Views',
+        total_enabled_schedules: 'Schedules switched on',
+        total_dashboard_references: 'Dashboards using it',
+    },
     content_reach: { qualifying_views: 'Views' },
     agent_requests: { distinct_requesters: 'People asking' },
     agent_evaluation_runs: { total_runs: 'Runs' },
@@ -658,7 +663,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                 names: {
                     'Activity observed': 'Has recorded activity',
                     'No activity observed; known dependency':
-                        'No recorded activity, used by a dashboard or schedule',
+                        'No recorded activity, still in use',
                     'No activity observed; coverage incomplete':
                         'No recorded activity',
                 },

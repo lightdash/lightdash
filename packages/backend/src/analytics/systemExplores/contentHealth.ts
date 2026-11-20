@@ -127,6 +127,20 @@ export const contentHealthMetrics: SystemMetricDefinition[] = [
             'Items in the latest inventory snapshot, including zero-event and soft-deleted items. Filter Is deleted to exclude removed content.',
     },
     {
+        name: 'total_enabled_schedules',
+        type: MetricType.SUM,
+        column: 'enabled_schedules',
+        description:
+            'Enabled scheduled deliveries that send the selected content. Current state, not history.',
+    },
+    {
+        name: 'total_dashboard_references',
+        type: MetricType.SUM,
+        column: 'dashboard_references',
+        description:
+            'Current dashboard tiles that show the selected content. Current state, not history.',
+    },
+    {
         name: 'total_observed_views',
         type: MetricType.SUM,
         column: 'observed_views',

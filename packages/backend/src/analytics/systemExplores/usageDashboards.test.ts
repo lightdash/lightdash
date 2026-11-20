@@ -65,7 +65,7 @@ describe('built-in usage dashboards', () => {
                     /_(chart|dashboard|content)_name$/.test(field),
                 ),
         );
-        expect(linked.map(({ slug }) => slug)).toHaveLength(9);
+        expect(linked.map(({ slug }) => slug)).toHaveLength(10);
         expect(
             linked.some(({ slug }) =>
                 slug.endsWith('-adoption-dashboard-audience'),

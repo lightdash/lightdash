@@ -259,15 +259,80 @@ export const contentChartSpecs: UsageChartSpec[] = [
             },
         },
     },
+    // One count for each activity status, above the list a reader opens to see the items
+    ...(
+        [
+            [
+                'content-with-activity',
+                'Has recorded activity',
+                'Activity observed',
+                'Charts, dashboards and data apps with at least one recorded view, query or load.',
+            ],
+            [
+                'content-without-activity-in-use',
+                'No recorded activity, still in use',
+                'No activity observed; known dependency',
+                'Content with no recorded activity that a dashboard tile or a switched-on schedule still uses.',
+            ],
+            [
+                'content-without-activity',
+                'No recorded activity',
+                'No activity observed; coverage incomplete',
+                'Content with no recorded activity and nothing known to use it, which is not proof it is safe to delete.',
+            ],
+        ] as const
+    ).map(
+        ([key, name, status, description]): UsageChartSpec => ({
+            key,
+            name,
+            description: `${description} ${allHistory}`,
+            explore: 'content_health',
+            dimensions: [],
+            metrics: ['content_health_total_content'],
+            filters: [
+                { field: 'content_health_activity_status', values: [status] },
+            ],
+            limit: 1,
+            sorts: [],
+            visualization: 'number',
+        }),
+    ),
     ranking({
-        key: 'content-by-activity-status',
-        name: 'Content by activity status',
-        description: `Charts, dashboards and data apps by whether they have any recorded activity. ${allHistory}`,
+        key: 'review-candidates-activity-and-known-dependencies',
+        name: 'Content to review, by activity status',
+        description: `Content with no recorded activity, with the schedules and dashboards that still use it. ${allHistory}`,
         explore: 'content_health',
         by: 'content_health_activity_status_name',
-        then: 'content_health_content_type_name',
-        metrics: ['content_health_total_content'],
-        libraryDescription: `Charts, dashboards and data apps by whether they have any recorded activity; open a status to see each type of content. ${allHistory}`,
+        then: 'content_health_content_name',
+        dimensions: [
+            'content_health_activity_status_name',
+            'content_health_content_name',
+            'content_health_content_type_name',
+            'content_health_is_deleted_name',
+            'content_health_content_id',
+            'content_health_project_id',
+        ],
+        metrics: [
+            'content_health_total_content',
+            'content_health_total_enabled_schedules',
+            'content_health_total_dashboard_references',
+        ],
+        filters: [
+            {
+                field: 'content_health_activity_status',
+                values: [
+                    'No activity observed; known dependency',
+                    'No activity observed; coverage incomplete',
+                ],
+            },
+        ],
+        limit: 200,
+        fieldLabels: {
+            content_health_total_content: 'Items',
+            content_health_total_enabled_schedules: 'Schedules switched on',
+            content_health_total_dashboard_references: 'Dashboards using it',
+        },
+        libraryDescription: `Content with no recorded activity, by status; open a status to see its items and what still uses them. ${allHistory}`,
     }),
     ranking({
         key: 'content-ownership-current-snapshot',
@@ -284,6 +349,42 @@ export const contentChartSpecs: UsageChartSpec[] = [
         visualization: 'bar',
         libraryDescription:
             'Content by the status of its owner; open a status to see each type of content. Owner status reflects current Lightdash membership, not whether the person is still employed.',
+    }),
+    ranking({
+        key: 'content-owners-needing-review',
+        name: 'Content with a missing or inactive owner',
+        description: `Content whose owner is deactivated, not a member, unknown or not set, most-viewed first. ${allHistory}`,
+        explore: 'content_health',
+        by: 'content_health_owner_status',
+        then: 'content_health_content_name',
+        dimensions: [
+            'content_health_owner_status',
+            'content_health_content_name',
+            'content_health_content_type_name',
+            'content_health_owner_name',
+            'content_health_last_viewed_at_day',
+            'content_health_content_id',
+            'content_health_project_id',
+        ],
+        metrics: [
+            'content_health_total_observed_views',
+            'content_health_total_content',
+        ],
+        filters: [
+            {
+                field: 'content_health_owner_status',
+                values: ['Active organization member'],
+                operator: FilterOperator.NOT_EQUALS,
+            },
+        ],
+        limit: 200,
+        fieldLabels: {
+            content_health_total_observed_views: 'Views',
+            content_health_total_content: 'Items',
+            content_health_owner_name: 'Owner',
+            content_health_last_viewed_at_day: 'Last viewed',
+        },
+        libraryDescription: `Content whose owner is deactivated, not a member, unknown or not set, by owner status; open a status to see its items, most-viewed first. ${allHistory}`,
     }),
     ranking({
         key: 'high-compute-dashboards-audience-versus-warehouse-time',
@@ -385,9 +486,11 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                     title: 'Content review',
                     description:
                         'No recorded activity is not proof that an item is safe to delete. Known dependencies are current dashboard tiles and enabled schedules.',
-                    charts: ['content-by-activity-status'],
-                    layout: 'row',
-                    rowHeight: 6,
+                    charts: [
+                        'content-with-activity',
+                        'content-without-activity-in-use',
+                        'content-without-activity',
+                    ],
                 },
                 {
                     title: 'Review candidates',
@@ -412,6 +515,14 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                     charts: ['content-ownership-current-snapshot'],
                     layout: 'row',
                     rowHeight: 7,
+                },
+                {
+                    title: 'Content to review',
+                    description: '',
+                    note: false,
+                    charts: ['content-owners-needing-review'],
+                    layout: 'row',
+                    rowHeight: 8,
                 },
                 {
                     title: 'Audience and execution time',

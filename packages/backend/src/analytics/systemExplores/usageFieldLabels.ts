@@ -46,6 +46,7 @@ export const usageFieldLabels: Record<string, string> = {
     content_health_enabled_schedules: 'Schedules switched on',
     content_health_dashboard_references: 'Dashboards using it',
     content_health_owner_status: 'Owner status',
+    content_health_content_name: 'Content',
     content_health_total_warehouse_execution_time_s: 'Warehouse time (s)',
     content_health_total_observed_queries: 'Queries',
     data_app_events_event_ts_day: 'Day',

@@ -838,40 +838,6 @@ export const usageChartSpecs: UsageChartSpec[] = [
         },
     },
     {
-        key: 'review-candidates-activity-and-known-dependencies',
-        name: 'Review candidates: activity and known dependencies',
-        description:
-            'Content with no recorded activity, with its known schedule and dashboard dependencies. Uses all recorded history; the date filter does not apply.',
-        explore: 'content_health',
-        dimensions: [
-            'content_health_content_name',
-            'content_health_content_type_name',
-            'content_health_activity_status_name',
-            'content_health_enabled_schedules',
-            'content_health_dashboard_references',
-            'content_health_is_deleted_name',
-            'content_health_content_id',
-            'content_health_project_id',
-        ],
-        metrics: ['content_health_total_content'],
-        limit: 50,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'content_health_total_content',
-            },
-        ],
-        filters: [
-            {
-                field: 'content_health_activity_status',
-                values: [
-                    'No activity observed; known dependency',
-                    'No activity observed; coverage incomplete',
-                ],
-            },
-        ],
-    },
-    {
         key: 'slow-dashboards-tail-latency-and-demand',
         name: 'Slow dashboards: P95 response time and queries',
         description: 'Queries and P95 response time for each dashboard.',
