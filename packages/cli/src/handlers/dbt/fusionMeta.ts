@@ -109,15 +109,18 @@ const getDroppedFields = (
         untraced: false,
         modelLevel: metric.dimensionReference === undefined,
     }));
-    return [...dimensions, ...metrics]
+    const lost = [...dimensions, ...metrics].filter(
+        ({ id }) => !nextIds.has(id),
+    );
+    const traced = lost.filter(
+        ({ column, modelLevel }) =>
+            column !== null || (modelLevel && model.modelMetaEmpty),
+    );
+    // untraced fields count only when a traced loss shows meta was dropped
+    return lost
         .filter(
-            ({ id, column, untraced, modelLevel }) =>
-                !nextIds.has(id) &&
-                (column !== null ||
-                    (untraced &&
-                        (model.modelMetaEmpty ||
-                            model.emptyMetaColumns.length > 0)) ||
-                    (modelLevel && model.modelMetaEmpty)),
+            (field) =>
+                traced.includes(field) || (field.untraced && traced.length > 0),
         )
         .map(({ id, column, untraced }) => ({ id, column, untraced }));
 };
@@ -151,10 +154,11 @@ export const getFusionMetaWarning = (
             ? `the model ${model.name}`
             : null,
     ].filter((subject) => subject !== null);
-    const subject =
-        subjects.length > 0 ? subjects.join(' and ') : 'their columns or model';
+    if (subjects.length > 0 && dropped.some(({ untraced }) => untraced)) {
+        subjects.push('other columns');
+    }
     const verb = subjects.length === 1 && columns.length <= 1 ? 'has' : 'have';
-    return `Warning: explore ${next.name} lost ${dropped.length} ${dropped.length === 1 ? 'field' : 'fields'} that the previous deploy had (${dropped.map(({ id }) => id).join(', ')}). This manifest was built by dbt ${dbtVersion}, which ignores top-level meta; ${subject} ${verb} none. Move their meta under config: meta: and recompile.`;
+    return `Warning: explore ${next.name} lost ${dropped.length} ${dropped.length === 1 ? 'field' : 'fields'} that the previous deploy had (${dropped.map(({ id }) => id).join(', ')}). This manifest was built by dbt ${dbtVersion}, which ignores top-level meta, so ${subjects.join(' and ')} ${verb} no meta. Move their meta under config: meta: and recompile.`;
 };
 
 export const getFusionMetaWarnings = async (

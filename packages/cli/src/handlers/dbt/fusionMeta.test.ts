@@ -129,7 +129,7 @@ describe('getFusionMetaWarning', () => {
                 emptyMetaColumns: ['close_date_str', 'amount'],
             }),
         ).toBe(
-            'Warning: explore m lost 6 fields that the previous deploy had (m_close_date_str_day, m_close_date_str_week, m_close_date_str_month, m_close_date_str_quarter, m_close_date_str_year, m_total_amount). This manifest was built by dbt 2.0.12, which ignores top-level meta; the columns close_date_str, amount have none. Move their meta under config: meta: and recompile.',
+            'Warning: explore m lost 6 fields that the previous deploy had (m_close_date_str_day, m_close_date_str_week, m_close_date_str_month, m_close_date_str_quarter, m_close_date_str_year, m_total_amount). This manifest was built by dbt 2.0.12, which ignores top-level meta, so the columns close_date_str, amount have no meta. Move their meta under config: meta: and recompile.',
         );
     });
 
@@ -151,16 +151,28 @@ describe('additional dimensions', () => {
     );
     const withoutBucket = explore([dimension('amount')], []);
 
-    it('warns when an additional dimension is lost and its model has empty meta', () => {
+    it('ignores a lost additional dimension when nothing traceable was lost', () => {
         expect(
             getFusionMetaWarning(withBucket, withoutBucket, '2.0.12', {
+                name: 'm',
+                modelMetaEmpty: true,
+                emptyMetaColumns: ['amount'],
+            }),
+        ).toBeNull();
+    });
+
+    it('mentions other columns when traced and untraced fields are mixed', () => {
+        const before = explore(
+            [dimension('amount'), dimension('amount_bucket', undefined, true)],
+            [metric('total_amount', 'm_amount')],
+        );
+        expect(
+            getFusionMetaWarning(before, withoutBucket, '2.0.12', {
                 name: 'm',
                 modelMetaEmpty: false,
                 emptyMetaColumns: ['amount'],
             }),
-        ).toBe(
-            'Warning: explore m lost 1 field that the previous deploy had (m_amount_bucket). This manifest was built by dbt 2.0.12, which ignores top-level meta; their columns or model have none. Move their meta under config: meta: and recompile.',
-        );
+        ).toContain(', so the column amount and other columns have no meta.');
     });
 
     it('ignores a lost additional dimension when all meta is present', () => {
