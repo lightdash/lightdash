@@ -56,8 +56,6 @@
 
 .compact {
     width: auto;
-    min-width: 0;
-    max-width: 100%;
     height: rem(30px);
     padding: 0 var(--mantine-spacing-xs);
     border-color: transparent;
@@ -75,8 +73,7 @@
 }
 
 .compact .label {
-    flex: 0 1 auto;
-    min-width: 0;
+    flex: none;
     width: auto;
     max-width: rem(140px);
     overflow: hidden;
@@ -93,8 +90,9 @@
     .mobileSettingsOption {
         display: flex;
     }
-}
 
-.chevron {
-    flex-shrink: 0;
+    /* Phones: the avatar alone stands for the agent */
+    .compact:not([data-auto]) .label {
+        display: none;
+    }
 }

@@ -50,7 +50,6 @@
 }
 
 .controlsReveal {
-    min-width: 0;
     transition:
         opacity 160ms ease,
         transform 160ms ease;

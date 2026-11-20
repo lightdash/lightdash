@@ -143,6 +143,9 @@ export const AgentSelector = ({
                     data-variant={variant}
                     data-open={opened ? 'true' : undefined}
                     data-auto={isAuto ? 'true' : undefined}
+                    aria-label={
+                        compact && !isAuto ? selectedAgent.name : undefined
+                    }
                 >
                     <Group gap={6} wrap="nowrap" align="center" w="100%">
                         {!isAuto && (
@@ -159,7 +162,6 @@ export const AgentSelector = ({
                             icon={IconChevronDown}
                             size="sm"
                             color="dimmed"
-                            className={styles.chevron}
                         />
                     </Group>
                 </UnstyledButton>
