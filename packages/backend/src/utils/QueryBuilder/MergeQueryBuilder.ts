@@ -5,6 +5,7 @@ import {
     MERGE_TABLE_NAME,
     mergeCalculationReferencePattern,
     MergeJoinType,
+    quoteFieldReference,
     type MergeFieldMeta,
     type MergeFieldTypes,
     type MergeJoinKeyPart,
@@ -161,11 +162,11 @@ export class MergeQueryBuilder {
     }
 
     private quote(identifier: string): string {
-        const quoteChar = this.warehouseSqlBuilder.getFieldQuoteChar();
-        return `${quoteChar}${identifier.replaceAll(
-            quoteChar,
-            `${quoteChar}${quoteChar}`,
-        )}${quoteChar}`;
+        return quoteFieldReference(
+            identifier,
+            this.warehouseSqlBuilder.getFieldQuoteChar(),
+            this.warehouseSqlBuilder.getAdapterType(),
+        );
     }
 
     private sourceColumn(sourceIndex: number, column: string): string {
