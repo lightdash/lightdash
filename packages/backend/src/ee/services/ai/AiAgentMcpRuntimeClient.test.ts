@@ -1488,6 +1488,7 @@ describe('resolveMcpTools', () => {
             tools: async () => ({
                 search_lightdash: {
                     inputSchema: jsonSchema({
+                        $schema: 'https://json-schema.org/draft/2020-12/schema',
                         type: 'object',
                         properties: { workspace: { type: 'string' } },
                         additionalProperties: false,
