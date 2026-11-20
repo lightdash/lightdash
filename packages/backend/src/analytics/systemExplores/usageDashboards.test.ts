@@ -488,7 +488,7 @@ describe('built-in usage dashboards', () => {
         }
     });
 
-    it('shows captured embed origin without splitting a viewer row or inventing an identity', async () => {
+    it('names embedded viewers apart from loads with no user, without inventing an identity', async () => {
         const instance = await DuckDBInstance.create(':memory:', {
             threads: '1',
             memory_limit: '128MB',
@@ -511,12 +511,22 @@ describe('built-in usage dashboards', () => {
             const rows = (
                 await db.runAndReadAll(compile(chart).query)
             ).getRowObjects();
-            expect(rows).toHaveLength(1);
-            expect(rows[0]).toMatchObject({
-                user_display_name: 'No user recorded',
-                data_app_events_activity_origin: 'App, Embed',
-                data_app_events_total_views: 3n,
-            });
+            // Two kinds of nobody: loads through an embed, and loads with no user at all
+            expect(rows).toHaveLength(2);
+            expect(rows).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        user_display_name: 'Embedded viewer',
+                        data_app_events_activity_origin: 'Embed',
+                        data_app_events_total_views: 2n,
+                    }),
+                    expect.objectContaining({
+                        user_display_name: 'No user recorded',
+                        data_app_events_activity_origin: 'App',
+                        data_app_events_total_views: 1n,
+                    }),
+                ]),
+            );
         } finally {
             db.closeSync();
             instance.closeSync();

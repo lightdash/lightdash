@@ -113,6 +113,28 @@ const dimensionFields = {
 
 // Shown in a plain-name field when nothing was recorded
 const notRecorded = 'Not recorded';
+// The field that says what kind of actor ran a query, where the activity records it
+const actorTypeColumn: Record<string, string> = {
+    query_events: 'initiating_actor_type',
+    semantic_usage: 'initiating_actor_type',
+};
+// What marks activity as coming from an embedded viewer, where the activity records it
+const embedEvidence: Record<
+    string,
+    (ref: (column: string) => string) => string
+> = {
+    query_events: (ref) =>
+        `(${ref('external_user_id')} IS NOT NULL OR ${ref('embed_token_fingerprint')} IS NOT NULL OR ${ref('context')} = 'embed')`,
+    semantic_usage: (ref) => `${ref('context')} = 'embed'`,
+    export_events: (ref) =>
+        `(${ref('external_user_id')} IS NOT NULL OR ${ref('embed_token_fingerprint')} IS NOT NULL)`,
+    ai_usage: (ref) =>
+        `(${ref('external_user_id')} IS NOT NULL OR ${ref('channel')} = 'embed')`,
+    content_reach: (ref) => `${ref('view_context')} = 'embed'`,
+    data_app_events: (ref) => `${ref('view_context')} = 'embed'`,
+    data_app_reach: (ref) => `${ref('view_context')} = 'embed'`,
+    data_app_outcomes: (ref) => `${ref('view_context')} = 'embed'`,
+};
 // Plain labels, by field name, for every explore
 const intervalLabels: Partial<Record<TimeFrames, string>> = {
     [TimeFrames.DAY]: 'Day',
@@ -1026,11 +1048,32 @@ export const createAnalyticsExplores = (): Explore[] => {
                 });
                 fields.org_id.hidden = true;
                 fields.name.label = dimensionFields[dimension].label;
+                // Names say who or what it was, as far as the activity records it. "Unknown" is kept for
+                // an ID that matches nothing in the snapshot; having no ID at all is said plainly.
+                // Downloads take their agent and project through the query they exported
+                const source =
+                    name === 'export_events' && dimension !== 'users'
+                        ? 'query_events'
+                        : name;
+                const ref = (column: string) => `\${${name}.${column}}`;
                 if (dimension === 'users') {
-                    // No user ID on the activity: nobody to name. An ID that matches no member of the
-                    // organization: Unknown user. A member who has been deactivated keeps their name,
-                    // marked, so their history does not turn anonymous when they leave.
-                    fields.name.sql = `CASE WHEN NULLIF(TRIM(\${${name}.user_id}), '') IS NULL THEN 'No user recorded' ELSE COALESCE(\${TABLE}.name, 'Unknown user') || CASE WHEN \${TABLE}.is_active = false AND \${TABLE}.name IS NOT NULL THEN ' (deactivated)' ELSE '' END END`;
+                    const noId = `NULLIF(TRIM(${ref('user_id')}), '') IS NULL`;
+                    const embedded = embedEvidence[name]?.(ref);
+                    const actor = actorTypeColumn[name]
+                        ? ref(actorTypeColumn[name])
+                        : null;
+                    const nobody = embedded
+                        ? `CASE WHEN ${embedded} THEN 'Embedded viewer' ELSE 'No user recorded' END`
+                        : "'No user recorded'";
+                    fields.name.sql = `CASE ${
+                        actor
+                            ? `WHEN ${actor} = 'service_account' THEN 'Service account ' || COALESCE(\${TABLE}.name, left(${ref('user_id')}, 8), '') WHEN ${actor} = 'anonymous' THEN ${
+                                  embedded
+                                      ? `CASE WHEN ${embedded} THEN 'Embedded viewer' ELSE 'Anonymous' END`
+                                      : "'Anonymous'"
+                              } `
+                            : ''
+                    }WHEN ${noId} THEN ${nobody} ELSE COALESCE(\${TABLE}.name, 'Unknown user') || CASE WHEN \${TABLE}.is_active = false AND \${TABLE}.name IS NOT NULL THEN ' (deactivated)' ELSE '' END END`;
                     // Read through the name; not a field of its own
                     fields.is_active.hidden = true;
                     fields.email.label = 'User email';
@@ -1038,11 +1081,9 @@ export const createAnalyticsExplores = (): Explore[] => {
                         'Current primary email at the latest user metadata refresh, not the email at event time. Unavailable emails are NULL.';
                 }
                 if (dimension === 'agents')
-                    fields.name.sql =
-                        "COALESCE(${TABLE}.name, 'Unknown agent')";
+                    fields.name.sql = `CASE WHEN \${${source}.agent_id} IS NULL THEN 'No agent' ELSE COALESCE(\${TABLE}.name, 'Unknown agent') END`;
                 if (dimension === 'projects')
-                    fields.name.sql =
-                        "COALESCE(${TABLE}.name, 'Unknown project')";
+                    fields.name.sql = `CASE WHEN \${${source}.project_id} IS NULL THEN 'No project' ELSE COALESCE(\${TABLE}.name, 'Unknown project') END`;
                 return [
                     tableName,
                     {

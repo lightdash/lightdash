@@ -91,7 +91,7 @@ const breakdowns: Breakdown[] = [
         ],
         identity:
             "datum.ai_usage_channel === 'embed' ? 'embedded-viewers' : datum.ai_usage_user_id || 'unattributed-user'",
-        label: "datum.ai_usage_channel === 'embed' ? 'Embedded viewers' : datum.ai_usage_user_id ? (datum.ai_usage_user_name || 'Unknown user') + ' · ' + substring(datum.ai_usage_user_id,0,6) : 'Unattributed user'",
+        label: "datum.ai_usage_channel === 'embed' ? 'Embedded viewers' : datum.ai_usage_user_id ? (datum.ai_usage_user_name || 'Unknown user') + ' · ' + substring(datum.ai_usage_user_id,0,6) : 'No user recorded'",
         billingScope: true,
     },
     {
@@ -99,7 +99,7 @@ const breakdowns: Breakdown[] = [
         title: 'Project',
         dimensions: ['ai_usage_project_name', 'ai_usage_project_id'],
         identity: "datum.ai_usage_project_id || 'unattributed-project'",
-        label: "datum.ai_usage_project_id ? datum.ai_usage_project_name && datum.ai_usage_project_name !== 'Unknown project' ? datum.ai_usage_project_name : 'Unknown project · ' + substring(datum.ai_usage_project_id,0,8) : 'Unattributed project'",
+        label: "datum.ai_usage_project_id ? datum.ai_usage_project_name && datum.ai_usage_project_name !== 'Unknown project' ? datum.ai_usage_project_name : 'Unknown project · ' + substring(datum.ai_usage_project_id,0,8) : 'No project'",
         billingScope: true,
     },
     {
@@ -107,7 +107,7 @@ const breakdowns: Breakdown[] = [
         title: 'Agent',
         dimensions: ['ai_usage_agent_name', 'ai_usage_agent_id'],
         identity: "datum.ai_usage_agent_id || 'unattributed-agent'",
-        label: "datum.ai_usage_agent_id ? (datum.ai_usage_agent_name || 'Unknown agent') + ' · ' + substring(datum.ai_usage_agent_id,0,6) : 'Unattributed agent'",
+        label: "datum.ai_usage_agent_id ? (datum.ai_usage_agent_name || 'Unknown agent') + ' · ' + substring(datum.ai_usage_agent_id,0,6) : 'No agent'",
         billingScope: true,
     },
     {
@@ -998,10 +998,10 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
         keys,
     });
     const attributionNotes: Record<string, string> = {
-        user: ' Embedded viewers are shown as one group. People who are unattributed or deleted are still shown. A short ID tells apart people with the same name.',
+        user: ' Embedded viewers are shown as one group. Usage with no person recorded is shown as No user recorded. A short ID tells apart people with the same name.',
         project:
             ' Project names are from the latest successful project snapshot. Projects with no name are still listed separately. Full UUIDs are in the tooltips and the attribution table.',
-        agent: ' Usage with no agent ID, including data app generation, is shown as Unattributed agent.',
+        agent: ' Usage with no agent, including data app generation, is shown as No agent. Unknown agent is an agent ID that matches no agent.',
         channel:
             ' Usage with no channel is shown as Unknown channel. The channel is not guessed from the feature.',
     };

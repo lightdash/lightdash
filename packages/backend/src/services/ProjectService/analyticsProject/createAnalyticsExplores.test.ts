@@ -88,7 +88,7 @@ describe('createAnalyticsExplores', () => {
                 // keeps their name, marked
                 const nameSql =
                     explore.tables.lightdash_users.dimensions.name.sql;
-                expect(nameSql).toContain("THEN 'No user recorded'");
+                expect(nameSql).toContain("'No user recorded'");
                 expect(nameSql).toContain(
                     "COALESCE(${TABLE}.name, 'Unknown user')",
                 );
