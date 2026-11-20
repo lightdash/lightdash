@@ -251,147 +251,149 @@ const AgentPage = () => {
     const newThreadHref = `/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`;
 
     return (
-        <AiAgentPageLayout
-            isEmbed={isEmbed}
-            setIsAgentSidebarCollapsed={setIsAgentSidebarCollapsed}
-            isAgentSidebarCollapsed={isAgentSidebarCollapsed}
-            SidebarHeader={
-                isEmbed ? undefined : <NewThreadButton to={newThreadHref} />
-            }
-            Sidebar={
-                isEmbed ? undefined : (
-                    <AgentSidebar
-                        agent={agent}
-                        projectUuid={projectUuid!}
-                        threadUuid={threadUuid}
-                    />
-                )
-            }
-            Header={
-                !isEmbed && agentsList && agentsList.length > 0 ? (
-                    <AgentPageHeader
-                        leftSection={
-                            <AgentSelector
-                                projectUuid={projectUuid!}
-                                agents={agentsList}
-                                selectedAgent={agent}
-                                variant="header"
-                                settingsHref={agentSettingsHref}
-                            />
-                        }
-                        onShare={
-                            thread &&
-                            isAiAppThreadCreatedFrom(thread.createdFrom)
-                                ? handleShare
-                                : undefined
-                        }
-                        isSharing={isCreatingShare}
-                        onOpenMemories={
-                            memoryEnabled
-                                ? () => setIsMemoriesModalOpen(true)
-                                : undefined
-                        }
-                        onMinimize={() => handleMinimize()}
-                        settingsHref={agentSettingsHref}
-                        newThreadHref={
-                            isAgentSidebarCollapsed && threadUuid
-                                ? newThreadHref
-                                : undefined
-                        }
-                    />
-                ) : undefined
-            }
-            MobileSidebarHeader={
-                !isEmbed && agentsList && agentsList.length > 0 ? (
-                    <AgentSelector
-                        projectUuid={projectUuid!}
-                        agents={agentsList}
-                        selectedAgent={agent}
-                        variant="drawer"
-                        settingsHref={agentSettingsHref}
-                    />
-                ) : undefined
-            }
-        >
+        <>
             <EmbedAgentContentEventsEmitter
                 projectUuid={projectUuid}
                 agentUuid={agentUuid}
                 threadUuid={threadUuid}
                 thread={thread}
             />
-            <MantineModal
-                opened={isShareModalOpen}
-                onClose={closeShareModal}
-                title="Share thread"
-                icon={IconShare2}
-                size={560}
-                cancelLabel={false}
-            >
-                <Stack gap="md">
-                    <Stack gap="xs">
-                        <Text size="sm">
-                            Anyone with the link and access to this AI agent can
-                            open this conversation as their own copy.
-                        </Text>
-                        <Text size="sm" c="dimmed">
-                            New messages you send later won't be included.
-                        </Text>
-                    </Stack>
-
-                    <Group
-                        wrap="nowrap"
-                        gap="sm"
-                        p="sm"
-                        className={styles.shareCopyBar}
-                    >
-                        <TextInput
-                            value={
-                                isCreatingShare
-                                    ? 'Creating link...'
-                                    : (shareUrl ?? '')
-                            }
-                            readOnly
-                            aria-label="Share link"
-                            variant="unstyled"
-                            className={styles.shareLinkInput}
-                        />
-                        {shareUrl && !isCreatingShare ? (
-                            <ShareLinkButton url={shareUrl} />
-                        ) : null}
-                    </Group>
-                </Stack>
-            </MantineModal>
-            <MyMemoriesModal
-                opened={isMemoriesModalOpen}
-                onClose={() => setIsMemoriesModalOpen(false)}
-                projectUuid={projectUuid!}
-            />
-            <GuidedTour
-                steps={MEMORY_TOUR_STEPS}
-                opened={shouldShowMemoryTour && hasMemories}
-                tracking={memoryTourTracking}
-                onClose={closeMemoryTour}
-                onStepChange={(stepIndex) =>
-                    setIsMemoriesModalOpen(stepIndex === 1)
+            <AiAgentPageLayout
+                isEmbed={isEmbed}
+                setIsAgentSidebarCollapsed={setIsAgentSidebarCollapsed}
+                isAgentSidebarCollapsed={isAgentSidebarCollapsed}
+                SidebarHeader={
+                    isEmbed ? undefined : <NewThreadButton to={newThreadHref} />
                 }
-            />
-            <AiThreadChartEditorModal
-                chartUuid={editChartUuid}
-                projectUuid={projectUuid}
-                onClose={() => setEditChartUuid(null)}
-            />
-            <AiThreadChartEditContext.Provider
-                value={isEmbed ? undefined : openChartEditor}
+                Sidebar={
+                    isEmbed ? undefined : (
+                        <AgentSidebar
+                            agent={agent}
+                            projectUuid={projectUuid!}
+                            threadUuid={threadUuid}
+                        />
+                    )
+                }
+                Header={
+                    !isEmbed && agentsList && agentsList.length > 0 ? (
+                        <AgentPageHeader
+                            leftSection={
+                                <AgentSelector
+                                    projectUuid={projectUuid!}
+                                    agents={agentsList}
+                                    selectedAgent={agent}
+                                    variant="header"
+                                    settingsHref={agentSettingsHref}
+                                />
+                            }
+                            onShare={
+                                thread &&
+                                isAiAppThreadCreatedFrom(thread.createdFrom)
+                                    ? handleShare
+                                    : undefined
+                            }
+                            isSharing={isCreatingShare}
+                            onOpenMemories={
+                                memoryEnabled
+                                    ? () => setIsMemoriesModalOpen(true)
+                                    : undefined
+                            }
+                            onMinimize={() => handleMinimize()}
+                            settingsHref={agentSettingsHref}
+                            newThreadHref={
+                                isAgentSidebarCollapsed && threadUuid
+                                    ? newThreadHref
+                                    : undefined
+                            }
+                        />
+                    ) : undefined
+                }
+                MobileSidebarHeader={
+                    !isEmbed && agentsList && agentsList.length > 0 ? (
+                        <AgentSelector
+                            projectUuid={projectUuid!}
+                            agents={agentsList}
+                            selectedAgent={agent}
+                            variant="drawer"
+                            settingsHref={agentSettingsHref}
+                        />
+                    ) : undefined
+                }
             >
-                <Outlet
-                    context={{
-                        agent,
-                        agents: agentsList ?? [],
-                        navigateFromAgentChat: handleMinimize,
-                    }}
+                <MantineModal
+                    opened={isShareModalOpen}
+                    onClose={closeShareModal}
+                    title="Share thread"
+                    icon={IconShare2}
+                    size={560}
+                    cancelLabel={false}
+                >
+                    <Stack gap="md">
+                        <Stack gap="xs">
+                            <Text size="sm">
+                                Anyone with the link and access to this AI agent
+                                can open this conversation as their own copy.
+                            </Text>
+                            <Text size="sm" c="dimmed">
+                                New messages you send later won't be included.
+                            </Text>
+                        </Stack>
+
+                        <Group
+                            wrap="nowrap"
+                            gap="sm"
+                            p="sm"
+                            className={styles.shareCopyBar}
+                        >
+                            <TextInput
+                                value={
+                                    isCreatingShare
+                                        ? 'Creating link...'
+                                        : (shareUrl ?? '')
+                                }
+                                readOnly
+                                aria-label="Share link"
+                                variant="unstyled"
+                                className={styles.shareLinkInput}
+                            />
+                            {shareUrl && !isCreatingShare ? (
+                                <ShareLinkButton url={shareUrl} />
+                            ) : null}
+                        </Group>
+                    </Stack>
+                </MantineModal>
+                <MyMemoriesModal
+                    opened={isMemoriesModalOpen}
+                    onClose={() => setIsMemoriesModalOpen(false)}
+                    projectUuid={projectUuid!}
                 />
-            </AiThreadChartEditContext.Provider>
-        </AiAgentPageLayout>
+                <GuidedTour
+                    steps={MEMORY_TOUR_STEPS}
+                    opened={shouldShowMemoryTour && hasMemories}
+                    tracking={memoryTourTracking}
+                    onClose={closeMemoryTour}
+                    onStepChange={(stepIndex) =>
+                        setIsMemoriesModalOpen(stepIndex === 1)
+                    }
+                />
+                <AiThreadChartEditorModal
+                    chartUuid={editChartUuid}
+                    projectUuid={projectUuid}
+                    onClose={() => setEditChartUuid(null)}
+                />
+                <AiThreadChartEditContext.Provider
+                    value={isEmbed ? undefined : openChartEditor}
+                >
+                    <Outlet
+                        context={{
+                            agent,
+                            agents: agentsList ?? [],
+                            navigateFromAgentChat: handleMinimize,
+                        }}
+                    />
+                </AiThreadChartEditContext.Provider>
+            </AiAgentPageLayout>
+        </>
     );
 };
 
