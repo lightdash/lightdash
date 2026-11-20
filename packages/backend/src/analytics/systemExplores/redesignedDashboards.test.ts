@@ -1030,9 +1030,24 @@ describe.each(Object.entries(redesigned))('%s', (slug, tabs) => {
                     density: 'compact',
                     showMiniBars: true,
                 });
-                expect(query?.sorts).toEqual([
-                    { fieldId: first, descending: true },
-                ]);
+                // A table grouped by two names takes whole groups first, largest group first
+                expect(query?.sorts.at(-1)).toEqual({
+                    fieldId: first,
+                    descending: true,
+                });
+                expect(query?.sorts.slice(0, -1)).toEqual(
+                    query?.tableCalculations?.some(
+                        ({ name }) => name === 'group_total',
+                    )
+                        ? [
+                              { fieldId: 'group_total', descending: true },
+                              {
+                                  fieldId: fieldMapping.rowDimension,
+                                  descending: false,
+                              },
+                          ]
+                        : [],
+                );
                 if (fieldMapping.rowDimension2)
                     expect(optionValues.defaultCollapsed).toBe('collapsed');
                 // Plain headers: one name for the row header and one for each measure
@@ -1899,5 +1914,87 @@ describe('top categories', () => {
             instance.closeSync();
         }
         expect(compactedStreamSchemas).toBeDefined();
+    });
+});
+
+describe('totals of a table grouped by two names', () => {
+    it('asks for whole groups, largest first, so a short row limit never leaves a group short', async () => {
+        const all = analyticsContentAsCode.flatMap((bundle) => bundle.charts);
+        const { charts: drawn } = withLibraryCharts(
+            all,
+            analyticsLibraryChartBindings,
+            installedTypes(),
+        );
+        const chart = drawn.find(
+            ({ slug }) =>
+                slug ===
+                'lightdash-analytics-adoption-adoption-app-reader-detail',
+        )!;
+        expect(chart.metricQuery.sorts.map(({ fieldId }) => fieldId)).toEqual([
+            'group_total',
+            'data_app_reach_app_name',
+            'data_app_reach_total_loads',
+        ]);
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            const { usageDimensionSchemas } =
+                await import('../eventStream/usageDimensions');
+            const { contentInventoryColumns } =
+                await import('../eventStream/contentInventory');
+            await db.run(
+                `CREATE TABLE data_app_events (${compactedStreamSchemas.data_app_events.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            await db.run(
+                `CREATE TABLE lightdash_users (${usageDimensionSchemas.users.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            await db.run(
+                `CREATE TABLE lightdash_content (${contentInventoryColumns.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            // Small has one busy person; Big has four people with fewer loads each but more in all
+            const loads: [string, string, number][] = [
+                ['small', 'zed', 5],
+                ['big', 'ann', 4],
+                ['big', 'bob', 3],
+                ['big', 'cat', 2],
+                ['big', 'dan', 1],
+            ];
+            for (const [, person] of loads)
+                await db.run(
+                    `INSERT INTO lightdash_users (org_id,user_id,name) VALUES ('org','${person}','${person}')`,
+                );
+            for (const [app, person, count] of loads)
+                for (let load = 0; load < count; load += 1)
+                    await db.run(
+                        `INSERT INTO data_app_events (org_id,project_id,app_id,user_id,event_name,view_context,event_ts)
+                         VALUES ('org','project','${app}','${person}','data_app.view','standalone',CURRENT_TIMESTAMP)`,
+                    );
+            // Four rows fit: by loads alone that would be Small and three of Big's four people
+            const rows = (
+                await db.runAndReadAll(
+                    sqlOf({
+                        ...chart,
+                        metricQuery: { ...chart.metricQuery, limit: 4 },
+                    }),
+                )
+            ).getRowObjectsJS();
+            expect(
+                rows.map((row) => [
+                    row.data_app_reach_app_name,
+                    Number(row.data_app_reach_total_loads),
+                ]),
+            ).toEqual([
+                ['big', 4],
+                ['big', 3],
+                ['big', 2],
+                ['big', 1],
+            ]);
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
     });
 });

@@ -1,3 +1,4 @@
+import { TableCalculationType } from '@lightdash/common';
 import type { LibraryChartBinding } from './libraryCharts';
 import type { UsageChartSpec } from './usageDashboardTypes';
 import { usageFieldLabels } from './usageFieldLabels';
@@ -370,6 +371,23 @@ export const ranking = ({
         extraMetrics?: string[];
     }): UsageChartSpec => {
     const grouped = [by, ...(then ? [then] : []), ...(series ? [series] : [])];
+    // A table grouped by two names adds up the rows under each first name. Rows are asked for a
+    // whole group at a time, largest group first, so when the row limit cuts the list it drops small
+    // groups and every group shown has all of its rows: its total is the true total.
+    const tableOf = (field: string) =>
+        [spec.explore, 'content_health', 'agent_requests'].find((table) =>
+            field.startsWith(`${table}_`),
+        );
+    const table = tableOf(metrics[0]);
+    const groupTotal =
+        then && !series && table && tableOf(by) === table
+            ? {
+                  name: 'group_total',
+                  displayName: 'Group total',
+                  type: TableCalculationType.NUMBER,
+                  sql: `SUM(\${${table}.${metrics[0].slice(table.length + 1)}}) OVER (PARTITION BY \${${table}.${by.slice(table.length + 1)}})`,
+              }
+            : undefined;
     // The table takes its headers from these names, not from the field labels of the explore
     const labelOf = (field: string) => {
         const label = spec.fieldLabels?.[field] ?? usageFieldLabels[field];
@@ -409,7 +427,16 @@ export const ranking = ({
             query: {
                 dimensions: grouped,
                 metrics,
-                sorts: [{ fieldId: metrics[0], descending: true }],
+                ...(groupTotal ? { tableCalculations: [groupTotal] } : {}),
+                sorts: [
+                    ...(groupTotal
+                        ? [
+                              { fieldId: groupTotal.name, descending: true },
+                              { fieldId: by, descending: false },
+                          ]
+                        : []),
+                    { fieldId: metrics[0], descending: true },
+                ],
                 // A group's total adds up the rows under it, so a table grouped by two names asks for
                 // every row it can: a short list would leave the totals short of the same count elsewhere
                 limit: libraryLimit ?? (then ? 5000 : 500),

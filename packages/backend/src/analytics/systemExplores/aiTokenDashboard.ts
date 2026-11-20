@@ -557,7 +557,7 @@ const visualSpec = (
         ...(daily
             ? [
                   {
-                      calculate: `utcFormat(toDate(datum.${day}), '%d %b %Y')`,
+                      calculate: `utcFormat(toDate(datum.${day}), '%b %-d, %Y')`,
                       as: 'utc_day_label',
                   },
               ]
@@ -641,7 +641,7 @@ const visualSpec = (
                             timeUnit: 'utcyearmonthdate',
                             axis: {
                                 title: null,
-                                format: '%d %b',
+                                format: '%b %-d',
                                 labelAngle: 0,
                                 tickCount: {
                                     expr: 'max(3, floor(width / 90))',
