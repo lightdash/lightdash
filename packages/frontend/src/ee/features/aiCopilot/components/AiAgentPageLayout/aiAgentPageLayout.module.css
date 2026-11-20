@@ -113,6 +113,11 @@
     }
 }
 
+/* Beside the left navigation sidebar, dividers only show while in use. */
+:global([data-left-navigation]) .resizeHandle:not(:hover, [data-active]) {
+    background-color: transparent;
+}
+
 .artifact {
     box-shadow: var(--mantine-shadow-lg);
 }

@@ -1,8 +1,25 @@
 .sidebar {
+    /* The stock hover fill is an opaque gray that vanishes on this background. */
+    --mantine-color-default-hover: light-dark(
+        rgb(24 24 27 / 0.05),
+        rgb(236 236 238 / 0.07)
+    );
+
+    background-color: var(--ld-color-sidebar);
+}
+
+.content {
+    display: flex;
+    flex-direction: column;
     gap: var(--mantine-spacing-md);
+    height: 100%;
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-xs);
-    overflow-y: auto;
-    background-color: var(--ld-color-page);
+    overflow: hidden auto;
+}
+
+.header {
+    display: flex;
+    padding-inline: rem(2px);
 }
 
 .sectionLabel {
@@ -10,7 +27,121 @@
     margin-bottom: rem(4px);
     font-size: var(--mantine-font-size-xs);
     font-weight: 500;
+    white-space: nowrap;
     color: var(--mantine-color-dimmed);
+}
+
+/* Labels are hidden in the rail and fade back in when it expands. Collapsing
+   has no transition: the rail clips them at once. */
+.sidebar[data-collapsed='true'] :is(.sectionLabel, .itemLabel) {
+    opacity: 0;
+    transform: translateX(rem(-4px));
+}
+
+.sidebar[data-collapsed='false'][data-animated='true']
+    :is(.sectionLabel, .itemLabel) {
+    transition:
+        opacity 200ms cubic-bezier(0.23, 1, 0.32, 1),
+        transform 200ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar :is(.sectionLabel, .itemLabel) {
+        transform: none;
+    }
+}
+
+.sidebar[data-collapsed='true'] .item {
+    width: rem(32px);
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+/* The page reads as a card set into the sidebar's gray. It scrolls with the
+   window, so its rounded corners are painted over it in the sidebar color
+   and stay put. Dark mode adds a hairline along the edge, where the two
+   grays are too close to separate the surfaces on their own. */
+.shell[data-rounded-page='true']::before {
+    --app-page-radius: rem(12px);
+    --app-page-border: light-dark(transparent, rgb(236 236 238 / 0.07));
+    --app-page-corner-stops:
+        transparent calc(var(--app-page-radius) - 1px),
+        var(--app-page-border) calc(var(--app-page-radius) - 1px),
+        var(--app-page-border) var(--app-page-radius),
+        var(--ld-color-sidebar) var(--app-page-radius);
+
+    content: '';
+    position: fixed;
+    top: var(--app-shell-header-offset, 0rem);
+    bottom: 0;
+    left: var(--app-shell-navbar-offset, 0rem);
+    z-index: calc(var(--mantine-z-index-app) + 20);
+    width: var(--app-page-radius);
+    pointer-events: none;
+    background:
+        radial-gradient(circle at 100% 100%, var(--app-page-corner-stops)) top /
+            100% var(--app-page-radius) no-repeat,
+        radial-gradient(circle at 100% 0%, var(--app-page-corner-stops))
+            bottom / 100% var(--app-page-radius) no-repeat,
+        linear-gradient(var(--app-page-border), var(--app-page-border)) left
+            center / 1px calc(100% - 2 * var(--app-page-radius)) no-repeat;
+}
+
+/* While the edge is dragged, the shell previews the dragged width inline. Once
+   the drag has collapsed the sidebar, the rail's width has to win over it. */
+.shell[data-sidebar-collapsed='true'][data-rounded-page='true'] {
+    --app-shell-navbar-width: var(--app-sidebar-rail-width) !important;
+    --app-shell-navbar-offset: var(--app-sidebar-rail-width) !important;
+}
+
+/* The sidebar has no border: its edge only shows as a line while the pointer
+   is on it, it is being dragged, or it has keyboard focus. */
+.resizeHandle {
+    outline: none;
+}
+
+.resizeHandle::after {
+    content: '';
+    position: absolute;
+    /* Fades out well before the page's rounded corners. */
+    inset-block: rem(48px);
+    left: calc(50% - rem(1px));
+    width: rem(2px);
+    background: linear-gradient(
+        to bottom,
+        transparent,
+        var(--mantine-color-ldGray-3) 35%,
+        var(--mantine-color-ldGray-3) 65%,
+        transparent
+    );
+    opacity: 0;
+    transform: scaleY(0.9);
+    transition:
+        opacity 100ms ease,
+        transform 100ms ease;
+}
+
+.resizeHandle:is([data-active], :focus-visible)::after {
+    opacity: 1;
+    transform: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .resizeHandle:hover::after {
+        opacity: 1;
+        transform: none;
+        /* The delay keeps the line from flashing when the pointer only
+           crosses the edge. */
+        transition:
+            opacity 160ms ease 80ms,
+            transform 200ms cubic-bezier(0.23, 1, 0.32, 1) 80ms;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .resizeHandle::after {
+        transform: none;
+    }
 }
 
 /* Pages and portalled overlays size themselves from the navbar height, and
