@@ -219,6 +219,7 @@ beforeEach(() => {
     vi.mocked(compileProject).mockResolvedValue({
         explores: [],
         isProjectComplete: true,
+        fusionEmptyMeta: null,
     });
     vi.spyOn(console, 'error').mockImplementation(() => {});
     spinner = ora();

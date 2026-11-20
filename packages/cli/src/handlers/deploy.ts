@@ -8,6 +8,7 @@ import {
     friendlyName,
     getErrorMessage,
     getWarehouseLocation,
+    isExploreError,
     LightdashError,
     ParseError,
     Project,
@@ -54,6 +55,7 @@ import {
     setGzipEnabled,
 } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
+import { getFusionMetaWarnings, type FusionEmptyMeta } from './dbt/fusionMeta';
 import { tryGetDbtVersion } from './dbt/getDbtVersion';
 import {
     logSelectedProject,
@@ -91,6 +93,7 @@ type DeployArgs = DeployHandlerOptions & {
     dbtModelNames?: string[];
     sourceUuid?: string;
     deployTarget?: DeployTarget;
+    fusionEmptyMeta?: FusionEmptyMeta | null;
 };
 
 const deployDestinationQuery = (options: DeployArgs): string =>
@@ -536,6 +539,15 @@ export const deploy = async (
     }
 
     const deployableExplores = explores.map(stripWarehouseColumnErrors);
+    const fusionMetaWarnings = options.fusionEmptyMeta
+        ? await getFusionMetaWarnings(
+              options.projectUuid,
+              deployableExplores.filter(
+                  (explore): explore is Explore => !isExploreError(explore),
+              ),
+              options.fusionEmptyMeta,
+          )
+        : [];
 
     const lightdashProjectConfig = await readAndLoadLightdashProjectConfig(
         path.resolve(options.projectDir),
@@ -647,6 +659,9 @@ export const deploy = async (
             options.projectUuid,
             path.resolve(options.projectDir),
         ),
+    );
+    fusionMetaWarnings.forEach((warning) =>
+        console.error(styles.warning(warning)),
     );
 };
 
@@ -855,7 +870,7 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         connectionRoute = projectSettings.connectionRoute;
     }
 
-    const { explores, isProjectComplete, dbtModelNames } =
+    const { explores, isProjectComplete, dbtModelNames, fusionEmptyMeta } =
         await compileProject(options);
 
     let projectUuid: string;
@@ -895,6 +910,7 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         projectUuid,
         complete: isProjectComplete,
         dbtModelNames,
+        fusionEmptyMeta,
         sourceUuid,
         deployTarget: await getDeployTarget(
             options,
