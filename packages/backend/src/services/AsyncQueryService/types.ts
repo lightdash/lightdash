@@ -78,6 +78,11 @@ export type QueryRunAuthority =
     | DocumentAuthority
     | ComposerAuthority
     | MergedChartAuthority;
+/** Authorities a merge can run under; a composer merge node runs as its own source. */
+export type MergeRunAuthority =
+    | RequestAuthority
+    | DocumentAuthority
+    | MergedChartAuthority;
 
 export const REQUEST_AUTHORITY: RequestAuthority = { kind: 'request' };
 
@@ -311,7 +316,7 @@ export type ExecuteAsyncExternalSqlQueryArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
-    authority?: RequestAuthority | DocumentAuthority | MergedChartAuthority;
+    authority?: MergeRunAuthority;
     mergeQuery: MergeQuery;
     mode: MergeQueryExecutionMode;
     chart?: MergeQueryChart;

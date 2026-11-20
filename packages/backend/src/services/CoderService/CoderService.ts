@@ -470,23 +470,23 @@ export class CoderService extends BaseService {
         }
         const saved = await getSavedChart();
         // Each merge source is checked against its own explore and saved source
-        const queries = [
+        const sourceChecks = [
             {
                 exploreName: chart.metricQuery.exploreName,
                 additionalMetrics: chart.metricQuery.additionalMetrics ?? [],
                 savedAdditionalMetrics:
                     saved?.metricQuery.additionalMetrics ?? [],
             },
-            ...(merge ? getMergeSourcePairs(merge, saved?.merge) : []).map(
-                (source) => ({
-                    exploreName: source.next.explore,
-                    additionalMetrics: source.next.additionalMetrics ?? [],
-                    savedAdditionalMetrics:
-                        source.saved?.additionalMetrics ?? [],
-                }),
-            ),
+            ...(merge
+                ? getMergeSourcePairs(merge, saved?.merge ?? null)
+                : []
+            ).map((source) => ({
+                exploreName: source.next.explore,
+                additionalMetrics: source.next.additionalMetrics ?? [],
+                savedAdditionalMetrics: source.saved?.additionalMetrics ?? [],
+            })),
         ];
-        for (const query of queries) {
+        for (const query of sourceChecks) {
             if (query.additionalMetrics.length > 0) {
                 const needingPermission =
                     // eslint-disable-next-line no-await-in-loop -- the first refusal stops

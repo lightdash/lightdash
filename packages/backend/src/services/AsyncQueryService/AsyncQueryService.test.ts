@@ -7550,36 +7550,64 @@ describe('AsyncQueryService', () => {
             );
         });
 
-        test("runs a merged chart's leg without the custom SQL check", async () => {
-            const service = getMockedAsyncQueryService(lightdashConfigMock);
-            const assertCustomSqlAuthorizedForQuery = vi.spyOn(
-                service as AnyType,
-                'assertCustomSqlAuthorizedForQuery',
-            );
-            const run = vi
-                .spyOn(
+        test.each(['viewer', 'other account'] as const)(
+            "runs a merged chart's leg for its %s only",
+            async (runner) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                vi.spyOn(
+                    service as AnyType,
+                    'createAuditedAbility',
+                ).mockReturnValue({ can: () => false, cannot: () => true });
+                vi.spyOn(
                     service as AnyType,
                     'runAsyncMetricQueryWithoutPermissionCheck',
-                )
-                .mockResolvedValue({ queryUuid: 'query-uuid' });
+                ).mockResolvedValue({ queryUuid: 'query-uuid' });
+                const metricQuery: MetricQuery = {
+                    ...metricQueryMock,
+                    customDimensions: [
+                        {
+                            type: CustomDimensionType.SQL,
+                            id: 'source_sql',
+                            name: 'Source SQL',
+                            table: 'a',
+                            dimensionType: DimensionType.STRING,
+                            sql: "'hand-written'",
+                        },
+                    ],
+                };
+                const run = MergedChartRun.fromLoadedChart({
+                    account:
+                        runner === 'viewer'
+                            ? sessionAccount
+                            : ({
+                                  ...sessionAccount,
+                                  user: { ...sessionAccount.user, id: 'other' },
+                              } as AnyType),
+                    savedChart: { uuid: 'chart-uuid', projectUuid },
+                });
+                const args = {
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery,
+                    context: QueryExecutionContext.DASHBOARD,
+                };
 
-            await service.executeAsyncMetricQuery({
-                authority: {
-                    kind: 'mergedChart',
-                    run: MergedChartRun.fromLoadedChart({
-                        account: sessionAccount,
-                        savedChart: { uuid: 'chart-uuid', projectUuid },
-                    }),
-                },
-                account: sessionAccount,
-                projectUuid,
-                metricQuery: metricQueryMock,
-                context: QueryExecutionContext.DASHBOARD,
-            });
-
-            expect(assertCustomSqlAuthorizedForQuery).not.toHaveBeenCalled();
-            expect(run).toHaveBeenCalledOnce();
-        });
+                await expect(
+                    service.executeAsyncMetricQuery(args),
+                ).rejects.toThrow(ForbiddenError);
+                const merged = service.executeAsyncMetricQuery({
+                    ...args,
+                    authority: { kind: 'mergedChart', run },
+                });
+                if (runner === 'viewer') {
+                    await expect(merged).resolves.toEqual({
+                        queryUuid: 'query-uuid',
+                    });
+                } else {
+                    await expect(merged).rejects.toThrow(ForbiddenError);
+                }
+            },
+        );
 
         test.each([true, false])(
             'uses data app authorization only without Explore access (has Explore: %s)',
@@ -17539,10 +17567,7 @@ describe('AsyncQueryService', () => {
             });
 
             expect(mergeSpy).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    pivotConfiguration,
-                    authority: expect.objectContaining({ kind: 'mergedChart' }),
-                }),
+                expect.objectContaining({ pivotConfiguration }),
             );
         });
 

@@ -251,7 +251,7 @@ describe('SavedChartService.create into a dashboard', () => {
                 merge,
             }),
         ).rejects.toThrow(
-            'User cannot save merged queries with new or modified custom SQL dimensions',
+            'User cannot save merge sources with new or modified custom SQL dimensions',
         );
         expect(savedChartModel.create).not.toHaveBeenCalled();
     });

@@ -1178,8 +1178,8 @@ export class SavedChartService
             account,
             auditedAbility,
             projectContext,
-            saved.merge,
-            next.merge,
+            saved.merge ?? null,
+            next.merge ?? null,
         );
     }
 
@@ -1192,8 +1192,8 @@ export class SavedChartService
             projectUuid: string;
             metadata?: { savedChartUuid: string };
         },
-        saved: SavedMergeDefinition | null | undefined,
-        next: SavedMergeDefinition | null | undefined,
+        saved: SavedMergeDefinition | null,
+        next: SavedMergeDefinition | null,
     ): Promise<void> {
         if (!next || isEqual(next, saved)) return;
         const sources = getMergeSourcePairs(next, saved);
@@ -1212,7 +1212,7 @@ export class SavedChartService
             )
         ) {
             throw new ForbiddenError(
-                'User cannot save merged queries with new or modified custom SQL dimensions',
+                'User cannot save merge sources with new or modified custom SQL dimensions',
             );
         }
 
@@ -1234,7 +1234,7 @@ export class SavedChartService
             )
         ) {
             throw new ForbiddenError(
-                'User cannot save merged queries with new or modified SQL table calculations',
+                'User cannot save merged charts with new or modified SQL table calculations',
             );
         }
 

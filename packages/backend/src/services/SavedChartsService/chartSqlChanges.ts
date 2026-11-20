@@ -7,7 +7,6 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 
-/** Ids of custom SQL dimensions `next` adds or whose SQL it changes over `saved`. */
 export const getChangedCustomSqlDimensionIds = (
     next: CustomDimension[] | undefined,
     saved: CustomDimension[] | undefined,
@@ -21,7 +20,6 @@ export const getChangedCustomSqlDimensionIds = (
         .map(({ id }) => id);
 };
 
-/** Names of SQL table calculations `next` adds or whose SQL it changes over `saved`. */
 export const getChangedSqlTableCalculationNames = (
     next: TableCalculation[] | undefined,
     saved: TableCalculation[] | undefined,
@@ -37,7 +35,7 @@ export const getChangedSqlTableCalculationNames = (
 
 /** Merge table calculations written in SQL; formulas need no SQL permission. */
 export const getMergeSqlTableCalculations = (
-    merge: SavedMergeDefinition | null | undefined,
+    merge: SavedMergeDefinition | null,
 ): TableCalculation[] =>
     (merge?.tableCalculations ?? [])
         .filter((calculation) => !calculation.formula)
@@ -46,18 +44,17 @@ export const getMergeSqlTableCalculations = (
 /** Each source of `next`, beside the saved source of the same name and explore, if any. */
 export const getMergeSourcePairs = (
     next: SavedMergeDefinition,
-    saved: SavedMergeDefinition | null | undefined,
+    saved: SavedMergeDefinition | null,
 ): {
     name: string;
     next: SavedMergeDefinitionQuery;
-    saved: SavedMergeDefinitionQuery | undefined;
+    saved: SavedMergeDefinitionQuery | null;
 }[] =>
     Object.entries(next.queries).map(([name, query]) => {
         const savedQuery = saved?.queries[name];
         return {
             name,
             next: query,
-            saved:
-                savedQuery?.explore === query.explore ? savedQuery : undefined,
+            saved: savedQuery?.explore === query.explore ? savedQuery : null,
         };
     });

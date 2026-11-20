@@ -578,7 +578,7 @@ import {
     type ExecuteAsyncSqlChartArgs,
     type ExecuteAsyncUnderlyingDataQueryArgs,
     type GetAsyncQueryResultsArgs,
-    type MergedChartAuthority,
+    type MergeRunAuthority,
     type PollingOptions,
     type PreAggregateExecutionEngine,
     type PreAggregationRoute,
@@ -8154,8 +8154,12 @@ export class AsyncQueryService extends ProjectService {
                     organizationUuid,
                 );
             case 'mergedChart':
+                // Checked at save as a plain tile is; like a plain tile, no view-Explore check
                 authority.run.assertExecution(account, projectUuid);
-                break;
+                return this.runAsyncMetricQueryWithoutPermissionCheck(
+                    args,
+                    organizationUuid,
+                );
             case 'request':
                 break;
             default:
@@ -8198,18 +8202,15 @@ export class AsyncQueryService extends ProjectService {
             });
         }
 
-        // A merged chart's source SQL was checked at save, as a plain chart's is
-        if (authority.kind === 'request') {
-            await this.assertCustomSqlAuthorizedForQuery({
-                account,
-                projectUuid,
-                organizationUuid,
-                exploreName: inputMetricQuery.exploreName,
-                metricQuery: inputMetricQuery,
-                dataAppPreviewToken: args.dataAppPreviewToken,
-                customSqlProvenanceChartUuid: args.customSqlProvenanceChartUuid,
-            });
-        }
+        await this.assertCustomSqlAuthorizedForQuery({
+            account,
+            projectUuid,
+            organizationUuid,
+            exploreName: inputMetricQuery.exploreName,
+            metricQuery: inputMetricQuery,
+            dataAppPreviewToken: args.dataAppPreviewToken,
+            customSqlProvenanceChartUuid: args.customSqlProvenanceChartUuid,
+        });
 
         return this.runAsyncMetricQueryWithoutPermissionCheck(
             args,
@@ -15845,7 +15846,7 @@ export class AsyncQueryService extends ProjectService {
         compiledMerge,
         authority,
     }: {
-        authority: RequestAuthority | DocumentAuthority | MergedChartAuthority;
+        authority: MergeRunAuthority;
         account: Account;
         projectUuid: string;
         organizationUuid: string;

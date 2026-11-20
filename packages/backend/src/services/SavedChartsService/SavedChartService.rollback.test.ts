@@ -257,7 +257,7 @@ describe('restoring a merged chart version', () => {
                 'old-version',
             ),
         ).rejects.toThrow(
-            'User cannot save merged queries with new or modified custom SQL dimensions',
+            'User cannot save merge sources with new or modified custom SQL dimensions',
         );
         expect(savedChartModel.createVersion).not.toHaveBeenCalled();
     });

@@ -38,7 +38,7 @@ export const getChartContentAsCodePermissionChecks = (
     const nextMerge = nextChart.merge ?? null;
     // Each merge source is held to the chart's own rules; its items are named `source.item`
     const mergeSources = nextMerge
-        ? getMergeSourcePairs(nextMerge, currentChart?.merge)
+        ? getMergeSourcePairs(nextMerge, currentChart?.merge ?? null)
         : [];
 
     const changedDimensions = [
@@ -75,7 +75,7 @@ export const getChartContentAsCodePermissionChecks = (
         ),
         ...getChangedSqlTableCalculationNames(
             getMergeSqlTableCalculations(nextMerge),
-            getMergeSqlTableCalculations(currentChart?.merge),
+            getMergeSqlTableCalculations(currentChart?.merge ?? null),
         ),
     ];
     if (changedCalculations.length > 0) {
