@@ -10,6 +10,7 @@ import { SlackClient } from '../../clients/Slack/SlackClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import { type ComposerChartModel } from '../../models/ComposerChartModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
@@ -96,6 +97,10 @@ describe('DashboardService - Content Verification', () => {
             get: vi.fn().mockResolvedValue({ enabled: false }),
         },
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
+        getComposerChartService: () => ({
+            getParameterReferences: vi.fn(),
+            assertCanRestore: vi.fn(),
+        }),
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         dashboardModel: dashboardModel as unknown as DashboardModel,
@@ -109,6 +114,9 @@ describe('DashboardService - Content Verification', () => {
             getInfoForAvailableFilters: vi.fn(async () => []),
         } as unknown as SavedChartModel,
         savedSqlModel: {} as unknown as SavedSqlModel,
+        composerChartModel: {
+            deleteOrphans: vi.fn(async () => {}),
+        } as unknown as ComposerChartModel,
         savedChartService: {} as unknown as SavedChartService,
         projectModel: {
             getCachedExploreNames: vi.fn(async () => []),

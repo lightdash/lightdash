@@ -7,10 +7,9 @@
  * Multi-instance support:
  *   Set LD_INSTANCE_ID to namespace PM2 process names (default: 'lightdash').
  *   Port env vars (PORT, FE_PORT, SCHEDULER_PORT, etc.) override defaults.
- *   Use scripts/dev-ports.sh to manage port allocation across worktrees.
  *
  * Prerequisites:
- *   - Docker services running: `/docker-dev`
+ *   - Docker services running (Postgres, MinIO)
  *   - Dependencies installed: `pnpm install`
  *
  * Process overview:

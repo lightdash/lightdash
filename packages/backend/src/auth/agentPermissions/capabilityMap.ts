@@ -63,12 +63,14 @@ export const AGENT_TOOL_CAPABILITIES = {
     ],
     delegateResearchTask: [AgentCapability.Query],
     describeWarehouseTable: [AgentCapability.RawSql],
+    grepWarehouseColumns: [AgentCapability.RawSql],
     discoverFields: [AgentCapability.ReadDiscover],
     discoverRepos: [AgentCapability.ReadDiscover],
     editContent: [AgentCapability.ContentWrite],
     editDbtProject: [AgentCapability.DbtWriteback],
     editProjectContext: [AgentCapability.DbtWriteback],
     proposeSemanticLayerChange: [AgentCapability.DbtWriteback],
+    listChanges: [AgentCapability.ReadDiscover],
     readSemanticModel: [AgentCapability.ReadDiscover],
     exploreRepo: [AgentCapability.ReadDiscover],
     exportChartAsCode: [AgentCapability.Export],
@@ -110,6 +112,7 @@ export const AGENT_TOOL_CAPABILITIES = {
     visualize: [AgentCapability.Query],
     runContentQuery: [AgentCapability.Query],
     runQuery: [AgentCapability.Query],
+    runMetricQuery: [AgentCapability.Query],
     runSavedChart: [AgentCapability.Query],
     runSql: [AgentCapability.RawSql],
     searchFieldValues: [AgentCapability.Query],
@@ -130,6 +133,14 @@ export const AGENT_TOOL_EFFECT_CAPABILITIES = {
         AgentCapability.RawSql,
     ],
     'editContent.sql_chart': [
+        AgentCapability.ContentWrite,
+        AgentCapability.RawSql,
+    ],
+    'createContent.composer_chart_sql': [
+        AgentCapability.ContentWrite,
+        AgentCapability.RawSql,
+    ],
+    'editContent.composer_chart_sql': [
         AgentCapability.ContentWrite,
         AgentCapability.RawSql,
     ],
@@ -389,6 +400,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiAgentController.updateArtifactVersionSavedSql': [
         AgentCapability.ContentWrite,
     ],
+    'AiAgentController.updateArtifactVersionSavedComposerChart': [
+        AgentCapability.ContentWrite,
+    ],
     'AiAgentController.updateArtifactVersionVizConfig': [
         AgentCapability.ContentWrite,
     ],
@@ -481,14 +495,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiCreditController.getUsage': [AgentCapability.ReadDiscover],
     'AiDeepResearchController.cancelRun': [AgentCapability.Administration],
     'AiDeepResearchController.createRun': [AgentCapability.Query],
-    'AiDeepResearchController.getChart': [AgentCapability.ReadDiscover],
-    'AiDeepResearchController.getChartQueryResults': [
-        AgentCapability.ReadDiscover,
-    ],
     'AiDeepResearchController.getRun': [AgentCapability.ReadDiscover],
     'AiDeepResearchController.listEvents': [AgentCapability.ReadDiscover],
     'AiDeepResearchController.listRuns': [AgentCapability.ReadDiscover],
-    'AiDeepResearchController.refreshChart': [AgentCapability.Query],
     'AiOrganizationSettingsController.getRuntimeSettings': [
         AgentCapability.ReadDiscover,
     ],
@@ -525,6 +534,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiRouterController.getInstruction': [AgentCapability.ReadDiscover],
     'AiRouterController.listDecisions': [AgentCapability.ReadDiscover],
     'AiRouterController.route': [AgentCapability.ReadDiscover],
+    'AiRouterController.routeCapture': [AgentCapability.ReadDiscover],
     'AiRouterController.upsertConfig': [AgentCapability.Administration],
     'AiRouterController.upsertInstruction': [AgentCapability.Administration],
     'AiServiceAccountController.delete': [
@@ -603,6 +613,12 @@ export const REST_OPERATION_CAPABILITIES = {
     'AppGenerateController.getDataAppVizUpgradeImpact': [
         AgentCapability.ReadDiscover,
     ],
+    'AppGenerateController.getComposerChartDataAppVizPreviewToken': [
+        AgentCapability.ReadDiscover,
+    ],
+    'AppGenerateController.getComposerChartDataAppVizRenderMetadata': [
+        AgentCapability.ReadDiscover,
+    ],
     'AppGenerateController.getDocumentDataAppVizPreviewToken': [
         AgentCapability.ReadDiscover,
     ],
@@ -631,6 +647,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'AppGenerateController.promoteApp': [AgentCapability.Publish],
     'AppGenerateController.restoreAppVersion': [AgentCapability.ContentWrite],
     'AppGenerateController.toggleAppPinning': [AgentCapability.ContentWrite],
+    'AppGenerateController.transcribeCapture': [AgentCapability.ContentWrite],
     'AppGenerateController.unverifyDataApp': [AgentCapability.Publish],
     'AppGenerateController.updateApp': [AgentCapability.ContentWrite],
     'AppGenerateController.upgradeApp': [AgentCapability.ContentWrite],
@@ -692,6 +709,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'CommentsController.deleteComment': [AgentCapability.Delete],
     'CommentsController.getComments': [AgentCapability.ReadDiscover],
     'CommentsController.resolveComment': [AgentCapability.ContentWrite],
+    'ComposerChartController.create': [AgentCapability.ContentWrite],
+    'ComposerChartController.get': [AgentCapability.ReadDiscover],
+    'ComposerChartController.run': [AgentCapability.Query],
     'ContentController.bulkDeleteContent': [AgentCapability.Delete],
     'ContentController.bulkMoveContent': [AgentCapability.Publish],
     'ContentController.deleteContent': [AgentCapability.Delete],
@@ -921,6 +941,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.proposeExternalConnectionConfig': [
         AgentCapability.Administration,
     ],
+    'ExternalConnectionController.purgeLiveSourceCache': [
+        AgentCapability.Administration,
+    ],
     'ExternalConnectionController.reattachLiveSource': [
         AgentCapability.Administration,
     ],
@@ -943,6 +966,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Administration,
     ],
     'ExternalConnectionController.updateExternalConnection': [
+        AgentCapability.Administration,
+    ],
+    'ExternalConnectionController.updateLiveSourceCache': [
         AgentCapability.Administration,
     ],
     'ExternalConnectionController.updateLiveSourceFields': [
@@ -1044,6 +1070,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'SemanticStudioController.applyDraft': [AgentCapability.DbtWriteback],
     'SemanticStudioController.applyDraftModel': [AgentCapability.DbtWriteback],
     'SemanticStudioController.checkDraftImpact': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.compileCheckout': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getCheckout': [AgentCapability.ReadDiscover],
+    'SemanticStudioController.publishCheckout': [AgentCapability.DbtWriteback],
     'SemanticStudioController.discardDraftModel': [
         AgentCapability.DbtWriteback,
     ],
@@ -1059,9 +1088,27 @@ export const REST_OPERATION_CAPABILITIES = {
     'SemanticStudioController.takeLiveDraftPart': [
         AgentCapability.DbtWriteback,
     ],
+    'SemanticStudioController.saveDraftModel': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getDraftImpact': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getDraftUsage': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getFieldUsage': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getModel': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getStoredModels': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.listSources': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.readSource': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.saveSource': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.listWorkspaces': [AgentCapability.ReadDiscover],
+    'SemanticStudioController.startWorkspace': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.leaveWorkspace': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getWorkspace': [AgentCapability.ReadDiscover],
+    'SemanticStudioController.getWorkspaceDraft': [
+        AgentCapability.DbtWriteback,
+    ],
+    'SemanticStudioController.renameWorkspace': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.activateWorkspace': [
+        AgentCapability.DbtWriteback,
+    ],
+    'SemanticStudioController.finishWorkspace': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getBuilderStatus': [AgentCapability.ReadDiscover],
     'SemanticStudioController.undo': [AgentCapability.DbtWriteback],
     'InviteLinksController.createInviteLink': [AgentCapability.Administration],
@@ -1082,6 +1129,9 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'MetricsExplorerController.runMetricSeries': [AgentCapability.Query],
     'MetricsExplorerController.runMetricTotal': [AgentCapability.Query],
+    'MobileAppAccessController.getMobileAppAccess': [
+        AgentCapability.ReadDiscover,
+    ],
     'MobilePushNotificationController.getMobilePushNotificationStatus': [
         AgentCapability.ReadDiscover,
     ],
@@ -1433,6 +1483,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.ReadDiscover,
     ],
     'ProjectCoderController.getSpacesAsCode': [AgentCapability.ReadDiscover],
+    'ProjectCoderController.getComposerChartsAsCode': [
+        AgentCapability.ReadDiscover,
+    ],
     'ProjectCoderController.getSqlChartsAsCode': [AgentCapability.ReadDiscover],
     'ProjectCoderController.getVirtualViewsAsCode': [
         AgentCapability.ReadDiscover,
@@ -1544,6 +1597,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Publish,
     ],
     'ProjectCoderController.upsertSpaceAsCode': [AgentCapability.ContentWrite],
+    'ProjectCoderController.upsertComposerChartAsCode': [
+        AgentCapability.ContentWrite,
+    ],
     'ProjectCoderController.upsertSqlChartAsCode': [
         AgentCapability.RawSql,
         AgentCapability.ContentWrite,
@@ -1691,6 +1747,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ProjectDashboardControllerV2.delete': [AgentCapability.Delete],
     'ProjectDashboardControllerV2.get': [AgentCapability.ReadDiscover],
     'ProjectDashboardControllerV2.getComments': [AgentCapability.ReadDiscover],
+    'ProjectDashboardControllerV2.getParameters': [
+        AgentCapability.ReadDiscover,
+    ],
     'ProjectDashboardControllerV2.getTileParameterReferences': [
         AgentCapability.ReadDiscover,
     ],
@@ -1773,6 +1832,9 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'ProjectSavedChartControllerV2.delete': [AgentCapability.Delete],
     'ProjectSavedChartControllerV2.get': [AgentCapability.ReadDiscover],
+    'ProjectSavedChartControllerV2.getParameters': [
+        AgentCapability.ReadDiscover,
+    ],
     'PullRequestsController.listPullRequests': [AgentCapability.ReadDiscover],
     'QueryController.cancelAsyncQuery': [AgentCapability.ReadDiscover],
     'QueryController.downloadResults': [AgentCapability.Export],

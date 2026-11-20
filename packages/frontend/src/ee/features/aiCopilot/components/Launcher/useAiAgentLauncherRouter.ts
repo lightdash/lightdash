@@ -59,6 +59,7 @@ export const useAiAgentLauncherRouter = ({
         isLocked,
         isPickingAgent,
         isRouting,
+        phase,
         sortedCandidates,
     } = useAiAgentRouterFlow({
         agents,
@@ -126,6 +127,8 @@ export const useAiAgentLauncherRouter = ({
         isLocked: isCreatingThread || isLocked,
         isPickingAgent,
         isRouting,
+        // The message held back until the user picks an agent.
+        waitingPrompt: phase.kind === 'picker' ? phase.prompt : null,
         sortedCandidates,
     };
 };

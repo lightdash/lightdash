@@ -210,6 +210,7 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
             preAggregationRoute,
             fieldsMap: resolveArgs.fieldsMap,
             pivotConfiguration: resolveArgs.pivotConfiguration,
+            pivotDimensions: resolveArgs.pivotDimensions,
             startOfWeek: resolveArgs.startOfWeek,
             userAccessControls: resolveArgs.userAccessControls!,
             availableParameterDefinitions:
@@ -465,6 +466,14 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
                     tileName,
                     tileType: tile.type,
                     ineligibleReason: TileIneligibleReason.SQL_CHART,
+                };
+            case DashboardTileTypes.COMPOSER_CHART:
+                return {
+                    status: 'ineligible',
+                    tileUuid: tile.uuid,
+                    tileName,
+                    tileType: tile.type,
+                    ineligibleReason: TileIneligibleReason.COMPOSER_CHART,
                 };
             case DashboardTileTypes.SAVED_CHART: {
                 const savedChartUuid = (

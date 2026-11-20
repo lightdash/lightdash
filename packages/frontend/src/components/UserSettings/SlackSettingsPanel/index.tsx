@@ -351,7 +351,7 @@ const SlackSettingsPanel: FC = () => {
                                             />
                                             <SlackSettingRow
                                                 title="AI Agents OAuth requirement"
-                                                description="People must sign in with OAuth first, so requests run with their own permissions."
+                                                description="People must sign in with OAuth first, so requests run with their own permissions. Channels that use a shared service account are the only exception."
                                                 disabled={aiAgentsDisabled}
                                                 checked={
                                                     form.values

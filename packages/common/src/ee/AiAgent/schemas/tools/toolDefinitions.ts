@@ -232,6 +232,11 @@ import {
     toolGrepFieldsOutputSchema,
 } from './toolGrepFieldsArgs';
 import {
+    TOOL_GREP_WAREHOUSE_COLUMNS_DESCRIPTION,
+    toolGrepWarehouseColumnsArgsSchema,
+    toolGrepWarehouseColumnsOutputSchema,
+} from './toolGrepWarehouseColumnsArgs';
+import {
     MCP_TOOL_ITERATE_CUSTOM_CHART_TYPE_DESCRIPTION,
     mcpIterateCustomChartTypeArgsSchema,
 } from './toolIterateCustomChartTypeArgs';
@@ -377,6 +382,8 @@ import {
 import {
     TOOL_PROPOSE_SEMANTIC_LAYER_CHANGE_DESCRIPTION,
     TOOL_READ_SEMANTIC_MODEL_DESCRIPTION,
+    toolListChangesArgsSchema,
+    toolListChangesOutputSchema,
     toolProposeSemanticLayerChangeArgsSchema,
     toolProposeSemanticLayerChangeOutputSchema,
     toolReadSemanticModelArgsSchema,
@@ -436,6 +443,8 @@ const mcpGetContextOutputSchema = z.object({
         .object({
             projectUuid: z.string(),
             projectName: z.string(),
+            type: z.string(),
+            isPinned: z.boolean(),
             selectedTags: z.array(z.string()).nullable(),
         })
         .nullable(),
@@ -837,7 +846,7 @@ export const renderChartToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
-/** @deprecated Legacy CSV-only metric query tool. */
+/** Metric query that returns CSV only, for agents that check numbers and show no charts. */
 export const runMetricQueryToolDefinition: ToolDefinitionWithoutMcpOutput<
     'runMetricQuery',
     typeof toolRunMetricQueryArgsSchema,
@@ -1326,6 +1335,21 @@ export const proposeSemanticLayerChangeToolDefinition: ToolDefinitionWithoutMcpO
     agent: { outputSchema: toolProposeSemanticLayerChangeOutputSchema },
 });
 
+export const listChangesToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'listChanges',
+    typeof toolListChangesArgsSchema,
+    typeof toolListChangesArgsSchema,
+    typeof toolListChangesOutputSchema
+> = defineTool({
+    name: 'listChanges',
+    title: 'List changes',
+    description:
+        'List your open changes in this project, the current checkout and the native models drafted in each change.',
+    availability: ['agent'],
+    inputSchema: toolListChangesArgsSchema,
+    agent: { outputSchema: toolListChangesOutputSchema },
+});
+
 export const readSemanticModelToolDefinition: ToolDefinitionWithoutMcpOutput<
     'readSemanticModel',
     typeof toolReadSemanticModelArgsSchema,
@@ -1450,6 +1474,20 @@ export const listWarehouseTablesToolDefinition: ToolDefinitionWithoutMcpOutput<
     availability: ['agent'],
     inputSchema: toolListWarehouseTablesArgsSchema,
     agent: { outputSchema: toolListWarehouseTablesOutputSchema },
+});
+
+export const grepWarehouseColumnsToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'grepWarehouseColumns',
+    typeof toolGrepWarehouseColumnsArgsSchema,
+    typeof toolGrepWarehouseColumnsArgsSchema,
+    typeof toolGrepWarehouseColumnsOutputSchema
+> = defineTool({
+    name: 'grepWarehouseColumns',
+    title: 'Search warehouse columns',
+    description: TOOL_GREP_WAREHOUSE_COLUMNS_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolGrepWarehouseColumnsArgsSchema,
+    agent: { outputSchema: toolGrepWarehouseColumnsOutputSchema },
 });
 
 export const describeWarehouseTableToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -1762,7 +1800,7 @@ export const mcpListProjectsToolDefinition: ToolDefinitionWithoutMcpOutput<
     name: 'listProjects',
     title: 'List projects',
     description:
-        'List all accessible projects in the organization. Projects contain explores, fields, and content. Prefer get_context for bootstrap, then pass the selected projectUuid explicitly to every project-scoped operation. Each project includes a "type": prefer DEFAULT projects, which are live production environments. PREVIEW projects are ephemeral CI/PR environments that may be decommissioned — their warehouse credentials are often gone, so queries can fail with 403 errors even when the schema is still visible. Only select a PREVIEW project if the user explicitly asks for it.',
+        'List all accessible projects in the organization. Projects contain explores, fields, and content. Prefer get_context for bootstrap, then pass the selected projectUuid explicitly to every project-scoped operation. Each project includes a "type": prefer DEFAULT projects, which are live production environments. PREVIEW projects are ephemeral CI/PR environments that may be decommissioned — their warehouse credentials are often gone, so queries can fail with 403 errors even when the schema is still visible. For ordinary business analysis, select a PREVIEW project only if the user explicitly requests or confirms it. If the appropriate DEFAULT project is ambiguous, ask which project to use rather than substituting an unrelated project. Preserve any pinned project scope.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: { annotations: readOnlyAnnotations },
@@ -1804,7 +1842,7 @@ export const getContextToolDefinition: ToolDefinitionWithMcpOutput<
     name: 'getContext',
     title: 'Get context',
     description:
-        'Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call. When agent-specific scope is useful and routing is available, use route_agent and pass its returned agentUuid explicitly. If routing is unavailable, pick an agent from list_agents and pass its agentUuid explicitly; omit agentUuid when full project scope is desired. This tool reports context but does not establish implicit execution state. When the session is pinned to a project, activeProject is the only allowed project. Otherwise it is a stored default, not a restriction on projectUuid. Use the project the user requested; if none was specified, use activeProject if present or ask. If the requested project is unavailable or rejected, explain rather than substitute another project.',
+        'Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call. When agent-specific scope is useful and routing is available, use route_agent and pass its returned agentUuid explicitly. If routing is unavailable, pick an agent from list_agents and pass its agentUuid explicitly; omit agentUuid when full project scope is desired. This tool reports context but does not establish implicit execution state. Project type identifies DEFAULT (production) and PREVIEW (temporary development/testing) environments. When activeProject.isPinned is true, activeProject is the only allowed project; if it is a PREVIEW, identify it as a preview and ask for confirmation before ordinary business analysis unless the user explicitly requested it. Otherwise activeProject is a stored default, not a restriction or evidence of intent to analyze a preview. Use the project the user requested, including an explicitly requested preview. For ordinary business analysis in an unpinned session without a requested project, use activeProject only if its type is DEFAULT; otherwise use the only DEFAULT project in availableProjects, or ask which to use when there are several. If none are available, explain that no production project is available. Do not silently select a preview or substitute an unrelated project. If the requested project is unavailable or rejected, explain rather than substitute another project.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: {
@@ -2026,6 +2064,7 @@ type AgentToolDefinitionsByName = {
     editDbtProject: typeof editDbtProjectToolDefinition;
     editProjectContext: typeof editProjectContextToolDefinition;
     proposeSemanticLayerChange: typeof proposeSemanticLayerChangeToolDefinition;
+    listChanges: typeof listChangesToolDefinition;
     readSemanticModel: typeof readSemanticModelToolDefinition;
     syncDbtProject: typeof syncDbtProjectToolDefinition;
     exploreRepo: typeof exploreRepoToolDefinition;
@@ -2033,9 +2072,11 @@ type AgentToolDefinitionsByName = {
     listWorkstreams: typeof listWorkstreamsToolDefinition;
     closePullRequest: typeof closePullRequestToolDefinition;
     getPullRequestDiff: typeof getPullRequestDiffToolDefinition;
+    runMetricQuery: typeof runMetricQueryToolDefinition;
     runSavedChart: typeof runSavedChartToolDefinition;
     listWarehouseTables: typeof listWarehouseTablesToolDefinition;
     describeWarehouseTable: typeof describeWarehouseTableToolDefinition;
+    grepWarehouseColumns: typeof grepWarehouseColumnsToolDefinition;
     listKnowledgeDocuments: typeof listKnowledgeDocumentsToolDefinition;
     getKnowledgeDocumentContent: typeof getKnowledgeDocumentContentToolDefinition;
     readPinnedThread: typeof readPinnedThreadToolDefinition;
@@ -2089,6 +2130,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     editDbtProject: editDbtProjectToolDefinition,
     editProjectContext: editProjectContextToolDefinition,
     proposeSemanticLayerChange: proposeSemanticLayerChangeToolDefinition,
+    listChanges: listChangesToolDefinition,
     readSemanticModel: readSemanticModelToolDefinition,
     syncDbtProject: syncDbtProjectToolDefinition,
     exploreRepo: exploreRepoToolDefinition,
@@ -2096,9 +2138,11 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     listWorkstreams: listWorkstreamsToolDefinition,
     closePullRequest: closePullRequestToolDefinition,
     getPullRequestDiff: getPullRequestDiffToolDefinition,
+    runMetricQuery: runMetricQueryToolDefinition,
     runSavedChart: runSavedChartToolDefinition,
     listWarehouseTables: listWarehouseTablesToolDefinition,
     describeWarehouseTable: describeWarehouseTableToolDefinition,
+    grepWarehouseColumns: grepWarehouseColumnsToolDefinition,
     listKnowledgeDocuments: listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContent: getKnowledgeDocumentContentToolDefinition,
     readPinnedThread: readPinnedThreadToolDefinition,
@@ -2159,6 +2203,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     editDbtProjectToolDefinition,
     editProjectContextToolDefinition,
     proposeSemanticLayerChangeToolDefinition,
+    listChangesToolDefinition,
     readSemanticModelToolDefinition,
     syncDbtProjectToolDefinition,
     exploreRepoToolDefinition,
@@ -2166,9 +2211,11 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     listWorkstreamsToolDefinition,
     closePullRequestToolDefinition,
     getPullRequestDiffToolDefinition,
+    runMetricQueryToolDefinition,
     runSavedChartToolDefinition,
     listWarehouseTablesToolDefinition,
     describeWarehouseTableToolDefinition,
+    grepWarehouseColumnsToolDefinition,
     listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContentToolDefinition,
     readPinnedThreadToolDefinition,

@@ -62,6 +62,12 @@ export class AppStateError extends Error {
     }
 }
 
+// Reported on every shared key when the viewer has no access to shared values.
+const SHARED_UNAVAILABLE_ERROR = new AppStateError(
+    'forbidden',
+    'Shared values are not available to you in this app.',
+);
+
 export const toAppStateError = (error: unknown): AppStateError =>
     error instanceof AppStateError
         ? error
@@ -94,6 +100,8 @@ export type AppStateStoreState = {
     error: AppStateError | null;
     user: Record<string, AppStateUserEntry>;
     shared: Record<string, AppStateSharedEntry>;
+    /** False when this viewer has no access to shared values at all. */
+    sharedAvailable: boolean;
     /** Last failure per `${scope}:${key}`; cleared by the next successful write. */
     keyErrors: Record<string, AppStateError>;
 };
@@ -188,6 +196,7 @@ export function createAppStateStore(options: {
         error: null,
         user: {},
         shared: {},
+        sharedAvailable: true,
         keyErrors: {},
     };
     const listeners = new Set<() => void>();
@@ -258,6 +267,10 @@ export function createAppStateStore(options: {
         loadPromise = transport
             .getSnapshot()
             .then((snapshot) => {
+                const sharedAvailable = snapshot.sharedAccess !== 'none';
+                // Nothing shared can be saved for this viewer: drop writes
+                // made while loading instead of sending them to be refused.
+                if (!sharedAvailable) pendingShared.clear();
                 confirmedShared.clear();
                 Object.entries(snapshot.shared).forEach(([key, entry]) =>
                     confirmedShared.set(key, entry),
@@ -285,7 +298,14 @@ export function createAppStateStore(options: {
                         value: replay(intents, base?.value),
                     };
                 });
-                emit({ ...state, status: 'ready', error: null, user, shared });
+                emit({
+                    ...state,
+                    status: 'ready',
+                    error: null,
+                    user,
+                    shared,
+                    sharedAvailable,
+                });
                 urlPublished.clear();
                 urlMirrored.forEach(mirrorIfLoaded);
                 // Writes made before the store was ready go out now.
@@ -446,6 +466,8 @@ export function createAppStateStore(options: {
     };
 
     const remove = (scope: 'user' | 'shared', key: string): Promise<void> => {
+        if (scope === 'shared' && !state.sharedAvailable)
+            return Promise.resolve();
         const id = `${scope}:${key}`;
         touched.add(key);
         const timer = timers.get(id);
@@ -471,7 +493,7 @@ export function createAppStateStore(options: {
             await load();
             if (!canPersist() || !transport) return;
             if (scope === 'user') await transport.deleteUser(key);
-            else await transport.deleteShared(key);
+            else if (state.sharedAvailable) await transport.deleteShared(key);
         });
     };
 
@@ -488,6 +510,7 @@ export function createAppStateStore(options: {
         },
         isSaved: (scope, key) =>
             state.status === 'ready' &&
+            (scope === 'user' || state.sharedAvailable) &&
             !state.keyErrors[`${scope}:${key}`] &&
             !(scope === 'user' ? pendingUser.has(key) : pendingShared.has(key)),
         setUser: (key, value) => {
@@ -508,6 +531,7 @@ export function createAppStateStore(options: {
             schedule('user', key);
         },
         setShared: (key, next, fallback) => {
+            if (!state.sharedAvailable) return;
             tombstones.delete(`shared:${key}`);
             const intent: Intent = isUpdater(next)
                 ? { kind: 'updater', fn: next }
@@ -537,7 +561,8 @@ export function createAppStateStore(options: {
         deleteShared: (key) => remove('shared', key),
         history: async (key, options = {}) => {
             await load();
-            if (!canPersist() || !transport) return [];
+            if (!canPersist() || !transport || !state.sharedAvailable)
+                return [];
             return transport.getSharedHistory(key, options);
         },
         refresh: async () => {
@@ -808,8 +833,13 @@ export function useAppState<T>(
             {
                 loading:
                     snapshot.status === 'idle' || snapshot.status === 'loading',
-                error: snapshot.keyErrors[`shared:${key}`] ?? snapshot.error,
-                persisted: snapshot.status === 'ready',
+                error:
+                    snapshot.keyErrors[`shared:${key}`] ??
+                    (snapshot.sharedAvailable
+                        ? snapshot.error
+                        : SHARED_UNAVAILABLE_ERROR),
+                persisted:
+                    snapshot.status === 'ready' && snapshot.sharedAvailable,
                 saved: store.isSaved('shared', key),
                 version: entry?.version ?? null,
                 updatedAt: entry?.updatedAt ?? null,

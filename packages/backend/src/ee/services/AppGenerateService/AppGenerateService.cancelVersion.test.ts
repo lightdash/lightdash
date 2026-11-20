@@ -45,6 +45,7 @@ function buildService() {
         spacePermissionService: {} as never,
         coderService: {} as never,
         documentService: {} as never,
+        composerChartService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
@@ -55,6 +56,7 @@ function buildService() {
         appRuntimeS3: null,
         appThumbnailClient: {} as never,
         chartRegistryClient: {} as never,
+        contentDraftModel: {} as never,
         contentVerificationModel: {} as never,
     });
     // Private members; cast to a structural type so the spy keeps its

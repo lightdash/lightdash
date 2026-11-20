@@ -1,4 +1,5 @@
 import {
+    normalizeEmbedJwt,
     type CreateEmbedJwt,
     type LanguageMap,
     type SavedChart,
@@ -87,10 +88,9 @@ const decodeEmbedJwtPayload = (
             Math.ceil(normalizedPayload.length / 4) * 4,
             '=',
         );
-        return JSON.parse(window.atob(paddedPayload)) as Pick<
-            CreateEmbedJwt,
-            'content' | 'writeActions'
-        >;
+        return normalizeEmbedJwt(
+            JSON.parse(window.atob(paddedPayload)) as CreateEmbedJwt,
+        );
     } catch {
         return undefined;
     }
@@ -206,8 +206,13 @@ const EmbedProviderContent: FC<React.PropsWithChildren<Props>> = ({
     // Remove the token from the URL.
     useEffect(() => {
         if (mode === 'direct' && location.hash) {
+            const { aiAgentInitialPrompt } = parseEmbedHash(location.hash);
             void navigate(location.pathname + location.search, {
                 replace: true,
+                // The new-thread page submits this as the first message
+                state: aiAgentInitialPrompt
+                    ? { autoSubmitPrompt: aiAgentInitialPrompt }
+                    : undefined,
             });
         }
     }, [mode, location, navigate]);

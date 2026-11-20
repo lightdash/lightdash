@@ -1,6 +1,6 @@
 import {
     isFilterInteractivityEnabled,
-    isParameterInteractivityEnabled,
+    isParameterInteractivityVisible,
     type Dashboard,
     type DashboardTile,
     type InteractivityOptions,
@@ -21,7 +21,7 @@ type Props = {
     /** Tiles rendered on the active tab */
     activeTiles: DashboardTile[];
     isEditMode?: boolean;
-    /** The filters open in the dashboard's filter rail (default false). */
+    /** The filters open in the dashboard's controls bar editor (default false). */
     isControlsEnabled?: boolean;
 };
 
@@ -35,7 +35,7 @@ const EmbedDashboardHeader: FC<Props> = ({
 }) => {
     const hasFilterBar =
         dashboard.canDateZoom ||
-        isParameterInteractivityEnabled(dashboard.parameterInteractivity) ||
+        isParameterInteractivityVisible(dashboard.parameterInteractivity) ||
         isFilterInteractivityEnabled(dashboard.dashboardFiltersInteractivity);
 
     const hasHeaderActions = Boolean(

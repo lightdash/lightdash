@@ -72,6 +72,18 @@ export class JobModel {
         return this.convertRowToJob(row, database);
     }
 
+    /** How a project's most recent compile stands; null when it has never had one. */
+    async findLatestCompileStatus(
+        projectUuid: string,
+    ): Promise<JobStatusType | null> {
+        const row = await this.database(JobsTableName)
+            .where('project_uuid', projectUuid)
+            .where('job_type', JobType.COMPILE_PROJECT)
+            .orderBy('created_at', 'desc')
+            .first('job_status');
+        return row?.job_status ?? null;
+    }
+
     async findActiveCreateProjectJob(
         args: ActiveCreateProjectJobArgs,
     ): Promise<Job | null> {

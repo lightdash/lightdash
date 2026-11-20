@@ -239,6 +239,8 @@ const buildService = ({
         } as AnyType,
         userModel: userModel as AnyType,
         warehouseConnectionModel: {} as never,
+        composerChartModel: {} as never,
+        composerChartService: {} as never,
     });
     return {
         service,

@@ -11,6 +11,46 @@ import PrometheusMetrics, { getHttpUriLabel } from './PrometheusMetrics';
 
 type PartialRequest = Partial<express.Request>;
 
+describe('query polling timeout metrics', () => {
+    beforeEach(() => {
+        prometheus.register.clear();
+        vi.spyOn(http.Server.prototype, 'listen').mockImplementation(
+            function mockListen(this: http.Server) {
+                return this;
+            },
+        );
+    });
+
+    afterEach(() => {
+        prometheus.register.clear();
+        vi.restoreAllMocks();
+    });
+
+    it('counts query polling timeouts by source from a zero baseline', async () => {
+        const metrics = new PrometheusMetrics({
+            ...lightdashConfigMock.prometheus,
+            enabled: true,
+        });
+        metrics.start();
+        const timeouts = prometheus.register.getSingleMetric(
+            'lightdash_query_polling_timeouts_total',
+        );
+        expect((await timeouts!.get()).values).toEqual([
+            { labels: { source: 'scheduler' }, value: 0 },
+            { labels: { source: 'other' }, value: 0 },
+        ]);
+
+        metrics.incrementQueryPollingTimeout('scheduler');
+        metrics.incrementQueryPollingTimeout('other');
+
+        expect((await timeouts!.get()).values).toEqual([
+            { labels: { source: 'scheduler' }, value: 1 },
+            { labels: { source: 'other' }, value: 1 },
+        ]);
+        await metrics.stop();
+    });
+});
+
 describe('daily job generation metrics', () => {
     beforeEach(() => {
         prometheus.register.clear();
@@ -506,13 +546,13 @@ describe('live API source metrics', () => {
         );
 
         expect((await requests!.get()).values).toContainEqual({
-            labels: { connector: 'posthog', outcome: 'rate_limited' },
+            labels: { integration: 'posthog', outcome: 'rate_limited' },
             value: 0,
         });
 
         metrics.trackApiSourceInflight(ApiConnectorType.POSTHOG, 1);
         expect((await inflight!.get()).values).toContainEqual({
-            labels: { connector: 'posthog' },
+            labels: { integration: 'posthog' },
             value: 1,
         });
         metrics.observeApiSourceRequest(
@@ -523,12 +563,34 @@ describe('live API source metrics', () => {
         metrics.trackApiSourceInflight(ApiConnectorType.POSTHOG, -1);
 
         expect((await requests!.get()).values).toContainEqual({
-            labels: { connector: 'posthog', outcome: 'rate_limited' },
+            labels: { integration: 'posthog', outcome: 'rate_limited' },
             value: 1,
         });
         expect((await inflight!.get()).values).toContainEqual({
-            labels: { connector: 'posthog' },
+            labels: { integration: 'posthog' },
             value: 0,
+        });
+    });
+
+    it('counts live data source cache hits by integration', async () => {
+        const metrics = new PrometheusMetrics({
+            ...lightdashConfigMock.prometheus,
+            enabled: true,
+        });
+        metrics.start();
+        const hits = prometheus.register.getSingleMetric(
+            'lightdash_live_source_cache_hits_total',
+        );
+        expect((await hits!.get()).values).toContainEqual({
+            labels: { integration: 'posthog' },
+            value: 0,
+        });
+
+        metrics.incrementLiveSourceCacheHit(ApiConnectorType.POSTHOG);
+
+        expect((await hits!.get()).values).toContainEqual({
+            labels: { integration: 'posthog' },
+            value: 1,
         });
     });
 });

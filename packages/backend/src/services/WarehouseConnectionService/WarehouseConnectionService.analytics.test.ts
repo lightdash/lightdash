@@ -8,10 +8,12 @@ import {
     ProjectType,
     RedshiftAuthenticationType,
     RequestMethod,
+    SnowflakeAuthenticationType,
     WarehouseTypes,
     type CreateBigqueryCredentials,
     type CreatePostgresCredentials,
     type CreateRedshiftCredentials,
+    type CreateSnowflakeCredentials,
     type CreateTrinoCredentials,
     type PossibleAbilities,
     type ProjectSummary,
@@ -464,6 +466,50 @@ describe('WarehouseConnectionService mixed warehouse types', () => {
         },
     );
 
+    it.each(['create', 'update'] as const)(
+        'refuses optional personal credentials without shared Snowflake credentials on %s',
+        async (operation) => {
+            const { service, model, projectModel, credentialPolicy } =
+                buildService();
+            const snowflake = warehouseConnectionCredentials[
+                WarehouseTypes.SNOWFLAKE
+            ] as CreateSnowflakeCredentials;
+            model.getProject.mockResolvedValue({
+                ...project,
+                originalWarehouseType: WarehouseTypes.SNOWFLAKE,
+            });
+            model.get.mockResolvedValue({
+                ...connection(extraUuid, false),
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+            });
+            projectModel.getWarehouseCredentialsForProject.mockResolvedValue({
+                ...snowflake,
+                requireUserCredentials: false,
+            });
+            const request = {
+                name: 'Extra',
+                warehouseConnection: {
+                    ...snowflake,
+                    authenticationType: SnowflakeAuthenticationType.NONE,
+                    allowUserCredentials: true,
+                },
+            };
+            const save =
+                operation === 'create'
+                    ? service.create(account, projectUuid, request)
+                    : service.update(account, projectUuid, extraUuid, request);
+            await expect(save).rejects.toThrow(ParameterError);
+            await expect(save).rejects.toThrow(
+                'Personal credentials can only be optional when the connection stores shared credentials.',
+            );
+            expect(model.createExtra).not.toHaveBeenCalled();
+            expect(model.updateExtraCredentials).not.toHaveBeenCalled();
+            expect(
+                credentialPolicy.testWarehouseConnectionCredentialsForSave,
+            ).not.toHaveBeenCalled();
+        },
+    );
+
     it('keeps primary credential inheritance for the same warehouse type with the flag off', async () => {
         const { service, model, credentialPolicy } = buildService();
         await service.create(account, projectUuid, {
@@ -833,6 +879,73 @@ describe('preview extra connection CLI refresh', () => {
                 sshTunnelPrivateKey: 'parent-private-key',
             });
             expect(stored).not.toMatchObject({ password: 'parent-password' });
+        },
+    );
+    it.each([false, true])(
+        'a Snowflake extra on a different warehouse requires user credentials only when inheriting across warehouses (%s)',
+        async (flagEnabled) => {
+            const developer: CreateSnowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'account',
+                user: 'developer',
+                password: 'fresh-password',
+                database: 'DEV',
+                warehouse: 'DEV_WH',
+                schema: 'dbt_developer',
+            };
+            const snowflakeExtra = (uuid: string) => ({
+                ...connection(uuid, false),
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+            });
+            const h = setupRefresh();
+            h.model.get.mockResolvedValue(snowflakeExtra(extraUuid));
+            h.model.list.mockImplementation(async (p: typeof project) =>
+                p.projectUuid === upstream.projectUuid
+                    ? [snowflakeExtra('upstream-extra')]
+                    : [
+                          connection(primaryUuid, true),
+                          snowflakeExtra(extraUuid),
+                      ],
+            );
+            h.model.getCredentials.mockImplementation(
+                async (p: typeof project) =>
+                    p.projectUuid === upstream.projectUuid
+                        ? {
+                              ...developer,
+                              user: 'service_user',
+                              password: 'parent-password',
+                              warehouse: 'PROD_WH',
+                              requireUserCredentials: true,
+                          }
+                        : developer,
+            );
+            h.featureFlagService.get.mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId ===
+                        FeatureFlags.PreviewInheritsAcrossWarehouses
+                            ? flagEnabled
+                            : true,
+                }),
+            );
+
+            await h.service.update(
+                account,
+                projectUuid,
+                extraUuid,
+                { warehouseConnection: developer },
+                RequestMethod.CLI,
+            );
+
+            const stored =
+                h.model.updateExtraCredentials.mock.calls[0][2].credentials;
+            expect(stored).toMatchObject(developer);
+            expect(stored.requireUserCredentials).toBe(flagEnabled);
+            expect(h.featureFlagService.get).toHaveBeenCalledWith({
+                user: { organizationUuid },
+                featureFlagId: FeatureFlags.PreviewInheritsAcrossWarehouses,
+            });
         },
     );
     it('preserves the preview own tunnel and explicit opt-out', async () => {

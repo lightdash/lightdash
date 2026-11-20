@@ -62,7 +62,7 @@ const [targets, setTargets, { loading, error, persisted, version, updatedAt, upd
 - `saved`: true when this key's latest value is confirmed stored. A value you just set shows immediately but is not saved until the server accepts it. For anything a person submits (a note, a form), keep their input visible until `saved` is true or an `error` arrives; never clear a composer on submit alone.
 - `error`: the last failure for this key. Handle every code, not just the two you expect:
   - `conflict`: someone else changed the value and you are now seeing theirs. Say so and let the person re-apply their change.
-  - `forbidden`: this viewer cannot write (embedded viewers read shared values but never write). Disable the control and say it is read-only here.
+  - `forbidden`: this viewer cannot write. Embedded viewers read shared values but never write; some signed-in viewers get no shared values at all, and for them `forbidden` is set as soon as the values load, before any write. Disable or hide every control that writes this key (comment boxes, edit and delete buttons) and say it is read-only here.
   - `invalid`: the server refused the value (too large, bad key). Show the message and keep the person's input so they can shorten it.
   - `unavailable` / `unknown`: the save did not reach the server. Say it was not saved; the SDK retries on the next change or `client.appState.flush()`, so keep the input.
 - `persisted`: whether saving is possible at all. False when the feature is off, in local development without an app, or when the first load failed. The app keeps working in memory; show a small "not saved" hint. It says nothing about one key's value; that is `saved`.

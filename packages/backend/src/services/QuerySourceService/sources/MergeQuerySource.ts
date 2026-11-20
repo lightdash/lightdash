@@ -23,6 +23,7 @@ import type {
     SubmittedSourceQueries,
     ValidateSourceQueryArgs,
 } from '../types';
+import { withoutDocumentAuthority } from './withoutDocumentAuthority';
 
 type MergeQuerySourceArguments = {
     asyncQueryService: Pick<
@@ -141,13 +142,24 @@ export class MergeQuerySource implements QuerySourceClient {
                 ...args.parameters,
                 ...getMergeNodeParameters(query, args.submission),
             };
+            // A bound run's legs ran zoomed, so the merge compiles against the same grain
+            const legZooms =
+                args.authority.kind === 'composer'
+                    ? args.authority.binding.dateZoomByNodeId
+                    : {};
             const compiled = await this.asyncQueryService.compileComposerMerge({
+                authority: withoutDocumentAuthority(args.authority),
                 account: args.account,
                 projectUuid: args.projectUuid,
                 nodeId: query.nodeId ?? null,
                 mergeQuery,
                 parameters,
                 userAttributeOverrides: args.userAttributeOverrides,
+                dateZoomBySourceId: Object.fromEntries(
+                    mergeQuery.sources.flatMap(({ id }) =>
+                        legZooms[id] ? [[id, legZooms[id]]] : [],
+                    ),
+                ),
                 sourceTitleById: Object.fromEntries(
                     mergeQuery.sources.map(({ id }) => [
                         id,
@@ -191,6 +203,7 @@ export class MergeQuerySource implements QuerySourceClient {
         );
         const { queryUuid } =
             await this.asyncQueryService.submitComposerMergeJoin({
+                authority: withoutDocumentAuthority(args.authority),
                 account: args.account,
                 projectUuid: args.projectUuid,
                 context: args.context,

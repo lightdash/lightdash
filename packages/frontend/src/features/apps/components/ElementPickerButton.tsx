@@ -11,20 +11,22 @@ export const ElementPickerButton: FC<{
     enabled: boolean;
     onToggle: () => void;
     disabled?: boolean;
-}> = ({ enabled, onToggle, disabled }) => (
+    /** Styled for the app builder's preview header. */
+    inHeader?: boolean;
+}> = ({ enabled, onToggle, disabled, inHeader = false }) => (
     <Tooltip
         label={
             enabled
                 ? 'Element picker on – click an element in the preview'
                 : 'Pick an element in the preview to reference it'
         }
-        position="top"
+        position={inHeader ? 'bottom' : 'top'}
     >
         <ActionIcon
-            variant={enabled ? 'light' : 'subtle'}
-            color={enabled ? 'indigo' : 'gray'}
+            variant={enabled ? (inHeader ? 'default' : 'light') : 'subtle'}
+            color={enabled && !inHeader ? 'indigo' : 'gray'}
             size="md"
-            radius="xl"
+            radius={inHeader ? undefined : 'xl'}
             onClick={onToggle}
             disabled={disabled}
             aria-label="Toggle element picker"

@@ -14,6 +14,7 @@ import MarkdownTile from '../../components/DashboardTiles/DashboardMarkdownTile'
 import SqlChartTile from '../../components/DashboardTiles/DashboardSqlChartTile';
 import TileBase from '../../components/DashboardTiles/TileBase';
 import UnmetRequirementsPlaceholder from '../../components/DashboardTiles/UnmetRequirementsPlaceholder';
+import DashboardComposerChartTile from '../composerCharts/components/DashboardComposerChartTile';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 import styles from './tabs.module.css';
 
@@ -47,6 +48,9 @@ const GridTileInner: FC<GridTileProps> = memo((props) => {
         if (tile.type === DashboardTileTypes.DATA_APP) {
             return <DataAppTile {...props} tile={tile} />;
         }
+        if (tile.type === DashboardTileTypes.COMPOSER_CHART) {
+            return <DashboardComposerChartTile {...props} tile={tile} />;
+        }
 
         return (
             <Box h="100%">
@@ -70,6 +74,8 @@ const GridTileInner: FC<GridTileProps> = memo((props) => {
             return <HeadingTile {...props} tile={tile} />;
         case DashboardTileTypes.DATA_APP:
             return <DataAppTile {...props} tile={tile} />;
+        case DashboardTileTypes.COMPOSER_CHART:
+            return <DashboardComposerChartTile {...props} tile={tile} />;
         default: {
             return assertUnreachable(
                 tile,

@@ -7,6 +7,7 @@ import type {
 import {
     assertUnreachable,
     getPatchedSql,
+    getSqlApprovalSql,
     isRunQueryArgsV1,
     migrateRunQueryArgsV1ToV2,
     type AiAgentToolResult,
@@ -38,7 +39,7 @@ import {
     type ToolSearchSemanticLayerArgs,
 } from '@lightdash/common';
 import type { FC } from 'react';
-import { type ComposerQueryNodeStatus } from '../../composerNodeStatus';
+import { type ComposerQueryNodeStatus } from '../../../../../../../features/composerCharts/lineage/composerNodeStatus';
 import { type SqlApprovalTarget } from '../SqlApprovalActions';
 import { isToolWithoutDescription } from '../utils/toolsWithoutDescription';
 import type { ToolCallSummary } from '../utils/types';
@@ -78,13 +79,13 @@ type ToolReadContentArgs = {
 
 type ToolEditContentArgs = {
     slug?: string;
-    type?: 'dashboard' | 'chart' | 'sql_chart' | 'document';
+    type?: 'dashboard' | 'chart' | 'sql_chart' | 'composer_chart' | 'document';
     patch?: unknown;
 };
 
 type ToolCreateContentArgs = {
-    content?: { slug?: string } & SqlChartToolArgs;
-    type?: 'dashboard' | 'chart' | 'sql_chart' | 'document';
+    content?: { slug?: string; name?: string } & SqlChartToolArgs;
+    type?: 'dashboard' | 'chart' | 'sql_chart' | 'composer_chart' | 'document';
 };
 
 export const ToolCallDescription: FC<{
@@ -286,6 +287,25 @@ export const ToolCallDescription: FC<{
                     />
                 );
             }
+            if (
+                editContentToolArgs.type === 'composer_chart' &&
+                editContentToolArgs.slug &&
+                approval
+            ) {
+                return (
+                    <SqlChartToolCallDescription
+                        action="edit"
+                        slug={editContentToolArgs.slug}
+                        contentLabel="composer chart"
+                        chart={{
+                            sql:
+                                getSqlApprovalSql(editContentToolArgs) ??
+                                undefined,
+                        }}
+                        approval={approval}
+                    />
+                );
+            }
             return editContentToolArgs.slug && editContentToolArgs.type ? (
                 <ContentEditorToolCallDescription
                     action="edit"
@@ -311,11 +331,37 @@ export const ToolCallDescription: FC<{
                     />
                 );
             }
-            return createContentToolArgs.content?.slug &&
-                createContentToolArgs.type ? (
+            // A composer chart from a node has no slug until it is saved.
+            const createdMetadata =
+                toolResult && 'metadata' in toolResult
+                    ? toolResult.metadata
+                    : null;
+            const createdSlug =
+                createContentToolArgs.content?.slug ??
+                (createdMetadata?.status === 'success' &&
+                'slug' in createdMetadata &&
+                typeof createdMetadata.slug === 'string'
+                    ? createdMetadata.slug
+                    : createContentToolArgs.content?.name);
+            if (createContentToolArgs.type === 'composer_chart' && approval) {
+                return (
+                    <SqlChartToolCallDescription
+                        action="create"
+                        slug={createdSlug ?? ''}
+                        contentLabel="composer chart"
+                        chart={{
+                            sql:
+                                getSqlApprovalSql(createContentToolArgs) ??
+                                undefined,
+                        }}
+                        approval={approval}
+                    />
+                );
+            }
+            return createdSlug && createContentToolArgs.type ? (
                 <ContentEditorToolCallDescription
                     action="create"
-                    slug={createContentToolArgs.content.slug}
+                    slug={createdSlug}
                     type={createContentToolArgs.type}
                 />
             ) : (

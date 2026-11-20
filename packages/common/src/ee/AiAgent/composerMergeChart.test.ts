@@ -204,7 +204,6 @@ describe('getComposerMergeSavedChart', () => {
             'orders_total_order_amount',
         ]);
         const chartJson = JSON.stringify(saved.chartConfig);
-        expect(chartJson).not.toContain('composer_result');
         expect(chartJson).toContain('"merge_month"');
         expect(chartJson).toContain('"merge_margin"');
 

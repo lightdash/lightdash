@@ -473,7 +473,7 @@ describe('getSystemPromptV2 composer queries', () => {
             'After query, call visualize on the node your answer rests on',
         );
         expect(content).toContain(
-            'call visualize on its node rather than rerunning query',
+            'An earlier node already shaped for the chart needs no new query',
         );
         expect(content).not.toMatch(/\bpresent the result|<show/i);
     });
@@ -1133,6 +1133,12 @@ describe('getSystemPromptV2 repository context', () => {
         expect(promptText(repoFsArgs)).toContain(
             "The `/dbt` mount is this project's governed dbt repository.",
         );
+    });
+
+    test('omits the /dbt hint without a /dbt mount', () => {
+        const content = promptText({ ...repoFsArgs, repoFsRoot: null });
+        expect(content).toContain('## Repository context');
+        expect(content).not.toContain('`/dbt`');
     });
 
     test('appends the no-search caveat when code search is unsupported (GitLab)', () => {

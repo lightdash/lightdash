@@ -90,6 +90,10 @@ import {
 } from './logging/winston';
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
+import {
+    createSpaIndexHandler,
+    setDefaultPermissionsPolicy,
+} from './middlewares/permissionsPolicy/permissionsPolicy';
 import { createRestrictUnverifiedSessionMiddleware } from './middlewares/restrictUnverifiedSession/restrictUnverifiedSession';
 import { flush as flushFeatureFlagChecks } from './models/FeatureFlagModel/flagCheckAggregator';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
@@ -122,6 +126,8 @@ import {
     initOtelTracing,
     shutdownOtelTracing,
 } from './tracing/tracing';
+import { helmetForInternalHttpHost } from './utils/internalHttpHost';
+import { oauthPopupCoopMiddleware } from './utils/oauthPopupCoop';
 import { personaliseSharedSignInError } from './utils/sharedSignInExpiry';
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
@@ -194,6 +200,8 @@ const schedulerWorkerFactory = (context: {
             context.models.getAgentConnectionApprovalRequestModel(),
         aiUsageLedgerModel: context.models.getAiUsageLedgerModel(),
         learnSandboxService: context.serviceRepository.getLearnSandboxService(),
+        composerChartService:
+            context.serviceRepository.getComposerChartService(),
         resolveOrganizationName: createOrganizationNameResolver(
             context.models.getOrganizationModel(),
         ),
@@ -688,7 +696,15 @@ export default class App {
             },
         } as const;
 
-        expressApp.use(helmet(helmetConfig));
+        const helmetForRequest = (config: typeof helmetConfig) =>
+            helmetForInternalHttpHost(
+                config,
+                this.lightdashConfig.headlessBrowser.internalLightdashHost,
+            );
+
+        expressApp.use(helmetForRequest(helmetConfig));
+        // Popup-based OAuth clients need window.opener to survive sign-in
+        expressApp.use(oauthPopupCoopMiddleware);
 
         // Allow site icons to be embedded cross-origin so MCP hosts
         // (e.g. claude.ai) can display them in connector listings. Claude
@@ -717,7 +733,7 @@ export default class App {
                 embedFrameAncestors;
         });
 
-        expressApp.use('/embed/*', helmet(helmetConfigForEmbeds));
+        expressApp.use('/embed/*', helmetForRequest(helmetConfigForEmbeds));
 
         expressApp.use('/api/v1/file/*', (_req, res, next) => {
             res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
@@ -726,9 +742,10 @@ export default class App {
 
         const frontendBuildHash = getFrontendBuildHash();
 
+        // Permissions-Policy header that is not yet supported by helmet. More details here: https://github.com/helmetjs/helmet/issues/234
+        // The app's HTML page may allow more; see createSpaIndexHandler.
+        expressApp.use(setDefaultPermissionsPolicy);
         expressApp.use((req, res, next) => {
-            // Permissions-Policy header that is not yet supported by helmet. More details here: https://github.com/helmetjs/helmet/issues/234
-            res.setHeader('Permissions-Policy', 'camera=(), microphone=()');
             res.setHeader(LightdashVersionHeader, VERSION);
             if (frontendBuildHash) {
                 res.setHeader(LightdashBuildHashHeader, frontendBuildHash);
@@ -763,6 +780,7 @@ export default class App {
                                 organizationId: p.organizationUuid,
                                 projectId: p.projectUuid,
                                 appUuid: p.appUuid,
+                                appSlug: p.appSlug,
                                 viewContext: p.viewContext,
                                 version: p.version,
                                 navigationId,
@@ -807,14 +825,16 @@ export default class App {
         expressApp.use(expressWinstonPreResponseMiddleware); // log request before response is sent
         expressApp.use(expressWinstonMiddleware); // log request + response
 
-        expressApp.get('/', (req, res) => {
-            res.sendFile(
-                path.join(__dirname, '../../frontend/build', 'index.html'),
-                {
-                    headers: { 'Cache-Control': 'no-cache, private' },
-                },
-            );
+        // After the session, so the page knows whose organisation it serves.
+        const serveSpaIndex = createSpaIndexHandler({
+            indexPath: path.join(
+                __dirname,
+                '../../frontend/build',
+                'index.html',
+            ),
+            featureFlagModel: this.models.getFeatureFlagModel(),
         });
+        expressApp.get('/', serveSpaIndex);
 
         /**
          * Service Container
@@ -1021,14 +1041,7 @@ export default class App {
 
         // no-cache - browsers revalidate on every request but can cache
         // private - no cdn caching
-        expressApp.get('*', (req, res) => {
-            res.sendFile(
-                path.join(__dirname, '../../frontend/build', 'index.html'),
-                {
-                    headers: { 'Cache-Control': 'no-cache, private' },
-                },
-            );
-        });
+        expressApp.get('*', serveSpaIndex);
 
         // Start the server
         const server = expressApp.listen(this.port, () => {

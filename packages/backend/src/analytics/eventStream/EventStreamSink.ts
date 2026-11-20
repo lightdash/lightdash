@@ -28,10 +28,12 @@ export class EventStreamSink {
             // Safe: the registry maps each event name to a projection accepting that event type
             const projection = this.registry[payload.event] as (
                 p: ProjectedEvent,
-            ) => ProjectionResult;
+            ) => ProjectionResult | ProjectionResult[];
             const result = projection(payload);
-            if (result === null) return;
-            this.writer.push(result.stream, result.row);
+            for (const projected of Array.isArray(result) ? result : [result]) {
+                if (projected)
+                    this.writer.push(projected.stream, projected.row);
+            }
         } catch (error) {
             Logger.warn(
                 `Failed to project analytics event "${payload.event}" into the usage event stream: ${error}`,

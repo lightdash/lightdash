@@ -40,6 +40,8 @@ const submitArgs = (
     invalidateCache: false,
     pivotConfiguration: null,
     plan: null,
+    dateZoom: null,
+    authority: { kind: 'request' },
 });
 
 describe('PythonQuerySource', () => {
@@ -104,6 +106,7 @@ describe('PythonQuerySource', () => {
             invalidateCache: true,
             context: QueryExecutionContext.AI,
             querySurface: undefined,
+            authority: { kind: 'request' },
         });
     });
 });

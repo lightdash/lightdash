@@ -1,15 +1,28 @@
 import {
+    getAiDashboardDateZoomControls,
+    getAiDashboardTileParameters,
+    isDashboardChartTileType,
+    isDashboardSqlChartTile,
     serializeDashboardFiltersForAiContext,
     type AiDashboardRuntimeOverrides,
     type AiPromptContext,
     type AiPromptContextInput,
     type DashboardFilters,
+    type DashboardParameterControl,
     type DashboardParameters,
     type DashboardTab,
+    type DashboardTile,
+    type DateGranularity,
     type DateZoom,
+    type DateZoomConfig,
     type ParametersValuesMap,
 } from '@lightdash/common';
 import { isEqual } from 'es-toolkit/compat';
+import {
+    getDashboardExportTileParameters,
+    type ParameterControlInputs,
+} from '../../../../features/dashboard/store/parameterControls';
+import { getTileTitle } from '../../../../features/dashboardControls/tileProps';
 import { type LauncherCurrentDashboard } from './aiAgentLauncherSlice';
 
 type DashboardContextInput = Extract<
@@ -66,6 +79,90 @@ export const addActiveTabToDashboardRuntimeOverrides = ({
               activeTab: { uuid: activeTab.uuid, name: activeTab.name },
           }
         : runtimeOverrides;
+
+/** Named date zooms and the parameter values picks leave each tile with; the same object back with neither */
+export const addControlsToDashboardRuntimeOverrides = ({
+    runtimeOverrides,
+    tiles,
+    dateZoomConfig,
+    controlGranularities,
+    parameterControlInputs,
+    parameterControls,
+    tileParameterReferences,
+}: {
+    runtimeOverrides: AiDashboardRuntimeOverrides | null;
+    tiles: DashboardTile[];
+    dateZoomConfig: DateZoomConfig;
+    controlGranularities: Record<string, DateGranularity | string>;
+    parameterControlInputs: ParameterControlInputs | null;
+    /** The controls without the viewer's picks */
+    parameterControls: DashboardParameterControl[] | null;
+    tileParameterReferences: Record<string, string[]>;
+}): AiDashboardRuntimeOverrides | null => {
+    const tileRefs = tiles.map((tile) => ({
+        uuid: tile.uuid,
+        name: getTileTitle(tile, 'Untitled tile'),
+    }));
+    const queryTileUuids = tiles
+        .filter(
+            (tile) =>
+                isDashboardChartTileType(tile) || isDashboardSqlChartTile(tile),
+        )
+        .map((tile) => tile.uuid);
+    const getParametersByTileUuid = (
+        controlInputs: ParameterControlInputs | null,
+    ) => {
+        const tileParameters = getDashboardExportTileParameters({
+            controlInputs,
+            tileUuids: queryTileUuids,
+            tileParameterReferences,
+        });
+        return (
+            tileParameters &&
+            Object.fromEntries(
+                Object.entries(tileParameters).map(
+                    ([tileUuid, { parameters }]) => [
+                        tileUuid,
+                        // A tile that has reported its references runs with those keys only
+                        Object.hasOwn(tileParameterReferences, tileUuid)
+                            ? Object.fromEntries(
+                                  Object.entries(parameters).filter(([key]) =>
+                                      tileParameterReferences[
+                                          tileUuid
+                                      ].includes(key),
+                                  ),
+                              )
+                            : parameters,
+                    ],
+                ),
+            )
+        );
+    };
+    const dateZoomControls = getAiDashboardDateZoomControls({
+        config: dateZoomConfig,
+        runtimeGranularities: controlGranularities,
+        tiles: tileRefs,
+    });
+    const tileParameters = getAiDashboardTileParameters({
+        tiles: tileRefs.filter((tile) => queryTileUuids.includes(tile.uuid)),
+        parametersByTileUuid: getParametersByTileUuid(parameterControlInputs),
+        unpickedParametersByTileUuid: getParametersByTileUuid(
+            parameterControlInputs &&
+                parameterControls && {
+                    ...parameterControlInputs,
+                    controls: parameterControls,
+                    overrides: {},
+                    tilePicks: {},
+                },
+        ),
+    });
+    if (!dateZoomControls && !tileParameters) return runtimeOverrides;
+    return {
+        ...runtimeOverrides,
+        ...(dateZoomControls && { dateZoomControls }),
+        ...(tileParameters && { tileParameters }),
+    };
+};
 
 export const getDashboardParametersValuesMap = (
     parameters: DashboardParameters,

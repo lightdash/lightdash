@@ -24,6 +24,7 @@ import { truncate } from '../utils/truncation';
 import {
     buildMetricAmbiguityNote,
     compileMatcher,
+    describeTableFilterKinds,
     getCachedExploreIndex,
     getCachedFieldIndex,
     MATCH_LOCALITY_RANK,
@@ -31,6 +32,7 @@ import {
     summarizeRequiredFilters,
     type ExploreEntry,
     type FieldEntry,
+    type RequiredFiltersSummary,
 } from './grepFieldsIndex';
 
 const toolDefinition = grepFieldsToolDefinition.for('agent');
@@ -74,7 +76,7 @@ type GrepFieldsContext = {
     index: FieldEntry[];
     exploreIndex: ExploreEntry[];
     exploreNames: Set<string>;
-    requiredFiltersSummaryByExplore: Map<string, string>;
+    requiredFiltersSummaryByExplore: Map<string, RequiredFiltersSummary>;
     requiredFiltersByExplore: Map<string, FindExploresRequiredFilter[]>;
 };
 
@@ -104,11 +106,19 @@ const UPGRADE_BUDGET_CHARS = 20_000;
 
 const collapseWhitespace = (text: string): string => text.replace(/\s+/g, ' ');
 
-// An upgraded field renders full text only at its first occurrence.
+// A joined field appears once per explore that joins it, with the same text.
+// Its description and hint render once per result; later copies point back.
 type RenderState = {
-    upgradedPaths: Set<string>;
-    renderedFullPaths: Set<string>;
+    upgradedAnnotations: Set<string>;
+    renderedAnnotations: Map<string, string>;
+    shownTableFilters: Map<string, RequiredFiltersSummary>;
 };
+
+const annotationKey = (
+    fieldId: string,
+    description: string | null,
+    hint: string | null,
+): string => [fieldId, description ?? '', hint ?? ''].join('\u0000');
 
 const renderAnnotation = (
     text: string,
@@ -170,6 +180,12 @@ const getOrderedHits = (
 const isNoSignalPattern = (hitCount: number, scopeSize: number): boolean =>
     hitCount === scopeSize && scopeSize >= ALL_MATCH_NO_SIGNAL_MIN;
 
+const getFieldIdFromEntry = (entry: FieldEntry): string =>
+    entry.path.split('/')[1] ?? entry.path;
+
+const entryAnnotationKey = (entry: FieldEntry): string =>
+    annotationKey(getFieldIdFromEntry(entry), entry.description, entry.aiHint);
+
 const upgradeCost = (entry: FieldEntry): number =>
     Math.max(
         0,
@@ -188,9 +204,10 @@ const pickFieldsWorthFullHints = (
     for (const { displayed, matches } of displayedPerPattern) {
         for (const entry of displayed) {
             const rank = localityRank(entry, matches);
-            const current = candidates.get(entry.path);
+            const key = entryAnnotationKey(entry);
+            const current = candidates.get(key);
             if (!current || rank > current.rank) {
-                candidates.set(entry.path, { entry, rank });
+                candidates.set(key, { entry, rank });
             }
         }
     }
@@ -205,15 +222,12 @@ const pickFieldsWorthFullHints = (
         const cost = upgradeCost(entry);
         // Skip what doesn't fit; a cheaper field may still.
         if (cost > 0 && cost <= remaining) {
-            upgraded.add(entry.path);
+            upgraded.add(entryAnnotationKey(entry));
             remaining -= cost;
         }
     }
     return upgraded;
 };
-
-const getFieldIdFromEntry = (entry: FieldEntry): string =>
-    entry.path.split('/')[1] ?? entry.path;
 
 type ResultsByExplore =
     GrepFieldsResult['patterns'][number]['resultsByExplore'];
@@ -262,11 +276,36 @@ const groupOrderedHitsByExplore = (
     }));
 };
 
+const renderFieldAnnotation = (
+    field: ResultsByExplore[number]['fields'][number],
+    state: RenderState,
+): string => {
+    const key = annotationKey(field.fieldId, field.description, field.hint);
+    const render = (full: boolean): string => {
+        const desc = field.description
+            ? ` — ${renderAnnotation(field.description, { full })}`
+            : '';
+        const hint = field.hint
+            ? ` (hint: ${renderAnnotation(field.hint, { full })})`
+            : '';
+        return `${desc}${hint}`;
+    };
+    const firstPath = state.renderedAnnotations.get(key);
+    if (firstPath === undefined) {
+        state.renderedAnnotations.set(key, field.path);
+        return render(state.upgradedAnnotations.has(key));
+    }
+    // Full text is budgeted once; later copies get a pointer or a preview.
+    const reference = ` — same as ${firstPath} above`;
+    const preview = render(false);
+    return reference.length < preview.length ? reference : preview;
+};
+
 // Render the human-readable block from the already-grouped results, so the text
 // and the structuredContent are two views of one computation, not two passes.
 const renderGroupedHits = (
     resultsByExplore: ResultsByExplore,
-    requiredFiltersSummaryByExplore: Map<string, string>,
+    requiredFiltersSummaryByExplore: Map<string, RequiredFiltersSummary>,
     state: RenderState,
 ): string =>
     resultsByExplore
@@ -275,32 +314,23 @@ const renderGroupedHits = (
                 .map((field) => {
                     const verified =
                         field.usageInVerifiedCharts > 0 ? ' ✓verified' : '';
-                    const full =
-                        state.upgradedPaths.has(field.path) &&
-                        !state.renderedFullPaths.has(field.path);
-                    if (full) state.renderedFullPaths.add(field.path);
-                    const desc = field.description
-                        ? ` — ${renderAnnotation(field.description, { full })}`
-                        : '';
-                    const hint = field.hint
-                        ? ` (hint: ${renderAnnotation(field.hint, { full })})`
-                        : '';
+                    const annotation = renderFieldAnnotation(field, state);
                     const defaultTimeDimension = field.defaultTimeDimension
                         ? ` default_time_dimension: ${field.defaultTimeDimension} default_time_dimension_granularity: ${field.defaultTimeDimensionGranularity}`
                         : '';
                     const params =
                         field.requiredParameters.length > 0
-                            ? ` ⚠params: ${field.requiredParameters.join(',')}`
+                            ? ` requires params: ${field.requiredParameters.join(',')}`
                             : '';
-                    return `  ${field.path}  [${field.kind} ${field.fieldType}]${verified}${params} ${field.label}${defaultTimeDimension}${desc}${hint}`;
+                    return `  ${field.path}  [${field.kind} ${field.fieldType}]${verified}${params} ${field.label}${defaultTimeDimension}${annotation}`;
                 })
                 .join('\n');
             const header = `  ${exploreName} (${exploreLabel})`;
             const requiredFiltersSummary =
                 requiredFiltersSummaryByExplore.get(exploreName);
-            return requiredFiltersSummary
-                ? `${header}\n  ${requiredFiltersSummary}\n${lines}`
-                : `${header}\n${lines}`;
+            if (!requiredFiltersSummary) return `${header}\n${lines}`;
+            state.shownTableFilters.set(exploreName, requiredFiltersSummary);
+            return `${header}\n  ${requiredFiltersSummary.line}\n${lines}`;
         })
         .join('\n');
 
@@ -335,7 +365,7 @@ const renderPattern = (
     exploreHits: ExploreEntry[],
     matches: MatchFn,
     scopeSize: number,
-    requiredFiltersSummaryByExplore: Map<string, string>,
+    requiredFiltersSummaryByExplore: Map<string, RequiredFiltersSummary>,
     requiredFiltersByExplore: Map<string, FindExploresRequiredFilter[]>,
     state: RenderState,
     fieldRanks?: Map<string, number>,
@@ -458,7 +488,10 @@ const buildGrepFieldsContext = ({
     Dependencies,
     'availableExplores' | 'verifiedFieldUsage'
 >): GrepFieldsContext => {
-    const requiredFiltersSummaryByExplore = new Map<string, string>();
+    const requiredFiltersSummaryByExplore = new Map<
+        string,
+        RequiredFiltersSummary
+    >();
     const requiredFiltersByExplore = new Map<
         string,
         FindExploresRequiredFilter[]
@@ -619,7 +652,7 @@ const runGrepFields = async (
         );
 
     const state: RenderState = {
-        upgradedPaths: pickFieldsWorthFullHints(
+        upgradedAnnotations: pickFieldsWorthFullHints(
             matched
                 .filter(
                     ({ hits }) =>
@@ -634,7 +667,8 @@ const runGrepFields = async (
                     matches,
                 })),
         ),
-        renderedFullPaths: new Set(),
+        renderedAnnotations: new Map(),
+        shownTableFilters: new Map(),
     };
 
     const perPattern = matched.map(
@@ -691,6 +725,7 @@ const runGrepFields = async (
 
     const blocksText = [
         blocks.map((block) => block.text).join('\n\n'),
+        describeTableFilterKinds([...state.shownTableFilters.values()]),
         ranked && ranking?.projectParameterDefinitions
             ? prepareCatalogMetadata(
                   ranked.fields,

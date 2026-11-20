@@ -49,6 +49,7 @@ const connection: CreateSnowflakeCredentials = {
     schema: 'public',
     token: 'access-token',
     requireUserCredentials: true,
+    allowUserCredentials: true,
 };
 const credential: AiUserWarehouseCredentials = {
     uuid: 'credential',
@@ -397,6 +398,7 @@ describe('AgentSignInResolverHarness', () => {
                     refreshToken,
                     requireAgentSession: true,
                     requireUserCredentials: false,
+                    allowUserCredentials: false,
                 },
                 assurances,
                 expiresAt: expect.any(Date),

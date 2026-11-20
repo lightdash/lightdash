@@ -5,7 +5,10 @@ import {
     AppsTableName,
     AppVersionsTableName,
 } from '../../database/entities/apps';
-import { DashboardsTableName } from '../../database/entities/dashboards';
+import {
+    DashboardsTableName,
+    DashboardVersionsTableName,
+} from '../../database/entities/dashboards';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { ValidationTableName } from '../../database/entities/validation';
 import { ValidationModel } from './ValidationModel';
@@ -145,6 +148,61 @@ describe('ValidationModel', () => {
             expect(query.bindings).toContain('orders');
             expect(query.sql).toContain('"field_name" = ');
             expect(query.bindings).toContain('orders_status');
+        });
+    });
+
+    describe('dashboard rows read only the latest dashboard version', () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const model = new ValidationModel({ database });
+        const projectUuid = '22222222-2222-4222-8222-222222222222';
+        let tracker: Tracker;
+
+        beforeAll(() => {
+            tracker = getTracker();
+        });
+
+        afterEach(() => {
+            tracker.reset();
+        });
+
+        const expectLatestVersionJoin = (sql: string) => {
+            expect(sql.replace(/\s+/g, ' ')).toContain(
+                `LEFT JOIN LATERAL ( SELECT * FROM "${DashboardVersionsTableName}" AS latest_version WHERE latest_version.dashboard_id = "${DashboardsTableName}"."dashboard_id" ORDER BY latest_version.created_at DESC, latest_version.dashboard_version_id DESC LIMIT 1 ) AS "${DashboardVersionsTableName}" ON TRUE`,
+            );
+            expect(sql).not.toContain(`join "${DashboardVersionsTableName}"`);
+        };
+
+        it('in the project validation list', async () => {
+            tracker.on.select(({ sql }) => sql.length > 0).response([]);
+
+            await model.get(projectUuid);
+
+            const dashboardQuery = tracker.history.select.find(({ sql }) =>
+                sql.includes(DashboardVersionsTableName),
+            );
+            expect(dashboardQuery).toBeDefined();
+            expectLatestVersionJoin(dashboardQuery!.sql);
+        });
+
+        it('in a single validation lookup', async () => {
+            tracker.on.select(({ sql }) => sql.length > 0).response([]);
+
+            await model.getFullByIdOrUuid(
+                '33333333-3333-4333-8333-333333333333',
+                projectUuid,
+            );
+
+            const [query] = tracker.history.select;
+            expectLatestVersionJoin(query.sql);
+        });
+
+        it('in the paginated validation list', async () => {
+            tracker.on.select(({ sql }) => sql.length > 0).response([]);
+
+            await model.getPaginated(projectUuid, { page: 1, pageSize: 20 });
+
+            const [query] = tracker.history.select;
+            expectLatestVersionJoin(query.sql);
         });
     });
 

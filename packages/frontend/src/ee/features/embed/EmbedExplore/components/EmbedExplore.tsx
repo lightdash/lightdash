@@ -26,6 +26,13 @@ import { type EmbedExploreOptions } from '../../../../providers/Embed/types';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 import { useEmbedExploreKey } from '../useEmbedExploreKey';
 import classes from './EmbedExplore.module.css';
+import EmbedExploreContentStateEvent from './EmbedExploreContentStateEvent';
+
+// Query effects read the merge context, so they mount under the provider.
+const ExplorerEffects: FC = () => {
+    useExplorerQueryEffects();
+    return null;
+};
 
 const EmbedExploreView: FC<{
     exploreId: string;
@@ -47,32 +54,30 @@ const EmbedExploreView: FC<{
         enabled: isEditMode,
     });
 
-    // Run the query effects hook
-    useExplorerQueryEffects();
-
     return (
-        <Page
-            withContainerHeight={fitContainerHeight}
-            title={data ? data?.label : 'Tables'}
-            sidebar={
-                <ExploreSideBar
-                    onExploreClick={
-                        onExploreSelect
-                            ? (explore) => onExploreSelect(explore.name)
-                            : undefined
-                    }
-                    onBackToTables={onBackToTables}
-                />
-            }
-            isSidebarOpen={isEditMode}
-            {...rightSidebarProps}
-            withFullHeight
-            withPaddedContent
-        >
-            <MergeProvider readOnly={!isEditMode}>
+        <MergeProvider readOnly={!isEditMode}>
+            <ExplorerEffects />
+            <Page
+                withContainerHeight={fitContainerHeight}
+                title={data ? data?.label : 'Tables'}
+                sidebar={
+                    <ExploreSideBar
+                        onExploreClick={
+                            onExploreSelect
+                                ? (explore) => onExploreSelect(explore.name)
+                                : undefined
+                        }
+                        onBackToTables={onBackToTables}
+                    />
+                }
+                isSidebarOpen={isEditMode}
+                {...rightSidebarProps}
+                withFullHeight
+                withPaddedContent
+            >
                 <Explorer chartView={chartView} />
-            </MergeProvider>
-        </Page>
+            </Page>
+        </MergeProvider>
     );
 };
 
@@ -86,6 +91,7 @@ const EmbedExploreContent: FC<{
     isEditMode: boolean;
     chartView?: boolean;
     runQueryOnLoad?: boolean;
+    emitsContentState: boolean;
 }> = ({
     exploreId,
     savedChart,
@@ -96,6 +102,7 @@ const EmbedExploreContent: FC<{
     isEditMode,
     chartView,
     runQueryOnLoad,
+    emitsContentState,
 }) => {
     // The store initializes once; the parent key remounts it when inputs change.
     const [store] = useState(() => {
@@ -205,6 +212,7 @@ const EmbedExploreContent: FC<{
     return (
         <EmbedProviderContext.Provider value={exploreContext}>
             <Provider store={store}>
+                {emitsContentState && <EmbedExploreContentStateEvent />}
                 <EmbedExploreView
                     exploreId={exploreId}
                     onExploreSelect={onExploreSelect}
@@ -236,6 +244,8 @@ type Props = {
     chartView?: boolean;
     // Run the chart's query on load even when it is not a saved chart
     runQueryOnLoad?: boolean;
+    // Off when the explore is a modal over content that reports its own state
+    emitsContentState?: boolean;
 };
 
 const EmbedExplore: FC<Props> = ({
@@ -249,6 +259,7 @@ const EmbedExplore: FC<Props> = ({
     isEditMode = true,
     chartView,
     runQueryOnLoad,
+    emitsContentState = true,
 }) => {
     const { projectUuid } = useEmbed();
     const { error: exploreError } = useExplore(exploreId);
@@ -299,6 +310,7 @@ const EmbedExplore: FC<Props> = ({
                 isEditMode={isEditMode}
                 chartView={chartView}
                 runQueryOnLoad={runQueryOnLoad}
+                emitsContentState={emitsContentState}
             />
         </div>
     );

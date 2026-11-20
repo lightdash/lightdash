@@ -81,6 +81,7 @@ export type ResolvePreAggregationDuckDbArgs = {
     preAggregationRoute: PreAggregationRoute;
     fieldsMap: ItemsMap;
     pivotConfiguration: PivotConfiguration | undefined;
+    pivotDimensions?: string[];
     startOfWeek: CreateWarehouseCredentials['startOfWeek'];
     userAccessControls: UserAccessControls;
     availableParameterDefinitions: ParameterDefinitions;
@@ -442,7 +443,7 @@ export class PreAggregationDuckDbClient {
                     args.availableParameterDefinitions,
                 parameters: args.parameters,
                 dateZoom: args.dateZoom,
-                pivotDimensions: undefined,
+                pivotDimensions: args.pivotDimensions,
                 // Pre-agg pivots against the source query's persisted fields,
                 // not the pre-agg explore's freshly compiled ones.
                 pivotItemsMap: args.fieldsMap,

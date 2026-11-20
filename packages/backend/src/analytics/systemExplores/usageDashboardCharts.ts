@@ -4,6 +4,96 @@ import type { UsageChartSpec } from './usageDashboardTypes';
 export const usageChartSpecs: UsageChartSpec[] = [
     ...monthlyQueryComparisonCharts,
     {
+        key: 'assessment-pass-rate-by-day',
+        name: 'Assessment pass rate by day',
+        description:
+            'Passing assessments divided by all assessments, grouped by the day the run started. Runs without assessments do not contribute to the rate.',
+        explore: 'agent_evaluation_runs',
+        dimensions: ['agent_evaluation_runs_event_ts_day'],
+        metrics: ['agent_evaluation_runs_pass_rate'],
+        visualization: 'line',
+        timezone: 'UTC',
+        limit: 365,
+        sorts: [
+            {
+                fieldId: 'agent_evaluation_runs_event_ts_day',
+                descending: false,
+            },
+        ],
+    },
+    {
+        key: 'assessment-volume-by-day',
+        name: 'Passing and failing assessments by day',
+        description:
+            'Assessment count behind each day’s pass rate. Human and AI assessments count separately, matching the run summary.',
+        explore: 'agent_evaluation_runs',
+        dimensions: ['agent_evaluation_runs_event_ts_day'],
+        metrics: [
+            'agent_evaluation_runs_passed_assessments',
+            'agent_evaluation_runs_failed_assessments',
+        ],
+        visualization: 'line',
+        timezone: 'UTC',
+        limit: 365,
+        sorts: [
+            {
+                fieldId: 'agent_evaluation_runs_event_ts_day',
+                descending: false,
+            },
+        ],
+    },
+    {
+        key: 'quality-by-evaluation',
+        name: 'Quality by agent and evaluation',
+        description:
+            'Compare retained runs and assessment outcomes across agents and evaluations.',
+        explore: 'agent_evaluation_runs',
+        dimensions: [
+            'agent_evaluation_runs_agent_name',
+            'agent_evaluation_runs_agent_id',
+            'agent_evaluation_runs_evaluation_name',
+            'agent_evaluation_runs_evaluation_id',
+        ],
+        metrics: [
+            'agent_evaluation_runs_total_runs',
+            'agent_evaluation_runs_pass_rate',
+            'agent_evaluation_runs_passed_assessments',
+            'agent_evaluation_runs_failed_assessments',
+            'agent_evaluation_runs_unassessed_results',
+            'agent_evaluation_runs_execution_errors',
+        ],
+        limit: 100,
+        sorts: [
+            { fieldId: 'agent_evaluation_runs_total_runs', descending: true },
+        ],
+    },
+    {
+        key: 'recent-evaluation-runs',
+        name: 'Recent evaluation runs',
+        description:
+            'The 100 most recent completed or failed runs in the selected period. Execution errors and negative assessments are different outcomes.',
+        explore: 'agent_evaluation_runs',
+        dimensions: [
+            'agent_evaluation_runs_event_ts_raw',
+            'agent_evaluation_runs_agent_name',
+            'agent_evaluation_runs_evaluation_name',
+            'agent_evaluation_runs_run_status',
+            'agent_evaluation_runs_run_id',
+        ],
+        metrics: [
+            'agent_evaluation_runs_pass_rate',
+            'agent_evaluation_runs_passed_assessments',
+            'agent_evaluation_runs_failed_assessments',
+            'agent_evaluation_runs_unassessed_results',
+            'agent_evaluation_runs_execution_errors',
+        ],
+        timezone: 'UTC',
+        limit: 100,
+        sorts: [
+            { fieldId: 'agent_evaluation_runs_event_ts_raw', descending: true },
+        ],
+    },
+    {
         key: 'most-used-fields',
         name: 'Most-used metrics and dimensions',
         description:

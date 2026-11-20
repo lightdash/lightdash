@@ -28,6 +28,7 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | Google Sheets export | `gsheet-export` | app code opt-in |
 | "delivery has all tabs", full data in scheduled deliveries | `delivery-render` | app code opt-in |
 | external API data | `external-fetch` | app code opt-in |
+| "tell the host page", "notify our app when the user clicks", react to a button from the page embedding the app | `host-events` | app code opt-in |
 | runs inside a dashboard tile | `viz-context` | required — see below |
 | reusable chart/table with pivoted results | `viz-pivoted-results` | required — see below |
 | "Data point actions" — native context menu on a data-point click (copy, view underlying data, drill, cross-filter; viz only) | `point-action-menu` | app code opt-in |
@@ -188,6 +189,13 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
 - `external-fetch`: `client.externalFetch(alias, opts)` calls an external
   connection linked to this app. The connection must already be linked by the
   host; you cannot add one from app code.
+- `host-events`: `emitEvent('<event-name>', payload)` tells the page embedding
+  the app that something happened (a confirmed import, a submitted form), so
+  it can react right away instead of polling. Call it from the user action,
+  with an author-chosen kebab-case name and a JSON payload of at most 64 KB
+  serialized. It throws on an invalid name or payload, so catch and show the
+  error; it does nothing when the app is not embedded. Larger data goes
+  through `external-fetch`, with the event carrying a reference to it.
 - `ai-insights`: wire the shipped components in `src/components/insights/`
   (`InsightsSummary`, `InsightMarker` / `insightCellProps`,
   `InvestigateMenuItem`, `InvestigationCard`) rather than writing your own:

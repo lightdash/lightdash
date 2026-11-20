@@ -1,0 +1,7 @@
+.compactStatus {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font-weight: 400;
+    color: var(--mantine-color-dimmed);
+}

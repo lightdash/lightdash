@@ -5,6 +5,7 @@ const webPrompt = (prompt: Partial<AiWebAppPrompt>) =>
     ({
         threadCreatedFrom: 'web_app',
         threadEmbedSpaceUuid: null,
+        threadEmbedOwnerIdentifier: null,
         externalUserId: null,
         ...prompt,
     }) as AiWebAppPrompt;
@@ -27,6 +28,14 @@ describe('getPromptUsageAttribution', () => {
                 webPrompt({ externalUserId: 'viewer-1' }),
             ),
         ).toEqual({ channel: 'embed', externalUserId: 'viewer-1' });
+    });
+
+    it('labels a read-only embedded turn without a viewer id as embed', () => {
+        expect(
+            getPromptUsageAttribution(
+                webPrompt({ threadEmbedOwnerIdentifier: 'dashboard-1' }),
+            ),
+        ).toEqual({ channel: 'embed', externalUserId: null });
     });
 
     it('attributes a turn sent from the app to no viewer', () => {

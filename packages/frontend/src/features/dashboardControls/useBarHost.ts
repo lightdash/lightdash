@@ -13,8 +13,9 @@ const getGridSelector = (key: string) =>
         ? GRID_SELECTOR
         : `[data-tab-uuid="${key}"] ${GRID_SELECTOR}`;
 
-// An element of ours right after the active tab's tile grid, where the bar
-// floats. Keyed on the grid, so it follows a grid that is mounted again
+// An element of ours right after the active tab's tile grid: room for the bar
+// under the last tile row, and the bar itself in an SDK embed. Keyed on the
+// grid, so it follows a grid that is mounted again
 export const useBarHost = (
     activeTabUuid: string | undefined,
     isEnabled: boolean,
@@ -42,7 +43,6 @@ export const useBarHost = (
         if (grid === null) return;
         const element = document.createElement('div');
         element.className = classes.host;
-        element.dataset.dashboardFloatingBar = '';
         // Outside a zoomed canvas, so the bar keeps its size
         (getZoomedCanvas(grid) ?? grid).after(element);
         setHost(element);

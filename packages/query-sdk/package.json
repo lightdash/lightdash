@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/query-sdk",
-    "version": "3.234.6",
+    "version": "3.351.0",
     "private": false,
     "description": "SDK for building custom data apps against the Lightdash semantic layer",
     "license": "MIT",
@@ -44,7 +44,7 @@
         "jsdom": "26.1.0",
         "react-dom": "19.3.0",
         "typescript": "7.0.2",
-        "vitest": "4.1.11"
+        "vitest": "5.1.0"
     },
     "peerDependencies": {
         "react": "^18.x || ^19.x"

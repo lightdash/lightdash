@@ -1,0 +1,300 @@
+import { type SemanticStudioWorkspace } from '@lightdash/common';
+import { Avatar, Box, Button, Text, UnstyledButton } from '@mantine/core';
+import { IconCheck, IconChevronRight } from '@tabler/icons-react';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import { type FC, type ReactNode } from 'react';
+import MantineIcon from '../../components/common/MantineIcon';
+import { type StudioPendingChange } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
+import { RunMeta, RunRing } from './StudioRunRing';
+import { needsYou, toStudioRun, type StudioRun } from './studioRuns';
+import classes from './StudioWorkspacesList.module.css';
+import { pullRequestNumberOf } from './urls';
+import { isOpenWorkspace } from './useStudioCheckout';
+import { useStudioRuns, type StudioRunRow } from './useStudioRuns';
+import { useStudioWorkspaces } from './useStudioWorkspaces';
+
+dayjs.extend(relativeTime);
+
+const STAGES = ['Proposed', 'Saved', 'In review', 'Published'] as const;
+
+/** How many stages are behind the run, and the one it is on. */
+const stageOf = (run: StudioRun): number => {
+    switch (run.kind) {
+        case 'draft':
+            return 0;
+        case 'saving':
+            return 1;
+        default:
+            return 2;
+    }
+};
+
+const StageTrack: FC<{ run: StudioRun }> = ({ run }) => {
+    const current = stageOf(run);
+    return (
+        <span
+            className={classes.track}
+            aria-label={`Stage: ${STAGES[current]}`}
+        >
+            {STAGES.map((stage, index) => (
+                <span
+                    key={stage}
+                    className={classes.segment}
+                    data-state={
+                        index < current
+                            ? 'done'
+                            : index === current
+                              ? run.kind
+                              : 'todo'
+                    }
+                />
+            ))}
+        </span>
+    );
+};
+
+const Section: FC<{ label: string; count: number; children: ReactNode }> = ({
+    label,
+    count,
+    children,
+}) => (
+    <section className={classes.section}>
+        <header className={classes.sectionHead}>
+            <Text className={classes.sectionLabel}>{label}</Text>
+            <span className={classes.sectionCount}>{count}</span>
+        </header>
+        <div className={classes.list}>{children}</div>
+    </section>
+);
+
+const MineRow: FC<{
+    row: StudioRunRow;
+    startedAt: string | null;
+    onOpen: () => void;
+    /** Null where opening the change already checks it out, or it is checked out. */
+    onCheckOut: (() => void) | null;
+    isCheckingOut: boolean;
+}> = ({
+    row: { workspace, run },
+    startedAt,
+    onOpen,
+    onCheckOut,
+    isCheckingOut,
+}) => (
+    <Box className={classes.row} data-current={workspace.isActive || undefined}>
+        <RunRing run={run} size={40} />
+        <span className={classes.text}>
+            <span className={classes.nameLine}>
+                <UnstyledButton
+                    className={classes.rowLink}
+                    aria-current={workspace.isActive || undefined}
+                    onClick={onOpen}
+                >
+                    <Text component="span" className={classes.name}>
+                        {workspace.name}
+                    </Text>
+                </UnstyledButton>
+            </span>
+            <span className={classes.meta} data-kind={run.kind}>
+                <RunMeta
+                    run={run}
+                    startedAt={run.kind === 'saving' ? startedAt : null}
+                />
+                <span className={classes.when}>
+                    {' · '}
+                    {dayjs(workspace.updatedAt).fromNow()}
+                </span>
+            </span>
+        </span>
+        <StageTrack run={run} />
+        {onCheckOut ? (
+            <Button
+                size="compact-sm"
+                variant="default"
+                className={classes.rowAction}
+                loading={isCheckingOut}
+                onClick={onCheckOut}
+            >
+                Check out
+            </Button>
+        ) : needsYou(run) ? (
+            <Button
+                component="span"
+                size="compact-sm"
+                variant="light"
+                color={run.kind === 'ready' ? 'green' : 'red'}
+            >
+                Open
+            </Button>
+        ) : (
+            <MantineIcon
+                icon={IconChevronRight}
+                size={16}
+                className={classes.chevron}
+            />
+        )}
+    </Box>
+);
+
+const whereItStands = ({
+    pullRequest,
+    publishedLive,
+}: SemanticStudioWorkspace): string => {
+    const number = pullRequestNumberOf(pullRequest?.url);
+    if (!pullRequest) return publishedLive ? 'Published' : 'Not saved yet';
+    switch (pullRequest.state) {
+        case 'merged':
+            return number ? `Merged as #${number}` : 'Merged';
+        case 'closed':
+            return number ? `Closed #${number}` : 'Closed';
+        default:
+            return number ? `In review #${number}` : 'In review';
+    }
+};
+
+/** Your work in flight, others' (to be aware of), and what went live lately. */
+export const StudioWorkspacesList: FC<{
+    projectUuid: string;
+    saving: StudioPendingChange | null;
+    onOpen: (workspace: SemanticStudioWorkspace) => void;
+    /** Null where opening one of your changes checks it out. */
+    onCheckOut: ((workspace: SemanticStudioWorkspace) => void) | null;
+    isCheckingOut: boolean;
+}> = ({ projectUuid, saving, onOpen, onCheckOut, isCheckingOut }) => {
+    const { data, isInitialLoading, error } = useStudioWorkspaces(projectUuid);
+    const rows = useStudioRuns(projectUuid, data?.mine ?? [], saving);
+    if (isInitialLoading) return null;
+    if (error || !data) {
+        return (
+            <Text fz="sm" c="dimmed" ta="center" py="xl">
+                Drafts could not be loaded.
+            </Text>
+        );
+    }
+    const { others } = data;
+    // Discarded work is not listed.
+    const recent = data.recent.filter(
+        ({ pullRequest, publishedLive }) =>
+            publishedLive || pullRequest?.state === 'merged',
+    );
+    const waiting = rows.filter(({ run }) => needsYou(run));
+    const going = rows.filter(({ run }) => !needsYou(run));
+    const mineRow = (row: StudioRunRow) => (
+        <MineRow
+            key={row.workspace.workspaceUuid}
+            row={row}
+            startedAt={saving?.startedAt ?? null}
+            onOpen={() => onOpen(row.workspace)}
+            onCheckOut={
+                onCheckOut &&
+                !row.workspace.isActive &&
+                isOpenWorkspace(row.workspace)
+                    ? () => onCheckOut(row.workspace)
+                    : null
+            }
+            isCheckingOut={isCheckingOut}
+        />
+    );
+    return (
+        <Box className={classes.page}>
+            <header className={classes.hero}>
+                <Text className={classes.title}>Drafts</Text>
+                <Text className={classes.lede}>
+                    {rows.length === 0
+                        ? 'No drafts yet.'
+                        : 'Pick up where you and your team left off.'}
+                </Text>
+            </header>
+            {waiting.length > 0 ? (
+                <Section label="Needs you" count={waiting.length}>
+                    {waiting.map(mineRow)}
+                </Section>
+            ) : null}
+            {going.length > 0 ? (
+                <Section label="In flight" count={going.length}>
+                    {going.map(mineRow)}
+                </Section>
+            ) : null}
+            {others.length > 0 ? (
+                <Section label="From others" count={others.length}>
+                    {others.map((workspace) => {
+                        const run = toStudioRun(workspace, {
+                            savingStep: null,
+                            ciChecks: null,
+                        });
+                        return (
+                            <UnstyledButton
+                                key={workspace.workspaceUuid}
+                                className={classes.row}
+                                onClick={() => onOpen(workspace)}
+                            >
+                                <Avatar
+                                    size={40}
+                                    radius="xl"
+                                    color="initials"
+                                    name={workspace.owner.name}
+                                />
+                                <span className={classes.text}>
+                                    <Text
+                                        component="span"
+                                        className={classes.name}
+                                    >
+                                        {workspace.name}
+                                    </Text>
+                                    <span className={classes.meta}>
+                                        {workspace.owner.name} ·{' '}
+                                        {whereItStands(workspace)} · view only
+                                    </span>
+                                </span>
+                                <StageTrack run={run} />
+                                <MantineIcon
+                                    icon={IconChevronRight}
+                                    size={16}
+                                    className={classes.chevron}
+                                />
+                            </UnstyledButton>
+                        );
+                    })}
+                </Section>
+            ) : null}
+            {recent.length > 0 ? (
+                <Section label="Published lately" count={recent.length}>
+                    <ol className={classes.timeline}>
+                        {recent.map((workspace) => (
+                            <li key={workspace.workspaceUuid}>
+                                <UnstyledButton
+                                    className={classes.event}
+                                    onClick={() => onOpen(workspace)}
+                                >
+                                    <span className={classes.eventDot}>
+                                        <MantineIcon
+                                            icon={IconCheck}
+                                            size={10}
+                                        />
+                                    </span>
+                                    <Text
+                                        component="span"
+                                        className={classes.eventName}
+                                    >
+                                        {workspace.name}
+                                    </Text>
+                                    <span className={classes.when}>
+                                        {workspace.isMine
+                                            ? ''
+                                            : `${workspace.owner.name} · `}
+                                        {whereItStands(workspace)} ·{' '}
+                                        {dayjs(
+                                            workspace.finishedAt ??
+                                                workspace.updatedAt,
+                                        ).fromNow()}
+                                    </span>
+                                </UnstyledButton>
+                            </li>
+                        ))}
+                    </ol>
+                </Section>
+            ) : null}
+        </Box>
+    );
+};

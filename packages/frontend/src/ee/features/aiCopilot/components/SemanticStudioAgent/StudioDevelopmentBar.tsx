@@ -1,103 +1,269 @@
 import {
     ActionIcon,
-    Anchor,
     Button,
     Group,
+    Loader,
+    Menu,
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconExternalLink, IconEye, IconEyeOff } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import {
+    IconAlertTriangle,
+    IconDots,
+    IconExternalLink,
+} from '@tabler/icons-react';
+import { useEffect, useState, type FC } from 'react';
 import { Link } from 'react-router';
+import { useGithubUserCredential } from '../../../../../components/common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import MantineModal from '../../../../../components/common/MantineModal';
 import { DevelopmentBar } from '../../../../../features/semanticStudio/DevelopmentBar';
-import { useDevelopmentView } from '../../../../../features/semanticStudio/developmentView';
-import { useMergePullRequest } from '../../hooks/useMergePullRequest';
-import { isMergeable } from '../ChatElements/ToolCalls/pullRequestActions';
-import { type StudioPullRequest } from './useStudioPullRequest';
+import {
+    getDevelopmentPreview,
+    isDevelopmentViewPinned,
+    useDevelopmentView,
+} from '../../../../../features/semanticStudio/developmentView';
+import { useCompileCheckout } from '../../../../../features/semanticStudio/useSemanticLayerModel';
+import { useClosePullRequest } from '../../hooks/useClosePullRequest';
+import { useWritebackProgress } from '../../hooks/useWritebackProgress';
+import { PublishDraftModal } from './PublishDraftModal';
+import { TryItButton } from './TryItButton';
+import { useFinishDiscardedWork } from './useSemanticStudioChat';
+import { useStudioPublish } from './useStudioPublish';
+import {
+    type StudioPendingChange,
+    type StudioPullRequest,
+} from './useStudioPullRequest';
 
 /** What a dbt project's Studio conversation has saved so far: its pull request, a look at the result, and publishing it. */
 export const StudioDevelopmentBar: FC<{
     projectUuid: string;
     pullRequest: StudioPullRequest;
 }> = ({ projectUuid, pullRequest }) => {
-    const { prUrl, commitSha, additions, deletions, previewProjectUuid } =
-        pullRequest;
-    const { mutate: merge, isLoading } = useMergePullRequest(projectUuid);
-    const [armed, setArmed] = useState(false);
+    const { prUrl, previewProjectUuid, ciChecks, isMine } = pullRequest;
+    const {
+        name,
+        destination,
+        compile,
+        canWriteBranch,
+        mergesHere,
+        branch,
+        step,
+    } = useStudioPublish(projectUuid, prUrl, ciChecks);
+    const compileAgain = useCompileCheckout(projectUuid);
+    const { data: credential } = useGithubUserCredential();
+    const { mutate: close, isLoading: isClosing } =
+        useClosePullRequest(projectUuid);
+    const [publishing, setPublishing] = useState(false);
+    const [discarding, setDiscarding] = useState(false);
     const [isTrying, setIsTrying] = useDevelopmentView();
-    const number = /\/(\d+)\/?$/.exec(prUrl)?.[1];
+    const finishDiscardedWork = useFinishDiscardedWork(projectUuid);
+    // The preview is the truer source once it is built, so a view switched on before then moves to it.
+    useEffect(() => {
+        if (
+            isTrying &&
+            !isDevelopmentViewPinned() &&
+            previewProjectUuid &&
+            getDevelopmentPreview() !== previewProjectUuid
+        ) {
+            setIsTrying(true, previewProjectUuid);
+        }
+    }, [isTrying, previewProjectUuid, setIsTrying]);
+    const canPublish = isMine && canWriteBranch && step.action === 'publish';
     return (
-        <DevelopmentBar
-            summary={
-                <>
-                    <Anchor
+        <DevelopmentBar summary={null}>
+            <TryItButton
+                projectUuid={projectUuid}
+                pullRequest={pullRequest}
+                look={canPublish ? 'secondary' : 'primary'}
+            />
+            {isMine && !canWriteBranch ? (
+                <Tooltip
+                    multiline
+                    w={240}
+                    label={
+                        mergesHere
+                            ? `Only people who can write to ${branch ?? "the project's branch"} can publish.`
+                            : 'Merge it in your repository to publish.'
+                    }
+                >
+                    <Button
+                        size="xs"
+                        variant="default"
+                        component="a"
                         href={prUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        fz="xs"
-                        c="dimmed"
-                        truncate
                     >
-                        Pull request{number ? ` #${number}` : ''}
-                    </Anchor>
-                    <Group gap={4} wrap="nowrap" flex="none">
-                        {additions !== null ? (
-                            <Text fz="xs" c="green" ff="monospace">
-                                +{additions}
-                            </Text>
-                        ) : null}
-                        {deletions !== null ? (
-                            <Text fz="xs" c="red" ff="monospace">
-                                −{deletions}
-                            </Text>
-                        ) : null}
-                    </Group>
-                </>
-            }
-        >
-            {previewProjectUuid ? (
-                <>
-                    <Tooltip label="Open the preview project built from this pull request">
-                        <ActionIcon
+                        Open pull request
+                    </Button>
+                </Tooltip>
+            ) : isMine ? (
+                <Tooltip multiline w={240} label={step.hint}>
+                    <Button
+                        size="xs"
+                        variant={canPublish ? 'filled' : 'default'}
+                        leftSection={
+                            compile?.status === 'compiling' ? (
+                                <Loader size={12} color="gray" />
+                            ) : compile?.status === 'failed' ? (
+                                <MantineIcon
+                                    icon={IconAlertTriangle}
+                                    size={14}
+                                    color="yellow"
+                                />
+                            ) : null
+                        }
+                        loading={compileAgain.isLoading}
+                        data-disabled={step.action === null || undefined}
+                        aria-disabled={step.action === null}
+                        onClick={() => {
+                            if (step.action === 'compile')
+                                compileAgain.mutate();
+                            else if (step.action === 'publish')
+                                setPublishing(true);
+                        }}
+                    >
+                        {step.label}
+                    </Button>
+                </Tooltip>
+            ) : null}
+            <Menu position="bottom-end">
+                <Menu.Target>
+                    <ActionIcon
+                        size="md"
+                        aria-label="More actions"
+                        variant="subtle"
+                        color="gray"
+                    >
+                        <MantineIcon icon={IconDots} />
+                    </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                    {previewProjectUuid ? (
+                        <Menu.Item
                             component={Link}
                             to={`/projects/${previewProjectUuid}/semantic-layer`}
                             target="_blank"
-                            aria-label="Open the preview project"
-                        >
-                            <MantineIcon icon={IconExternalLink} />
-                        </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Explore and your charts read the pull request's models. Only you see them.">
-                        <Button
-                            size="xs"
-                            variant="default"
                             leftSection={
-                                <MantineIcon
-                                    icon={isTrying ? IconEyeOff : IconEye}
-                                    size={14}
-                                />
-                            }
-                            onClick={() =>
-                                setIsTrying(!isTrying, previewProjectUuid)
+                                <MantineIcon icon={IconExternalLink} />
                             }
                         >
-                            {isTrying ? 'Back to live' : 'Try my changes'}
-                        </Button>
-                    </Tooltip>
-                </>
+                            Open preview project
+                        </Menu.Item>
+                    ) : null}
+                    {pullRequest.changedModels[0] ? (
+                        <Menu.Item
+                            component={Link}
+                            to={`/projects/${projectUuid}/tables/${encodeURIComponent(pullRequest.changedModels[0])}`}
+                        >
+                            Open in Explore
+                        </Menu.Item>
+                    ) : null}
+                    <Menu.Item
+                        component="a"
+                        href={prUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        leftSection={<MantineIcon icon={IconExternalLink} />}
+                    >
+                        Open {name}
+                    </Menu.Item>
+                    {isMine &&
+                    prUrl.startsWith('https://github.com/') &&
+                    credential === null ? (
+                        <Menu.Item
+                            component={Link}
+                            to="/generalSettings/profile"
+                        >
+                            Open pull requests as you
+                        </Menu.Item>
+                    ) : null}
+                    {isMine ? (
+                        <>
+                            <Menu.Divider />
+                            <Menu.Item
+                                color="red"
+                                onClick={() => setDiscarding(true)}
+                            >
+                                Discard changes
+                            </Menu.Item>
+                        </>
+                    ) : null}
+                </Menu.Dropdown>
+            </Menu>
+            {publishing ? (
+                <PublishDraftModal
+                    projectUuid={projectUuid}
+                    prUrl={prUrl}
+                    destination={destination}
+                    onClose={() => setPublishing(false)}
+                />
             ) : null}
-            <Button
-                size="xs"
-                loading={isLoading}
-                disabled={!isMergeable(pullRequest.ciChecks)}
-                onBlur={() => setArmed(false)}
-                onClick={() =>
-                    armed ? merge({ prUrl, sha: commitSha }) : setArmed(true)
-                }
-            >
-                {armed ? 'Confirm publish' : 'Publish'}
-            </Button>
+            {discarding ? (
+                <MantineModal
+                    opened
+                    variant="delete"
+                    title="Discard changes"
+                    description={`This closes ${name} without merging it, so these changes never go live. The pull request can be reopened from the repository.`}
+                    confirmLabel="Discard changes"
+                    confirmLoading={isClosing}
+                    onClose={() => setDiscarding(false)}
+                    onConfirm={() =>
+                        close(
+                            { prUrl },
+                            {
+                                onSuccess: () => {
+                                    setDiscarding(false);
+                                    setIsTrying(false, null);
+                                    // Discarded work leaves the list and stays as history.
+                                    finishDiscardedWork();
+                                },
+                            },
+                        )
+                    }
+                />
+            ) : null}
+        </DevelopmentBar>
+    );
+};
+
+/** A dbt change still being saved, in the toolbar: only that it is under way, since the chat shows its steps. */
+export const StudioSavingBar: FC<{
+    projectUuid: string;
+    change: StudioPendingChange;
+    /** The open pull request this save adds to; null when the save opens the first one. */
+    pullRequest: StudioPullRequest | null;
+}> = ({ projectUuid, change, pullRequest }) => {
+    const { state } = useWritebackProgress(
+        projectUuid,
+        change.aiWritebackRunUuid,
+    );
+    return (
+        <DevelopmentBar
+            summary={
+                <Group gap={6} wrap="nowrap" miw={0}>
+                    {state === 'running' ? (
+                        <Loader size={12} color="gray" />
+                    ) : null}
+                    <Text fz="xs" c="dimmed" truncate>
+                        {state === 'running'
+                            ? 'Saving'
+                            : state === 'done'
+                              ? 'Saved'
+                              : 'The save stopped'}
+                    </Text>
+                </Group>
+            }
+        >
+            {/* An earlier save can still be tried while this one runs. */}
+            {pullRequest ? (
+                <TryItButton
+                    projectUuid={projectUuid}
+                    pullRequest={pullRequest}
+                    look="primary"
+                />
+            ) : null}
         </DevelopmentBar>
     );
 };

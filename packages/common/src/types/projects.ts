@@ -51,11 +51,16 @@ export enum WarehouseTypes {
 }
 
 /**
- * Warehouse types that support optional personal credentials. BigQuery also
- * requires the project to opt in via allowUserCredentials.
+ * Warehouse types that support optional personal credentials. BigQuery and
+ * Snowflake also require the project to opt in via allowUserCredentials.
  */
 export const WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS: WarehouseTypes[] =
-    [WarehouseTypes.DATABRICKS, WarehouseTypes.TRINO, WarehouseTypes.BIGQUERY];
+    [
+        WarehouseTypes.DATABRICKS,
+        WarehouseTypes.TRINO,
+        WarehouseTypes.BIGQUERY,
+        WarehouseTypes.SNOWFLAKE,
+    ];
 
 export const supportsOptionalUserCredentials = (
     warehouseType: WarehouseTypes | undefined,
@@ -68,7 +73,8 @@ export const allowsOptionalUserCredentials = (
 ): boolean =>
     !!credentials &&
     supportsOptionalUserCredentials(credentials.type) &&
-    (credentials.type !== WarehouseTypes.BIGQUERY ||
+    ((credentials.type !== WarehouseTypes.BIGQUERY &&
+        credentials.type !== WarehouseTypes.SNOWFLAKE) ||
         credentials.allowUserCredentials === true);
 
 export enum DuckdbConnectionType {
@@ -652,6 +658,7 @@ export type CreateSnowflakeCredentials = {
     user: string;
     password?: string;
     requireUserCredentials?: boolean;
+    allowUserCredentials?: boolean;
     requireAgentSession?: boolean;
     privateKey?: string;
     privateKeyPass?: string;
@@ -836,6 +843,9 @@ export const mergeWarehouseCredentials = <
 >(
     baseCredentials: T,
     newCredentials: T,
+    options: { inheritAcrossSnowflakeWarehouses: boolean } = {
+        inheritAcrossSnowflakeWarehouses: false,
+    },
 ): T => {
     // If types don't match, return newCredentials as-is (can't merge different warehouse types)
     if (baseCredentials.type !== newCredentials.type) {
@@ -849,6 +859,7 @@ export const mergeWarehouseCredentials = <
     // Edge case: if the warehouse is snowflake but with a different warehouse, return newCredentials as-is
     // This is to avoid enforcing requireUserCredentials on a different snowflake warehouse that might not have SSO enabled or different roles
     if (
+        !options.inheritAcrossSnowflakeWarehouses &&
         baseCredentials.type === WarehouseTypes.SNOWFLAKE &&
         newCredentials.type === WarehouseTypes.SNOWFLAKE &&
         baseCredentials.warehouse.toLowerCase().trim() !==
@@ -926,6 +937,8 @@ const BLOCKED_DBT_ENVIRONMENT_VARIABLE_KEYS = new Set([
     'LD_LIBRARY_PATH',
     'LD_PRELOAD',
     'LOCPATH',
+    'OPENSSL_CONF',
+    'OPENSSL_MODULES',
     'PAGER',
     'PATH',
     'PERL5LIB',

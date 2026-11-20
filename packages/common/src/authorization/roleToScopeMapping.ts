@@ -111,6 +111,7 @@ const BASE_ROLE_SCOPES = {
         'manage:PinnedItems',
         'manage:DashboardComments',
         'manage:Tags',
+        'manage:ComposerChart',
 
         // Broad SemanticViewer mgmt — promoted from the @space variant
         // when the user reaches editor tier. Granted at
@@ -231,6 +232,7 @@ const BASE_ROLE_SCOPES = {
         'manage:OrganizationColorPalette',
         'view:Roadmap',
         'manage:Roadmap',
+        'manage:Billing',
         'impersonate:User',
 
         // System roles take token access from the deployment config; listing
@@ -458,6 +460,7 @@ export const getNonEnterpriseScopesForRole = (
         'manage:OrganizationDesign',
         'view:Roadmap',
         'manage:Roadmap',
+        'manage:Billing',
         'manage:PersonalAccessToken',
         'manage:PreAggregation',
     ]);

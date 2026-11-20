@@ -193,7 +193,9 @@ describe('Agents over MCP', () => {
         expect(
             screen.getByText('MCP access is disabled for this organization.'),
         ).toBeInTheDocument();
-        expect(screen.getByRole('radio', { name: 'Custom' })).toBeEnabled();
+        expect(
+            screen.getByRole('radio', { name: 'Custom scope' }),
+        ).toBeEnabled();
     });
     it('saves at once, shares state in both directions and stays out of draft/discard', async () => {
         const view = renderPages({
@@ -201,7 +203,9 @@ describe('Agents over MCP', () => {
             canManageOrganization: true,
             canManageOrgAiAgent: true,
         });
-        fireEvent.click(await screen.findByRole('radio', { name: 'Custom' }));
+        fireEvent.click(
+            await screen.findByRole('radio', { name: 'Custom scope' }),
+        );
         expect(screen.getByText('1 unsaved change')).toBeInTheDocument();
         fireEvent.click(
             screen.getByRole('switch', { name: 'Agents over MCP' }),

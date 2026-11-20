@@ -1,6 +1,9 @@
 import {
     assertUnreachable,
     DashboardTileTypes,
+    DEFAULT_DASHBOARD_HEADING_SIZE,
+    DEFAULT_DASHBOARD_HEADING_TEXT_ALIGN,
+    DEFAULT_DASHBOARD_HEADING_VERTICAL_ALIGN,
     type DashboardTile,
     type DashboardTileWithSlug,
 } from '@lightdash/common';
@@ -17,6 +20,10 @@ const getContentKey = (tile: DashboardTile): string | null => {
                 : null;
         case DashboardTileTypes.DATA_APP:
             return `${tile.type}:${tile.properties.appUuid}`;
+        case DashboardTileTypes.COMPOSER_CHART:
+            return tile.properties.composerChartUuid
+                ? `${tile.type}:${tile.properties.composerChartUuid}`
+                : null;
         case DashboardTileTypes.MARKDOWN:
             return JSON.stringify([
                 tile.type,
@@ -36,6 +43,11 @@ const getContentKey = (tile: DashboardTile): string | null => {
                 tile.type,
                 tile.properties.text,
                 tile.properties.showDivider ?? false,
+                tile.properties.size ?? DEFAULT_DASHBOARD_HEADING_SIZE,
+                tile.properties.textAlign ??
+                    DEFAULT_DASHBOARD_HEADING_TEXT_ALIGN,
+                tile.properties.verticalAlign ??
+                    DEFAULT_DASHBOARD_HEADING_VERTICAL_ALIGN,
             ]);
         default:
             return assertUnreachable(tile, 'Unknown dashboard tile type');
@@ -53,6 +65,7 @@ const getDuplicateKey = (tile: DashboardTile): string =>
         tile.type === DashboardTileTypes.SAVED_CHART ||
         tile.type === DashboardTileTypes.SQL_CHART ||
         tile.type === DashboardTileTypes.DATA_APP ||
+        tile.type === DashboardTileTypes.COMPOSER_CHART ||
         tile.type === DashboardTileTypes.LOOM
             ? (tile.properties.hideTitle ?? false)
             : false,

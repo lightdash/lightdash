@@ -10,6 +10,8 @@ import {
     ApiChartAsCodeListResponse,
     ApiChartAsCodeUpsertResponse,
     ApiChartValidationResponse,
+    ApiComposerChartAsCodeListResponse,
+    ApiComposerChartAsCodeUpsertResponse,
     ApiContentResponse,
     ApiDashboardAsCodeListResponse,
     ApiDashboardValidationResponse,
@@ -30,6 +32,7 @@ import {
     assertUnreachable,
     ChartAsCode,
     ChartType,
+    ComposerChartAsCode,
     computeCustomDependencies,
     ContentAsCodeType as ContentAsCodeTypeEnum,
     DashboardAsCode,
@@ -379,6 +382,11 @@ type ContentAsCodeType =
           translationMap: object | undefined;
       }
     | {
+          type: 'composerChart';
+          content: ComposerChartAsCode;
+          translationMap: undefined;
+      }
+    | {
           type: 'dashboard';
           content: DashboardAsCode;
           translationMap: object | undefined;
@@ -417,6 +425,8 @@ const getFileExtension = (contentType: ContentAsCodeType['type']): string => {
     switch (contentType) {
         case 'sqlChart':
             return '.sql.yml';
+        case 'composerChart':
+            return '.composer.yml';
         case 'chart':
         case 'dashboard':
         default:
@@ -458,6 +468,8 @@ const getSlugTooLongWarning = (
             return `Skipped ${contentType} "${slug}": the slug is too long to use as a file name. Shorten it with: lightdash slug-update --type ${contentType} --from "${slug}" --to <new-slug>`;
         case 'sqlChart':
             return `Skipped SQL chart "${slug}": the slug is too long to use as a file name.`;
+        case 'composerChart':
+            return `Skipped composer chart "${slug}": the slug is too long to use as a file name.`;
         default:
             return assertUnreachable(contentType, 'getSlugTooLongWarning');
     }
@@ -494,10 +506,7 @@ const writeContent = async (
     }
     const itemPath = path.join(outputDir, fileNames[0]);
     // Strip timestamps — they go to .lightdash-metadata.json instead
-    const { updatedAt, downloadedAt, ...cleanContent } = content as
-        | ChartAsCode
-        | SqlChartAsCode
-        | DashboardAsCode;
+    const { updatedAt, downloadedAt, ...cleanContent } = content;
     const chartYml = yaml.dump(cleanContent, {
         quotingType: '"',
         sortKeys: compareContentKeys,
@@ -614,9 +623,13 @@ const sourceFilePath = async (
     return relative.split(path.sep).join('/');
 };
 
-const processYamlItem = async <
-    T extends ChartAsCode | DashboardAsCode | SqlChartAsCode,
->(
+type CodeFileContent =
+    | ChartAsCode
+    | DashboardAsCode
+    | SqlChartAsCode
+    | ComposerChartAsCode;
+
+const processYamlItem = async <T extends CodeFileContent>(
     item: T,
     fileName: string,
     stats: Stats,
@@ -655,9 +668,7 @@ const processYamlItem = async <
     };
 };
 
-const loadYamlFile = async <
-    T extends ChartAsCode | DashboardAsCode | SqlChartAsCode,
->(
+const loadYamlFile = async <T extends CodeFileContent>(
     file: Dirent,
     folder: 'charts' | 'dashboards',
     metadata: LightdashMetadata,
@@ -672,9 +683,7 @@ const loadYamlFile = async <
     return processYamlItem(item, file.name, stats, folder, metadata, filePath);
 };
 
-const readCodeFiles = async <
-    T extends ChartAsCode | DashboardAsCode | SqlChartAsCode,
->(
+const readCodeFiles = async <T extends CodeFileContent>(
     folder: 'charts' | 'dashboards',
     customPath?: string,
 ): Promise<(T & { needsUpdating: boolean })[]> => {
@@ -735,11 +744,15 @@ const readCodeFiles = async <
 const readLooseCodeFiles = async (
     customPath?: string,
 ): Promise<{
-    charts: (ChartAsCode & { needsUpdating: boolean })[];
+    charts: ((ChartAsCode | ComposerChartAsCode) & {
+        needsUpdating: boolean;
+    })[];
     dashboards: (DashboardAsCode & { needsUpdating: boolean })[];
 }> => {
     const baseDir = getDownloadFolder(customPath);
-    const charts: (ChartAsCode & { needsUpdating: boolean })[] = [];
+    const charts: ((ChartAsCode | ComposerChartAsCode) & {
+        needsUpdating: boolean;
+    })[] = [];
     const dashboards: (DashboardAsCode & { needsUpdating: boolean })[] = [];
 
     try {
@@ -769,11 +782,12 @@ const readLooseCodeFiles = async (
 
                     if (
                         contentType === ContentAsCodeTypeEnum.CHART ||
-                        contentType === ContentAsCodeTypeEnum.SQL_CHART
+                        contentType === ContentAsCodeTypeEnum.SQL_CHART ||
+                        contentType === ContentAsCodeTypeEnum.COMPOSER_CHART
                     ) {
                         charts.push(
-                            await processYamlItem<ChartAsCode>(
-                                parsed as ChartAsCode,
+                            await processYamlItem(
+                                parsed as ChartAsCode | ComposerChartAsCode,
                                 file.name,
                                 stats,
                                 'charts',
@@ -821,16 +835,14 @@ const readLooseCodeFiles = async (
     return { charts, dashboards };
 };
 
-const groupBySpace = <T extends ChartAsCode | DashboardAsCode | SqlChartAsCode>(
+const groupBySpace = <T extends CodeFileContent>(
     items: T[],
 ): Record<string, Array<{ item: T; index: number }>> => {
     const itemsWithIndex = items.map((item, index) => ({ item, index }));
     return groupBy(itemsWithIndex, (entry) => entry.item.spaceSlug);
 };
 
-const writeSpaceContent = async <
-    T extends ChartAsCode | DashboardAsCode | SqlChartAsCode,
->({
+const writeSpaceContent = async <T extends CodeFileContent>({
     projectName,
     spaceSlug,
     folder,
@@ -850,7 +862,8 @@ const writeSpaceContent = async <
     contentAsCode:
         | ApiDashboardAsCodeListResponse['results']
         | ApiChartAsCodeListResponse['results']
-        | ApiSqlChartAsCodeListResponse['results'];
+        | ApiSqlChartAsCodeListResponse['results']
+        | ApiComposerChartAsCodeListResponse['results'];
     customPath?: string;
     languageMap: boolean;
     folderScheme: FolderScheme;
@@ -885,7 +898,11 @@ const writeSpaceContent = async <
     return entries;
 };
 
-type DownloadContentType = 'charts' | 'dashboards' | 'sqlCharts';
+type DownloadContentType =
+    | 'charts'
+    | 'dashboards'
+    | 'sqlCharts'
+    | 'composerCharts';
 
 type ContentTypeConfig = {
     endpoint: string;
@@ -916,6 +933,12 @@ const getContentTypeConfig = (
                 displayName: 'SQL charts',
                 supportsLanguageMap: false,
             };
+        case 'composerCharts':
+            return {
+                endpoint: `/api/v1/projects/${projectId}/code/composerCharts`,
+                displayName: 'composer charts',
+                supportsLanguageMap: false,
+            };
         default:
             return assertUnreachable(type, `Unknown content type: ${type}`);
     }
@@ -927,6 +950,7 @@ const extractChartSlugsFromDashboards = (
     dashboards.reduce<string[]>((acc, dashboard) => {
         const slugs = dashboard.tiles
             .map((tile) =>
+                tile.type !== DashboardTileTypes.COMPOSER_CHART &&
                 'chartSlug' in tile.properties
                     ? (tile.properties.chartSlug as string)
                     : undefined,
@@ -934,6 +958,18 @@ const extractChartSlugsFromDashboards = (
             .filter((slug): slug is string => slug !== undefined);
         return [...acc, ...slugs];
     }, []);
+
+// Composer tile slugs name composer charts only, never a classic chart
+const extractComposerChartSlugsFromDashboards = (
+    dashboards: DashboardAsCode[],
+): string[] =>
+    dashboards.flatMap((dashboard) =>
+        dashboard.tiles.flatMap((tile) =>
+            tile.type === DashboardTileTypes.COMPOSER_CHART
+                ? [tile.properties.chartSlug]
+                : [],
+        ),
+    );
 
 const extractAppSlugsFromDashboards = (
     dashboards: DashboardAsCode[],
@@ -954,7 +990,9 @@ const extractAppSlugsFromDashboards = (
  * Custom chart type refs bound by DATA_APP_VIZ charts — the portable slug,
  * or the legacy uuid for files written before slug bindings.
  */
-const extractChartTypeRefsFromCharts = (charts: ChartAsCode[]): string[] => [
+const extractChartTypeRefsFromCharts = (
+    charts: Pick<ChartAsCode, 'chartConfig'>[],
+): string[] => [
     ...new Set(
         charts.reduce<string[]>((acc, chart) => {
             if (chart.chartConfig.type !== ChartType.DATA_APP_VIZ) return acc;
@@ -979,6 +1017,7 @@ const extractChartTableNames = (charts: ChartAsCode[]): string[] => [
 export type DownloadContentResult = {
     total: number;
     chartSlugs: string[];
+    composerChartSlugs: string[];
     chartTableNames: string[];
     appSlugs: string[];
     // Custom chart types the downloaded charts render with (slug or legacy
@@ -1008,6 +1047,7 @@ export const downloadContent = async (
     let offset = 0;
     let total = 0;
     let chartSlugs: string[] = [];
+    let composerChartSlugs: string[] = [];
     let chartTableNames: string[] = [];
     let appSlugs: string[] = [];
     let chartTypeRefs: string[] = [];
@@ -1030,6 +1070,7 @@ export const downloadContent = async (
             | ApiChartAsCodeListResponse['results']
             | ApiDashboardAsCodeListResponse['results']
             | ApiSqlChartAsCodeListResponse['results']
+            | ApiComposerChartAsCodeListResponse['results']
         >({
             method: 'GET',
             url: `${config.endpoint}${queryParams}`,
@@ -1054,7 +1095,32 @@ export const downloadContent = async (
         });
 
         // Write content based on type
-        if ('sqlCharts' in results) {
+        if ('composerCharts' in results) {
+            const composerChartsBySpace = groupBySpace(results.composerCharts);
+            for (const [spaceSlug, composerChartsInSpace] of Object.entries(
+                composerChartsBySpace,
+            )) {
+                const entries = await writeSpaceContent({
+                    projectName,
+                    spaceSlug,
+                    folder: 'charts',
+                    contentType: 'composerChart',
+                    contentInSpace: composerChartsInSpace,
+                    contentAsCode: results,
+                    customPath,
+                    languageMap,
+                    folderScheme,
+                    stripPivotSeries: false,
+                });
+                allMetadataEntries = [...allMetadataEntries, ...entries];
+            }
+            chartTypeRefs = [
+                ...chartTypeRefs,
+                ...extractChartTypeRefsFromCharts(
+                    results.composerCharts.map(({ chart }) => chart),
+                ),
+            ];
+        } else if ('sqlCharts' in results) {
             const sqlChartsBySpace = groupBySpace(results.sqlCharts);
             for (const [spaceSlug, sqlChartsInSpace] of Object.entries(
                 sqlChartsBySpace,
@@ -1095,6 +1161,10 @@ export const downloadContent = async (
             chartSlugs = [
                 ...chartSlugs,
                 ...extractChartSlugsFromDashboards(results.dashboards),
+            ];
+            composerChartSlugs = [
+                ...composerChartSlugs,
+                ...extractComposerChartSlugsFromDashboards(results.dashboards),
             ];
             appSlugs = [
                 ...appSlugs,
@@ -1156,12 +1226,48 @@ export const downloadContent = async (
     return {
         total,
         chartSlugs: [...new Set(chartSlugs)],
+        composerChartSlugs: [...new Set(composerChartSlugs)],
         chartTableNames: [...new Set(chartTableNames)],
         appSlugs: [...new Set(appSlugs)],
         chartTypeRefs: [...new Set(chartTypeRefs)],
         metadataEntries: allMetadataEntries,
         spaces: allSpaces,
     };
+};
+
+// Agent connections have no grant for composer charts; older servers have no route (404)
+const downloadComposerCharts = async (
+    ids: string[],
+    projectId: string,
+    projectName: string,
+    customPath: string | undefined,
+    nested: boolean,
+    onProgress: (detail: string) => void,
+): Promise<DownloadContentResult | null> => {
+    if (getAgentConnectionSelection() !== null) return null;
+    try {
+        return await downloadContent(
+            ids,
+            'composerCharts',
+            projectId,
+            projectName,
+            customPath,
+            false,
+            nested,
+            true,
+            false,
+            false,
+            onProgress,
+        );
+    } catch (error) {
+        if (error instanceof LightdashError && error.statusCode === 404) {
+            GlobalState.debug(
+                `Composer charts are not available: ${getErrorMessage(error)}`,
+            );
+            return null;
+        }
+        throw error;
+    }
 };
 
 const getScheduledDeliveriesFolder = (customPath?: string): string =>
@@ -2472,7 +2578,35 @@ export const downloadHandler = async (
                     });
                 allMetadataEntries = [...allMetadataEntries, ...sqlChartMeta];
 
-                counts.chartsNum = regularChartTotal + sqlChartTotal;
+                const composerCharts = await output.runItem({
+                    label: 'Composer charts',
+                    action: () =>
+                        downloadComposerCharts(
+                            options.charts,
+                            projectId,
+                            projectName,
+                            options.path,
+                            options.nested,
+                            output.updateActive,
+                        ),
+                    detail: (result) =>
+                        result
+                            ? `${result.metadataEntries.length} downloaded`
+                            : 'not available',
+                });
+                allMetadataEntries = [
+                    ...allMetadataEntries,
+                    ...(composerCharts?.metadataEntries ?? []),
+                ];
+                downloadedChartVizRefs = [
+                    ...downloadedChartVizRefs,
+                    ...(composerCharts?.chartTypeRefs ?? []),
+                ];
+
+                counts.chartsNum =
+                    regularChartTotal +
+                    sqlChartTotal +
+                    (composerCharts?.total ?? 0);
             }
         }
 
@@ -2484,12 +2618,14 @@ export const downloadHandler = async (
                 );
             } else {
                 let chartSlugs: string[] = [];
+                let composerChartSlugs: string[] = [];
                 let appSlugs: string[] = [];
 
                 let dashMeta: MetadataEntry[];
                 ({
                     total: counts.dashboardsNum,
                     chartSlugs,
+                    composerChartSlugs,
                     appSlugs,
                     metadataEntries: dashMeta,
                 } = await output.runItem({
@@ -2515,61 +2651,72 @@ export const downloadHandler = async (
 
                 if (
                     hasFilters &&
-                    chartSlugs.length > 0 &&
+                    chartSlugs.length + composerChartSlugs.length > 0 &&
                     !options.skipCharts
                 ) {
                     output.startItem('Linked charts');
                     output.updateActive(
-                        `${chartSlugs.length} dashboard dependencies`,
+                        `${chartSlugs.length + composerChartSlugs.length} dashboard dependencies`,
                     );
-                    const {
-                        chartTableNames: linkedChartTableNames,
-                        metadataEntries: linkedChartMeta,
-                        chartTypeRefs: linkedChartVizRefs,
-                    } = await downloadContent(
-                        chartSlugs,
-                        'charts',
-                        projectId,
-                        projectName,
-                        options.path,
-                        options.languageMap,
-                        options.nested,
-                        skipEmbeddedSpaces,
-                        options.stripPivotSeries,
-                        options.rootSpaces,
-                        output.updateActive,
-                    );
-                    allMetadataEntries = [
-                        ...allMetadataEntries,
-                        ...linkedChartMeta,
+                    // An empty id list means every chart, so each kind is fetched only when named
+                    const linkedCharts =
+                        chartSlugs.length > 0
+                            ? await downloadContent(
+                                  chartSlugs,
+                                  'charts',
+                                  projectId,
+                                  projectName,
+                                  options.path,
+                                  options.languageMap,
+                                  options.nested,
+                                  skipEmbeddedSpaces,
+                                  options.stripPivotSeries,
+                                  options.rootSpaces,
+                                  output.updateActive,
+                              )
+                            : null;
+                    const linkedSqlCharts =
+                        chartSlugs.length > 0
+                            ? await downloadContent(
+                                  chartSlugs,
+                                  'sqlCharts',
+                                  projectId,
+                                  projectName,
+                                  options.path,
+                                  options.languageMap,
+                                  options.nested,
+                                  skipEmbeddedSpaces,
+                                  false,
+                                  options.rootSpaces,
+                                  output.updateActive,
+                              )
+                            : null;
+                    const linkedComposerCharts =
+                        composerChartSlugs.length > 0
+                            ? await downloadComposerCharts(
+                                  composerChartSlugs,
+                                  projectId,
+                                  projectName,
+                                  options.path,
+                                  options.nested,
+                                  output.updateActive,
+                              )
+                            : null;
+                    const linkedChartTableNames =
+                        linkedCharts?.chartTableNames ?? [];
+                    const linkedMeta = [
+                        ...(linkedCharts?.metadataEntries ?? []),
+                        ...(linkedSqlCharts?.metadataEntries ?? []),
+                        ...(linkedComposerCharts?.metadataEntries ?? []),
                     ];
+                    allMetadataEntries = [...allMetadataEntries, ...linkedMeta];
                     downloadedChartVizRefs = [
                         ...downloadedChartVizRefs,
-                        ...linkedChartVizRefs,
+                        ...(linkedCharts?.chartTypeRefs ?? []),
+                        ...(linkedComposerCharts?.chartTypeRefs ?? []),
                     ];
 
-                    const { metadataEntries: linkedSqlMeta } =
-                        await downloadContent(
-                            chartSlugs,
-                            'sqlCharts',
-                            projectId,
-                            projectName,
-                            options.path,
-                            options.languageMap,
-                            options.nested,
-                            skipEmbeddedSpaces,
-                            false,
-                            options.rootSpaces,
-                            output.updateActive,
-                        );
-                    allMetadataEntries = [
-                        ...allMetadataEntries,
-                        ...linkedSqlMeta,
-                    ];
-
-                    output.completeItem(
-                        `${linkedChartMeta.length + linkedSqlMeta.length} downloaded`,
-                    );
+                    output.completeItem(`${linkedMeta.length} downloaded`);
 
                     // Virtual views the linked charts are built on. Skipped
                     // when a broader step already downloaded every one.
@@ -3385,7 +3532,17 @@ const runUploadChangesPhase = async ({
     return updatedChanges;
 };
 
-const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
+const isComposerChartFile = (item: object): item is ComposerChartAsCode =>
+    'contentType' in item &&
+    item.contentType === ContentAsCodeTypeEnum.COMPOSER_CHART;
+
+const withoutComposerCharts = <T extends ChartAsCode>(
+    items: (T | ComposerChartAsCode)[],
+): T[] => items.filter((item): item is T => !isComposerChartFile(item));
+
+const upsertSingleItem = async <
+    T extends ChartAsCode | DashboardAsCode | ComposerChartAsCode,
+>(
     item: T & { needsUpdating: boolean },
     type: 'charts' | 'dashboards',
     projectId: string,
@@ -3406,6 +3563,27 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
             return 'skipped';
         }
         GlobalState.debug(`Upserting ${type} ${item.slug}`);
+        const body = JSON.stringify({
+            ...item,
+            skipSpaceCreate,
+            publicSpaceCreate,
+            force,
+            ...(spaceNames &&
+                Object.keys(spaceNames).length > 0 && { spaceNames }),
+        });
+
+        if (isComposerChartFile(item)) {
+            const { action } = await lightdashApi<
+                ApiComposerChartAsCodeUpsertResponse['results']
+            >({
+                method: 'POST',
+                url: `/api/v1/projects/${projectId}/code/composerCharts/${item.slug}`,
+                body,
+            });
+            const key = `charts ${getPromoteAction(action)}`;
+            changes[key] = (changes[key] ?? 0) + 1;
+            return 'upserted';
+        }
 
         // SQL charts use a different endpoint
         const isSqlChartItem = type === 'charts' && isSqlChartContent(item);
@@ -3419,14 +3597,7 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
         >({
             method: 'POST',
             url: endpoint,
-            body: JSON.stringify({
-                ...item,
-                skipSpaceCreate,
-                publicSpaceCreate,
-                force,
-                ...(spaceNames &&
-                    Object.keys(spaceNames).length > 0 && { spaceNames }),
-            }),
+            body,
         });
 
         GlobalState.debug(
@@ -3558,7 +3729,9 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
  *
  * @param slugs if slugs are provided, we only force upsert the charts/dashboards that match the slugs, if slugs are empty, we upload files that were locally updated
  */
-const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
+const upsertResources = async <
+    T extends ChartAsCode | DashboardAsCode | ComposerChartAsCode,
+>(
     type: 'charts' | 'dashboards',
     projectId: string,
     changes: Record<string, number>,
@@ -3942,15 +4115,22 @@ const readUploadProjectConfig =
 const pruneSnapshotsMissingFromUpload = async (
     projectId: string,
     customPath: string | undefined,
-    looseFiles: { charts: ChartAsCode[]; dashboards: DashboardAsCode[] },
+    looseFiles: {
+        charts: (ChartAsCode | ComposerChartAsCode)[];
+        dashboards: DashboardAsCode[];
+    },
     dashboardItems: DashboardAsCode[],
 ): Promise<void> => {
     const dirPath = await sourceFilePath(getDownloadFolder(customPath));
     if (dirPath === undefined) return;
-    const chartItems = [
-        ...(await readCodeFiles<ChartAsCode>('charts', customPath)),
+    // Composer charts have no Git snapshots to release
+    const chartItems = withoutComposerCharts([
+        ...(await readCodeFiles<ChartAsCode | ComposerChartAsCode>(
+            'charts',
+            customPath,
+        )),
         ...looseFiles.charts,
-    ];
+    ]);
     const body: ContentAsCodeSnapshotPrune = {
         path: dirPath,
         charts: chartItems
@@ -4311,13 +4491,12 @@ export const uploadHandler = async (
                 (options.charts.length > 0 || options.dashboards.length > 0)
             ) {
                 virtualViewCandidates = selectVirtualViewCandidates({
-                    chartItems: [
-                        ...(await readCodeFiles<ChartAsCode>(
-                            'charts',
-                            contentPathOption,
-                        )),
+                    chartItems: withoutComposerCharts([
+                        ...(await readCodeFiles<
+                            ChartAsCode | ComposerChartAsCode
+                        >('charts', contentPathOption)),
                         ...looseFiles.charts,
-                    ],
+                    ]),
                     chartSlugs: options.charts,
                     dashboardItems:
                         options.dashboards.length > 0
@@ -5009,7 +5188,9 @@ export const uploadHandler = async (
                     );
                     return changes;
                 }
-                const result = await upsertResources<ChartAsCode>(
+                const result = await upsertResources<
+                    ChartAsCode | ComposerChartAsCode
+                >(
                     'charts',
                     projectId,
                     changes,
@@ -5345,9 +5526,11 @@ export const testHelpers = {
     isExternalConnectionsUnavailableError,
     isVirtualViewsUnavailableError,
     downloadAiAgents,
+    downloadComposerCharts,
     isFilteredWithNoDashboards,
     readAiAgentFiles,
     readExternalConnectionFiles,
+    readLooseCodeFiles,
     readSpaceFiles,
     readSpaceNames,
     reportOpenDraftsForUpload,

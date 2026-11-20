@@ -28,6 +28,10 @@ import {
     type DataAppStreamEvent,
 } from './dataAppEventsStream';
 import {
+    embedViewEventsColumns,
+    projectEmbedView,
+} from './embedViewEventsStream';
+import {
     exportEventsCompactedColumns,
     exportEventsProjections,
 } from './exportEventsStream';
@@ -60,7 +64,9 @@ export type ProjectedEvent =
     | McpToolCallEvent;
 
 export type EventStreamRegistry = {
-    [E in ProjectedEvent as E['event']]: (payload: E) => ProjectionResult;
+    [E in ProjectedEvent as E['event']]: (
+        payload: E,
+    ) => ProjectionResult | ProjectionResult[];
 };
 
 /**
@@ -70,6 +76,10 @@ export type EventStreamRegistry = {
 export const eventStreamRegistry: EventStreamRegistry = {
     ...agentRequestEventsProjections,
     ...contentViewsProjections,
+    'embed_dashboard.viewed': (payload) => [
+        contentViewsProjections['embed_dashboard.viewed'](payload),
+        projectEmbedView(payload),
+    ],
     ...queryEventsProjections,
     ...aiUsageProjections,
     ...agentStepsProjections,
@@ -89,6 +99,7 @@ export const compactedStreamSchemas: Record<
 > = {
     agent_request_events: agentRequestEventsColumns,
     content_views: contentViewsColumns,
+    embed_view_events: embedViewEventsColumns,
     query_events: queryEventsCompactedColumns,
     ai_usage: aiUsageCompactedColumns,
     agent_steps: agentStepsCompactedColumns,

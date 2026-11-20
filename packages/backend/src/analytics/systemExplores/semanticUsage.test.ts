@@ -27,7 +27,7 @@ import {
 } from '../eventStream/usageDimensions';
 import { buildCompactionSql } from '../eventStream/UsageEventsCompactor';
 import type { QueryCompletedEvent } from '../LightdashAnalytics';
-import { semanticUsageSql } from './semanticUsage';
+import { semanticUsageColumns, semanticUsageSql } from './semanticUsage';
 
 const literal = (value: string) => `'${value.replaceAll("'", "''")}'`;
 const compile = (
@@ -483,6 +483,26 @@ describe('Semantic usage latest-event semantics', () => {
         ]);
     });
 
+    it('does not resurrect older events when an outer project or date filter excludes the latest event', async () => {
+        await insert('org', 'old-project', 'changed-project', 1, refs('old'));
+        await insert('org', 'new-project', 'changed-project', 2, refs('new'));
+        await insert('org', 'project', 'changed-date', 1, refs('old'));
+        await insert('org', 'project', 'changed-date', 2, refs('new'));
+        await insert('org', 'old-project', 'unique', 1, refs('unique'));
+        for (const filter of [
+            "project_id = 'old-project'",
+            "event_ts < TIMESTAMP '2026-10-02'",
+        ]) {
+            expect(
+                (
+                    await db.runAndReadAll(
+                        `SELECT query_id FROM ${semanticUsageSql} WHERE ${filter}`,
+                    )
+                ).getRowObjectsJson(),
+            ).toEqual([{ query_id: 'unique' }]);
+        }
+    });
+
     it('retains one unavailable row for null, empty and invalid lineage and one winner for tied redelivery', async () => {
         for (const [id, references] of [
             ['missing', null],
@@ -538,6 +558,71 @@ describe('Semantic usage latest-event semantics', () => {
             ]),
         );
         expect(result.filter((r) => r.field_id === null)).toHaveLength(4);
+    });
+
+    it('retains exactly max(1, reference count) rows even when field columns are pruned', async () => {
+        for (const [id, references] of [
+            ['empty', '[]'],
+            ['one-null', '[null]'],
+            ['two-nulls', '[null,null]'],
+            ['one-field', refs('one')],
+            ['two-fields', '[{"fieldId":"one"},{"fieldId":"two"}]'],
+        ]) {
+            await insert('org', 'project', id, 1, references);
+        }
+        expect(
+            (
+                await db.runAndReadAll(
+                    `SELECT query_id, COUNT(*) AS rows FROM ${semanticUsageSql} GROUP BY query_id ORDER BY query_id`,
+                )
+            ).getRowObjectsJson(),
+        ).toEqual([
+            { query_id: 'empty', rows: '1' },
+            { query_id: 'one-field', rows: '1' },
+            { query_id: 'one-null', rows: '1' },
+            { query_id: 'two-fields', rows: '2' },
+            { query_id: 'two-nulls', rows: '2' },
+        ]);
+    });
+
+    it('does not resurrect older fields when newer lineage is unavailable and an outer filter selects the field', async () => {
+        for (const [index, references] of [
+            null,
+            'null',
+            '[]',
+            '{bad',
+            '{}',
+            '42',
+        ].entries()) {
+            await insert('org', 'project', `changed-${index}`, 1, refs('old'));
+            await insert('org', 'project', `changed-${index}`, 2, references);
+        }
+        expect(
+            (
+                await db.runAndReadAll(
+                    `SELECT query_id FROM ${semanticUsageSql} WHERE field_id = 'old'`,
+                )
+            ).getRowObjectsJson(),
+        ).toEqual([]);
+        expect(await rows()).toHaveLength(6);
+    });
+
+    it('keeps the public column names and types without exposing the padding column', async () => {
+        const columns = (
+            await db.runAndReadAll(`DESCRIBE SELECT * FROM ${semanticUsageSql}`)
+        ).getRowObjectsJson();
+        expect(
+            columns
+                .map(({ column_name, column_type }) => ({
+                    name: String(column_name),
+                    type: String(column_type),
+                }))
+                .sort((a, b) => a.name.localeCompare(b.name)),
+        ).toEqual(
+            [...semanticUsageColumns].sort((a, b) =>
+                a.name.localeCompare(b.name),
+            ),
+        );
     });
 
     it('preserves null timestamp ordering and selects only one all-null timestamp winner', async () => {

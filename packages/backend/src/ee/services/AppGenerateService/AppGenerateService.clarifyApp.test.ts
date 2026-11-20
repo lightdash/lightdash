@@ -113,6 +113,7 @@ function buildService(
         spacePermissionService: {} as never,
         coderService: {} as never,
         documentService: {} as never,
+        composerChartService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
@@ -128,6 +129,7 @@ function buildService(
         appRuntimeS3: null,
         appThumbnailClient: buildAppThumbnailClientMock(),
         chartRegistryClient: {} as never,
+        contentDraftModel: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,
             verify: async () => undefined,
@@ -146,9 +148,11 @@ function buildService(
 
 const generateTextMock = vi.mocked(generateText);
 
-function mockQuestions(questions: string[]) {
+function mockQuestions(questions: string[], options: string[] = ['Yes', 'No']) {
     generateTextMock.mockResolvedValue({
-        output: { questions },
+        output: {
+            questions: questions.map((question) => ({ question, options })),
+        },
         usage: {},
     } as never);
 }
@@ -193,7 +197,7 @@ describe('AppGenerateService.clarifyApp app gate with data apps off', () => {
                 'a radial gauge',
                 DATA_APP_VIZ_TEMPLATE,
             ),
-        ).resolves.toEqual({ questions: [] });
+        ).resolves.toEqual({ questions: [], items: [] });
     });
 
     it('refuses a chart type when Chart Studio is not available', async () => {
@@ -231,7 +235,9 @@ describe('AppGenerateService.clarifyApp empty model response', () => {
         // v7 resolves the call and throws from the `output` getter, so an empty
         // response escapes a catch that only wraps the await.
         generateTextMock.mockResolvedValue({
-            get output(): { questions: string[] } {
+            get output(): {
+                questions: { question: string; options: string[] }[];
+            } {
                 throw new NoOutputGeneratedError({
                     message: 'No output generated.',
                 });
@@ -242,7 +248,7 @@ describe('AppGenerateService.clarifyApp empty model response', () => {
 
         await expect(
             service.clarifyApp(USER, 'project-1', 'a radial gauge'),
-        ).resolves.toEqual({ questions: [] });
+        ).resolves.toEqual({ questions: [], items: [] });
     });
 });
 
@@ -267,7 +273,7 @@ describe('AppGenerateService.clarifyApp model resolution', () => {
 
         await expect(
             service.clarifyApp(USER, 'project-1', 'a radial gauge'),
-        ).resolves.toEqual({ questions: [] });
+        ).resolves.toEqual({ questions: [], items: [] });
         expect(generateTextMock).not.toHaveBeenCalled();
     });
 });
@@ -341,6 +347,27 @@ describe('AppGenerateService.clarifyApp for the data app viz template', () => {
         ]);
     });
 
+    it('returns trimmed suggested answers, at most 3 per question', async () => {
+        mockQuestions(
+            ['Who is this for?'],
+            [' Execs ', '', 'Analysts', 'Ops', 'Sales'],
+        );
+        const { service } = buildService();
+
+        const { items } = await service.clarifyApp(
+            USER,
+            'project-1',
+            'a revenue dashboard',
+        );
+
+        expect(items).toEqual([
+            {
+                question: 'Who is this for?',
+                options: ['Execs', 'Analysts', 'Ops'],
+            },
+        ]);
+    });
+
     it('still falls through to no questions when the model call fails', async () => {
         generateTextMock.mockRejectedValue(new Error('provider exploded'));
         const { service } = buildService();
@@ -352,7 +379,7 @@ describe('AppGenerateService.clarifyApp for the data app viz template', () => {
                 'a radial gauge',
                 DATA_APP_VIZ_TEMPLATE,
             ),
-        ).resolves.toEqual({ questions: [] });
+        ).resolves.toEqual({ questions: [], items: [] });
     });
 });
 

@@ -42,6 +42,7 @@ import {
     ValidationTableName,
 } from '../../database/entities/validation';
 import Logger from '../../logging/logger';
+import { leftJoinLatestDashboardVersion } from '../DashboardModel/latestDashboardVersion';
 
 type NormalizedValidationRow = {
     validation_uuid: string;
@@ -508,11 +509,7 @@ export class ValidationModel {
                 `${DashboardsTableName}.space_id`,
                 `${SpaceTableName}.space_id`,
             )
-            .leftJoin(
-                `${DashboardVersionsTableName}`,
-                `${DashboardsTableName}.dashboard_id`,
-                `${DashboardVersionsTableName}.dashboard_id`,
-            )
+            .modify(leftJoinLatestDashboardVersion)
             .leftJoin(
                 UserTableName,
                 `${UserTableName}.user_uuid`,
@@ -905,11 +902,7 @@ export class ValidationModel {
                 `${DashboardsTableName}.space_id`,
                 `${SpaceTableName}.space_id`,
             )
-            .leftJoin(
-                DashboardVersionsTableName,
-                `${DashboardsTableName}.dashboard_id`,
-                `${DashboardVersionsTableName}.dashboard_id`,
-            )
+            .modify(leftJoinLatestDashboardVersion)
             .leftJoin(
                 UserTableName,
                 `${UserTableName}.user_uuid`,
@@ -1148,11 +1141,7 @@ export class ValidationModel {
                 `${DashboardsTableName}.space_id`,
                 `${SpaceTableName}.space_id`,
             )
-            .leftJoin(
-                DashboardVersionsTableName,
-                `${DashboardsTableName}.dashboard_id`,
-                `${DashboardVersionsTableName}.dashboard_id`,
-            )
+            .modify(leftJoinLatestDashboardVersion)
             .leftJoin(
                 UserTableName,
                 `${UserTableName}.user_uuid`,

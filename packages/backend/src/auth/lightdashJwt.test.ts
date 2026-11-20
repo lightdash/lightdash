@@ -3,6 +3,9 @@ import {
     EMBED_MAX_SOURCE_SPACE_UUIDS,
     EmbedJwt,
     ForbiddenError,
+    getEmbedParameterValues,
+    isParameterAllowedInEmbed,
+    isParameterInteractivityVisible,
     ParameterError,
 } from '@lightdash/common';
 import { merge } from 'es-toolkit/compat';
@@ -95,6 +98,68 @@ describe('JwtUtil', () => {
     });
 
     describe('decodeJwt', () => {
+        const actor = {
+            serviceAccountUserUuid: '00000000-0000-4000-8000-000000000001',
+            writeSpaceUuids: ['00000000-0000-4000-8000-000000000002'],
+        };
+
+        it.each<CreateEmbedJwt['content']>([
+            { type: 'dashboard', dashboardUuid: 'dashboard' },
+            { type: 'chart', contentId: 'chart' },
+            { type: 'aiAgent', agentUuid: 'agent' },
+            { type: 'metricsCatalog', projectUuid: 'project' },
+            { type: 'dataApp', appUuid: 'app' },
+            {
+                type: 'apiAccess',
+                serviceAccountUserUuid: actor.serviceAccountUserUuid,
+            },
+        ])(
+            'normalizes signed $type actor tokens without changing permission mode',
+            (content) => {
+                const claims = {
+                    ...mockJwtData,
+                    content,
+                    iat: Math.floor(Date.now() / 1000),
+                };
+                for (const permissionsMode of [
+                    undefined,
+                    'default',
+                    'roles',
+                ] as const) {
+                    const configuredActor = { ...actor, permissionsMode };
+                    const canonical = encodeLightdashJwt(
+                        { ...claims, actor: configuredActor },
+                        encodedSecret,
+                        '1h',
+                    );
+                    const legacy = encodeLightdashJwt(
+                        { ...claims, writeActions: configuredActor },
+                        encodedSecret,
+                        '1h',
+                    );
+                    expect(
+                        decodeLightdashJwt(canonical, encodedSecret),
+                    ).toEqual(decodeLightdashJwt(legacy, encodedSecret));
+                }
+            },
+        );
+
+        it.each([
+            { actor, writeActions: actor },
+            { actor: { ...actor, scopes: ['view:EmbedCsvExport'] } },
+            { actor: { ...actor, permissionsMode: 'invalid' } },
+            { actor: { ...actor, serviceAccountUserUuid: 'invalid' } },
+        ])('rejects invalid signed actor claims: %j', (extra) => {
+            const token = encodeLightdashJwt(
+                { ...mockJwtData, ...extra } as unknown as CreateEmbedJwt,
+                encodedSecret,
+                '1h',
+            );
+            expect(() => decodeLightdashJwt(token, encodedSecret)).toThrow(
+                ForbiddenError,
+            );
+        });
+
         it.each(['jwt', 'legacy', 'invalid', '', null, true])(
             'rejects signed dashboard tokens with invalid permission mode %s',
             (permissionsMode) => {
@@ -360,6 +425,71 @@ describe('JwtUtil', () => {
         const decoded = decodeLightdashJwt(token, encodedSecret);
         expect(decoded).toBeTruthy();
         expect(mockErrorLogger).not.toHaveBeenCalled();
+    });
+
+    const getRules = ({ content }: CreateEmbedJwt) =>
+        'parameterInteractivity' in content
+            ? content.parameterInteractivity
+            : undefined;
+
+    it.each([
+        ['allowedParameters', 'region'],
+        ['allowedParameters', { region: true }],
+        ['hidden', 'yes'],
+        ['values', ['region']],
+        ['values', { region: { nested: true } }],
+    ])('rejects a token whose parameter %s is %j', (field, value) => {
+        const token = createTokenData({
+            parameterInteractivity: { enabled: true, [field]: value },
+        } as unknown as Partial<CreateEmbedJwt['content']>);
+        expect(() => decodeLightdashJwt(token, encodedSecret)).toThrow(
+            ForbiddenError,
+        );
+    });
+
+    it('accepts null parameter rules and treats them as absent', () => {
+        const token = createTokenData({
+            parameterInteractivity: {
+                enabled: true,
+                allowedParameters: null,
+                hidden: null,
+                values: null,
+            },
+        });
+        const decoded = decodeLightdashJwt(token, encodedSecret);
+        expect(mockErrorLogger).not.toHaveBeenCalled();
+        const rules = getRules(decoded);
+        expect(isParameterInteractivityVisible(rules)).toBe(true);
+        expect(isParameterAllowedInEmbed(rules, 'region')).toBe(true);
+        expect(getEmbedParameterValues(rules, { region: 'emea' })).toEqual({
+            region: 'emea',
+        });
+    });
+
+    it('leaves a token without parameter rules unaffected', () => {
+        const decoded = decodeLightdashJwt(
+            createTokenData({ parameterInteractivity: { enabled: true } }),
+            encodedSecret,
+        );
+        expect(getRules(decoded)).toEqual({
+            enabled: true,
+        });
+        expect(mockErrorLogger).not.toHaveBeenCalled();
+    });
+
+    it('only logs a malformed legacy field next to valid parameter rules', () => {
+        const token = createTokenData({
+            canExportCsv: 'yes',
+            parameterInteractivity: {
+                enabled: 'true',
+                allowedParameters: ['region'],
+            },
+        } as unknown as Partial<CreateEmbedJwt['content']>);
+        const decoded = decodeLightdashJwt(token, encodedSecret);
+        expect(getRules(decoded)).toMatchObject({
+            allowedParameters: ['region'],
+        });
+        expect(mockErrorLogger).toHaveBeenCalledTimes(1);
     });
 
     it('handles invalid payload schema structure gracefully without throwing', () => {

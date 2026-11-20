@@ -172,6 +172,54 @@ describe('useAppState scopes', () => {
         );
     });
 
+    it('reports shared values as forbidden up front and sends no shared writes when the viewer has no access', async () => {
+        const { useAppState, useSharedAppState } = await import('./appState');
+        const appState = mockAppStateTransport({
+            user: {},
+            shared: {},
+            sharedAccess: 'none',
+        });
+        const probe = await mount(makeTransport(appState), () => {
+            const [notes, setNotes, notesMeta] = useSharedAppState<string[]>(
+                'notes',
+                [],
+            );
+            const [period, setPeriod, periodMeta] = useAppState(
+                'period',
+                'last_month',
+            );
+            return {
+                notes,
+                setNotes,
+                notesMeta,
+                period,
+                setPeriod,
+                periodMeta,
+            };
+        });
+        await settle();
+        expect(probe.current().notesMeta).toMatchObject({
+            loading: false,
+            persisted: false,
+            saved: false,
+        });
+        expect(probe.current().notesMeta.error?.code).toBe('forbidden');
+
+        await act(async () => probe.current().setNotes(['hello']));
+        await settle();
+        expect(appState.setShared).not.toHaveBeenCalled();
+        expect(probe.current().notes).toEqual([]);
+
+        // Per-person values keep working.
+        expect(probe.current().periodMeta).toMatchObject({
+            error: null,
+            persisted: true,
+        });
+        await act(async () => probe.current().setPeriod('ytd'));
+        await settle();
+        expect(appState.setUser).toHaveBeenCalledWith('period', 'ytd');
+    });
+
     it('url scope seeds from ?state= and writes back to the page URL, never the transport', async () => {
         setPageUrl(
             `/?state=${encodeURIComponent(JSON.stringify({ view: 'chart' }))}`,

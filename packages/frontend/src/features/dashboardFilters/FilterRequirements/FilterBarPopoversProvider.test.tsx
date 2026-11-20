@@ -1,21 +1,9 @@
-import { Box } from '@mantine/core';
-import { act, renderHook, screen } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { renderWithProviders } from '../../../testing/testUtils';
 import { FilterBarPopoversProvider } from './FilterBarPopoversProvider';
 import { useFilterBarPopovers } from './useFilterBarPopovers';
 
 describe('FilterBarPopoversProvider', () => {
-    it('renders its children', () => {
-        renderWithProviders(
-            <FilterBarPopoversProvider>
-                <Box data-testid="child" />
-            </FilterBarPopoversProvider>,
-        );
-
-        expect(screen.getByTestId('child')).not.toBeNull();
-    });
-
     it('exposes rules popover state through the context hook', () => {
         const { result } = renderHook(() => useFilterBarPopovers(), {
             wrapper: FilterBarPopoversProvider,

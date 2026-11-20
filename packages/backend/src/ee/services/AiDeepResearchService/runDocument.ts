@@ -1,4 +1,7 @@
-import { type AiDeepResearchRunDocument } from '@lightdash/common';
+import {
+    getDocumentUrl,
+    type AiDeepResearchRunDocument,
+} from '@lightdash/common';
 import { validate as isValidUuid } from 'uuid';
 import { type AiAgentModel } from '../../models/AiAgentModel';
 
@@ -59,4 +62,50 @@ export const findAiDeepResearchRunDocuments = async (
             return runUuid && document ? [[runUuid, document] as const] : [];
         }),
     );
+};
+
+/**
+ * Records that a run published its report to this Document: a tool call and
+ * its result on the run's prompt, which is how the run card finds it.
+ */
+export const recordAiDeepResearchRunDocument = async (
+    aiAgentModel: Pick<AiAgentModel, 'createToolCall' | 'createToolResults'>,
+    run: {
+        ai_deep_research_run_uuid: string;
+        prompt_uuid: string;
+        project_uuid: string;
+    },
+    document: AiDeepResearchRunDocument,
+): Promise<void> => {
+    const href = getDocumentUrl(
+        run.project_uuid,
+        document.documentUuid,
+        document.slug,
+    );
+    const toolCallId = getAiDeepResearchDocumentToolCallId(
+        run.ai_deep_research_run_uuid,
+    );
+    await aiAgentModel.createToolCall({
+        promptUuid: run.prompt_uuid,
+        toolCallId,
+        toolName: 'createContent',
+        toolArgs: { type: 'document', uuid: document.documentUuid },
+        parentToolCallId: null,
+    });
+    await aiAgentModel.createToolResults([
+        {
+            promptUuid: run.prompt_uuid,
+            toolCallId,
+            toolName: 'createContent',
+            result: `<document href="${href}" />`,
+            metadata: {
+                status: 'success',
+                uuid: document.documentUuid,
+                name: document.name,
+                slug: document.slug,
+                href,
+                warnings: [],
+            },
+        },
+    ]);
 };

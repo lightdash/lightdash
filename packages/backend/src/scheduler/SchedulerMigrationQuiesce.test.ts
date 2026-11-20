@@ -100,4 +100,63 @@ describe('SchedulerMigrationQuiesce', () => {
         expect(hooks.onQuiesceStateChange).toHaveBeenLastCalledWith(false);
         await controller.stop();
     });
+
+    it('resumes workers when the drain before resume fails', async () => {
+        let active = true;
+        const hooks = makeHooks();
+        hooks.drainWorkers.mockRejectedValueOnce(
+            new Error('Connection terminated unexpectedly'),
+        );
+        const controller = new SchedulerMigrationQuiesce({
+            probe: makeProbe(() => active),
+            pollIntervalMs: 10_000,
+            gracePeriodMs: 1_000,
+            resumeJitterMs: 100,
+            resumeRampPeriodMs: 200,
+            hooks,
+            random: () => 0.5,
+        });
+        await controller.start();
+
+        active = false;
+        await controller.refreshNow(true);
+        await vi.advanceTimersByTimeAsync(250);
+
+        expect(hooks.startResumeWorkers).toHaveBeenCalledOnce();
+        expect(hooks.finishResumeRamp).toHaveBeenCalledOnce();
+        expect(hooks.onFailure).not.toHaveBeenCalled();
+        await controller.stop();
+    });
+
+    it('retries resume on a later poll when starting workers fails', async () => {
+        let active = true;
+        const hooks = makeHooks();
+        hooks.startResumeWorkers.mockRejectedValueOnce(
+            new Error('Connection terminated unexpectedly'),
+        );
+        const controller = new SchedulerMigrationQuiesce({
+            probe: makeProbe(() => active),
+            pollIntervalMs: 1_000,
+            gracePeriodMs: 60_000,
+            resumeJitterMs: 100,
+            resumeRampPeriodMs: 200,
+            hooks,
+            random: () => 0.5,
+        });
+        await controller.start();
+
+        active = false;
+        await controller.refreshNow(true);
+        await vi.advanceTimersByTimeAsync(50);
+        expect(hooks.startResumeWorkers).toHaveBeenCalledOnce();
+        expect(hooks.onFailure).toHaveBeenCalledOnce();
+        expect(hooks.onQuiesceStateChange).toHaveBeenLastCalledWith(true);
+
+        await vi.advanceTimersByTimeAsync(1_250);
+        expect(hooks.startResumeWorkers).toHaveBeenCalledTimes(2);
+        expect(hooks.finishResumeRamp).toHaveBeenCalledOnce();
+        expect(hooks.onFailure).toHaveBeenCalledOnce();
+        expect(hooks.onQuiesceStateChange).toHaveBeenLastCalledWith(false);
+        await controller.stop();
+    });
 });

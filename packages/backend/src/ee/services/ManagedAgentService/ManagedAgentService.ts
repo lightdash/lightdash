@@ -2149,6 +2149,7 @@ export class ManagedAgentService extends BaseService {
             runMetricQuery: getRunMetricQuery({
                 decisions: fastDecisions,
                 agentContext,
+                getExplore: async ({ table }) => agentContext.getExplore(table),
                 runAsyncQuery: runtime.runAsyncQuery,
                 maxLimit: maxQueryLimit,
             }),

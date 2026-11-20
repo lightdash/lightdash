@@ -47,6 +47,7 @@ import { useChartColorMappings } from '../../hooks/useChartColorConfig/useChartC
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
 import { useStableCallback } from '../../hooks/useStableCallback';
+import { currentGesture, derived } from '../../utils/changeOrigin';
 import { type EChartsReact } from '../EChartsReactWrapper';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import {
@@ -94,12 +95,16 @@ export type VisualizationProviderProps = {
         e: EchartsSeriesClickEvent,
         series: EChartsSeries[],
     ) => void;
+    onAxisSort?: (fieldId: string) => void;
     onChartTypeChange?: (value: ChartType) => void;
     onChartConfigChange?: (value: ChartConfig) => void;
+    /** Changes when the owner replaced the chart wholesale, so the editor starts over from `chartConfig` */
+    chartConfigRevision?: number;
     onPivotDimensionsChange?: (value: string[] | undefined) => void;
     onPivotRowsChange?: (value: string[] | undefined) => void;
     savedChartUuid?: string;
     savedChartReference?: SavedChartReference;
+    hasUnpublishedChanges?: boolean;
     dashboardFilters?: DashboardFilters;
     invalidateCache?: boolean;
     colorPalette: string[];
@@ -247,13 +252,16 @@ const VisualizationProvider: FC<
     columnOrder,
     chartConfig,
     onChartConfigChange,
+    chartConfigRevision = 0,
     onSeriesContextMenu,
+    onAxisSort,
     onChartTypeChange,
     onPivotDimensionsChange,
     onPivotRowsChange,
     children,
     savedChartUuid,
     savedChartReference,
+    hasUnpublishedChanges = false,
     dashboardFilters,
     invalidateCache,
     colorPalette,
@@ -307,24 +315,32 @@ const VisualizationProvider: FC<
             onSeriesContextMenu?.(e, series),
     );
     const hasSeriesContextMenu = onSeriesContextMenu !== undefined;
+    const stableOnAxisSort = useStableCallback((fieldId: string) =>
+        onAxisSort?.(fieldId),
+    );
+    const hasAxisSort = onAxisSort !== undefined;
 
     const { colorMappings } = useChartColorMappings();
     const theme = useMantineTheme();
 
     const hasConfigOwner = onChartConfigChange !== undefined;
     const seedContext = { itemsMap, hasConfigOwner };
-    // A type switch, a first custom spec, or a new prop with no owner to keep edits starts a new store
+    // A type switch, a first custom spec, a replaced chart, or a new prop with no owner to keep edits starts a new store
     const [stores, setStores] = useState<{
         chartConfig: ChartConfig;
+        revision: number;
         store: VisualizationStore;
     }>(() => ({
         chartConfig,
+        revision: chartConfigRevision,
         store: createVisualizationStore(
             buildInitialVisualizationState(chartConfig, seedContext),
         ),
     }));
     let { store } = stores;
+    const isChartReplaced = stores.revision !== chartConfigRevision;
     if (
+        isChartReplaced ||
         stores.chartConfig.type !== chartConfig.type ||
         isFirstCustomSpec(stores.store.getState(), chartConfig) ||
         (!hasConfigOwner &&
@@ -335,13 +351,16 @@ const VisualizationProvider: FC<
             buildInitialVisualizationState(
                 chartConfig,
                 seedContext,
-                stores.store.getState().cartesianIntent,
+                // A replaced chart carries its own series types and stacking
+                isChartReplaced
+                    ? undefined
+                    : stores.store.getState().cartesianIntent,
             ),
         );
-        setStores({ chartConfig, store });
+        setStores({ chartConfig, revision: chartConfigRevision, store });
     } else if (!hasConfigOwner && stores.chartConfig !== chartConfig) {
         // An equal new prop: remember it so later renders skip the deep compare
-        setStores({ chartConfig, store });
+        setStores({ chartConfig, revision: chartConfigRevision, store });
     }
     // A rename whose old name is in the edited query again names a new field, so it is skipped
     const tableCalculationRenames = useMemo(() => {
@@ -352,7 +371,11 @@ const VisualizationProvider: FC<
     }, [tableCalculationsMetadata, unsavedMetricQuery]);
     useEffect(() => {
         if (tableCalculationRenames?.length)
-            store.dispatch(tableCalculationsRenamed(tableCalculationRenames));
+            derived(() =>
+                store.dispatch(
+                    tableCalculationsRenamed(tableCalculationRenames),
+                ),
+            );
     }, [store, tableCalculationRenames]);
     const setStacking = useStableCallback(
         (value: CartesianIntentState['stacking']) =>
@@ -388,27 +411,32 @@ const VisualizationProvider: FC<
             return;
         onChartConfigChange(next);
     });
-    // The adapter's last emitted config and the prop it was last compared with
+    // The adapter's last emitted config, the store it came from and the prop it was last compared with
     const emitted = useRef<{
         config: ChartConfig;
+        store: VisualizationStore;
         comparedWith: ChartConfig;
     } | null>(null);
     const emitChartConfig = useStableCallback((next: ChartConfig) => {
-        emitted.current = { config: next, comparedWith: chartConfig };
-        forwardChartConfig(next);
+        emitted.current = { config: next, store, comparedWith: chartConfig };
+        // An edit owns everything emitted in its task; the rest is the chart following its data
+        if (store.getState().userEditGesture === currentGesture())
+            forwardChartConfig(next);
+        else derived(() => forwardChartConfig(next));
     });
     // An owner resetting the prop gets the edited config back, so an edit in progress wins
     useEffect(() => {
         const last = emitted.current;
         if (
             !last ||
+            last.store !== store ||
             last.comparedWith === chartConfig ||
             last.config.type !== chartConfig.type
         )
             return;
         emitted.current = { ...last, comparedWith: chartConfig };
-        forwardChartConfig(last.config);
-    }, [chartConfig, forwardChartConfig]);
+        derived(() => forwardChartConfig(last.config));
+    }, [chartConfig, store, forwardChartConfig]);
 
     const nullColor = theme.colors.ldGray[6];
     // The "Other" group (groups past the pivot column limit) is lighter than
@@ -466,6 +494,7 @@ const VisualizationProvider: FC<
             invalidateCache,
             savedChartUuid,
             savedChartReference,
+            hasUnpublishedChanges,
             isDashboard,
             isEditMode,
             embeddedDashboardInteractivity,
@@ -491,6 +520,7 @@ const VisualizationProvider: FC<
             invalidateCache,
             savedChartUuid,
             savedChartReference,
+            hasUnpublishedChanges,
             isDashboard,
             isEditMode,
             embeddedDashboardInteractivity,
@@ -512,6 +542,7 @@ const VisualizationProvider: FC<
             onSeriesContextMenu: hasSeriesContextMenu
                 ? stableOnSeriesContextMenu
                 : undefined,
+            onAxisSort: hasAxisSort ? stableOnAxisSort : undefined,
             setChartType,
             setPivotDimensions,
             setPivotRows,
@@ -523,6 +554,8 @@ const VisualizationProvider: FC<
             setCartesianType,
             hasSeriesContextMenu,
             stableOnSeriesContextMenu,
+            hasAxisSort,
+            stableOnAxisSort,
             setChartType,
             setPivotDimensions,
             setPivotRows,

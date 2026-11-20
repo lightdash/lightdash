@@ -17,6 +17,7 @@ export type AddOnName =
     | 'repoDiscovery'
     | 'editProjectContext'
     | 'readAttachments'
+    | 'readPinnedThread'
     | 'intentRouting'
     | 'skills'
     | 'mcp'
@@ -63,7 +64,9 @@ export const AGENT_TOOL_NAMES = [
     'editDbtProject',
     'editProjectContext',
     'proposeSemanticLayerChange',
+    'listChanges',
     'readSemanticModel',
+    'runMetricQuery',
     'syncDbtProject',
     'exploreRepo',
     'readAttachments',
@@ -78,6 +81,7 @@ export const AGENT_TOOL_NAMES = [
     'visualize',
     'listWarehouseTables',
     'describeWarehouseTable',
+    'grepWarehouseColumns',
     'loadSkill',
     'loadProjectContext',
     'loadMcpTools',
@@ -145,6 +149,7 @@ export type LoadoutInput = Pick<
     | 'isSemanticStudioThread'
     | 'semanticStudioDrafts'
     | 'enableReadAttachments'
+    | 'enableReadPinnedThread'
     | 'enableAskUser'
     | 'customSkills'
     | 'projectContextEnabled'

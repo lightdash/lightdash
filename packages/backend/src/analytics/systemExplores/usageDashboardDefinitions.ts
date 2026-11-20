@@ -1,3 +1,4 @@
+import { FilterOperator } from '@lightdash/common';
 import { peopleNoActivitySections } from './peopleNoActivityCharts';
 import type { UsageDashboardSpec } from './usageDashboardTypes';
 
@@ -5,8 +6,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
     {
         key: 'lightdash-analytics-overview',
         name: 'Agents & AI',
-        description:
-            'AI consumption and agent request adoption, outcomes and feedback.',
+        description: 'Agent adoption, outcomes and AI consumption.',
         tabs: [
             {
                 key: 'adoption',
@@ -67,8 +67,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
     {
         key: 'lightdash-analytics-query-activity',
         name: 'Queries',
-        description:
-            'Query performance, failures, origins, caching and the metrics and dimensions people use.',
+        description: 'Query volume, performance and cache usage.',
         tabs: [
             {
                 key: 'monthly-comparison',
@@ -151,8 +150,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
     {
         key: 'lightdash-analytics-people',
         name: 'People',
-        description:
-            'Observed activity, returning users and activity channels.',
+        description: 'User activity, returning users and channels.',
         tabs: [
             {
                 key: 'activity',
@@ -208,7 +206,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
     {
         key: 'lightdash-analytics-content',
         name: 'Content',
-        description: 'Audience, trust, adoption and current content inventory.',
+        description: 'Content audiences, ownership and inventory.',
         tabs: [
             {
                 key: 'audience',
@@ -285,8 +283,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
     {
         key: 'lightdash-analytics-apps',
         name: 'Apps',
-        description:
-            'App loads, audiences, builders and generation consumption.',
+        description: 'App usage, audiences and generation activity.',
         tabs: [
             {
                 key: 'usage',
@@ -371,8 +368,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
     {
         key: 'lightdash-analytics-tools',
         name: 'Tools & operations',
-        description:
-            'MCP tool activity, exports and operational capture boundaries.',
+        description: 'MCP tool usage, exports and outcomes.',
         tabs: [
             {
                 key: 'mcp',
@@ -395,6 +391,55 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         description:
                             'Captured download events with actor and available content attribution. This does not measure downstream recipients or use of the exported file.',
                         charts: ['export-audit-actor-content-and-outcome'],
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        key: 'lightdash-analytics-agent-evaluations',
+        name: 'Agent Evaluations',
+        description:
+            'Track evaluation quality over time across agents and evaluations.',
+        filters: {
+            dimensions: [
+                { label: 'Agent', fieldId: 'agent_evaluation_runs_agent_name' },
+                {
+                    label: 'Evaluation',
+                    fieldId: 'agent_evaluation_runs_evaluation_name',
+                },
+            ].map(({ label, fieldId }) => ({
+                label,
+                target: { fieldId, tableName: 'agent_evaluation_runs' },
+                operator: FilterOperator.EQUALS,
+                values: [],
+                disabled: true,
+            })),
+            metrics: [],
+            tableCalculations: [],
+        },
+        tabs: [
+            {
+                key: 'quality',
+                name: 'Evaluation quality',
+                sections: [
+                    {
+                        title: 'Assessment trends',
+                        description:
+                            'Filter by agent or evaluation to track quality across runs. Pass rate uses all assessments, not all prompts. Runs still in progress, unassessed results and execution errors do not count as failed assessments.',
+                        charts: [
+                            'assessment-pass-rate-by-day',
+                            'assessment-volume-by-day',
+                        ],
+                    },
+                    {
+                        title: 'Results by evaluation and run',
+                        description:
+                            'Compare evaluations and inspect individual runs. Results reflect the latest nightly refresh and may change if evaluation history is removed.',
+                        charts: [
+                            'quality-by-evaluation',
+                            'recent-evaluation-runs',
+                        ],
                     },
                 ],
             },

@@ -1,8 +1,11 @@
 import { DbtProjectType } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import {
+    createSignedCommitOnBranch,
     getInstallationAccessToken,
     getLastCommit,
+    getPullRequest,
+    getPullRequestDiffFiles,
     getRepoTree,
 } from '../../../clients/github/Github';
 import {
@@ -16,8 +19,11 @@ vi.mock('../../../clients/github/Github', () => ({
         token: 'token',
         expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     })),
+    getPullRequest: vi.fn(async () => ({ merged: false, state: 'open' })),
     getLastCommit: vi.fn(async () => ({ sha: 'sha' })),
     getRepoTree: vi.fn(async () => ({ files: [], truncated: false })),
+    getPullRequestDiffFiles: vi.fn(async () => ({ files: [] })),
+    createSignedCommitOnBranch: vi.fn(async () => undefined),
 }));
 
 const github = {
@@ -113,5 +119,165 @@ describe('describePullRequest', () => {
             describePullRequest(['a', 'b', 'c', 'd', 'e'].map((m) => result(m)))
                 .title,
         ).toBe('Update semantic layer: a, b, c and 2 more');
+    });
+});
+
+describe('getPullRequestState', () => {
+    it('reads PR state without CI checks and reuses the installation token', async () => {
+        const source = new RepoModelSource({
+            githubAppInstallationsModel: {
+                findInstallationId: async () => 'installation',
+            },
+        });
+        vi.mocked(getInstallationAccessToken).mockClear();
+        vi.mocked(getPullRequest).mockClear();
+        expect(
+            await source.getPullRequestState(
+                'org',
+                github,
+                'https://github.com/acme/analytics/pull/1',
+            ),
+        ).toBe('open');
+        expect(
+            await source.getPullRequestState(
+                'org',
+                github,
+                'https://github.com/acme/analytics/pull/2',
+            ),
+        ).toBe('open');
+        expect(getInstallationAccessToken).toHaveBeenCalledTimes(1);
+        expect(getPullRequest).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([
+        'https://github.com/other/analytics/pull/1',
+        'https://github.example/acme/analytics/pull/1',
+        'https://example.com/github.com/acme/analytics/pull/1',
+    ])('refuses a URL outside the configured repository: %s', async (url) => {
+        const findInstallationId = vi.fn();
+        const source = new RepoModelSource({
+            githubAppInstallationsModel: { findInstallationId },
+        });
+        expect(await source.getPullRequestState('org', github, url)).toBeNull();
+        expect(findInstallationId).not.toHaveBeenCalled();
+    });
+});
+
+describe('updatePullRequest', () => {
+    const source = () =>
+        new RepoModelSource({
+            githubAppInstallationsModel: {
+                findInstallationId: async () => 'installation',
+            },
+        });
+    const models = {
+        connection: {
+            owner: 'acme',
+            repo: 'analytics',
+            branch: 'main',
+            projectSubPath: '',
+        },
+        baseSha: 'base',
+        documents: [{ name: 'orders', content: 'orders on main' }],
+        paths: new Map([['orders', 'models/orders.yml']]),
+        modelsDirectory: 'models',
+    };
+    const base64 = (text: string) => Buffer.from(text).toString('base64');
+
+    it('commits to the open pull request, and puts back what the draft no longer changes', async () => {
+        vi.mocked(getPullRequest).mockResolvedValueOnce({
+            merged: false,
+            state: 'open',
+            headRef: 'lightdash-semantic-studio/abc',
+            headSha: 'head',
+        } as Awaited<ReturnType<typeof getPullRequest>>);
+        vi.mocked(getPullRequestDiffFiles).mockResolvedValueOnce({
+            files: [
+                { path: 'models/orders.yml', status: 'modified', after: 'x' },
+                { path: 'models/refunds.yml', status: 'added', after: 'x' },
+                { path: 'models/customers.yml', status: 'added', after: 'x' },
+            ],
+        } as Awaited<ReturnType<typeof getPullRequestDiffFiles>>);
+        const url = 'https://github.com/acme/analytics/pull/7';
+        expect(
+            await source().updatePullRequest({
+                organizationUuid: 'org',
+                models,
+                // The draft now only changes customers: orders goes back to main, and refunds, new in the pull request, goes away.
+                writes: new Map([['customers', 'customers drafted']]),
+                title: 'Update semantic layer: customers',
+                prUrl: url,
+            }),
+        ).toEqual({ url });
+        expect(createSignedCommitOnBranch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                branch: 'lightdash-semantic-studio/abc',
+                expectedHeadOid: 'head',
+                fileChanges: {
+                    additions: [
+                        {
+                            path: 'models/customers.yml',
+                            contents: base64('customers drafted'),
+                        },
+                        {
+                            path: 'models/orders.yml',
+                            contents: base64('orders on main'),
+                        },
+                    ],
+                    deletions: [{ path: 'models/refunds.yml' }],
+                },
+            }),
+        );
+    });
+
+    it('adds no commit when the pull request already holds the draft', async () => {
+        vi.mocked(createSignedCommitOnBranch).mockClear();
+        vi.mocked(getPullRequest).mockResolvedValueOnce({
+            merged: false,
+            state: 'open',
+            headRef: 'lightdash-semantic-studio/abc',
+            headSha: 'head',
+        } as Awaited<ReturnType<typeof getPullRequest>>);
+        vi.mocked(getPullRequestDiffFiles).mockResolvedValueOnce({
+            files: [
+                {
+                    path: 'models/customers.yml',
+                    status: 'added',
+                    after: 'customers drafted',
+                },
+            ],
+        } as Awaited<ReturnType<typeof getPullRequestDiffFiles>>);
+        const url = 'https://github.com/acme/analytics/pull/7';
+        expect(
+            await source().updatePullRequest({
+                organizationUuid: 'org',
+                models,
+                writes: new Map([['customers', 'customers drafted']]),
+                title: 'Update',
+                prUrl: url,
+            }),
+        ).toEqual({ url });
+        expect(createSignedCommitOnBranch).not.toHaveBeenCalled();
+    });
+
+    it('is nothing for a pull request that closed, merged, or belongs to another repository', async () => {
+        vi.mocked(createSignedCommitOnBranch).mockClear();
+        const send = (prUrl: string) =>
+            source().updatePullRequest({
+                organizationUuid: 'org',
+                models,
+                writes: new Map([['orders', 'drafted']]),
+                title: 'Update',
+                prUrl,
+            });
+        vi.mocked(getPullRequest).mockResolvedValueOnce({
+            merged: true,
+            state: 'closed',
+        } as Awaited<ReturnType<typeof getPullRequest>>);
+        expect(
+            await send('https://github.com/acme/analytics/pull/7'),
+        ).toBeNull();
+        expect(await send('https://github.com/other/repo/pull/7')).toBeNull();
+        expect(createSignedCommitOnBranch).not.toHaveBeenCalled();
     });
 });

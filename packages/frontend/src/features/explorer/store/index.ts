@@ -1,18 +1,24 @@
 import { configureStore } from '@reduxjs/toolkit';
-import { explorerReducer, type ExplorerSliceState } from './explorerSlice';
-
-export type ExplorerRootState = { explorer: ExplorerSliceState };
+import { stampChangeOrigin } from '../../../utils/changeOrigin';
+import {
+    emptyExplorerHistory,
+    explorerRootReducer,
+    type ExplorerRootState,
+} from './history';
 
 // Factory function to create a new store instance.
 // We create a new store each time the explorer is mounted
 export const createExplorerStore = (
-    preloadedState?: Partial<ExplorerRootState>,
+    preloadedState?: Pick<ExplorerRootState, 'explorer'>,
 ) =>
     configureStore({
-        reducer: {
-            explorer: explorerReducer,
+        reducer: explorerRootReducer,
+        preloadedState: preloadedState && {
+            ...preloadedState,
+            history: emptyExplorerHistory,
         },
-        preloadedState: preloadedState as ExplorerRootState | undefined,
+        middleware: (getDefaultMiddleware) =>
+            getDefaultMiddleware().concat(stampChangeOrigin),
     });
 
 type ExplorerStore = ReturnType<typeof createExplorerStore>;
@@ -21,5 +27,12 @@ export type ExplorerStoreDispatch = ExplorerStore['dispatch'];
 
 export { buildInitialExplorerState } from './buildInitialState';
 export { explorerActions } from './explorerSlice';
+export {
+    explorerHistoryActions,
+    selectCanRedo,
+    selectCanUndo,
+    selectHistoryRevision,
+    type ExplorerRootState,
+} from './history';
 export * from './hooks';
 export * from './selectors';

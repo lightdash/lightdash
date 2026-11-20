@@ -324,9 +324,14 @@ vi.mock('../src/ee/pages/AiAgents/AgentPage', async () => {
 
     return {
         default: function MockAgentPage() {
-            const { agentUuid, projectUuid } = useParams();
+            const { agentUuid, projectUuid, threadUuid } = useParams();
             const isEmbedded = useIsEmbedded();
-            useEmitEmbedAgentContentEvents({ projectUuid, agentUuid });
+            useEmitEmbedAgentContentEvents({
+                projectUuid,
+                agentUuid,
+                threadUuid,
+                thread: undefined,
+            });
             return (
                 <div
                     data-testid="agent-page"
@@ -341,7 +346,7 @@ vi.mock('../src/ee/pages/AiAgents/AgentPage', async () => {
 });
 
 vi.mock('../src/ee/pages/AiAgents/AiAgentNewThreadPage', async () => {
-    const { useParams } = await import('react-router');
+    const { useParams, useLocation } = await import('react-router');
     const { useEmitEmbedAiAgentThreadChange } =
         await import('../src/ee/features/aiCopilot/hooks/embedAiAgentThreadChange');
     const { default: useEmbedForSetup } =
@@ -352,10 +357,12 @@ vi.mock('../src/ee/pages/AiAgents/AiAgentNewThreadPage', async () => {
             const { projectUuid, agentUuid } = useParams();
             const emitThreadChange = useEmitEmbedAiAgentThreadChange();
             const { aiAgentThreadSetup } = useEmbedForSetup();
+            const { state } = useLocation();
             return (
                 <button
                     data-testid="agent-new-thread"
                     data-thread-setup={JSON.stringify(aiAgentThreadSetup)}
+                    data-auto-submit-prompt={state?.autoSubmitPrompt}
                     onClick={() =>
                         emitThreadChange({
                             projectUuid: projectUuid!,
@@ -417,22 +424,16 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
     const mockToken =
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InByb2plY3RVdWlkIjoidGVzdC1wcm9qZWN0LXV1aWQifX0.test';
     const mockInstanceUrl = 'http://localhost:3000';
-    const originalLocation = window.location;
+    const originalUrl = window.location.href;
 
     beforeEach(() => {
         vi.clearAllMocks();
-        // Store initial window.location
-        window.location = {
-            ...window.location,
-            pathname: '/test',
-            search: '',
-            hash: '',
-        };
+        window.history.replaceState(null, '', '/test');
     });
 
     afterEach(() => {
         vi.clearAllMocks();
-        window.location = originalLocation;
+        window.history.replaceState(null, '', originalUrl);
     });
 
     it('should pass mode="sdk" to EmbedProvider', async () => {
@@ -1185,6 +1186,7 @@ describe('SDK AI agent', () => {
                 threadContext: 'Earlier: revenue & churn',
             },
             aiAgentNavigationDisabled: false,
+            aiAgentInitialPrompt: null,
         });
     });
 
@@ -1212,7 +1214,105 @@ describe('SDK AI agent', () => {
                 threadContext: null,
             },
             aiAgentNavigationDisabled: false,
+            aiAgentInitialPrompt: null,
         });
+    });
+
+    it('passes the initial prompt in the iframe hash', async () => {
+        const { container } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                initialPrompt="Why did margin drop?"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+
+        const iframeSrc = new URL(
+            container.querySelector('iframe')?.getAttribute('src') ?? '',
+        );
+        expect(iframeSrc.search).toBe('');
+        expect(parseEmbedHash(iframeSrc.hash)).toEqual({
+            token: mockToken,
+            aiAgentThreadSetup: null,
+            aiAgentNavigationDisabled: false,
+            aiAgentInitialPrompt: 'Why did margin drop?',
+        });
+    });
+
+    it('leaves the initial prompt out when opening an existing thread', async () => {
+        const { container } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                threadUuid="test-thread-uuid"
+                initialPrompt="Why did margin drop?"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+
+        const iframeSrc = new URL(
+            container.querySelector('iframe')?.getAttribute('src') ?? '',
+        );
+        expect(parseEmbedHash(iframeSrc.hash).aiAgentInitialPrompt).toBeNull();
+    });
+
+    it('keeps the iframe when the host clears the initial prompt', async () => {
+        const props = {
+            token: mockToken,
+            instanceUrl: mockInstanceUrl,
+            agentUuid: 'test-agent-uuid',
+        };
+        const { container, rerender } = render(
+            <AiAgent {...props} initialPrompt="Why did margin drop?" />,
+        );
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+        const iframe = container.querySelector('iframe');
+        const src = iframe?.getAttribute('src');
+
+        rerender(<AiAgent {...props} />);
+
+        expect(container.querySelector('iframe')).toBe(iframe);
+        expect(iframe?.getAttribute('src')).toBe(src);
+    });
+
+    it('reloads the iframe when the host passes another initial prompt', async () => {
+        const props = {
+            token: mockToken,
+            instanceUrl: mockInstanceUrl,
+            agentUuid: 'test-agent-uuid',
+        };
+        const { container, rerender } = render(
+            <AiAgent {...props} initialPrompt="Why did margin drop?" />,
+        );
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+        const iframe = container.querySelector('iframe');
+
+        rerender(<AiAgent {...props} />);
+        rerender(<AiAgent {...props} initialPrompt="Why did margin drop?" />);
+
+        expect(container.querySelector('iframe')).not.toBe(iframe);
+
+        rerender(<AiAgent {...props} initialPrompt="What changed in Q3?" />);
+
+        const reloaded = new URL(
+            container.querySelector('iframe')?.getAttribute('src') ?? '',
+        );
+        expect(parseEmbedHash(reloaded.hash).aiAgentInitialPrompt).toBe(
+            'What changed in Q3?',
+        );
     });
 
     it('passes disableNavigation in the iframe hash', async () => {
@@ -1237,6 +1337,7 @@ describe('SDK AI agent', () => {
             token: mockToken,
             aiAgentThreadSetup: null,
             aiAgentNavigationDisabled: true,
+            aiAgentInitialPrompt: null,
         });
     });
 
@@ -1526,6 +1627,76 @@ describe('SDK native AI agent', () => {
 
         const newThread = await findByTestId('agent-new-thread');
         expect(newThread).toHaveAttribute('data-thread-setup', 'null');
+    });
+
+    it('starts a new thread with the initial prompt from the host', async () => {
+        const { findByTestId } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                initialPrompt="Why did margin drop?"
+                renderMode="native"
+            />,
+        );
+
+        expect(await findByTestId('agent-new-thread')).toHaveAttribute(
+            'data-auto-submit-prompt',
+            'Why did margin drop?',
+        );
+    });
+
+    it('waits for a typed question when the host passes no initial prompt', async () => {
+        const { findByTestId } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                renderMode="native"
+            />,
+        );
+
+        expect(await findByTestId('agent-new-thread')).not.toHaveAttribute(
+            'data-auto-submit-prompt',
+        );
+    });
+
+    it('ignores the initial prompt when opening an existing thread', async () => {
+        const { findByTestId, queryByTestId } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                threadUuid="test-thread-uuid"
+                initialPrompt="Why did margin drop?"
+                renderMode="native"
+            />,
+        );
+
+        expect(await findByTestId('agent-thread')).toBeTruthy();
+        expect(queryByTestId('agent-new-thread')).toBeNull();
+    });
+
+    it('starts another thread when the host changes the initial prompt', async () => {
+        const props = {
+            token: mockToken,
+            instanceUrl: mockInstanceUrl,
+            agentUuid: 'test-agent-uuid',
+            renderMode: 'native' as const,
+        };
+        const { findByTestId, rerender } = render(
+            <AiAgent {...props} threadUuid="test-thread-uuid" />,
+        );
+        expect(await findByTestId('agent-thread')).toBeTruthy();
+
+        rerender(<AiAgent {...props} initialPrompt="Why did margin drop?" />);
+
+        await waitFor(() => {
+            expect(mockNavigate).toHaveBeenCalledWith(
+                '/embed/test-project-uuid/ai-agents/test-agent-uuid/threads',
+                { state: { autoSubmitPrompt: 'Why did margin drop?' } },
+            );
+        });
     });
 
     it('reports agent dashboard edits to onEvent once', async () => {
@@ -1824,7 +1995,7 @@ describe('SDK token rotation', () => {
     const tokenA = `${header}.${payload}.signature-a`;
     const tokenB = `${header}.${payload}.signature-b`;
     const instanceUrl = 'http://localhost:3000';
-    const originalLocation = window.location;
+    const originalUrl = window.location.href;
     const sentToken = (fetchMock: ReturnType<typeof vi.fn>) =>
         fetchMock.mock.calls.at(-1)?.[1].headers['lightdash-embed-token'];
     const stubFetch = () => {
@@ -1840,17 +2011,12 @@ describe('SDK token rotation', () => {
 
     beforeEach(() => {
         clearInMemoryStorage();
-        window.location = {
-            ...window.location,
-            pathname: '/test',
-            search: '',
-            hash: '',
-        };
+        window.history.replaceState(null, '', '/test');
     });
 
     afterEach(() => {
         vi.unstubAllGlobals();
-        window.location = originalLocation;
+        window.history.replaceState(null, '', originalUrl);
     });
 
     it('sends the rotated token on the next request without remounting', async () => {
@@ -1934,14 +2100,14 @@ describe('SDK token rotation', () => {
 
     it('keeps the direct-mode token after the hash is stripped from the URL', () => {
         const queryClient = new QueryClient();
-        window.location = { ...window.location, hash: `#${tokenA}` };
+        window.history.replaceState(null, '', `/test#${tokenA}`);
 
         const { rerender } = render(renderProvider(queryClient, undefined));
         expect(getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY)?.token).toBe(
             tokenA,
         );
 
-        window.location = { ...window.location, hash: '' };
+        window.history.replaceState(null, '', '/test');
         rerender(renderProvider(queryClient, undefined));
 
         expect(getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY)?.token).toBe(

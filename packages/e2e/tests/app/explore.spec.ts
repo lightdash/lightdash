@@ -142,9 +142,8 @@ test.describe('Explore', () => {
         // wait for the chart to finish loading
         await expect(page.getByText('Loading chart')).toHaveCount(0);
 
-        // open the chart gallery and change chart types
+        // on a new chart Configure opens the chart gallery
         await page.getByText('Configure', { exact: true }).click();
-        await page.getByRole('button', { name: 'Change chart type' }).click();
         await expect(
             page.getByRole('button', { name: 'Table', pressed: true }),
         ).toBeVisible();

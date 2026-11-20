@@ -174,9 +174,13 @@ export class SchedulerMigrationQuiesce {
 
         this.clearGrace();
         this.cancelDequeueWaiters();
-        void this.resume(generation).catch((error: unknown) =>
-            this.hooks.onFailure(error),
-        );
+        void this.resume(generation).catch((error: unknown) => {
+            this.hooks.onFailure(error);
+            // Fail closed so the next clear probe runs resume again.
+            if (!this.stopped && generation === this.generation) {
+                this.applyLeaseState(true);
+            }
+        });
     }
 
     private scheduleGrace(generation: number): void {
@@ -199,9 +203,16 @@ export class SchedulerMigrationQuiesce {
     }
 
     private async resume(generation: number): Promise<void> {
-        await this.hooks.drainWorkers(
-            'Migration lease cleared before worker resume',
-        );
+        try {
+            await this.hooks.drainWorkers(
+                'Migration lease cleared before worker resume',
+            );
+        } catch (error) {
+            // The old runners are stopped either way, so resume regardless.
+            Logger.warn(
+                `Scheduler worker drain failed before resume: ${getErrorMessage(error)}`,
+            );
+        }
         if (!this.canResume(generation)) {
             return;
         }

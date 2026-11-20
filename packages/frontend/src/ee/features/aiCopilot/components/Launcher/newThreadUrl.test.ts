@@ -38,6 +38,21 @@ describe('buildNewThreadUrl', () => {
         );
     });
 
+    it('carries a composer chart tile with its dashboard', () => {
+        expect(
+            buildNewThreadUrl({
+                projectUuid: 'p1',
+                agent,
+                pendingContext: {
+                    composerChartUuid: 'cc1',
+                    dashboardUuid: 'd1',
+                },
+            }),
+        ).toBe(
+            '/projects/p1/ai-agents/agent-1/threads?composerChartUuid=cc1&dashboardUuid=d1',
+        );
+    });
+
     it('omits the query string without context', () => {
         expect(
             buildNewThreadUrl({

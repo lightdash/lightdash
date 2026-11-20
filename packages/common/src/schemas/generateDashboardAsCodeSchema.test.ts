@@ -6,6 +6,38 @@ import {
 import dashboardAsCodeSchema from './json/dashboard-as-code-1.0.json';
 
 describe('generateDashboardAsCodeSchema', () => {
+    test('accepts the optional legacy ownership flag on saved chart tiles', () => {
+        const ajv = new Ajv({ strict: false, validateFormats: false });
+        const validate = ajv.compile(dashboardAsCodeSchema);
+        const validateChartTile = (legacyProperties: Record<string, unknown>) =>
+            validate({
+                name: 'Dashboard',
+                slug: 'dashboard',
+                spaceSlug: 'space',
+                version: 1,
+                tabs: [],
+                tiles: [
+                    {
+                        type: 'saved_chart',
+                        x: 0,
+                        y: 0,
+                        w: 12,
+                        h: 6,
+                        properties: {
+                            chartSlug: 'orders',
+                            ...legacyProperties,
+                        },
+                    },
+                ],
+            });
+
+        expect(validateChartTile({})).toBe(true);
+        expect(validateChartTile({ belongsToDashboard: true })).toBe(true);
+        expect(validateChartTile({ belongsToDashboard: false })).toBe(true);
+        expect(validateChartTile({ belongsToDashboard: 'true' })).toBe(false);
+        expect(validateChartTile({ unknownProperty: true })).toBe(false);
+    });
+
     test('section uploads accept portable and name-derived slugs with complete object schemas', () => {
         const ajv = new Ajv({ strict: false, validateFormats: false });
         const validate = ajv.compile(dashboardAsCodeSchema);

@@ -32,7 +32,7 @@ const setup = () => {
         uuid: 'agent',
         projectUuid: 'project',
         organizationUuid: 'org',
-        enableDataAccess: false,
+        enableDataAccess: true,
         adminOnly: false,
         userAccess: [],
         groupAccess: [],
@@ -59,7 +59,7 @@ const setup = () => {
 
 describe('agent result read access', () => {
     test.each([AgentActorSurface.IN_APP_AGENT, AgentActorSurface.SLACK_AGENT])(
-        'allows the subject with access on %s without data access enabled',
+        'allows the subject with access on %s while data access is enabled',
         async (surface) => {
             const f = setup();
             const claim = buildAgentIdentityClaim({
@@ -98,6 +98,18 @@ describe('agent result read access', () => {
             }),
         ).resolves.toBe('other_person');
         expect(f.aiAgentModel.getAgent).not.toHaveBeenCalled();
+    });
+
+    test('refuses with data_access_off when only Data Access is off', async () => {
+        const f = setup();
+        f.agent.enableDataAccess = false;
+        await expect(
+            f.service.canPersonReadAgentResult({
+                account: f.account,
+                projectUuid: 'project',
+                claim: f.claim,
+            }),
+        ).resolves.toBe('data_access_off');
     });
 
     test.each(['deleted', 'another-project', 'no-access'] as const)(

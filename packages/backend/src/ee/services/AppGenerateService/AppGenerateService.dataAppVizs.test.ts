@@ -78,6 +78,8 @@ function buildService(
         savedChartModel?: unknown;
         savedChartService?: unknown;
         documentService?: unknown;
+        composerChartService?: unknown;
+        contentDraftModel?: unknown;
         featureFlags?: Record<string, boolean>;
         chartStudioAvailable?: boolean;
     } = {},
@@ -119,6 +121,9 @@ function buildService(
         } as never,
         coderService: {} as never,
         documentService: (overrides.documentService ?? {}) as never,
+        composerChartService: (overrides.composerChartService ?? {
+            countUsingDataAppViz: vi.fn().mockResolvedValue(0),
+        }) as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
@@ -138,6 +143,7 @@ function buildService(
             verify: async () => undefined,
             unverify: async () => undefined,
         } as never,
+        contentDraftModel: (overrides.contentDraftModel ?? {}) as never,
     });
     // The runtime config predicate has its own tests; stub its answer here.
     vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(
@@ -161,7 +167,11 @@ function buildServiceWithRealAbility(
     appModel: unknown,
     role: OrganizationMemberRole,
     userUuid: string,
-    overrides: { savedChartModel?: unknown; savedChartService?: unknown } = {},
+    overrides: {
+        savedChartModel?: unknown;
+        savedChartService?: unknown;
+        composerChartService?: unknown;
+    } = {},
 ) {
     const service = buildService(appModel, overrides);
     const { builder } = getUserAbilityBuilder({
@@ -796,6 +806,169 @@ describe('AppGenerateService data app vizs', () => {
             });
         });
 
+        describe('rendering a composer chart', () => {
+            const ACCOUNT = {
+                user: { userUuid: 'viewer-1' },
+                organization: { organizationUuid: 'org-1' },
+            } as never;
+            const composerDeps = (
+                chartConfig: unknown = {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: {
+                        dataAppVizUuid: 'data-app-viz-1',
+                        dataAppVizVersion: 2,
+                        fieldMapping: {},
+                    },
+                },
+                get = vi.fn().mockResolvedValue({ chart: { chartConfig } }),
+            ) => ({ composerChartService: { get }, get });
+            const pinnedAppModel = () => ({
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 2 })),
+                getLatestVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 4 })),
+            });
+
+            it('mints a token for the pinned version once the viewer can view the chart', async () => {
+                const appModel = pinnedAppModel();
+                const { get, ...deps } = composerDeps();
+                const service = buildService(appModel, deps);
+
+                const token =
+                    await service.getComposerChartDataAppVizPreviewToken(
+                        ACCOUNT,
+                        'project-1',
+                        'composer-chart-1',
+                        'data-app-viz-1',
+                        2,
+                    );
+
+                expect(get).toHaveBeenCalledWith(
+                    ACCOUNT,
+                    'project-1',
+                    'composer-chart-1',
+                );
+                expect(
+                    verifyPreviewToken(
+                        token,
+                        testLightdashSecrets,
+                        'data-app-viz-1',
+                        2,
+                    ),
+                ).toMatchObject({
+                    ok: true,
+                    payload: { userUuid: 'viewer-1', viewContext: 'chart' },
+                });
+            });
+
+            it('renders the version the chart pins', async () => {
+                const appModel = pinnedAppModel();
+                const service = buildService(appModel, composerDeps());
+
+                await expect(
+                    service.getComposerChartDataAppVizRenderMetadata(
+                        ACCOUNT,
+                        'project-1',
+                        'composer-chart-1',
+                        'data-app-viz-1',
+                    ),
+                ).resolves.toMatchObject({ state: 'ready', version: 2 });
+                expect(appModel.getLatestVersion).not.toHaveBeenCalled();
+            });
+
+            it('refuses a viewer who cannot view the chart before reading the type', async () => {
+                const appModel = pinnedAppModel();
+                const service = buildService(
+                    appModel,
+                    composerDeps(
+                        undefined,
+                        vi.fn().mockRejectedValue(new ForbiddenError()),
+                    ),
+                );
+
+                await expect(
+                    service.getComposerChartDataAppVizRenderMetadata(
+                        ACCOUNT,
+                        'project-1',
+                        'composer-chart-1',
+                        'data-app-viz-1',
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(appModel.findVisualizationApp).not.toHaveBeenCalled();
+            });
+
+            it.each([
+                [
+                    'another type',
+                    {
+                        type: ChartType.DATA_APP_VIZ,
+                        config: {
+                            dataAppVizUuid: 'another-viz',
+                            dataAppVizVersion: 2,
+                            fieldMapping: {},
+                        },
+                    },
+                ],
+                ['a built-in chart', { type: ChartType.TABLE }],
+            ])(
+                'refuses a chart whose current version renders %s',
+                async (_, chartConfig) => {
+                    const appModel = pinnedAppModel();
+                    const service = buildService(
+                        appModel,
+                        composerDeps(chartConfig),
+                    );
+
+                    await expect(
+                        service.getComposerChartDataAppVizPreviewToken(
+                            ACCOUNT,
+                            'project-1',
+                            'composer-chart-1',
+                            'data-app-viz-1',
+                            2,
+                        ),
+                    ).rejects.toThrow(
+                        'Not authorized to access this visualization',
+                    );
+                    expect(appModel.getVersion).not.toHaveBeenCalled();
+                },
+            );
+
+            it('refuses a token for a version other than the pin', async () => {
+                const appModel = pinnedAppModel();
+                const service = buildService(appModel, composerDeps());
+
+                await expect(
+                    service.getComposerChartDataAppVizPreviewToken(
+                        ACCOUNT,
+                        'project-1',
+                        'composer-chart-1',
+                        'data-app-viz-1',
+                        4,
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+            });
+
+            it('authorizes an external fetch through the chart', async () => {
+                const appModel = pinnedAppModel();
+                const { get, ...deps } = composerDeps();
+                const service = buildService(appModel, deps);
+
+                await service.assertCanAccessDataAppVisualization(
+                    ACCOUNT,
+                    'project-1',
+                    'data-app-viz-1',
+                    { composerChartUuid: 'composer-chart-1' },
+                );
+                expect(get).toHaveBeenCalledOnce();
+            });
+        });
+
         it('lets an interactive viewer preview a viz while authoring', async () => {
             const appModel = {
                 findVisualizationApp: vi
@@ -1158,6 +1331,220 @@ describe('AppGenerateService data app vizs', () => {
                 ),
             ).rejects.toThrow('Not authorized to access this visualization');
             expect(appModel.getVersion).not.toHaveBeenCalled();
+        });
+
+        describe('rendering from an unpublished draft', () => {
+            const vizConfig = {
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid: 'data-app-viz-1',
+                    dataAppVizVersion: 2,
+                },
+            };
+            const draftAppModel = () => ({
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 2 })),
+            });
+            // The published chart is cartesian; only the draft binds the viz.
+            const draftDeps = (
+                openDraft: { uuid: string; draft: unknown } | undefined,
+                publishedChartConfig: unknown = {
+                    type: ChartType.CARTESIAN,
+                    config: {},
+                },
+            ) => {
+                const findOpenDraft = vi.fn().mockResolvedValue(openDraft);
+                return {
+                    findOpenDraft,
+                    deps: {
+                        savedChartService: {
+                            hasAccess: vi.fn().mockResolvedValue([]),
+                        },
+                        savedChartModel: {
+                            get: vi.fn().mockResolvedValue({
+                                uuid: 'chart-1',
+                                projectUuid: 'project-1',
+                                chartConfig: publishedChartConfig,
+                            }),
+                        },
+                        contentDraftModel: { findOpenDraft },
+                    },
+                };
+            };
+            const boundDraft = {
+                uuid: 'draft-1',
+                draft: { chartConfig: vizConfig },
+            };
+
+            it("serves the version pinned by the requester's own draft", async () => {
+                const appModel = draftAppModel();
+                const { deps, findOpenDraft } = draftDeps(boundDraft);
+                const service = buildService(appModel, deps);
+
+                await expect(
+                    service.getChartDataAppVizRenderMetadata(
+                        USER,
+                        'project-1',
+                        'chart-1',
+                        'data-app-viz-1',
+                        undefined,
+                        true,
+                    ),
+                ).resolves.toMatchObject({ state: 'ready', version: 2 });
+                expect(findOpenDraft).toHaveBeenCalledWith(
+                    'project-1',
+                    'chart',
+                    'chart-1',
+                    'user-1',
+                );
+                expect(appModel.getVersion).toHaveBeenCalledWith(
+                    'data-app-viz-1',
+                    2,
+                );
+            });
+
+            it("mints a token for the version the requester's draft pins", async () => {
+                const { deps } = draftDeps(boundDraft);
+                const service = buildService(draftAppModel(), deps);
+
+                await expect(
+                    service.getChartDataAppVizPreviewToken(
+                        USER,
+                        'project-1',
+                        'chart-1',
+                        'data-app-viz-1',
+                        2,
+                        undefined,
+                        true,
+                    ),
+                ).resolves.toEqual(expect.any(String));
+            });
+
+            it('ignores the draft unless the request asks for it', async () => {
+                const { deps, findOpenDraft } = draftDeps(boundDraft);
+                const service = buildService(draftAppModel(), deps);
+
+                await expect(
+                    service.getChartDataAppVizRenderMetadata(
+                        USER,
+                        'project-1',
+                        'chart-1',
+                        'data-app-viz-1',
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                await expect(
+                    service.getChartDataAppVizPreviewToken(
+                        USER,
+                        'project-1',
+                        'chart-1',
+                        'data-app-viz-1',
+                        2,
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(findOpenDraft).not.toHaveBeenCalled();
+            });
+
+            it('rejects when the requester has no open draft', async () => {
+                const { deps, findOpenDraft } = draftDeps(undefined);
+                const service = buildService(draftAppModel(), deps);
+
+                await expect(
+                    service.getChartDataAppVizRenderMetadata(
+                        USER,
+                        'project-1',
+                        'chart-1',
+                        'data-app-viz-1',
+                        undefined,
+                        true,
+                    ),
+                ).rejects.toThrow(
+                    'Not authorized to access this visualization',
+                );
+                expect(findOpenDraft).toHaveBeenCalledTimes(1);
+            });
+
+            it('does not consult the draft when a chart version is requested', async () => {
+                const { deps, findOpenDraft } = draftDeps(boundDraft);
+                const service = buildService(draftAppModel(), deps);
+
+                await expect(
+                    service.getChartDataAppVizRenderMetadata(
+                        USER,
+                        'project-1',
+                        'chart-1',
+                        'data-app-viz-1',
+                        'chart-version-7',
+                        true,
+                    ),
+                ).rejects.toThrow(
+                    'Not authorized to access this visualization',
+                );
+                expect(findOpenDraft).not.toHaveBeenCalled();
+            });
+
+            it('falls back to the published chart when the draft is invalid', async () => {
+                const { deps, findOpenDraft } = draftDeps({
+                    uuid: 'draft-1',
+                    draft: { chartConfig: 'not-a-config' },
+                });
+                const service = buildService(draftAppModel(), deps);
+
+                await expect(
+                    service.getChartDataAppVizRenderMetadata(
+                        USER,
+                        'project-1',
+                        'chart-1',
+                        'data-app-viz-1',
+                        undefined,
+                        true,
+                    ),
+                ).rejects.toThrow(
+                    'Not authorized to access this visualization',
+                );
+                expect(findOpenDraft).toHaveBeenCalledTimes(1);
+            });
+
+            it("authorizes an external fetch through the requester's own draft only when the chart context asks", async () => {
+                const account = {
+                    user: { userUuid: 'user-1' },
+                    organization: { organizationUuid: 'org-1' },
+                    authentication: { type: 'session' },
+                } as never;
+                const { deps, findOpenDraft } = draftDeps(boundDraft);
+                const service = buildService(draftAppModel(), deps);
+
+                await expect(
+                    service.assertCanAccessDataAppVisualization(
+                        account,
+                        'project-1',
+                        'data-app-viz-1',
+                        { savedChartUuid: 'chart-1' },
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(findOpenDraft).not.toHaveBeenCalled();
+
+                await expect(
+                    service.assertCanAccessDataAppVisualization(
+                        account,
+                        'project-1',
+                        'data-app-viz-1',
+                        {
+                            savedChartUuid: 'chart-1',
+                            includeUnpublishedDraft: true,
+                        },
+                    ),
+                ).resolves.toBeUndefined();
+                expect(findOpenDraft).toHaveBeenCalledWith(
+                    'project-1',
+                    'chart',
+                    'chart-1',
+                    'user-1',
+                );
+            });
         });
 
         it('resolves the template-filtered viz before checking the feature flag', async () => {
@@ -1698,6 +2085,55 @@ describe('getDataAppVizDeleteImpact', () => {
             service.getDataAppVizDeleteImpact(USER, 'project-1', 'missing-viz'),
         ).rejects.toThrow(NotFoundError);
         expect(countChartsUsingDataAppViz).not.toHaveBeenCalled();
+    });
+});
+
+describe('chart type impact counts include composer charts', () => {
+    const composerChartService = {
+        countUsingDataAppViz: vi.fn().mockResolvedValue(2),
+    };
+    const withComposerCharts = (savedChartModel: Record<string, unknown>) =>
+        buildServiceWithRealAbility(
+            {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+            },
+            OrganizationMemberRole.ADMIN,
+            'user-1',
+            { savedChartModel, composerChartService },
+        );
+
+    it('adds them to the delete count', async () => {
+        const { service, user } = withComposerCharts({
+            countChartsUsingDataAppViz: vi.fn().mockResolvedValue(3),
+        });
+        await expect(
+            service.getDataAppVizDeleteImpact(
+                user,
+                'project-1',
+                'data-app-viz-1',
+            ),
+        ).resolves.toEqual({ chartCount: 5 });
+        expect(composerChartService.countUsingDataAppViz).toHaveBeenCalledWith(
+            'project-1',
+            'data-app-viz-1',
+        );
+    });
+
+    it('adds them to the upgrade counts as pinned charts', async () => {
+        const { service, user } = withComposerCharts({
+            getDataAppVizUsageCounts: vi
+                .fn()
+                .mockResolvedValue({ chartCount: 5, pinnedChartCount: 3 }),
+        });
+        await expect(
+            service.getDataAppVizUpgradeImpact(
+                user,
+                'project-1',
+                'data-app-viz-1',
+            ),
+        ).resolves.toEqual({ chartCount: 7, pinnedChartCount: 5 });
     });
 });
 

@@ -12,10 +12,10 @@ import {
 import SqlColumnSelect from '../dashboardFilters/FilterConfiguration/SqlColumnSelect';
 import { getUniqueSqlColumns } from '../dashboardFilters/FilterConfiguration/utils';
 import { useAddMenuBack } from './addMenuBack';
+import { useControlContractClasses } from './controlContractClasses';
 import { FieldPicker, PickerBack } from './ControlPickers';
 import { DropdownClass } from './DropdownClass';
-import { useRailContractClasses } from './railContractClasses';
-import { useControlsSidebar } from './useControlsSidebar';
+import { useControlsEditor } from './useControlsEditor';
 
 const NO_FIELDS: DashboardFilterableField[] = [];
 const NO_TILE_FIELDS: Record<string, DashboardFilterableField[]> = {};
@@ -23,9 +23,9 @@ const NO_TILE_FIELDS: Record<string, DashboardFilterableField[]> = {};
 // A filter with no field yet: the shipped field search, opened
 export const FieldsAndTiles: FC = () => {
     const { editingRule, addFirstField, addFirstSqlColumn, isViewer } =
-        useControlsSidebar();
+        useControlsEditor();
     const onBack = useAddMenuBack();
-    const contractClasses = useRailContractClasses();
+    const contractClasses = useControlContractClasses();
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);

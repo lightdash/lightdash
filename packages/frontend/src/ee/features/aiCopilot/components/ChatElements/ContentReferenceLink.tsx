@@ -35,6 +35,8 @@ import styles from './ContentLink.module.css';
 type ContentReferenceKind =
     | 'artifact'
     | 'chart'
+    | 'sql_chart'
+    | 'composer_chart'
     | 'dashboard'
     | 'document'
     | 'data_app'
@@ -196,6 +198,8 @@ const getIconMeta = ({
                 icon: IconSend,
             };
         case 'chart':
+        case 'sql_chart':
+        case 'composer_chart':
         default:
             return {
                 color: 'blue.7',

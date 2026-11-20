@@ -9,6 +9,8 @@ import {
     AiAgentModel,
     type EmbedThreadScope,
 } from '../../../models/AiAgentModel';
+import { getAiThreadScripts } from '../../../repl/scripts/aiThreads';
+import { up as backfillThreadViewers } from '../20261111120000_backfill_embed_external_user_id_on_write_space_threads';
 
 vi.mock('../../../../config/lightdashConfig', async () => ({
     lightdashConfig: (await import('../../../../config/lightdashConfig.mock'))
@@ -120,7 +122,7 @@ describe('embedded AI thread write spaces', () => {
 
     const createThread = (
         embedSpaceUuids: string[] | undefined,
-        embedExternalUserId: string | null = null,
+        embedOwnerIdentifier: string | null = null,
     ) =>
         model.createWebAppThread({
             organizationUuid: f.organizationUuid,
@@ -129,18 +131,22 @@ describe('embedded AI thread write spaces', () => {
             createdFrom: 'web_app',
             agentUuid: f.agentUuid,
             embedSpaceUuids,
-            embedExternalUserId,
+            embedOwnerIdentifier,
             threadContext: 'Embedded conversation',
         });
 
-    const writeSpaces = (writeSpaceUuids: string[]): EmbedThreadScope => ({
+    const writeSpaces = (
+        writeSpaceUuids: string[],
+        ownerIdentifier: string | null = null,
+    ): EmbedThreadScope => ({
         type: 'writeSpaces',
         writeSpaceUuids,
+        ownerIdentifier,
     });
 
-    const externalUser = (externalUserId: string): EmbedThreadScope => ({
-        type: 'externalUser',
-        externalUserId,
+    const externalUser = (ownerIdentifier: string): EmbedThreadScope => ({
+        type: 'owner',
+        ownerIdentifier,
     });
 
     const isInScope = (threadUuid: string, scope: EmbedThreadScope) =>
@@ -298,8 +304,39 @@ describe('embedded AI thread write spaces', () => {
             isInScope(threadUuid, externalUser('viewer-a')),
         ).resolves.toBe(false);
         await expect(
+            isInScope(threadUuid, writeSpaces([f.spaces.tenantA], 'viewer-a')),
+        ).resolves.toBe(true);
+    });
+
+    test('keeps write-space threads to the viewer who started them', async () => {
+        const threadUuid = await createThread([f.spaces.tenantA], 'viewer-a');
+
+        await expect(
+            isInScope(threadUuid, writeSpaces([f.spaces.tenantA], 'viewer-a')),
+        ).resolves.toBe(true);
+        await expect(
+            isInScope(threadUuid, writeSpaces([f.spaces.tenantA], 'viewer-b')),
+        ).resolves.toBe(false);
+        await expect(
+            isInScope(threadUuid, writeSpaces([f.spaces.tenantA])),
+        ).resolves.toBe(false);
+        expect(
+            await listThreadUuids(writeSpaces([f.spaces.tenantA], 'viewer-a')),
+        ).toContain(threadUuid);
+        expect(
+            await listThreadUuids(writeSpaces([f.spaces.tenantA], 'viewer-b')),
+        ).not.toContain(threadUuid);
+    });
+
+    test('keeps write-space threads without a viewer out of tokens with one', async () => {
+        const threadUuid = await createThread([f.spaces.tenantA]);
+
+        await expect(
             isInScope(threadUuid, writeSpaces([f.spaces.tenantA])),
         ).resolves.toBe(true);
+        await expect(
+            isInScope(threadUuid, writeSpaces([f.spaces.tenantA], 'viewer-a')),
+        ).resolves.toBe(false);
     });
 
     test('keeps write-space threads out of read-only tokens after their first space is deleted', async () => {
@@ -323,5 +360,208 @@ describe('embedded AI thread write spaces', () => {
         await expect(
             isInScope(threadUuid, externalUser('viewer-a')),
         ).resolves.toBe(false);
+    });
+
+    test('backfills the viewer of older write-space threads from their first prompt', async () => {
+        const addPrompt = (threadUuid: string, externalUserId: string | null) =>
+            model.createWebAppPrompt({
+                threadUuid,
+                createdByUserUuid: f.userUuid,
+                prompt: 'How many orders?',
+                modelConfig: null,
+                externalUserId,
+            });
+        const clearViewer = (threadUuid: string) =>
+            migrated.database.raw(
+                'UPDATE ai_web_app_thread SET embed_external_user_id = NULL WHERE ai_thread_uuid = ?',
+                [threadUuid],
+            );
+
+        const legacyThread = await createThread([f.spaces.tenantA]);
+        await addPrompt(legacyThread, 'viewer-a');
+        await addPrompt(legacyThread, 'viewer-b');
+        const anonymousThread = await createThread([f.spaces.tenantA]);
+        await addPrompt(anonymousThread, null);
+        const nonEmbedThread = await createThread(undefined);
+        await addPrompt(nonEmbedThread, 'viewer-a');
+        const readOnlyThread = await createThread([], 'viewer-c');
+        await clearViewer(readOnlyThread);
+        await addPrompt(readOnlyThread, 'viewer-c');
+
+        await backfillThreadViewers(migrated.database);
+        await backfillThreadViewers(migrated.database);
+
+        expect((await readThread(legacyThread)).embed_external_user_id).toBe(
+            'viewer-a',
+        );
+        expect(
+            (await readThread(anonymousThread)).embed_external_user_id,
+        ).toBeNull();
+        expect(
+            (await readThread(nonEmbedThread)).embed_external_user_id,
+        ).toBeNull();
+        expect(
+            (await readThread(readOnlyThread)).embed_external_user_id,
+        ).toBeNull();
+        await expect(
+            isInScope(
+                legacyThread,
+                writeSpaces([f.spaces.tenantA], 'viewer-a'),
+            ),
+        ).resolves.toBe(true);
+        await expect(
+            isInScope(
+                legacyThread,
+                writeSpaces([f.spaces.tenantA], 'viewer-b'),
+            ),
+        ).resolves.toBe(false);
+    });
+
+    describe('thread owner REPL scripts', () => {
+        const DASHBOARD_UUID = '0f0e6c2a-7f5c-4d2b-9a55-3a1c1f7f9d10';
+        const scripts = () => getAiThreadScripts(migrated.database);
+        const createBoundThread = (owner: string) =>
+            model.createWebAppThread({
+                organizationUuid: f.organizationUuid,
+                projectUuid: f.projectUuid,
+                userUuid: f.userUuid,
+                createdFrom: 'web_app',
+                agentUuid: f.agentUuid,
+                embedSpaceUuids: [f.spaces.tenantA],
+                embedOwnerIdentifier: owner,
+                binding: { type: 'dashboard', dashboardUuid: DASHBOARD_UUID },
+            });
+
+        test('lists embedded threads by their bound dashboard, owner, space and viewer', async () => {
+            const threadUuid = await createBoundThread('person-1');
+            await model.createWebAppPrompt({
+                threadUuid,
+                createdByUserUuid: f.userUuid,
+                prompt: 'How many orders?',
+                modelConfig: null,
+                externalUserId: 'person-2',
+            });
+            const where = { projectUuid: f.projectUuid };
+
+            const byDashboard = await scripts().listEmbedThreads({
+                ...where,
+                dashboardUuid: DASHBOARD_UUID,
+            });
+            expect(byDashboard).toEqual([
+                expect.objectContaining({
+                    threadUuid,
+                    agentUuid: f.agentUuid,
+                    ownerIdentifier: 'person-1',
+                    writeSpaceUuids: [f.spaces.tenantA],
+                    dashboardUuid: DASHBOARD_UUID,
+                    viewerIds: ['person-2'],
+                }),
+            ]);
+
+            const uuids = async (filter: object) =>
+                (await scripts().listEmbedThreads({ ...where, ...filter })).map(
+                    (thread) => thread.threadUuid,
+                );
+            expect(await uuids({ ownerIdentifier: 'person-1' })).toEqual([
+                threadUuid,
+            ]);
+            expect(await uuids({ viewerId: 'person-2' })).toEqual([threadUuid]);
+            expect(
+                await uuids({
+                    spaceUuid: f.spaces.tenantA,
+                    threadUuids: [threadUuid],
+                }),
+            ).toEqual([threadUuid]);
+            expect(
+                await uuids({
+                    spaceUuid: f.spaces.tenantB,
+                    threadUuids: [threadUuid],
+                }),
+            ).toEqual([]);
+        });
+
+        test('moves matched threads to a shared owner only when not a dry run', async () => {
+            const threadUuid = await createBoundThread('person-3');
+            const args = {
+                where: {
+                    projectUuid: f.projectUuid,
+                    threadUuids: [threadUuid],
+                },
+                owner: (thread: { dashboardUuid: string | null }) =>
+                    `dashboard:${thread.dashboardUuid}`,
+            };
+            const change = {
+                threadUuid,
+                title: null,
+                from: 'person-3',
+                to: `dashboard:${DASHBOARD_UUID}`,
+            };
+
+            await expect(scripts().setEmbedThreadOwners(args)).resolves.toEqual(
+                { dryRun: true, changes: [change] },
+            );
+            await expect(
+                isInScope(
+                    threadUuid,
+                    writeSpaces([f.spaces.tenantA], change.to),
+                ),
+            ).resolves.toBe(false);
+
+            await expect(
+                scripts().setEmbedThreadOwners({ ...args, dryRun: false }),
+            ).resolves.toEqual({ dryRun: false, changes: [change] });
+            await expect(
+                isInScope(
+                    threadUuid,
+                    writeSpaces([f.spaces.tenantA], change.to),
+                ),
+            ).resolves.toBe(true);
+            await expect(
+                isInScope(
+                    threadUuid,
+                    writeSpaces([f.spaces.tenantA], 'person-3'),
+                ),
+            ).resolves.toBe(false);
+            await expect(
+                scripts().setEmbedThreadOwners({ ...args, dryRun: false }),
+            ).resolves.toEqual({ dryRun: false, changes: [] });
+        });
+
+        test('never gives an owner to a thread started in the app', async () => {
+            const threadUuid = await createThread(undefined);
+            await expect(
+                scripts().setEmbedThreadOwners({
+                    where: {
+                        projectUuid: f.projectUuid,
+                        threadUuids: [threadUuid],
+                    },
+                    owner: () => 'dashboard:1',
+                    dryRun: false,
+                }),
+            ).resolves.toEqual({ dryRun: false, changes: [] });
+            expect(
+                (await readThread(threadUuid)).embed_external_user_id,
+            ).toBeNull();
+        });
+
+        test('refuses an unknown filter and an empty owner', async () => {
+            const threadUuid = await createBoundThread('person-4');
+            await expect(
+                scripts().listEmbedThreads({
+                    projectUuid: f.projectUuid,
+                    dashboardUUID: DASHBOARD_UUID,
+                } as never),
+            ).rejects.toThrow('Unknown filter: dashboardUUID');
+            await expect(
+                scripts().setEmbedThreadOwners({
+                    where: {
+                        projectUuid: f.projectUuid,
+                        threadUuids: [threadUuid],
+                    },
+                    owner: () => ' ',
+                    dryRun: false,
+                }),
+            ).rejects.toThrow('invalid identifier');
+        });
     });
 });

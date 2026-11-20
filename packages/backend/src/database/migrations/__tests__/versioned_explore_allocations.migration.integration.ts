@@ -1,4 +1,5 @@
 import {
+    ConflictError,
     convertExplores,
     DEFAULT_SPOTLIGHT_CONFIG,
     DimensionType,
@@ -22,7 +23,10 @@ import {
     createMigratedDatabase,
     type MigratedDatabase,
 } from '../../../testing/migratedDatabase';
-import { warehouseClientMock } from '../../../utils/QueryBuilder/MetricQueryBuilder.mock';
+import {
+    bigqueryClientMock,
+    warehouseClientMock,
+} from '../../../utils/QueryBuilder/MetricQueryBuilder.mock';
 
 let migrated: MigratedDatabase;
 let database: Knex;
@@ -607,6 +611,197 @@ test('leaves plain lineage unchanged in deploy mode when the project has no extr
         });
         expect(orders.tables.fct_orders.lineageGraph).toEqual(
             compiledOrders.tables.fct_orders.lineageGraph,
+        );
+    } finally {
+        await database('projects').where('project_uuid', projectUuid).delete();
+    }
+});
+
+const compileRepeatedColumnExplores = async (
+    primaryUuid: string,
+    sourceUuid: string,
+    joined: boolean,
+    collision: boolean,
+) => {
+    const orders = lineageModel(
+        joined ? sourceUuid : primaryUuid,
+        'orders',
+        [],
+    );
+    orders.columns.items = {
+        name: 'items',
+        data_type: DimensionType.STRING,
+        nested_shape: { repeated: true, record: false },
+        meta: {},
+    };
+    if (joined) {
+        orders.package_name = 'secondary';
+        orders.unique_id = 'model.secondary.orders';
+        orders.lightdash_source_name = 'secondary';
+    }
+    const models = [
+        orders,
+        ...(joined
+            ? [
+                  lineageModel(primaryUuid, 'reports', [], {
+                      joins: [
+                          {
+                              join: 'secondary__orders',
+                              alias: 'orders',
+                              sql_on: '${reports.id} = ${orders.id}',
+                          },
+                      ],
+                  }),
+              ]
+            : []),
+        ...(collision
+            ? [
+                  {
+                      ...lineageModel(
+                          sourceUuid,
+                          joined ? 'reports' : 'orders',
+                          [],
+                      ),
+                      package_name: 'secondary',
+                      unique_id: `model.secondary.${joined ? 'reports' : 'orders'}`,
+                      lightdash_source_name: 'secondary',
+                  },
+              ]
+            : []),
+    ];
+    return convertExplores(
+        models,
+        false,
+        SupportedDbtAdapter.BIGQUERY,
+        bigqueryClientMock,
+        { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        {
+            deferExploreNaming: collision,
+            includeModelIdentity: true,
+            allowPartialCompilation: true,
+        },
+    );
+};
+
+const createRepeatedColumnSource = async (projectUuid: string) => {
+    const [source] = await database('project_dbt_sources')
+        .insert({
+            project_uuid: projectUuid,
+            name: 'secondary',
+            is_primary: false,
+            precedence: 1,
+            dbt_connection_type: null,
+            dbt_connection: null,
+            warehouse_database: null,
+            warehouse_schema: null,
+        })
+        .returning('project_dbt_source_uuid');
+    return source.project_dbt_source_uuid;
+};
+
+test.each([
+    { joined: true, collision: false },
+    { joined: true, collision: true },
+    { joined: false, collision: false },
+    { joined: false, collision: true },
+])(
+    'deploy allocation preserves repeated-column tables and rewrites parent references (joined $joined, collision $collision)',
+    async ({ joined, collision }) => {
+        const { projectUuid, primaryUuid } = await createLineageProject();
+        try {
+            const sourceUuid = await createRepeatedColumnSource(projectUuid);
+            const compiled = await compileRepeatedColumnExplores(
+                primaryUuid,
+                sourceUuid,
+                joined,
+                collision,
+            );
+            expect(compiled.filter(isExploreError)).toEqual([]);
+            const parentName = collision ? 'analytics__orders' : 'orders';
+            const rootName = joined ? 'reports' : 'orders';
+            const exploreName = collision ? `analytics__${rootName}` : rootName;
+            const incoming = compiled.find(
+                (explore) =>
+                    explore.dbtModelIdentity?.sourceUuid === primaryUuid &&
+                    explore.dbtModelIdentity?.modelName ===
+                        (joined ? 'reports' : 'orders'),
+            ) as Explore;
+            const incomingNestedName = joined
+                ? 'orders__items'
+                : `${incoming.baseTable}__items`;
+            const nestedName = joined
+                ? 'orders__items'
+                : `${parentName}__items`;
+            expect(incoming.tables[incomingNestedName]).toMatchObject({
+                name: incomingNestedName,
+                dbtSourceUuid: joined ? sourceUuid : primaryUuid,
+                nestedFrom: {
+                    parentTable: joined ? 'orders' : incoming.baseTable,
+                },
+            });
+            expect(
+                incoming.tables[incomingNestedName].dbtModelUniqueId,
+            ).toBeUndefined();
+            const result = await allocateLineageExplores(
+                projectUuid,
+                compiled,
+                {
+                    mode: 'deploy',
+                    models: [],
+                    refreshedSourceUuids: [],
+                    warnings: [],
+                },
+            );
+            const allocated = result.explores.find(
+                ({ name }) => name === exploreName,
+            ) as Explore;
+            expect(allocated).toBeDefined();
+            expect(isExploreError(allocated)).toBe(false);
+            expect(allocated.tables[nestedName]).toMatchObject({
+                name: nestedName,
+                nestedFrom: { parentTable: joined ? 'orders' : parentName },
+            });
+            expect(
+                allocated.tables[nestedName].dbtModelUniqueId,
+            ).toBeUndefined();
+        } finally {
+            await database('projects')
+                .where('project_uuid', projectUuid)
+                .delete();
+        }
+    },
+);
+
+test('deploy allocation rejects an unresolved joined dbt model with two sources', async () => {
+    const { projectUuid, primaryUuid } = await createLineageProject();
+    try {
+        const sourceUuid = await createRepeatedColumnSource(projectUuid);
+        const compiled = await compileRepeatedColumnExplores(
+            primaryUuid,
+            sourceUuid,
+            true,
+            false,
+        );
+        const reports = compiled.find(
+            ({ name }) => name === 'reports',
+        ) as Explore;
+        delete reports.tables.orders__items;
+        reports.tables.missing_orders = {
+            ...reports.tables.orders,
+            name: 'missing_orders',
+            originalName: 'missing_orders',
+            canonicalName: 'missing_orders',
+            dbtModelUniqueId: 'model.secondary.missing_orders',
+        };
+        const allocation = allocateLineageExplores(projectUuid, compiled, {
+            mode: 'deploy',
+            models: [],
+            refreshedSourceUuids: [],
+            warnings: [],
+        });
+        await expect(allocation).rejects.toThrow(ConflictError);
+        await expect(allocation).rejects.toThrow(
+            'Cannot resolve joined model "missing_orders" to an existing explore in this project. Refresh the project and compile again.',
         );
     } finally {
         await database('projects').where('project_uuid', projectUuid).delete();

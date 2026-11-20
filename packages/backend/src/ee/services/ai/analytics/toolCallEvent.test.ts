@@ -154,4 +154,30 @@ describe('createToolCallEventTracker', () => {
         expect(emitted).toHaveLength(1);
         expect(tracker.isTracked('toolu_01')).toBe(true);
     });
+
+    it('reports unapproved SQL as its own status, not success', () => {
+        const emitted: AiAgentToolCallCompletedProperties[] = [];
+        const tracker = createToolCallEventTracker(context, (properties) =>
+            emitted.push(properties),
+        );
+        for (const status of ['rejected', 'timeout']) {
+            tracker.track(
+                call({
+                    toolCallId: `call_${status}`,
+                    toolName: 'createContent',
+                    result: {
+                        type: 'tool-result',
+                        output: {
+                            result: 'not approved',
+                            metadata: { status },
+                        },
+                    },
+                }),
+            );
+        }
+        expect(emitted.map((event) => event.status)).toEqual([
+            'rejected',
+            'timeout',
+        ]);
+    });
 });

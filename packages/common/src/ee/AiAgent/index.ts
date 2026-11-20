@@ -59,11 +59,13 @@ export * from './constants';
 export * from './coder';
 export * from './composerArtifact';
 export * from './nodeCitations';
+export * from './composerChartSave';
 export * from './composerChartVizConfig';
 export * from './composerMergeChart';
 export * from './composerSemanticArtifact';
 export * from './composerViz';
 export * from './composerVizPanel';
+export * from './captureRouting';
 export * from './dashboardContext';
 export * from './dashboardLayout';
 export * from './aiAgentReviewClassifierTypes';
@@ -142,6 +144,12 @@ export type AiAgentMcpServerToolUpdate = Pick<
 export type AiAgentIntegration = {
     type: 'slack';
     channelId: string;
+    /**
+     * Service account whose permissions this channel uses; null means each
+     * person's own. Always returned; optional on input, where omitting it
+     * keeps the channel's current value.
+     */
+    serviceAccountUuid?: string | null;
 };
 
 const aiAgentUserAccessDetailSchema = z.object({
@@ -167,6 +175,7 @@ export const baseAgentSchema = z.object({
         z.object({
             type: z.literal('slack'),
             channelId: z.string(),
+            serviceAccountUuid: z.string().nullable().optional(),
         }),
     ),
 
@@ -1263,6 +1272,9 @@ export type AiArtifact = {
     savedQueryUuid: string | null;
     savedSqlUuid: string | null;
     savedDashboardUuid: string | null;
+    /** Null when unsaved or the composer chart was deleted. */
+    savedComposerChartUuid: string | null;
+    savedComposerChartDashboardUuid: string | null;
     createdAt: Date;
     versionNumber: number;
     versionUuid: string;

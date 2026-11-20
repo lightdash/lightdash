@@ -1,5 +1,6 @@
 import type {
     Account,
+    DateZoom,
     FeatureFlags,
     ParametersValuesMap,
     PivotConfiguration,
@@ -11,8 +12,10 @@ import type {
     SourceQuery,
     UserAttributeValueMap,
 } from '@lightdash/common';
-import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
-import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
+import type {
+    DuckdbQueryPlan,
+    QueryRunAuthority,
+} from '../AsyncQueryService/types';
 
 export type ScanSchemaArgs = {
     account: Account;
@@ -48,6 +51,7 @@ export type SubmittedSourceQueries = Array<
 >;
 
 export type ValidateSourceQueryArgs = SourceQueryExecutionContext & {
+    authority: QueryRunAuthority;
     account: Account;
     projectUuid: string;
     query: SourceQuery;
@@ -55,7 +59,7 @@ export type ValidateSourceQueryArgs = SourceQueryExecutionContext & {
 };
 
 export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {
-    documentQueryContext?: DocumentQueryContext;
+    authority: QueryRunAuthority;
     account: Account;
     projectUuid: string;
     context: QueryExecutionContext;
@@ -70,6 +74,8 @@ export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {
     resolvedReferences: Record<string, string>;
     /** The node's own pivot, lifted off the query so every source reads one place. */
     pivotConfiguration: PivotConfiguration | null;
+    /** The date zoom a bound composer run gives this node; null elsewhere. */
+    dateZoom: DateZoom | null;
     /**
      * How a duckdb node executes. Null is the public plan: the gated compose
      * SQL path, columns discovered, shared results session. Only internal

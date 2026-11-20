@@ -328,6 +328,9 @@
                     "additionalProperties": false,
                     "description": "From T, pick a set of properties whose keys are in the union K",
                     "properties": {
+                        "belongsToDashboard": {
+                            "type": "boolean"
+                        },
                         "chartName": {
                             "type": ["string", "null"]
                         },
@@ -372,6 +375,69 @@
                 },
                 "type": {
                     "$ref": "#/$defs/DashboardTileTypes.SAVED_CHART"
+                },
+                "uuid": {
+                    "type": "string"
+                },
+                "w": {
+                    "format": "double",
+                    "maximum": 36,
+                    "minimum": 1,
+                    "type": "number"
+                },
+                "x": {
+                    "format": "double",
+                    "maximum": 35,
+                    "minimum": 0,
+                    "type": "number"
+                },
+                "y": {
+                    "format": "double",
+                    "minimum": 0,
+                    "type": "number"
+                }
+            },
+            "required": ["w", "h", "y", "x", "type", "properties"],
+            "type": "object"
+        },
+        "DashboardComposerChartTileAsCode": {
+            "additionalProperties": false,
+            "properties": {
+                "h": {
+                    "format": "double",
+                    "minimum": 1,
+                    "type": "number"
+                },
+                "properties": {
+                    "additionalProperties": false,
+                    "description": "From T, pick a set of properties whose keys are in the union K",
+                    "properties": {
+                        "chartSlug": {
+                            "type": "string"
+                        },
+                        "hideTitle": {
+                            "type": "boolean"
+                        },
+                        "title": {
+                            "type": "string"
+                        }
+                    },
+                    "required": ["chartSlug"],
+                    "type": "object"
+                },
+                "tabSlug": {
+                    "description": "Portable reference to the dashboard tab containing this tile.",
+                    "type": ["string", "null"]
+                },
+                "tabUuid": {
+                    "description": "Legacy project-local tab reference. Accepted on upload for backwards compatibility.",
+                    "type": ["string", "null"]
+                },
+                "tileSlug": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/$defs/DashboardTileTypes.COMPOSER_CHART"
                 },
                 "uuid": {
                     "type": "string"
@@ -671,6 +737,14 @@
                 }
             ]
         },
+        "DashboardHeadingSize": {
+            "enum": ["xs", "sm", "md", "lg"],
+            "type": "string"
+        },
+        "DashboardHeadingTextAlign": {
+            "enum": ["left", "center", "right"],
+            "type": "string"
+        },
         "DashboardHeadingTileAsCode": {
             "additionalProperties": false,
             "properties": {
@@ -685,10 +759,22 @@
                         "showDivider": {
                             "type": "boolean"
                         },
+                        "size": {
+                            "$ref": "#/$defs/DashboardHeadingSize",
+                            "description": "Omitted means the default size, `md`"
+                        },
                         "text": {
                             "type": "string"
                         },
-                        "title": {}
+                        "textAlign": {
+                            "$ref": "#/$defs/DashboardHeadingTextAlign",
+                            "description": "Omitted means the default, `left`"
+                        },
+                        "title": {},
+                        "verticalAlign": {
+                            "$ref": "#/$defs/DashboardHeadingVerticalAlign",
+                            "description": "Where the heading sits in the height of its tile. Omitted means the default, `center`"
+                        }
                     },
                     "required": ["text"],
                     "type": "object"
@@ -730,6 +816,10 @@
             },
             "required": ["w", "h", "y", "x", "type", "properties"],
             "type": "object"
+        },
+        "DashboardHeadingVerticalAlign": {
+            "enum": ["top", "center", "bottom"],
+            "type": "string"
         },
         "DashboardLoomTileAsCode": {
             "additionalProperties": false,
@@ -1043,6 +1133,9 @@
                     "$ref": "#/$defs/DashboardSqlChartTileAsCode"
                 },
                 {
+                    "$ref": "#/$defs/DashboardComposerChartTileAsCode"
+                },
+                {
                     "$ref": "#/$defs/DashboardMarkdownTileAsCode"
                 },
                 {
@@ -1143,8 +1236,13 @@
                 "markdown",
                 "loom",
                 "heading",
-                "data_app"
+                "data_app",
+                "composer_chart"
             ],
+            "type": "string"
+        },
+        "DashboardTileTypes.COMPOSER_CHART": {
+            "enum": ["composer_chart"],
             "type": "string"
         },
         "DashboardTileTypes.DATA_APP": {
@@ -1450,6 +1548,18 @@
                 "chartName": {
                     "type": ["string", "null"]
                 },
+                "hideTitle": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "Pick_DashboardComposerChartTileProperties-at-properties.title-or-hideTitle_": {
+            "description": "From T, pick a set of properties whose keys are in the union K",
+            "properties": {
                 "hideTitle": {
                     "type": "boolean"
                 },

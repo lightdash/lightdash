@@ -1,6 +1,8 @@
 import type { Dimension } from '@lightdash/common';
 
 export const analyticsTableDescriptions: Record<string, string> = {
+    embed_view_events:
+        'Observed successful embedded dashboard loads by external viewer and explicitly configured customer tenant. Only new capture is included. Does not measure browser renders or billable usage.',
     embed_reach:
         'Observed successful embedded dashboard fetches, with explicit external-viewer attribution. Excludes previews and duplicate deliveries. Refetches count; child queries do not. Does not measure browser rendering, tenant attribution, embedding configuration or billable loads. Capture starts after deployment.',
     historical_activity:
@@ -15,6 +17,8 @@ export const analyticsTableDescriptions: Record<string, string> = {
         'Individual changes during an AI agent request: creation, outcomes, retries, clarification waits, interruptions and feedback updates. A single prompt has several events. Use Agent requests for question counts, response times and current outcomes.',
     agent_requests:
         'One row per captured human prompt to the AI agent, combining its latest outcome, retries, feedback and model usage. Use this Explore for Ask AI questions and usage trends; filter Surface to web_app for in-app usage. Only prompts with a captured creation event are included.',
+    agent_evaluation_runs:
+        'One row per retained completed or failed evaluation run. Trend runs by their start date, and group by agent and evaluation to compare quality. Passing and failing assessments follow the evaluation run summary; execution errors are counted separately.',
     data_app_events:
         'Recorded data app activity, including creation, updates, downloads and HTML loads. Use Event name to select an action. Loads include previews and reloads and do not confirm readership; Data app reach focuses on loads by named app and user.',
     export_events:
@@ -37,6 +41,8 @@ export const analyticsTableDescriptions: Record<string, string> = {
         'Observed HTML response, SDK startup and browser runtime outcomes for data apps. Navigation metrics deduplicate repeated signals; signals without navigation IDs remain in Total signals. Missing outcomes are unknown, including older bundles and uncaptured history. SDK startup does not prove completed rendering or human attention.',
     people_adoption:
         'Current organization members, including people with no observed activity. Compare eligible membership with confirmed human activity over the last 1, 7 or 30 closed UTC days. Uses current membership, not historical eligibility; incomplete capture does not prove inactivity.',
+    people_membership:
+        'Count current organization members by group and role from the latest membership snapshot without reading usage history. Filter Is active to exclude deactivated accounts.',
     lightdash_users:
         'User names from the latest available organization snapshot, joined to recorded user identifiers. Names are current snapshot values, not a history of names or membership.',
     lightdash_charts:
@@ -183,7 +189,7 @@ const sharedDimensions: Record<string, string> = {
     query_reuse_hit:
         'Whether the tool reused an earlier query, when applicable.',
     tool_status:
-        'Recorded success or error outcome of the tool invocation. Missing historical outcomes are unknown.',
+        'Recorded outcome of the tool invocation: success, error, or rejected/timeout when its SQL approval was declined or unanswered. Missing historical outcomes are unknown.',
     version: 'Data app version associated with the recorded activity.',
     format: 'Requested result-export format, such as csv. Empty for activity without an export format.',
     job_id: 'Identifier of the download job associated with the export event, when captured.',
@@ -339,6 +345,12 @@ const modelDimensions: Record<string, Record<string, string>> = {
     agent_request_events: {
         outcome:
             'Request outcome recorded by an outcome event. Other lifecycle stages may leave it empty; use Agent requests for the latest request status.',
+    },
+    agent_evaluation_runs: {
+        event_ts:
+            'Time the evaluation run started. History reflects the runs and results still retained at the latest refresh.',
+        run_status:
+            'Terminal execution status of the run. A failed assessment is not a failed run.',
     },
     agent_requests: {
         status: 'Latest observed request state: success, error, clarification, cancelled or pending. Pending includes requests with no captured outcome and retries awaiting an outcome.',

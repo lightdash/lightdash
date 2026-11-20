@@ -1,4 +1,5 @@
 import {
+    getComposerChartPatchSql,
     getPatchedSql,
     getSameTurnSqlApprovalProgressId,
     getSqlApprovalSql,
@@ -87,6 +88,110 @@ describe('isSqlApprovalToolCall', () => {
                 patch: [{ op: 'replace', path: '/sql', value: 'select 1' }],
             }),
         ).toBe(false);
+    });
+});
+
+describe('composer chart edits', () => {
+    it('gates a composer chart edit only when the patch writes SQL', () => {
+        expect(
+            isSqlApprovalToolCall('editContent', {
+                type: 'composer_chart',
+                patch: [
+                    {
+                        op: 'replace',
+                        path: '/pipeline/nodes/1/sql',
+                        value: 'select 2',
+                    },
+                ],
+            }),
+        ).toBe(true);
+        expect(
+            isSqlApprovalToolCall('editContent', {
+                type: 'composer_chart',
+                patch: [
+                    {
+                        op: 'replace',
+                        path: '/chart/chartConfig/type',
+                        value: 'table',
+                    },
+                ],
+            }),
+        ).toBe(false);
+    });
+
+    it('reads SQL set at a node and SQL in a warehouse node written whole', () => {
+        const patch = [
+            { op: 'replace', path: '/pipeline/nodes/0/sql', value: 'select 1' },
+            {
+                op: 'add',
+                path: '/pipeline/nodes/-',
+                value: composerSqlNode('extra', 'select 2'),
+            },
+            {
+                op: 'add',
+                path: '/pipeline/nodes/-',
+                value: { nodeId: 'joined', sourceType: 'duckdb', sql: 'x' },
+            },
+            { op: 'remove', path: '/pipeline/nodes/3' },
+        ];
+        expect(getComposerChartPatchSql(patch)).toEqual([
+            'select 1',
+            'select 2',
+        ]);
+        expect(getSqlApprovalSql({ type: 'composer_chart', patch })).toBe(
+            'select 1\n\nselect 2',
+        );
+    });
+});
+
+describe('composer chart creates', () => {
+    const fromJson = {
+        type: 'composer_chart',
+        content: {
+            from: 'json',
+            dashboardSlug: 'sales',
+            name: 'Revenue',
+            description: null,
+            pipeline: {
+                terminalNodeId: 'shaped',
+                nodes: [
+                    { nodeId: 'raw', sourceType: 'sql', sql: 'select 1' },
+                    { nodeId: 'shaped', sourceType: 'duckdb', sql: 'select 2' },
+                ],
+            },
+            chart: {},
+        },
+    };
+
+    it('asks to approve the warehouse SQL written in the JSON', () => {
+        expect(isSqlApprovalToolCall('createContent', fromJson)).toBe(true);
+        expect(getSqlApprovalSql(fromJson)).toBe('-- raw\nselect 1');
+    });
+
+    it('reads only the SQL the pipeline saves, not a stray sql field', () => {
+        const withStraySql = {
+            ...fromJson,
+            sql: 'select 0',
+            content: { ...fromJson.content, sql: 'select 0' },
+        };
+        expect(getSqlApprovalSql(withStraySql)).toBe('-- raw\nselect 1');
+    });
+
+    it('asks nothing for a query node, whose SQL was approved when it ran', () => {
+        const fromNode = {
+            type: 'composer_chart',
+            content: {
+                from: 'node',
+                dashboardSlug: 'sales',
+                name: 'Revenue',
+                description: null,
+                nodeId: 'raw',
+                sessionId: null,
+                vizConfig: { type: 'table' },
+            },
+        };
+        expect(isSqlApprovalToolCall('createContent', fromNode)).toBe(false);
+        expect(getSqlApprovalSql(fromNode)).toBeNull();
     });
 });
 

@@ -1,3 +1,4 @@
+import { agentEvaluationRunColumns } from './agentEvaluationRuns';
 import { contentInventoryColumns } from './contentInventory';
 import { peopleMembershipColumns } from './peopleMembership';
 import type { CompactedStreamColumn } from './types';
@@ -10,6 +11,7 @@ export const usageDimensionNames = [
     'projects',
     'content',
     'people',
+    'agent_evaluation_runs',
 ] as const;
 export type UsageDimensionName = (typeof usageDimensionNames)[number];
 
@@ -19,6 +21,7 @@ export const usageDimensionSchemas: Record<
 > = {
     content: contentInventoryColumns,
     people: peopleMembershipColumns,
+    agent_evaluation_runs: agentEvaluationRunColumns,
     charts: [
         { name: 'org_id', type: 'VARCHAR' },
         { name: 'chart_id', type: 'VARCHAR' },

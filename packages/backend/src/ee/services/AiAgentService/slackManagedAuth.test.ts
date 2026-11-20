@@ -110,6 +110,7 @@ const setup = ({
         userModel: { findSessionUserAndOrgByUuid },
         slackClient: { getWebClient: vi.fn().mockResolvedValue(client) },
         aiAgentModel: {
+            findSlackChannelServiceAccount: vi.fn().mockResolvedValue(null),
             findThreadUuidBySlackChannelIdAndThreadTs,
             findThread: vi.fn().mockResolvedValue({ agentUuid: 'bound-agent' }),
             getAgent,

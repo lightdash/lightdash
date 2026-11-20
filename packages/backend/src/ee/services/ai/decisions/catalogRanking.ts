@@ -2,8 +2,8 @@ import { flattenAiHints, type Explore } from '@lightdash/common';
 import {
     compileMatcher,
     extractKeywords,
+    formatRequiredFilters,
     getFieldDefinitionKey,
-    summarizeRequiredFilters,
     type FieldEntry,
 } from '../tools/grepFieldsIndex';
 import { truncate } from '../utils/truncation';
@@ -187,7 +187,7 @@ export const rankCatalog = async ({
                         const index = fieldPositions.get(keyForField(field));
                         return index === undefined ? [] : [index];
                     }),
-                filters: summarizeRequiredFilters(explore)?.slice(0, 600),
+                filters: formatRequiredFilters(explore)?.slice(0, 600),
             })),
         },
         questions,

@@ -116,6 +116,109 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
         expect(content).not.toContain('requiredGroupId');
     });
 
+    it('renders the same text as before without named date zooms or per-tile parameters', () => {
+        const content = buildMessage([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'exec-dashboard',
+                displayName: 'Executive dashboard',
+                pinnedVersionUuid: null,
+                runtimeOverrides: {
+                    activeTab: { uuid: 'tab-uuid', name: 'Customers' },
+                    dashboardParameters: { region: 'EU' },
+                    dateZoom: { granularity: 'Week' },
+                },
+            },
+        ]);
+        expect(content).toBe(
+            [
+                'The user attached the following to this message as context:',
+                '- Dashboard "Executive dashboard" (dashboardSlug: exec-dashboard)',
+                '  Active tab: "Customers"',
+                '  As saved on the dashboard: filters',
+                '  Parameter values: {"region":"EU"}',
+                '  Date zoom: {"granularity":"Week"}',
+                '',
+                "Use your existing tools to inspect them when relevant to the user's question (readContent for charts, dashboards, and data apps). When runtime overrides are listed, apply them on top of the chart's saved state when querying.",
+            ].join('\n'),
+        );
+    });
+
+    it('renders named date zooms and per-tile parameter values without uuids', () => {
+        const content = buildMessage([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'exec-dashboard',
+                displayName: 'Executive dashboard',
+                pinnedVersionUuid: null,
+                runtimeOverrides: {
+                    dateZoomControls: [
+                        {
+                            uuid: 'zoom-uuid',
+                            name: 'Revenue zoom',
+                            granularity: 'Week',
+                            isViewerPick: true,
+                            tiles: [{ uuid: 'tile-uuid-1', name: 'Revenue' }],
+                        },
+                        {
+                            uuid: 'zoom-uuid-2',
+                            name: 'Orders zoom',
+                            granularity: 'Day',
+                            isViewerPick: false,
+                            tiles: [{ uuid: 'tile-uuid-2', name: 'Orders' }],
+                        },
+                    ],
+                    tileParameters: [
+                        {
+                            tile: { uuid: 'tile-uuid-1', name: 'Revenue' },
+                            parameters: { region: 'EU' },
+                        },
+                        {
+                            tile: { uuid: 'tile-uuid-2', name: 'Orders' },
+                            parameters: { region: 'US' },
+                        },
+                        {
+                            tile: { uuid: 'tile-uuid-3', name: 'Signups' },
+                            parameters: { region: 'EU' },
+                        },
+                    ],
+                },
+            },
+        ]);
+        expect(content).toContain(
+            [
+                '- Dashboard "Executive dashboard" (dashboardSlug: exec-dashboard)',
+                '  As saved on the dashboard: filters, default date zoom',
+                '  Parameter values by tile: [{"tiles":["Revenue","Signups"],"parameters":{"region":"EU"}},{"tiles":["Orders"],"parameters":{"region":"US"}}]',
+                '  Named date zooms, each setting the grain of its own tiles; the other tiles follow the default date zoom: [{"name":"Revenue zoom","granularity":"Week","source":"viewer pick","tiles":["Revenue"]},{"name":"Orders zoom","granularity":"Day","source":"saved","tiles":["Orders"]}]',
+                '',
+            ].join('\n'),
+        );
+        expect(content).not.toContain('zoom-uuid');
+        expect(content).not.toContain('tile-uuid');
+    });
+
+    it('names the dashboard-wide zoom the default one beside named zooms', () => {
+        const content = buildMessage([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'exec-dashboard',
+                displayName: 'Executive dashboard',
+                pinnedVersionUuid: null,
+                runtimeOverrides: {
+                    dateZoom: { granularity: 'Week' },
+                    dateZoomControls: [],
+                },
+            },
+        ]);
+        expect(content).toContain(
+            '\n  Default date zoom: {"granularity":"Week"}\n',
+        );
+    });
+
     it('renders dashboard parameter and date zoom overrides', () => {
         const content = buildMessage([
             {
@@ -509,6 +612,47 @@ describe('AiAgentService.createPinnedContextMessage Document pins', () => {
     });
 });
 
+describe('AiAgentService.createPinnedContextMessage SQL charts', () => {
+    it('names the SQL chart and how to read and edit it', () => {
+        const content = buildMessage([
+            {
+                type: 'sql_chart',
+                sqlChartUuid: 'sql-1',
+                sqlChartSlug: 'revenue-sql',
+                displayName: 'Revenue SQL',
+                pinnedVersionUuid: 'version-1',
+            },
+        ]);
+
+        expect(content).toContain(
+            '- SQL chart "Revenue SQL" (sqlChartSlug: revenue-sql)',
+        );
+        expect(content).toContain('readContent (type sql_chart, slug)');
+        expect(content).toContain('editContent (type sql_chart)');
+    });
+});
+
+describe('AiAgentService.createPinnedContextMessage composer charts', () => {
+    it('names the composer chart and how to read, run and edit it', () => {
+        const content = buildMessage([
+            {
+                type: 'composer_chart',
+                composerChartUuid: 'composer-1',
+                composerChartSlug: 'revenue-vs-target',
+                displayName: 'Revenue vs target',
+                pinnedVersionUuid: 'version-1',
+            },
+        ]);
+
+        expect(content).toContain(
+            '- Composer chart "Revenue vs target" (composerChartSlug: revenue-vs-target)',
+        );
+        expect(content).toContain('readContent (type composer_chart, slug)');
+        expect(content).toContain('editContent (type composer_chart)');
+        expect(content).toContain('chartType composer_chart');
+    });
+});
+
 describe('AiAgentService.createPinnedContextMessage attached documents', () => {
     const file = {
         type: 'thread_file' as const,
@@ -613,5 +757,44 @@ describe('AiAgentService.createPinnedContextMessage attached documents', () => {
         expect(content.lastIndexOf(`</${tag}>`)).toBeGreaterThan(
             content.indexOf(hostile),
         );
+    });
+});
+
+describe('AiAgentService.createPinnedContextMessage outside agent spaces', () => {
+    const dashboard = {
+        type: 'dashboard' as const,
+        dashboardUuid: 'dashboard-1',
+        dashboardSlug: 'exec-dashboard',
+        displayName: 'Executive dashboard',
+        pinnedVersionUuid: null,
+        runtimeOverrides: null,
+    };
+    const chart = {
+        type: 'chart' as const,
+        chartUuid: 'chart-1',
+        chartSlug: 'revenue',
+        displayName: 'Revenue',
+        pinnedVersionUuid: null,
+        runtimeOverrides: null,
+        chartKind: null,
+    };
+
+    it('says an attached item is outside the agent spaces', () => {
+        const message = AiAgentService.createPinnedContextMessage(
+            [dashboard, chart],
+            { outsideAgentSpaces: new Set(['dashboard-1']) },
+        );
+        const content = message!.content as string;
+        expect(content).toContain(
+            '- Dashboard "Executive dashboard" (dashboardSlug: exec-dashboard) — outside the spaces this agent may use',
+        );
+        expect(content).toContain('- Chart "Revenue" (chartSlug: revenue)\n');
+        expect(content).not.toContain(
+            '- Chart "Revenue" (chartSlug: revenue) — outside',
+        );
+    });
+
+    it('adds nothing when every item is in reach', () => {
+        expect(buildMessage([dashboard])).not.toContain('outside the spaces');
     });
 });

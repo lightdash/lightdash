@@ -33,7 +33,6 @@ import {
 import assertUnreachable from '../../../../utils/assertUnreachable';
 import { currencies } from '../../../../utils/formatting';
 import { getItemId } from '../../../../utils/item';
-import { getLiveSourceAgentQueryGuide } from '../../../../utils/liveSourceIntegrations';
 import {
     filterExpressionInputSchema,
     filterExpressionsSchema,
@@ -140,7 +139,7 @@ ${getComposerNodeKindsDescription({
     listMergeKind: true,
 })}
 
-Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.`;
+Earlier nodes: a node id names one node for the whole thread. A node reads a node from an earlier call by its node id in "references", or "sources" for a merge, without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.`;
 
 export const MCP_TOOL_QUERY_DESCRIPTION = `Run a pipeline: up to ${MAX_SOURCE_QUERIES_PER_SUBMISSION} nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query.
 
@@ -555,21 +554,17 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         limit: limitSchema,
     });
 
+    // Never offered: only parses api nodes in threads from before live data
+    // source explores, so nothing here is described for a model.
     const apiNodeSchema = z.object({
         sourceType: z.literal(QuerySourceType.API),
         nodeId: nodeIdSchema,
         ...nodeMetaSchema,
-        connectionUuid: z
-            .string()
-            .describe(
-                'The project connection the query is sent to, from the list in the tool description.',
-            ),
-        payload: z
-            .object({
-                kind: z.literal('query'),
-                query: z.string().describe(getLiveSourceAgentQueryGuide()),
-            })
-            .describe('What the API runs.'),
+        connectionUuid: z.string(),
+        payload: z.object({
+            kind: z.literal('query'),
+            query: z.string(),
+        }),
         limit: limitSchema,
     });
 

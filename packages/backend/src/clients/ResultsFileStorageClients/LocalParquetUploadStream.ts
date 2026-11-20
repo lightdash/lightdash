@@ -21,6 +21,7 @@ import { writeWithBackpressure } from '../../utils/streamUtils';
 type LocalParquetUploadStreamArgs = {
     parquetS3Uri: string;
     s3Config: DuckdbS3SessionConfig;
+    memoryLimit: string;
     logger: typeof Logger;
     prometheusMetrics?: PrometheusMetrics;
 };
@@ -67,6 +68,7 @@ const cleanupDir = (dir: string) => {
 export const createLocalParquetUploadStream = ({
     parquetS3Uri,
     s3Config,
+    memoryLimit,
     logger,
     prometheusMetrics,
 }: LocalParquetUploadStreamArgs) => {
@@ -170,7 +172,7 @@ export const createLocalParquetUploadStream = ({
                                 { type: 'duckdb_s3', s3Config },
                                 {
                                     resourceLimits: {
-                                        memoryLimit: '256MB',
+                                        memoryLimit,
                                         threads: 1,
                                     },
                                     logger,

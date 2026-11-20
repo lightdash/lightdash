@@ -15,6 +15,7 @@ import { peopleNoActivityChartSpecs } from './peopleNoActivityCharts';
 import { usageActivityOriginSql } from './usageActivityOrigin';
 import { usageChartSpecs } from './usageDashboardCharts';
 import { usageDashboardSpecs } from './usageDashboardDefinitions';
+import { withUsageDashboardFilters } from './usageDashboardFilters';
 import type {
     AnalyticsContentBundle,
     UsageChartSpec,
@@ -369,7 +370,7 @@ export const buildUsageDashboards = (
             slug: spec.key,
             spaceSlug,
             name: spec.name,
-            description: `${spec.description} Duplicate this dashboard to keep your edits when built-in content updates.`,
+            description: spec.description,
             filters: spec.filters ?? {
                 dimensions: [],
                 metrics: [],
@@ -486,7 +487,11 @@ export const buildUsageDashboards = (
             }
         }
         return {
-            dashboard,
+            // Adoption's filters are set by hand for its two outcome charts only
+            dashboard:
+                spec === adoptionDashboardSpec
+                    ? dashboard
+                    : withUsageDashboardFilters(dashboard, charts),
             charts: charts.map((chart) =>
                 withContentLinks(withUserActivityLabels(chart)),
             ),

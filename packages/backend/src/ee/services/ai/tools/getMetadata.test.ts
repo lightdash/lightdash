@@ -307,7 +307,7 @@ describe('getMetadata explore field listing', () => {
             { type: 'explore', exploreIds: ['sales'] },
         ]);
 
-        expect(result.result).toContain('⚠ table filters:');
+        expect(result.result).toContain('table filters:');
         expect(result.result).toContain(
             'required orders_created_at inThePast [90]',
         );
@@ -433,7 +433,7 @@ describe('getMetadata parameters', () => {
             { type: 'explore', exploreIds: ['sales'] },
         ]);
 
-        expect(result.result).toContain('⚠ parameters');
+        expect(result.result).toContain('  parameters — ');
         expect(result.result).toContain('orders.metric');
         expect(result.result).toContain('default: "revenue"');
         expect(result.result).toContain('options: revenue, active_users');
@@ -444,7 +444,7 @@ describe('getMetadata parameters', () => {
             { type: 'explore', exploreIds: ['sales'] },
         ]);
 
-        expect(result.result).not.toContain('⚠ parameters');
+        expect(result.result).not.toContain('  parameters — ');
     });
 
     it('includes referenced project-level parameter definitions', () => {
@@ -492,7 +492,7 @@ describe('getMetadata parameters', () => {
             },
         ]);
 
-        expect(result.result).toContain('⚠ requires parameters: orders.metric');
+        expect(result.result).toContain('requires parameters: orders.metric');
 
         const structured = executeGetMetadata(
             {

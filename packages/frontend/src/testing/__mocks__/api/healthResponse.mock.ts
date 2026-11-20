@@ -141,6 +141,7 @@ export default function mockHealthResponse(
             isAmbientAiEnabled: false,
             threadDumpEnabled: false,
             fastDecisionsEnabled: false,
+            voiceTranscriptionAvailable: false,
         },
         echarts6: {
             enabled: false,
@@ -156,6 +157,9 @@ export default function mockHealthResponse(
             enabled: false,
         },
         dashboardComments: {
+            enabled: true,
+        },
+        mergeQueryAuthoring: {
             enabled: true,
         },
         preAggregates: {

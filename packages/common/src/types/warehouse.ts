@@ -494,6 +494,8 @@ export type WarehouseExecuteAsyncQueryArgs = {
     sql: string;
     // Redshift only: retry a read-only query that stalls before it reaches the warehouse.
     recoverStalledQuery?: boolean;
+    /** Analytics only: check whether a queued query is still needed when its slot opens. */
+    isQueuedQueryCancelled?: () => Promise<boolean>;
 };
 
 export type WarehouseQueryEstimate = {
@@ -686,6 +688,14 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
         schema?: string,
         database?: string,
         tags?: Record<string, string>,
+    ): Promise<WarehouseCatalog>;
+
+    /**
+     * The top-level columns of every table in these schemas, in one request per
+     * schema or fewer. Absent where the warehouse can only be read table by table.
+     */
+    getSchemaColumns?(
+        schemas: { database: string; schema: string }[],
     ): Promise<WarehouseCatalog>;
 
     // null when the table has no partitions or the warehouse does not report them

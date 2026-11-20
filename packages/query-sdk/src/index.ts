@@ -150,6 +150,10 @@ export { isDeliveryRender, useDeliveryRender } from './deliveryRender';
 export { useUrlState } from './urlState';
 export type { SdkUrlStateChangeMessage, UrlStateMap } from './urlState';
 
+// Events to the page embedding the app (data apps)
+export { emitEvent } from './hostEvents';
+export type { SdkAppEventMessage } from './hostEvents';
+
 // Durable app state (saved by Lightdash per person or shared by every viewer)
 export {
     AppStateError,

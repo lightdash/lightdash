@@ -1,0 +1,196 @@
+import { Ability, type RawRuleOf } from '@casl/ability';
+import {
+    ForbiddenError,
+    OrganizationMemberRole,
+    type AnyType,
+    type ComposerChart,
+    type PossibleAbilities,
+    type RegisteredAccount,
+    type SessionUser,
+} from '@lightdash/common';
+import { describe, expect, it, vi } from 'vitest';
+import { CoderService } from './CoderService';
+
+const PROJECT_UUID = 'project-uuid';
+const ORG_UUID = 'org-uuid';
+
+const user = {
+    userUuid: 'user-uuid',
+    organizationUuid: ORG_UUID,
+    role: OrganizationMemberRole.MEMBER,
+    ability: new Ability<PossibleAbilities>([
+        {
+            subject: 'ContentAsCode',
+            action: 'view',
+        } as RawRuleOf<Ability<PossibleAbilities>>,
+        // Space access alone must not reveal a chart whose dashboard is hidden
+        { subject: 'Space', action: 'view' } as RawRuleOf<
+            Ability<PossibleAbilities>
+        >,
+    ]),
+    abilityRules: [],
+} as unknown as SessionUser;
+
+const storedChart = (uuid: string): AnyType => ({
+    uuid,
+    slug: uuid,
+    name: uuid,
+    description: null,
+    dashboardUuid: `${uuid}-dashboard`,
+    dashboardSlug: `${uuid}-dashboard`,
+    spaceUuid: 'space-uuid',
+    pipeline: { schemaVersion: 1, terminalNodeId: 'n', nodes: [] },
+    chart: {
+        schemaVersion: 1,
+        columns: [],
+        chartConfig: { type: 'table' },
+        pivotConfig: null,
+        tableConfig: { columnOrder: [] },
+    },
+    updatedAt: new Date(),
+});
+
+const makeService = () => {
+    const assertCanView = vi.fn(
+        async (_account: unknown, _project: string, uuid: string) => {
+            if (uuid === 'hidden') throw new ForbiddenError();
+            return { organizationUuid: ORG_UUID, dashboardUuid: uuid };
+        },
+    );
+    return new CoderService({
+        lightdashConfig: { contentAsCode: { maxDownloads: 100 } },
+        projectModel: {
+            getSummary: vi.fn(async () => ({ organizationUuid: ORG_UUID })),
+        },
+        spaceModel: {
+            find: vi.fn(async () => [{ uuid: 'space-uuid', path: 'jaffle' }]),
+        },
+        appModel: { findAppsByUuids: vi.fn(async () => []) },
+        composerChartModel: {
+            findForCode: vi.fn(
+                async (): Promise<ComposerChart[]> => [
+                    storedChart('visible'),
+                    storedChart('hidden'),
+                ],
+            ),
+        },
+        composerChartService: { assertCanView },
+    } as AnyType);
+};
+
+const account = { user: { userUuid: user.userUuid } } as RegisteredAccount;
+
+describe('CoderService composer chart download', () => {
+    it('leaves out a chart whose dashboard the caller cannot view', async () => {
+        const result = await makeService().getComposerCharts(
+            user,
+            account,
+            PROJECT_UUID,
+            undefined,
+            undefined,
+        );
+
+        expect(result.composerCharts.map(({ slug }) => slug)).toEqual([
+            'visible',
+        ]);
+        expect(result.total).toBe(1);
+    });
+
+    it('refuses a download without the content as code permission', async () => {
+        const viewer = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([]),
+        } as unknown as SessionUser;
+
+        await expect(
+            makeService().getComposerCharts(
+                viewer,
+                account,
+                PROJECT_UUID,
+                undefined,
+                undefined,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+    });
+});
+
+describe('CoderService composer chart read for the agent', () => {
+    it('reads without the content as code permission and still hides charts on dashboards the caller cannot view', async () => {
+        const result = await makeService().getComposerChartsForRead(
+            account,
+            PROJECT_UUID,
+            ['visible', 'hidden'],
+        );
+
+        expect(result.composerCharts.map(({ slug }) => slug)).toEqual([
+            'visible',
+        ]);
+        expect(result.missingIds).toEqual(['hidden']);
+    });
+});
+
+describe('CoderService composer chart upsert for the agent', () => {
+    const editedFile = (): AnyType => ({
+        ...storedChart('visible'),
+        contentType: 'composer_chart',
+        version: 1,
+        name: 'Renamed',
+        spaceSlug: 'jaffle',
+    });
+    const makeUpsertService = () => {
+        const writeFromCode = vi.fn(async () => 'visible');
+        const service = new CoderService({
+            lightdashConfig: { contentAsCode: { maxDownloads: 100 } },
+            projectModel: {
+                get: vi.fn(async () => ({
+                    projectUuid: PROJECT_UUID,
+                    organizationUuid: ORG_UUID,
+                })),
+            },
+            appModel: { findAppsByUuids: vi.fn(async () => []) },
+            composerChartModel: {
+                findIdentityBySlug: vi.fn(async () => ({
+                    uuid: 'visible',
+                    deleted: false,
+                })),
+                get: vi.fn(async () => storedChart('visible')),
+            },
+            composerChartService: {
+                isEnabled: vi.fn(async () => true),
+                writeFromCode,
+            },
+        } as AnyType);
+        return { service, writeFromCode };
+    };
+    const viewer = {
+        ...user,
+        ability: new Ability<PossibleAbilities>([]),
+    } as unknown as SessionUser;
+
+    it('needs the content as code permission by default', async () => {
+        const { service, writeFromCode } = makeUpsertService();
+        await expect(
+            service.upsertComposerChart(
+                viewer,
+                account,
+                PROJECT_UUID,
+                'visible',
+                editedFile(),
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(writeFromCode).not.toHaveBeenCalled();
+    });
+
+    it('writes without the content as code permission with space access', async () => {
+        const { service, writeFromCode } = makeUpsertService();
+        await service.upsertComposerChart(
+            viewer,
+            account,
+            PROJECT_UUID,
+            'visible',
+            editedFile(),
+            { authorization: 'space_access' },
+        );
+        expect(writeFromCode).toHaveBeenCalledOnce();
+    });
+});

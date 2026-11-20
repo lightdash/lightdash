@@ -2,8 +2,8 @@ import {
     assertUnreachable,
     DashboardTileTypes,
     type Dashboard,
+    type DashboardComposerChartTileProperties,
     type DashboardDataAppTileProperties,
-    type DashboardHeadingTileProperties,
     type DashboardLoomTileProperties,
     type DashboardMarkdownTile,
     type DashboardMarkdownTileProperties,
@@ -18,9 +18,9 @@ import {
 } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useMemo } from 'react';
+import ComposerChartTileForm from '../../../features/composerCharts/components/ComposerChartTileForm';
 import MantineModal from '../../common/MantineModal';
 import DataAppTileEditForm from './DataAppTileEditForm';
-import HeadingTileForm from './HeadingTileForm';
 import LoomTileForm from './LoomTileForm';
 import MarkdownTileForm from './MarkdownTileForm';
 import { getLoomId, markdownTileContentTransform } from './utils';
@@ -53,21 +53,15 @@ const TileUpdateModal = <T extends Tile>({
                 return !value || !value.length ? 'Required field' : null;
             },
         };
-        const textValidator = {
-            text: (value: string | undefined) =>
-                !value || !value.length ? 'Required field' : null,
-        };
-
         if (tile.type === DashboardTileTypes.LOOM)
             return { ...urlValidator, ...titleValidator };
-        if (tile.type === DashboardTileTypes.HEADING) return textValidator;
         if (tile.type === DashboardTileTypes.DATA_APP) return titleValidator;
     };
 
     const form = useForm<TileProperties>({
         initialValues: { ...tile.properties },
         validate: getValidators(),
-        validateInputOnChange: ['title', 'url', 'text'],
+        validateInputOnChange: ['title', 'url'],
         transformValues(values) {
             if (tile.type === DashboardTileTypes.MARKDOWN) {
                 return markdownTileContentTransform(
@@ -101,6 +95,7 @@ const TileUpdateModal = <T extends Tile>({
             case DashboardTileTypes.SAVED_CHART:
                 return undefined;
             case DashboardTileTypes.SQL_CHART:
+            case DashboardTileTypes.COMPOSER_CHART:
                 return undefined;
             default:
                 return assertUnreachable(type, 'Tile type not supported');
@@ -122,6 +117,8 @@ const TileUpdateModal = <T extends Tile>({
                 return 'Edit saved_chart tile';
             case DashboardTileTypes.SQL_CHART:
                 return 'Edit sql_chart tile';
+            case DashboardTileTypes.COMPOSER_CHART:
+                return 'Edit composer chart tile';
             default:
                 return assertUnreachable(type, 'Tile type not supported');
         }
@@ -148,8 +145,9 @@ const TileUpdateModal = <T extends Tile>({
             <form id="update-tile-form" onSubmit={handleConfirm}>
                 <Stack gap="lg">
                     {tile.type === DashboardTileTypes.SAVED_CHART ||
+                    tile.type === DashboardTileTypes.SQL_CHART ||
                     tile.type ===
-                        DashboardTileTypes.SQL_CHART ? null : tile.type ===
+                        DashboardTileTypes.HEADING ? null : tile.type ===
                       DashboardTileTypes.MARKDOWN ? (
                         <MarkdownTileForm
                             form={
@@ -167,19 +165,19 @@ const TileUpdateModal = <T extends Tile>({
                             }
                             withHideTitle
                         />
-                    ) : tile.type === DashboardTileTypes.HEADING ? (
-                        <HeadingTileForm
-                            form={
-                                form as UseFormReturnType<
-                                    DashboardHeadingTileProperties['properties']
-                                >
-                            }
-                        />
                     ) : tile.type === DashboardTileTypes.DATA_APP ? (
                         <DataAppTileEditForm
                             form={
                                 form as UseFormReturnType<
                                     DashboardDataAppTileProperties['properties']
+                                >
+                            }
+                        />
+                    ) : tile.type === DashboardTileTypes.COMPOSER_CHART ? (
+                        <ComposerChartTileForm
+                            form={
+                                form as UseFormReturnType<
+                                    DashboardComposerChartTileProperties['properties']
                                 >
                             }
                         />

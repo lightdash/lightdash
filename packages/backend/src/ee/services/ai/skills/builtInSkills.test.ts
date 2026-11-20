@@ -171,6 +171,10 @@ describe('BuiltInSkills', () => {
             'MCP clients must generate standard UUID v4 values locally',
         );
         expect(periodReference?.body).toContain('`generate_hashes` (MCP)');
+        expect(dashboardReference?.body).toContain('### Control sections');
+        expect(dashboardReference?.body).not.toMatch(
+            /date zoom can't be ordered/i,
+        );
     });
 
     it('matches skill names case-insensitively and trims input', async () => {
@@ -233,5 +237,21 @@ describe('repository-writeback skill', () => {
         );
         expect(skill?.body).toContain('present a concise migration plan');
         expect(skill?.body).not.toContain('do **not** have the ability');
+    });
+
+    it('keeps dashboard and chart requests in the content tools', async () => {
+        const skill = await BuiltInSkills.getAiAgentSkill(
+            'repository-writeback',
+        );
+        expect(skill?.body).toContain(
+            'is made with the content tools this turn',
+        );
+    });
+
+    it('tells the agent a pending change is listed as still being opened', async () => {
+        const skill = await BuiltInSkills.getAiAgentSkill(
+            'repository-writeback',
+        );
+        expect(skill?.body).toContain('still being opened');
     });
 });

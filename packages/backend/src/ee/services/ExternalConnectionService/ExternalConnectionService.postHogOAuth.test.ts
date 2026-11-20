@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { createHash } from 'node:crypto';
 import { buildAccount } from '../../../auth/account/account.mock';
+import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
 import {
     ExternalConnectionService,
@@ -97,6 +98,7 @@ const buildService = ({
         ),
         findByUuid: vi.fn().mockResolvedValue(connection),
         getProjectOrganizationUuid: vi.fn().mockResolvedValue('org-1'),
+        purgeLiveSourceCache: vi.fn().mockResolvedValue(undefined),
         getDecryptedSecret: vi.fn(async () => storedSecret),
         updateSecretLocked: vi.fn(
             async (
@@ -158,15 +160,8 @@ const buildService = ({
 };
 
 const runQuery = async (service: ExternalConnectionService) => {
-    const connector = await service.getApiConnector(
-        account,
-        'proj-1',
-        'conn-1',
-    );
-    return connector.execute({
-        payload: { kind: 'query', query: 'SELECT 1 AS a' },
-        limit: 10,
-    });
+    const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
+    return runLiveRequest(source, { query: 'SELECT 1 AS a', limit: 10 });
 };
 
 beforeEach(() => {
@@ -243,7 +238,7 @@ describe('PostHog sign-in', () => {
         );
     });
 
-    it('creates a signed-in source with the Source ID the admin typed', async () => {
+    it('creates a signed-in source with the explore prefix the admin typed', async () => {
         const { service, externalConnectionModel, fetchToken } = buildService();
         fetchToken.mockResolvedValue(
             jsonResponse(200, {
@@ -382,6 +377,10 @@ describe('PostHog sign-in', () => {
             expect(JSON.parse((config as { secret: string }).secret)).toEqual(
                 expect.objectContaining({ accessToken: 'pha_2' }),
             );
+            // The new sign-in may read differently from the old one.
+            expect(
+                externalConnectionModel.purgeLiveSourceCache,
+            ).toHaveBeenCalledExactlyOnceWith('conn-1', expect.any(Date));
         });
 
         it('refuses a grant for another project', async () => {

@@ -613,6 +613,10 @@ const toolEffectFixtures = [
         [AgentCapability.ContentWrite, AgentCapability.RawSql],
     ],
     [
+        'editContent.composer_chart_sql',
+        [AgentCapability.ContentWrite, AgentCapability.RawSql],
+    ],
+    [
         'editRepo.delete_file',
         [AgentCapability.Delete, AgentCapability.DbtWriteback],
     ],

@@ -7,6 +7,16 @@ import {
     DbAiWritebackThread,
 } from '../database/entities/ai';
 
+export type AiWritebackWorkstreamRow = {
+    owner: string;
+    repo: string;
+    provider: string;
+    pr_url: string;
+    pr_number: number;
+    summary: string | null;
+    created_at: Date;
+};
+
 type Dependencies = {
     database: Knex;
 };
@@ -143,39 +153,15 @@ export class AiWritebackThreadModel {
      * repo. Drives the `listWorkstreams` tool so the agent can route a follow-up
      * to the right PR. Only rows with a linked PR are returned.
      */
-    async listByAiThreadUuid(
-        aiThreadUuid: string,
-        targetRepo: string | null,
-    ): Promise<
-        Array<{
-            owner: string;
-            repo: string;
-            provider: string;
-            pr_url: string;
-            pr_number: number;
-            summary: string | null;
-            created_at: Date;
-        }>
-    > {
+    private workstreamRows(targetRepo: string | null) {
         const query = this.database(AiWritebackThreadTableName)
             .innerJoin(
                 PullRequestsTableName,
                 `${PullRequestsTableName}.pull_request_uuid`,
                 `${AiWritebackThreadTableName}.pull_request_uuid`,
             )
-            .where(
-                `${AiWritebackThreadTableName}.ai_thread_uuid`,
-                aiThreadUuid,
-            );
-        if (targetRepo !== null) {
-            void query.where(
-                `${AiWritebackThreadTableName}.target_repo`,
-                targetRepo,
-            );
-        }
-        return query
             .orderBy(`${AiWritebackThreadTableName}.created_at`, 'desc')
-            .select(
+            .select<AiWritebackWorkstreamRow[]>(
                 `${PullRequestsTableName}.owner`,
                 `${PullRequestsTableName}.repo`,
                 `${PullRequestsTableName}.provider`,
@@ -183,6 +169,37 @@ export class AiWritebackThreadModel {
                 `${PullRequestsTableName}.pr_number`,
                 `${PullRequestsTableName}.summary`,
                 `${AiWritebackThreadTableName}.created_at`,
+            );
+        if (targetRepo !== null) {
+            void query.where(
+                `${AiWritebackThreadTableName}.target_repo`,
+                targetRepo,
+            );
+        }
+        return query;
+    }
+
+    async listByAiThreadUuid(
+        aiThreadUuid: string,
+        targetRepo: string | null,
+    ): Promise<AiWritebackWorkstreamRow[]> {
+        return this.workstreamRows(targetRepo).where(
+            `${AiWritebackThreadTableName}.ai_thread_uuid`,
+            aiThreadUuid,
+        );
+    }
+
+    /** Pull requests other threads opened on the project, so a new thread can continue one instead of duplicating it. */
+    async listByProjectUuidExcludingThread(
+        projectUuid: string,
+        aiThreadUuid: string,
+        targetRepo: string | null,
+    ): Promise<AiWritebackWorkstreamRow[]> {
+        return this.workstreamRows(targetRepo)
+            .where(`${PullRequestsTableName}.project_uuid`, projectUuid)
+            .whereNot(
+                `${AiWritebackThreadTableName}.ai_thread_uuid`,
+                aiThreadUuid,
             );
     }
 

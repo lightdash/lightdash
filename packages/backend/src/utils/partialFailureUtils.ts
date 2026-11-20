@@ -13,7 +13,8 @@ export const buildFailureCountPhrase = (failures: PartialFailure[]): string => {
     const chartCount = failures.filter(
         (f) =>
             f.type === PartialFailureType.DASHBOARD_CHART ||
-            f.type === PartialFailureType.DASHBOARD_SQL_CHART,
+            f.type === PartialFailureType.DASHBOARD_SQL_CHART ||
+            f.type === PartialFailureType.DASHBOARD_COMPOSER_CHART,
     ).length;
     // APP_QUERY_MISSING counts as a failing query here too, matching how
     // RunDetailsModal tallies it.
@@ -45,6 +46,7 @@ export const toEmailFailureFields = (
     switch (failure.type) {
         case PartialFailureType.DASHBOARD_CHART:
         case PartialFailureType.DASHBOARD_SQL_CHART:
+        case PartialFailureType.DASHBOARD_COMPOSER_CHART:
             return { chartName: failure.chartName, error: failure.error };
         case PartialFailureType.APP_QUERY:
             return { chartName: failure.label, error: failure.error };
