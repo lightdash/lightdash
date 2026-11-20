@@ -119,7 +119,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'How is query usage changing?',
                         description:
-                            'Last 12 completed calendar months (UTC), each compared with the month before. The date filter does not change these two tiles.',
+                            'Up to the last 12 completed calendar months (UTC), each compared with the month before. The date filter does not change these two tiles.',
                         charts: [
                             'querying-users-month-over-month',
                             'queries-run-month-over-month',

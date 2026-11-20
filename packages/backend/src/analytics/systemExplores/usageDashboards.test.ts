@@ -418,16 +418,14 @@ describe('built-in usage dashboards', () => {
                     (sum, row) => sum + Number(row.user_activity_total_events),
                     0,
                 ),
-            ).toBe(129);
+            ).toBe(83);
+            // A ranking of people leaves out the activity with no person recorded
             expect(
                 rows.find(
                     ({ user_activity_user_id }) =>
                         user_activity_user_id === null,
                 ),
-            ).toMatchObject({
-                user_activity_activity_origin: 'AI, Query',
-                user_activity_total_events: 46n,
-            });
+            ).toBeUndefined();
             expect(
                 rows.filter(
                     ({ user_display_name }) => user_display_name === 'Alex',
@@ -1815,9 +1813,16 @@ describe('display fixes', () => {
                 .map((field) => metricQuery.metricOverrides?.[field]),
         );
         expect(rated.length).toBeGreaterThan(0);
+        // No decimal on a chart axis, one in a table
         rated.forEach((override) =>
-            expect(override).toEqual({
-                formatOptions: { type: 'percent', round: 1 },
+            expect([0, 1]).toContain(
+                (override as { formatOptions: { type: string; round: number } })
+                    .formatOptions.round,
+            ),
+        );
+        rated.forEach((override) =>
+            expect(override).toMatchObject({
+                formatOptions: { type: 'percent' },
             }),
         );
     });

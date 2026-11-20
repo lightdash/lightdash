@@ -29,6 +29,7 @@ export const monthlyQueryComparisonCharts: UsageChartSpec[] = [
         label: 'Queries run',
         // Oldest month first, so the chart reads left to right
         newestFirst: false,
+        compactCounts: true as const,
         description:
             'Queries run in each month, including cache hits and queries that failed while running. The change axis stops at 200%, so a larger change runs off the top.',
     },
@@ -85,7 +86,7 @@ export const monthlyQueryComparisonCharts: UsageChartSpec[] = [
                 displayName: 'Change (%)',
                 type: TableCalculationType.NUMBER,
                 sql: `CASE WHEN ${adjacentMonth} THEN (${value} - ${previous}) * 1.0 / NULLIF(${previous}, 0) END`,
-                format: { type: CustomFormatType.PERCENT, round: 1 },
+                format: { type: CustomFormatType.PERCENT, round: 0 },
             },
         ],
     };

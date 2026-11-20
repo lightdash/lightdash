@@ -188,7 +188,8 @@ export const agentEvaluationsDashboardSpec: UsageDashboardSpec = {
                         'Compare evaluations and inspect individual runs. Results reflect the latest nightly refresh and may change if evaluation history is removed.',
                     charts: ['quality-by-evaluation'],
                     layout: 'row',
-                    rowHeight: 8,
+                    // A handful of evaluations is usual: room for six rows, more by scrolling
+                    rowHeight: 5,
                 },
                 {
                     title: 'Recent runs',

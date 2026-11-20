@@ -919,7 +919,7 @@ describe('legacyLibraryChartBindings', () => {
                 agentChart('ai-consumption-by-person-feature-and-model'),
             ),
         ).toBe(
-            'Top 24 person and model pairs by tokens in the selected period, so a person near the cut-off can be missing their smaller models. Usage with no person recorded is grouped as No user recorded.',
+            'Top 24 person and model pairs by tokens in the selected period, so a person near the cut-off can be missing their smaller models. Usage with no person recorded is left out.',
         );
         expect(
             captions('lightdash-analytics-overview', 'consumption').filter(

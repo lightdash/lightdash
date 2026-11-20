@@ -110,7 +110,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-activity-by-person-and-day',
         name: 'Recorded activity by person and day, last 30 days',
         description:
-            'The 15 people with the most recorded activity in the last 30 complete days. Recent activity does not mean a recent login.',
+            'The 15 people with the most recorded activity in the last 30 complete days, leaving out activity with no person recorded. Recent activity does not mean a recent login.',
         explore: 'user_activity',
         day: activityDay,
         metric: 'user_activity_total_events',
@@ -118,6 +118,11 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         identity: ['user_activity_user_id'],
         top: 15,
         filters: [
+            {
+                field: 'user_activity_user_id',
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
             {
                 field: activityDay,
                 operator: FilterOperator.IN_THE_PAST,

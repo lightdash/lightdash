@@ -506,7 +506,8 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                         'review-candidates-activity-and-known-dependencies',
                     ],
                     layout: 'row',
-                    rowHeight: 8,
+                    // Three activity statuses at most until a reader opens one
+                    rowHeight: 5,
                 },
             ],
         },
@@ -518,20 +519,16 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                     title: 'Current ownership',
                     description:
                         'Only dashboards have an owner; charts, SQL charts and data apps do not, so there is nothing to fix for those. Give a new owner to the dashboards listed below, whose owner is deactivated, not a member or missing.',
-                    charts: ['content-ownership-current-snapshot'],
+                    // Both lists are a few rows long, so they share one short row
+                    charts: [
+                        'content-ownership-current-snapshot',
+                        'content-owners-needing-review',
+                    ],
                     layout: 'row',
-                    rowHeight: 7,
+                    rowHeight: 5,
                 },
                 {
-                    title: 'Content to review',
-                    description: '',
-                    note: false,
-                    charts: ['content-owners-needing-review'],
-                    layout: 'row',
-                    rowHeight: 8,
-                },
-                {
-                    title: 'Audience and execution time',
+                    title: 'Warehouse time by dashboard',
                     description:
                         'Time the warehouse spent running queries. The same execution time can be attributed to both a chart and a dashboard.',
                     charts: [

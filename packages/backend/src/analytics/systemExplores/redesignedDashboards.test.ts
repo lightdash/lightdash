@@ -231,7 +231,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 0,
                 5,
                 36,
-                8,
+                5,
                 'sortable-pivot-table',
                 'table',
             ],
@@ -241,24 +241,24 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'content-ownership-current-snapshot',
                 0,
                 2,
-                36,
-                7,
+                18,
+                5,
                 'sortable-pivot-table',
                 'pie',
             ],
             [
                 'content-owners-needing-review',
-                0,
-                9,
-                36,
-                8,
+                18,
+                2,
+                18,
+                5,
                 'sortable-pivot-table',
                 'table',
             ],
             [
                 'high-compute-dashboards-audience-versus-warehouse-time',
                 0,
-                18,
+                8,
                 36,
                 8,
                 'sortable-pivot-table',
@@ -304,7 +304,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'vega-trellis',
                 'table',
             ],
-            ['top-apps', 0, 21, 36, 8, 'sortable-pivot-table', 'table'],
+            ['top-apps', 0, 21, 36, 6, 'sortable-pivot-table', 'table'],
         ],
         people: [
             ['top-people', 0, 1, 18, 9, 'sortable-pivot-table', 'table'],
@@ -517,11 +517,11 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 0,
                 14,
                 36,
-                8,
+                5,
                 'sortable-pivot-table',
                 'table',
             ],
-            ['recent-evaluation-runs', 0, 22, 36, 7, null, 'table'],
+            ['recent-evaluation-runs', 0, 19, 36, 7, null, 'table'],
         ],
     },
     'lightdash-analytics-adoption': {
@@ -1466,7 +1466,7 @@ describe('names of people who have left', () => {
                 // A snapshot written before the column existed says nothing either way
                 ['Sam Before', 3],
                 ['Unknown user', 2],
-                ['No user recorded', 1],
+                // Activity with no person recorded is not ranked as a person
             ]);
             // The plain table shows the same names in its person column
             const plain = (
@@ -1484,7 +1484,6 @@ describe('names of people who have left', () => {
                 ['left', 'Dana Whitcombe (deactivated)'],
                 ['old-snapshot', 'Sam Before'],
                 ['not-a-member', 'User not-a-member'],
-                [null, 'No user recorded'],
             ]);
             // A count of people is a count: no marker, nobody dropped
             const card = all.find(

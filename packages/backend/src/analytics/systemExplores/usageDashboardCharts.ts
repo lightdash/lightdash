@@ -663,7 +663,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
     {
         key: 'ai-consumption-by-person-feature-and-model',
         name: 'Tokens by person and model',
-        description: 'Tokens and AI calls for each person, model and feature.',
+        description:
+            'Tokens and AI calls for each person, model and feature. Usage with no person recorded is left out.',
         explore: 'ai_usage',
         dimensions: [
             'ai_usage_user_name',
@@ -672,6 +673,13 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'ai_usage_user_id',
         ],
         metrics: ['ai_usage_total_tokens_used', 'ai_usage_total_ai_calls'],
+        filters: [
+            {
+                field: 'ai_usage_user_id',
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
+        ],
         limit: 30,
         sorts: [
             {
@@ -709,7 +717,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 ],
                 limit: 24,
                 description:
-                    'Top 24 person and model pairs by tokens in the selected period, so a person near the cut-off can be missing their smaller models. Usage with no person recorded is grouped as No user recorded.',
+                    'Top 24 person and model pairs by tokens in the selected period, so a person near the cut-off can be missing their smaller models. Usage with no person recorded is left out.',
             },
         },
     },
