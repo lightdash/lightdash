@@ -1,3 +1,10 @@
+# [3.358.0](https://github.com/lightdash/lightdash/compare/3.357.2...3.358.0) (2026-11-20)
+
+
+### Features
+
+* **semantic-studio:** track Studio usage, activity and tokens ([#33072](https://github.com/lightdash/lightdash/issues/33072)) ([53d2a88](https://github.com/lightdash/lightdash/commit/53d2a88894ed9ea366c2b142eaaee1941829280e))
+
 ## [3.357.2](https://github.com/lightdash/lightdash/compare/3.357.1...3.357.2) (2026-11-20)
 
 
