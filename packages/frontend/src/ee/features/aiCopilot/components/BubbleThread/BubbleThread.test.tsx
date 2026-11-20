@@ -1,9 +1,15 @@
-import { type AiPromptContextInput } from '@lightdash/common';
+import {
+    ForbiddenError,
+    type AiAgentSummary,
+    type AiPromptContextInput,
+    type ApiError,
+} from '@lightdash/common';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { type ComponentProps, type ReactNode } from 'react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockedLightdashApi } from '../../../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { store } from '../../store';
 import { type AiAgentToolResult } from '../../types';
@@ -27,6 +33,7 @@ const state = vi.hoisted(() => ({
     isStreaming: false,
 }));
 
+vi.mock('../../../../../api');
 vi.mock('react-router', async (importOriginal) => ({
     ...(await importOriginal<object>()),
     useNavigate: () => state.navigate,
@@ -58,10 +65,9 @@ vi.mock('../../hooks/usePendingThreadRefetch', () => ({
         isThreadPending: false,
     }),
 }));
-vi.mock('../../hooks/useProjectAiAgents', () => ({
-    useProjectAiAgent: () => ({
-        data: { uuid: 'agent-1', name: 'Data agent', imageUrl: null },
-    }),
+// The agent hooks are real, so a refused agent fetch runs its own error handling.
+vi.mock('../../hooks/useProjectAiAgents', async (importOriginal) => ({
+    ...(await importOriginal<object>()),
     useCreateAgentThreadMessageMutation: (...args: unknown[]) => {
         state.mutationHookArgs.push(args);
         return { mutateAsync: state.createMessage, isLoading: false };
@@ -195,10 +201,13 @@ describe('BubbleThread', () => {
         state.threadHookArgs = [];
         state.mutationHookArgs = [];
         state.isStreaming = false;
+        mockedLightdashApi.mockResolvedValue([
+            { uuid: 'agent-1', name: 'Data agent', imageUrl: null },
+        ] as AiAgentSummary[]);
         window.history.pushState({}, '', '/');
     });
 
-    it("shows the thread's messages", () => {
+    it("shows the thread's messages", async () => {
         renderThread();
         expect(
             screen.getByText('Make this chart a bar chart'),
@@ -206,7 +215,10 @@ describe('BubbleThread', () => {
         expect(
             screen.getByText('Done, it is a bar chart now'),
         ).toBeInTheDocument();
-        expect(screen.getByText('Data agent')).toBeInTheDocument();
+        expect(await screen.findByText('Data agent')).toBeInTheDocument();
+        expect(mockedLightdashApi).toHaveBeenCalledWith(
+            expect.objectContaining({ url: '/projects/project-1/aiAgents' }),
+        );
         expect(state.threadHookArgs.at(-1)).toEqual([
             'project-1',
             'agent-1',
@@ -319,6 +331,30 @@ describe('BubbleThread', () => {
             '/projects/project-1/dashboards/dashboard-2/view',
             { viewTransition: true },
         );
+    });
+
+    it('stays on the page when the agent cannot be fetched', async () => {
+        const refused: ApiError = {
+            status: 'error',
+            error: new ForbiddenError(),
+        };
+        mockedLightdashApi.mockRejectedValue(refused);
+        renderThread();
+        await waitFor(() =>
+            expect(mockedLightdashApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    url: '/projects/project-1/aiAgents',
+                }),
+            ),
+        );
+        // Lets the failed query settle and run its error handler.
+        await enabledTool('Stylus');
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(state.navigate).not.toHaveBeenCalled();
+        expect(
+            screen.getByText('Done, it is a bar chart now'),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Data agent')).not.toBeInTheDocument();
     });
 
     it('has a close button only when the host asks for one', () => {

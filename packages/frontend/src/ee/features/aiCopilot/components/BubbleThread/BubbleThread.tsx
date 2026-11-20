@@ -31,7 +31,7 @@ import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
 import {
     useAiAgentThread,
     useCreateAgentThreadMessageMutation,
-    useProjectAiAgent,
+    useProjectAiAgents,
 } from '../../hooks/useProjectAiAgents';
 import { useRefreshDocumentOnAgentSave } from '../../hooks/useRefreshDocumentOnAgentSave';
 import { selectThreadSqlMode } from '../../store/aiAgentThreadModeSlice';
@@ -105,7 +105,15 @@ export const BubbleThread: FC<Props> = ({
     const { user } = useApp();
     const navigate = useNavigate();
     const location = useLocation();
-    const { data: agent } = useProjectAiAgent(projectUuid, agentUuid);
+    // The agents list never redirects on a refusal; the single-agent query does.
+    const { data: agents } = useProjectAiAgents({
+        projectUuid,
+        redirectOnUnauthorized: false,
+    });
+    const agent = useMemo(
+        () => agents?.find((a) => a.uuid === agentUuid) ?? null,
+        [agents, agentUuid],
+    );
     const {
         data: thread,
         isLoading: isLoadingThread,
