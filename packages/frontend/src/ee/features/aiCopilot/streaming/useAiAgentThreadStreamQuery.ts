@@ -1,5 +1,6 @@
 import { shallowEqual } from 'react-redux';
 import {
+    isAiAgentThreadStreamActive,
     isAiAgentThreadStreamRecoveryActive,
     type StreamPart,
 } from '../store/aiAgentThreadStreamSlice';
@@ -29,6 +30,16 @@ export const useAiAgentThreadStreaming = (threadUuid: string) =>
     useAiAgentStoreSelector((state) => {
         const threadStream = state.aiAgentThreadStream[threadUuid];
         return threadStream?.connection.status === 'streaming';
+    });
+
+// A primitive, so callers re-render only when a turn starts or ends.
+export const useAiAgentThreadActiveMessageUuid = (threadUuid: string) =>
+    useAiAgentStoreSelector((state) => {
+        const threadStream = state.aiAgentThreadStream[threadUuid];
+        return threadStream &&
+            isAiAgentThreadStreamActive(threadStream.connection)
+            ? threadStream.messageUuid
+            : null;
     });
 
 export const useAiAgentThreadRecoveryActive = (threadUuid: string) =>

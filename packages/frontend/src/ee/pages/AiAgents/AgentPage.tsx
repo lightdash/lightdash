@@ -32,7 +32,7 @@ import { getAiAgentPageBase } from '../../features/aiCopilot/hooks/aiAgentRoutin
 import { useMyAiAgentMemories } from '../../features/aiCopilot/hooks/useAiAgentMemory';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentMemoryEnabled } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
-import { EmbedAgentContentEvents } from '../../features/aiCopilot/hooks/useEmitEmbedAgentContentEvents';
+import { EmbedAgentContentEventsEmitter } from '../../features/aiCopilot/hooks/useEmitEmbedAgentContentEvents';
 import {
     useProjectAiAgent as useAiAgent,
     useAiAgentThread,
@@ -313,7 +313,7 @@ const AgentPage = () => {
                 ) : undefined
             }
         >
-            <EmbedAgentContentEvents
+            <EmbedAgentContentEventsEmitter
                 projectUuid={projectUuid}
                 agentUuid={agentUuid}
                 threadUuid={threadUuid}

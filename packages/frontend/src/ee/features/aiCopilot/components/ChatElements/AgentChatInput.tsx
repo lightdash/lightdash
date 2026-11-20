@@ -103,7 +103,6 @@ import {
     selectThreadElementReferences,
     type ThreadElementReference,
 } from '../../store/aiAgentThreadElementRefsSlice';
-import { isAiAgentThreadStreamActive } from '../../store/aiAgentThreadStreamSlice';
 import {
     selectPreviewForThreads,
     setElementPickerEnabled,
@@ -112,6 +111,7 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
+import { useAiAgentThreadActiveMessageUuid } from '../../streaming/useAiAgentThreadStreamQuery';
 import { AgentSelector } from '../AgentSelector';
 import { type Agent } from '../AgentSelector/AgentSelectorUtils';
 import styles from './AgentChatInput.module.css';
@@ -576,16 +576,9 @@ export const AgentChatInput = ({
     // are noise when reading history.
     const [chipsNearBottom, setChipsNearBottom] = useState(true);
     const [hasRequestedInterrupt, setHasRequestedInterrupt] = useState(false);
-    // Primitive selector: the composer only re-renders when a turn starts or ends.
-    const activeMessageUuid = useAiAgentStoreSelector((state) => {
-        const threadStream = threadUuid
-            ? state.aiAgentThreadStream[threadUuid]
-            : undefined;
-        return threadStream &&
-            isAiAgentThreadStreamActive(threadStream.connection)
-            ? threadStream.messageUuid
-            : null;
-    });
+    const activeMessageUuid = useAiAgentThreadActiveMessageUuid(
+        threadUuid ?? '',
+    );
     const interruptMutation = useInterruptAiAgentThreadMessageMutation();
     const steerMutation = useCreateAiAgentThreadMessageSteerMutation();
     useEffect(() => {
