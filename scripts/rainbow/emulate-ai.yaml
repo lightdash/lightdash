@@ -1,6 +1,8 @@
 # Scripted model replies for the emulated AI service (emulate@0.14.0, `ai`).
 # An env opts in with AI_DEFAULT_PROVIDER=openai and
-# OPENAI_BASE_URL=http://localhost:4014/v1; unmatched requests echo the prompt.
+# OPENAI_BASE_URL=http://localhost:4014/v1 (with any OPENAI_API_KEY set).
+# Every streamed agent turn gets the guide: the app may append context as a
+# later user message, so matching on prompt text misses.
 ai:
   strict: false
   timing:
@@ -8,7 +10,7 @@ ai:
     chunkDelayMs: 15
   rules:
     - id: long-markdown-answer
-      match: { textContains: "streaming markdown guide" }
+      match: { format: openai-responses, stream: true }
       reply:
         - type: text
           text: |
