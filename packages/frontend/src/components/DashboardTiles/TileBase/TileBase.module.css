@@ -158,7 +158,8 @@
         display: none;
     }
 
-    &:hover,
+    /* The linked title follows the pointer's aim, not plain hover */
+    &:not(a):hover,
     &[data-hovered='true'] {
         position: absolute;
         top: 0;
