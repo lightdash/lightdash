@@ -31,6 +31,7 @@ describe('createAnalyticsExplores', () => {
             'content_reach',
             'content_health',
             'content_inventory',
+            'content_created',
         ]) {
             const explore = explores.find((item) => item.name === name)!;
             const table = explore.tables[explore.baseTable];
@@ -292,6 +293,8 @@ describe('createAnalyticsExplores', () => {
             'content_reach',
             'content_health',
             'content_inventory',
+            // The inventory with a row for every day, for content created by day
+            'content_created',
             'agent_requests',
             'agent_request_starts',
             'agent_request_events',
