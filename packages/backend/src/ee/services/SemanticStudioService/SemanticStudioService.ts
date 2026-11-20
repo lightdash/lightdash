@@ -27,8 +27,6 @@ import {
     type LightdashError,
     type LightdashModelWithSource,
     type ModelFragmentChange,
-    type ModelFragmentRefusal,
-    type ModelFragmentRefusalReason,
     type Project,
     type SaveSemanticLayerDraftModelRequest,
     type SaveSemanticStudioSourceRequest,
@@ -113,6 +111,7 @@ import {
     type DraftCheckerProjectService,
 } from './DraftChecker';
 import {
+    describeRefusal,
     foldDraft,
     foldProposal,
     toDraftEdit,
@@ -318,17 +317,6 @@ const EMPTY_DRAFT: SemanticLayerDraft = {
     inReview: [],
     othersDrafting: [],
 };
-
-const REFUSAL_REASONS: Record<ModelFragmentRefusalReason, string> = {
-    access: 'changes who can see it, which cannot be changed here.',
-    name_taken: 'uses a name another field of this model already has.',
-    incomplete: 'is missing what it needs, such as its type or sql.',
-    invalid_filter: 'has a filter that is not a single field: value pair.',
-    not_found: 'is not in the model.',
-};
-
-const describeRefusal = ({ path, reason }: ModelFragmentRefusal): string =>
-    `${path} ${REFUSAL_REASONS[reason]}`;
 
 /** Keeps a project's native models on the server and takes reviewed drafts of them live. */
 // A draft that redefines more fields than this is only partly looked up; page the lookup if drafts grow that large.

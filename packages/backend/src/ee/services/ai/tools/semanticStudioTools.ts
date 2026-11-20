@@ -7,6 +7,7 @@ import {
     type ToolProposeSemanticLayerChangeOutput,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import { describeRefusal } from '../../SemanticStudioService/draftFold';
 import {
     findMetricsToRun,
     findNewModelAdvice,
@@ -37,9 +38,7 @@ const renderProposedModel = (
               ]
             : []),
         ...(refusals.length > 0
-            ? [
-                  `  refusals: ${refusals.map(({ path, reason }) => `${path} (${reason})`).join(', ')}`,
-              ]
+            ? [`  refusals: ${refusals.map(describeRefusal).join(' ')}`]
             : []),
         ...(error ? [`  error: ${error}`] : []),
         ...notes.map((note) => `  note: ${note}`),

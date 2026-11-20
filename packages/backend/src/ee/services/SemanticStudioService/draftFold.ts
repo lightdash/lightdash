@@ -7,6 +7,8 @@ import {
     removeModelParts,
     restoreModelParts,
     type ApplyModelFragmentResult,
+    type ModelFragmentRefusal,
+    type ModelFragmentRefusalReason,
     type SemanticLayerDraftItemResult,
     type SemanticLayerDraftModelInput,
     type SemanticLayerProposalItemResult,
@@ -17,6 +19,20 @@ import { isDerivedSqlFrom, toDerivedSqlFrom } from './derivedModel';
 const MODEL_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 export const toModelPath = (modelName: string) => `models/${modelName}.yml`;
+
+const REFUSAL_REASONS: Record<ModelFragmentRefusalReason, string> = {
+    access: 'changes who can see it, which cannot be changed here.',
+    name_taken: 'uses a name another field of this model already has.',
+    incomplete: 'is missing what it needs, such as its type or sql.',
+    invalid_filter: 'has a filter that is not a single field: value pair.',
+    not_found: 'is not in the model.',
+};
+
+/** Why a part was refused, as a sentence a person or the agent can act on. */
+export const describeRefusal = ({
+    path,
+    reason,
+}: ModelFragmentRefusal): string => `${path} ${REFUSAL_REASONS[reason]}`;
 
 type Merged = Omit<ApplyModelFragmentResult, 'contents'> & {
     /** Null when the model is removed or was never there. */
