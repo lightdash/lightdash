@@ -59,6 +59,11 @@ _group_ (that is `requiredGroupId`).
   kinds are mixed, and a capsule holds its members in order. Unsaved pills
   ("needs value", temporary and the viewer's own) end the last line.
 - Under 720px of bar width, every capsule takes its own line.
+- An open section has no box: its toggle, then its members on the bar's
+  line, with a rule on each side that has a neighbour on that line. Folded,
+  it is one pill of the bar's height with its member count as a badge
+  ("1 changed" once a viewer changed a member); the full count ("2 filters")
+  is its tooltip and the toggle's description.
 - A fold never moves a section. An editor's fold writes `collapsed`; a
   viewer's fold lasts for the visit only. Viewers see only sections with a
   visible member on the tab.

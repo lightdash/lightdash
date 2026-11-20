@@ -26,6 +26,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Box,
     Button,
     Group,
@@ -165,6 +166,9 @@ const pillSelector = (id: string) => `[data-controls-pill="${id}"]`;
 const sectionNameSelector = (id: string) => `[data-section-name="${id}"]`;
 const sectionAddSelector = (id: string) => `[data-section-add="${id}"]`;
 
+type LineEdges = { isLineStart: boolean; isLineEnd: boolean };
+const NO_NEIGHBOURS = { hasBefore: false, hasAfter: false };
+
 /** An editor's capsule controls; a viewer's capsule has none. */
 type CapsuleActions = {
     /** A filter is edited: the name, + and menu are inert. */
@@ -203,6 +207,8 @@ type CapsuleProps = {
     withDateZooms: boolean;
     /** With a stored order: its members in that order (default its filters, then its parameter controls) */
     renderMembers: (() => ReactNode) | null;
+    /** Open, it draws a rule on each side that has a neighbour on its bar line */
+    lineEdges: LineEdges;
 };
 
 const SectionCapsule: FC<CapsuleProps> = ({
@@ -224,6 +230,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
     hasDateZoomMembers,
     withDateZooms,
     renderMembers,
+    lineEdges,
 }) => {
     const getUiString = useUiStrings();
     // What a viewer reads; an editor's name button keeps the name as saved
@@ -267,6 +274,9 @@ const SectionCapsule: FC<CapsuleProps> = ({
                 changed: changedCount,
             })
           : formatSectionCount(getUiString, visibleRules.length, controlCount);
+    const memberCount =
+        (hasVisible ? visibleRules.length : rules.length) + controlCount;
+    const isChangedSummary = hasVisible && changedCount > 0;
 
     const headNode =
         actions === null ? (
@@ -397,6 +407,8 @@ const SectionCapsule: FC<CapsuleProps> = ({
             }
             data-dragging={head.isDragging || undefined}
             data-can-drag={isDraggable || undefined}
+            data-line-start={lineEdges.isLineStart || undefined}
+            data-line-end={lineEdges.isLineEnd || undefined}
             // A pointer anywhere on the capsule drags it, except on a pill (its
             // own drag), the trailing actions or a portalled menu
             onPointerDown={
@@ -417,16 +429,29 @@ const SectionCapsule: FC<CapsuleProps> = ({
             )}
             {headNode}
             {isFolded ? (
-                <Text
-                    span
-                    id={summaryId}
-                    fz="xs"
-                    c="dimmed"
-                    className={classes.summary}
-                    data-section-end={actions !== null || undefined}
-                >
-                    {summary}
-                </Text>
+                <Tooltip label={summary} disabled={isChangedSummary}>
+                    <Badge
+                        size="xs"
+                        fz="xs"
+                        className={classes.summary}
+                        data-section-end={actions !== null || undefined}
+                    >
+                        {isChangedSummary ? (
+                            <Text span inherit id={summaryId}>
+                                {summary}
+                            </Text>
+                        ) : (
+                            <>
+                                <Text span inherit aria-hidden>
+                                    {memberCount}
+                                </Text>
+                                <VisuallyHidden id={summaryId}>
+                                    {summary}
+                                </VisuallyHidden>
+                            </>
+                        )}
+                    </Badge>
+                </Tooltip>
             ) : renderMembers !== null ? (
                 renderMembers()
             ) : (
@@ -497,7 +522,7 @@ const NewSection: FC<{
         [cancelFocusSelector],
     );
     return (
-        <Box className={classes.capsule} data-collapsed data-editable>
+        <Box className={classes.capsule} data-naming>
             <SectionNameInput
                 name=""
                 onCommit={onAdd}
@@ -1047,10 +1072,12 @@ export const SectionedFilters: FC<Props> = ({
     const capsuleFor = (
         { section, rules, visibleRules }: (typeof groups)[number],
         renderMembers: (() => ReactNode) | null,
+        lineEdges: LineEdges,
     ) => (
         <SectionCapsule
             key={section.id}
             renderMembers={renderMembers}
+            lineEdges={lineEdges}
             drop={capsuleDropOf(section.id)}
             dropTop={dropTop}
             section={section}
@@ -1173,9 +1200,16 @@ export const SectionedFilters: FC<Props> = ({
                         isShown={isGapShown(line[0].id)}
                     />
                 )}
-                {line.map(({ id }) => {
+                {line.map(({ id }, position) => {
                     const group = groupById.get(id);
-                    return group ? capsuleFor(group, null) : null;
+                    return group
+                        ? capsuleFor(group, null, {
+                              isLineStart: position === 0,
+                              isLineEnd:
+                                  position === line.length - 1 &&
+                                  (isViewer || index < lines.length - 1),
+                          })
+                        : null;
                 })}
                 {index === lines.length - 1 && end}
                 {!isViewer && index === lines.length - 1 && (
@@ -1208,6 +1242,8 @@ export const SectionedFilters: FC<Props> = ({
     const renderControls = (
         controls: OrderedDashboardControl[],
         sectionId: string | null,
+        // Whether something sits before its first control and after its last
+        neighbours: { hasBefore: boolean; hasAfter: boolean },
     ) =>
         controls
             .reduce<OrderedDashboardControl[][]>((runs, control) => {
@@ -1221,7 +1257,7 @@ export const SectionedFilters: FC<Props> = ({
                 else runs.push([control]);
                 return runs;
             }, [])
-            .map((run) => {
+            .map((run, position, runs) => {
                 const [first] = run;
                 const ids = run.map(({ id }) => id);
                 switch (first.kind) {
@@ -1255,26 +1291,43 @@ export const SectionedFilters: FC<Props> = ({
                         return (
                             group && (
                                 <Box key={first.id} className={classes.line}>
-                                    {capsuleFor(group, () => (
-                                        <>
-                                            {renderControls(members, first.id)}
-                                            <FilterPills
-                                                activeTabUuid={activeTabUuid}
-                                                sectionId={first.id}
-                                                triggerClassName={
-                                                    triggerClassName
-                                                }
-                                                ruleIds={[]}
-                                            />
-                                            {withDateZooms && (
-                                                <DateZoomPills
+                                    {capsuleFor(
+                                        group,
+                                        () => (
+                                            <>
+                                                {renderControls(
+                                                    members,
+                                                    first.id,
+                                                    NO_NEIGHBOURS,
+                                                )}
+                                                <FilterPills
+                                                    activeTabUuid={
+                                                        activeTabUuid
+                                                    }
                                                     sectionId={first.id}
-                                                    ids={[]}
-                                                    withNew
+                                                    triggerClassName={
+                                                        triggerClassName
+                                                    }
+                                                    ruleIds={[]}
                                                 />
-                                            )}
-                                        </>
-                                    ))}
+                                                {withDateZooms && (
+                                                    <DateZoomPills
+                                                        sectionId={first.id}
+                                                        ids={[]}
+                                                        withNew
+                                                    />
+                                                )}
+                                            </>
+                                        ),
+                                        {
+                                            isLineStart:
+                                                position === 0 &&
+                                                !neighbours.hasBefore,
+                                            isLineEnd:
+                                                position === runs.length - 1 &&
+                                                !neighbours.hasAfter,
+                                        },
+                                    )}
                                 </Box>
                             )
                         );
@@ -1326,7 +1379,10 @@ export const SectionedFilters: FC<Props> = ({
                         />
                     )}
                     {index === 0 && firstItem}
-                    {renderControls(line, null)}
+                    {renderControls(line, null, {
+                        hasBefore: index === 0,
+                        hasAfter: isLast && !isViewer,
+                    })}
                     {isLast && (
                         <>
                             <FilterPills

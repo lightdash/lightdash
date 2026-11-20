@@ -1,7 +1,6 @@
 /* The feature's own flow inside the shipped bar, which aligns to the top:
-   every line is a 28px line box (a capsule's outline overhangs it by 4px
-   each way), centred on the 30px funnel's line by 1px at the top, so naming
-   a first section moves nothing on its line */
+   every line is a 28px line box, centred on the 30px funnel's line by 1px
+   at the top, so naming a first section moves nothing on its line */
 .flow {
     display: flex;
     /* A zero basis keeps the flow on the funnel's line and wraps inside it */
@@ -15,10 +14,10 @@
     --controls-pill-height: 28px;
 }
 
-/* Wrapped lines with capsules keep 8px between outlines, and every line the
-   same spacing */
+/* Bar lines sit further apart than a section's own wrapped rows (8px), so
+   its pills read as one set */
 .flow[data-sectioned] {
-    row-gap: 16px;
+    row-gap: 12px;
 }
 
 /* The capsules sit inline after Add, or start below the unsectioned pills
@@ -101,6 +100,11 @@
         flex-direction: column;
     }
 
+    .capsule::before,
+    .capsule::after {
+        display: none;
+    }
+
     .line {
         display: flex;
         flex: 0 0 100%;
@@ -108,30 +112,70 @@
     }
 }
 
-/* A section on the bar: an outlined, pill-shaped capsule with no fill
-   holding its toggle and, open, its pills with 4px of air around them (the
-   1px outline plus 3px); wrapped lines keep the bar's 8px row gap */
+/* A section on the bar. Open, it has no box: its toggle, then its pills on
+   the bar's own line. Folded, it is one pill of the bar's height. Either way
+   its box is 28px tall, so a fold moves nothing */
 .capsule {
     position: relative;
     display: inline-flex;
     align-items: center;
     flex-wrap: wrap;
     gap: 8px 6px;
-    min-height: 36px;
-    margin-block: -4px;
-    padding: 3px 4px 3px 3px;
-    /* One step darker than the default border: visible next to blue pills */
-    border: 1px solid var(--mantine-color-ldGray-3);
-    /* A pill at one line (36px), a soft panel once the pills wrap */
-    border-radius: 18px;
-    /* A drop line beside it: on its first row, outside its border */
-    --drop-line-top: 3px;
-    --drop-line-inset: 1px;
+    min-height: 28px;
+    border-radius: var(--mantine-radius-xl);
+    /* A drop line beside it: on its first row */
+    --drop-line-top: 0px;
+    --drop-line-inset: 0px;
+}
+
+/* An outline, not a border: the 28px name button and rename input fit
+   inside it. One step darker than the default border: visible next to
+   blue pills */
+.capsule[data-collapsed] {
+    column-gap: 2px;
+    padding-inline: 2px 5px;
+    outline: 1px solid var(--mantine-color-ldGray-3);
+    outline-offset: -1px;
 }
 
 /* An editor's capsule ends in its action icons, which carry their own air */
-.capsule[data-collapsed]:not([data-editable]) {
-    padding-right: 10px;
+.capsule[data-collapsed][data-editable] {
+    padding-inline: 3px;
+}
+
+.capsule[data-editable] .summary {
+    margin-inline-end: 4px;
+}
+
+/* An open section is set off from a neighbour on its bar line by a rule on
+   that side; alone on its line it has none */
+.capsule:not([data-collapsed], [data-naming])::before,
+.capsule:not([data-collapsed], [data-naming])::after {
+    content: '';
+    flex: 0 0 auto;
+    width: 1px;
+    height: 16px;
+    margin-inline: 4px;
+    background-color: var(--mantine-color-ldGray-3);
+}
+
+.capsule[data-line-start]::before,
+.capsule[data-line-end]::after {
+    display: none;
+}
+
+/* An editor sees what a press would drag: the open section's extent, drawn
+   outside its box so nothing moves */
+.capsule[data-can-drag]:not([data-collapsed]):hover,
+.capsule[data-dragging]:not([data-collapsed]) {
+    outline: 1px solid var(--mantine-color-ldGray-3);
+    outline-offset: 3px;
+    border-radius: 18px;
+}
+
+.capsule[data-can-drag]:not([data-collapsed]):hover::before,
+.capsule[data-can-drag]:not([data-collapsed]):hover::after {
+    background-color: transparent;
 }
 
 /* The line after "Add filter" sits on its box */
@@ -193,7 +237,7 @@
     align-items: center;
     gap: 2px;
     height: 28px;
-    padding: 0 var(--mantine-spacing-xs) 0 4px;
+    padding: 0 6px 0 4px;
     border-radius: var(--mantine-radius-xl);
     cursor: pointer;
 }
