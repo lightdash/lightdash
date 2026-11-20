@@ -428,7 +428,7 @@ const AnswerMarkdown: FC<{
     context: AnswerMarkdownContextValue;
     className: string;
     rehypePlugins: StreamdownProps['rehypePlugins'];
-    isStreaming?: boolean;
+    isStreaming: boolean;
     children: string;
 }> = ({ context, children, ...props }) => (
     <AnswerMarkdownContext.Provider value={context}>
@@ -529,13 +529,13 @@ const AssistantBubbleContent: FC<{
     const displayErrorTitle = runSqlTimeoutErrorMessage
         ? 'SQL approval timed out'
         : 'Something went wrong';
-    const latestSqlRunnerLinkState = getLatestSuccessfulRunSqlLinkState({
+    const sqlRunnerLinkState = getLatestSuccessfulRunSqlLinkState({
         message,
         streamParts: streamingState?.parts,
     });
     // Rebuilt every frame while streaming, so key the context on its values.
-    const sqlRunnerSql = latestSqlRunnerLinkState?.sql ?? null;
-    const sqlRunnerLimit = latestSqlRunnerLinkState?.limit;
+    const sqlRunnerSql = sqlRunnerLinkState?.sql ?? null;
+    const sqlRunnerLimit = sqlRunnerLinkState?.limit;
     const answerMarkdownContext = useMemo<AnswerMarkdownContextValue>(
         () => ({
             message,
@@ -545,9 +545,7 @@ const AssistantBubbleContent: FC<{
             sqlRunnerLinkState:
                 sqlRunnerSql === null
                     ? null
-                    : sqlRunnerLimit === undefined
-                      ? { sql: sqlRunnerSql }
-                      : { sql: sqlRunnerSql, limit: sqlRunnerLimit },
+                    : { sql: sqlRunnerSql, limit: sqlRunnerLimit },
         }),
         [
             message,
@@ -989,6 +987,7 @@ const AssistantBubbleContent: FC<{
                                 <AnswerMarkdown
                                     key={citationResolutionKey}
                                     context={answerMarkdownContext}
+                                    isStreaming={false}
                                     className={clsx(
                                         styles.answerMarkdown,
                                         styles.persistedAnswer,

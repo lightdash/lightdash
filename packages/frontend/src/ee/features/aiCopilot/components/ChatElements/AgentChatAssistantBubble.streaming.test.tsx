@@ -145,6 +145,7 @@ describe('streaming an answer', () => {
             await act(async () => stream.set(next));
         }
 
+        expect(stream.parses).toBeGreaterThan(0);
         expect(stream.parses).toBeLessThanOrEqual(frames);
     });
 });
