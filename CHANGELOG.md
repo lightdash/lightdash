@@ -1,3 +1,10 @@
+## [3.351.2](https://github.com/lightdash/lightdash/compare/3.351.1...3.351.2) (2026-11-20)
+
+
+### Bug Fixes
+
+* **ai-agents:** open a reloaded thread's chart before the transcript paints ([#33030](https://github.com/lightdash/lightdash/issues/33030)) ([43c982d](https://github.com/lightdash/lightdash/commit/43c982dca11bc34c6d777fc7130d1f9b20a001ff))
+
 ## [3.351.1](https://github.com/lightdash/lightdash/compare/3.351.0...3.351.1) (2026-11-20)
 
 
