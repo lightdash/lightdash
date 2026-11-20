@@ -1,7 +1,20 @@
+import { type HealthState } from '@lightdash/common';
 import { type MantineThemeOverride } from '@mantine/core';
-import { useLocalStorage } from '@mantine/hooks';
-import { Notifications } from '@mantine/notifications';
-import { useEffect, useMemo, type FC } from 'react';
+import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
+import {
+    Notifications,
+    notifications,
+    notificationsStore,
+} from '@mantine/notifications';
+import { defaultContext } from '@tanstack/react-query';
+import {
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useSyncExternalStore,
+    type FC,
+} from 'react';
 import {
     isColorSchemePreference,
     type ColorScheme,
@@ -9,6 +22,7 @@ import {
 } from '../theme';
 import { ColorSchemeContext } from './ColorSchemeContext';
 import MantineBaseProvider from './MantineBaseProvider';
+import styles from './MantineProvider.module.css';
 import { useResolvedColorScheme } from './useResolvedColorScheme';
 
 // Older builds read `color-scheme` and only understand light|dark, so the
@@ -27,6 +41,54 @@ type Props = {
     getRootElement?: () => HTMLElement | undefined;
     /** Off for the SDK, which renders inside a host page it must not tag. */
     syncBodyColorMode?: boolean;
+};
+
+const noopUnsubscribe = () => {};
+
+const useIsSignedOut = () => {
+    const queryClient = useContext(defaultContext);
+    const subscribe = useCallback(
+        (onStoreChange: () => void) => {
+            if (!queryClient) return noopUnsubscribe;
+            return queryClient.getQueryCache().subscribe(onStoreChange);
+        },
+        [queryClient],
+    );
+    const getSnapshot = () => {
+        const health = queryClient?.getQueryData<HealthState>(['health']);
+        return health?.isAuthenticated === false;
+    };
+    return useSyncExternalStore(subscribe, getSnapshot);
+};
+
+const SMALL_PORTRAIT_QUERY = '(max-width: 48em) and (min-height: 30.0625em)';
+const SIGNED_OUT_SMALL_PORTRAIT_LIMIT = 1;
+
+const AppNotifications: FC<{ limit?: number }> = ({ limit }) => {
+    const isSignedOut = useIsSignedOut();
+    const isSmallPortrait = useMediaQuery(SMALL_PORTRAIT_QUERY, undefined, {
+        getInitialValueInEffect: false,
+    });
+    const visibleLimit =
+        isSignedOut && isSmallPortrait
+            ? SIGNED_OUT_SMALL_PORTRAIT_LIMIT
+            : limit;
+
+    useEffect(() => {
+        notifications.updateState(notificationsStore, (items) => items);
+    }, [visibleLimit]);
+
+    return (
+        <Notifications
+            limit={visibleLimit}
+            notificationMaxHeight={480}
+            classNames={{
+                root: isSignedOut
+                    ? `${styles.notificationsRoot} ${styles.signedOut}`
+                    : styles.notificationsRoot,
+            }}
+        />
+    );
 };
 
 const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
@@ -97,10 +159,7 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
                 getRootElement={getRootElement}
             >
                 {children}
-                <Notifications
-                    limit={notificationsLimit}
-                    notificationMaxHeight={480}
-                />
+                <AppNotifications limit={notificationsLimit} />
             </MantineBaseProvider>
         </ColorSchemeContext.Provider>
     );
