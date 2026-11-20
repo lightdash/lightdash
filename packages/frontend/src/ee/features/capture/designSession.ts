@@ -222,7 +222,10 @@ export const designSessionReducer = (
             const target = s.bubbles.find((b) => b.id === action.bubbleId);
             if (!target || target.status !== 'thread') return s;
             const blocked = s.bubbles.some(
-                (b) => b.id !== target.id && isInProgress(b.collection),
+                (b) =>
+                    b.id !== target.id &&
+                    (b.status === 'collecting' || b.status === 'thread') &&
+                    isInProgress(b.collection),
             );
             if (blocked) return s;
             // Drop other bubbles' empty collections so only one target stays open.

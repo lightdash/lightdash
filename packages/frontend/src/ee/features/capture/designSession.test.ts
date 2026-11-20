@@ -190,6 +190,15 @@ describe('designSessionReducer', () => {
         ).toEqual(['b']);
     });
 
+    it('a queued bubble does not block arming a thread bubble', () => {
+        let s = run(empty, ...hold('b', 0));
+        s = sendAndFinish(s, 'b');
+        s = run(s, ...hold('a', 1000), { type: 'queue', bubbleId: 'a' });
+        s = run(s, { type: 'arm', bubbleId: 'b', input: 'text' });
+        expect(s.active).toEqual({ kind: 'bubble', bubbleId: 'b' });
+        expect(s.bubbles.find((b) => b.id === 'a')?.status).toBe('queued');
+    });
+
     it('canStartHold is false while a bubble is sending', () => {
         let s = run(empty, ...hold('a', 0));
         expect(canStartHold(s)).toBe(true);
