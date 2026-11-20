@@ -2,7 +2,7 @@
     position: relative;
 }
 
-/* Phones: the selectors give up width so send stays in the card */
+/* Read by PromptComposer's phone breakpoint: selectors shrink so send stays in the card */
 .container[data-layout='card'] {
     --composer-toolbar-right-min-width: 0;
 }
