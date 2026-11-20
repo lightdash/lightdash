@@ -80,6 +80,8 @@ import { buildVizUnderlyingDataRequest } from './vizUnderlyingDataRequest';
 
 type Props = {
     isInDashboard?: boolean;
+    /** Off where the host mounts no data dialogs, e.g. composer chart tiles. */
+    enableContextMenu?: boolean;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
 };
@@ -158,6 +160,7 @@ const getTerminalRequestErrorMessage = (
 
 const DataAppVizRenderer: FC<Props> = ({
     isInDashboard = false,
+    enableContextMenu = true,
     onScreenshotReady,
 }) => {
     const projectUuid = useProjectUuid();
@@ -342,9 +345,10 @@ const DataAppVizRenderer: FC<Props> = ({
 
     // Explore-independent gating, mirroring regular chart context menus: no
     // query (builder canvas/sample previews), no permission, custom bin
-    // dimensions, embeds (GLITCH-592) and screenshot renders all disable
-    // underlying data.
+    // dimensions, embeds (GLITCH-592), screenshot renders and hosts without a
+    // context menu all disable underlying data.
     const underlyingDataPreconditions =
+        enableContextMenu &&
         !!sourceQueryUuid &&
         !!metricQuery &&
         canViewUnderlyingData &&
@@ -422,6 +426,7 @@ const DataAppVizRenderer: FC<Props> = ({
     // Same shape as underlyingDataPreconditions plus the drill permission and
     // dialog; no explore fetch needed — DrillDownModal reads it from its provider.
     const drillDownEnabled =
+        enableContextMenu &&
         !!sourceQueryUuid &&
         !!metricQuery &&
         canDrillInto &&
@@ -575,6 +580,7 @@ const DataAppVizRenderer: FC<Props> = ({
 
     // Any single action available ⇒ the menu is worth offering.
     const pointMenuEnabled =
+        enableContextMenu &&
         !!reconciledFieldMapping &&
         !embedToken &&
         !minimal &&

@@ -1887,6 +1887,32 @@ describe('DataAppVizRenderer underlying-data gating', () => {
             expect.objectContaining({ enabled: true }),
         );
     });
+
+    it('a surface without a context menu fetches no explore and offers no data actions', () => {
+        mocks.canDrillInto.current = true;
+        mocks.metricQueryData.current = {
+            openUnderlyingDataModal: mocks.openUnderlyingDataModal,
+            openDrillDownModal: vi.fn(),
+        };
+        try {
+            renderRenderer({ enableContextMenu: false });
+        } finally {
+            mocks.canDrillInto.current = false;
+        }
+
+        expect(mocks.exploreHook).toHaveBeenCalledWith(
+            'orders',
+            expect.objectContaining({ enabled: false }),
+        );
+        const props = lastIframeProps();
+        expect(props.dataAppVizContext).toMatchObject({
+            underlyingData: { enabled: false, openEnabled: false },
+            drillDown: { enabled: false },
+            pointMenu: { enabled: false },
+        });
+        expect(props.rewriteVizUnderlyingDataRequest).toBeUndefined();
+        expect(props.onVizPointMenuIntent).toBeUndefined();
+    });
 });
 
 describe('DataAppVizRenderer point menu', () => {
