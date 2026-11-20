@@ -11,6 +11,7 @@ import {
     type ChartAsCode,
     type DashboardAsCode,
 } from '@lightdash/common';
+import { caution, positive } from './analyticsChartPresentation';
 import {
     analyticsColorPalette,
     modelProviders,
@@ -26,7 +27,6 @@ const tokens = 'ai_usage_total_tokens_used';
 const day = 'ai_usage_event_ts_day';
 const queryLimit = 5000;
 // The top five groups take the Analytics palette; grey marks "Other".
-const colors = [...analyticsColorPalette.colors.slice(0, 5), '#868e96'];
 // The one place billing scope is defined; other tiles refer to "tokens in billing scope".
 const scopeDescription =
     'Tokens from completed work on Lightdash-managed keys, for agents, deep research, agent tools, compaction and data apps. These tokens are not credits or cost.';
@@ -45,18 +45,22 @@ type Breakdown = {
     identity: string;
     label: string;
     billingScope: boolean;
+    // How many groups to name before the rest are added up as Other. Five when not given.
+    top?: number;
+    // A fixed colour for a named group, for groups that mean good or not good
+    colors?: Record<string, string>;
     // Chart descriptions; billing-scope breakdowns derive theirs from the title.
     descriptions?: { daily: string; rank?: string };
 };
 
 const breakdownDescription = (
-    { title, plural, billingScope, descriptions }: Breakdown,
+    { title, plural, billingScope, descriptions, top }: Breakdown,
     daily: boolean,
 ): string => {
     if (!billingScope && descriptions) {
         return daily ? descriptions.daily : (descriptions.rank ?? '');
     }
-    const groups = `the five largest ${plural ?? `${title.toLowerCase()}s`} plus Other`;
+    const groups = `the ${top === 10 ? 'ten' : 'five'} largest ${plural ?? `${title.toLowerCase()}s`} plus Other`;
     return daily
         ? `Tokens in billing scope per day, for ${groups}.`
         : `Each group's share of tokens in billing scope, for ${groups}.`;
@@ -66,17 +70,17 @@ const breakdowns: Breakdown[] = [
     {
         key: 'feature',
         title: 'Feature',
-        dimensions: ['ai_usage_feature'],
+        dimensions: ['ai_usage_feature', 'ai_usage_feature_name'],
         identity: "datum.ai_usage_feature || 'Unknown feature'",
-        label: "({agent:'Agents','data-app':'Data app','deep-research':'Deep research','agent-subtask':'Agent tools',compaction:'Compaction'})[datum.ai_usage_feature] || datum.ai_usage_feature || 'Unknown feature'",
+        label: "datum.ai_usage_feature_name || 'Unknown feature'",
         billingScope: true,
     },
     {
         key: 'channel',
         title: 'Channel',
-        dimensions: ['ai_usage_channel'],
+        dimensions: ['ai_usage_channel', 'ai_usage_channel_name'],
         identity: "datum.ai_usage_channel || 'Unknown channel'",
-        label: "datum.ai_usage_channel || 'Unknown channel'",
+        label: "datum.ai_usage_channel_name || 'Unknown channel'",
         billingScope: true,
     },
     {
@@ -91,8 +95,10 @@ const breakdowns: Breakdown[] = [
         ],
         identity:
             "datum.ai_usage_channel === 'embed' ? 'embedded-viewers' : datum.ai_usage_user_id || 'unattributed-user'",
-        label: "datum.ai_usage_channel === 'embed' ? 'Embedded viewers' : datum.ai_usage_user_id ? (datum.ai_usage_user_name || 'Unknown user') + ' · ' + substring(datum.ai_usage_user_id,0,6) : 'No user recorded'",
+        label: "datum.ai_usage_channel === 'embed' ? 'Embedded viewers' : datum.ai_usage_user_id ? (datum.ai_usage_user_name || 'Unknown user') : 'No user recorded'",
         billingScope: true,
+        // Tokens are spread across many people, so five of them would leave most usage in Other
+        top: 10,
     },
     {
         key: 'project',
@@ -107,7 +113,7 @@ const breakdowns: Breakdown[] = [
         title: 'Agent',
         dimensions: ['ai_usage_agent_name', 'ai_usage_agent_id'],
         identity: "datum.ai_usage_agent_id || 'unattributed-agent'",
-        label: "datum.ai_usage_agent_id ? (datum.ai_usage_agent_name || 'Unknown agent') + ' · ' + substring(datum.ai_usage_agent_id,0,6) : 'No agent'",
+        label: "datum.ai_usage_agent_id ? (datum.ai_usage_agent_name || 'Unknown agent') : 'No agent'",
         billingScope: true,
     },
     {
@@ -125,21 +131,23 @@ const breakdowns: Breakdown[] = [
     {
         key: 'key',
         title: 'Key origin',
-        dimensions: ['ai_usage_key_management'],
-        identity: "datum.ai_usage_key_management || 'Unknown key origin'",
-        label: "datum.ai_usage_key_management || 'Unknown key origin'",
+        dimensions: ['ai_usage_key_management', 'ai_usage_key_management_name'],
+        identity: "datum.ai_usage_key_management || 'Unknown key'",
+        label: "datum.ai_usage_key_management_name || 'Unknown key'",
         billingScope: false,
         descriptions: {
-            daily: 'All recorded tokens per day by key origin, for example Lightdash-managed or self-managed keys.',
+            daily: "All recorded tokens per day by whose provider key was used: Lightdash's or your own.",
         },
     },
     {
         key: 'outcome',
         title: 'Outcome',
-        dimensions: ['ai_usage_outcome'],
+        dimensions: ['ai_usage_outcome', 'ai_usage_outcome_name'],
         identity: "datum.ai_usage_outcome || 'Unknown outcome'",
-        label: "datum.ai_usage_outcome || 'Unknown outcome'",
+        label: "datum.ai_usage_outcome_name || 'Unknown outcome'",
         billingScope: false,
+        // The same good and not-good pair as every other outcome chart
+        colors: { Success: positive, Error: caution },
         descriptions: {
             daily: 'All recorded tokens per day by outcome.',
         },
@@ -434,16 +442,21 @@ const visualSpec = (
         { field: 'group', title: 'Group identity' },
     ];
     const byProvider = breakdown.key === 'model';
+    const top = breakdown.top ?? 5;
+    // Bars filled with a colour worked out for each group, not taken in turn from the palette
+    const ownColors = byProvider || breakdown.colors !== undefined;
     const color = {
         // By provider, each bar is filled with the colour worked out for it, and the legend entry
         // carries that colour in front of the name ("#6366F1|claude-...") so it can draw the same one
-        field: byProvider ? 'legend_key' : 'group_name',
+        field: ownColors ? 'legend_key' : 'group_name',
         type: 'nominal',
         sort: { field: 'group_order', op: 'min' },
-        scale: { range: colors },
+        scale: {
+            range: [...analyticsColorPalette.colors.slice(0, top), '#868e96'],
+        },
         legend: null,
     };
-    const fill = byProvider
+    const fill = ownColors
         ? {
               fill: {
                   field: 'group_color',
@@ -502,14 +515,17 @@ const visualSpec = (
             ],
         },
         {
-            calculate: "datum.rank <= 5 ? datum.identity : '__other__'",
+            calculate: `datum.rank <= ${top} ? datum.identity : '__other__'`,
             as: 'group',
         },
         {
-            calculate: "datum.rank <= 5 ? datum.display_label : 'Other'",
+            calculate: `datum.rank <= ${top} ? datum.display_label : 'Other'`,
             as: 'group_name',
         },
-        { calculate: 'datum.rank <= 5 ? datum.rank : 6', as: 'group_order' },
+        {
+            calculate: `datum.rank <= ${top} ? datum.rank : ${top + 1}`,
+            as: 'group_order',
+        },
         {
             aggregate: [
                 { op: 'sum', field: 'tokens', as: 'tokens' },
@@ -521,6 +537,23 @@ const visualSpec = (
             groupby: [...(daily ? [day] : []), 'group', 'group_name'],
         },
         ...(byProvider ? providerColouring : []),
+        ...(breakdown.colors
+            ? [
+                  {
+                      calculate: `${JSON.stringify(breakdown.colors)}[datum.group_name] || '#868e96'`,
+                      as: 'group_color',
+                  },
+                  {
+                      calculate: "datum.group_color + '|' + datum.group_name",
+                      as: 'legend_key',
+                  },
+              ]
+            : []),
+        // Other sits at the bottom of a stack, under the named groups
+        {
+            calculate: "datum.group === '__other__' ? 0 : datum.group_order",
+            as: 'stack_order',
+        },
         ...(daily
             ? [
                   {
@@ -538,7 +571,7 @@ const visualSpec = (
                   },
                   {
                       calculate:
-                          "format(datum.tokens, ',.0f') + ' tokens · ' + format(datum.share, '.1%')",
+                          "format(datum.tokens, '.3~s') + ' tokens · ' + format(datum.share, '.1%')",
                       as: 'value_label',
                   },
               ]
@@ -590,7 +623,7 @@ const visualSpec = (
                 left: 8,
                 right: 12,
                 top: 8,
-                bottom: byProvider ? 60 : 10,
+                bottom: ownColors ? 60 : 10,
             },
             layer: [
                 {
@@ -635,9 +668,9 @@ const visualSpec = (
                                 },
                             },
                         },
-                        ...(byProvider ? fill : { color: dailyColor }),
+                        ...(ownColors ? fill : { color: dailyColor }),
                         order: {
-                            field: 'group_order',
+                            field: byProvider ? 'group_order' : 'stack_order',
                             type: 'quantitative',
                             sort: 'ascending',
                         },
@@ -646,7 +679,7 @@ const visualSpec = (
                 },
                 // The bars are filled directly, so an unseen layer keeps the colour scale the
                 // empty-state rules read, and the legend is drawn as marks under the axis
-                ...(byProvider
+                ...(ownColors
                     ? [
                           {
                               transform: [completeRows],
@@ -688,7 +721,7 @@ const visualSpec = (
                 { type: 'bar', height: 8, cornerRadius: 3 },
                 {
                     x: { field: 'share', ...shareScale },
-                    ...(byProvider ? fill : { color }),
+                    ...(ownColors ? fill : { color }),
                     tooltip,
                 },
             ),
@@ -735,8 +768,10 @@ const chart = (
     tableConfig: {
         columnOrder: [
             ...query.tableCalculations.map(({ name: field }) => field),
-            ...query.dimensions,
+            ...query.dimensions.filter((field) => !field.endsWith('_id')),
             ...query.metrics,
+            // IDs last: they tell apart rows with the same name, and are not what a reader scans
+            ...query.dimensions.filter((field) => field.endsWith('_id')),
         ],
     },
 });
@@ -909,8 +944,8 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                     'ai_usage_project_id',
                     'ai_usage_agent_name',
                     'ai_usage_agent_id',
-                    'ai_usage_feature',
-                    'ai_usage_channel',
+                    'ai_usage_feature_name',
+                    'ai_usage_channel_name',
                     'ai_usage_model',
                 ],
                 metrics: [tokens, 'ai_usage_total_ai_calls'],
@@ -920,7 +955,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                         displayName: 'Person',
                         type: TableCalculationType.STRING,
                         sql: `CASE
-                            WHEN \${ai_usage.channel} = 'embed' THEN 'Embedded viewers'
+                            WHEN \${ai_usage.channel_name} = 'Embed' THEN 'Embedded viewers'
                             WHEN NULLIF(TRIM(\${ai_usage.user_name}), '') IS NOT NULL AND \${ai_usage.user_name} <> 'Unknown user' THEN \${ai_usage.user_name}
                             WHEN NULLIF(TRIM(\${ai_usage.user_email}), '') IS NOT NULL THEN TRIM(\${ai_usage.user_email})
                             WHEN NULLIF(TRIM(\${ai_usage.user_id}), '') IS NOT NULL THEN 'User ' || \${ai_usage.user_id}
@@ -945,12 +980,12 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
         ),
         chart(
             'quality',
-            'AI calls with a token count, by feature, key origin and outcome',
+            'AI calls with a token count, by feature, AI key and outcome',
             metricQuery(false, {
                 dimensions: [
-                    'ai_usage_feature',
-                    'ai_usage_key_management',
-                    'ai_usage_outcome',
+                    'ai_usage_feature_name',
+                    'ai_usage_key_management_name',
+                    'ai_usage_outcome_name',
                 ],
                 metrics: [
                     tokens,
@@ -1008,7 +1043,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
     const tabs = [
         ...breakdowns
             .filter(({ billingScope }) => billingScope)
-            .map(({ key, title, tabSlug }) => ({
+            .map(({ key, title, tabSlug, top }) => ({
                 key: tabSlug ?? key,
                 name: title,
                 rows: [
@@ -1021,7 +1056,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                     row(8, `${key}-rank`),
                     note(
                         3,
-                        `**Top five groups plus Other.** Bars show each group's share of tokens in billing scope, not remaining allowance. Groups with the same name are kept separate. Data updates when usage is processed.${attributionNotes[key] ?? ''}`,
+                        `**Top ${top === 10 ? 'ten' : 'five'} groups plus Other.** Bars show each group's share of tokens in billing scope, not remaining allowance. Groups with the same name are kept separate. Data updates when usage is processed.${attributionNotes[key] ?? ''}`,
                     ),
                 ],
             })),

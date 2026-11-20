@@ -83,7 +83,10 @@ import {
     totalMembersMetric,
 } from '../../../analytics/systemExplores/peopleAdoption';
 import {
+    aiChannelNames,
     aiFeatureNames,
+    aiKeyNames,
+    aiOutcomeNames,
     plainNameSql,
     type PlainNames,
 } from '../../../analytics/systemExplores/plainNames';
@@ -210,6 +213,9 @@ const metricLabels: Record<string, Record<string, string>> = {
 // What a plain-name field is called, by the column it is made from
 const plainNameLabels: Record<string, string> = {
     feature: 'Feature',
+    channel: 'Channel',
+    key_management: 'AI key',
+    outcome: 'Outcome',
     content_type: 'Content type',
     format: 'Format',
     run_status: 'Status',
@@ -668,6 +674,9 @@ export const createAnalyticsExplores = (): Explore[] => {
         };
         if (name === 'ai_usage') {
             addPlainName('feature', aiFeatureNames);
+            addPlainName('channel', aiChannelNames);
+            addPlainName('key_management', aiKeyNames);
+            addPlainName('outcome', aiOutcomeNames);
             // The provider read from the model's name, with the same prefixes that colour the model
             // charts, so a Claude model reached through Bedrock still counts as Anthropic
             table.dimensions.model_provider = {
@@ -800,9 +809,11 @@ export const createAnalyticsExplores = (): Explore[] => {
             addPlainName('field_origin');
         }
         if (table.dimensions.user_id)
-            table.dimensions.user_id.label = 'User UUID';
+            table.dimensions.user_id.label = 'Person ID';
         if (table.dimensions.project_id)
-            table.dimensions.project_id.label = 'Project UUID';
+            table.dimensions.project_id.label = 'Project ID';
+        if (table.dimensions.agent_id)
+            table.dimensions.agent_id.label = 'Agent ID';
         if (name === 'people_membership')
             table.dimensions.user_id.hidden = true;
         if (startsOnly) table.dimensions.org_id.hidden = true;
@@ -832,7 +843,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             const { dimensions } = table;
             dimensions.external_user_id.label = 'External viewer ID';
             dimensions.external_user_id.description =
-                'Viewer ID supplied by the embed issuer. Separate from the registered User UUID.';
+                'Viewer ID supplied by the embed issuer. Separate from the Person ID of a signed-in person.';
             dimensions.embed_token_fingerprint.label =
                 'Embed token fingerprint';
             dimensions.embed_token_fingerprint.description =

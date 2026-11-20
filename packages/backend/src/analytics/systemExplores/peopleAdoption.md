@@ -83,12 +83,12 @@ windows. A newly enabled organization does not yet have a full 30-day capture wi
 
 ## Example
 
-Select **User name**, **User UUID**, **Organization role**, **Activity status**,
+Select **User name**, **Person ID**, **Organization role**, **Activity status**,
 **Last observed activity at**, and **Eligible people**. Filter **Is eligible**
 to true to see the population including zero-event users. Select **Eligible
 people**, **Active people 30d**, and **Observed adoption (30d)** without user
 dimensions for the headline ratio. Filter the quoted UUID in **Group IDs** to
-select a particular group. Use **User UUID** to distinguish matching names.
+select a particular group. Use **Person ID** to distinguish matching names.
 
 For a seven-day return indicator, select **Returning people 7d** alongside
 **Active people 7d**; for agent adoption select **Agent users 30d** and

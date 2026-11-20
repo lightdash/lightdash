@@ -261,16 +261,16 @@ describe('built-in usage dashboards', () => {
             expect(rows).toEqual(
                 expect.arrayContaining(
                     [
-                        ['named', 'web', 'Alex'],
-                        ['unnamed', 'web', 'primary@example.com'],
-                        ['no-email', 'web', 'User no-email'],
-                        ['unmatched', 'web', 'User unmatched'],
-                        ['named', 'embed', 'Embedded viewers'],
-                        [null, 'web', 'No user recorded'],
+                        ['named', 'Web app', 'Alex'],
+                        ['unnamed', 'Web app', 'primary@example.com'],
+                        ['no-email', 'Web app', 'User no-email'],
+                        ['unmatched', 'Web app', 'User unmatched'],
+                        ['named', 'Embed', 'Embedded viewers'],
+                        [null, 'Web app', 'No user recorded'],
                     ].map(([id, channel, label]) =>
                         expect.objectContaining({
                             ai_usage_user_id: id,
-                            ai_usage_channel: channel,
+                            ai_usage_channel_name: channel,
                             user_display_name: label,
                         }),
                     ),

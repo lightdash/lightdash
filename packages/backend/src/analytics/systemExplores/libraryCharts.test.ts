@@ -535,6 +535,18 @@ describe('model colours', () => {
 });
 
 describe('model colours on AI token usage', () => {
+    it('fills tokens by outcome with the shared good and not-good colours', () => {
+        const outcome = buildAiTokenDashboard().charts.find(({ slug }) =>
+            slug.endsWith('-outcome-daily'),
+        )!;
+        if (outcome.chartConfig.type !== ChartType.CUSTOM) throw new Error();
+        const spec = JSON.stringify(outcome.chartConfig.config?.spec);
+        expect(spec).toContain(
+            '{\\"Success\\":\\"#34D399\\",\\"Error\\":\\"#FB923C\\"}[datum.group_name]',
+        );
+        expect(spec).toContain('"field":"group_color"');
+    });
+
     it('fills the two model charts by provider from the same prefixes, and no other breakdown', () => {
         const specs = buildAiTokenDashboard().charts.flatMap((tokenChart) =>
             tokenChart.chartConfig.type === ChartType.CUSTOM
@@ -547,7 +559,7 @@ describe('model colours on AI token usage', () => {
                 : [],
         );
         const byProvider = specs.filter(([, spec]) =>
-            spec.includes('"field":"group_color"'),
+            spec.includes('"as":"provider_rank"'),
         );
         expect(byProvider.map(([slug]) => slug).sort()).toEqual([
             'lightdash-analytics-ai-tokens-model-daily',
