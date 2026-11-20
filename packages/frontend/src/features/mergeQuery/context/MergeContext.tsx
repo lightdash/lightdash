@@ -3,6 +3,7 @@ import {
     getItemId,
     mergeCalculationReferencePattern,
     MergeJoinType,
+    QueryHistoryStatus,
     type AdditionalMetric,
     type ApiCompiledMergeQueryResults,
     type ApiError,
@@ -29,6 +30,7 @@ import { useSearchParams } from 'react-router';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useInfiniteQueryResults } from '../../../hooks/useQueryResults';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
+import { pollForResults } from '../../queryRunner/executeQuery';
 import {
     DEFAULT_ADDITIONAL_SOURCE_ID,
     emptyMergeSource,
@@ -681,9 +683,21 @@ export const MergeProvider: FC<
                     result.errors.map((error) => error.message).join(' '),
                 );
             }
+            // The download job refuses a query that is still running
+            const finished = await pollForResults(
+                lightdashApi,
+                projectUuid,
+                result.query.queryUuid,
+            );
+            if (finished.status !== QueryHistoryStatus.READY) {
+                throw new Error(
+                    ('error' in finished ? finished.error : null) ??
+                        'The merged query did not finish',
+                );
+            }
             return result.query.queryUuid;
         },
-        [projectUuid, startMerge],
+        [projectUuid, startMerge, lightdashApi],
     );
 
     const { started, unpivotedStarted } = runState;

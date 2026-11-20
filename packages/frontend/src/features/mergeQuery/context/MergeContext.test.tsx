@@ -5,6 +5,7 @@ import {
     MergeJoinType,
     MetricType,
     MergeQueryErrorKind,
+    QueryHistoryStatus,
     type ApiError,
     type ApiExecuteAsyncMergeQueryResults,
     type ItemsMap,
@@ -20,13 +21,17 @@ import { MERGE_URL_PARAM, serializeMergeState } from './mergeUrlState';
 import { useMerge } from './useMerge';
 
 const setSearchParams = vi.fn();
-const { executeMergeQuery, executeSavedMergeQuery, searchParams } = vi.hoisted(
-    () => ({
-        executeMergeQuery: vi.fn(),
-        executeSavedMergeQuery: vi.fn(),
-        searchParams: new URLSearchParams(),
-    }),
-);
+const {
+    executeMergeQuery,
+    executeSavedMergeQuery,
+    pollForResults,
+    searchParams,
+} = vi.hoisted(() => ({
+    executeMergeQuery: vi.fn(),
+    executeSavedMergeQuery: vi.fn(),
+    pollForResults: vi.fn(),
+    searchParams: new URLSearchParams(),
+}));
 
 vi.mock('react-router', () => ({
     useParams: () => ({ projectUuid: 'project-uuid' }),
@@ -47,6 +52,8 @@ vi.mock('../../../hooks/useQueryResults', () => ({
         isFetching: false,
     }),
 }));
+
+vi.mock('../../queryRunner/executeQuery', () => ({ pollForResults }));
 
 vi.mock('../hooks/useMergeQuery', () => ({
     executeMergeQuery,
@@ -659,6 +666,9 @@ describe('MergeProvider', () => {
             .mockResolvedValueOnce(startedResult('pivoted-query'))
             .mockResolvedValueOnce(startedResult('raw-query'))
             .mockResolvedValueOnce(startedResult('export-query'));
+        pollForResults.mockResolvedValueOnce({
+            status: QueryHistoryStatus.READY,
+        });
         const savedChartRun = {
             savedChartUuid: 'chart-uuid',
             includeUnpublishedDraft: false,
@@ -693,4 +703,40 @@ describe('MergeProvider', () => {
             [savedChartRun, { region: 'EU' }, false, 100],
         ]);
     });
+
+    it.each([
+        [QueryHistoryStatus.READY, 'export-query'],
+        [QueryHistoryStatus.ERROR, 'Warehouse failed'],
+    ])(
+        'hands over a download only once its query finishes (%s)',
+        async (status, expected) => {
+            executeMergeQuery
+                .mockResolvedValueOnce(startedResult('shown-query'))
+                .mockResolvedValueOnce(startedResult('export-query'));
+            pollForResults.mockResolvedValueOnce({
+                status,
+                error: 'Warehouse failed',
+            });
+            const { result } = renderHook(() => useMerge(), { wrapper });
+
+            act(() => result.current.run(mergeQuery));
+            await waitFor(() =>
+                expect(result.current.mergeResults?.queryUuid).toBe(
+                    'shown-query',
+                ),
+            );
+            const download = result.current.getDownloadQueryUuid(100);
+
+            if (status === QueryHistoryStatus.READY) {
+                await expect(download).resolves.toBe(expected);
+            } else {
+                await expect(download).rejects.toThrow(expected);
+            }
+            expect(pollForResults).toHaveBeenCalledWith(
+                expect.anything(),
+                'project-uuid',
+                'export-query',
+            );
+        },
+    );
 });
