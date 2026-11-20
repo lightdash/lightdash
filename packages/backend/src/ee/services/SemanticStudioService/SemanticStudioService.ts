@@ -47,6 +47,7 @@ import {
     type SemanticLayerDraftUsage,
     type SemanticLayerInReviewModel,
     type SemanticLayerModelCode,
+    type SemanticLayerProposalItemResult,
     type SemanticLayerStatus,
     type SemanticLayerStoredModels,
     type SemanticLayerTouchedField,
@@ -111,7 +112,13 @@ import {
     usesAnyModel,
     type DraftCheckerProjectService,
 } from './DraftChecker';
-import { foldDraft, toDraftEdit, toModelPath, withWrites } from './draftFold';
+import {
+    foldDraft,
+    foldProposal,
+    toDraftEdit,
+    toModelPath,
+    withWrites,
+} from './draftFold';
 import {
     findDraftedPaths,
     findRefusedPaths,
@@ -252,7 +259,7 @@ export type SemanticStudioServiceArguments = {
 
 /** A proposal once it was checked on top of the person's draft. */
 export type SemanticLayerDraftProposal = {
-    results: SemanticLayerDraftItemResult[];
+    results: SemanticLayerProposalItemResult[];
     diffs: {
         model: string;
         contentBefore: string | null;
@@ -311,16 +318,6 @@ const EMPTY_DRAFT: SemanticLayerDraft = {
     inReview: [],
     othersDrafting: [],
 };
-
-const failed = (
-    result: SemanticLayerDraftItemResult,
-    error: string,
-): SemanticLayerDraftItemResult => ({
-    ...result,
-    status: 'failed',
-    changes: [],
-    error,
-});
 
 const REFUSAL_REASONS: Record<ModelFragmentRefusalReason, string> = {
     access: 'changes who can see it, which cannot be changed here.',
@@ -847,23 +844,33 @@ export class SemanticStudioService extends BaseService {
         draft: LoadedDraft,
         models: SemanticLayerDraftModelInput[],
     ) {
-        const proposed = foldDraft(draft.live, [
-            ...draft.changes.map((change) => change.models),
+        const proposed = foldProposal(
+            draft.live,
+            draft.changes.map((change) => change.models),
             models,
-        ]);
+        );
         const check = await this.checker.check(
             user,
             projectUuid,
             draft.live,
             proposed.writes,
         );
-        const results = proposed.results[draft.changes.length].map((result) => {
-            if (result.status !== 'ready') return result;
-            const error = check.rejected.get(result.model);
-            return error === undefined
-                ? { ...result, notes: check.notes.get(result.model) ?? [] }
-                : failed(result, error);
-        });
+        const results = proposed.results.map(
+            (result): SemanticLayerProposalItemResult => {
+                if (result.status !== 'ready') return result;
+                const error = check.rejected.get(result.model);
+                return error === undefined
+                    ? { ...result, notes: check.notes.get(result.model) ?? [] }
+                    : {
+                          model: result.model,
+                          status: 'failed',
+                          changes: [],
+                          refusals: [],
+                          error,
+                          notes: [],
+                      };
+            },
+        );
         return { results, writes: check.writes };
     }
 
@@ -905,7 +912,7 @@ export class SemanticStudioService extends BaseService {
         return stored;
     }
 
-    /** Checks a change on top of this person's draft and adds what passes to it; nothing goes live. */
+    /** Checks a change on top of this person's draft and adds each model that passes whole to it; nothing goes live. */
     async proposeDraftChange(
         user: SessionUser,
         projectUuid: string,
@@ -1001,10 +1008,16 @@ export class SemanticStudioService extends BaseService {
             draft,
             models,
         );
-        const problems = results.flatMap(({ error, refusals }) => [
-            ...(error === null ? [] : [error]),
-            ...refusals.map(describeRefusal),
-        ]);
+        const refused = results.flatMap(({ refusals }) =>
+            refusals.map(describeRefusal),
+        );
+        // A refusal says more than the error that leaves its model out.
+        const problems =
+            refused.length > 0
+                ? refused
+                : results.flatMap(({ error }) =>
+                      error === null ? [] : [error],
+                  );
         if (problems.length > 0) return fail(problems.join(' '));
         const saved = writes.get(model);
         if (

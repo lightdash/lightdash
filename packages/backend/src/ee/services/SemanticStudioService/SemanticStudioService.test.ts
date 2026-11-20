@@ -1045,6 +1045,23 @@ describe('SemanticStudioService', () => {
             expect(draftChangeUuid).toBeNull();
         });
 
+        it('adds none of a model when part of its change is refused', async () => {
+            const { results, draftChangeUuid } =
+                await setup().service.proposeDraftChange(
+                    deployer,
+                    PROJECT_UUID,
+                    [
+                        draftModel(
+                            'label: Sales\ndimensions:\n  - name: amount\n    required_attributes:\n      team: sales\n',
+                        ),
+                    ],
+                    null,
+                    null,
+                );
+            expect(results[0]).toMatchObject({ status: 'failed', changes: [] });
+            expect(draftChangeUuid).toBeNull();
+        });
+
         it('keeps a model the warehouse rejects out of the draft', async () => {
             const context = setup({ rejectSql: 'orders' });
             const { results, diffs, draftChangeUuid } =

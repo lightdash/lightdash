@@ -2,7 +2,7 @@ import {
     listChangesToolDefinition,
     proposeSemanticLayerChangeToolDefinition,
     readSemanticModelToolDefinition,
-    type SemanticLayerDraftItemResult,
+    type SemanticLayerProposalItemResult,
     type StudioChangeSummary,
     type ToolProposeSemanticLayerChangeOutput,
 } from '@lightdash/common';
@@ -25,7 +25,7 @@ const renderProposedModel = (
         refusals,
         error,
         notes,
-    }: SemanticLayerDraftItemResult,
+    }: SemanticLayerProposalItemResult,
     advice: string[],
     metricsToRun: string[],
 ): string =>
@@ -94,15 +94,8 @@ export const getProposeSemanticLayerChange = ({
                                 : [],
                     };
                 });
-                const hasRefusals = results.some(
-                    ({ status, refusals }) =>
-                        status === 'ready' && refusals.length > 0,
-                );
-                const joinedLine = hasRefusals
-                    ? "This joined the person's draft without the refused parts, which changed nothing. Propose those again in a way that can pass, or tell the person what was left out. Nothing is published until they publish the draft."
-                    : "This joined the person's draft, and its card shows them what changed, your note and your options, so write nothing more. Nothing is published until they publish the draft.";
                 const joinedDraftLine = draftChangeUuid
-                    ? joinedLine
+                    ? "This joined the person's draft, and its card shows them what changed, your note and your options, so write nothing more. Nothing is published until they publish the draft."
                     : 'Nothing joined the draft.';
                 const output: ToolProposeSemanticLayerChangeOutput = {
                     result: [
@@ -122,13 +115,10 @@ export const getProposeSemanticLayerChange = ({
                         diffs,
                         draftChangeUuid,
                         startedChange,
-                        needsFollowUp:
-                            hasRefusals ||
-                            advised.some(
-                                ({ advice, metricsToRun }) =>
-                                    advice.length > 0 ||
-                                    metricsToRun.length > 0,
-                            ),
+                        needsFollowUp: advised.some(
+                            ({ advice, metricsToRun }) =>
+                                advice.length > 0 || metricsToRun.length > 0,
+                        ),
                         note: draftChangeUuid ? unescapeQuotes(note) : null,
                         options: draftChangeUuid
                             ? options.map(
