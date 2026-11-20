@@ -1,8 +1,11 @@
 import {
     assertUnreachable,
+    FeatureFlags,
     type AiPromptContextInput,
 } from '@lightdash/common';
 import { useCallback } from 'react';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { useDefaultAiAgent } from '../aiCopilot/components/Launcher/useDefaultAiAgent';
 import { useLauncherDock } from '../aiCopilot/components/Launcher/useLauncherDock';
 import {
@@ -19,9 +22,13 @@ import {
 } from '../aiCopilot/store/hooks';
 import { captureSendPlan, toPendingContext } from './captureSendPlan';
 import { captureThreadTarget } from './captureThreadTarget';
+import { uploadCaptureImages } from './uploadCaptureImages';
 
 type SendInput = {
-    prompt: string;
+    /** The message, worded for whether the marked screenshots go with it. */
+    buildPrompt: (hasImages: boolean) => string;
+    /** The recording's screenshots with the marks drawn on. */
+    images: File[];
     context: AiPromptContextInput;
     /** Started from the open conversation's mic: add to that conversation. */
     followUp: boolean;
@@ -35,6 +42,9 @@ export const useSendCaptureToAgent = (projectUuid: string) => {
     const dispatch = useAiAgentStoreDispatch();
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
     const { selectedAgent } = useDefaultAiAgent(projectUuid);
+    const lightdashApi = useLightdashApi();
+    const imagesFlag = useServerFeatureFlag(FeatureFlags.AiThreadImages);
+    const canSendImages = imagesFlag.data?.enabled === true;
     const openThreadId = useAiAgentStoreSelector(
         (state) => captureThreadTarget(state.aiAgentLauncher)?.threadId ?? null,
     );
@@ -69,7 +79,25 @@ export const useSendCaptureToAgent = (projectUuid: string) => {
     );
 
     const send = useCallback(
-        async ({ prompt, context, followUp }: SendInput): Promise<void> => {
+        async ({
+            buildPrompt,
+            images,
+            context: pageContext,
+            followUp,
+        }: SendInput): Promise<void> => {
+            // Like a screen recording: the agent sees the marks as drawn.
+            const imageFileUuids =
+                canSendImages && images.length > 0
+                    ? await uploadCaptureImages(lightdashApi, images)
+                    : [];
+            const prompt = buildPrompt(imageFileUuids.length > 0);
+            const context: AiPromptContextInput = [
+                ...pageContext,
+                ...imageFileUuids.map((fileUuid) => ({
+                    type: 'thread_image' as const,
+                    fileUuid,
+                })),
+            ];
             const plan = captureSendPlan({
                 followUp,
                 openThread:
@@ -92,8 +120,9 @@ export const useSendCaptureToAgent = (projectUuid: string) => {
                 case 'panel':
                     dispatch(
                         openDefaultAgentPanel({
-                            pendingContext: toPendingContext(context),
+                            pendingContext: toPendingContext(pageContext),
                             pendingPrompt: prompt,
+                            pendingImageFileUuids: imageFileUuids,
                         }),
                     );
                     return;
@@ -102,8 +131,10 @@ export const useSendCaptureToAgent = (projectUuid: string) => {
             }
         },
         [
+            canSendImages,
             createThread,
             dispatch,
+            lightdashApi,
             openAgentUuid,
             openThreadId,
             selectedAgent,

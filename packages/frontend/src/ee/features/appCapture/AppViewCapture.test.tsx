@@ -73,17 +73,26 @@ describe('AppViewCapture', () => {
 
         mocks.surface?.onCapture(result);
 
-        await vi.waitFor(() =>
-            expect(mocks.sendToAgent).toHaveBeenCalledWith({
-                // Started from the page, so it starts a new conversation.
-                followUp: false,
-                prompt: [
-                    'These questions are about the data app "Sales pulse".',
-                    '',
-                    '- ① (0:02) circled, top left: "why is this so low"',
-                ].join('\n'),
-                context: [{ type: 'data_app', appUuid: 'app-1' }],
-            }),
+        await vi.waitFor(() => expect(mocks.sendToAgent).toHaveBeenCalled());
+        const [sent] = mocks.sendToAgent.mock.calls[0] as unknown as [
+            {
+                buildPrompt: (hasImages: boolean) => string;
+                images: File[];
+                followUp: boolean;
+                context: unknown;
+            },
+        ];
+        // Started from the page, so it starts a new conversation.
+        expect(sent.followUp).toBe(false);
+        expect(sent.images).toEqual([]);
+        expect(sent.context).toEqual([{ type: 'data_app', appUuid: 'app-1' }]);
+        // Without screenshots only the mark and speech lines are kept.
+        expect(sent.buildPrompt(false)).toBe(
+            [
+                'These questions are about the data app "Sales pulse".',
+                '',
+                '- ① (0:02) circled, top left: "why is this so low"',
+            ].join('\n'),
         );
     });
 });
