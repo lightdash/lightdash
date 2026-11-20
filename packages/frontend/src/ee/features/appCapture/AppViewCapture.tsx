@@ -66,11 +66,13 @@ const AppViewCapture = forwardRef<CaptureHostHandle, Props>(
                 try {
                     await sendToAgent({
                         followUp,
-                        prompt: buildAppCapturePrompt({
-                            appName,
-                            summary: result.summary,
-                            hasImages: false,
-                        }),
+                        buildPrompt: (hasImages) =>
+                            buildAppCapturePrompt({
+                                appName,
+                                summary: result.summary,
+                                hasImages,
+                            }),
+                        images: result.images,
                         context: attachedAppUuid
                             ? [{ type: 'data_app', appUuid: attachedAppUuid }]
                             : [],

@@ -177,6 +177,7 @@ const DashboardCapture: FC = () => {
             dashboardName,
             layoutDone,
             followUp,
+            images,
         }: {
             summary: string;
             tiles: DashboardTile[];
@@ -187,6 +188,8 @@ const DashboardCapture: FC = () => {
             /** Layout changes the page made from this recording, in words. */
             layoutDone: string;
             followUp: boolean;
+            /** The recording's screenshots with the marks drawn on. */
+            images: File[];
         }) => {
             const chartUuids = [
                 ...new Set(
@@ -199,16 +202,16 @@ const DashboardCapture: FC = () => {
                     ),
                 ),
             ].slice(0, MAX_CHART_CONTEXT);
-            // Screenshots are not sent to the agent yet, so the prompt keeps
-            // only the lines about marks and speech.
-            const prompt = buildAgentPrompt({
-                heading: `These requests are about the dashboard "${dashboardName}".`,
-                alreadyDone: layoutDone || undefined,
-                summary,
-                hasImages: false,
-            });
             void sendToAgent({
-                prompt,
+                // The marked screenshots go with the words when they upload.
+                buildPrompt: (hasImages) =>
+                    buildAgentPrompt({
+                        heading: `These requests are about the dashboard "${dashboardName}".`,
+                        alreadyDone: layoutDone || undefined,
+                        summary,
+                        hasImages,
+                    }),
+                images,
                 followUp,
                 context: [
                     { type: 'dashboard', dashboardUuid },
@@ -282,6 +285,7 @@ const DashboardCapture: FC = () => {
                         dashboardUuid: dashboard.uuid,
                         dashboardName: dashboard.name,
                         followUp,
+                        images: result.images,
                         layoutDone:
                             layout.applied > 0
                                 ? describeLayoutOps(

@@ -341,11 +341,28 @@ const NewThreadPanel: FC<{
     const pendingPrompt = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.pendingPrompt,
     );
+    const pendingImageFileUuids = useAiAgentStoreSelector(
+        (state) => state.aiAgentLauncher.pendingImageFileUuids,
+    );
     useEffect(() => {
         if (!pendingPrompt || !isPinnedContextReady || isLocked) return;
         dispatch(clearPendingPrompt());
-        void handleSubmit({ message: pendingPrompt, toolHints: [] });
-    }, [dispatch, handleSubmit, isLocked, isPinnedContextReady, pendingPrompt]);
+        void handleSubmit({
+            message: pendingPrompt,
+            toolHints: [],
+            context: pendingImageFileUuids.map((fileUuid) => ({
+                type: 'thread_image' as const,
+                fileUuid,
+            })),
+        });
+    }, [
+        dispatch,
+        handleSubmit,
+        isLocked,
+        isPinnedContextReady,
+        pendingImageFileUuids,
+        pendingPrompt,
+    ]);
 
     const displayName = isAuto ? 'Auto' : agent.name;
     const description = isAuto
