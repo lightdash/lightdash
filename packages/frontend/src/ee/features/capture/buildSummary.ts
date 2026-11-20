@@ -164,6 +164,6 @@ export const buildSummary = (input: {
             );
         }
     }
-    lines.push(LAST_LINE);
+    if (input.transcript.length > 0) lines.push(LAST_LINE);
     return lines.join('\n');
 };

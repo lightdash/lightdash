@@ -60,7 +60,7 @@ describe('buildSummary', () => {
             ],
             transcript: [],
         });
-        expect(out.split('\n').slice(1, -1)).toEqual([
+        expect(out.split('\n').slice(1)).toEqual([
             'Image 1:',
             '- ① (0:01) circled, top right',
             'Image 2 (after scrolling or clicking):',
@@ -83,7 +83,7 @@ describe('buildSummary', () => {
             ],
             transcript: [],
         });
-        expect(out.split('\n').slice(1, -1)).toEqual([
+        expect(out.split('\n').slice(1)).toEqual([
             '- ① (0:01) circled, top right',
             'Not shown in an image:',
             '- ② (0:03) circled, top right',
@@ -136,7 +136,7 @@ describe('buildSummary', () => {
         );
     });
 
-    it('omits image headers for one image and the quote for a silent mark', () => {
+    it('omits image headers for one image, and the quote and the speech note with no speech', () => {
         const out = buildSummary({
             durationMs: 5000,
             imageCount: 1,
@@ -146,7 +146,6 @@ describe('buildSummary', () => {
         expect(out.split('\n')).toEqual([
             '[Design Mode capture, 0:05. The attached image shows the page with numbered red marks.]',
             '- ① (0:01) circled, top right',
-            LAST_LINE,
         ]);
     });
 
