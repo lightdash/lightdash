@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     DownloadFileType,
     formatDate,
-    XlsxExportContent,
     type ConditionalFormattingConfig,
     type DownloadOptions,
     type PivotConfig,
@@ -75,8 +74,6 @@ export type ExportResultsProps = {
     showSubtotals?: boolean;
     hideLimitSelection?: boolean;
     forceShowLimitSelection?: boolean;
-    // Saved non-table charts can export XLSX as a rendered image of the chart
-    canExportChartImage?: boolean;
     /**
      * Result scopes whose download the backend caps at the organization's
      * cell limit (it reruns the query with the cap). Defaults to "All results"
@@ -105,7 +102,6 @@ const ExportResults: FC<ExportResultsProps> = memo(
         showSubtotals,
         hideLimitSelection = false,
         forceShowLimitSelection = false,
-        canExportChartImage = false,
         cellLimitedScopes = DEFAULT_CELL_LIMITED_SCOPES,
         renderDialogActions,
     }) => {
@@ -123,13 +119,6 @@ const ExportResults: FC<ExportResultsProps> = memo(
         const [fileType, setFileType] = useState<DownloadFileType>(
             DownloadFileType.CSV,
         );
-        const [xlsxContent, setXlsxContent] = useState<XlsxExportContent>(
-            XlsxExportContent.DATA,
-        );
-        const isChartImageExport =
-            canExportChartImage &&
-            fileType === DownloadFileType.XLSX &&
-            xlsxContent === XlsxExportContent.CHART_IMAGE;
 
         const [hasExported, setHasExported] = useState(false);
         const { isLoading: isExporting, mutateAsync: exportMutation } =
@@ -170,9 +159,6 @@ const ExportResults: FC<ExportResultsProps> = memo(
                             exportPivotedData && pivotConfig
                                 ? undefined
                                 : showColumnTotals,
-                        xlsxContent: isChartImageExport
-                            ? XlsxExportContent.CHART_IMAGE
-                            : undefined,
                         showSubtotals:
                             fileType === DownloadFileType.XLSX &&
                             (!pivotConfig || !exportPivotedData)
@@ -259,39 +245,6 @@ const ExportResults: FC<ExportResultsProps> = memo(
         const maxColumnLimit = health.data?.pivotTable?.maxColumnLimit || 60;
         const isPivotTable = exportPivotedData && !!pivotConfig;
         const isDialog = !!renderDialogActions;
-        const xlsxContentSelection =
-            canExportChartImage && fileType === DownloadFileType.XLSX ? (
-                <Stack gap="sm">
-                    <Stack gap={4}>
-                        <Text fw={600} fz="sm">
-                            Content
-                        </Text>
-                        <Text fz="xs" c="dimmed">
-                            Data exports the rows behind the chart. Chart image
-                            embeds a picture of the chart as it is shown.
-                        </Text>
-                    </Stack>
-                    <SegmentedControl
-                        size="sm"
-                        fullWidth
-                        value={xlsxContent}
-                        onChange={(value) =>
-                            setXlsxContent(value as XlsxExportContent)
-                        }
-                        data={[
-                            {
-                                label: 'Data',
-                                value: XlsxExportContent.DATA,
-                            },
-                            {
-                                label: 'Chart image',
-                                value: XlsxExportContent.CHART_IMAGE,
-                            },
-                        ]}
-                        data-testid="export-xlsx-content"
-                    />
-                </Stack>
-            ) : null;
 
         const limitSelection = (
             <Stack gap="sm">
@@ -474,39 +427,34 @@ const ExportResults: FC<ExportResultsProps> = memo(
                             />
                         </Stack>
 
-                        {xlsxContentSelection}
-
-                        {!isChartImageExport && (
-                            <Stack gap="sm">
-                                <Stack gap={4}>
-                                    <Text fw={600} fz="sm">
-                                        Values
-                                    </Text>
-                                    <Text fz="xs" c="dimmed">
-                                        Formatted keeps table presentation. Raw
-                                        uses the underlying values.
-                                    </Text>
-                                </Stack>
-                                <SegmentedControl
-                                    size="sm"
-                                    fullWidth
-                                    value={format}
-                                    onChange={(value) => setFormat(value)}
-                                    data={[
-                                        {
-                                            label: 'Formatted',
-                                            value: Values.FORMATTED,
-                                        },
-                                        { label: 'Raw', value: Values.RAW },
-                                    ]}
-                                />
+                        <Stack gap="sm">
+                            <Stack gap={4}>
+                                <Text fw={600} fz="sm">
+                                    Values
+                                </Text>
+                                <Text fz="xs" c="dimmed">
+                                    Formatted keeps table presentation. Raw uses
+                                    the underlying values.
+                                </Text>
                             </Stack>
-                        )}
+                            <SegmentedControl
+                                size="sm"
+                                fullWidth
+                                value={format}
+                                onChange={(value) => setFormat(value)}
+                                data={[
+                                    {
+                                        label: 'Formatted',
+                                        value: Values.FORMATTED,
+                                    },
+                                    { label: 'Raw', value: Values.RAW },
+                                ]}
+                            />
+                        </Stack>
 
-                        {!isChartImageExport && layoutSelection}
+                        {layoutSelection}
 
-                        {!isChartImageExport &&
-                            !hideLimitSelection &&
+                        {!hideLimitSelection &&
                             (forceShowLimitSelection ? (
                                 <Stack gap="sm">
                                     <Stack gap={4}>
@@ -546,22 +494,39 @@ const ExportResults: FC<ExportResultsProps> = memo(
                     </Stack>
                 </Paper>
 
-                {!isChartImageExport && (
-                    <Stack gap="xs">
-                        {!isPivotTable && (
-                            <CellLimitNote
-                                limit={limit}
-                                customLimit={customLimit}
-                                totalResults={totalResults}
-                                columnOrder={columnOrder}
-                                csvCellsLimit={csvCellsLimit}
-                                cellLimitApplies={cellLimitedScopes.includes(
-                                    limit,
-                                )}
-                            />
-                        )}
+                <Stack gap="xs">
+                    {!isPivotTable && (
+                        <CellLimitNote
+                            limit={limit}
+                            customLimit={customLimit}
+                            totalResults={totalResults}
+                            columnOrder={columnOrder}
+                            csvCellsLimit={csvCellsLimit}
+                            cellLimitApplies={cellLimitedScopes.includes(limit)}
+                        />
+                    )}
 
-                        {isPivotTable && (
+                    {isPivotTable && (
+                        <Group gap="xs" wrap="nowrap" align="flex-start">
+                            <MantineIcon
+                                icon={IconInfoCircle}
+                                size="sm"
+                                color="dimmed"
+                            />
+                            <Text size="xs" c="dimmed">
+                                <Text span fw={500} c="foreground">
+                                    Pivot export limit.
+                                </Text>{' '}
+                                Pivot exports are limited to{' '}
+                                {csvCellsLimit.toLocaleString()} cells and{' '}
+                                {maxColumnLimit} columns.
+                            </Text>
+                        </Group>
+                    )}
+
+                    {fileType === DownloadFileType.XLSX &&
+                        (limit === Limit.ALL || limit === Limit.CUSTOM) &&
+                        !isPivotTable && (
                             <Group gap="xs" wrap="nowrap" align="flex-start">
                                 <MantineIcon
                                     icon={IconInfoCircle}
@@ -570,41 +535,15 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                 />
                                 <Text size="xs" c="dimmed">
                                     <Text span fw={500} c="foreground">
-                                        Pivot export limit.
+                                        Excel row limit.
                                     </Text>{' '}
-                                    Pivot exports are limited to{' '}
-                                    {csvCellsLimit.toLocaleString()} cells and{' '}
-                                    {maxColumnLimit} columns.
+                                    Excel exports are limited to 1,000,000 rows.
                                 </Text>
                             </Group>
                         )}
+                </Stack>
 
-                        {fileType === DownloadFileType.XLSX &&
-                            (limit === Limit.ALL || limit === Limit.CUSTOM) &&
-                            !isPivotTable && (
-                                <Group
-                                    gap="xs"
-                                    wrap="nowrap"
-                                    align="flex-start"
-                                >
-                                    <MantineIcon
-                                        icon={IconInfoCircle}
-                                        size="sm"
-                                        color="dimmed"
-                                    />
-                                    <Text size="xs" c="dimmed">
-                                        <Text span fw={500} c="foreground">
-                                            Excel row limit.
-                                        </Text>{' '}
-                                        Excel exports are limited to 1,000,000
-                                        rows.
-                                    </Text>
-                                </Group>
-                            )}
-                    </Stack>
-                )}
-
-                {!isPivotTable && !isChartImageExport && (
+                {!isPivotTable && (
                     <LargeExportWarning
                         limit={limit}
                         customLimit={customLimit}

@@ -43,7 +43,6 @@ import {
     type UUID,
     type WarehouseClient,
     type WarehouseTypes,
-    type XlsxExportContent,
 } from '@lightdash/common';
 import type { OnboardingFlow } from '../../analytics/LightdashAnalytics';
 import type { LightdashConfig } from '../../config/parseConfig';
@@ -130,7 +129,6 @@ export type DownloadAsyncQueryResultsArgs = Omit<
     expirationSecondsOverride?: number;
     conditionalFormattings?: ConditionalFormattingConfig[];
     showColumnTotals?: boolean;
-    xlsxContent?: XlsxExportContent;
     showSubtotals?: boolean;
 };
 

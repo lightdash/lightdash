@@ -2,7 +2,7 @@ import { type ParametersValuesMap, type PivotConfiguration } from '../..';
 import type { QueryExecutionContext } from '../analytics';
 import type { ConditionalFormattingConfig } from '../conditionalFormatting';
 import type { DocumentQueryReference } from '../document';
-import type { DownloadFileType, XlsxExportContent } from '../downloadFile';
+import type { DownloadFileType } from '../downloadFile';
 import type { AndFilterGroup, DashboardFilters, Filters } from '../filter';
 import { type MergeQuery, type MetricSourcedMergeQuery } from '../mergeQuery';
 import type { MetricQueryRequest, SortField } from '../metricQuery';
@@ -84,19 +84,6 @@ export type ExecuteAsyncDashboardChartRequestParams =
         // published chart, so a tile matches what the author sees
         includeUnpublishedDraft?: boolean;
     };
-
-/** Saved-chart and dashboard-chart runs both carry the chart they rendered. */
-export const isExecuteAsyncChartRequestParams = (
-    params: ExecuteAsyncQueryRequestParams,
-): params is
-    | ExecuteAsyncSavedChartRequestParams
-    | ExecuteAsyncDashboardChartRequestParams =>
-    'chartUuid' in params && typeof params.chartUuid === 'string';
-
-export const isExecuteAsyncDashboardChartRequestParams = (
-    params: ExecuteAsyncQueryRequestParams,
-): params is ExecuteAsyncDashboardChartRequestParams =>
-    isExecuteAsyncChartRequestParams(params) && 'dashboardUuid' in params;
 
 /** A merge run: the spec that produced it, recorded verbatim. */
 export type ExecuteAsyncMergeQueryRequestParams =
@@ -268,7 +255,6 @@ export type DownloadAsyncQueryResultsRequestParams = {
     attachmentDownloadName?: string;
     conditionalFormattings?: ConditionalFormattingConfig[];
     showColumnTotals?: boolean;
-    xlsxContent?: XlsxExportContent;
     showSubtotals?: boolean;
 };
 
