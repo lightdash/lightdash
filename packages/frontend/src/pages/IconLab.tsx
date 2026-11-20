@@ -49,6 +49,7 @@ const SET_LABELS: Record<ContentIconSetKey, string> = {
     b: 'B · Accent',
     c: 'C · Solid',
     d: 'D · Technical',
+    e: 'E · Minimal',
 };
 
 const isSetKey = (value: string): value is ContentIconSetKey =>
@@ -193,6 +194,41 @@ const IconLab: FC = () => {
                     The nav bar above is the real one: open Browse and New to
                     see the menus in the selected set.
                 </Text>
+
+                <Section
+                    title="Bare and one colour"
+                    source="mock sidebar list, 16px icons, no box, no type colour"
+                >
+                    <Box className={classes.sidebars}>
+                        {[MATRIX_ROWS.slice(0, 10), MATRIX_ROWS.slice(10)].map(
+                            (rows) => (
+                                <Paper
+                                    key={rows[0].name}
+                                    className={classes.sidebar}
+                                >
+                                    {rows.map((row) => (
+                                        <Group
+                                            key={row.name}
+                                            gap="sm"
+                                            wrap="nowrap"
+                                            className={classes.sidebarRow}
+                                        >
+                                            <MantineIcon
+                                                icon={
+                                                    CONTENT_ICON_SETS[setKey][
+                                                        row.name
+                                                    ]
+                                                }
+                                                size={16}
+                                            />
+                                            <Text fz="sm">{row.label}</Text>
+                                        </Group>
+                                    ))}
+                                </Paper>
+                            ),
+                        )}
+                    </Box>
+                </Section>
 
                 <FavoritesProvider projectUuid={projectUuid}>
                     <Stack gap="xl">

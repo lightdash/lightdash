@@ -26,6 +26,7 @@ import {
     type ContentIconSet,
 } from './contentIcons';
 import { type ContentIconSetKey } from './contentIconSetStore';
+import { MINIMAL_ICONS } from './minimalIcons';
 import { TECHNICAL_ICONS } from './technicalIcons';
 
 /** What the app ships today. The horizontal bar is the bar icon, rotated by callers. */
@@ -58,4 +59,5 @@ export const CONTENT_ICON_SETS: Record<ContentIconSetKey, ContentIconSet> = {
     b: ACCENT_ICONS,
     c: SOLID_ICONS,
     d: TECHNICAL_ICONS,
+    e: MINIMAL_ICONS,
 };
