@@ -1351,18 +1351,28 @@ export const useCreateAgentThreadMutation = (
         onSuccess: (thread, variables) => {
             const { agentUuid } = variables;
             // Refresh thread lists (incl. sidebar) without delaying the stream start
-            void queryClient.invalidateQueries({
-                queryKey: [AI_AGENTS_KEY, projectUuid, agentUuid, 'threads'],
-            });
-            void queryClient.invalidateQueries({
-                queryKey: [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY],
-            });
+            const threadListsRefreshed = Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: [
+                        AI_AGENTS_KEY,
+                        projectUuid,
+                        agentUuid,
+                        'threads',
+                    ],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY],
+                }),
+            ]);
 
             if (!isEmbed) {
-                void generateThreadTitle({
-                    agentUuid,
-                    threadUuid: thread.uuid,
-                });
+                // The title patch needs the new thread already in the sidebar list
+                void threadListsRefreshed.then(() =>
+                    generateThreadTitle({
+                        agentUuid,
+                        threadUuid: thread.uuid,
+                    }),
+                );
             }
 
             // The agent is loaded by whichever page kicked off this mutation —
