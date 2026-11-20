@@ -58,17 +58,17 @@ const minEditorHeight = (content: HTMLElement) => {
     return Math.max(px(contentStyle.minHeight), oneLine) || MIN_EDITOR_HEIGHT;
 };
 
-type EditorHeightRange = { now: number; min: number; max: number };
-
-const measureEditorHeight = (
-    height: number,
-    content: HTMLElement,
-): EditorHeightRange => {
+const editorHeightLimits = (content: HTMLElement) => {
     const min = minEditorHeight(content);
     const dockHeight =
         findScrollParent(content)?.clientHeight || window.innerHeight;
     const max = Math.max(min, Math.round(dockHeight * MAX_EDITOR_SHARE));
-    return { now: Math.min(max, Math.max(min, Math.round(height))), min, max };
+    return { min, max };
+};
+
+const clampEditorHeight = (height: number, content: HTMLElement) => {
+    const { min, max } = editorHeightLimits(content);
+    return Math.min(max, Math.max(min, Math.round(height)));
 };
 
 export type PromptComposerHandle = {
@@ -288,22 +288,23 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
         const isInline = variant === 'inline';
         const contentRef = useRef<HTMLDivElement>(null);
         const [editorHeight, setEditorHeight] = useState<number | null>(null);
-        const [heightRange, setHeightRange] =
-            useState<EditorHeightRange | null>(null);
-        const resizeTo = (height: number, content: HTMLElement) =>
-            setEditorHeight(measureEditorHeight(height, content).now);
+        const [heightRange, setHeightRange] = useState<{
+            now: number;
+            min: number;
+            max: number;
+        } | null>(null);
         const hasResizeHandle = !isInline && !!resizeHandle;
         const syncHeightRange = useCallback(() => {
             const content = contentRef.current;
             if (!hasResizeHandle || !content) return;
-            const range = measureEditorHeight(
-                editorHeight ?? content.clientHeight,
-                content,
-            );
-            setHeightRange(range);
-            if (editorHeight !== null && range.now !== editorHeight) {
-                setEditorHeight(range.now);
-            }
+            // Reports the rendered height, which can sit outside limits that moved since the last resize.
+            const now = Math.round(editorHeight ?? content.clientHeight);
+            const { min, max } = editorHeightLimits(content);
+            setHeightRange({
+                now,
+                min: Math.min(min, now),
+                max: Math.max(max, now),
+            });
         }, [hasResizeHandle, editorHeight]);
         useLayoutEffect(syncHeightRange, [syncHeightRange]);
         const dragStartHeightRef = useRef<number | null>(null);
@@ -323,7 +324,9 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                 }
                 const start = dragStartHeightRef.current;
                 if (start === null) return;
-                resizeTo(start + growSign * dy, content);
+                setEditorHeight(
+                    clampEditorHeight(start + growSign * dy, content),
+                );
             },
         );
 
@@ -341,9 +344,11 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
             if (movement === 0) return;
             event.preventDefault();
             const step = RESIZE_KEYBOARD_STEP * (event.shiftKey ? 4 : 1);
-            resizeTo(
-                content.clientHeight + growSign * movement * step,
-                content,
+            setEditorHeight(
+                clampEditorHeight(
+                    content.clientHeight + growSign * movement * step,
+                    content,
+                ),
             );
         };
 
