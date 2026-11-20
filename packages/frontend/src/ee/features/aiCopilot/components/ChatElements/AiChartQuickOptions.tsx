@@ -510,9 +510,11 @@ export const AiChartQuickOptions = ({
     if (!metricQuery) return null;
 
     const canVerify = !!artifactData && canManageAgent;
-    const verifyLabel = isVerified
-        ? 'Remove from verified answers'
-        : 'Add to verified answers';
+    const verifyLabel = getUiString(
+        isVerified
+            ? 'aiAgent.verifiedAnswer.remove'
+            : 'aiAgent.verifiedAnswer.add',
+    );
     const { savedQueryUuid } = message;
     const hasSavedChartAction = !!savedQueryUuid;
     const hasSaveActions =

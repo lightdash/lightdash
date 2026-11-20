@@ -632,6 +632,8 @@
         "aiAgent.chartType.scatter": "წერტილოვანი დიაგრამა",
         "aiAgent.chartType.pie": "წრიული დიაგრამა",
         "aiAgent.chartType.funnel": "ძაბრის დიაგრამა",
-        "aiAgent.chartType.big_number": "დიდი რიცხვი"
+        "aiAgent.chartType.big_number": "დიდი რიცხვი",
+        "aiAgent.verifiedAnswer.add": "დადასტურებულ პასუხებში დამატება",
+        "aiAgent.verifiedAnswer.remove": "დადასტურებული პასუხებიდან ამოღება"
     }
 }

@@ -665,6 +665,8 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.chartType.pie': 'Pie chart',
     'aiAgent.chartType.funnel': 'Funnel chart',
     'aiAgent.chartType.big_number': 'Big number',
+    'aiAgent.verifiedAnswer.add': 'Add to verified answers',
+    'aiAgent.verifiedAnswer.remove': 'Remove from verified answers',
     'aiAgent.thread.boundDashboard': 'Linked dashboard',
     'aiAgent.thread.boundDashboardUnavailable': 'Dashboard no longer available',
     'aiAgent.thread.boundChart': 'Linked chart',

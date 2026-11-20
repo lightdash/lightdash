@@ -27,26 +27,18 @@ type Props<T extends SwitcherKind> = {
     variant?: 'default' | 'pill';
 };
 
-const CHART_TYPE_ICONS: Record<SwitcherKind, typeof IconTable> = {
-    table: IconTable,
-    bar: IconChartBar,
-    horizontal: IconChartBar,
-    line: IconChartLine,
-    scatter: IconChartScatter,
-    pie: IconChartPie,
-    funnel: IconFilter,
-    big_number: IconNumber123,
-};
-
-const CHART_TYPE_LABELS: Record<SwitcherKind, UiStringKey> = {
-    table: 'aiAgent.chartType.table',
-    bar: 'aiAgent.chartType.bar',
-    horizontal: 'aiAgent.chartType.horizontal',
-    line: 'aiAgent.chartType.line',
-    scatter: 'aiAgent.chartType.scatter',
-    pie: 'aiAgent.chartType.pie',
-    funnel: 'aiAgent.chartType.funnel',
-    big_number: 'aiAgent.chartType.big_number',
+const CHART_TYPES: Record<
+    SwitcherKind,
+    { icon: typeof IconTable; label: UiStringKey }
+> = {
+    table: { icon: IconTable, label: 'aiAgent.chartType.table' },
+    bar: { icon: IconChartBar, label: 'aiAgent.chartType.bar' },
+    horizontal: { icon: IconChartBar, label: 'aiAgent.chartType.horizontal' },
+    line: { icon: IconChartLine, label: 'aiAgent.chartType.line' },
+    scatter: { icon: IconChartScatter, label: 'aiAgent.chartType.scatter' },
+    pie: { icon: IconChartPie, label: 'aiAgent.chartType.pie' },
+    funnel: { icon: IconFilter, label: 'aiAgent.chartType.funnel' },
+    big_number: { icon: IconNumber123, label: 'aiAgent.chartType.big_number' },
 };
 
 export const AgentVisualizationChartTypeSwitcher = <T extends SwitcherKind>({
@@ -73,7 +65,7 @@ export const AgentVisualizationChartTypeSwitcher = <T extends SwitcherKind>({
                 label: (
                     <>
                         <MantineIcon
-                            icon={CHART_TYPE_ICONS[chartType]}
+                            icon={CHART_TYPES[chartType].icon}
                             size="sm"
                             stroke={1.3}
                             className={
@@ -83,7 +75,7 @@ export const AgentVisualizationChartTypeSwitcher = <T extends SwitcherKind>({
                             }
                         />
                         <VisuallyHidden>
-                            {getUiString(CHART_TYPE_LABELS[chartType])}
+                            {getUiString(CHART_TYPES[chartType].label)}
                         </VisuallyHidden>
                     </>
                 ),

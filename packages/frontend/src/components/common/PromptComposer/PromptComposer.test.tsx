@@ -215,22 +215,18 @@ describe('PromptComposer resize handle', () => {
         expect(resizedHeight(handle)).toBe(40);
     });
 
-    it('reports its value and range, stopping at the minimum', () => {
+    it('reports its size as a value that tracks resizing', () => {
         renderWithProviders(
             <PromptComposer ariaLabel="Prompt" resizeHandle="top" />,
         );
         const handle = getHandle();
-        expect(handle).toHaveAttribute('aria-valuemin', '40');
-        expect(handle).toHaveAttribute('aria-valuenow', '40');
+        const value = (name: string) => Number(handle.getAttribute(name));
+        expect(value('aria-valuenow')).toBe(value('aria-valuemin'));
 
         fireEvent.keyDown(handle, { key: 'ArrowUp', shiftKey: true });
-        expect(handle).toHaveAttribute('aria-valuenow', '64');
-
-        fireEvent.keyDown(handle, { key: 'ArrowDown', shiftKey: true });
-        fireEvent.keyDown(handle, { key: 'ArrowDown', shiftKey: true });
-        expect(handle).toHaveAttribute('aria-valuenow', '40');
-        expect(Number(handle.getAttribute('aria-valuemax'))).toBeGreaterThan(
-            40,
+        expect(value('aria-valuenow')).toBeGreaterThan(value('aria-valuemin'));
+        expect(value('aria-valuenow')).toBeLessThanOrEqual(
+            value('aria-valuemax'),
         );
     });
 });

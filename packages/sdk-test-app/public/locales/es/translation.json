@@ -632,6 +632,8 @@
         "aiAgent.chartType.scatter": "Gráfico de dispersión",
         "aiAgent.chartType.pie": "Gráfico circular",
         "aiAgent.chartType.funnel": "Gráfico de embudo",
-        "aiAgent.chartType.big_number": "Número grande"
+        "aiAgent.chartType.big_number": "Número grande",
+        "aiAgent.verifiedAnswer.add": "Añadir a respuestas verificadas",
+        "aiAgent.verifiedAnswer.remove": "Quitar de respuestas verificadas"
     }
 }
