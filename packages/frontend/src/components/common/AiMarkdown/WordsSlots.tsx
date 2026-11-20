@@ -1,6 +1,5 @@
 import { type FC, type ReactNode } from 'react';
 import {
-    restoreTokens,
     useWordsContext,
     type WordsCodeBlockProps,
     type WordsLinkProps,
@@ -11,28 +10,12 @@ export const LinkSlot: FC<WordsLinkProps> = (link) => (
     <>{useWordsContext().renderLink(link)}</>
 );
 
-export const InlineTagSlot: FC<{ index: number }> = ({ index }) => {
-    const { tokens, inlineTags } = useWordsContext();
-    const token = tokens[index];
-    if (token?.name === 'br') return <br />;
-    const render = token ? inlineTags[token.name] : undefined;
-    return render ? <>{render(token.attributes)}</> : null;
-};
-
 export const CodeBlockSlot: FC<
     WordsCodeBlockProps & { fallback: ReactNode }
 > = ({ fallback, ...block }) => {
-    const { codeBlocks, tokens } = useWordsContext();
+    const { codeBlocks } = useWordsContext();
     const renderer = codeBlocks.find(({ languages }) =>
         languages.includes(block.language),
     );
-    if (!renderer) return <>{fallback}</>;
-    const code = restoreTokens(block.code, tokens);
-    return <renderer.component {...block} code={code} />;
-};
-
-/** Inline tags written inside code show as their source text. */
-export const RawTokenText: FC<{ text: string }> = ({ text }) => {
-    const { tokens } = useWordsContext();
-    return <>{restoreTokens(text, tokens)}</>;
+    return renderer ? <renderer.component {...block} /> : <>{fallback}</>;
 };

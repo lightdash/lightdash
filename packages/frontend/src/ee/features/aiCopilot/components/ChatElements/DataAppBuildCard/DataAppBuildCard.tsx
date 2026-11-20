@@ -22,7 +22,7 @@ import {
 } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
-import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
+import { AgentMarkdown } from '../../../../../../components/common/AiMarkdown/AgentMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import AppVersionNarration from '../../../../../../features/apps/components/AppVersionNarration';
 import { useElapsedClock } from '../../../../../../features/apps/hooks/useElapsedClock';
@@ -200,7 +200,7 @@ const Summary: FC<{ children: string }> = ({ children }) => {
                     [styles.summaryClamped]: !expanded,
                 })}
             >
-                <AiMarkdown>{children}</AiMarkdown>
+                <AgentMarkdown>{children}</AgentMarkdown>
             </Box>
             {canExpand && (
                 <UnstyledButton

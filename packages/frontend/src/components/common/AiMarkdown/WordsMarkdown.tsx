@@ -6,10 +6,9 @@ import styles from './AiMarkdown.module.css';
 import {
     WordsContext,
     type WordsCodeBlockRenderer,
-    type WordsInlineTagRenderer,
     type WordsLinkProps,
 } from './wordsContext';
-import { extractInlineTags, wordsHtmlToReact } from './wordsHtmlToReact';
+import { wordsHtmlToReact } from './wordsHtmlToReact';
 
 type WordsRenderer = ReturnType<typeof createHtmlRenderer>;
 
@@ -21,13 +20,10 @@ type WordsMarkdownProps = {
     className?: string;
     renderLink?: (link: WordsLinkProps) => ReactNode;
     codeBlocks?: WordsCodeBlockRenderer[];
-    /** Raw inline tags the model writes, e.g. `<ld-mem-cite id="…">`, keyed by tag name. */
-    inlineTags?: Record<string, WordsInlineTagRenderer>;
 };
 
 const RENDER_OPTIONS = { controls: false, lineNumbers: false };
 const NO_CODE_BLOCKS: WordsCodeBlockRenderer[] = [];
-const NO_INLINE_TAGS: Record<string, WordsInlineTagRenderer> = {};
 
 const renderPlainLink = ({ attributes, children }: WordsLinkProps) => (
     <a href={attributes.href} target="_blank" rel="noreferrer noopener">
@@ -65,35 +61,29 @@ const WordsChunk: FC<{ html: string; withCaret: boolean }> = memo(
     ),
 );
 
-/** Agent answers parsed by `@pierre/words` (Wasm) and rendered by React, so links, code blocks and inline tags can be components. */
+/** Agent answers parsed by `@pierre/words` (Wasm) and rendered by React, so links and code blocks can be components. */
 export const WordsMarkdown: FC<WordsMarkdownProps> = ({
     children,
     isStreaming,
     className,
     renderLink = renderPlainLink,
     codeBlocks = NO_CODE_BLOCKS,
-    inlineTags = NO_INLINE_TAGS,
 }) => {
     const rendererRef = useRef<WordsRenderer | null>(null);
     const stableRef = useRef<StableBlocks>({ revision: -1, chunks: [] });
 
-    const tagNames = useMemo(() => Object.keys(inlineTags), [inlineTags]);
-    const { source, tokens } = useMemo(
-        () => extractInlineTags(children, tagNames),
-        [children, tagNames],
-    );
     const { chunks, pending } = useMemo(() => {
         rendererRef.current ??= createHtmlRenderer(RENDER_OPTIONS);
         return renderBlocks(
             rendererRef.current,
             stableRef.current,
-            source,
+            children,
             isStreaming,
         );
-    }, [source, isStreaming]);
+    }, [children, isStreaming]);
     const context = useMemo(
-        () => ({ renderLink, codeBlocks, inlineTags, tokens }),
-        [renderLink, codeBlocks, inlineTags, tokens],
+        () => ({ renderLink, codeBlocks }),
+        [renderLink, codeBlocks],
     );
 
     return (

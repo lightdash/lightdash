@@ -117,7 +117,6 @@ import { AiDataAppRestoreCard } from './DataAppBuildCard/AiDataAppRestoreCard';
 import { getDataAppRestoreItem } from './DataAppBuildCard/dataAppBuildCardState';
 import { DiffMarkdownCodeBlock } from './DiffMarkdownCodeBlock';
 import { isHiddenToolName } from './hiddenToolNames';
-import { MemoryCitation } from './MemoryCitation';
 import {
     MEMORY_CITATION_ALLOWED_TAGS,
     MEMORY_CITATION_COMPONENTS,
@@ -127,7 +126,6 @@ import {
     MessageSourcesToggle,
 } from './MessageMemorySources';
 import { MessageTimingIndicator } from './MessageTimingIndicator';
-import { parseMemoryCitationSlugs } from './parseMemoryCitationSlugs';
 import {
     getContentLinkProperties,
     isContentType,
@@ -557,27 +555,6 @@ const AssistantBubbleContent: FC<{
         ],
         [canOpenSqlRunner, projectUuid],
     );
-    const memoryCitationIndices = useMemo(
-        () =>
-            new Map(
-                parseMemoryCitationSlugs(messageContent).map((slug, index) => [
-                    slug,
-                    index + 1,
-                ]),
-            ),
-        [messageContent],
-    );
-    const wordsInlineTags = useMemo(
-        () => ({
-            'ld-mem-cite': ({ id }: Record<string, string>) => (
-                <MemoryCitation
-                    id={id}
-                    data-memory-index={memoryCitationIndices.get(id)}
-                />
-            ),
-        }),
-        [memoryCitationIndices],
-    );
     const renderWordsLink = useCallback(
         ({ attributes, text, children }: WordsLinkProps) => {
             const props: Record<string, unknown> = {
@@ -896,7 +873,6 @@ const AssistantBubbleContent: FC<{
                                 )}
                                 renderLink={renderWordsLink}
                                 codeBlocks={wordsCodeBlocks}
-                                inlineTags={wordsInlineTags}
                             >
                                 {latestTextSeg.text}
                             </LazyWordsMarkdown>
@@ -1103,7 +1079,6 @@ const AssistantBubbleContent: FC<{
                                             )}
                                             renderLink={renderWordsLink}
                                             codeBlocks={wordsCodeBlocks}
-                                            inlineTags={wordsInlineTags}
                                         >
                                             {messageContent}
                                         </LazyWordsMarkdown>

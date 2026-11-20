@@ -22,7 +22,7 @@ import {
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
 import { useContext, useState, type FC } from 'react';
-import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
+import { AgentMarkdown } from '../../../../../../components/common/AiMarkdown/AgentMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { type ComposerQueryNodeStatus } from '../../../../../../features/composerCharts/lineage/composerNodeStatus';
 import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
@@ -254,9 +254,9 @@ export const ReasoningHistoryRow: FC<{
                 transitionDuration={240}
                 transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
             >
-                <AiMarkdown className={styles.reasoningBody}>
+                <AgentMarkdown className={styles.reasoningBody}>
                     {combined}
-                </AiMarkdown>
+                </AgentMarkdown>
             </Collapse>
         </Box>
     );
