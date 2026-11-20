@@ -11,8 +11,10 @@ import {
 import StarterKit from '@tiptap/starter-kit';
 import {
     forwardRef,
+    useCallback,
     useEffect,
     useImperativeHandle,
+    useLayoutEffect,
     useRef,
     useState,
     type ClipboardEvent as ReactClipboardEvent,
@@ -56,11 +58,16 @@ const minEditorHeight = (content: HTMLElement) => {
     return Math.max(px(contentStyle.minHeight), oneLine) || MIN_EDITOR_HEIGHT;
 };
 
-const clampEditorHeight = (height: number, content: HTMLElement) => {
+const editorHeightLimits = (content: HTMLElement) => {
     const min = minEditorHeight(content);
     const dockHeight =
         findScrollParent(content)?.clientHeight || window.innerHeight;
     const max = Math.max(min, Math.round(dockHeight * MAX_EDITOR_SHARE));
+    return { min, max };
+};
+
+const clampEditorHeight = (height: number, content: HTMLElement) => {
+    const { min, max } = editorHeightLimits(content);
     return Math.min(max, Math.max(min, Math.round(height)));
 };
 
@@ -84,6 +91,8 @@ type PromptComposerAccent = 'none' | 'indigo';
 export type PromptComposerResizeHandle = 'top' | 'bottom';
 
 type Props = {
+    /** Accessible name of the editor; the placeholder disappears once typing starts. */
+    ariaLabel: string;
     variant?: PromptComposerVariant;
     size?: PromptComposerSize;
     accent?: PromptComposerAccent;
@@ -125,6 +134,7 @@ type Props = {
 const PromptComposer = forwardRef<PromptComposerHandle, Props>(
     function PromptComposer(
         {
+            ariaLabel,
             variant = 'card',
             size = 'lg',
             accent = 'none',
@@ -202,6 +212,11 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                 onValueChangeRef.current?.(ed.getText());
             },
             editorProps: {
+                attributes: {
+                    role: 'textbox',
+                    'aria-label': ariaLabel,
+                    'aria-multiline': 'true',
+                },
                 handleKeyDown: (_, event) => {
                     if (
                         event.key !== 'Enter' ||
@@ -273,6 +288,25 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
         const isInline = variant === 'inline';
         const contentRef = useRef<HTMLDivElement>(null);
         const [editorHeight, setEditorHeight] = useState<number | null>(null);
+        const [heightRange, setHeightRange] = useState<{
+            now: number;
+            min: number;
+            max: number;
+        } | null>(null);
+        const hasResizeHandle = !isInline && !!resizeHandle;
+        const syncHeightRange = useCallback(() => {
+            const content = contentRef.current;
+            if (!hasResizeHandle || !content) return;
+            // Reports the rendered height, which can sit outside limits that moved since the last resize.
+            const now = content.clientHeight;
+            const { min, max } = editorHeightLimits(content);
+            setHeightRange({
+                now,
+                min: Math.min(min, now),
+                max: Math.max(max, now),
+            });
+        }, [hasResizeHandle]);
+        useLayoutEffect(syncHeightRange, [syncHeightRange, editorHeight]);
         const dragStartHeightRef = useRef<number | null>(null);
 
         // Dragging the handle away from the opposite edge grows the editor.
@@ -346,17 +380,22 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                 }}
                 onMouseDown={onMouseDown}
             >
-                {!isInline && resizeHandle && (
+                {hasResizeHandle && (
                     <Box
                         ref={resizeHandleRef}
                         role="separator"
                         aria-label="Resize composer"
                         aria-orientation="horizontal"
+                        aria-valuenow={heightRange?.now}
+                        aria-valuemin={heightRange?.min}
+                        aria-valuemax={heightRange?.max}
                         tabIndex={0}
                         className={classes.resizeHandle}
                         data-placement={resizeHandle}
                         onMouseDown={(event) => event.stopPropagation()}
                         onDoubleClick={() => setEditorHeight(null)}
+                        // The draft may have grown the editor since the last resize.
+                        onFocus={syncHeightRange}
                         onKeyDown={handleResizeKeyDown}
                     />
                 )}

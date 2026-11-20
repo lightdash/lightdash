@@ -774,6 +774,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                 />
                 <PromptComposer
                     ref={composerRef}
+                    ariaLabel="Chart type prompt"
                     variant="card"
                     size="sm"
                     className={classes.composer}

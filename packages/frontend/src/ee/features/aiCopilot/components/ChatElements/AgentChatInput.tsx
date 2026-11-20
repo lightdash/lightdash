@@ -1645,6 +1645,7 @@ export const AgentChatInput = ({
     };
 
     const composerCommonProps = {
+        ariaLabel: uiStrings('aiAgent.chatInput.label'),
         placeholder,
         defaultValue,
         autoFocus: true,

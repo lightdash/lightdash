@@ -314,7 +314,13 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                             )
                         )}
 
-                        <Box className={styles.chatContent}>{children}</Box>
+                        {/* An SDK host page owns its own main landmark. */}
+                        <Box
+                            component={isSdk ? 'div' : 'main'}
+                            className={styles.chatContent}
+                        >
+                            {children}
+                        </Box>
                     </ErrorBoundary>
                 </ResizableSplitter.Pane>
 
