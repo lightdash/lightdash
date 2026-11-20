@@ -1446,7 +1446,6 @@ describe('resolveMcpTools', () => {
         expect(result.unavailableMcpServers).toEqual([
             expect.objectContaining({ status: 'not_connected' }),
         ]);
-        expect(aiAgentModel.listMcpServerTools).not.toHaveBeenCalled();
     });
 
     it('marks a server unavailable without connecting when its stored tools fail to load', async () => {

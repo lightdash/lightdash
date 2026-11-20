@@ -1200,18 +1200,16 @@ const toMcpServerToolInputs = (
 
 type McpToolDefinition = ListToolsResult['tools'][number];
 
-const toMcpToolDefinitions = (
-    tools: AiMcpServerToolInput[],
-): ListToolsResult => ({
-    tools: tools.map((tool) => ({
-        name: tool.toolName,
-        title: tool.title ?? undefined,
-        description: tool.description ?? undefined,
-        inputSchema: tool.inputSchema as McpToolDefinition['inputSchema'],
-        annotations: (tool.annotations ??
-            undefined) as McpToolDefinition['annotations'],
-        _meta: (tool.meta ?? undefined) as McpToolDefinition['_meta'],
-    })),
+const toMcpToolDefinition = (
+    tool: AiMcpServerToolInput,
+): McpToolDefinition => ({
+    name: tool.toolName,
+    title: tool.title ?? undefined,
+    description: tool.description ?? undefined,
+    inputSchema: tool.inputSchema as McpToolDefinition['inputSchema'],
+    annotations: (tool.annotations ??
+        undefined) as McpToolDefinition['annotations'],
+    _meta: (tool.meta ?? undefined) as McpToolDefinition['_meta'],
 });
 
 // Mirrors @ai-sdk/mcp's toolsFromDefinitions for a stored definition.
@@ -1727,7 +1725,6 @@ export class AiAgentMcpRuntimeClient {
 
         const connectServer = async (
             mcpServer: AiAgentMcpServer,
-            discoverTools: (client: MCPClient) => Promise<ToolSet>,
         ): Promise<
             | { tools: ToolSet; unavailableMcpServer: null }
             | { tools: null; unavailableMcpServer: UnavailableMcpServer }
@@ -1751,7 +1748,17 @@ export class AiAgentMcpRuntimeClient {
                     },
                     this.lightdashConfig.ai.copilot.mcpAllowPrivateAddresses,
                 );
-                const tools = await discoverTools(mcpClient);
+                const connectedMcpClient = mcpClient;
+                const tools = await withMcpRetry(
+                    () =>
+                        withMcpTimeout(
+                            connectedMcpClient.tools(),
+                            this.lightdashConfig.ai.copilot
+                                .mcpConnectionTimeoutMs,
+                            `tool discovery for "${mcpServer.name}"`,
+                        ),
+                    `tool discovery for "${mcpServer.name}"`,
+                );
                 await this.persistRuntimeState({
                     serverUuid: mcpServer.uuid,
                     connectionStatus: 'connected',
@@ -1821,25 +1828,12 @@ export class AiAgentMcpRuntimeClient {
             }
         };
 
-        const discoverLiveTools =
-            (mcpServer: AiAgentMcpServer) => (client: MCPClient) =>
-                withMcpRetry(
-                    () =>
-                        withMcpTimeout(
-                            client.tools(),
-                            this.lightdashConfig.ai.copilot
-                                .mcpConnectionTimeoutMs,
-                            `tool discovery for "${mcpServer.name}"`,
-                        ),
-                    `tool discovery for "${mcpServer.name}"`,
-                );
-
         const getOnDemandTools = async (
             mcpServer: AiAgentMcpServer,
             enabledToolNames: string[],
         ): Promise<ToolSet> => {
             const enabled = new Set(enabledToolNames);
-            const definitions = toMcpToolDefinitions(
+            const definitions =
                 enabled.size === 0
                     ? []
                     : (
@@ -1847,15 +1841,13 @@ export class AiAgentMcpRuntimeClient {
                               projectUuid: mcpServer.projectUuid,
                               serverUuid: mcpServer.uuid,
                           })
-                      ).filter((tool) => enabled.has(tool.toolName)),
-            );
+                      )
+                          .filter((tool) => enabled.has(tool.toolName))
+                          .map(toMcpToolDefinition);
             let liveTools: Promise<ToolSet> | undefined;
             const getLiveTools = () => {
                 if (!liveTools) {
-                    liveTools = connectServer(
-                        mcpServer,
-                        discoverLiveTools(mcpServer),
-                    ).then((result) => {
+                    liveTools = connectServer(mcpServer).then((result) => {
                         if (result.unavailableMcpServer) {
                             throw new Error(
                                 result.unavailableMcpServer.message,
@@ -1869,7 +1861,7 @@ export class AiAgentMcpRuntimeClient {
             };
 
             return Object.fromEntries(
-                definitions.tools.map((definition) => [
+                definitions.map((definition) => [
                     definition.name,
                     toOnDemandMcpTool(definition, getLiveTools),
                 ]),
@@ -1919,10 +1911,7 @@ export class AiAgentMcpRuntimeClient {
 
                 return {
                     mcpServer,
-                    ...(await connectServer(
-                        mcpServer,
-                        discoverLiveTools(mcpServer),
-                    )),
+                    ...(await connectServer(mcpServer)),
                 };
             }),
         );
