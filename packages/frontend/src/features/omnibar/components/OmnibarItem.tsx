@@ -47,12 +47,12 @@ const OmnibarItem: FC<Props> = ({
                 {itemHasValidationError(item) ? (
                     <OmnibarItemIconWithIndicator
                         item={item}
-                        boxSize={26}
+                        size="md"
                         projectUuid={projectUuid}
                         canUserManageValidation={canUserManageValidation}
                     />
                 ) : (
-                    <OmnibarItemIcon item={item} boxSize={26} />
+                    <OmnibarItemIcon item={item} size="md" />
                 )}
             </Box>
 

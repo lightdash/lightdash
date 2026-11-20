@@ -21,7 +21,6 @@ import {
     IconFlask,
     IconSearch,
     IconSparkles,
-    IconTable,
 } from '@tabler/icons-react';
 import { uniqBy } from 'es-toolkit/compat';
 import {
@@ -36,6 +35,7 @@ import {
     type ReactNode,
     type Ref,
 } from 'react';
+import { TableIcon } from '../../../components/common/ContentIcons';
 import InlineErrorState from '../../../components/common/InlineErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ChartIcon } from '../../../components/common/ResourceIcon';
@@ -434,7 +434,7 @@ const PickerBody: FC<BodyProps> = ({
                             className={classes.row}
                         >
                             <MantineIcon
-                                icon={IconTable}
+                                icon={TableIcon}
                                 size={14}
                                 color="dimmed"
                                 className={classes.suggestionIcon}
@@ -470,7 +470,7 @@ const PickerBody: FC<BodyProps> = ({
                                     }
                                     icon={
                                         <MantineIcon
-                                            icon={IconTable}
+                                            icon={TableIcon}
                                             size={14}
                                             color="dimmed"
                                         />

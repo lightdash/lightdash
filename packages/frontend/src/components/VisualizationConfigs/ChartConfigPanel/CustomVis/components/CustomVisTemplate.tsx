@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import { Menu, Button } from '@mantine/core';
 import {
-    IconChartBar,
     IconChartBubble,
     IconFilter,
     IconFlame,
@@ -14,6 +13,7 @@ import {
     IconWorld,
 } from '@tabler/icons-react';
 import { useCallback } from 'react';
+import { BarChartIcon } from '../../../../common/ContentIcons';
 import MantineIcon from '../../../../common/MantineIcon';
 import { generateVegaTemplate } from '../utils/templates';
 import { TemplateType } from '../utils/vegaTemplates';
@@ -21,7 +21,7 @@ import { TemplateType } from '../utils/vegaTemplates';
 const getTemplateIcon = (template: TemplateType) => {
     switch (template) {
         case TemplateType.BAR_CHART:
-            return IconChartBar;
+            return BarChartIcon;
         case TemplateType.HEATMAP:
             return IconFlame;
         case TemplateType.BUBBLE_PLOTS:
@@ -34,7 +34,7 @@ const getTemplateIcon = (template: TemplateType) => {
             return IconWorld;
     }
 
-    return IconChartBar;
+    return BarChartIcon;
 };
 export const SelectTemplate = ({
     itemsMap,

@@ -1,7 +1,11 @@
 import { assertUnreachable } from '@lightdash/common';
 import { Button, Group, Loader, Text, UnstyledButton } from '@mantine/core';
-import { IconChartBar, IconChevronDown, IconTable } from '@tabler/icons-react';
+import { IconChevronDown } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import {
+    BarChartIcon,
+    TableIcon,
+} from '../../../components/common/ContentIcons';
 import MantineIcon from '../../../components/common/MantineIcon';
 import classes from './DataSourceChip.module.css';
 import DataSourcePicker from './DataSourcePicker';
@@ -18,7 +22,7 @@ type Props = {
 };
 
 type ChipState = {
-    icon: typeof IconTable;
+    icon: typeof TableIcon;
     label: string;
     isRunning: boolean;
     retry: (() => void) | null;
@@ -60,7 +64,7 @@ const DataSourceChip: FC<Props> = ({
     const chip: ChipState | null =
         savedChart && savedChartSource
             ? {
-                  icon: IconChartBar,
+                  icon: BarChartIcon,
                   label: savedChartLabel(savedChart),
                   isRunning: savedChart.status === 'running',
                   retry:
@@ -70,7 +74,7 @@ const DataSourceChip: FC<Props> = ({
               }
             : explore && exploreSource
               ? {
-                    icon: IconTable,
+                    icon: TableIcon,
                     label: exploreChipLabel(explore),
                     isRunning:
                         explore.isRunning ||
@@ -130,7 +134,7 @@ const DataSourceChip: FC<Props> = ({
                         disabled={disabled}
                         onClick={togglePicker}
                     >
-                        <MantineIcon icon={IconChartBar} size={12} />
+                        <MantineIcon icon={BarChartIcon} size={12} />
                         <Text fz="xs" fw={500} span>
                             Add preview data
                         </Text>

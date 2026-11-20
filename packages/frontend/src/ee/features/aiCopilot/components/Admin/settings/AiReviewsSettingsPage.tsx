@@ -1,13 +1,9 @@
 import { Button, Group, SegmentedControl, Stack } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import {
-    IconLayoutKanban,
-    IconPlus,
-    IconRoute,
-    IconTable,
-} from '@tabler/icons-react';
+import { IconLayoutKanban, IconPlus, IconRoute } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
+import { TableIcon } from '../../../../../../components/common/ContentIcons';
 import { GuidedTour } from '../../../../../../components/common/GuidedTour';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import {
@@ -177,7 +173,7 @@ export const AiReviewsSettingsPage = () => {
                                         value: 'table',
                                         label: (
                                             <Group gap={6} wrap="nowrap">
-                                                <MantineIcon icon={IconTable} />
+                                                <MantineIcon icon={TableIcon} />
                                                 Table
                                             </Group>
                                         ),

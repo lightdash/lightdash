@@ -29,7 +29,7 @@ import {
 import dayjs from 'dayjs';
 import { GSheetsIconFilled } from '../../components/common/GSheetsIcon';
 import MantineIcon from '../common/MantineIcon';
-import { IconBox } from '../common/ResourceIcon';
+import { ContentIcon } from '../common/ResourceIcon';
 
 export type SchedulerItem = SchedulerAndTargets & {
     latestRun?: SchedulerRun | null;
@@ -77,20 +77,33 @@ export const getSchedulerIcon = (item: { format: SchedulerFormat }) => {
     switch (item.format) {
         case SchedulerFormat.CSV:
             return (
-                <IconBox icon={getSchedulerIconRaw(item)} color="indigo.6" />
+                <ContentIcon
+                    icon={getSchedulerIconRaw(item)}
+                    color="indigo.6"
+                />
             );
         case SchedulerFormat.XLSX:
             return (
-                <IconBox icon={getSchedulerIconRaw(item)} color="indigo.6" />
+                <ContentIcon
+                    icon={getSchedulerIconRaw(item)}
+                    color="indigo.6"
+                />
             );
         case SchedulerFormat.IMAGE:
             return (
-                <IconBox icon={getSchedulerIconRaw(item)} color="indigo.6" />
+                <ContentIcon
+                    icon={getSchedulerIconRaw(item)}
+                    color="indigo.6"
+                />
             );
         case SchedulerFormat.GSHEETS:
-            return <IconBox icon={getSchedulerIconRaw(item)} color="green" />;
+            return (
+                <ContentIcon icon={getSchedulerIconRaw(item)} color="green" />
+            );
         case SchedulerFormat.PDF:
-            return <IconBox icon={getSchedulerIconRaw(item)} color="red.6" />;
+            return (
+                <ContentIcon icon={getSchedulerIconRaw(item)} color="red.6" />
+            );
         default:
             return assertUnreachable(
                 item.format,

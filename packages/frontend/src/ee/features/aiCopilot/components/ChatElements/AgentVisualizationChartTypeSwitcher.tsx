@@ -6,13 +6,15 @@ import {
 import { SegmentedControl, VisuallyHidden } from '@mantine/core';
 import {
     IconNumber123,
-    IconChartBar,
-    IconChartLine,
-    IconChartPie,
     IconChartScatter,
     IconFilter,
-    IconTable,
 } from '@tabler/icons-react';
+import {
+    BarChartIcon,
+    LineChartIcon,
+    PieChartIcon,
+    TableIcon,
+} from '../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import classes from './AgentVisualizationChartTypeSwitcher.module.css';
@@ -29,14 +31,14 @@ type Props<T extends SwitcherKind> = {
 
 const CHART_TYPES: Record<
     SwitcherKind,
-    { icon: typeof IconTable; label: UiStringKey }
+    { icon: typeof TableIcon; label: UiStringKey }
 > = {
-    table: { icon: IconTable, label: 'aiAgent.chartType.table' },
-    bar: { icon: IconChartBar, label: 'aiAgent.chartType.bar' },
-    horizontal: { icon: IconChartBar, label: 'aiAgent.chartType.horizontal' },
-    line: { icon: IconChartLine, label: 'aiAgent.chartType.line' },
+    table: { icon: TableIcon, label: 'aiAgent.chartType.table' },
+    bar: { icon: BarChartIcon, label: 'aiAgent.chartType.bar' },
+    horizontal: { icon: BarChartIcon, label: 'aiAgent.chartType.horizontal' },
+    line: { icon: LineChartIcon, label: 'aiAgent.chartType.line' },
     scatter: { icon: IconChartScatter, label: 'aiAgent.chartType.scatter' },
-    pie: { icon: IconChartPie, label: 'aiAgent.chartType.pie' },
+    pie: { icon: PieChartIcon, label: 'aiAgent.chartType.pie' },
     funnel: { icon: IconFilter, label: 'aiAgent.chartType.funnel' },
     big_number: { icon: IconNumber123, label: 'aiAgent.chartType.big_number' },
 };

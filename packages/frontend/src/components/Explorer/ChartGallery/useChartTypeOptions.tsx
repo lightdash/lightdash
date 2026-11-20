@@ -6,24 +6,24 @@ import {
     isSeriesWithMixedChartTypes,
     type DataAppViz,
 } from '@lightdash/common';
-import {
-    IconChartArea,
-    IconChartAreaLine,
-    IconChartBar,
-    IconChartDots,
-    IconChartLine,
-    IconChartPie,
-    IconChartTreemap,
-    IconCode,
-    IconFilter,
-    IconGauge,
-    IconGitMerge,
-    IconMap,
-    IconSquareNumber1,
-    IconTable,
-    type Icon as TablerIcon,
-} from '@tabler/icons-react';
+import { type Icon as TablerIcon } from '@tabler/icons-react';
 import { getChartTypeIcon } from '../../../features/chartTypes/utils/chartTypeIcons';
+import {
+    AreaChartIcon,
+    BarChartIcon,
+    BigNumberIcon,
+    FunnelChartIcon,
+    GaugeChartIcon,
+    LineChartIcon,
+    MapChartIcon,
+    MixedChartIcon,
+    PieChartIcon,
+    SankeyChartIcon,
+    ScatterChartIcon,
+    TableIcon,
+    TreemapChartIcon,
+    VegaChartIcon,
+} from '../../common/ContentIcons';
 import {
     isBigNumberVisualizationConfig,
     isCartesianVisualizationConfig,
@@ -60,14 +60,14 @@ export type SelectedChartType = Pick<
 const MIXED_CHART_TYPE: SelectedChartType = {
     id: ChartKind.MIXED,
     label: 'Mixed',
-    icon: IconChartAreaLine,
+    icon: MixedChartIcon,
     rotatedIcon: false,
 };
 
 const CUSTOM_CHART_TYPE: SelectedChartType = {
     id: ChartKind.CUSTOM,
     label: 'Custom',
-    icon: IconCode,
+    icon: VegaChartIcon,
     rotatedIcon: false,
 };
 
@@ -115,7 +115,7 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.TABLE,
             label: 'Table',
-            icon: IconTable,
+            icon: TableIcon,
             rotatedIcon: false,
             selected: isTableVisualizationConfig(visualizationConfig),
             select: () => resetCartesian(ChartType.TABLE),
@@ -123,7 +123,7 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.VERTICAL_BAR,
             label: 'Bar chart',
-            icon: IconChartBar,
+            icon: BarChartIcon,
             rotatedIcon: false,
             selected:
                 hasSingleCartesianType === true &&
@@ -141,7 +141,7 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.HORIZONTAL_BAR,
             label: 'Horizontal bar chart',
-            icon: IconChartBar,
+            icon: BarChartIcon,
             rotatedIcon: true,
             selected:
                 hasSingleCartesianType === true &&
@@ -160,7 +160,7 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.LINE,
             label: 'Line chart',
-            icon: IconChartLine,
+            icon: LineChartIcon,
             rotatedIcon: false,
             selected:
                 hasSingleCartesianType === true &&
@@ -178,7 +178,7 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.AREA,
             label: 'Area chart',
-            icon: IconChartArea,
+            icon: AreaChartIcon,
             rotatedIcon: false,
             selected:
                 hasSingleCartesianType === true &&
@@ -196,7 +196,7 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.SCATTER,
             label: 'Scatter chart',
-            icon: IconChartDots,
+            icon: ScatterChartIcon,
             rotatedIcon: false,
             selected:
                 hasSingleCartesianType === true &&
@@ -214,7 +214,7 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.PIE,
             label: 'Pie chart',
-            icon: IconChartPie,
+            icon: PieChartIcon,
             rotatedIcon: false,
             selected: isPieVisualizationConfig(visualizationConfig),
             select: () => resetCartesian(ChartType.PIE),
@@ -222,7 +222,7 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.FUNNEL,
             label: 'Funnel chart',
-            icon: IconFilter,
+            icon: FunnelChartIcon,
             rotatedIcon: false,
             selected: isFunnelVisualizationConfig(visualizationConfig),
             select: () => resetCartesian(ChartType.FUNNEL),
@@ -230,7 +230,7 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.TREEMAP,
             label: 'Treemap',
-            icon: IconChartTreemap,
+            icon: TreemapChartIcon,
             rotatedIcon: false,
             selected: isTreemapVisualizationConfig(visualizationConfig),
             select: () => resetCartesian(ChartType.TREEMAP),
@@ -238,7 +238,7 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.GAUGE,
             label: 'Gauge',
-            icon: IconGauge,
+            icon: GaugeChartIcon,
             rotatedIcon: false,
             selected: isGaugeVisualizationConfig(visualizationConfig),
             select: () => resetCartesian(ChartType.GAUGE),
@@ -246,7 +246,7 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.SANKEY,
             label: 'Sankey',
-            icon: IconGitMerge,
+            icon: SankeyChartIcon,
             rotatedIcon: false,
             selected: isSankeyVisualizationConfig(visualizationConfig),
             select: () => resetCartesian(ChartType.SANKEY),
@@ -254,7 +254,7 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.MAP,
             label: 'Map',
-            icon: IconMap,
+            icon: MapChartIcon,
             rotatedIcon: false,
             selected: isMapVisualizationConfig(visualizationConfig),
             select: () => resetCartesian(ChartType.MAP),
@@ -262,7 +262,7 @@ export const useChartTypeOptions = () => {
         {
             id: ChartKind.BIG_NUMBER,
             label: 'Big value',
-            icon: IconSquareNumber1,
+            icon: BigNumberIcon,
             rotatedIcon: false,
             selected: isBigNumberVisualizationConfig(visualizationConfig),
             select: () => resetCartesian(ChartType.BIG_NUMBER),
@@ -272,7 +272,7 @@ export const useChartTypeOptions = () => {
     const vegaOption: ChartTypeOption = {
         id: ChartKind.CUSTOM,
         label: 'Vega (JSON editor)',
-        icon: IconCode,
+        icon: VegaChartIcon,
         rotatedIcon: false,
         selected: isCustomVisualizationConfig(visualizationConfig),
         select: () => resetCartesian(ChartType.CUSTOM),

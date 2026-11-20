@@ -29,12 +29,12 @@ import {
     createReactComponent,
     IconChevronRight,
     IconCode,
-    IconTable,
     type Icon,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useId, useMemo, useState, type FC } from 'react';
 import CodeBlock from '../../../../components/common/CodeBlock/CodeBlock';
+import { TableIcon } from '../../../../components/common/ContentIcons';
 import InlineErrorState from '../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { ItemDetailMarkdown } from '../../../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
@@ -295,7 +295,7 @@ export const ExploreSource: FC<{
         >
             <HoverCard.Target>
                 <Group gap={4} wrap="nowrap" miw={0} className={styles.source}>
-                    <MantineIcon icon={IconTable} size={14} stroke={1.5} />
+                    <MantineIcon icon={TableIcon} size={14} stroke={1.5} />
                     <Text fz="xs" fw={500} truncate>
                         {label}
                     </Text>

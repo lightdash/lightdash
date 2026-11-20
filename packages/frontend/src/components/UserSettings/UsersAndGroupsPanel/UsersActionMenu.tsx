@@ -22,7 +22,6 @@ import {
     IconDots,
     IconEye,
     IconInfoCircle,
-    IconLayoutDashboard,
     IconMail,
     IconTrash,
 } from '@tabler/icons-react';
@@ -43,6 +42,7 @@ import {
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { DashboardIcon } from '../../common/ContentIcons';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import { PolymorphicGroupButton } from '../../common/PolymorphicGroupButton';
@@ -485,9 +485,7 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                     <Alert
                                         color="orange"
                                         icon={
-                                            <MantineIcon
-                                                icon={IconLayoutDashboard}
-                                            />
+                                            <MantineIcon icon={DashboardIcon} />
                                         }
                                     >
                                         <Stack gap="xs">

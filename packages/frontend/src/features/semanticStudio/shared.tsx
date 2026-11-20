@@ -36,7 +36,6 @@ import {
     IconSearch,
     IconSettings,
     IconSql,
-    IconTable,
     type Icon,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -57,6 +56,7 @@ import {
     type ReactNode,
 } from 'react';
 import { Link } from 'react-router';
+import { TableIcon } from '../../components/common/ContentIcons';
 import MantineIcon from '../../components/common/MantineIcon';
 import { ItemDetailMarkdown } from '../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
 import dbtLogo from '../../components/ProjectConnection/ProjectConnectFlow/Assets/dbt.svg';
@@ -213,7 +213,7 @@ export const NodeIcon: FC<{
                     ({ sourceId }) => sourceId === source.id,
                 ).length > 1;
             return source.type === 'dbt' || isUnderLiveSource ? (
-                <MantineIcon icon={IconTable} size={size} color="dimmed" />
+                <MantineIcon icon={TableIcon} size={size} color="dimmed" />
             ) : (
                 <SourceLogo source={source} size={size} />
             );
@@ -1661,7 +1661,7 @@ export const SemanticLayerNudge: FC<{ onBuild: () => void }> = ({
     <Paper className={classes.nudge}>
         <Group gap="sm" wrap="nowrap" miw={0}>
             <Box className={classes.nudgeIcon}>
-                <MantineIcon icon={IconTable} />
+                <MantineIcon icon={TableIcon} />
             </Box>
             <Box miw={0}>
                 <Text fz="sm" fw={500}>

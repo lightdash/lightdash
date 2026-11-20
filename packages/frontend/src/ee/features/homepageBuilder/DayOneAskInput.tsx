@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { Anchor, Skeleton, Text } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { IconArrowUpRight, IconChartBar } from '@tabler/icons-react';
+import { IconArrowUpRight } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
     useCallback,
@@ -18,6 +18,7 @@ import {
     type FC,
 } from 'react';
 import { useNavigate } from 'react-router';
+import { BarChartIcon } from '../../../components/common/ContentIcons';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
@@ -568,7 +569,7 @@ const DayOneAskInputInner: FC<Props> = ({
                                     handleChipPick(starterChip, starterIndex)
                                 }
                             >
-                                <MantineIcon icon={IconChartBar} size={12} />
+                                <MantineIcon icon={BarChartIcon} size={12} />
                                 Try “{starterChip.label}”
                             </button>
                         )

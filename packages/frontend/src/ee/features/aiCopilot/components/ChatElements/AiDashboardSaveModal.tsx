@@ -12,10 +12,11 @@ import {
     TextInput,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconLayoutDashboard, IconPlus } from '@tabler/icons-react';
+import { IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import { DashboardIcon } from '../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal, {
     type MantineModalProps,
@@ -335,7 +336,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
             title="Save Dashboard"
             onClose={handleClose}
             size="lg"
-            icon={IconLayoutDashboard}
+            icon={DashboardIcon}
             leftActions={
                 shouldShowNewSpaceButton ? (
                     <Button

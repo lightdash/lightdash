@@ -47,7 +47,6 @@ import {
     IconArrowBackUp,
     IconBrandSlack,
     IconCalendar,
-    IconChartBar,
     IconCheck,
     IconChevronDown,
     IconChevronRight,
@@ -57,9 +56,7 @@ import {
     IconDots,
     IconExternalLink,
     IconEye,
-    IconFolder,
     IconHash,
-    IconLayoutDashboard,
     IconPlayerPlay,
     IconSearch,
     IconSettings,
@@ -83,6 +80,11 @@ import { Link } from 'react-router';
 import { type LightdashApi } from '../../../api';
 import { AiMarkdown } from '../../../components/common/AiMarkdown';
 import { CategoryBadge } from '../../../components/common/CategoryBadge';
+import {
+    BarChartIcon,
+    DashboardIcon,
+    SpaceIcon,
+} from '../../../components/common/ContentIcons';
 import CalendarRangePicker from '../../../components/common/DatePickers/CalendarRangePicker';
 import { type CalendarDateRange } from '../../../components/common/DatePickers/types';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -452,11 +454,11 @@ const revertActionLabel = (
 
 const TARGET_ICON: Record<
     ManagedAgentAction['targetType'],
-    typeof IconChartBar
+    typeof BarChartIcon
 > = {
-    chart: IconChartBar,
-    dashboard: IconLayoutDashboard,
-    space: IconChartBar,
+    chart: BarChartIcon,
+    dashboard: DashboardIcon,
+    space: BarChartIcon,
     project: IconDatabase,
 };
 
@@ -736,7 +738,7 @@ const FixedBrokenDiff: FC<{
                         </InfoRow>
                     )}
                     {typeChanged && (
-                        <InfoRow icon={IconChartBar} label="Chart type">
+                        <InfoRow icon={BarChartIcon} label="Chart type">
                             <Text fz="xs" component="span">
                                 {previousType} → {currentType}
                             </Text>
@@ -802,7 +804,7 @@ const ContentContextDetails: FC<{
             <MetadataLabel label={label} />
             <Stack gap={10}>
                 {context.spaceName && (
-                    <InfoRow icon={IconFolder} label="Space">
+                    <InfoRow icon={SpaceIcon} label="Space">
                         {spaceUrl ? (
                             <Anchor href={spaceUrl} fz="xs" fw={500}>
                                 {context.spaceName}

@@ -7,10 +7,10 @@ import {
     IconGitPullRequest,
     IconPlus,
     IconSparkles,
-    IconTable,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import { AI_NAME } from '../../../../../components/common/aiName';
+import { TableIcon } from '../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { LiveSourceIcon } from '../../../../../features/externalConnections/liveSources/LiveSourceIcon';
 import SlackSvg from '../../../../../svgs/slack.svg?react';
@@ -88,7 +88,7 @@ const SCENES: Record<SetupGuideRowId, () => ReactNode> = {
     ),
     'chart-types': () => (
         <Box className={classes.tiles}>
-            {[IconChartRadar, IconChartDots3, IconTable].map((icon, index) => (
+            {[IconChartRadar, IconChartDots3, TableIcon].map((icon, index) => (
                 <Box key={index} className={classes.tile}>
                     <MantineIcon icon={icon} size={16} />
                 </Box>

@@ -21,10 +21,10 @@ import {
     Textarea,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconChartBar } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
+import { BarChartIcon } from '../../../components/common/ContentIcons';
 import { getDestinationDashboardTab } from '../../../components/common/Dashboard/destinationDashboardTab';
 import MantineModal from '../../../components/common/MantineModal';
 import SaveToDashboardForm from '../../../components/common/modal/ChartCreateModal/SaveToDashboardForm';
@@ -278,7 +278,7 @@ export const SaveComposerChartModal: FC<Props> = ({
             opened
             onClose={onClose}
             title="Save chart"
-            icon={IconChartBar}
+            icon={BarChartIcon}
             size="lg"
             modalRootProps={{ closeOnClickOutside: false }}
             actions={

@@ -36,7 +36,6 @@ import {
     IconArrowUp,
     IconFileDescription,
     IconHistory,
-    IconLayoutDashboard,
     IconLink,
     IconPackage,
     IconPlayerStop,
@@ -56,6 +55,7 @@ import { flushSync } from 'react-dom';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router';
 import { validate as isUuidString, v4 as uuid4 } from 'uuid';
 import { AiMarkdown } from '../components/common/AiMarkdown';
+import { DashboardIcon } from '../components/common/ContentIcons';
 import MantineIcon from '../components/common/MantineIcon';
 import {
     ComposerSubmitButton,
@@ -2535,7 +2535,7 @@ const AppGenerate: FC = () => {
                                                                     >
                                                                         <MantineIcon
                                                                             icon={
-                                                                                IconLayoutDashboard
+                                                                                DashboardIcon
                                                                             }
                                                                             size={
                                                                                 12

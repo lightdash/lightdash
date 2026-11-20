@@ -1,6 +1,5 @@
 import { ActionIcon, Tooltip } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
-import { IconLayoutDashboard } from '@tabler/icons-react';
 import { memo } from 'react';
 import {
     dashboardEditActions,
@@ -8,6 +7,7 @@ import {
     useDashboardDispatch,
     useDashboardSelector,
 } from '../../../features/dashboard/store';
+import { DashboardIcon } from '../ContentIcons';
 import MantineIcon from '../MantineIcon';
 import { EDIT_SHORTCUTS, toHotkeyItems } from './editShortcuts';
 import { ShortcutHint, ShortcutTooltipLabel } from './ShortcutHint';
@@ -43,7 +43,7 @@ export const TidyTilesButton = memo(() => {
                     disabled={!canTidy}
                     onClick={tidy}
                 >
-                    <MantineIcon icon={IconLayoutDashboard} />
+                    <MantineIcon icon={DashboardIcon} />
                 </ActionIcon>
             </Tooltip>
         </ShortcutHint>

@@ -1,6 +1,7 @@
 import { CloseButton, Text } from '@mantine/core';
-import { IconCode, IconColumns, IconTable } from '@tabler/icons-react';
+import { IconCode, IconColumns } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { TableIcon } from '../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { KindTypeIcon } from '../../../../../features/semanticStudio/KindTypeIcon';
 import { type StudioChatRef } from '../../../../../features/semanticStudio/studioChatRefs';
@@ -39,7 +40,7 @@ export const StudioChatRefChips: FC<{
                                         ? IconCode
                                         : ref.fieldName
                                           ? IconColumns
-                                          : IconTable
+                                          : TableIcon
                                 }
                                 size={12}
                             />

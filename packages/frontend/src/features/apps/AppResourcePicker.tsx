@@ -34,12 +34,10 @@ import {
     IconArrowLeft,
     IconCamera,
     IconMicrophone,
-    IconChartBar,
     IconCheck,
     IconDatabase,
     IconDatabasePlus,
     IconFileDescription,
-    IconLayoutDashboard,
     IconLink,
     IconPhoto,
     IconPlugConnected,
@@ -55,10 +53,14 @@ import {
     type ClipboardEvent,
     type FC,
 } from 'react';
+import {
+    BarChartIcon,
+    DashboardIcon,
+} from '../../components/common/ContentIcons';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
 import { ModelSelector } from '../../components/common/ModelSelector/ModelSelector';
-import { ChartIcon, IconBox } from '../../components/common/ResourceIcon';
+import { ChartIcon, ContentIcon } from '../../components/common/ResourceIcon';
 import { getChartIcon } from '../../components/common/ResourceIcon/utils';
 import {
     VOICE_DESIGN_BUTTON_TOUR_ID,
@@ -889,8 +891,8 @@ const DashboardPickerView: FC<{
                                     }`}
                                     onClick={() => handleToggle(dashboard)}
                                 >
-                                    <IconBox
-                                        icon={IconLayoutDashboard}
+                                    <ContentIcon
+                                        icon={DashboardIcon}
                                         color="green.6"
                                     />
                                     <Text size="xs" fw={500} truncate flex={1}>
@@ -1366,7 +1368,7 @@ export const AttachButton: FC<{
                             ff="inherit"
                             onClick={() => setView('queries')}
                         >
-                            <MantineIcon icon={IconChartBar} />
+                            <MantineIcon icon={BarChartIcon} />
                             <Box flex={1}>
                                 <Text size="sm" fw={500}>
                                     Queries
@@ -1381,7 +1383,7 @@ export const AttachButton: FC<{
                             ff="inherit"
                             onClick={() => setView('dashboard')}
                         >
-                            <MantineIcon icon={IconLayoutDashboard} />
+                            <MantineIcon icon={DashboardIcon} />
                             <Box flex={1}>
                                 <Text size="sm" fw={500}>
                                     Dashboard
@@ -1649,7 +1651,7 @@ export const SelectedDashboardSection: FC<{
                 >
                     <Box className={classes.selectedQueryItemIcon}>
                         <MantineIcon
-                            icon={IconLayoutDashboard}
+                            icon={DashboardIcon}
                             size={12}
                             color="green.6"
                         />

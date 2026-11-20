@@ -16,13 +16,13 @@ import {
 } from '@mantine/core';
 import {
     IconAlertTriangle,
-    IconAppWindow,
     IconCircleMinus,
     IconEye,
 } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
 import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
+import { DataAppIcon } from '../../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import AppVersionNarration from '../../../../../../features/apps/components/AppVersionNarration';
 import { useElapsedClock } from '../../../../../../features/apps/hooks/useElapsedClock';
@@ -108,7 +108,7 @@ const CardIcon: FC<{ tone: 'default' | 'error' | 'muted' }> = ({ tone }) => (
         c={tone === 'muted' ? 'ldGray.5' : undefined}
     >
         <MantineIcon
-            icon={tone === 'error' ? IconAlertTriangle : IconAppWindow}
+            icon={tone === 'error' ? IconAlertTriangle : DataAppIcon}
             size={14}
         />
     </ThemeIcon>

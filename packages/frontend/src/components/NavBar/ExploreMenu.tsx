@@ -2,13 +2,8 @@ import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
 import { Button, getDefaultZIndex, Menu } from '@mantine/core';
 import {
-    IconAppWindow,
-    IconFileText,
-    IconFolder,
     IconFolderPlus,
-    IconLayoutDashboard,
     IconSquareRoundedPlus,
-    IconTable,
     IconTerminal2,
 } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
@@ -22,6 +17,13 @@ import useCreateInAnySpaceAccess from '../../hooks/user/useCreateInAnySpaceAcces
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
+import {
+    DashboardIcon,
+    DataAppIcon,
+    DocumentIcon,
+    SpaceIcon,
+    TableIcon,
+} from '../common/ContentIcons';
 import LargeMenuItem from '../common/LargeMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import DashboardCreateModal from '../common/modal/DashboardCreateModal';
@@ -114,7 +116,7 @@ const ExploreMenu: FC<Props> = memo((props) => {
                                 title="Chart"
                                 description="Build queries and save them as charts."
                                 to={`/projects/${projectUrlIdentifier}/tables`}
-                                icon={IconTable}
+                                icon={TableIcon}
                                 data-tour-nav="new-chart"
                                 data-tour-hint="Choose Chart"
                             />
@@ -161,7 +163,7 @@ const ExploreMenu: FC<Props> = memo((props) => {
                                 title="Dashboard"
                                 description="Arrange multiple charts into a single view."
                                 onClick={() => setIsCreateDashboardOpen(true)}
-                                icon={IconLayoutDashboard}
+                                icon={DashboardIcon}
                                 data-testid="ExploreMenu/NewDashboardButton"
                                 data-tour-nav="new-dashboard"
                                 data-tour-hint="Choose Dashboard"
@@ -173,7 +175,7 @@ const ExploreMenu: FC<Props> = memo((props) => {
                                 title="Document"
                                 description="Write up analysis with live charts."
                                 onClick={() => setIsCreateDocumentOpen(true)}
-                                icon={IconFileText}
+                                icon={DocumentIcon}
                                 data-testid="ExploreMenu/NewDocumentButton"
                                 // Navigation anchor for scope walkthroughs (data-tour-via)
                                 data-tour-nav="new-document"
@@ -190,7 +192,7 @@ const ExploreMenu: FC<Props> = memo((props) => {
                                 title="Data App"
                                 description="Build an interactive app powered by your data."
                                 to={`/projects/${projectUuid}/apps/generate`}
-                                icon={IconAppWindow}
+                                icon={DataAppIcon}
                             />
                         )}
 
@@ -205,7 +207,7 @@ const ExploreMenu: FC<Props> = memo((props) => {
                                 title="Space"
                                 description="Organize your saved charts and dashboards."
                                 onClick={() => setIsCreateSpaceOpen(true)}
-                                icon={IconFolder}
+                                icon={SpaceIcon}
                             />
                         </Can>
                     </Menu.Dropdown>

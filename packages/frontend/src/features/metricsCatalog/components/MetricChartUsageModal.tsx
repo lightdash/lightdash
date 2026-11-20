@@ -1,13 +1,12 @@
 import { type ApiCatalogAnalyticsResults } from '@lightdash/common';
 import { Avatar, Box, Group, Stack, Text } from '@mantine/core';
-import {
-    IconDeviceAnalytics,
-    IconEye,
-    IconFolder,
-    IconLayoutDashboard,
-} from '@tabler/icons-react';
+import { IconDeviceAnalytics, IconEye } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import {
+    DashboardIcon,
+    SpaceIcon,
+} from '../../../components/common/ContentIcons';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal, {
     type MantineModalProps,
@@ -58,7 +57,7 @@ const ChartList: FC<ChartListProps> = ({
                         <Group gap={4} wrap="nowrap">
                             <MantineIcon
                                 color="dimmed"
-                                icon={IconFolder}
+                                icon={SpaceIcon}
                                 size={14}
                             />
                             <Text fz="xs" c="dimmed">
@@ -71,7 +70,7 @@ const ChartList: FC<ChartListProps> = ({
                                     </Text>
                                     <MantineIcon
                                         color="dimmed"
-                                        icon={IconLayoutDashboard}
+                                        icon={DashboardIcon}
                                         size={14}
                                     />
                                     <Text fz="xs" c="dimmed">

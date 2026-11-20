@@ -1,13 +1,11 @@
 import { Box, Button, Group, Loader, Stack, Text } from '@mantine/core';
-import {
-    IconChartBar,
-    IconChevronDown,
-    IconFlask,
-    IconRefresh,
-    IconTable,
-} from '@tabler/icons-react';
+import { IconChevronDown, IconFlask, IconRefresh } from '@tabler/icons-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useState, type FC } from 'react';
+import {
+    BarChartIcon,
+    TableIcon,
+} from '../../../components/common/ContentIcons';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../components/common/PolymorphicGroupButton';
 import { useSuggestedChartTypeExplore } from '../../../ee/features/ambientAi/hooks/useChartTypeSuggestions';
@@ -45,7 +43,7 @@ const savedChartTile = (attached: AttachedSavedChart, retry: () => void) => {
         ? ` · ran ${formatDistanceToNow(attached.ranAt, { addSuffix: true })}`
         : '';
     return {
-        icon: IconChartBar,
+        icon: BarChartIcon,
         isAccent: true,
         title: attached.chartName,
         meta:
@@ -68,7 +66,7 @@ const savedChartTile = (attached: AttachedSavedChart, retry: () => void) => {
 
 const exploreTile = (attached: AttachedExplore, retry: () => void) =>
     ({
-        icon: IconTable,
+        icon: TableIcon,
         isAccent: true,
         title: attached.label,
         meta: exploreQueryMeta(attached),

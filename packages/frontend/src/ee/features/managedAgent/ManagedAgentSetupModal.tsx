@@ -1,7 +1,6 @@
 import { type ApiError, ManagedAgentScheduleOption } from '@lightdash/common';
 import { Box, Group, Select, Stack, Text } from '@mantine/core';
 import {
-    IconChartBar,
     IconClock,
     IconTarget,
     IconTool,
@@ -10,6 +9,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type FC, useState } from 'react';
 import { type LightdashApi } from '../../../api';
+import { BarChartIcon } from '../../../components/common/ContentIcons';
 import MantineModal from '../../../components/common/MantineModal';
 import useToaster from '../../../hooks/toaster/useToaster';
 import useApp from '../../../providers/App/useApp';
@@ -52,7 +52,7 @@ const CAPABILITIES = [
         detail: 'Detects invalid field references and automatically fixes them by creating new chart versions.',
     },
     {
-        icon: IconChartBar,
+        icon: BarChartIcon,
         title: 'Content creation',
         detail: 'Explores your data model and creates useful charts in an "Agent Suggestions" space for review.',
     },

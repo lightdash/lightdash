@@ -1,6 +1,6 @@
 import { type SavedChart } from '@lightdash/common';
-import { IconChartBar } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { BarChartIcon } from '../../../../../components/common/ContentIcons';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { useContentAuthoringEnabled } from '../../../../../hooks/useContentAuthoringEnabled';
 import EmbedProviderContext from '../../../../providers/Embed/context';
@@ -72,7 +72,7 @@ const EmbedDashboardChartEditorModal: FC<Props> = ({
             opened={opened}
             onClose={handleClose}
             title={editChart ? 'Edit chart' : 'New chart'}
-            icon={IconChartBar}
+            icon={BarChartIcon}
             fullScreen
             cancelLabel={false}
             modalBodyProps={{ px: 0, py: 0 }}

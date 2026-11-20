@@ -1,8 +1,8 @@
 import { Anchor, Button, Group, Stack, Text } from '@mantine/core';
-import { IconPuzzle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { CHART_STUDIO_DOCS_URL } from '../../../../../features/chartTypes/utils/chartStudioDocs';
 import Callout from '../../../../common/Callout';
+import { CustomChartTypeIcon } from '../../../../common/ContentIcons';
 import MantineIcon from '../../../../common/MantineIcon';
 
 type Props = {
@@ -17,7 +17,7 @@ export const ChartStudioNudgeCard: FC<Props> = ({
 }) => (
     <Callout
         variant="info"
-        icon={<MantineIcon icon={IconPuzzle} />}
+        icon={<MantineIcon icon={CustomChartTypeIcon} />}
         title="Try Chart Studio for custom charts"
         withCloseButton
         closeButtonLabel="Dismiss"

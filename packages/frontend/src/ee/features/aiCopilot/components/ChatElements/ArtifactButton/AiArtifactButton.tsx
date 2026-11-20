@@ -3,13 +3,12 @@ import {
     type AiAgentMessageAssistant,
 } from '@lightdash/common';
 import { Box, Loader, Text, UnstyledButton } from '@mantine/core';
-import {
-    IconArtboard,
-    IconChartBar,
-    IconChevronRight,
-    IconLayoutDashboard,
-} from '@tabler/icons-react';
+import { IconArtboard, IconChevronRight } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import {
+    BarChartIcon,
+    DashboardIcon,
+} from '../../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import styles from './AiArtifactButton.module.css';
@@ -39,9 +38,9 @@ export const AiArtifactButton: FC<AiArtifactButtonProps> = ({
 
         switch (artifact.artifactType) {
             case 'chart':
-                return IconChartBar;
+                return BarChartIcon;
             case 'dashboard':
-                return IconLayoutDashboard;
+                return DashboardIcon;
             default:
                 return assertUnreachable(
                     artifact.artifactType,

@@ -16,13 +16,15 @@ import {
     Tooltip,
 } from '@mantine/core';
 import {
-    IconChartBar,
     IconRefresh,
     IconSearch,
     IconSwitchHorizontal,
-    IconTable,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import {
+    BarChartIcon,
+    TableIcon,
+} from '../../../components/common/ContentIcons';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import DataSourcePicker from './DataSourcePicker';
@@ -84,7 +86,7 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
             <Paper className={classes.emptyCard} variant="dotted">
                 <Group gap="sm" wrap="nowrap">
                     <Box className={classes.iconTileSmall}>
-                        <MantineIcon icon={IconChartBar} size={16} />
+                        <MantineIcon icon={BarChartIcon} size={16} />
                     </Box>
                     <Text fz="sm" fw={500} flex={1} miw={0} truncate="end">
                         Use a saved chart
@@ -118,7 +120,7 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
         <Box className={classes.attachedWrapper}>
             <Group className={classes.attachedCard} gap="sm" wrap="nowrap">
                 <Box className={classes.iconTileAccent}>
-                    <MantineIcon icon={IconChartBar} size={18} />
+                    <MantineIcon icon={BarChartIcon} size={18} />
                 </Box>
                 <Stack gap={6} flex={1} miw={0}>
                     <Group gap="xs" align="baseline" wrap="nowrap">
@@ -176,7 +178,7 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                             variant="default"
                             size="xs"
                             leftSection={
-                                <MantineIcon icon={IconTable} size={14} />
+                                <MantineIcon icon={TableIcon} size={14} />
                             }
                             onClick={source.viewRows}
                         >

@@ -1,9 +1,9 @@
 import { ActionIcon, Anchor, Group, Text, Tooltip } from '@mantine/core';
-import { IconFolder } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
+import { SpaceIcon } from '../../common/ContentIcons';
 import MantineIcon from '../../common/MantineIcon';
 
 type Props = {
@@ -59,7 +59,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
                                 >
                                     <MantineIcon
                                         color="ldGray.4"
-                                        icon={IconFolder}
+                                        icon={SpaceIcon}
                                     />
                                 </ActionIcon>
                             ) : canAccessSpace ? (

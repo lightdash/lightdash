@@ -6,7 +6,6 @@ import {
 import { Box, Button, Group, Stack, Text, UnstyledButton } from '@mantine/core';
 import {
     IconArrowRight,
-    IconChartBar,
     IconShieldCheck,
     IconTarget,
     IconTrendingUp,
@@ -20,6 +19,7 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router';
 import { BetaBadge } from '../../../components/common/BetaBadge';
+import { BarChartIcon } from '../../../components/common/ContentIcons';
 import useApp from '../../../providers/App/useApp';
 import { useIsCopilotEnabled } from '../aiCopilot/hooks/useIsCopilotEnabled';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
@@ -30,7 +30,7 @@ import { ManagedAgentSetupModal } from './ManagedAgentSetupModal';
 const FEATURES = [
     { icon: IconShieldCheck, label: 'Fixes broken charts' },
     { icon: IconTrendingUp, label: 'Flags stale content' },
-    { icon: IconChartBar, label: 'Creates visualizations' },
+    { icon: BarChartIcon, label: 'Creates visualizations' },
 ];
 
 const formatRelative = (dateInput: Date | string) => {

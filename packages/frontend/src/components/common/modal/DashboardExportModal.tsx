@@ -22,7 +22,6 @@ import {
     IconFileTypePdf,
     IconFileTypeXls,
     IconHelpCircle,
-    IconLayoutDashboard,
     IconScreenshot,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
@@ -44,6 +43,7 @@ import {
     useExportDashboardContentPreview,
 } from '../../../hooks/dashboard/useDashboard';
 import Callout from '../Callout';
+import { DashboardIcon } from '../ContentIcons';
 import MantineIcon from '../MantineIcon';
 import MantineModal, { type MantineModalProps } from '../MantineModal';
 
@@ -303,7 +303,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
             opened={opened}
             onClose={onClose}
             title="Export dashboard"
-            icon={IconLayoutDashboard}
+            icon={DashboardIcon}
             size="xl"
             actions={renderActions()}
         >

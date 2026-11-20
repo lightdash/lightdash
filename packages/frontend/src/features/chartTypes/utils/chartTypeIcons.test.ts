@@ -1,10 +1,11 @@
-import { IconChartScatter3d, IconPuzzle } from '@tabler/icons-react';
+import { IconChartScatter3d } from '@tabler/icons-react';
 import { describe, expect, it } from 'vitest';
+import { CustomChartTypeIcon } from '../../../components/common/ContentIcons';
 import { getChartTypeIcon, getChartTypeIconLabel } from './chartTypeIcons';
 
 describe('getChartTypeIcon', () => {
-    it('falls back to the puzzle piece for no icon', () => {
-        expect(getChartTypeIcon(null)).toBe(IconPuzzle);
+    it('falls back to the custom chart type icon for no icon', () => {
+        expect(getChartTypeIcon(null)).toBe(CustomChartTypeIcon);
     });
 
     it('resolves a known icon name to its component', () => {

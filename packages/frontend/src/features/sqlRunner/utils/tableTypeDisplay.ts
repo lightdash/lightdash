@@ -1,10 +1,10 @@
 import { assertUnreachable, WarehouseTableType } from '@lightdash/common';
 import {
     IconCloudDataConnection,
-    IconTable,
     IconTableFilled,
     type Icon,
 } from '@tabler/icons-react';
+import { TableIcon } from '../../../components/common/ContentIcons';
 import { IconTableEye } from './IconTableEye';
 
 // Rows cached before the type was stored fall back to the table icon
@@ -20,7 +20,7 @@ export const getTableTypeDisplay = (
             return { icon: IconCloudDataConnection, label: 'External table' };
         case WarehouseTableType.TABLE:
         case undefined:
-            return { icon: IconTable, label: 'Table' };
+            return { icon: TableIcon, label: 'Table' };
         default:
             return assertUnreachable(tableType, 'Unknown table type');
     }

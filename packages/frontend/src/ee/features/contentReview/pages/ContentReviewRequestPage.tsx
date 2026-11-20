@@ -49,7 +49,7 @@ import EmptyStateLoader from '../../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import Page from '../../../../components/common/Page/Page';
-import { IconBox } from '../../../../components/common/ResourceIcon';
+import { ContentIcon } from '../../../../components/common/ResourceIcon';
 import { SettingsEmptyState } from '../../../../components/common/Settings/SettingsEmptyState';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
@@ -640,10 +640,9 @@ export const ContentReviewRequestDetailView: FC<{
             )}
             <Group justify="space-between" align="flex-start" wrap="nowrap">
                 <Group gap="sm" align="flex-start" wrap="nowrap">
-                    <IconBox
+                    <ContentIcon
                         icon={getContentTypeIcon(request.contentType)}
                         color={getContentTypeColor(request.contentType)}
-                        boxSize={40}
                         size="xl"
                     />
                     <Stack gap={4}>

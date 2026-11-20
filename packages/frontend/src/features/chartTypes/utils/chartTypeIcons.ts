@@ -56,6 +56,7 @@ import {
     IconWorld,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
+import { CustomChartTypeIcon } from '../../../components/common/ContentIcons';
 
 /** Every curated chart type icon, statically imported so the bundle only
  *  carries these components rather than the whole Tabler set. */
@@ -116,11 +117,11 @@ const CHART_TYPE_ICON_COMPONENTS: Record<ChartTypeIcon, TablerIcon> = {
     puzzle: IconPuzzle,
 };
 
-/** The component for a chosen chart type icon; the puzzle piece for null
- *  (no icon chosen) or an unrecognised name, matching the rest of the app's
- *  fallback. */
+/** The component for a chosen chart type icon; the custom chart type icon
+ *  for null (no icon chosen) or an unrecognised name, matching the rest of
+ *  the app's fallback. */
 export const getChartTypeIcon = (icon: ChartTypeIcon | null): TablerIcon =>
-    (icon && CHART_TYPE_ICON_COMPONENTS[icon]) || IconPuzzle;
+    (icon && CHART_TYPE_ICON_COMPONENTS[icon]) || CustomChartTypeIcon;
 
 /** Human label for an icon name: drops a leading "chart-", turns hyphens
  *  into spaces, and capitalises the first letter. */

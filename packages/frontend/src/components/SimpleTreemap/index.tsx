@@ -1,8 +1,8 @@
 import { Box } from '@mantine/core';
-import { IconChartTreemap } from '@tabler/icons-react';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
 import { memo, useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import useEchartsTreemapConfig from '../../hooks/echarts/useEchartsTreemapConfig';
+import { TreemapChartIcon } from '../common/ContentIcons';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
@@ -18,7 +18,7 @@ const EmptyChart = () => (
         <SuboptimalState
             title="No data available"
             description="Query metrics and dimensions with results."
-            icon={IconChartTreemap}
+            icon={TreemapChartIcon}
         />
     </Box>
 );

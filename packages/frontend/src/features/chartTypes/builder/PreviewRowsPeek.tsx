@@ -5,9 +5,9 @@ import {
     type DataAppVizField,
 } from '@lightdash/common';
 import { Box, Button, Group, Stack, Table, Text } from '@mantine/core';
-import { IconTable } from '@tabler/icons-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useMemo, useRef, useState, type FC } from 'react';
+import { TableIcon } from '../../../components/common/ContentIcons';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ColumnWindowColGroup } from '../../../components/common/Table/ColumnWindowColGroup';
 import {
@@ -344,7 +344,7 @@ const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
                     variant="default"
                     size="compact-xs"
                     flex="0 0 auto"
-                    leftSection={<MantineIcon icon={IconTable} size={14} />}
+                    leftSection={<MantineIcon icon={TableIcon} size={14} />}
                     onClick={
                         isChart
                             ? source.viewRows

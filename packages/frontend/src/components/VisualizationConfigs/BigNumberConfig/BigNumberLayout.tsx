@@ -1,11 +1,6 @@
 import { getItemId, type CompactOrAlias } from '@lightdash/common';
 import { ActionIcon, Box, Group, Select, Tooltip } from '@mantine/core';
-import {
-    IconEye,
-    IconEyeOff,
-    IconTable,
-    IconTableOff,
-} from '@tabler/icons-react';
+import { IconEye, IconEyeOff, IconTableOff } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
     selectBigNumberDefaultLabel,
@@ -16,6 +11,7 @@ import {
     useVisualizationSelector,
 } from '../../../features/visualization/store';
 import { useBigNumberEditorActions } from '../../../hooks/useBigNumberConfig';
+import { TableIcon } from '../../common/ContentIcons';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import {
@@ -126,7 +122,7 @@ export const Layout: FC = () => {
                                 <MantineIcon
                                     icon={
                                         showTableNamesInLabel
-                                            ? IconTable
+                                            ? TableIcon
                                             : IconTableOff
                                     }
                                 />

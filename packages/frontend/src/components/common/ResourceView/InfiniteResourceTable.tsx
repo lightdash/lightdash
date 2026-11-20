@@ -33,12 +33,7 @@ import {
 } from '@mantine/core';
 import { useDebouncedCallback, useDisclosure } from '@mantine/hooks';
 import {
-    IconAppWindow,
-    IconChartBar,
-    IconFolder,
-    IconFileText,
     IconFolderSymlink,
-    IconLayoutDashboard,
     IconSearch,
     IconX,
     IconColumns,
@@ -58,6 +53,13 @@ import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFla
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
 import useApp from '../../../providers/App/useApp';
+import {
+    BarChartIcon,
+    DashboardIcon,
+    DataAppIcon,
+    DocumentIcon,
+    SpaceIcon,
+} from '../ContentIcons';
 import {
     ContentTable,
     useContentTable,
@@ -468,30 +470,30 @@ const InfiniteResourceTable = ({
                     <Group>
                         {documentCount !== undefined && (
                             <AttributeCount
-                                Icon={IconFileText}
+                                Icon={DocumentIcon}
                                 count={documentCount}
                                 name="Documents"
                             />
                         )}
                         <AttributeCount
-                            Icon={IconLayoutDashboard}
+                            Icon={DashboardIcon}
                             count={dashboardCount}
                             name="Dashboards"
                         />
                         <AttributeCount
-                            Icon={IconChartBar}
+                            Icon={BarChartIcon}
                             count={chartCount}
                             name="Charts"
                         />
                         {dataAppsEnabled && (
                             <AttributeCount
-                                Icon={IconAppWindow}
+                                Icon={DataAppIcon}
                                 count={appCount}
                                 name="Data apps"
                             />
                         )}
                         <AttributeCount
-                            Icon={IconFolder}
+                            Icon={SpaceIcon}
                             count={childSpaceCount}
                             name="Spaces"
                         />

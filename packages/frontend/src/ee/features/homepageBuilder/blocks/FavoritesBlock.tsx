@@ -1,10 +1,8 @@
 import { ResourceViewItemType, type ResourceViewItem } from '@lightdash/common';
 import { Group, Stack } from '@mantine/core';
 import {
-    IconChartBar,
     IconFileText,
     IconFolder,
-    IconLayoutDashboard,
     IconStar,
     IconStarFilled,
     IconTerminal2,
@@ -12,6 +10,10 @@ import {
 } from '@tabler/icons-react';
 import { useState, type FC, type MouseEvent } from 'react';
 import { Link } from 'react-router';
+import {
+    BarChartIcon,
+    DashboardIcon,
+} from '../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { getResourceUrl } from '../../../../components/common/ResourceView/resourceUtils';
 import TruncatedText from '../../../../components/common/TruncatedText';
@@ -28,8 +30,8 @@ import { type BlockComponentProps, type BuildComponentProps } from './types';
 const FAVORITES_DEFAULT_VISIBLE = 5;
 
 const FAVORITE_ICONS: Partial<Record<ResourceViewItemType, Icon>> = {
-    [ResourceViewItemType.CHART]: IconChartBar,
-    [ResourceViewItemType.DASHBOARD]: IconLayoutDashboard,
+    [ResourceViewItemType.CHART]: BarChartIcon,
+    [ResourceViewItemType.DASHBOARD]: DashboardIcon,
     [ResourceViewItemType.SPACE]: IconFolder,
     [ResourceViewItemType.DATA_APP]: IconTerminal2,
     [ResourceViewItemType.DOCUMENT]: IconFileText,
@@ -77,7 +79,7 @@ const FavoritePills: FC<{
                     className={classes.favPill}
                 >
                     <MantineIcon
-                        icon={FAVORITE_ICONS[item.type] ?? IconChartBar}
+                        icon={FAVORITE_ICONS[item.type] ?? BarChartIcon}
                         size={15}
                         color="dimmed"
                     />

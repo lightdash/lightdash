@@ -12,15 +12,14 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
-    IconCode,
     IconLayoutGrid,
     IconPlus,
-    IconPuzzle,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
 import { getChartTypeIcon } from '../../../features/chartTypes/utils/chartTypeIcons';
+import { CustomChartTypeIcon, VegaChartIcon } from '../../common/ContentIcons';
 import MantineIcon from '../../common/MantineIcon';
 import {
     BUILT_IN_GROUP,
@@ -84,7 +83,7 @@ const VEGA_ITEM: CustomChartTypeItem = {
     value: toOptionValue({ kind: 'builtInVega' }),
     label: BUILT_IN_VEGA_LABEL,
     description: BUILT_IN_VEGA_DESCRIPTION,
-    icon: IconCode,
+    icon: VegaChartIcon,
 };
 
 const matchesSearch = (item: CustomChartTypeItem, search: string): boolean =>
@@ -223,9 +222,9 @@ const CustomChartTypePicker: FC<Props> = ({
     // hasn't loaded yet); otherwise the selected type's own icon.
     const selectedIcon =
         selected === null
-            ? IconPuzzle
+            ? CustomChartTypeIcon
             : selected.kind === 'builtInVega'
-              ? IconCode
+              ? VegaChartIcon
               : getChartTypeIcon(selectedDataAppViz?.icon ?? null);
 
     const decoration =

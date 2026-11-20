@@ -16,7 +16,6 @@ import {
     Tooltip,
 } from '@mantine/core';
 import {
-    IconAppWindow,
     IconBook,
     IconBrandYoutube,
     IconExternalLink,
@@ -35,6 +34,7 @@ import {
     type FC,
     type KeyboardEvent,
 } from 'react';
+import { DataAppIcon } from '../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useAppThumbnailUrl } from '../../../../features/apps/hooks/useAppThumbnail';
 import { dataAppHref } from '../../../../features/apps/utils/appUrls';
@@ -77,7 +77,7 @@ const KIND_META: Record<
         label: 'YouTube',
         thumbAccent: classes.resThumbYoutube,
     },
-    'data-app': { icon: IconAppWindow, label: 'Data app' },
+    'data-app': { icon: DataAppIcon, label: 'Data app' },
 };
 
 // Data apps are added via the picker, not the kind dropdown, so they're
@@ -115,7 +115,7 @@ const DataAppThumb: FC<{
         return (
             <div className={classes.resThumbTile}>
                 <div className={classes.resGlyphTile}>
-                    <MantineIcon icon={IconAppWindow} size={22} />
+                    <MantineIcon icon={DataAppIcon} size={22} />
                 </div>
             </div>
         );
@@ -723,7 +723,7 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                 <Button
                     variant="default"
                     size="sm"
-                    leftSection={<MantineIcon icon={IconAppWindow} />}
+                    leftSection={<MantineIcon icon={DataAppIcon} />}
                     onClick={() => setIsAppPickerOpen(true)}
                 >
                     Add app

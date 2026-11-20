@@ -6,7 +6,6 @@ import {
 import { Box } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { captureException } from '@sentry/react';
-import { IconMap } from '@tabler/icons-react';
 import { scaleSqrt } from 'd3-scale';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -124,6 +123,7 @@ interface LeafletAugmentedContainer extends HTMLElement {
         return originalGetMapPanePos.call(this);
     };
 })();
+import { MapChartIcon } from '../common/ContentIcons';
 import { MAP_FILL_NO_BASE_MAP_OPACITY } from './constants';
 // eslint-disable-next-line css-modules/no-unused-class
 import classes from './SimpleMap.module.css';
@@ -488,7 +488,7 @@ const EmptyChart: FC<{ locationType?: MapChartType }> = ({ locationType }) => {
             <SuboptimalState
                 title="No data available"
                 description={description}
-                icon={IconMap}
+                icon={MapChartIcon}
             />
         </Box>
     );

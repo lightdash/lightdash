@@ -1,7 +1,8 @@
 import { Box, Text, UnstyledButton } from '@mantine/core';
-import { IconChevronRight, IconFileText } from '@tabler/icons-react';
+import { IconChevronRight } from '@tabler/icons-react';
 import { type FC, type MouseEvent } from 'react';
 import { Link } from 'react-router';
+import { DocumentIcon } from '../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useDocument } from '../../../../../features/documents/useDocument';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
@@ -85,7 +86,7 @@ export const AiDocumentCardButton: FC<Props> = ({
             <Box className={styles.container}>
                 <Box className={styles.iconChip}>
                     <MantineIcon
-                        icon={IconFileText}
+                        icon={DocumentIcon}
                         size={14}
                         className={styles.icon}
                     />

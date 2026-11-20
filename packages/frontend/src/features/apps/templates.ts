@@ -1,12 +1,12 @@
 import { type DataAppTemplate } from '@lightdash/common';
 import {
     IconFileText,
-    IconLayoutDashboard,
     IconPencil,
     IconPresentation,
     IconPuzzle,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
+import { DashboardIcon } from '../../components/common/ContentIcons';
 
 export type TemplateDefinition = {
     id: DataAppTemplate;
@@ -20,7 +20,7 @@ const TEMPLATES: TemplateDefinition[] = [
         id: 'dashboard',
         title: 'Dashboard',
         description: 'A grid of KPIs and charts for at-a-glance reporting.',
-        icon: IconLayoutDashboard,
+        icon: DashboardIcon,
     },
     {
         id: 'slideshow',

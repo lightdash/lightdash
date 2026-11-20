@@ -1,7 +1,7 @@
 import { Card, Group, Stack, Text } from '@mantine/core';
-import { IconLayoutDashboard } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import { DashboardIcon } from '../common/ContentIcons';
 import MantineIcon from '../common/MantineIcon';
 import classes from './SettingsUsageAnalytics.module.css';
 
@@ -22,7 +22,7 @@ const SettingsUsageAnalytics: FC<ProjectUserAccessProps> = ({
             >
                 <Group>
                     <MantineIcon
-                        icon={IconLayoutDashboard}
+                        icon={DashboardIcon}
                         size="xl"
                         color="dimmed"
                     />
