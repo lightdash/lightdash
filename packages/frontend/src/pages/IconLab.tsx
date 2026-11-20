@@ -7,7 +7,6 @@ import {
     Stack,
     Text,
     Title,
-    useMantineColorScheme,
 } from '@mantine/core';
 import { useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../components/common/MantineIcon';
@@ -39,6 +38,7 @@ import {
     useProject,
 } from '../hooks/useProject';
 import { useProjectUuid } from '../hooks/useProjectUuid';
+import { useAppColorScheme } from '../providers/ColorSchemeContext';
 import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 import { PinnedItemsProvider } from '../providers/PinnedItems/PinnedItemsProvider';
 import { getProjectUrlIdentifier } from '../utils/projectUrl';
@@ -127,7 +127,7 @@ const MatrixCell: FC<{ icons: ContentIconSet; row: IconRow }> = ({
 
 const IconLab: FC = () => {
     const setKey = useContentIconSetKey();
-    const { colorScheme, setColorScheme } = useMantineColorScheme();
+    const { colorScheme, setColorSchemePreference } = useAppColorScheme();
     const [schedulerType, setSchedulerType] = useState<
         'all' | 'chart' | 'dashboard'
     >('all');
@@ -176,7 +176,7 @@ const IconLab: FC = () => {
                             aria-label="Color scheme"
                             value={colorScheme === 'dark' ? 'dark' : 'light'}
                             onChange={(value) =>
-                                setColorScheme(
+                                setColorSchemePreference(
                                     value === 'dark' ? 'dark' : 'light',
                                 )
                             }
