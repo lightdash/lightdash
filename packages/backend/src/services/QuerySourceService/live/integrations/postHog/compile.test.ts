@@ -161,6 +161,42 @@ describe('compilePostHogQuery', () => {
         expect(hogql).toContain("'2026-10-05'");
     });
 
+    test.each(['week', 'month', 'timestamp'])(
+        'uses a filter on %s instead of the default',
+        (name) => {
+            const { query: hogql } = compile(
+                query({
+                    filters: {
+                        dimensions: {
+                            id: 'root',
+                            and: [
+                                rule(name, FilterOperator.EQUALS, [
+                                    '2026-10-12',
+                                ]),
+                            ],
+                        },
+                    },
+                }),
+            );
+            expect(hogql).toContain('2026-10-12');
+            expect(hogql).not.toContain("'2026-10-05'");
+        },
+    );
+
+    test('keeps the default when the week is only checked for null', () => {
+        const { query: hogql } = compile(
+            query({
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [rule('week', FilterOperator.NOT_NULL)],
+                    },
+                },
+            }),
+        );
+        expect(hogql).toContain("'2026-10-05'");
+    });
+
     test('applies metric filters after aggregating and sorts by position', () => {
         const { query: hogql } = compile(
             query({

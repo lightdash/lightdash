@@ -2,6 +2,7 @@ import {
     FilterOperator,
     flattenFilterGroup,
     UnitOfTime,
+    type ApiSourceExplore,
     type Explore,
     type FieldId,
     type FilterRule,
@@ -11,19 +12,31 @@ import {
 import { compileMetricQuery } from '../../../../../queryCompiler';
 import { MetricQueryBuilder } from '../../../../../utils/QueryBuilder/MetricQueryBuilder';
 import {
+    getApiName,
     getLiveExplore,
     type LiveCompiledRequest,
 } from '../../explores/definition';
 
+/** Null checks don't bound the dates read, so they keep the default. */
+const UNBOUNDED_OPERATORS = [FilterOperator.NULL, FilterOperator.NOT_NULL];
+
 const withDefaultDateRange = (
+    apiSource: ApiSourceExplore,
     metricQuery: MetricQuery,
     dateRange: { fieldId: FieldId; defaultDays: number },
 ): MetricQuery => {
     const { dimensions } = metricQuery.filters;
+    // The date, week, month and time fields all read the event timestamp:
+    // a filter on any of them chooses the dates instead of the default
+    const timestamp = getApiName(apiSource, dateRange.fieldId);
     const isDateFiltered = (
         dimensions ? flattenFilterGroup(dimensions) : []
     ).some(
-        (rule) => !rule.disabled && rule.target.fieldId === dateRange.fieldId,
+        (rule) =>
+            !rule.disabled &&
+            !UNBOUNDED_OPERATORS.includes(rule.operator) &&
+            Object.hasOwn(apiSource.fields, rule.target.fieldId) &&
+            getApiName(apiSource, rule.target.fieldId) === timestamp,
     );
     if (isDateFiltered) {
         return metricQuery;
@@ -52,8 +65,9 @@ const withDefaultDateRange = (
 /**
  * Compiles a metric query on a PostHog explore into one HogQL query, using
  * the same SQL builder as warehouse explores with the ClickHouse dialect
- * HogQL is built on. Without a date filter it reads the last
- * `defaultDays`, so a question never scans the whole event history.
+ * HogQL is built on. Without a filter on the event date, week, month or
+ * time it reads the last `defaultDays`, so a question never scans the whole
+ * event history.
  */
 export const compilePostHogQuery = ({
     explore,
@@ -68,7 +82,7 @@ export const compilePostHogQuery = ({
 }): LiveCompiledRequest => {
     const apiSource = getLiveExplore(explore);
     const query = apiSource.dateRange
-        ? withDefaultDateRange(metricQuery, apiSource.dateRange)
+        ? withDefaultDateRange(apiSource, metricQuery, apiSource.dateRange)
         : metricQuery;
     const { query: selectSql } = new MetricQueryBuilder({
         explore,

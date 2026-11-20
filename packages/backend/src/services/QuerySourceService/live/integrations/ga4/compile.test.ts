@@ -368,6 +368,47 @@ describe('compileGa4Query dates', () => {
         });
         expect(fieldIdsByColumn.yearMonth).toBe(field('date_month'));
     });
+
+    test.each([
+        [[], { startDate: '28daysAgo', endDate: '1daysAgo' }],
+        [['date'], { startDate: '28daysAgo', endDate: '1daysAgo' }],
+        // 28 days before 4 Nov is Wednesday 7 Oct
+        [['date_week'], { startDate: '2026-10-05', endDate: '1daysAgo' }],
+        [['date_month'], { startDate: '2026-10-01', endDate: '1daysAgo' }],
+        [
+            ['date_week', 'date_year'],
+            { startDate: '2026-01-01', endDate: '1daysAgo' },
+        ],
+    ])(
+        'starts the default window at the first whole period grouped by %j',
+        (dimensions, dateRange) => {
+            expect(
+                compile(query({ dimensions: dimensions.map(field) })).request
+                    .dateRanges,
+            ).toEqual([dateRange]);
+        },
+    );
+
+    test('keeps the date filter as the range when grouping by month', () => {
+        expect(
+            compile(
+                query({
+                    dimensions: [field('date_month')],
+                    filters: {
+                        dimensions: {
+                            id: 'root',
+                            and: [
+                                rule('date', FilterOperator.IN_BETWEEN, [
+                                    '2026-10-15',
+                                    '2026-10-20',
+                                ]),
+                            ],
+                        },
+                    },
+                }),
+            ).request.dateRanges,
+        ).toEqual([{ startDate: '2026-10-15', endDate: '2026-10-20' }]);
+    });
 });
 
 describe('withGa4MetadataFields', () => {

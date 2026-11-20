@@ -173,6 +173,70 @@ describe('pylonIntegration issues', () => {
         expect(result.hasMoreRows).toBe(true);
     });
 
+    it('filters first response on the rows read, counting only kept rows against the limit', async () => {
+        const { source, send } = connect(
+            page([
+                issue(1, { first_response_seconds: 600 }),
+                issue(2, { first_response_seconds: 7_200 }),
+                issue(3, { first_response_time: null }),
+                issue(4, { first_response_seconds: 9_000 }),
+                issue(5, { first_response_seconds: 6_000 }),
+            ]),
+        );
+
+        const result = await run(
+            source,
+            {
+                kind: 'issues',
+                columns: ['number', 'first_response_minutes'],
+                localFilters: [
+                    {
+                        column: 'first_response_minutes',
+                        operator: 'greater_than',
+                        value: 90,
+                    },
+                ],
+            },
+            2,
+        );
+
+        expect(send.mock.calls[0][0].body.limit).toBe(1_000);
+        expect(result.rows).toEqual([
+            { number: 2, first_response_minutes: 120 },
+            { number: 4, first_response_minutes: 150 },
+        ]);
+        expect(result.hasMoreRows).toBe(true);
+    });
+
+    it('refuses to filter first response when more issues match than one query reads', async () => {
+        const fullPage = (pageIndex: number) =>
+            page(
+                Array.from({ length: 1_000 }, (_, index) =>
+                    issue(pageIndex * 1_000 + index + 1),
+                ),
+                'next',
+            );
+        const { source } = connect(
+            ...Array.from({ length: 10 }, (_, pageIndex) =>
+                fullPage(pageIndex),
+            ),
+        );
+
+        await expect(
+            run(source, {
+                kind: 'issues',
+                columns: ['number'],
+                localFilters: [
+                    {
+                        column: 'first_response_minutes',
+                        operator: 'greater_than',
+                        value: 60,
+                    },
+                ],
+            }),
+        ).rejects.toThrow('more than 9,999 rows');
+    });
+
     it('returns no rows when no issues match', async () => {
         const { source } = connect(page([]));
 

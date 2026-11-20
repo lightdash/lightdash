@@ -6,6 +6,7 @@ import {
     isFilterGroup,
     ParameterError,
     TimeFrames,
+    UnitOfTime,
     type ApiSourceExplore,
     type Explore,
     type FilterGroup,
@@ -20,8 +21,11 @@ import {
 } from '../../explores/definition';
 import {
     getLiveDateRange,
+    getStartOfPeriod,
     splitDateRangeFilter,
+    toAbsoluteDate,
     type LiveDateBound,
+    type LiveDateRange,
 } from '../../query/dateRange';
 import { toGa4ColumnName } from './run';
 
@@ -188,17 +192,55 @@ const toGa4Date = (bound: LiveDateBound) => {
     return bound.daysAgo === 0 ? 'today' : `${bound.daysAgo}daysAgo`;
 };
 
+/** The period each grain of the date reports, coarsest last. */
+const PERIOD_UNITS: [apiName: string, unit: UnitOfTime][] = [
+    ['isoYearIsoWeek', UnitOfTime.weeks],
+    ['yearMonth', UnitOfTime.months],
+    ['year', UnitOfTime.years],
+];
+
+/**
+ * The default window, started at the beginning of its first week, month or
+ * year when the query groups by one, so that period isn't cut short.
+ */
+const getDefaultRange = (
+    defaultDays: number,
+    groupedApiNames: string[],
+    today: string,
+): LiveDateRange => {
+    const range = getLiveDateRange({ rule: null, defaultDays, today });
+    const coarsest = PERIOD_UNITS.filter(([apiName]) =>
+        groupedApiNames.includes(apiName),
+    ).pop();
+    if (!coarsest) {
+        return range;
+    }
+    return {
+        start: {
+            date: getStartOfPeriod(
+                coarsest[1],
+                toAbsoluteDate(range.start, today),
+            ),
+        },
+        end: range.end,
+    };
+};
+
 const getDateRanges = (
     apiSource: ApiSourceExplore,
     dateRule: FilterRule | null,
+    groupedApiNames: string[],
     today: string,
 ) => {
-    const { start, end } = getLiveDateRange({
-        rule: dateRule,
-        defaultDays: apiSource.dateRange?.defaultDays ?? 28,
-        today,
-        earliestDate: GA4_EARLIEST_DATE,
-    });
+    const defaultDays = apiSource.dateRange?.defaultDays ?? 28;
+    const { start, end } = dateRule
+        ? getLiveDateRange({
+              rule: dateRule,
+              defaultDays,
+              today,
+              earliestDate: GA4_EARLIEST_DATE,
+          })
+        : getDefaultRange(defaultDays, groupedApiNames, today);
     return [{ startDate: toGa4Date(start), endDate: toGa4Date(end) }];
 };
 
@@ -248,7 +290,12 @@ export const compileGa4Query = ({
     );
     const metricIds = new Set(metricQuery.metrics);
     const request = {
-        dateRanges: getDateRanges(apiSource, dateRule, today),
+        dateRanges: getDateRanges(
+            apiSource,
+            dateRule,
+            metricQuery.dimensions.map(apiName),
+            today,
+        ),
         dimensions: metricQuery.dimensions.map((fieldId) => ({
             name: apiName(fieldId),
         })),

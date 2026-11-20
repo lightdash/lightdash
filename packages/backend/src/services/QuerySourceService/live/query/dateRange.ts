@@ -112,6 +112,10 @@ const getPeriodStart = (
     }
 };
 
+/** The first day of the week (Monday), month, quarter or year holding `date`. */
+export const getStartOfPeriod = (unit: UnitOfTime, date: string): string =>
+    getPeriodStart(unit, date, 0);
+
 const getCompletedPeriod = (
     unit: UnitOfTime,
     count: number,

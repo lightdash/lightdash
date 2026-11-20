@@ -64,7 +64,7 @@ export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
     name: 'issues',
     label: 'Issues',
     description:
-        'Support issues (conversations and tickets) of one Pylon workspace, read live from issue search, one row per issue. One query reads at most 9,999 issues, created in the last 30 days unless the Created filter says otherwise. Dates are UTC days.',
+        'Support issues (conversations and tickets) of one Pylon workspace, read live from issue search, one row per issue. One query reads at most 9,999 issues, created in the last 30 days up to today unless a Created, Updated or Resolved filter says otherwise. Dates are UTC days.',
     dimensions: [
         dimension(
             'number',
