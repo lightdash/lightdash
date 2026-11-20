@@ -56,6 +56,7 @@ const tileTarget = (id: string): CaptureTarget => ({
     kind: 'tile',
     id,
     label: `Title of ${id}`,
+    parentId: null,
 });
 
 const mark = (overrides: Partial<CaptureMark>): CaptureMark => ({

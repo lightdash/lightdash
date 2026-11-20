@@ -113,7 +113,7 @@ export const useAppFrameSurface = ({
                 : // An older bundle does not say where the element is.
                   new DOMRect(frame.right, frame.top, 0, 0);
             pickedRef.current = {
-                target: { kind: 'element', id: label, label },
+                target: { kind: 'element', id: label, label, parentId: null },
                 rect: onPage,
             };
             framePick({

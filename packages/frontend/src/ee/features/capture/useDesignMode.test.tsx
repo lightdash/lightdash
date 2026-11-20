@@ -655,8 +655,18 @@ describe('useDesignMode', () => {
     });
 
     it('a Control hold picks an element with each click', async () => {
-        const target = { kind: 'tile', id: 't1', label: 'Revenue' };
-        const other = { kind: 'tile', id: 't2', label: 'Orders' };
+        const target = {
+            kind: 'tile',
+            id: 't1',
+            label: 'Revenue',
+            parentId: null,
+        };
+        const other = {
+            kind: 'tile',
+            id: 't2',
+            label: 'Orders',
+            parentId: null,
+        };
         surface.pickAt = (point) => ({
             target: point.x < 23 ? target : other,
             rect: new DOMRect(10, 20, 30, 40),
@@ -705,7 +715,12 @@ describe('useDesignMode', () => {
 
     describe('on an app, which is picked from inside its own frame', () => {
         const element = {
-            target: { kind: 'element', id: 'save', label: '[button "Save"]' },
+            target: {
+                kind: 'element',
+                id: 'save',
+                label: '[button "Save"]',
+                parentId: null,
+            },
             rect: new DOMRect(20, 20, 30, 10),
         };
         const useAppSurface = (picked: { current: typeof element | null }) => {

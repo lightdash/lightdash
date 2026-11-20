@@ -52,9 +52,11 @@ const describeMark = (mark: CaptureMark): string => {
             return `arrow from ${from} to ${to}`;
         }
         case 'pick':
-            return mark.target
+            if (!mark.target) return `picked, ${describePosition(centre)}`;
+            // A part's label is already a phrase that quotes its own names.
+            return mark.target.parentId === null
                 ? `picked "${mark.target.label}"`
-                : `picked, ${describePosition(centre)}`;
+                : `picked ${mark.target.label}`;
         default:
             return assertUnreachable(mark.shape, 'Unknown mark shape');
     }

@@ -107,12 +107,32 @@ describe('captureReducer', () => {
         s = captureReducer(s, {
             type: 'shiftUp',
             atMs: 500,
-            target: { kind: 'tile', id: 'abc', label: 'Revenue tile' },
-            arrowTo: { kind: 'tile', id: 'def', label: 'Orders tile' },
+            target: {
+                kind: 'tile',
+                id: 'abc',
+                label: 'Revenue tile',
+                parentId: null,
+            },
+            arrowTo: {
+                kind: 'tile',
+                id: 'def',
+                label: 'Orders tile',
+                parentId: null,
+            },
             covers: [],
             trail: [
-                { kind: 'tile', id: 'abc', label: 'Revenue tile' },
-                { kind: 'tile', id: 'def', label: 'Orders tile' },
+                {
+                    kind: 'tile',
+                    id: 'abc',
+                    label: 'Revenue tile',
+                    parentId: null,
+                },
+                {
+                    kind: 'tile',
+                    id: 'def',
+                    label: 'Orders tile',
+                    parentId: null,
+                },
             ],
             tabName: null,
             box: null,
@@ -189,7 +209,12 @@ describe('captureReducer', () => {
     });
 
     it('a cursor pick becomes a mark with no strokes', () => {
-        const T = { kind: 'tile', id: 't1', label: 'Revenue by month' };
+        const T = {
+            kind: 'tile',
+            id: 't1',
+            label: 'Revenue by month',
+            parentId: null,
+        };
         const box = { x: 0.2, y: 0.2, width: 0.3, height: 0.3 };
         let s = captureReducer(rec(), {
             type: 'shiftDown',

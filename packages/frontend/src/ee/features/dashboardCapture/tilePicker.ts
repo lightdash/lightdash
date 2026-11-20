@@ -15,16 +15,11 @@ export const MAX_CHART_CONTEXT = 3;
 type ViewportPoint = { x: number; y: number };
 type Cell = { x: number; y: number };
 
-const tileTarget = (tile: DashboardTile): CaptureTarget => ({
-    kind: 'tile',
-    id: tile.uuid,
-    label: getTileTitle(tile, UNTITLED),
-});
-
 const cellTarget = (cell: Cell): CaptureTarget => ({
     kind: 'cell',
     id: `${cell.x},${cell.y}`,
     label: `empty space at column ${cell.x}, row ${cell.y}`,
+    parentId: null,
 });
 
 // Viewport point to dashboard grid cell, clamped to the grid.
@@ -44,19 +39,27 @@ const cellAtPoint = (
     };
 };
 
-// The topmost of the given tiles under a viewport point, with its element.
-const tileAtPoint = (
+/** The topmost of the given tiles under a viewport point, with its element and what was hit inside it. */
+export const tileAtPoint = (
     point: ViewportPoint,
     tiles: DashboardTile[],
-): { tile: DashboardTile; element: Element } | null => {
+): { tile: DashboardTile; element: Element; hit: Element } | null => {
     for (const hit of document.elementsFromPoint(point.x, point.y)) {
         const element = hit.closest(TILE_SELECTOR);
         const tileUuid = element?.getAttribute('data-tile-uuid');
         const tile = tiles.find((candidate) => candidate.uuid === tileUuid);
-        if (element && tile) return { tile, element };
+        if (element && tile) return { tile, element, hit };
     }
     return null;
 };
+
+/** A tile as a target. */
+export const tileTarget = (tile: DashboardTile): CaptureTarget => ({
+    kind: 'tile',
+    id: tile.uuid,
+    label: getTileTitle(tile, UNTITLED),
+    parentId: null,
+});
 
 /**
  * Cursor: the tile under a viewport point, with its bounds. Pass the active
@@ -113,7 +116,11 @@ export const chartUuidsForMarks = (
             mark.target,
             mark.arrowTo,
             ...mark.covers.map((c) => c.target),
-        ].flatMap((target) => (target?.kind === 'tile' ? [target.id] : [])),
+        ].flatMap((target) => {
+            // A part of a tile (a bar, a cell) counts as its tile.
+            if (target?.parentId) return [target.parentId];
+            return target?.kind === 'tile' ? [target.id] : [];
+        }),
     );
     const chartUuids = tileUuids.flatMap((tileUuid) => {
         const tile = tiles.find((candidate) => candidate.uuid === tileUuid);

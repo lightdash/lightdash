@@ -332,6 +332,7 @@ describe('DashboardDesignMode', () => {
                             kind: 'tile',
                             id: 'tile-1',
                             label: 'Title of tile-1',
+                            parentId: null,
                         },
                     }),
                 ],

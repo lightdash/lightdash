@@ -54,7 +54,12 @@ describe('buildSummary', () => {
                     startMs: 5000,
                     endMs: 5500,
                     imageIndex: 2,
-                    target: { kind: 'tile', id: 't', label: 'Revenue' },
+                    target: {
+                        kind: 'tile',
+                        id: 't',
+                        label: 'Revenue',
+                        parentId: null,
+                    },
                 }),
                 mark({ number: 4, startMs: 7000, endMs: 7500, imageIndex: 1 }),
             ],
@@ -173,7 +178,12 @@ describe('buildSummary', () => {
                     number: 1,
                     startMs: 0,
                     endMs: 500,
-                    target: { kind: 'tile', id: 'abc', label: 'Revenue tile' },
+                    target: {
+                        kind: 'tile',
+                        id: 'abc',
+                        label: 'Revenue tile',
+                        parentId: null,
+                    },
                 }),
             ],
         });
@@ -240,12 +250,48 @@ describe('buildSummary', () => {
                     endMs: 500,
                     shape: 'arrow',
                     arrow: { from: { x: 0.1, y: 0.9 }, to: { x: 0.9, y: 0.1 } },
-                    target: { kind: 'tile', id: 'a', label: 'Top customers' },
-                    arrowTo: { kind: 'tile', id: 'b', label: 'Revenue' },
+                    target: {
+                        kind: 'tile',
+                        id: 'a',
+                        label: 'Top customers',
+                        parentId: null,
+                    },
+                    arrowTo: {
+                        kind: 'tile',
+                        id: 'b',
+                        label: 'Revenue',
+                        parentId: null,
+                    },
                 }),
             ],
         });
         expect(out).toContain('- ① (0:00) arrow from Top customers to Revenue');
+    });
+
+    it('writes a picked part as its own phrase, without more quotes', () => {
+        const out = buildSummary({
+            durationMs: 5000,
+            imageCount: 1,
+            transcript: [],
+            marks: [
+                mark({
+                    number: 3,
+                    startMs: 4000,
+                    endMs: 4100,
+                    shape: 'pick',
+                    tool: 'cursor',
+                    target: {
+                        kind: 'chart-point',
+                        id: 't/point/0/1',
+                        label: 'bar "credit_card" in series "Total revenue" (1,023) on "Revenue"',
+                        parentId: 't',
+                    },
+                }),
+            ],
+        });
+        expect(out).toContain(
+            '- \u2462 (0:04) picked bar "credit_card" in series "Total revenue" (1,023) on "Revenue"',
+        );
     });
 
     it('names the tab only when marks span tabs', () => {
@@ -257,7 +303,7 @@ describe('buildSummary', () => {
                 shape: 'pick',
                 tool: 'cursor',
                 tabName,
-                target: { kind: 'tile', id: label, label },
+                target: { kind: 'tile', id: label, label, parentId: null },
             });
         const span = buildSummary({
             durationMs: 9000,

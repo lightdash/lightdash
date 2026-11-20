@@ -4,7 +4,13 @@ export type Box = { x: number; y: number; width: number; height: number };
 export type Stroke = { points: Point[] };
 export type MarkShape = 'circle' | 'underline' | 'arrow' | 'scribble' | 'pick';
 export type DesignTool = 'stylus' | 'cursor';
-export type CaptureTarget = { kind: string; id: string; label: string };
+export type CaptureTarget = {
+    kind: string;
+    id: string;
+    label: string;
+    /** The id of the thing this is a part of (a bar's tile); null when it stands alone. */
+    parentId: string | null;
+};
 
 /** A target under a mark and the share (0 to 1) of the mark's area on it. */
 export type CaptureCover = { target: CaptureTarget; share: number };
