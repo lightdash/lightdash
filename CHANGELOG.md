@@ -1,3 +1,10 @@
+# [3.354.0](https://github.com/lightdash/lightdash/compare/3.353.1...3.354.0) (2026-11-20)
+
+
+### Features
+
+* **export:** write field urls as hyperlinks in Excel exports ([#32250](https://github.com/lightdash/lightdash/issues/32250)) ([d8c0015](https://github.com/lightdash/lightdash/commit/d8c00150b15f06241b2069316e4c19b3f268a349))
+
 ## [3.353.1](https://github.com/lightdash/lightdash/compare/3.353.0...3.353.1) (2026-11-20)
 
 
