@@ -25,10 +25,12 @@ export const getPendingApprovalIds = ({
     parts,
     decidedToolCallIds,
     stepProgressMessages,
+    autoApproveSql,
 }: Pick<
     AiAgentThreadStreamingState,
-    'parts' | 'decidedToolCallIds' | 'stepProgressMessages'
+    'parts' | 'decidedToolCallIds' | 'stepProgressMessages' | 'autoApproveSql'
 >): string[] => {
+    if (autoApproveSql) return [];
     const progressIds = new Set(
         stepProgressMessages.map((message) => message.progressId),
     );

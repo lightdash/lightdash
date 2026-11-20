@@ -17551,6 +17551,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     : undefined;
                 const isSemanticStudioThread =
                     prompt.threadCreatedFrom === 'semantic_studio';
+                // Studio never asks, whichever request started the turn.
+                const autoApproveSqlForUser =
+                    (options.autoApproveSql ?? false) || isSemanticStudioThread;
                 // Fast decisions route analytics turns; this thread only edits models.
                 const decisions =
                     decisionUsage && !isSemanticStudioThread
@@ -18657,9 +18660,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         ),
                     },
                     autoApproveSql:
-                        (options.autoApproveSql ?? false) ||
+                        autoApproveSqlForUser ||
                         agentSettings.enableSqlAutoApproval,
-                    autoApproveSqlUserUuid: options.autoApproveSql
+                    autoApproveSqlUserUuid: autoApproveSqlForUser
                         ? user.userUuid
                         : null,
                     useSlackStreamCard: Boolean(options.onSlackStepProgress),
