@@ -493,6 +493,7 @@ export const lightdashConfigMock: LightdashConfig = {
         materializationMaxRows: null,
         duckdbQueryMemoryLimit: null,
         duckdbWriteMemoryLimit: '256MB',
+        materializationTimeout: 30 * 60 * 1000,
         s3: {
             endpoint: 'mock_endpoint',
             bucket: 'mock_preagg_bucket',
