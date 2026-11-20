@@ -8,7 +8,17 @@ import {
 import { GeneratorModelOptions } from '../models/types';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
 
-const MAX_ANOMALIES = 12;
+// Length and count limits are stated to the model in the descriptions and
+// enforced after parsing. Zod .max() would make the SDK reject an otherwise
+// valid response because one string ran a few characters over.
+const LIMITS = {
+    anomalyText: 400,
+    headline: 200,
+    summary: 1200,
+    anomalies: 12,
+    limitation: 300,
+    limitations: 8,
+} as const;
 
 const AnomalySchema = z.object({
     severity: z
@@ -19,9 +29,8 @@ const AnomalySchema = z.object({
     text: z
         .string()
         .min(1)
-        .max(400)
         .describe(
-            'One or two sentences naming the value, the period or scope, and what it is compared against. Cite figures from the data only.',
+            `One or two sentences naming the value, the period or scope, and what it is compared against. Cite figures from the data only. At most ${LIMITS.anomalyText} characters.`,
         ),
     queryUuid: z.string().describe('The query uuid of the source section'),
     fieldId: z
@@ -54,28 +63,24 @@ export const DataAppDetectionSchema = z.object({
     headline: z
         .string()
         .min(1)
-        .max(200)
         .describe(
-            'One sentence stating the single most important finding, with its figure, period and scope',
+            `One sentence stating the single most important finding, with its figure, period and scope. At most ${LIMITS.headline} characters.`,
         ),
     summary: z
         .string()
         .min(1)
-        .max(1200)
         .describe(
-            'Two to four sentences an executive can read without the charts. Name the period and scope of every claim.',
+            `Two to four sentences an executive can read without the charts. Name the period and scope of every claim. At most ${LIMITS.summary} characters.`,
         ),
     anomalies: z
         .array(AnomalySchema)
-        .max(MAX_ANOMALIES)
         .describe(
-            'Notable data points, most important first. Empty when nothing is out of the ordinary.',
+            `Notable data points, most important first. Empty when nothing is out of the ordinary. At most ${LIMITS.anomalies} items.`,
         ),
     limitations: z
-        .array(z.string().max(300))
-        .max(8)
+        .array(z.string())
         .describe(
-            'What could not be assessed: no comparison period, partial period, truncated data, conflicting scopes',
+            `What could not be assessed: no comparison period, partial period, truncated data, conflicting scopes. At most ${LIMITS.limitations} items of at most ${LIMITS.limitation} characters each.`,
         ),
     dataAsOf: z
         .string()
@@ -94,6 +99,15 @@ export type DataAppDetectionAnomaly = Omit<
 
 export type DataAppDetection = Omit<RawDataAppDetection, 'anomalies'> & {
     anomalies: DataAppDetectionAnomaly[];
+};
+
+/** Cuts text to `max` characters at a word boundary, ending with an ellipsis. */
+export const truncateText = (text: string, max: number): string => {
+    if (text.length <= max) return text;
+    const cut = text.slice(0, max - 1);
+    const lastSpace = cut.lastIndexOf(' ');
+    const base = lastSpace > max / 2 ? cut.slice(0, lastSpace) : cut;
+    return `${base.trimEnd()}…`;
 };
 
 // The model fills an explicit list far more reliably than a dynamic-key
@@ -167,14 +181,25 @@ export async function detectDataAppAnomalies(
     });
     const usage = languageModelUsageToTokens(result.usage);
     emitAiUsage(telemetry, usage);
-    const { anomalies, ...rest } = result.output;
+    const { headline, summary, anomalies, limitations, dataAsOf } =
+        result.output;
     return {
         detection: {
-            ...rest,
-            anomalies: anomalies.map(({ rowIdentity, ...anomaly }) => ({
-                ...anomaly,
-                dimensionValues: toDimensionValues(rowIdentity),
-            })),
+            headline: truncateText(headline, LIMITS.headline),
+            summary: truncateText(summary, LIMITS.summary),
+            anomalies: anomalies
+                .slice(0, LIMITS.anomalies)
+                .map(({ rowIdentity, text, ...anomaly }) => ({
+                    ...anomaly,
+                    text: truncateText(text, LIMITS.anomalyText),
+                    dimensionValues: toDimensionValues(rowIdentity),
+                })),
+            limitations: limitations
+                .slice(0, LIMITS.limitations)
+                .map((limitation) =>
+                    truncateText(limitation, LIMITS.limitation),
+                ),
+            dataAsOf,
         },
         usage,
     };
