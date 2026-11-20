@@ -900,6 +900,73 @@ describe('Formatting', () => {
                 ).toEqual('$1.2K');
             });
 
+            test.each([
+                [999.5, 0, '1K'],
+                [999999, 0, '1M'],
+                [999999999, 0, '1B'],
+                [999999999999, 0, '1T'],
+                [-999999, 0, '-1M'],
+                [999950, 1, '1.0M'],
+                [-999950, 1, '-1.0M'],
+                ['999999', 0, '1M'],
+                [999999.5, undefined, '1M'],
+                [999499, 0, '999K'],
+                [999949, 1, '999.9K'],
+                [999999.4, undefined, '999.999K'],
+                [999999999999999, 0, '1,000T'],
+            ] as const)(
+                'auto compact rounds %s with %s decimal places to %s',
+                (value, round, expected) => {
+                    expect(
+                        applyCustomFormat(value, {
+                            ...autoConfig,
+                            round,
+                            separator: NumberSeparator.COMMA_PERIOD,
+                        }),
+                    ).toBe(expected);
+                },
+            );
+
+            test.each([
+                [999996, 'USD', 2, '$1.00M'],
+                [-999996, 'USD', 2, '-$1.00M'],
+                [999996, 'USD', undefined, '$1.00M'],
+                [999999, 'JPY', undefined, '¥1M'],
+                [999999.5, 'KWD', undefined, 'KWD 1.000M'],
+                [999994, 'USD', 2, '$999.99K'],
+            ] as const)(
+                'auto compact rounds %s %s with %s decimal places to %s',
+                (value, currency, round, expected) => {
+                    expect(
+                        applyCustomFormat(value, {
+                            type: CustomFormatType.CURRENCY,
+                            compact: AUTO,
+                            currency,
+                            round,
+                            separator: NumberSeparator.COMMA_PERIOD,
+                        }),
+                    ).toBe(expected);
+                },
+            );
+
+            test('auto promotion preserves separators and affixes without changing fixed units', () => {
+                expect(
+                    applyCustomFormat(999950, {
+                        ...autoConfig,
+                        round: 1,
+                        separator: NumberSeparator.PERIOD_COMMA,
+                        prefix: '~',
+                        suffix: ' total',
+                    }),
+                ).toBe('~1,0M total');
+                expect(
+                    applyCustomFormat(999999, {
+                        ...thousandsConfig,
+                        round: 0,
+                    }),
+                ).toBe('1,000K');
+            });
+
             test('when applying round it should return the right style', () => {
                 expect(
                     applyCustomFormat(5, { ...millionsConfig, round: 2 }),

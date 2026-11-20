@@ -754,17 +754,36 @@ function applyCompact(
 
     if (format.compact === Compact.AUTO) {
         const numberValue = Number(value);
-        const compactConfig = [
+        const compactConfigs = [
             Compact.TRILLIONS,
             Compact.BILLIONS,
             Compact.MILLIONS,
             Compact.THOUSANDS,
-        ]
-            .map((compact) => CompactConfigMap[compact])
-            .find(
-                ({ orderOfMagnitude }) =>
-                    Math.abs(numberValue) >= 10 ** orderOfMagnitude,
-            );
+        ].map((compact) => CompactConfigMap[compact]);
+        let compactConfig = compactConfigs.find(
+            ({ orderOfMagnitude }) =>
+                Math.abs(numberValue) >= 10 ** orderOfMagnitude,
+        );
+        const nextCompactConfig =
+            compactConfigs[
+                compactConfig
+                    ? compactConfigs.indexOf(compactConfig) - 1
+                    : compactConfigs.length - 1
+            ];
+
+        if (nextCompactConfig) {
+            const compactValue = compactConfig
+                ? compactConfig.convertFn(numberValue)
+                : numberValue;
+            const integerPart = new Intl.NumberFormat('en-US', {
+                ...getFormatNumberOptions(compactValue, format),
+                useGrouping: false,
+            })
+                .formatToParts(compactValue)
+                .find(({ type }) => type === 'integer')?.value;
+
+            if (Number(integerPart) >= 1000) compactConfig = nextCompactConfig;
+        }
 
         if (compactConfig) {
             return {
