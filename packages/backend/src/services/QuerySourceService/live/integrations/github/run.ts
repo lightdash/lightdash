@@ -2,6 +2,9 @@ import {
     ApiConnectorType,
     DimensionType,
     getGithubContributorsPath,
+    getGithubIssuesPath,
+    getGithubPullsPath,
+    GITHUB_GRAPHQL_PATH,
     GITHUB_SEARCH_PATH,
     ParameterError,
     WarehouseQueryError,
@@ -23,16 +26,25 @@ const SEARCH_PAGE_SIZE = 100;
 const SEARCH_RESULT_CAP = 1_000;
 export const GITHUB_SEARCH_MAX_PAGES = SEARCH_RESULT_CAP / SEARCH_PAGE_SIZE;
 
+/** Search can return one fewer than its 1,000, so reading every page detects truncation. */
+const SEARCH_MAX_ROWS = SEARCH_RESULT_CAP - 1;
+
+/** The REST lists read 100 a page; one query reads at most 50 pages. */
+const LIST_PAGE_SIZE = 100;
+export const GITHUB_LIST_MAX_PAGES = 50;
+
 /**
- * The most rows one query can return: one fewer than search's 1,000, so
- * reading every page detects truncation.
+ * The most rows one query can return: one fewer than the items one list
+ * query reads, so reading every page detects truncation. Search stops at
+ * its own 999.
  */
-export const GITHUB_MAX_QUERY_ROWS = SEARCH_RESULT_CAP - 1;
+export const GITHUB_MAX_QUERY_ROWS = GITHUB_LIST_MAX_PAGES * LIST_PAGE_SIZE - 1;
 
 /** Waits between asks while GitHub computes contributor statistics. */
 export const GITHUB_STATS_RETRY_DELAYS_MS = [1_000, 2_000, 4_000];
 
 export const GITHUB_CALLS_PER_QUERY = Math.max(
+    GITHUB_LIST_MAX_PAGES,
     GITHUB_SEARCH_MAX_PAGES,
     GITHUB_STATS_RETRY_DELAYS_MS.length + 1,
 );
@@ -67,6 +79,62 @@ type ContributorColumn = (typeof CONTRIBUTOR_COLUMNS)[number];
 const CONTRIBUTOR_METRICS = ['commits', 'additions', 'deletions'] as const;
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+const LIST_DATE_COLUMNS = [
+    'created_at',
+    'updated_at',
+    'closed_at',
+    'merged_at',
+] as const;
+type ListDateColumn = (typeof LIST_DATE_COLUMNS)[number];
+
+const valueFilterSchema = z
+    .object({
+        column: z.enum([
+            'author',
+            'assignee',
+            'labels',
+            'state',
+            'state_reason',
+        ]),
+        op: z.enum(['eq', 'neq']),
+        value: z.string().min(1),
+    })
+    .strict();
+
+const draftFilterSchema = z
+    .object({
+        column: z.literal('draft'),
+        op: z.literal('eq'),
+        value: z.boolean(),
+    })
+    .strict();
+
+const commentsFilterSchema = z
+    .object({
+        column: z.literal('comments'),
+        op: z.enum(['eq', 'gt', 'lt']),
+        value: z.number().int().nonnegative(),
+    })
+    .strict();
+
+/** Inclusive UTC days. */
+const dateFilterSchema = z
+    .object({
+        column: z.enum(LIST_DATE_COLUMNS),
+        op: z.literal('between'),
+        start: z.string().regex(ISO_DATE, 'Use YYYY-MM-DD'),
+        end: z.string().regex(ISO_DATE, 'Use YYYY-MM-DD'),
+    })
+    .strict();
+
+const listFilterSchema = z.union([
+    valueFilterSchema,
+    draftFilterSchema,
+    commentsFilterSchema,
+    dateFilterSchema,
+]);
+export type GithubListFilter = z.infer<typeof listFilterSchema>;
 // The source fixes the repository and the type
 const SCOPE_QUALIFIER =
     /(^|\s)-?(repo|org|user|owner):|(^|\s)-?(is|type):(pr|pull-request|issue)\b/i;
@@ -90,6 +158,43 @@ const searchRequestSchema = z
     })
     .strict();
 
+/**
+ * Pull requests or issues from the REST lists, which cover the whole
+ * history; search's index misses older items. Filters the lists can't
+ * apply are applied to each page read.
+ */
+const listRequestSchema = z
+    .object({
+        kind: z.literal('list'),
+        type: z.enum(['pr', 'issue']),
+        filters: z.array(listFilterSchema),
+        columns: z.union([
+            z.tuple([z.literal('total_count')]),
+            z.array(z.enum(SEARCH_COLUMNS)).min(1),
+        ]),
+        sort: z.enum(['created', 'updated']).optional(),
+        order: z.enum(['asc', 'desc']).optional(),
+        limit: z.number().int().positive().optional(),
+    })
+    .strict();
+
+/**
+ * An exact count from GraphQL's totalCount, one call whatever the
+ * repository's size. Only filters GraphQL applies itself; anything else is
+ * counted from the lists.
+ */
+const countRequestSchema = z
+    .object({
+        kind: z.literal('count'),
+        type: z.enum(['pr', 'issue']),
+        state: z.enum(['open', 'closed', 'merged']).optional(),
+        label: z.string().min(1).optional(),
+        // Issues only: GraphQL's pull request connection can't filter by people
+        author: z.string().min(1).optional(),
+        assignee: z.string().min(1).optional(),
+    })
+    .strict();
+
 const contributorsRequestSchema = z
     .object({
         kind: z.literal('contributors'),
@@ -104,15 +209,20 @@ const contributorsRequestSchema = z
 /** One GitHub request, as compile writes it and agents send it. */
 export const githubRequestSchema = z.discriminatedUnion('kind', [
     searchRequestSchema,
+    listRequestSchema,
+    countRequestSchema,
     contributorsRequestSchema,
 ]);
 
 export type GithubRequest = z.infer<typeof githubRequestSchema>;
 type GithubSearchRequest = z.infer<typeof searchRequestSchema>;
+type GithubListRequest = z.infer<typeof listRequestSchema>;
+type GithubCountRequest = z.infer<typeof countRequestSchema>;
 type GithubContributorsRequest = z.infer<typeof contributorsRequestSchema>;
 
 const userSchema = z.object({ login: z.string() }).nullable().optional();
 
+/** An item of search, the issues list or the pulls list. */
 const searchItemSchema = z.object({
     number: z.number(),
     title: z.string(),
@@ -121,12 +231,19 @@ const searchItemSchema = z.object({
     state_reason: z.string().nullable().optional(),
     user: userSchema,
     assignee: userSchema,
+    assignees: z
+        .array(z.object({ login: z.string() }))
+        .nullable()
+        .optional(),
     labels: z.array(z.object({ name: z.string() })).optional(),
     draft: z.boolean().optional(),
-    comments: z.number(),
+    // The pulls list has no comment count
+    comments: z.number().optional(),
     created_at: z.string(),
     updated_at: z.string(),
     closed_at: z.string().nullable(),
+    // The pulls list has merged_at; search and the issues list nest it
+    merged_at: z.string().nullable().optional(),
     pull_request: z
         .object({ merged_at: z.string().nullable().optional() })
         .optional(),
@@ -155,12 +272,11 @@ const contributorsResponseSchema = z.array(
 const toDay = (timestamp: string | null | undefined) =>
     timestamp ? timestamp.slice(0, 10) : null;
 
-const toState = (item: SearchItem) => {
-    if (item.pull_request?.merged_at) {
-        return 'merged';
-    }
-    return item.state;
-};
+const getMergedAt = (item: SearchItem) =>
+    item.merged_at ?? item.pull_request?.merged_at ?? null;
+
+const toState = (item: SearchItem) =>
+    getMergedAt(item) ? 'merged' : item.state;
 
 const readSearchColumn = (item: SearchItem, column: SearchColumn): unknown => {
     switch (column) {
@@ -181,7 +297,7 @@ const readSearchColumn = (item: SearchItem, column: SearchColumn): unknown => {
         case 'draft':
             return item.draft ?? false;
         case 'comments':
-            return item.comments;
+            return item.comments ?? null;
         case 'created_at':
             return toDay(item.created_at);
         case 'updated_at':
@@ -189,7 +305,7 @@ const readSearchColumn = (item: SearchItem, column: SearchColumn): unknown => {
         case 'closed_at':
             return toDay(item.closed_at);
         case 'merged_at':
-            return toDay(item.pull_request?.merged_at);
+            return toDay(getMergedAt(item));
         case 'state_reason':
             return item.state_reason ?? null;
         case 'search':
@@ -216,6 +332,19 @@ export const toGithubSearchQuery = (
     { type, q }: Pick<GithubSearchRequest, 'type' | 'q'>,
 ) =>
     [`repo:${owner}/${repo}`, `is:${type}`, q.trim()].filter(Boolean).join(' ');
+
+const toSearchRow = (item: SearchItem, columns: SearchColumn[]) =>
+    Object.fromEntries(
+        columns.map((column) => [column, readSearchColumn(item, column)]),
+    );
+
+const toSearchColumns = (columns: SearchColumn[]) =>
+    columns.map(
+        (name): LiveColumn => ({
+            name,
+            type: SEARCH_COLUMN_TYPES[name] ?? DimensionType.STRING,
+        }),
+    );
 
 const runSearch = async ({
     settings,
@@ -257,7 +386,7 @@ const runSearch = async ({
     const { rows, hasMoreRows } = await readRowsWithinCap({
         label: LABEL,
         requestedRows,
-        maxRows: GITHUB_MAX_QUERY_ROWS,
+        maxRows: SEARCH_MAX_ROWS,
         pageSize: perPage,
         maxPages: GITHUB_SEARCH_MAX_PAGES,
         fetchPage: async ({ cursor }) => {
@@ -281,26 +410,318 @@ const runSearch = async ({
                 response.items.length === perPage && page * perPage < reachable;
             return {
                 rows: response.items.map((item) =>
-                    Object.fromEntries(
-                        searchColumns.map((column) => [
-                            column,
-                            readSearchColumn(item, column),
-                        ]),
-                    ),
+                    toSearchRow(item, searchColumns),
                 ),
                 nextCursor: hasNextPage ? String(page + 1) : undefined,
             };
         },
     });
+    return { columns: toSearchColumns(searchColumns), rows, hasMoreRows };
+};
+
+const getAssignees = (item: SearchItem) =>
+    item.assignees?.map(({ login }) => login) ??
+    (item.assignee ? [item.assignee.login] : []);
+
+const getDay = (item: SearchItem, column: ListDateColumn) =>
+    column === 'merged_at' ? toDay(getMergedAt(item)) : toDay(item[column]);
+
+const matchesFilter = (item: SearchItem, filter: GithubListFilter): boolean => {
+    switch (filter.column) {
+        case 'draft':
+            return (item.draft ?? false) === filter.value;
+        case 'comments': {
+            const comments = item.comments ?? 0;
+            if (filter.op === 'gt') return comments > filter.value;
+            if (filter.op === 'lt') return comments < filter.value;
+            return comments === filter.value;
+        }
+        case 'created_at':
+        case 'updated_at':
+        case 'closed_at':
+        case 'merged_at': {
+            const day = getDay(item, filter.column);
+            return day !== null && day >= filter.start && day <= filter.end;
+        }
+        default: {
+            const values: Record<typeof filter.column, string[]> = {
+                author: item.user ? [item.user.login] : [],
+                assignee: getAssignees(item),
+                labels: (item.labels ?? []).map(({ name }) => name),
+                state: [toState(item)],
+                state_reason: item.state_reason ? [item.state_reason] : [],
+            };
+            const has = values[filter.column].includes(filter.value);
+            return filter.op === 'eq' ? has : !has;
+        }
+    }
+};
+
+type DateFilter = Extract<GithubListFilter, { op: 'between' }>;
+
+const isDateFilter = (filter: GithubListFilter): filter is DateFilter =>
+    filter.op === 'between';
+
+const findEquals = (
+    filters: GithubListFilter[],
+    column: 'author' | 'assignee' | 'labels' | 'state',
+) =>
+    filters.find(
+        (filter): filter is z.infer<typeof valueFilterSchema> =>
+            filter.column === column && filter.op === 'eq',
+    )?.value;
+
+/**
+ * How a list is read: the order GitHub returns it in, the parameters that
+ * narrow it, and the day past which no later item can match.
+ */
+const toListPlan = (request: GithubListRequest) => {
+    const dateFilters = request.filters.filter(isDateFilter);
+    const created = dateFilters.find(({ column }) => column === 'created_at');
+    // Anything updated, closed or merged since a day was updated since it
+    const updatedSince = dateFilters
+        .filter(({ column }) => column !== 'created_at')
+        .map(({ start }) => start)
+        .sort()
+        .at(-1);
+    const sort =
+        request.sort ?? (created || !updatedSince ? 'created' : 'updated');
+    const direction = request.sort ? (request.order ?? 'desc') : 'desc';
+    const bound = ((): {
+        column: 'created_at' | 'updated_at';
+        side: 'before' | 'after';
+        day: string;
+    } | null => {
+        if (sort === 'created' && created) {
+            return direction === 'desc'
+                ? { column: 'created_at', side: 'before', day: created.start }
+                : { column: 'created_at', side: 'after', day: created.end };
+        }
+        if (sort === 'updated' && updatedSince && direction === 'desc') {
+            return { column: 'updated_at', side: 'before', day: updatedSince };
+        }
+        return null;
+    })();
+    return { sort, direction, updatedSince, bound };
+};
+
+const isPastBound = (
+    item: SearchItem,
+    bound: ReturnType<typeof toListPlan>['bound'],
+) => {
+    if (!bound) return false;
+    const day = toDay(item[bound.column]);
+    if (day === null) return false;
+    return bound.side === 'before' ? day < bound.day : day > bound.day;
+};
+
+const listResponseSchema = z.array(searchItemSchema);
+
+/** The lists filter open or closed; merged and unmerged are told apart per item. */
+const toListState = (state: string | undefined) => {
+    if (state === undefined) return 'all';
+    return state === 'open' ? 'open' : 'closed';
+};
+
+/**
+ * Reads pull requests or issues from the REST lists, newest first unless a
+ * sort says otherwise, until the date filters are covered or the limit has
+ * one row to spare. Search's index misses older items, so it is used only
+ * for the word filters it alone can apply.
+ */
+const runList = async ({
+    settings: { owner, repo },
+    request,
+    limit,
+    calls,
+}: {
+    settings: { owner: string; repo: string };
+    request: GithubListRequest;
+    limit: number;
+    calls: LiveCalls;
+}): Promise<LiveRunResult> => {
+    const { type, filters, columns } = request;
+    const isCount = columns[0] === 'total_count';
+    const listColumns = isCount ? [] : (columns as SearchColumn[]);
+    // The pulls list has no comment count; the issues list has it for both
+    const readsIssues =
+        type === 'issue' ||
+        listColumns.includes('comments') ||
+        filters.some(({ column }) => column === 'comments');
+    const plan = toListPlan(request);
+    const state = findEquals(filters, 'state');
+    const author = findEquals(filters, 'author');
+    const assignee = findEquals(filters, 'assignee');
+    const label = findEquals(filters, 'labels');
+    const query: Record<string, string> = {
+        state: toListState(state),
+        sort: plan.sort,
+        direction: plan.direction,
+        per_page: String(LIST_PAGE_SIZE),
+        ...(readsIssues && plan.updatedSince
+            ? { since: `${plan.updatedSince}T00:00:00Z` }
+            : {}),
+        ...(readsIssues && author ? { creator: author } : {}),
+        ...(readsIssues && assignee ? { assignee } : {}),
+        ...(readsIssues && label ? { labels: label } : {}),
+    };
+    const path = readsIssues
+        ? getGithubIssuesPath(owner, repo)
+        : getGithubPullsPath(owner, repo);
+    const rowLimit = isCount
+        ? Infinity
+        : Math.min(limit, request.limit ?? limit);
+    const isOfType = (item: SearchItem) =>
+        !readsIssues || (item.pull_request !== undefined) === (type === 'pr');
+
+    const matches: SearchItem[] = [];
+    let isComplete = false;
+    for (
+        let page = 1;
+        page <= GITHUB_LIST_MAX_PAGES && !isComplete;
+        page += 1
+    ) {
+        // eslint-disable-next-line no-await-in-loop
+        const items = await calls.fetch(
+            {
+                method: 'GET',
+                path,
+                query: { ...query, page: String(page) },
+                body: undefined,
+            },
+            listResponseSchema,
+        );
+        const pastBound = items.findIndex((item) =>
+            isPastBound(item, plan.bound),
+        );
+        const inWindow = pastBound === -1 ? items : items.slice(0, pastBound);
+        matches.push(
+            ...inWindow.filter(
+                (item) =>
+                    isOfType(item) &&
+                    filters.every((filter) => matchesFilter(item, filter)),
+            ),
+        );
+        isComplete =
+            pastBound !== -1 ||
+            items.length < LIST_PAGE_SIZE ||
+            matches.length > rowLimit;
+    }
+    if (!isComplete) {
+        const noun = type === 'pr' ? 'pull requests' : 'issues';
+        throw new ParameterError(
+            `This GitHub query reads more than ${(
+                GITHUB_LIST_MAX_PAGES * LIST_PAGE_SIZE
+            ).toLocaleString(
+                'en-US',
+            )} ${noun}, the most one query lists. Filter Created or Updated to a shorter, more recent range.`,
+        );
+    }
+    if (isCount) {
+        return {
+            columns: [{ name: 'total_count', type: DimensionType.NUMBER }],
+            rows: [{ total_count: matches.length }],
+            hasMoreRows: false,
+        };
+    }
     return {
-        columns: searchColumns.map(
-            (name): LiveColumn => ({
-                name,
-                type: SEARCH_COLUMN_TYPES[name] ?? DimensionType.STRING,
-            }),
-        ),
-        rows,
-        hasMoreRows,
+        columns: toSearchColumns(listColumns),
+        rows: matches
+            .slice(0, rowLimit)
+            .map((item) => toSearchRow(item, listColumns)),
+        hasMoreRows: matches.length > rowLimit,
+    };
+};
+
+const PULL_REQUEST_COUNT_QUERY = `query ($owner: String!, $repo: String!, $states: [PullRequestState!], $labels: [String!]) {
+  repository(owner: $owner, name: $repo) { pullRequests(states: $states, labels: $labels) { totalCount } }
+}`;
+
+const ISSUE_COUNT_QUERY = `query ($owner: String!, $repo: String!, $filterBy: IssueFilters) {
+  repository(owner: $owner, name: $repo) { issues(filterBy: $filterBy) { totalCount } }
+}`;
+
+const totalCountSchema = z.object({ totalCount: z.number() });
+
+const graphqlCountResponseSchema = z.object({
+    data: z
+        .object({
+            repository: z
+                .object({
+                    pullRequests: totalCountSchema.optional(),
+                    issues: totalCountSchema.optional(),
+                })
+                .nullable(),
+        })
+        .nullable()
+        .optional(),
+    errors: z.array(z.object({ message: z.string() })).optional(),
+});
+
+/** Counts pull requests or issues with one GraphQL call. */
+const runCount = async ({
+    settings: { owner, repo },
+    request,
+    calls,
+}: {
+    settings: { owner: string; repo: string };
+    request: GithubCountRequest;
+    calls: LiveCalls;
+}): Promise<LiveRunResult> => {
+    const canCount =
+        request.type === 'issue'
+            ? request.state !== 'merged'
+            : request.author === undefined && request.assignee === undefined;
+    if (!canCount) {
+        throw new ParameterError(
+            'GitHub counts pull requests by state and label, and issues by open or closed state, label, author and assignee.',
+        );
+    }
+    const states = request.state ? [request.state.toUpperCase()] : undefined;
+    const labels = request.label ? [request.label] : undefined;
+    const body =
+        request.type === 'pr'
+            ? {
+                  query: PULL_REQUEST_COUNT_QUERY,
+                  variables: { owner, repo, states, labels },
+              }
+            : {
+                  query: ISSUE_COUNT_QUERY,
+                  variables: {
+                      owner,
+                      repo,
+                      filterBy: {
+                          ...(states ? { states } : {}),
+                          ...(labels ? { labels } : {}),
+                          ...(request.author
+                              ? { createdBy: request.author }
+                              : {}),
+                          ...(request.assignee
+                              ? { assignee: request.assignee }
+                              : {}),
+                      },
+                  },
+              };
+    const response = await calls.fetch(
+        { method: 'POST', path: GITHUB_GRAPHQL_PATH, body },
+        graphqlCountResponseSchema,
+    );
+    const connection =
+        request.type === 'pr'
+            ? response.data?.repository?.pullRequests
+            : response.data?.repository?.issues;
+    if (!connection) {
+        const detail = (response.errors ?? [])
+            .map(({ message }) => message)
+            .join(': ');
+        throw new WarehouseQueryError(
+            `GitHub couldn't count ${owner}/${repo}${detail ? `: ${detail}` : ''}.`,
+        );
+    }
+    return {
+        columns: [{ name: 'total_count', type: DimensionType.NUMBER }],
+        rows: [{ total_count: connection.totalCount }],
+        hasMoreRows: false,
     };
 };
 
@@ -433,7 +854,7 @@ const runContributors = async ({
     };
 };
 
-/** Runs one GitHub request: a search, or contributor statistics. */
+/** Runs one GitHub request: a list, a count, a search, or contributor statistics. */
 export const runGithubQuery = async ({
     settings,
     request,
@@ -447,6 +868,10 @@ export const runGithubQuery = async ({
     switch (request.kind) {
         case 'search':
             return runSearch({ settings, request, limit, calls });
+        case 'list':
+            return runList({ settings, request, limit, calls });
+        case 'count':
+            return runCount({ settings, request, calls });
         case 'contributors':
             return runContributors({ settings, request, limit, calls });
         default:
