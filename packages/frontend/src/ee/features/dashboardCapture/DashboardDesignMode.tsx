@@ -7,7 +7,7 @@ import { Button, Group, Tooltip, UnstyledButton } from '@mantine/core';
 import { IconPencil } from '@tabler/icons-react';
 import { useCallback, useMemo, useRef, type FC, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { captureTranscriber } from '../../../features/apps/utils/transcribeCapture';
 import {
@@ -16,6 +16,11 @@ import {
     selectDashboardTiles,
     useDashboardSelector,
 } from '../../../features/dashboard/store';
+import {
+    getDashboardTabPath,
+    getDashboardUrlIdentifier,
+} from '../../../features/dashboardTabs/tabUrl';
+import { useProjectUrlIdentifier } from '../../../hooks/useProjectRoute';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
@@ -59,7 +64,13 @@ const DashboardDesignSurface: FC<Props> = ({
     const dockExtras = useLauncherDockExtras();
     const lightdashApi = useLightdashApi();
     const { health } = useApp();
-    const setActiveTab = useDashboardContext((c) => c.setActiveTab);
+    const navigate = useNavigate();
+    const { search } = useLocation();
+    const { dashboardUuid: routeDashboardUuidOrSlug } = useParams<{
+        dashboardUuid: string;
+    }>();
+    const dashboardSlug = useDashboardContext((c) => c.dashboard?.slug);
+    const projectUrlIdentifier = useProjectUrlIdentifier();
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
@@ -119,6 +130,24 @@ const DashboardDesignSurface: FC<Props> = ({
         [dashboardName, dashboardUuid, sendMessage],
     );
 
+    // The tab is read from the address, so go there the way the tab bar does.
+    const goToTab = (tab: Tab) =>
+        navigate(
+            {
+                pathname: getDashboardTabPath({
+                    projectUrlIdentifier,
+                    dashboardUrlIdentifier: getDashboardUrlIdentifier({
+                        routeDashboardUuidOrSlug,
+                        dashboardSlug,
+                    }),
+                    isEditMode: false,
+                    tabUuid: tab.uuid,
+                }),
+                search,
+            },
+            { replace: true },
+        );
+
     // Marks made on another tab are not on screen beside their bubble.
     const marksElsewhere = (bubble: Bubble): ReactNode => {
         const homeTab = tabs.find((tab) => tab.uuid === bubble.homeTabUuid);
@@ -137,7 +166,7 @@ const DashboardDesignSurface: FC<Props> = ({
                         size="compact-xs"
                         variant="light"
                         color="red"
-                        onClick={() => setActiveTab(tab)}
+                        onClick={() => void goToTab(tab)}
                     >
                         {`${chipLabel(mark.number)} on ${tab.name}`}
                     </Button>

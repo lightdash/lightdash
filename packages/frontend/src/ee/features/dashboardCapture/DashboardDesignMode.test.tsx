@@ -53,7 +53,7 @@ const mocks = vi.hoisted(() => ({
     bubbleSend: vi.fn(),
     cancelSend: vi.fn(),
     picker: null as unknown,
-    setActiveTab: vi.fn(),
+    navigate: vi.fn(),
     state: null as unknown,
     replyPost: vi.fn(),
     threadProps: [] as unknown[],
@@ -61,7 +61,12 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('react-router', async (importOriginal) => ({
     ...(await importOriginal<object>()),
-    useParams: () => ({ mode: mocks.mode }),
+    useParams: () => ({ mode: mocks.mode, dashboardUuid: 'dash-1' }),
+    useNavigate: () => mocks.navigate,
+    useLocation: () => ({ pathname: '/', search: '' }),
+}));
+vi.mock('../../../hooks/useProjectRoute', () => ({
+    useProjectUrlIdentifier: () => 'project-1',
 }));
 vi.mock('../../providers/Embed/useIsEmbedded', () => ({
     default: () => mocks.embedded,
@@ -85,7 +90,6 @@ vi.mock('../../../providers/Dashboard/useDashboardContext', () => ({
         selector({
             projectUuid: 'project-1',
             dashboard: { uuid: 'dash-1', name: 'Sales' },
-            setActiveTab: mocks.setActiveTab,
         }),
 }));
 vi.mock('../../../features/dashboard/store', () => {
@@ -226,7 +230,7 @@ describe('DashboardDesignMode', () => {
         mocks.design.arm.mockClear();
         mocks.bubbleSend.mockReset();
         mocks.replyPost.mockReset();
-        mocks.setActiveTab.mockClear();
+        mocks.navigate.mockClear();
         mocks.state = {
             tiles: [chartTile('tile-1', 'tab-1'), chartTile('tile-2', 'tab-2')],
             tabs: [overview, marketing],
@@ -447,7 +451,7 @@ describe('DashboardDesignMode', () => {
         expect(lastThread().replyCollecting).toBe(false);
     });
 
-    it('a mark on another tab shows a chip that switches tab', () => {
+    it('a mark on another tab shows a chip that goes to that tab the way the tab bar does', () => {
         const bubble = threadBubble({
             sentMarks: [
                 mark({ number: 1, tabName: 'Overview' }),
@@ -469,6 +473,11 @@ describe('DashboardDesignMode', () => {
             screen.queryByRole('button', { name: /on Overview/ }),
         ).toBeNull();
         fireEvent.click(screen.getByRole('button', { name: '② on Marketing' }));
-        expect(mocks.setActiveTab).toHaveBeenCalledWith(marketing);
+        expect(mocks.navigate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                pathname: `/projects/project-1/dashboards/dash-1/view/tabs/${marketing.uuid}`,
+            }),
+            { replace: true },
+        );
     });
 });
