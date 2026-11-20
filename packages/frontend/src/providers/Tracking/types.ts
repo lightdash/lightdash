@@ -184,6 +184,42 @@ export type DocumentChartAppliedEvent = {
     };
 };
 
+export type SemanticStudioPaneViewedEvent = {
+    name: EventName.SEMANTIC_STUDIO_PANE_VIEWED;
+    properties: {
+        projectId: string;
+        pane: string;
+    };
+};
+
+export type SemanticStudioTryItOpenedEvent = {
+    name: EventName.SEMANTIC_STUDIO_TRY_IT_OPENED;
+    properties: {
+        projectId: string;
+        from: 'draft' | 'pull_request';
+        modelCount: number;
+    };
+};
+
+/** What was opened or edited: a model in the tree, or a file in the code view. Never its name. */
+type SemanticStudioItemKind = 'model' | 'file';
+
+export type SemanticStudioItemOpenedEvent = {
+    name: EventName.SEMANTIC_STUDIO_ITEM_OPENED;
+    properties: {
+        projectId: string;
+        kind: SemanticStudioItemKind;
+    };
+};
+
+export type SemanticStudioEditStartedEvent = {
+    name: EventName.SEMANTIC_STUDIO_EDIT_STARTED;
+    properties: {
+        projectId: string;
+        kind: SemanticStudioItemKind;
+    };
+};
+
 export type HomepageV2PromoViewedEvent = {
     name: EventName.HOMEPAGE_V2_PROMO_VIEWED;
     properties: {
@@ -747,6 +783,8 @@ type AiAgentQuestionAnsweredEvent = {
         agentId: string;
         threadId: string;
         messageId: string;
+        // Where the thread started, so Semantic Studio answers can be told apart.
+        threadCreatedFrom: string;
         questionCount: number;
         typedAnswerCount: number;
     };
@@ -1412,6 +1450,10 @@ type OpenInSqlRunnerClickedEvent = {
 
 export type EventData =
     | GenericEvent
+    | SemanticStudioPaneViewedEvent
+    | SemanticStudioTryItOpenedEvent
+    | SemanticStudioItemOpenedEvent
+    | SemanticStudioEditStartedEvent
     | DashboardWorkbookEvent
     | MapTileUsageEvent
     | MapTileFallbackEvent

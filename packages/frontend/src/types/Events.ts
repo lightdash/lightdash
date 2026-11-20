@@ -89,6 +89,10 @@ export enum SectionName {
 }
 
 export enum EventName {
+    SEMANTIC_STUDIO_PANE_VIEWED = 'semantic_studio_pane.viewed',
+    SEMANTIC_STUDIO_TRY_IT_OPENED = 'semantic_studio_try_it.opened',
+    SEMANTIC_STUDIO_ITEM_OPENED = 'semantic_studio_item.opened',
+    SEMANTIC_STUDIO_EDIT_STARTED = 'semantic_studio_edit.started',
     HOMEPAGE_QUICK_ACTION_CLICKED = 'homepage_quick_action.clicked',
     DOCUMENT_CHART_EXPLORE_CLICKED = 'document_chart_explore.clicked',
     DOCUMENT_CHART_APPLIED = 'document_chart.applied',

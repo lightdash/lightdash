@@ -438,6 +438,7 @@ describe('getAiUsageChannel', () => {
         ['evals', null, null, 'evals'],
         ['scheduler', null, null, 'scheduler'],
         ['data_app', null, null, 'data_app'],
+        ['semantic_studio', null, null, 'semantic_studio'],
     ] as const)(
         'labels a %s thread (embed space %s, embed owner %s) as %s',
         (createdFrom, embedSpaceUuid, embedOwnerIdentifier, channel) => {
