@@ -45,8 +45,8 @@ const textLines = (el: HTMLElement): Box[] => {
 
 type TitleAim = 'title' | 'headingForActions' | 'elsewhere';
 
-// The actions own their box, shown or not; the title owns its resting text and,
-// while hovered, the wrapped lines of its expanded form
+/** The actions own their box, shown or not; the title owns its resting text
+ *  and, while hovered, the wrapped lines of its expanded form. */
 export const resolveTitleAim = ({
     point,
     from,
@@ -188,7 +188,10 @@ export const useTileTitleAim = ({
 
     return {
         titleHovered: enabled && titleHovered,
-        descriptionOpened: enabled && titleHovered && !descriptionDismissed,
+        // Undefined leaves the tooltip to its own hover where aim is off
+        descriptionOpened: enabled
+            ? titleHovered && !descriptionDismissed
+            : undefined,
         pointerHandlers: {
             onPointerMove,
             onPointerLeave: reset,

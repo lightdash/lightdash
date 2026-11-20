@@ -420,7 +420,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     ) : null;
 
     return (
-        <div
+        <Box
             ref={containerRef}
             className={styles.tileWrapper}
             {...pointerHandlers}
@@ -547,11 +547,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         ) : (
                             <Tooltip
                                 disabled={!description}
-                                opened={
-                                    followsTitleAim
-                                        ? descriptionOpened
-                                        : undefined
-                                }
+                                opened={descriptionOpened}
                                 label={
                                     <Text
                                         className={styles.description}
@@ -687,7 +683,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     onClose={() => setIsMovingTabs(false)}
                 />
             </Card>
-        </div>
+        </Box>
     );
 };
 
