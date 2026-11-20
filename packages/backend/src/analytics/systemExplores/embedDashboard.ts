@@ -4,6 +4,7 @@ import {
     UnitOfTime,
     type ChartAsCode,
 } from '@lightdash/common';
+import { caution, positive } from './analyticsChartPresentation';
 import { analyticsColorPalette } from './analyticsColorPalette';
 import { card, seriesByDay, trend } from './chartBuilders';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
@@ -25,6 +26,7 @@ const shareByDay = ({
     metric,
     yName,
     splitDescription,
+    colors,
     ...spec
 }: Pick<
     UsageChartSpec,
@@ -35,6 +37,8 @@ const shareByDay = ({
     metric: string;
     yName: string;
     splitDescription: string;
+    // A fixed colour for each named group, for groups that mean good or not good
+    colors?: Record<string, string>;
 }): UsageChartSpec => ({
     ...spec,
     dimensions: [dimension],
@@ -45,7 +49,7 @@ const shareByDay = ({
     timezone,
     libraryChart: {
         slug: 'customizable-cartesian-chart',
-        minVersion: '0.18.3',
+        minVersion: colors ? '0.18.4' : '0.18.3',
         fieldMapping: { x: day, m1: metric, splitBy: dimension },
         optionValues: {
             seriesType: 'bar',
@@ -55,6 +59,13 @@ const shareByDay = ({
             xTimeFormat: '{MMM} {d}',
             xName: 'Day',
             yName,
+            ...(colors
+                ? {
+                      splitColorGroups: Object.entries(colors)
+                          .map(([name, color]) => `${name}=${name}=${color}`)
+                          .join(';'),
+                  }
+                : {}),
         },
         query: {
             dimensions: [day, dimension],
@@ -215,6 +226,11 @@ export const embedChartSpecs: UsageChartSpec[] = [
         metric: 'query_events_total_queries',
         yName: 'Queries',
         filters: embedQueries,
+        colors: {
+            Success: positive,
+            Error: caution,
+            'Not recorded': '#868E96',
+        },
         splitDescription: 'Embedded queries per day, by success or error.',
     }),
     shareByDay({
@@ -228,6 +244,11 @@ export const embedChartSpecs: UsageChartSpec[] = [
         metric: 'query_events_total_queries',
         yName: 'Queries',
         filters: embedQueries,
+        colors: {
+            'Cache hit': positive,
+            'Cache miss': caution,
+            'Not recorded': '#868E96',
+        },
         splitDescription:
             'Embedded queries per day by cache hit, cache miss and no cache information. This does not estimate cost saved.',
     }),

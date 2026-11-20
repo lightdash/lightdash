@@ -39,6 +39,29 @@ export const usageChartSpecs: UsageChartSpec[] = [
         sorts: [
             { fieldId: 'agent_evaluation_runs_event_ts_raw', descending: true },
         ],
+        // "Nov 19, 02:13": the recorded time shows to the millisecond with its offset
+        tableCalculations: [
+            {
+                name: 'run_finished',
+                displayName: 'Run finished (UTC)',
+                type: TableCalculationType.STRING,
+                sql: `strftime(\${agent_evaluation_runs.event_ts_raw}, '%b %-d, %H:%M')`,
+            },
+        ],
+        hiddenColumns: ['agent_evaluation_runs_event_ts_raw'],
+        columnOrder: [
+            'run_finished',
+            'agent_evaluation_runs_agent_name',
+            'agent_evaluation_runs_evaluation_name',
+            'agent_evaluation_runs_run_status_name',
+            'agent_evaluation_runs_pass_rate',
+            'agent_evaluation_runs_passed_assessments',
+            'agent_evaluation_runs_failed_assessments',
+            'agent_evaluation_runs_unassessed_results',
+            'agent_evaluation_runs_execution_errors',
+            'agent_evaluation_runs_event_ts_raw',
+            'agent_evaluation_runs_run_id',
+        ],
     },
     {
         key: 'most-used-fields',
