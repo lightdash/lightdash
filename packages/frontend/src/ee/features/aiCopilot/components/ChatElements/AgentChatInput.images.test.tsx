@@ -100,13 +100,8 @@ vi.mock('../../hooks/useDeepResearch', () => ({
     useHasActiveDeepResearchRun: () => false,
 }));
 vi.mock('../../streaming/useAiAgentThreadStreamQuery', () => ({
-    useAiAgentThreadStreamQuery: () =>
-        mocks.active
-            ? {
-                  connection: { status: 'streaming' },
-                  messageUuid: 'assistant-1',
-              }
-            : undefined,
+    useAiAgentThreadActiveMessageUuid: () =>
+        mocks.active ? 'assistant-1' : null,
 }));
 vi.mock('../../hooks/useProjectAiAgents', async (importOriginal) => ({
     ...(await importOriginal<typeof AiAgentApiHooks>()),
