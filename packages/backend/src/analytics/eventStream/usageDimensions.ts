@@ -46,6 +46,8 @@ export const usageDimensionSchemas: Record<
         { name: 'user_id', type: 'VARCHAR' },
         { name: 'name', type: 'VARCHAR' },
         { name: 'email', type: 'VARCHAR' },
+        // False for a deactivated member. Empty in a snapshot written before this column existed.
+        { name: 'is_active', type: 'BOOLEAN' },
     ],
     agents: [
         { name: 'org_id', type: 'VARCHAR' },

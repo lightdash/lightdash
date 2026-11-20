@@ -156,7 +156,7 @@ describe('Data app outcomes', () => {
         expect(rows).toEqual(
             expect.arrayContaining([
                 {
-                    lightdash_users_name: 'Unknown user',
+                    lightdash_users_name: 'No user recorded',
                     lightdash_apps_name: 'Sales app',
                     data_app_outcomes_user_id: null,
                     data_app_outcomes_total_signals: 1n,

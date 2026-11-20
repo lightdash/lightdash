@@ -1027,7 +1027,12 @@ export const createAnalyticsExplores = (): Explore[] => {
                 fields.org_id.hidden = true;
                 fields.name.label = dimensionFields[dimension].label;
                 if (dimension === 'users') {
-                    fields.name.sql = "COALESCE(${TABLE}.name, 'Unknown user')";
+                    // No user ID on the activity: nobody to name. An ID that matches no member of the
+                    // organization: Unknown user. A member who has been deactivated keeps their name,
+                    // marked, so their history does not turn anonymous when they leave.
+                    fields.name.sql = `CASE WHEN NULLIF(TRIM(\${${name}.user_id}), '') IS NULL THEN 'No user recorded' ELSE COALESCE(\${TABLE}.name, 'Unknown user') || CASE WHEN \${TABLE}.is_active = false AND \${TABLE}.name IS NOT NULL THEN ' (deactivated)' ELSE '' END END`;
+                    // Read through the name; not a field of its own
+                    fields.is_active.hidden = true;
                     fields.email.label = 'User email';
                     fields.email.description =
                         'Current primary email at the latest user metadata refresh, not the email at event time. Unavailable emails are NULL.';
