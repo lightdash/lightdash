@@ -1,3 +1,10 @@
+# [3.359.0](https://github.com/lightdash/lightdash/compare/3.358.2...3.359.0) (2026-11-20)
+
+
+### Features
+
+* **pre-aggregates:** configurable materialization polling timeout ([#33081](https://github.com/lightdash/lightdash/issues/33081)) ([02be0e0](https://github.com/lightdash/lightdash/commit/02be0e0743751039e191f346849c18905600baed))
+
 ## [3.358.2](https://github.com/lightdash/lightdash/compare/3.358.1...3.358.2) (2026-11-20)
 
 
