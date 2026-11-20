@@ -3,11 +3,13 @@ import {
     FeatureFlags,
     type ApiError,
     type ApiResponse,
+    type SaveSemanticLayerDraftModelRequest,
     type SemanticLayerDraft,
     type SemanticLayerDraftedModels,
     type SemanticLayerDraftState,
     type SemanticLayerDraftApplyResult,
     type SemanticLayerDraftImpact,
+    type SemanticLayerDraftModelSave,
     type SemanticLayerDraftMoveDirection,
     type SemanticLayerDraftUsage,
     type SemanticLayerTouchedField,
@@ -350,7 +352,8 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
         method: 'POST' | 'DELETE';
         body: string | undefined;
     };
-    errorTitle: string;
+    /** Null when the caller shows the error itself. */
+    errorTitle: string | null;
     changesLive: boolean;
 }) => {
     const lightdashApi = useLightdashApi();
@@ -386,7 +389,9 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
                 ),
             ),
         onError: ({ error }) => {
-            showToastApiError({ title: errorTitle, apiError: error });
+            if (errorTitle !== null) {
+                showToastApiError({ title: errorTitle, apiError: error });
+            }
             // A refusal often means the draft on screen is out of date.
             void queryClient.invalidateQueries({
                 queryKey: [DRAFT_KEY, projectUuid],
@@ -459,6 +464,22 @@ export const useKeepDraftModel = (projectUuid: string) =>
             body: JSON.stringify({ liveVersion }),
         }),
         errorTitle: 'Could not keep your version',
+        changesLive: false,
+    });
+
+/** Saves a hand edit of a model's YAML into the draft, starting one on Published. */
+export const useSaveDraftModel = (projectUuid: string) =>
+    useWrite<
+        SemanticLayerDraftModelSave,
+        { model: string } & SaveSemanticLayerDraftModelRequest
+    >({
+        projectUuid,
+        request: ({ model, base, content }) => ({
+            path: `${toDraftPath(model)}/edit`,
+            method: 'POST',
+            body: JSON.stringify({ base, content }),
+        }),
+        errorTitle: null,
         changesLive: false,
     });
 

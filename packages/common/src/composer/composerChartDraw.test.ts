@@ -18,6 +18,7 @@ import {
     getComposerChartDraw,
     getComposerChartPivotStage,
     pickComposerChartRows,
+    withZoomedColumnLabels,
 } from './composerChartDraw';
 
 const sqlPipeline: ComposerChartPipeline = {
@@ -274,6 +275,32 @@ describe('getComposerChartDraw', () => {
                 fields: {},
             }),
         ).toThrow('Group-by is only drawn on bar, line, area and scatter');
+    });
+});
+
+describe('withZoomedColumnLabels', () => {
+    test('heads only a column a date zoom re-grained with its zoomed label, keeping its name', () => {
+        expect(
+            withZoomedColumnLabels(
+                [
+                    {
+                        reference: 'orders_order_date_day',
+                        type: DimensionType.DATE,
+                    },
+                    { reference: 'revenue', type: DimensionType.NUMBER },
+                    { reference: 'constructor', type: DimensionType.STRING },
+                ],
+                { orders_order_date_day: 'Order date month' },
+            ),
+        ).toEqual([
+            {
+                reference: 'orders_order_date_day',
+                type: DimensionType.DATE,
+                label: 'Order date month',
+            },
+            { reference: 'revenue', type: DimensionType.NUMBER },
+            { reference: 'constructor', type: DimensionType.STRING },
+        ]);
     });
 });
 

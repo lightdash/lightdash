@@ -219,3 +219,18 @@
         animation: none;
     }
 }
+
+/* One line for a narrow chat: what is happening, how long it has taken, how far along. */
+.compact {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: var(--mantine-radius-lg);
+    border: 1px solid var(--mantine-color-default-border);
+    background: var(--mantine-color-body);
+}
+
+.compact .segments {
+    flex: none;
+}

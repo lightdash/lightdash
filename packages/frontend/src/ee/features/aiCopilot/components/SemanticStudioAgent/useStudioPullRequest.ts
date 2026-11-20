@@ -5,7 +5,7 @@ import {
     type SemanticStudioWorkspace,
 } from '@lightdash/common';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useStudioWorkspaces } from '../../../../../features/semanticStudio/useStudioWorkspaces';
 import { findPreviewProjectUuid } from '../../../../../features/semanticStudio/useTryInExplore';
 import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
@@ -15,7 +15,12 @@ import {
     getModelsOfFiles,
     splitPatchIntoFiles,
 } from '../ChatElements/ToolCalls/splitPatch';
-import { getOpenProposal, isInPullRequest } from './studioProposal';
+import {
+    getOpenProposal,
+    getSavingChange,
+    isInPullRequest,
+    type SavingChange,
+} from './studioProposal';
 import { resolveStudioPullRequestState } from './studioPullRequestState';
 import { useStudioAgent, useStudioThread } from './useSemanticStudioChat';
 
@@ -168,8 +173,15 @@ export const useStudioPendingChange = (
 
 const NO_PROPOSAL: string[] = [];
 
-/** The diffs the conversation's latest reply proposes and has not saved, one per file. */
-export const useStudioProposal = (projectUuid: string): string[] => {
+/** The change the conversation shows and the pull request does not carry yet, one diff per file. */
+export type StudioProposal = {
+    diffs: string[];
+    /** A save of the agent's is writing these diffs, rather than them waiting to be saved. */
+    isSaving: boolean;
+};
+
+/** The diffs the conversation's latest save is writing, else those its latest reply proposes and has not saved. */
+export const useStudioProposal = (projectUuid: string): StudioProposal => {
     const { thread } = useStudioAgent(projectUuid);
     const { data } = useStudioThread(
         projectUuid,
@@ -178,15 +190,31 @@ export const useStudioProposal = (projectUuid: string): string[] => {
     );
     // A proposal saved by hand is in the pull request without the agent knowing.
     const pullRequest = useStudioPullRequest(projectUuid);
-    const { data: diff } = useWholePullRequestDiff(
+    const {
+        data: diff,
+        isPreviousData,
+        isError,
+    } = useWholePullRequestDiff(
         projectUuid,
         pullRequest?.prUrl ?? '',
         pullRequest?.revision ?? null,
     );
+    const shownSave = useRef<SavingChange | null>(null);
+    const saving = data
+        ? getSavingChange(
+              data.messages,
+              shownSave.current,
+              isError || (diff !== undefined && !isPreviousData),
+          )
+        : null;
+    shownSave.current = saving;
+    const savingDiffs = saving?.diffs ?? null;
     return useMemo(() => {
-        const proposal = (
-            data ? getOpenProposal(data.messages) : NO_PROPOSAL
+        const diffs = (
+            savingDiffs ?? (data ? getOpenProposal(data.messages) : NO_PROPOSAL)
         ).filter((code) => !isInPullRequest(code, diff?.diff ?? ''));
-        return proposal.length > 0 ? proposal : NO_PROPOSAL;
-    }, [data, diff]);
+        return diffs.length > 0
+            ? { diffs, isSaving: savingDiffs !== null }
+            : { diffs: NO_PROPOSAL, isSaving: false };
+    }, [data, diff, savingDiffs]);
 };

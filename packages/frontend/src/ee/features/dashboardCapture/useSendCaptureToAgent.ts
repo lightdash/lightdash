@@ -1,32 +1,38 @@
-import { type AiPromptContextInput } from '@lightdash/common';
+import {
+    assertUnreachable,
+    type AiPromptContextInput,
+} from '@lightdash/common';
 import { useCallback } from 'react';
+import { useDefaultAiAgent } from '../aiCopilot/components/Launcher/useDefaultAiAgent';
 import { useLauncherDock } from '../aiCopilot/components/Launcher/useLauncherDock';
 import {
     useCreateAgentThreadMessageMutation,
     useCreateAgentThreadMutation,
 } from '../aiCopilot/hooks/useProjectAiAgents';
-import { openPanel } from '../aiCopilot/store/aiAgentLauncherSlice';
+import {
+    openDefaultAgentPanel,
+    openPanel,
+} from '../aiCopilot/store/aiAgentLauncherSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../aiCopilot/store/hooks';
+import { captureSendPlan, toPendingContext } from './captureSendPlan';
 import { captureThreadTarget } from './captureThreadTarget';
 
 type SendInput = {
-    /** The agent for a new thread. A continued thread keeps its own agent. */
-    agentUuid: string;
     prompt: string;
     context: AiPromptContextInput;
 };
 
 /**
- * Sends a Voice Design recording to the agent as text. If a conversation is open in the
- * agent panel, the recording continues it; otherwise it starts a new one and
- * opens it.
+ * Sends a Voice Design recording to the agent as text, to the agent the agent
+ * button would use (see captureSendPlan).
  */
 export const useSendCaptureToAgent = (projectUuid: string) => {
     const dispatch = useAiAgentStoreDispatch();
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
+    const { selectedAgent } = useDefaultAiAgent(projectUuid);
     const openThreadId = useAiAgentStoreSelector(
         (state) => captureThreadTarget(state.aiAgentLauncher)?.threadId ?? null,
     );
@@ -60,14 +66,47 @@ export const useSendCaptureToAgent = (projectUuid: string) => {
         openThreadId ?? undefined,
     );
 
-    return useCallback(
-        async ({ agentUuid, prompt, context }: SendInput): Promise<void> => {
-            if (openThreadId && openAgentUuid) {
-                await sendMessage({ prompt, context });
-                return;
+    const send = useCallback(
+        async ({ prompt, context }: SendInput): Promise<void> => {
+            const plan = captureSendPlan({
+                openThread:
+                    openThreadId && openAgentUuid
+                        ? { threadId: openThreadId, agentUuid: openAgentUuid }
+                        : null,
+                selectedAgent,
+            });
+            switch (plan.type) {
+                case 'continue':
+                    await sendMessage({ prompt, context });
+                    return;
+                case 'create':
+                    await createThread({
+                        agentUuid: plan.agentUuid,
+                        prompt,
+                        context,
+                    });
+                    return;
+                case 'panel':
+                    dispatch(
+                        openDefaultAgentPanel({
+                            pendingContext: toPendingContext(context),
+                            pendingPrompt: prompt,
+                        }),
+                    );
+                    return;
+                default:
+                    assertUnreachable(plan, 'Unknown capture send plan');
             }
-            await createThread({ agentUuid, prompt, context });
         },
-        [createThread, openAgentUuid, openThreadId, sendMessage],
+        [
+            createThread,
+            dispatch,
+            openAgentUuid,
+            openThreadId,
+            selectedAgent,
+            sendMessage,
+        ],
     );
+
+    return { send };
 };

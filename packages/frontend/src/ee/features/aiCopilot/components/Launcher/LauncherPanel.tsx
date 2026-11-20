@@ -11,6 +11,7 @@ import {
     Center,
     Group,
     Loader,
+    Paper,
     Stack,
     Text,
 } from '@mantine/core';
@@ -322,6 +323,7 @@ const NewThreadPanel: FC<{
         isLocked,
         isPickingAgent,
         sortedCandidates,
+        waitingPrompt,
     } = useAiAgentLauncherRouter({
         agent,
         agents,
@@ -418,6 +420,7 @@ const NewThreadPanel: FC<{
                     <LauncherAgentPicker
                         candidates={sortedCandidates}
                         onPick={confirmPick}
+                        waitingPrompt={waitingPrompt}
                     />
                 )}
                 <AgentChatInput
@@ -425,12 +428,15 @@ const NewThreadPanel: FC<{
                     key={composerSeed ?? 'composer'}
                     defaultValue={composerSeed ?? undefined}
                     onSubmit={handleSubmit}
+                    imageAttachmentsUnavailableReason={
+                        isAuto ? 'Choose an agent to attach images' : undefined
+                    }
                     onStartDeepResearch={
                         concreteAgent && canStartDeepResearch
                             ? handleStartDeepResearch
                             : undefined
                     }
-                    loading={isLocked}
+                    loading={isLocked && !isPickingAgent}
                     disabled={!isPinnedContextReady || isPickingAgent}
                     placeholder={`Ask ${displayName} anything...`}
                     projectUuid={projectUuid}
@@ -452,10 +458,23 @@ const NewThreadPanel: FC<{
 const LauncherAgentPicker: FC<{
     candidates: LauncherRouterCandidate[];
     onPick: (agentUuid: string) => void;
-}> = ({ candidates, onPick }) => (
+    waitingPrompt: string | null;
+}> = ({ candidates, onPick, waitingPrompt }) => (
     <Stack gap="xs" px="md" pb="xs">
+        {waitingPrompt && (
+            <Stack gap="xxs">
+                <Text size="xs" fw={600} c="dimmed" tt="uppercase">
+                    Your message
+                </Text>
+                <Paper p="xs" className={styles.waitingPrompt}>
+                    <Text size="sm" lineClamp={4}>
+                        {waitingPrompt}
+                    </Text>
+                </Paper>
+            </Stack>
+        )}
         <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-            Choose agent
+            {waitingPrompt ? 'Choose an agent to send it to' : 'Choose agent'}
         </Text>
         <Stack gap="xxs">
             {candidates.map((candidate) => (
@@ -600,7 +619,7 @@ const ExistingThreadPanel: FC<{
     }) => {
         const curatedContext = curateContext({ context, optimisticContext });
 
-        void createAgentThreadMessage({
+        return createAgentThreadMessage({
             prompt: message,
             context: curatedContext.context,
             optimisticContext: curatedContext.optimisticContext,

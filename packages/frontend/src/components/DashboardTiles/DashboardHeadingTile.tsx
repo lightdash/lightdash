@@ -1,6 +1,36 @@
-import { type DashboardHeadingTile as DashboardHeadingTileType } from '@lightdash/common';
-import { ActionIcon, Box, Menu, Text, Textarea, Tooltip } from '@mantine/core';
-import { IconCopy, IconUnderline } from '@tabler/icons-react';
+import {
+    DashboardHeadingSize,
+    DashboardHeadingTextAlign,
+    DashboardHeadingVerticalAlign,
+    DEFAULT_DASHBOARD_HEADING_SIZE,
+    DEFAULT_DASHBOARD_HEADING_TEXT_ALIGN,
+    DEFAULT_DASHBOARD_HEADING_VERTICAL_ALIGN,
+    type DashboardHeadingTile as DashboardHeadingTileType,
+} from '@lightdash/common';
+import {
+    ActionIcon,
+    Box,
+    Divider,
+    Menu,
+    Text,
+    Textarea,
+    Tooltip,
+} from '@mantine/core';
+import {
+    IconAlignCenter,
+    IconAlignLeft,
+    IconAlignRight,
+    IconCopy,
+    IconH1,
+    IconH2,
+    IconH3,
+    IconH4,
+    IconLayoutAlignBottom,
+    IconLayoutAlignMiddle,
+    IconLayoutAlignTop,
+    IconUnderline,
+    type Icon,
+} from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import React, {
     useCallback,
@@ -31,11 +61,93 @@ export type Props = Pick<
     tile: DashboardHeadingTileType;
 };
 
+type FormatOption<V extends string> = { value: V; label: string; icon: Icon };
+
+const SIZE_OPTIONS: FormatOption<DashboardHeadingSize>[] = [
+    { value: DashboardHeadingSize.LG, label: 'Large', icon: IconH1 },
+    { value: DashboardHeadingSize.MD, label: 'Medium', icon: IconH2 },
+    { value: DashboardHeadingSize.SM, label: 'Small', icon: IconH3 },
+    { value: DashboardHeadingSize.XS, label: 'Extra small', icon: IconH4 },
+];
+
+const TEXT_ALIGN_OPTIONS: FormatOption<DashboardHeadingTextAlign>[] = [
+    {
+        value: DashboardHeadingTextAlign.LEFT,
+        label: 'Align left',
+        icon: IconAlignLeft,
+    },
+    {
+        value: DashboardHeadingTextAlign.CENTER,
+        label: 'Align center',
+        icon: IconAlignCenter,
+    },
+    {
+        value: DashboardHeadingTextAlign.RIGHT,
+        label: 'Align right',
+        icon: IconAlignRight,
+    },
+];
+
+const VERTICAL_ALIGN_OPTIONS: FormatOption<DashboardHeadingVerticalAlign>[] = [
+    {
+        value: DashboardHeadingVerticalAlign.TOP,
+        label: 'Align top',
+        icon: IconLayoutAlignTop,
+    },
+    {
+        value: DashboardHeadingVerticalAlign.CENTER,
+        label: 'Align middle',
+        icon: IconLayoutAlignMiddle,
+    },
+    {
+        value: DashboardHeadingVerticalAlign.BOTTOM,
+        label: 'Align bottom',
+        icon: IconLayoutAlignBottom,
+    },
+];
+
 const keepFocus = (event: React.MouseEvent) => event.preventDefault();
+
+type FormatButtonsProps<V extends string> = {
+    options: FormatOption<V>[];
+    value: V;
+    onChange: (value: V) => void;
+};
+
+const FormatButtons = <V extends string>({
+    options,
+    value,
+    onChange,
+}: FormatButtonsProps<V>) =>
+    options.map((option) => {
+        const isActive = option.value === value;
+        return (
+            <Tooltip key={option.value} label={option.label}>
+                <ActionIcon
+                    size="sm"
+                    variant={isActive ? 'light' : undefined}
+                    aria-label={option.label}
+                    aria-pressed={isActive}
+                    onMouseDown={keepFocus}
+                    // Picking what already shows must not store it on a
+                    // heading that had no setting, or mark it as edited
+                    onClick={() => !isActive && onChange(option.value)}
+                >
+                    <MantineIcon icon={option.icon} />
+                </ActionIcon>
+            </Tooltip>
+        );
+    });
 
 const DashboardHeadingTile: FC<Props> = (props) => {
     const { tile, isEditMode, onEdit } = props;
-    const { text, showDivider = false } = tile.properties;
+    const {
+        text,
+        showDivider = false,
+        size = DEFAULT_DASHBOARD_HEADING_SIZE,
+        textAlign = DEFAULT_DASHBOARD_HEADING_TEXT_ALIGN,
+        verticalAlign = DEFAULT_DASHBOARD_HEADING_VERTICAL_ALIGN,
+    } = tile.properties;
 
     const dispatch = useDashboardDispatch();
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -107,6 +219,12 @@ const DashboardHeadingTile: FC<Props> = (props) => {
         [tile, showDivider, onEdit],
     );
 
+    const setFormat = useCallback(
+        (format: Partial<DashboardHeadingTileType['properties']>) =>
+            onEdit({ ...tile, properties: { ...tile.properties, ...format } }),
+        [tile, onEdit],
+    );
+
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const setHaveTilesChanged = useDashboardContext(
         (c) => c.setHaveTilesChanged,
@@ -122,10 +240,11 @@ const DashboardHeadingTile: FC<Props> = (props) => {
         return (
             <TileBase title="" transparent {...props}>
                 <Text
-                    size="24px"
-                    fw="bold"
+                    data-size={size}
+                    data-text-align={textAlign}
                     className={clsx(
                         styles.heading,
+                        styles.text,
                         showDivider && styles.withDivider,
                     )}
                 >
@@ -151,18 +270,42 @@ const DashboardHeadingTile: FC<Props> = (props) => {
                 }
                 focusedActions={
                     isToolbarOpen && (
-                        <Tooltip label="Underline">
-                            <ActionIcon
-                                size="sm"
-                                variant={showDivider ? 'light' : undefined}
-                                aria-label="Underline"
-                                aria-pressed={showDivider}
-                                onMouseDown={keepFocus}
-                                onClick={toggleDivider}
-                            >
-                                <MantineIcon icon={IconUnderline} />
-                            </ActionIcon>
-                        </Tooltip>
+                        <>
+                            <FormatButtons
+                                options={SIZE_OPTIONS}
+                                value={size}
+                                onChange={(next) => setFormat({ size: next })}
+                            />
+                            <Divider orientation="vertical" />
+                            <FormatButtons
+                                options={TEXT_ALIGN_OPTIONS}
+                                value={textAlign}
+                                onChange={(next) =>
+                                    setFormat({ textAlign: next })
+                                }
+                            />
+                            <Divider orientation="vertical" />
+                            <FormatButtons
+                                options={VERTICAL_ALIGN_OPTIONS}
+                                value={verticalAlign}
+                                onChange={(next) =>
+                                    setFormat({ verticalAlign: next })
+                                }
+                            />
+                            <Divider orientation="vertical" />
+                            <Tooltip label="Underline">
+                                <ActionIcon
+                                    size="sm"
+                                    variant={showDivider ? 'light' : undefined}
+                                    aria-label="Underline"
+                                    aria-pressed={showDivider}
+                                    onMouseDown={keepFocus}
+                                    onClick={toggleDivider}
+                                >
+                                    <MantineIcon icon={IconUnderline} />
+                                </ActionIcon>
+                            </Tooltip>
+                        </>
                     )
                 }
             >
@@ -178,6 +321,10 @@ const DashboardHeadingTile: FC<Props> = (props) => {
                     onFocus={handleFocus}
                     onBlur={handleBlur}
                     onKeyDown={handleKeyDown}
+                    wrapperProps={{
+                        'data-size': size,
+                        'data-text-align': textAlign,
+                    }}
                     className={clsx(
                         styles.heading,
                         showDivider && styles.withDivider,

@@ -4416,6 +4416,7 @@ describe('AiWritebackService.mergePullRequest', () => {
         projectUuid: 'p1',
         prUrl: PR_7,
         sha: 'sha-7',
+        incrementalCompile: false,
     };
 
     const setup = (overrides: Record<string, AnyType> = {}) => {
@@ -4449,6 +4450,22 @@ describe('AiWritebackService.mergePullRequest', () => {
             'p1',
             RequestMethod.BACKEND,
             true,
+            false,
+            false,
+            undefined,
+            false,
+        );
+    });
+
+    it('lets the recompile save only what changed when the caller asks', async () => {
+        const { service, mergePullRequest, scheduleCompileProject } = setup();
+        await service.mergePullRequest({
+            ...mergeArgs,
+            incrementalCompile: true,
+        });
+        expect(scheduleCompileProject.mock.calls[0].at(-1)).toBe(true);
+        expect(mergePullRequest.mock.calls[0][0]).not.toHaveProperty(
+            'incrementalCompile',
         );
     });
 
@@ -6363,6 +6380,17 @@ describe('AiWritebackService.saveWithScript compile check', () => {
             );
         return { save, provider, checkout, service };
     };
+
+    it('returns what a dry run would write as a diff by project path, without committing', async () => {
+        const { save, provider } = setUp();
+        await expect(save(null, true)).resolves.toEqual({
+            status: 'checked',
+            diffs: [
+                '--- /dev/null\n+++ b/models/notes.yml\n@@ -0,0 +1,1 @@\n+notes: 1\n',
+            ],
+        });
+        expect(provider.commitApiChanges).not.toHaveBeenCalled();
+    });
 
     it.each([true, false])(
         'rejects a stale source before writing (dry run: %s)',

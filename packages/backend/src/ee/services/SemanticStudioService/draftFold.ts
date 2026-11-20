@@ -1,5 +1,6 @@
 import {
     applyModelFragment,
+    diffModelDocuments,
     getErrorMessage,
     ParameterError,
     parseModelFragment,
@@ -9,6 +10,7 @@ import {
     type SemanticLayerDraftItemResult,
     type SemanticLayerDraftModelInput,
 } from '@lightdash/common';
+import { parse, stringify } from 'yaml';
 import { isDerivedSqlFrom, toDerivedSqlFrom } from './derivedModel';
 
 const MODEL_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -20,7 +22,7 @@ type Merged = Omit<ApplyModelFragmentResult, 'contents'> & {
     contents: string | null;
 };
 
-/** What a drafted item's fragment and removals do to one model's YAML. */
+/** What a drafted item's removals and fragment do to one model's YAML. */
 const mergeFragment = (
     current: string | null,
     { name, yaml, remove, removeModel }: SemanticLayerDraftModelInput,
@@ -49,41 +51,34 @@ const mergeFragment = (
             'sql_from can only hold one SELECT statement, with no semicolons inside it',
         );
     }
-    const merged: Merged =
-        written === null
-            ? { contents: current, changes: [], refusals: [] }
-            : applyModelFragment({
-                  contents: current,
-                  filename,
-                  fragment:
-                      derivedFrom === undefined
-                          ? written
-                          : { ...written, sql_from: derivedFrom },
-              });
-    const merging = merged.changes.length > 0 ? merged.contents : current;
-    if (remove.length === 0) return merged;
-    if (merging === null) {
-        return {
-            ...merged,
-            contents: null,
-            refusals: [
-                ...merged.refusals,
-                ...remove.map((path) => ({
+    // Removals come first, so one item can give up a name and take it again.
+    const removed = ((): Merged => {
+        if (remove.length === 0 || current === null) {
+            return {
+                contents: current,
+                changes: [],
+                refusals: remove.map((path) => ({
                     path,
                     reason: 'not_found' as const,
                 })),
-            ],
-        };
-    }
-    const removed = removeModelParts({
-        contents: merging,
+            };
+        }
+        return removeModelParts({ contents: current, filename, paths: remove });
+    })();
+    if (written === null) return removed;
+    const merged = applyModelFragment({
+        contents: removed.contents,
         filename,
-        paths: remove,
+        fragment:
+            derivedFrom === undefined
+                ? written
+                : { ...written, sql_from: derivedFrom },
     });
     return {
-        contents: removed.contents,
-        changes: [...merged.changes, ...removed.changes],
-        refusals: [...merged.refusals, ...removed.refusals],
+        contents:
+            merged.changes.length > 0 ? merged.contents : removed.contents,
+        changes: [...removed.changes, ...merged.changes],
+        refusals: [...removed.refusals, ...merged.refusals],
     };
 };
 
@@ -178,4 +173,137 @@ export const withWrites = (
         else merged.set(name, content);
     });
     return merged;
+};
+
+type YamlObject = Record<string, unknown>;
+
+const isObject = (value: unknown): value is YamlObject =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const asObject = (value: unknown): YamlObject => (isObject(value) ? value : {});
+
+const NAMED_LISTS = {
+    dimensions: (entry: YamlObject) => entry.name,
+    joins: (entry: YamlObject) => entry.alias ?? entry.join,
+};
+
+const isNamedList = (key: string): key is keyof typeof NAMED_LISTS =>
+    key in NAMED_LISTS;
+
+const findEntry = (
+    list: unknown,
+    key: keyof typeof NAMED_LISTS,
+    id: string,
+): YamlObject =>
+    asObject(
+        (Array.isArray(list) ? list : []).find(
+            (entry) => isObject(entry) && NAMED_LISTS[key](entry) === id,
+        ),
+    );
+
+/** A key the edit leaves out is written as null, which a fragment reads as removing it. */
+const withKey = (into: unknown, key: string, value: unknown): YamlObject => ({
+    ...asObject(into),
+    [key]: value === undefined ? null : value,
+});
+
+/**
+ * What turns one model's YAML into an edited version of it, as the fragments and
+ * removals a draft keeps, so it replays on what is live like any other change.
+ * Removals come first, so one edit can give up a name and take it again.
+ */
+export const toDraftEdit = (
+    name: string,
+    current: string,
+    edited: string,
+): SemanticLayerDraftModelInput[] => {
+    const after = asObject(parse(edited));
+    const parts = diffModelDocuments(current, edited);
+    const top: YamlObject = {};
+    const metrics: Record<string, YamlObject> = {};
+    const entries = {
+        dimensions: new Map<string, YamlObject>(),
+        joins: new Map<string, YamlObject>(),
+    };
+    parts
+        .filter(({ kind }) => kind !== 'removed')
+        .forEach(({ path }) => {
+            const [head, id, ...rest] = path.split('.');
+            if (id === undefined) {
+                Object.assign(top, withKey(top, head, after[head]));
+                return;
+            }
+            if (head === 'metrics') {
+                const definition = asObject(asObject(after.metrics)[id]);
+                metrics[id] =
+                    rest.length === 0
+                        ? definition
+                        : withKey(metrics[id], rest[0], definition[rest[0]]);
+                return;
+            }
+            if (!isNamedList(head)) return;
+            const entry = findEntry(after[head], head, id);
+            const identity: YamlObject =
+                head === 'dimensions'
+                    ? { name: id }
+                    : {
+                          join: entry.join,
+                          ...(entry.alias === undefined
+                              ? {}
+                              : { alias: entry.alias }),
+                      };
+            const target = entries[head].get(id) ?? identity;
+            const [key, nested, nestedKey] = rest;
+            if (key === undefined) {
+                entries[head].set(id, { ...target, ...entry });
+            } else if (nested === undefined) {
+                entries[head].set(id, withKey(target, key, entry[key]));
+            } else {
+                const definition = asObject(asObject(entry[key])[nested]);
+                const within = asObject(target[key]);
+                entries[head].set(id, {
+                    ...target,
+                    [key]: {
+                        ...within,
+                        [nested]:
+                            nestedKey === undefined
+                                ? definition
+                                : withKey(
+                                      within[nested],
+                                      nestedKey,
+                                      definition[nestedKey],
+                                  ),
+                    },
+                });
+            }
+        });
+    const fragment: YamlObject = {
+        ...top,
+        ...(Object.keys(metrics).length > 0 ? { metrics } : {}),
+        ...Object.fromEntries(
+            (['dimensions', 'joins'] as const).flatMap((key) =>
+                entries[key].size > 0
+                    ? [[key, [...entries[key].values()]]]
+                    : [],
+            ),
+        ),
+    };
+    const remove = parts
+        .filter(({ kind }) => kind === 'removed')
+        .map(({ path }) => path);
+    return [
+        ...(remove.length > 0
+            ? [{ name, yaml: null, remove, removeModel: false }]
+            : []),
+        ...(Object.keys(fragment).length > 0
+            ? [
+                  {
+                      name,
+                      yaml: stringify(fragment),
+                      remove: [],
+                      removeModel: false,
+                  },
+              ]
+            : []),
+    ];
 };

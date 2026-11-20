@@ -12,7 +12,6 @@ import {
     IconCheck,
     IconChevronDown,
     IconChevronRight,
-    IconInfoCircle,
     IconTable,
 } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
@@ -110,16 +109,19 @@ const ModelStep: FC<{ group: TurnGroup }> = ({
         title={title}
         hint={model}
         aside={
-            <Group gap={4} wrap="nowrap" flex="none">
-                <MantineIcon
-                    icon={IconCheck}
-                    size={12}
-                    color={CHANGE_COLORS[change]}
-                />
-                <Text fz="xs" c="dimmed">
-                    {CHANGE_KIND_LABELS[change]}
-                </Text>
-            </Group>
+            // A model with only issues did not change.
+            rows.length === 0 && subtitle === null ? null : (
+                <Group gap={4} wrap="nowrap" flex="none">
+                    <MantineIcon
+                        icon={IconCheck}
+                        size={12}
+                        color={CHANGE_COLORS[change]}
+                    />
+                    <Text fz="xs" c="dimmed">
+                        {CHANGE_KIND_LABELS[change]}
+                    </Text>
+                </Group>
+            )
         }
     >
         {subtitle ? (
@@ -190,11 +192,12 @@ export const TurnCard: FC<{
     headerAction: ReactNode;
     groups: TurnGroup[];
     safety: Safety | null;
-    note: string | null;
     /** Only the latest turn's card is open and offers anything; earlier ones fold to their header. */
     isLatest: boolean;
     actions: ReactNode[];
     isGone: boolean;
+    /** A turn whose change has left the draft folds like an earlier one, and still offers its links once opened. */
+    isSettled?: boolean;
     children?: ReactNode;
 }> = ({
     icon,
@@ -203,14 +206,15 @@ export const TurnCard: FC<{
     headerAction,
     groups,
     safety,
-    note,
     isLatest,
     actions,
     isGone,
+    isSettled = false,
     children,
 }) => {
     const [isOpened, setIsOpened] = useState(false);
-    const isOpen = isLatest || isOpened;
+    const isFolded = !isLatest || isSettled;
+    const isOpen = !isFolded || isOpened;
     const shown = groups.filter(
         ({ rows, issues, subtitle }) =>
             rows.length > 0 || issues.length > 0 || subtitle !== null,
@@ -219,12 +223,16 @@ export const TurnCard: FC<{
     const tally = (['new', 'changed', 'removed'] as const)
         .map((change) => ({
             change,
-            count: shown.filter((group) => group.change === change).length,
+            count: shown.filter(
+                (group) =>
+                    group.change === change &&
+                    (group.rows.length > 0 || group.subtitle !== null),
+            ).length,
         }))
         .filter(({ count }) => count > 0);
     return (
         <Paper mt="xs" className={classes.card} data-gone={isGone}>
-            {isLatest ? (
+            {!isFolded ? (
                 <Group className={classes.head} gap="xs" wrap="nowrap">
                     {icon ?? <Box className={classes.dot} />}
                     <Box flex={1} miw={0}>
@@ -269,27 +277,11 @@ export const TurnCard: FC<{
                     />
                 </UnstyledButton>
             )}
-            {isOpen && (shown.length > 0 || note || needsCheck) ? (
+            {isOpen && (shown.length > 0 || needsCheck) ? (
                 <Box className={classes.steps}>
                     {shown.map((group) => (
                         <ModelStep key={group.model} group={group} />
                     ))}
-                    {note ? (
-                        <Step
-                            icon={
-                                <MantineIcon
-                                    icon={IconInfoCircle}
-                                    size={14}
-                                    color="yellow"
-                                />
-                            }
-                            title="Confirm before you publish"
-                        >
-                            <Text fz="xs" c="dimmed" lineClamp={4} title={note}>
-                                {note}
-                            </Text>
-                        </Step>
-                    ) : null}
                     {safety && needsCheck ? (
                         <Step
                             icon={<TaskIcon state={safety.state} />}
@@ -308,7 +300,7 @@ export const TurnCard: FC<{
                     ) : null}
                 </Box>
             ) : null}
-            {isLatest && actions.some(Boolean) ? (
+            {isLatest && isOpen && actions.some(Boolean) ? (
                 <Group className={classes.foot} gap="xs" justify="flex-end">
                     {actions}
                 </Group>

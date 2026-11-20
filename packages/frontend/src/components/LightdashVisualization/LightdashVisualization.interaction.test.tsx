@@ -46,6 +46,14 @@ vi.mock('../FunnelChart', () => ({
         />
     ),
 }));
+vi.mock('../DataAppVizRenderer', () => ({
+    default: ({ enableContextMenu }: { enableContextMenu?: boolean }) => (
+        <div
+            data-testid="custom-chart"
+            data-context-menu-enabled={String(enableContextMenu)}
+        />
+    ),
+}));
 
 const renderVisualization = (
     chartType: ChartType,
@@ -72,6 +80,7 @@ describe('LightdashVisualization context menus', () => {
         [ChartType.TABLE, 'table'],
         [ChartType.PIE, 'pie'],
         [ChartType.FUNNEL, 'funnel'],
+        [ChartType.DATA_APP_VIZ, 'custom-chart'],
     ])('disables menus for %s visualizations', (chartType, testId) => {
         renderVisualization(chartType, false);
 

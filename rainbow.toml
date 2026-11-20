@@ -21,6 +21,15 @@ command = "PORT=3900 node packages/api-tests/stub/snowflake-ai-stub.mjs"
 port = 3900
 restart_on_inject = true           # re-exec with the fork's injected env, as the dev service does
 
+# Deterministic OpenAI-compatible model (emulate's `ai` service) for agent
+# streaming proofs. Idle unless an env opts in with AI_DEFAULT_PROVIDER=openai
+# and OPENAI_BASE_URL=http://localhost:4014/v1 (OPENAI_API_KEY must be set; any
+# value works, previews use the stored secret); replies are scripted in the seed.
+[[app.service]]
+name = "emulate-ai"
+command = "exec emulate start --service ai --port 4014 --seed scripts/rainbow/emulate-ai.yaml"
+port = 4014
+
 # Anyone with the URL can open an environment of this repo.
 [access]
 public = true
@@ -49,6 +58,9 @@ build = [
   "TURBO_TELEMETRY_DISABLED=1 TURBO_NO_UPDATE_NOTIFIER=1 pnpm turbo run build --filter=@lightdash/warehouses",
   # McpService reads the MCP chart app's HTML from dist; dist is gitignored.
   "pnpm -F @lightdash/mcp-chart-app build",
+  # emulate 0.14.0 was approved before the 3-day release-age floor: pin its tarball by
+  # checksum; its dependencies keep the floor, and no install scripts run.
+  "cd /tmp && curl -fsSLo emulate-0.14.0.tgz https://registry.npmjs.org/emulate/-/emulate-0.14.0.tgz && echo '9a533f3c9df8ca70f639319506fcbef3f17b8040f09075a6a6a2c6fc97ad68399aaa27e41ed0b0d953265d3281cba6706b9caf0b388bbf2caf980a157ae3d9a0  emulate-0.14.0.tgz' | sha512sum -c - && npm install -g --ignore-scripts --min-release-age=3 --no-audit --no-fund ./emulate-0.14.0.tgz",
   "pnpm cli-build && chmod 755 packages/cli/dist/index.js && ln -sf /usr/app/packages/cli/dist/index.js /usr/local/bin/lightdash",
   "python3 -m venv /usr/local/dbt1.12 && /usr/local/dbt1.12/bin/pip install -q 'dbt-core~=1.12.0' 'dbt-postgres~=1.10.0' 'dbt-snowflake~=1.12.0' 'dbt-bigquery~=1.12.0' 'dbt-databricks~=1.12.3' 'dbt-trino~=1.10.0' 'dbt-duckdb~=1.10.0' && ln -sf /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12",
   # The demo dbt project where the test suites expect it

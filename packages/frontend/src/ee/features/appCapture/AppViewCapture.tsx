@@ -14,8 +14,9 @@ import { useSendCaptureToAgent } from '../dashboardCapture/useSendCaptureToAgent
 
 type Props = {
     projectUuid: string;
+    /** The app to attach to the message, or null to send text only. */
+    attachedAppUuid: string | null;
     appName: string;
-    agentUuid: string;
     /** The app's frame: the part of the page that can be drawn on. */
     getRegion: () => DOMRect;
     onRecordingChange: (isRecording: boolean) => void;
@@ -24,24 +25,25 @@ type Props = {
 /** Voice Design on a published app: the recording becomes one agent thread. */
 const AppViewCapture = forwardRef<CaptureHostHandle, Props>(
     (
-        { projectUuid, appName, agentUuid, getRegion, onRecordingChange },
+        { projectUuid, attachedAppUuid, appName, getRegion, onRecordingChange },
         ref,
     ) => {
         const { showToastInfo, showToastError } = useToaster();
-        const sendToAgent = useSendCaptureToAgent(projectUuid);
+        const { send: sendToAgent } = useSendCaptureToAgent(projectUuid);
 
         const handleCapture = useCallback(
             async (result: CaptureResult) => {
                 showToastInfo({ title: 'Sending your questions to the agent' });
                 try {
                     await sendToAgent({
-                        agentUuid,
                         prompt: buildAppCapturePrompt({
                             appName,
                             summary: result.summary,
                             hasImages: false,
                         }),
-                        context: [],
+                        context: attachedAppUuid
+                            ? [{ type: 'data_app', appUuid: attachedAppUuid }]
+                            : [],
                     });
                 } catch {
                     showToastError({
@@ -49,7 +51,13 @@ const AppViewCapture = forwardRef<CaptureHostHandle, Props>(
                     });
                 }
             },
-            [agentUuid, appName, sendToAgent, showToastError, showToastInfo],
+            [
+                appName,
+                attachedAppUuid,
+                sendToAgent,
+                showToastError,
+                showToastInfo,
+            ],
         );
         const handleCaptureRef = useRef(handleCapture);
         handleCaptureRef.current = handleCapture;

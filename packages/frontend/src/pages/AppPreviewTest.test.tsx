@@ -27,7 +27,7 @@ const mocks = vi.hoisted(() => ({
     captureFlagEnabled: true,
     canUseAgents: true,
     captureHost: vi.fn(
-        (_props: { appName: string; agentUuid: string }) => null,
+        (_props: { appName: string; attachedAppUuid: string | null }) => null,
     ),
 }));
 
@@ -221,7 +221,7 @@ describe('AppPreviewTest', () => {
         expect(latestHeaderActionsProps().previewTools).toBeTruthy();
         expect(mocks.captureHost.mock.calls.at(-1)?.[0]).toMatchObject({
             appName: 'Sales app',
-            agentUuid: 'agent-uuid',
+            attachedAppUuid: 'canonical-app-uuid',
         });
     });
 

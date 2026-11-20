@@ -6,6 +6,7 @@ import {
     type ComposerChartPipelineNode,
     type ComposerChartRunSource,
     type DashboardFilters,
+    type DateZoom,
     type ParametersValuesMap,
     type RegisteredAccount,
 } from '@lightdash/common';
@@ -23,6 +24,8 @@ export class ComposerRunBinding {
         readonly stamp: ComposerChartRunSource,
         /** The server-built series-split stage, run after the terminal node; null without a group-by. */
         readonly chartStageNodeId: string | null,
+        /** The date zoom each semantic-layer node runs with. */
+        readonly dateZoomByNodeId: Record<string, DateZoom>,
     ) {}
 
     static forAuthorizedViewer({
@@ -31,6 +34,7 @@ export class ComposerRunBinding {
         tileUuid,
         resolved,
         dashboardFilters,
+        dateZoomByNodeId,
     }: {
         account: RegisteredAccount;
         chart: ComposerChart;
@@ -41,6 +45,7 @@ export class ComposerRunBinding {
             parameters: ParametersValuesMap;
         };
         dashboardFilters: DashboardFilters;
+        dateZoomByNodeId: Record<string, DateZoom>;
     }): ComposerRunBinding {
         const stage = getComposerChartPivotStage(chart.pipeline, chart.chart);
         return new ComposerRunBinding(
@@ -55,6 +60,7 @@ export class ComposerRunBinding {
                 tileUuid,
             },
             stage?.nodeId ?? null,
+            dateZoomByNodeId,
         );
     }
 

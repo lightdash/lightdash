@@ -34,9 +34,11 @@ export class DashboardAccessModel {
         {
             trx = this.database,
             organizationUuid,
+            includePendingUser = false,
         }: {
             trx?: Knex;
             organizationUuid: string;
+            includePendingUser?: boolean;
         },
     ): Promise<Record<string, DashboardDirectAccess>> {
         const uniqueDashboardUuids = [...new Set(dashboardUuids)];
@@ -110,7 +112,7 @@ export class DashboardAccessModel {
                 `${OrganizationTableName}.organization_uuid`,
                 organizationUuid,
             )
-            .where(getActiveProjectMemberPredicate(trx))
+            .where(getActiveProjectMemberPredicate(trx, { includePendingUser }))
             .whereNull(`${DashboardsTableName}.deleted_at`)
             .unionAll(
                 trx(DashboardGroupAccessTableName)
@@ -173,7 +175,11 @@ export class DashboardAccessModel {
                         `${OrganizationTableName}.organization_uuid`,
                         organizationUuid,
                     )
-                    .where(getActiveProjectMemberPredicate(trx))
+                    .where(
+                        getActiveProjectMemberPredicate(trx, {
+                            includePendingUser,
+                        }),
+                    )
                     .where(
                         `${GroupMembershipTableName}.organization_id`,
                         trx.ref(`${ProjectTableName}.organization_id`),

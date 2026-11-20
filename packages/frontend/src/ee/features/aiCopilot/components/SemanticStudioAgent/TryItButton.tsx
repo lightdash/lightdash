@@ -17,6 +17,8 @@ import {
 import { type StudioPullRequest } from './useStudioPullRequest';
 
 // Explore loads only when something is tried, not with every pull request card.
+const loadTryItModal = () => import('./TryItModal');
+const warmTryItModal = () => void loadTryItModal().catch(() => undefined);
 const TryItModal = lazy(() =>
     import('./TryItModal').then(({ TryItModal: modal }) => ({
         default: modal,
@@ -52,8 +54,9 @@ export const TryIt: FC<{
     const turnOn = useRef({ isOn, setIsOn, preview });
     useEffect(() => {
         const { isOn: wasOn, setIsOn: set, preview: tried } = turnOn.current;
-        const unpin = pinDevelopmentView();
+        // Switched on first, so the page keeps what it shows; then pinned, so nothing switches it off under the modal.
         set(true, tried);
+        const unpin = pinDevelopmentView(tried);
         return () => {
             unpin();
             if (!wasOn) set(false);
@@ -81,7 +84,18 @@ export const TryItButton: FC<{
 }> = ({ projectUuid, pullRequest, look }) => {
     const { changedModels, previewProjectUuid, prUrl } = pullRequest;
     const [isTrying, setIsTrying] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const stopTrying = useCallback(() => setIsTrying(false), []);
+    // Explore is a large download: the button says so, and the modal opens with it in hand.
+    const startTrying = () => {
+        setIsLoading(true);
+        void loadTryItModal()
+            .catch(() => undefined)
+            .finally(() => {
+                setIsLoading(false);
+                setIsTrying(true);
+            });
+    };
     // Without its preview, a teammate's change would be tried as your own changes, or as live.
     if (changedModels.length === 0) return null;
     if (!pullRequest.isMine && !previewProjectUuid) return null;
@@ -91,7 +105,10 @@ export const TryItButton: FC<{
                 <Button
                     {...buttonProps(look)}
                     flex="none"
-                    onClick={() => setIsTrying(true)}
+                    loading={isLoading}
+                    onMouseEnter={warmTryItModal}
+                    onFocus={warmTryItModal}
+                    onClick={startTrying}
                 >
                     Try it
                 </Button>

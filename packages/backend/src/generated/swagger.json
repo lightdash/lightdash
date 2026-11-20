@@ -6769,6 +6769,18 @@
                 "enum": ["heading"],
                 "type": "string"
             },
+            "DashboardHeadingSize": {
+                "enum": ["xs", "sm", "md", "lg"],
+                "type": "string"
+            },
+            "DashboardHeadingTextAlign": {
+                "enum": ["left", "center", "right"],
+                "type": "string"
+            },
+            "DashboardHeadingVerticalAlign": {
+                "enum": ["top", "center", "bottom"],
+                "type": "string"
+            },
             "DashboardHeadingTileAsCode": {
                 "allOf": [
                     {
@@ -6778,6 +6790,18 @@
                         "properties": {
                             "properties": {
                                 "properties": {
+                                    "verticalAlign": {
+                                        "$ref": "#/components/schemas/DashboardHeadingVerticalAlign",
+                                        "description": "Where the heading sits in the height of its tile. Omitted means the default, `center`"
+                                    },
+                                    "textAlign": {
+                                        "$ref": "#/components/schemas/DashboardHeadingTextAlign",
+                                        "description": "Omitted means the default, `left`"
+                                    },
+                                    "size": {
+                                        "$ref": "#/components/schemas/DashboardHeadingSize",
+                                        "description": "Omitted means the default size, `md`"
+                                    },
                                     "showDivider": {
                                         "type": "boolean"
                                     },
@@ -11070,6 +11094,18 @@
                 "properties": {
                     "properties": {
                         "properties": {
+                            "verticalAlign": {
+                                "$ref": "#/components/schemas/DashboardHeadingVerticalAlign",
+                                "description": "Where the heading sits in the height of its tile. Omitted means the default, `center`"
+                            },
+                            "textAlign": {
+                                "$ref": "#/components/schemas/DashboardHeadingTextAlign",
+                                "description": "Omitted means the default, `left`"
+                            },
+                            "size": {
+                                "$ref": "#/components/schemas/DashboardHeadingSize",
+                                "description": "Omitted means the default size, `md`"
+                            },
                             "showDivider": {
                                 "type": "boolean"
                             },
@@ -28486,7 +28522,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "AiThreadFile": {
+            "AiThreadFileMetadata": {
                 "properties": {
                     "createdAt": {
                         "type": "string",
@@ -28521,7 +28557,60 @@
                     "uuid"
                 ],
                 "type": "object",
-                "description": "A text document uploaded by a user for an agent conversation."
+                "description": "A file uploaded by a user for an agent conversation."
+            },
+            "AiThreadImageMediaType": {
+                "type": "string",
+                "enum": ["image/png", "image/jpeg", "image/webp"]
+            },
+            "AiThreadFile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AiThreadFileMetadata"
+                    },
+                    {
+                        "anyOf": [
+                            {
+                                "properties": {
+                                    "kind": {
+                                        "type": "string",
+                                        "enum": ["text"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["kind"],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "height": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "width": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "mediaType": {
+                                        "$ref": "#/components/schemas/AiThreadImageMediaType"
+                                    },
+                                    "kind": {
+                                        "type": "string",
+                                        "enum": ["image"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": [
+                                    "height",
+                                    "width",
+                                    "mediaType",
+                                    "kind"
+                                ],
+                                "type": "object"
+                            }
+                        ]
+                    }
+                ]
             },
             "ApiAiThreadFileResponse": {
                 "properties": {
@@ -29114,6 +29203,20 @@
                             "type": {
                                 "type": "string",
                                 "enum": ["thread_file"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["fileUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fileUuid": {
+                                "$ref": "#/components/schemas/UUID"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["thread_image"],
                                 "nullable": false
                             }
                         },
@@ -36655,6 +36758,27 @@
                 "required": ["displayName", "tableName", "tableUuid"],
                 "type": "object"
             },
+            "AiPromptThreadImageSnapshot": {
+                "properties": {
+                    "height": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "width": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "mediaType": {
+                        "$ref": "#/components/schemas/AiThreadImageMediaType"
+                    },
+                    "sizeBytes": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["height", "width", "mediaType", "sizeBytes"],
+                "type": "object"
+            },
             "PullRequestProvider": {
                 "enum": ["github", "gitlab", "bitbucket"],
                 "type": "string"
@@ -37374,6 +37498,30 @@
                             "type"
                         ],
                         "type": "object"
+                    },
+                    {
+                        "allOf": [
+                            {
+                                "properties": {
+                                    "fileName": {
+                                        "type": "string"
+                                    },
+                                    "fileUuid": {
+                                        "type": "string"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "enum": ["thread_image"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["fileName", "fileUuid", "type"],
+                                "type": "object"
+                            },
+                            {
+                                "$ref": "#/components/schemas/AiPromptThreadImageSnapshot"
+                            }
+                        ]
                     },
                     {
                         "properties": {
@@ -39528,6 +39676,13 @@
                                                 "allOf": [
                                                     {
                                                         "properties": {
+                                                            "diffs": {
+                                                                "items": {
+                                                                    "type": "string"
+                                                                },
+                                                                "type": "array",
+                                                                "nullable": true
+                                                            },
                                                             "aiWritebackRunUuid": {
                                                                 "type": "string"
                                                             },
@@ -43942,6 +44097,13 @@
             },
             "SemanticLayerSettledDraftChange": {
                 "properties": {
+                    "models": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "The models the change touched."
+                    },
                     "pullRequestUrl": {
                         "type": "string",
                         "nullable": true,
@@ -43955,9 +44117,49 @@
                         "type": "string"
                     }
                 },
-                "required": ["pullRequestUrl", "status", "draftChangeUuid"],
+                "required": [
+                    "models",
+                    "pullRequestUrl",
+                    "status",
+                    "draftChangeUuid"
+                ],
                 "type": "object",
                 "description": "What became of a change that left the draft."
+            },
+            "SemanticLayerInReviewModel": {
+                "properties": {
+                    "contentAfter": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null when the pull request removes the model."
+                    },
+                    "contentBefore": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null when the pull request creates the model."
+                    },
+                    "changes": {
+                        "items": {
+                            "$ref": "#/components/schemas/ModelFragmentChange"
+                        },
+                        "type": "array"
+                    },
+                    "pullRequestUrl": {
+                        "type": "string"
+                    },
+                    "model": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "contentAfter",
+                    "contentBefore",
+                    "changes",
+                    "pullRequestUrl",
+                    "model"
+                ],
+                "type": "object",
+                "description": "What this person's changes waiting in an open pull request do to one model, against what is live."
             },
             "SemanticLayerDraft": {
                 "properties": {
@@ -43979,6 +44181,12 @@
                         },
                         "type": "array",
                         "description": "Every model other people have unpublished changes to, whether or not this draft touches it."
+                    },
+                    "inReview": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerInReviewModel"
+                        },
+                        "type": "array"
                     },
                     "settled": {
                         "items": {
@@ -44018,6 +44226,7 @@
                 },
                 "required": [
                     "othersDrafting",
+                    "inReview",
                     "settled",
                     "errors",
                     "models",
@@ -44517,6 +44726,93 @@
                 },
                 "required": ["liveVersion"],
                 "type": "object"
+            },
+            "SemanticLayerDraftModelSave": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "content": {
+                                "type": "string",
+                                "description": "The model as the draft now holds it."
+                            },
+                            "startedChange": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "workspaceUuid": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["name", "workspaceUuid"],
+                                "type": "object",
+                                "nullable": true,
+                                "description": "The draft this started because the person was on Published; null otherwise."
+                            },
+                            "draftChangeUuid": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["saved"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "content",
+                            "startedChange",
+                            "draftChangeUuid",
+                            "status"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "error": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["failed"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["error", "status"],
+                        "type": "object"
+                    }
+                ],
+                "description": "`failed` carries why the edit was not saved, and the draft is left as it was."
+            },
+            "ApiSuccess_SemanticLayerDraftModelSave_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerDraftModelSave"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticLayerDraftModelSaveResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftModelSave_"
+            },
+            "SaveSemanticLayerDraftModelRequest": {
+                "properties": {
+                    "content": {
+                        "type": "string"
+                    },
+                    "base": {
+                        "type": "string",
+                        "description": "The model's YAML the edit started from, so an edit made over a newer version is refused."
+                    }
+                },
+                "required": ["content", "base"],
+                "type": "object",
+                "description": "A hand edit of one model's whole YAML, saved into the person's draft."
             },
             "ApiSemanticLayerDraftTakeLiveRequest": {
                 "properties": {
@@ -79605,8 +79901,38 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
+            "ChartZoomableField": {
+                "properties": {
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["tableName", "label", "fieldId"],
+                "type": "object"
+            },
             "ComposerChartRunResults": {
                 "properties": {
+                    "zoomedFieldLabels": {
+                        "$ref": "#/components/schemas/Record_string.string_",
+                        "description": "Each zoomed field's label at the zoomed grain, by field id."
+                    },
+                    "zoomableFields": {
+                        "items": {
+                            "$ref": "#/components/schemas/ChartZoomableField"
+                        },
+                        "type": "array",
+                        "description": "The date fields the tile can be zoomed on, so the dashboard offers its date zoom."
+                    },
+                    "dateZoomApplied": {
+                        "type": "boolean",
+                        "description": "Whether the date zoom re-grained at least one semantic-layer node."
+                    },
                     "usedParameterValuesByNodeId": {
                         "$ref": "#/components/schemas/Record_string.ParametersValuesMap_",
                         "description": "The parameter values each node query ran with, keyed by node; nodes can run different values."
@@ -79662,6 +79988,9 @@
                     }
                 },
                 "required": [
+                    "zoomedFieldLabels",
+                    "zoomableFields",
+                    "dateZoomApplied",
                     "usedParameterValuesByNodeId",
                     "sqlColumns",
                     "parameterReferences",
@@ -79689,6 +80018,15 @@
             },
             "ComposerChartRunRequest": {
                 "properties": {
+                    "dateZoom": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DateZoom"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The tile's resolved date zoom; optional for clients that predate it."
+                    },
                     "invalidateCache": {
                         "type": "boolean"
                     },
@@ -80850,7 +81188,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.342.0",
+        "version": "3.356.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -96516,6 +96854,65 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ApiSemanticLayerDraftKeepRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/draft/models/{model}/edit": {
+            "post": {
+                "operationId": "saveSemanticLayerDraftModel",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticLayerDraftModelSaveResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Saves a hand edit of one model's YAML into this person's draft, checked the way an agent's change is.",
+                "summary": "Save an edit of a model to my semantic layer draft",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "model",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveSemanticLayerDraftModelRequest"
                             }
                         }
                     }

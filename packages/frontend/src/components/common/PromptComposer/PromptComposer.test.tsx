@@ -14,11 +14,20 @@ const setup = (
     const onSubmit = vi.fn();
     const ref = createRef<PromptComposerHandle>();
     renderWithProviders(
-        <PromptComposer ref={ref} onSubmit={onSubmit} {...props} />,
+        <PromptComposer
+            ref={ref}
+            ariaLabel="Prompt"
+            onSubmit={onSubmit}
+            {...props}
+        />,
     );
     const editor = ref.current?.editor as Editor;
     editor.commands.setContent(text);
-    return { onSubmit, editor, element: screen.getByRole('textbox') };
+    return {
+        onSubmit,
+        editor,
+        element: screen.getByRole('textbox', { name: 'Prompt' }),
+    };
 };
 
 describe('PromptComposer keyboard handling', () => {
@@ -89,6 +98,7 @@ describe('PromptComposer placeholder', () => {
         const { rerender } = renderWithProviders(
             <PromptComposer
                 ref={ref}
+                ariaLabel="Prompt"
                 onSubmit={vi.fn()}
                 placeholder="Describe a new chart type…"
             />,
@@ -100,6 +110,7 @@ describe('PromptComposer placeholder', () => {
         rerender(
             <PromptComposer
                 ref={ref}
+                ariaLabel="Prompt"
                 onSubmit={vi.fn()}
                 placeholder="Ask for a change…"
             />,
@@ -116,6 +127,7 @@ describe('PromptComposer placeholder', () => {
         const { rerender } = renderWithProviders(
             <PromptComposer
                 ref={ref}
+                ariaLabel="Prompt"
                 onSubmit={vi.fn()}
                 placeholder="Describe a new chart type…"
             />,
@@ -124,6 +136,7 @@ describe('PromptComposer placeholder', () => {
         rerender(
             <PromptComposer
                 ref={ref}
+                ariaLabel="Prompt"
                 onSubmit={vi.fn()}
                 placeholder="Ask for a change…"
             />,
@@ -147,13 +160,19 @@ describe('PromptComposer resize handle', () => {
 
     it('is only offered on the card composer', () => {
         renderWithProviders(
-            <PromptComposer variant="inline" resizeHandle="top" />,
+            <PromptComposer
+                ariaLabel="Prompt"
+                variant="inline"
+                resizeHandle="top"
+            />,
         );
         expect(screen.queryByRole('separator')).toBeNull();
     });
 
     it('a top handle grows the editor when moved up, and resets on double-click', () => {
-        renderWithProviders(<PromptComposer resizeHandle="top" />);
+        renderWithProviders(
+            <PromptComposer ariaLabel="Prompt" resizeHandle="top" />,
+        );
         const handle = getHandle();
         expect(resizedHeight(handle)).toBeNull();
 
@@ -169,7 +188,9 @@ describe('PromptComposer resize handle', () => {
     });
 
     it('a bottom handle grows the editor when moved down', () => {
-        renderWithProviders(<PromptComposer resizeHandle="bottom" />);
+        renderWithProviders(
+            <PromptComposer ariaLabel="Prompt" resizeHandle="bottom" />,
+        );
         const handle = getHandle();
 
         fireEvent.keyDown(handle, { key: 'ArrowDown' });
@@ -185,10 +206,41 @@ describe('PromptComposer resize handle', () => {
     });
 
     it('never shrinks below the minimum editor height', () => {
-        renderWithProviders(<PromptComposer resizeHandle="top" />);
+        renderWithProviders(
+            <PromptComposer ariaLabel="Prompt" resizeHandle="top" />,
+        );
         const handle = getHandle();
         fireEvent.keyDown(handle, { key: 'ArrowDown', shiftKey: true });
         fireEvent.keyDown(handle, { key: 'ArrowDown', shiftKey: true });
         expect(resizedHeight(handle)).toBe(40);
+    });
+
+    it('reports the rendered editor height as it is resized', () => {
+        // jsdom has no layout: the editor renders at its resized height, else 100px.
+        const clientHeight = vi
+            .spyOn(HTMLElement.prototype, 'clientHeight', 'get')
+            .mockImplementation(function (this: HTMLElement) {
+                if (!this.classList.contains('mantine-RichTextEditor-content'))
+                    return 0;
+                const resized = this.closest<HTMLElement>(
+                    '[data-variant]',
+                )?.style.getPropertyValue('--composer-editor-height');
+                return Number.parseFloat(resized ?? '') || 100;
+            });
+        try {
+            renderWithProviders(
+                <PromptComposer ariaLabel="Prompt" resizeHandle="top" />,
+            );
+            const handle = getHandle();
+            const value = (name: string) => Number(handle.getAttribute(name));
+            expect(value('aria-valuenow')).toBe(100);
+
+            fireEvent.keyDown(handle, { key: 'ArrowUp', shiftKey: true });
+            expect(value('aria-valuenow')).toBe(164);
+            expect(value('aria-valuemin')).toBeLessThan(100);
+            expect(value('aria-valuemax')).toBeGreaterThan(164);
+        } finally {
+            clientHeight.mockRestore();
+        }
     });
 });

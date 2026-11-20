@@ -999,6 +999,8 @@ export type EditDbtProjectFn = (args: {
           aiWritebackRunUuid: string;
           /** Saved by a sandbox that runs dbt, which takes minutes rather than seconds. */
           inSandbox: boolean;
+          /** What a script save writes, one unified diff per file; null in the sandbox. */
+          diffs: string[] | null;
       }
     | { status: 'script_failed'; error: string; logs: string[] }
 >;

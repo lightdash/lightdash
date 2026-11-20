@@ -203,7 +203,7 @@ Entries under `required_filters` / `default_filters` use the SDK `Filter` shape 
 
 ### Understanding data grain
 
-When designing queries, consider the model's grain — what combination of dimensions produces one unique row. If the grain includes dimensions you aren't selecting, you may need filters to avoid duplicates. Estimate row counts from the grain to set appropriate `.limit()` values.
+When designing queries, consider the model's grain — what combination of dimensions produces one unique row. If the grain includes dimensions you aren't selecting, you may need filters to avoid duplicates. Estimate row counts from the grain to set appropriate `.limit()` values. Keep limits close to what the view renders — see [Table and query performance](#table-and-query-performance).
 
 ### Snapshot and point-in-time metrics
 
@@ -1338,6 +1338,7 @@ Treat Safari/WebKit as the constrained target for layout-heavy apps. Test dense 
 - **Bound data-derived columns.** Pivot-style tables that derive columns from dates, categories, or other result values must cap the rendered window. Paginate the column range or virtualize it horizontally; never render an unbounded `dates.map(...)` or equivalent column set.
 - **Keep sticky positioning to headers.** Never apply `position: sticky` to body cells. If a pinned first column is essential, render it as a separate fixed pane synchronized with the scrollable data pane.
 - **Virtualize individual rows, not multi-row groups.** For large tables, avoid mounting virtualized rows inside one shared `<table>` layout where scroll-driven row changes can relayout the whole table. Prefer block or grid rows with fixed column widths, and make each virtual item one row rather than a group containing many rows and cells.
+- **Load only the rows the view shows.** A query resolves once every row up to its `.limit()` has loaded, so a limit in the tens of thousands delays the first render by seconds. Aggregate, filter and sort in the query and load a top-N or one screen of rows; never raise `.limit()` to fetch a whole table for client-side grouping, filtering or search. For full exports use `downloadResults({ limit: 'all' })`, which does not load rows into the app.
 - **Batch filter-driven queries.** When a control change would refetch multiple queries, debounce the committed filter value or require an Apply action. Do not fire the full query fan-out on every date, granularity, or filter input change.
 
 ### Resizable panels

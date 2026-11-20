@@ -121,6 +121,10 @@ For a weekly chart of "the last 12 weeks up to today" where every week starts on
 
 Always read `sql-chart-reference` first: it says when to create a SQL chart, and how to save, edit and place one on a dashboard.
 
+### Create and Edit Composer Charts
+
+Always read `composer-chart-reference` first: it says when to create a composer chart, and how to save, test and edit one.
+
 ## Editing Charts
 
 Dashboard tiles have their own titles. A `saved_chart` tile's `title` and `chartName` are independent overrides and do not automatically change when a chart is renamed. If you change a chart from `"Total Revenue"` to `"Gross Profit"`, update the dashboard tile too.

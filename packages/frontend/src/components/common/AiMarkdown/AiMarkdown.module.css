@@ -20,6 +20,20 @@
     margin-top: 12px;
 }
 
+/* Fixed timing: streamdown resets each visible word's --sd-duration to 0ms on
+ * the next frame, which would cut a running fade short. */
+.aiMarkdown [data-sd-animate] {
+    animation-duration: 350ms;
+    animation-timing-function: ease-out;
+    animation-delay: 0ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .aiMarkdown [data-sd-animate] {
+        animation: none;
+    }
+}
+
 .aiMarkdown h1,
 .aiMarkdown h2,
 .aiMarkdown h3,

@@ -148,6 +148,25 @@ it('writes then reads back an identical bundle', async () => {
     expect(read).toEqual(bundle);
 });
 
+it.skipIf(process.platform === 'win32')(
+    'round-trips a bundle with an in-folder source directory link',
+    async () => {
+        const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-app-'));
+        await fs.mkdir(path.join(dir, 'source'));
+        await fs.symlink('source', path.join(dir, 'src'), 'dir');
+
+        await writeBundleToDir(dir, bundle);
+
+        expect(
+            await fs.readFile(path.join(dir, 'source', 'index.html'), 'utf-8'),
+        ).toBe('<html>');
+        expect((await fs.lstat(path.join(dir, 'src'))).isSymbolicLink()).toBe(
+            true,
+        );
+        await expect(readBundleFromDir(dir)).resolves.toEqual(bundle);
+    },
+);
+
 it('refuses to write a file whose path escapes the target directory', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-app-'));
     await expect(

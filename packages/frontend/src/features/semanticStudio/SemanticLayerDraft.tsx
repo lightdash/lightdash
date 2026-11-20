@@ -25,8 +25,8 @@ import {
     IconPlayerPlay,
 } from '@tabler/icons-react';
 import { sortBy, uniqBy } from 'es-toolkit/compat';
-import { useEffect, useRef, useState, type FC } from 'react';
-import { Link, Navigate, useSearchParams } from 'react-router';
+import { useContext, useEffect, useRef, useState, type FC } from 'react';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import Callout from '../../components/common/Callout';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
@@ -35,6 +35,7 @@ import {
     PIERRE_POOL_OPTIONS,
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
 import { TryIt } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/TryItButton';
+import { useStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
 import { ChangeDiff } from './ChangeDiff';
@@ -48,6 +49,7 @@ import {
     PublishChecklist,
     PublishSummary,
 } from './DraftInsights';
+import { MarkPublishedContext } from './draftMarks';
 import { cannotApply, describePublisher } from './draftState';
 import { FieldChangeIcon } from './KindTypeIcon';
 import {
@@ -59,10 +61,12 @@ import {
     DRAFT_PARAM,
     DRAFT_REVIEW,
     getChangeKind,
+    listFieldChanges,
     listPublishedParts,
     refusalText,
 } from './modelCode';
 import classes from './SemanticLayerDraft.module.css';
+import { getSemanticStudioUrl } from './urls';
 import {
     useApplySemanticLayerDraft,
     usePublishMode,
@@ -186,9 +190,47 @@ export const ApplyModal: FC<{
     const mode = usePublishMode(projectUuid);
     const asPullRequest = mode === 'pull_request';
     const { showToastSuccess, showToastWarning } = useToaster();
+    const navigate = useNavigate();
+    const markPublished = useContext(MarkPublishedContext);
     const scoped = draft.models.filter(
         (entry) => model === null || entry.model === model,
     );
+    /** Marks what went live, and opens the model when the publish touched only one. */
+    const followThrough = (isLive: boolean) => {
+        if (isLive) {
+            markPublished(
+                new Map(
+                    scoped.map((entry) => [
+                        entry.model,
+                        listFieldChanges(
+                            entry.model,
+                            draft.changes.flatMap((change) =>
+                                change.models
+                                    .filter(
+                                        (part) => part.model === entry.model,
+                                    )
+                                    .flatMap((part) => part.changes),
+                            ),
+                            entry,
+                        ),
+                    ]),
+                ),
+            );
+        }
+        const only = scoped.length === 1 ? scoped[0] : null;
+        // A model a pull request adds or removes has no page to open yet.
+        if (
+            only &&
+            only.contentAfter !== null &&
+            (only.contentBefore !== null || isLive)
+        ) {
+            void navigate(
+                getSemanticStudioUrl(projectUuid, {
+                    ref: { type: 'explore', exploreId: only.model },
+                }),
+            );
+        }
+    };
     const sent = useDraftPullRequest() !== null;
     const sendLabel = sent ? 'Update pull request' : 'Open pull request';
     const confirmLabel = asPullRequest ? sendLabel : 'Publish';
@@ -223,49 +265,52 @@ export const ApplyModal: FC<{
                 (entry) => entry.reconciliation?.state === 'conflict',
             )}
             onConfirm={() =>
-                apply.mutate(
-                    { model, merge: mode === 'merge' },
-                    {
-                        onSuccess: ({ failures, pullRequestUrl, merge }) => {
-                            if (failures.length > 0) return;
-                            if (pullRequestUrl) {
-                                const action = {
-                                    children: 'View pull request',
-                                    icon: IconExternalLink,
-                                    onClick: () =>
-                                        window.open(
-                                            pullRequestUrl,
-                                            '_blank',
-                                            'noopener',
-                                        ),
-                                };
-                                if (merge && !merge.merged) {
-                                    showToastWarning({
-                                        title: 'Pull request opened, not merged',
-                                        subtitle: merge.reason,
-                                        action,
-                                    });
-                                } else {
-                                    showToastSuccess({
-                                        title: merge?.merged
-                                            ? 'Published'
-                                            : sent
-                                              ? 'Pull request updated'
-                                              : 'Pull request opened',
-                                        subtitle: merge?.merged
-                                            ? 'Updating for everyone.'
-                                            : undefined,
-                                        action,
-                                    });
-                                }
+                // A promise, since the bar holding this modal leaves with the draft before a callback would run.
+                void apply.mutateAsync({ model, merge: mode === 'merge' }).then(
+                    ({ failures, pullRequestUrl, merge }) => {
+                        if (failures.length > 0) return;
+                        if (pullRequestUrl) {
+                            const action = {
+                                children: 'View pull request',
+                                icon: IconExternalLink,
+                                onClick: () =>
+                                    window.open(
+                                        pullRequestUrl,
+                                        '_blank',
+                                        'noopener',
+                                    ),
+                            };
+                            if (merge && !merge.merged) {
+                                showToastWarning({
+                                    title: 'Pull request opened, not merged',
+                                    subtitle: merge.reason,
+                                    action,
+                                });
                             } else {
                                 showToastSuccess({
-                                    title: 'Published for everyone',
+                                    title: merge?.merged
+                                        ? 'Published'
+                                        : sent
+                                          ? 'Pull request updated'
+                                          : 'Pull request opened',
+                                    subtitle: merge?.merged
+                                        ? 'Updating for everyone.'
+                                        : undefined,
+                                    action,
                                 });
                             }
-                            onClose();
-                        },
+                        } else {
+                            showToastSuccess({
+                                title: 'Published for everyone',
+                            });
+                        }
+                        followThrough(
+                            !pullRequestUrl || merge?.merged === true,
+                        );
+                        onClose();
                     },
+                    // The hook reports a failed publish.
+                    () => {},
                 )
             }
         >
@@ -433,6 +478,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
     const [isTrying, setIsTrying] = useState(false);
     const discard = useDiscardSemanticLayerDraft(projectUuid);
+    const { startNewThread } = useStudioAgent(projectUuid);
     const asPullRequest = usePublishMode(projectUuid) === 'pull_request';
     const sendLabel =
         useDraftPullRequest() !== null
@@ -587,6 +633,8 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                             discard.mutate(null, {
                                 onSuccess: () => {
                                     setDiscarding(false);
+                                    // The chat that built the draft goes with it; it stays one step back.
+                                    startNewThread();
                                 },
                             })
                         }

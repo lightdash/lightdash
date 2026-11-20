@@ -7515,6 +7515,7 @@ describe('AsyncQueryService', () => {
                               submission: [],
                               pivotConfiguration: null,
                               plan: null,
+                              dateZoom: null,
                               authority: { kind: 'request' },
                           });
                 await expect(result).rejects.toThrow('Raw SQL');
@@ -20849,6 +20850,7 @@ describe('query sources carry the execution context', () => {
         invalidateCache: false,
         pivotConfiguration: null,
         plan: null,
+        dateZoom: null,
     };
 
     const createSemanticLayerHarness = () => {
@@ -33388,6 +33390,7 @@ describe('bound composer chart runs', () => {
                 metrics: [],
                 tableCalculations: [],
             },
+            dateZoomByNodeId: {},
         });
     const stamp = {
         composerChartUuid: 'composer-chart-uuid',

@@ -1,5 +1,35 @@
 .heading {
     width: 100%;
+    --heading-fz: 24px;
+
+    &[data-size='xs'] {
+        --heading-fz: 16px;
+    }
+
+    &[data-size='sm'] {
+        --heading-fz: 20px;
+    }
+
+    &[data-size='lg'] {
+        --heading-fz: 32px;
+    }
+}
+
+.heading[data-text-align='center'] {
+    --heading-ta: center;
+}
+
+.heading[data-text-align='right'] {
+    --heading-ta: right;
+}
+
+.heading.text,
+.input {
+    text-align: var(--heading-ta, left);
+    font-size: var(--heading-fz);
+    font-weight: bold;
+    /* The leading headings had before sizes: a line as tall as its font */
+    line-height: 1;
 }
 
 .withDivider {
@@ -11,10 +41,6 @@
     padding: 0;
     height: auto;
     min-height: 0;
-    font-size: 24px;
-    font-weight: bold;
-    /* The line height a 24px Text gets, so the text does not move on focus */
-    line-height: 24px;
     color: inherit;
     cursor: text;
 }

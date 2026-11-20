@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     ParameterError,
@@ -71,6 +72,7 @@ type ThreadFile = {
     uuid: string;
     ownerUuid: string;
     threadUuid: string | null;
+    kind?: 'text' | 'image';
 };
 
 const buildService = (
@@ -79,6 +81,7 @@ const buildService = (
     {
         documents = [],
         documentsEnabled = true,
+        imagesEnabled = false,
         threadFiles = [],
         sqlCharts = [],
         composerCharts = [],
@@ -86,6 +89,7 @@ const buildService = (
     }: {
         documents?: Doc[];
         documentsEnabled?: boolean;
+        imagesEnabled?: boolean;
         threadFiles?: ThreadFile[];
         sqlCharts?: SqlChart[];
         composerCharts?: ComposerChart[];
@@ -105,7 +109,7 @@ const buildService = (
                                 f.ownerUuid === args.userUuid &&
                                 f.threadUuid === null,
                         )
-                        .map((f) => ({ uuid: f.uuid })),
+                        .map((f) => ({ uuid: f.uuid, kind: f.kind ?? 'text' })),
             ),
         findForThread: vi.fn(),
     };
@@ -167,7 +171,12 @@ const buildService = (
             ),
     };
     const featureFlagService = {
-        get: vi.fn().mockResolvedValue({ enabled: documentsEnabled }),
+        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+            enabled:
+                featureFlagId === FeatureFlags.AiThreadImages
+                    ? imagesEnabled
+                    : documentsEnabled,
+        })),
     };
     const organizationDesignModel = {
         findInOrganization: vi
@@ -234,6 +243,7 @@ const buildService = (
         savedSqlService,
         composerChartService,
         aiThreadFileModel,
+        featureFlagService,
     };
 };
 
@@ -547,4 +557,80 @@ describe('validatePromptContextAccess for composer charts', () => {
             'Composer charts are not available in embedded AI',
         );
     });
+});
+
+describe('validatePromptContextAccess for images', () => {
+    const ownImage: ThreadFile = {
+        uuid: 'image-own',
+        ownerUuid: USER_UUID,
+        threadUuid: null,
+        kind: 'image',
+    };
+    const context: AiPromptContextInput = [
+        { type: 'thread_image', fileUuid: ownImage.uuid },
+    ];
+
+    it('gates forged context when the composer flag is off and resolves every request', async () => {
+        const { validate, aiThreadFileModel, featureFlagService } =
+            buildService([], [], { threadFiles: [ownImage] });
+        await expect(validate(context)).rejects.toThrow(ForbiddenError);
+        expect(aiThreadFileModel.findClaimableByUser).not.toHaveBeenCalled();
+        featureFlagService.get.mockResolvedValue({ enabled: true });
+        await expect(validate(context)).resolves.toEqual(context);
+        expect(featureFlagService.get).toHaveBeenCalledWith({
+            user,
+            featureFlagId: FeatureFlags.AiThreadImages,
+        });
+        featureFlagService.get.mockResolvedValue({ enabled: false });
+        await expect(validate(context)).rejects.toThrow(ForbiddenError);
+    });
+
+    it('cannot smuggle an image through the ungated text context kind', async () => {
+        const { validate } = buildService([], [], { threadFiles: [ownImage] });
+        await expect(
+            validate([{ type: 'thread_file', fileUuid: ownImage.uuid }]),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    it('rejects text files masquerading as image context', async () => {
+        const { validate } = buildService([], [], {
+            imagesEnabled: true,
+            threadFiles: [{ ...ownImage, kind: 'text' }],
+        });
+        await expect(validate(context)).rejects.toThrow(ParameterError);
+    });
+
+    it('deduplicates images without consuming multiple claims', async () => {
+        const { validate } = buildService([], [], {
+            imagesEnabled: true,
+            threadFiles: [ownImage],
+        });
+        await expect(validate([...context, ...context])).resolves.toEqual(
+            context,
+        );
+    });
+
+    it('rejects images belonging to another uploader', async () => {
+        const { validate } = buildService([], [], {
+            imagesEnabled: true,
+            threadFiles: [{ ...ownImage, ownerUuid: 'another-user' }],
+        });
+        await expect(validate(context)).rejects.toThrow(ParameterError);
+    });
+
+    it.each([[], ['space-1']])(
+        'rejects embedded image context, including an empty space list: %j',
+        async (...spaces) => {
+            const { validate, aiThreadFileModel } = buildService([], [], {
+                imagesEnabled: true,
+                threadFiles: [ownImage],
+            });
+            await expect(validate(context, spaces)).rejects.toThrow(
+                ForbiddenError,
+            );
+            expect(
+                aiThreadFileModel.findClaimableByUser,
+            ).not.toHaveBeenCalled();
+        },
+    );
 });

@@ -3,22 +3,34 @@ import {
     type CiChecks,
     type SemanticStudioBranchCompile,
 } from '@lightdash/common';
-import { Box, Button } from '@mantine/core';
 import {
+    Box,
+    Button,
+    Group,
+    Loader,
+    Paper,
+    Text,
+    UnstyledButton,
+} from '@mantine/core';
+import {
+    IconChevronDown,
+    IconChevronRight,
     IconCircleCheck,
     IconCircleMinus,
     IconFileCode,
     IconGitBranch,
     IconGitPullRequest,
+    IconInfoCircle,
     IconTable,
 } from '@tabler/icons-react';
-import { useContext, type FC } from 'react';
+import { useContext, useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import {
     type ChangeKind,
     VIEW_PARAM,
 } from '../../../../../../features/semanticStudio/modelCode';
+import { ModelFieldChanges } from '../../../../../../features/semanticStudio/ModelFieldChanges';
 import { TaskIcon } from '../../../../../../features/semanticStudio/TaskRow';
 import { draftActions } from '../../../../../../features/semanticStudio/turnActions';
 import {
@@ -76,6 +88,145 @@ const getSafety = (
         default:
             return assertUnreachable(compile.status, 'Unknown compile status');
     }
+};
+
+/** An open draft's latest turn, small: what it did to each model's fields, the one thing to confirm, and the rest on opening. */
+const DraftTurnCard: FC<{
+    projectUuid: string;
+    models: string[];
+    previewProjectUuid: string | null;
+    cacheKey: string;
+    note: string | null;
+    safety: Safety | null;
+    files: DiffFile[];
+    changesUrl: string;
+    actions: ReactNode[];
+    children: ReactNode;
+}> = ({
+    projectUuid,
+    models,
+    previewProjectUuid,
+    cacheKey,
+    note,
+    safety,
+    files,
+    changesUrl,
+    actions,
+    children,
+}) => {
+    const [isOpened, setIsOpened] = useState(false);
+    const isFailing = safety?.state === 'failed';
+    // A draft that does not compile shows why without being asked.
+    const isOpen = isOpened || isFailing;
+    return (
+        <Paper mt="xs" className={classes.card}>
+            <UnstyledButton
+                className={classes.compactHead}
+                aria-expanded={isOpen}
+                onClick={() => setIsOpened(!isOpened)}
+            >
+                {isFailing ? (
+                    <TaskIcon state="failed" />
+                ) : (
+                    <Box className={classes.dot} />
+                )}
+                <Text fz="xs" fw={500} flex="none">
+                    {isFailing ? "Draft doesn't compile" : 'Draft'}
+                </Text>
+                <Text fz="xs" c="dimmed" truncate flex={1} miw={0}>
+                    {models.join(', ')}
+                </Text>
+                {safety?.state === 'running' ? (
+                    <Group gap={6} wrap="nowrap" flex="none">
+                        <Loader size={10} color="gray" />
+                        <Text fz="xs" c="dimmed">
+                            {safety.text}
+                        </Text>
+                    </Group>
+                ) : null}
+                <MantineIcon
+                    icon={isOpen ? IconChevronDown : IconChevronRight}
+                    size={12}
+                    color="dimmed"
+                />
+            </UnstyledButton>
+            <Box className={classes.compactBody}>
+                {models.map((model) => (
+                    <ModelFieldChanges
+                        key={model}
+                        projectUuid={projectUuid}
+                        model={model}
+                        previewProjectUuid={previewProjectUuid}
+                        cacheKey={cacheKey}
+                    />
+                ))}
+                {note ? (
+                    <Group gap={6} wrap="nowrap" align="flex-start">
+                        <Box className={classes.node} w={16}>
+                            <MantineIcon
+                                icon={IconInfoCircle}
+                                size={14}
+                                color="yellow"
+                            />
+                        </Box>
+                        <Text
+                            fz="xs"
+                            c="dimmed"
+                            lineClamp={isOpen ? undefined : 1}
+                            title={note}
+                        >
+                            {note}
+                        </Text>
+                    </Group>
+                ) : null}
+                {isFailing && safety.why ? (
+                    <Text fz="xs" c="dimmed" className={classes.wrap}>
+                        {safety.why}
+                    </Text>
+                ) : null}
+            </Box>
+            {isOpen ? (
+                <>
+                    {files.length > 0 ? (
+                        <Box className={classes.compactBody}>
+                            {files.map((file) => (
+                                <UnstyledButton
+                                    key={file.key}
+                                    component={Link}
+                                    to={changesUrl}
+                                    className={classes.row}
+                                    title={file.path}
+                                >
+                                    <Text
+                                        span
+                                        fz="xs"
+                                        c="dimmed"
+                                        truncate
+                                        className={classes.label}
+                                    >
+                                        {file.path}
+                                    </Text>
+                                    <Text span fz="xs" c="dimmed" flex="none">
+                                        +{file.additions} −{file.deletions}
+                                    </Text>
+                                </UnstyledButton>
+                            ))}
+                        </Box>
+                    ) : null}
+                    {children}
+                    {actions.some(Boolean) ? (
+                        <Group
+                            className={classes.compactFoot}
+                            gap="xs"
+                            justify="flex-end"
+                        >
+                            {actions}
+                        </Group>
+                    ) : null}
+                </>
+            ) : null}
+        </Paper>
+    );
 };
 
 /** The end of an agent turn on a dbt project in Studio: the files it changed, whether they compile, and what to do next. */
@@ -272,6 +423,37 @@ export const DbtTurnSummaryCard: FC<{
         }
     })();
 
+    const ciSection =
+        state === 'open' && !isBitbucket && ciChecks?.checks.length ? (
+            <Box className={classes.section}>
+                <PullRequestCiChecks
+                    prUrl={prUrl}
+                    ciChecks={ciChecks}
+                    hasMergeAction
+                />
+            </Box>
+        ) : null;
+    if (state === 'open' && isLatestTurn) {
+        return (
+            <DraftTurnCard
+                projectUuid={projectUuid}
+                models={
+                    groups.length > 0
+                        ? groups.map(({ model }) => model)
+                        : changedModels
+                }
+                previewProjectUuid={current?.previewProjectUuid ?? null}
+                cacheKey={commitSha ?? prUrl}
+                note={note}
+                safety={getSafety(latestCompile)}
+                files={files}
+                changesUrl={changesUrl}
+                actions={actions}
+            >
+                {ciSection}
+            </DraftTurnCard>
+        );
+    }
     return (
         <TurnCard
             icon={header.icon}
@@ -290,20 +472,11 @@ export const DbtTurnSummaryCard: FC<{
             }
             groups={groups}
             safety={state === 'open' ? getSafety(latestCompile) : null}
-            note={state === 'open' ? note : null}
             isLatest={isLatestTurn}
             actions={actions}
             isGone={state === 'closed'}
         >
-            {state === 'open' && !isBitbucket && ciChecks?.checks.length ? (
-                <Box className={classes.section}>
-                    <PullRequestCiChecks
-                        prUrl={prUrl}
-                        ciChecks={ciChecks}
-                        hasMergeAction
-                    />
-                </Box>
-            ) : null}
+            {ciSection}
         </TurnCard>
     );
 };

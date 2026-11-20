@@ -46,6 +46,7 @@ describe('getAnthropicModel', () => {
         );
 
         expect(createAnthropic).toHaveBeenCalledWith({
+            fetch: expect.any(Function),
             apiKey: 'anthropic-key',
             baseURL: 'https://api.anthropic.com/v1',
             headers: {},
@@ -67,6 +68,7 @@ describe('getAnthropicModel', () => {
         );
 
         expect(createAnthropic).toHaveBeenCalledWith({
+            fetch: expect.any(Function),
             authToken: 'gateway-token',
             baseURL: 'https://gateway.example/anthropic/v1',
             headers: {},

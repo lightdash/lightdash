@@ -8,6 +8,8 @@ import {
     DEVELOPMENT_PREVIEW_HEADER,
     DEVELOPMENT_VIEW_HEADER,
     getDevelopmentViewHeaders,
+    pinDevelopmentView,
+    PUBLISHED_VIEW,
     useCheckedOutView,
     useDevelopmentView,
 } from './developmentView';
@@ -47,6 +49,22 @@ describe('the development view of a checked-out draft', () => {
             [DEVELOPMENT_VIEW_HEADER]: 'true',
             [DEVELOPMENT_PREVIEW_HEADER]: 'preview-1',
         });
+    });
+
+    it('keeps an open Try it reading its changes when the view is switched off under it', () => {
+        at('/projects/p-1/semantic-layer');
+        localStorage.setItem('lightdash-development-view-project', 'p-1');
+        localStorage.setItem('lightdash-development-preview', 'preview-1');
+        const tried = {
+            [DEVELOPMENT_VIEW_HEADER]: 'true',
+            [DEVELOPMENT_PREVIEW_HEADER]: 'preview-1',
+        };
+        const unpin = pinDevelopmentView('preview-1');
+        // Another tab, or a page that leaves Studio, switches the shared view off.
+        clearDevelopmentView();
+        expect(getDevelopmentViewHeaders()).toEqual(tried);
+        unpin();
+        expect(getDevelopmentViewHeaders()).toEqual({});
     });
 
     it('refetches when the checkout or its compile changes, and not on a page that loaded it already', () => {
@@ -90,12 +108,45 @@ describe('the development view of a checked-out draft', () => {
         expect(queryClient.getQueryData(key)).toBe('published');
     });
 
+    it('reads one draft in either view, so leaving a draft never brings back an older copy of it', () => {
+        const queryClient = createQueryClient();
+        const key = ['semantic-layer-draft', 'p-1'];
+        at('/projects/p-1/semantic-layer');
+        queryClient.setQueryData(key, 'one change');
+        localStorage.setItem('lightdash-checked-out-project', 'p-1');
+        queryClient.setQueryData(key, 'discarded');
+        clearDevelopmentView();
+        expect(queryClient.getQueryData(key)).toBe('discarded');
+    });
+
+    it('reads one chat thread in either view, so a view switch never brings back an older copy of it', () => {
+        const queryClient = createQueryClient();
+        const key = ['aiAgents', 'p-1', 'a-1', 'threads', 't-1'];
+        at('/projects/p-1/semantic-layer');
+        queryClient.setQueryData(key, 'before the turn');
+        localStorage.setItem('lightdash-checked-out-project', 'p-1');
+        queryClient.setQueryData(key, 'after the turn');
+        clearDevelopmentView();
+        expect(queryClient.getQueryData(key)).toBe('after the turn');
+    });
+
+    it('reads a query that names what is published the same on and off a draft', () => {
+        const queryClient = createQueryClient();
+        const key = ['tables', 'p-1', 'filtered', PUBLISHED_VIEW];
+        at('/projects/p-1/semantic-layer');
+        queryClient.setQueryData(key, 'published');
+        localStorage.setItem('lightdash-checked-out-project', 'p-1');
+        expect(queryClient.getQueryData(key)).toBe('published');
+    });
+
     it('keeps what a page shows while Try it switches the view, then refetches it', () => {
         const queryClient = createQueryClient();
         const key = ['project', 'p-1'];
         at('/projects/p-1/semantic-layer');
         queryClient.setQueryData(key, 'published');
         queryClient.setQueryData(['semantic-studio-checkout', 'p-1'], 'a');
+        const access = ['ai-access', 'p-1', null, 'me'];
+        queryClient.setQueryData(access, 'allowed');
         const { result } = renderHook(() => useDevelopmentView(), {
             wrapper: ({ children }: PropsWithChildren) => (
                 <QueryClientProvider client={queryClient}>
@@ -109,6 +160,8 @@ describe('the development view of a checked-out draft', () => {
         });
         expect(queryClient.getQueryData(key)).toBe('published');
         expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
+        // The chat's composer hides while this refetches, so a view switch leaves it alone.
+        expect(queryClient.getQueryState(access)?.isInvalidated).toBe(false);
     });
 
     it('switches Try it on over a checked-out draft, which already reads the changes, without fetching again', () => {

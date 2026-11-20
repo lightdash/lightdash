@@ -8,6 +8,7 @@ import {
 } from './prometheus/otelHttpMetrics';
 import { dropIgnoredErrors } from './sentry/ignoredErrors';
 import { scrubProvisioningRequest } from './sentry/scrubProvisioningRequest';
+import { sensitiveUploadHttpOptions } from './sentry/sensitiveUploadHttpOptions';
 import { otelTracingEnabled } from './tracing/tracing';
 import { VERSION } from './version';
 
@@ -76,7 +77,7 @@ export const errorsOnlyIntegrations = (
     ...defaultIntegrations.filter(
         (integration) => !SENTRY_SPAN_INTEGRATIONS.has(integration.name),
     ),
-    Sentry.httpIntegration({ spans: false }),
+    Sentry.httpIntegration({ spans: false, ...sensitiveUploadHttpOptions }),
     Sentry.nativeNodeFetchIntegration({ spans: false }),
 ];
 
@@ -89,6 +90,21 @@ const anrIntegrations = lightdashConfig.sentry.anr.enabled
           }),
       ]
     : [];
+
+export const selfHostedIntegrations = () => [
+    Sentry.httpIntegration(sensitiveUploadHttpOptions),
+    nodeProfilingIntegration(),
+    ...anrIntegrations,
+    ...(lightdashConfig.ai.copilot.enabled &&
+    lightdashConfig.ai.copilot.telemetryEnabled
+        ? [
+              Sentry.vercelAIIntegration({
+                  recordInputs: true,
+                  recordOutputs: true,
+              }),
+          ]
+        : []),
+];
 
 const tracesSampler: NodeOptions['tracesSampler'] = (context) => {
     const request = context.normalizedRequest;
@@ -164,19 +180,7 @@ Sentry.init({
               ...errorsOnlyIntegrations(defaultIntegrations),
               ...anrIntegrations,
           ]
-        : [
-              nodeProfilingIntegration(),
-              ...anrIntegrations,
-              ...(lightdashConfig.ai.copilot.enabled &&
-              lightdashConfig.ai.copilot.telemetryEnabled
-                  ? [
-                        Sentry.vercelAIIntegration({
-                            recordInputs: true,
-                            recordOutputs: true,
-                        }),
-                    ]
-                  : []),
-          ],
+        : selfHostedIntegrations(),
     beforeSend: (event) => dropIgnoredErrors(scrubProvisioningRequest(event)),
     ...(otelTracingEnabled()
         ? {}
