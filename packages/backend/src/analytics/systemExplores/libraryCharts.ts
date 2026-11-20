@@ -118,6 +118,8 @@ export const libraryChartOptions: Record<
         initialSort: '0.14.0',
         rowHeaderName: '0.14.0',
         valueNames: '0.14.0',
+        // Writes each value the way its field is formatted, so a share reads 42%
+        useFieldFormats: '0.14.2',
     },
     'customizable-cartesian-chart': {
         ...sinceFirstBinding(

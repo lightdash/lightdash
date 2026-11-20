@@ -516,10 +516,11 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
             {
                 name: 'share_rated_percent',
-                displayName: 'Share rated (%)',
+                displayName: 'Share rated',
                 type: TableCalculationType.NUMBER,
-                sql: 'ROUND(100.0 * ${agent_requests.feedback_coverage})',
-                format: { type: CustomFormatType.NUMBER, round: 0 },
+                // A fraction with a percent format, so the table writes it as 42%
+                sql: '${agent_requests.feedback_coverage}',
+                format: { type: CustomFormatType.PERCENT, round: 0 },
             },
             {
                 name: 'negative_ratings',
@@ -545,7 +546,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'sortable-pivot-table',
-            minVersion: '0.14.0',
+            minVersion: '0.14.2',
             fieldMapping: {
                 rowDimension: 'agent_requests_agent_name',
                 metric: [
@@ -564,7 +565,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 density: 'compact',
                 initialSort: 'firstValue',
                 rowHeaderName: 'Agent',
-                valueNames: 'Requests,Rated,Share rated (%),Negative',
+                valueNames: 'Requests,Rated,Share rated,Negative',
+                useFieldFormats: true,
             },
             // Shares the plain table's query: the counts are table calculations
             query: null,

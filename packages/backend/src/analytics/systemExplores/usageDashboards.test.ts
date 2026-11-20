@@ -1885,7 +1885,7 @@ describe('display fixes', () => {
             ),
         ).toEqual([
             ['rated_requests', 'Rated'],
-            ['share_rated_percent', 'Share rated (%)'],
+            ['share_rated_percent', 'Share rated'],
             ['negative_ratings', 'Negative'],
         ]);
         expect(feedback.metricQuery.sorts).toEqual([
@@ -1894,7 +1894,7 @@ describe('display fixes', () => {
         const binding = analyticsLibraryChartBindings.get(feedback.slug)!;
         expect(binding).toMatchObject({
             slug: 'sortable-pivot-table',
-            minVersion: '0.14.0',
+            minVersion: '0.14.2',
             fieldMapping: {
                 rowDimension: 'agent_requests_agent_name',
                 metric: [
@@ -1907,7 +1907,9 @@ describe('display fixes', () => {
             optionValues: {
                 initialSort: 'firstValue',
                 rowHeaderName: 'Agent',
-                valueNames: 'Requests,Rated,Share rated (%),Negative',
+                valueNames: 'Requests,Rated,Share rated,Negative',
+                // The share is a fraction with a percent format: the table writes 43%
+                useFieldFormats: true,
                 density: 'compact',
                 decimalPlaces: 0,
                 showTotalsRow: false,
@@ -1973,7 +1975,7 @@ describe('display fixes', () => {
                     row.rated_requests === null
                         ? null
                         : Number(row.rated_requests),
-                    Number(row.share_rated_percent),
+                    Math.round(100 * Number(row.share_rated_percent)),
                     Number(row.negative_ratings),
                 ]),
             ).toEqual([
