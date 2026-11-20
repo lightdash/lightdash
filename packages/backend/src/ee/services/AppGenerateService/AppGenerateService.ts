@@ -2586,6 +2586,27 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * A dashboard's recording goes to an agent, not to a data app build, so
+     * it asks for what a message to an agent asks for.
+     */
+    private async canTranscribeDashboardCapture(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.DashboardCapture,
+        });
+        if (!enabled) return false;
+        const { organizationUuid } =
+            await this.getDataAppProjectContext(projectUuid);
+        return this.createAuditedAbility(user).can(
+            'create',
+            subject('AiAgentThread', { organizationUuid, projectUuid }),
+        );
+    }
+
+    /**
      * Transcribes the audio of a Design Mode recording into timed words.
      * The audio is sent to the transcription provider and not stored.
      */
@@ -2597,15 +2618,18 @@ export class AppGenerateService extends BaseService {
         contentLength: number,
         locale?: string,
     ): Promise<CaptureTranscriptWord[]> {
-        await this.assertAnyAppsEnabled(user);
-        const { organizationUuid } = await this.assertDataAppAbility(
-            user,
-            'create',
-            projectUuid,
-            'Insufficient permissions to transcribe a capture',
-        );
-        await this.assertDataAppCapturesEnabled(organizationUuid);
-        await this.assertDesignModeEnabled(user);
+        // Otherwise the recording is for a data app: its rules apply.
+        if (!(await this.canTranscribeDashboardCapture(user, projectUuid))) {
+            await this.assertAnyAppsEnabled(user);
+            const { organizationUuid } = await this.assertDataAppAbility(
+                user,
+                'create',
+                projectUuid,
+                'Insufficient permissions to transcribe a capture',
+            );
+            await this.assertDataAppCapturesEnabled(organizationUuid);
+            await this.assertDesignModeEnabled(user);
+        }
 
         const filename = audioFilenameForMimeType(declaredMimeType);
         if (!filename) {
