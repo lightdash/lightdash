@@ -165,6 +165,7 @@
         top: 0;
         left: 0;
         right: 0;
+        width: auto;
         z-index: 10;
         white-space: normal;
         overflow: visible;
@@ -179,6 +180,9 @@
     }
 
     &:is(a) {
+        /* The link is only as wide as its text, so empty header space is not the title */
+        width: fit-content;
+
         &:not([href]) {
             cursor: default;
             text-decoration: none;

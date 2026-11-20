@@ -52,6 +52,17 @@ describe('resolveTitleAim', () => {
         ).toBe('headingForActions');
     });
 
+    it('lets go of the title while the pointer rises into the actions from below', () => {
+        expect(
+            resolveTitleAim({
+                ...layout,
+                point: { x: 310, y: 186 },
+                from: { x: 310, y: 191 },
+                titleHovered: true,
+            }),
+        ).toBe('headingForActions');
+    });
+
     it('keeps the title while the pointer moves away from the actions', () => {
         expect(
             resolveTitleAim({
