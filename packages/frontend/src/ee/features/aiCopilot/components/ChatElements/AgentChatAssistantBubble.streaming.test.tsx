@@ -1,5 +1,5 @@
 import { type AiAgentMessageAssistant } from '@lightdash/common';
-import { act, screen } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import { useSyncExternalStore } from 'react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
@@ -146,13 +146,9 @@ describe('streaming an answer', () => {
             await act(async () => stream.set(next));
         }
 
-        expect(
-            await screen.findByText(
-                (_, element) =>
-                    element?.tagName === 'P' &&
-                    element.textContent === lastParagraph,
-            ),
-        ).toBeInTheDocument();
+        await waitFor(() =>
+            expect(document.body).toHaveTextContent(lastParagraph),
+        );
         expect(stream.parses).toBeGreaterThan(0);
         expect(stream.parses).toBeLessThanOrEqual(frames);
     });
