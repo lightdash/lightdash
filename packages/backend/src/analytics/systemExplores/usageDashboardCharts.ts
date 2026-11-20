@@ -967,6 +967,21 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 fieldId: 'agent_requests_total_requests',
             },
         ],
+        libraryChart: {
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.17.1',
+            fieldMapping: {
+                x: 'agent_requests_status',
+                m1: 'agent_requests_total_request_tokens',
+                splitBy: 'agent_requests_feedback_score',
+            },
+            optionValues: {
+                seriesType: 'bar',
+                stack: 'normal',
+                xAxisType: 'category',
+            },
+            query: null,
+        },
     },
     {
         key: 'review-candidates-activity-and-known-dependencies',

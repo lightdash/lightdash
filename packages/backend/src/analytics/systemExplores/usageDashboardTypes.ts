@@ -5,6 +5,7 @@ import type {
     FilterOperator,
 } from '@lightdash/common';
 import type { analyticsExploreNames } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
+import type { LibraryChartBinding } from './libraryCharts';
 
 export type AnalyticsContentBundle = {
     dashboard: DashboardAsCode;
@@ -33,6 +34,7 @@ export type UsageChartSpec = {
     xField?: string;
     yFields?: string[];
     flipAxes?: boolean;
+    libraryChart?: LibraryChartBinding;
 };
 
 export type UsageDashboardSpec = {
