@@ -1,5 +1,5 @@
 import { type AiAgentMessageAssistant } from '@lightdash/common';
-import { act, screen } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import { useSyncExternalStore } from 'react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
@@ -114,6 +114,20 @@ const streamOf = (content: string): AiAgentThreadStreamingState => ({
     timing: { startedAt: 0, firstTokenAt: 0, finishedAt: null },
 });
 
+const renderBubble = () =>
+    renderWithProviders(
+        <MemoryRouter>
+            <AssistantBubble
+                message={message}
+                hiddenSibling={null}
+                isLastMessage
+                canRetry
+                projectUuid="project"
+                agentUuid="agent"
+            />
+        </MemoryRouter>,
+    );
+
 describe('streaming an answer', () => {
     it('parses only the block still being written on each frame', async () => {
         const finished = Array.from(
@@ -123,18 +137,7 @@ describe('streaming an answer', () => {
         ).join('\n\n');
         let lastParagraph = 'Still writing';
         stream.set(streamOf(`${finished}\n\n${lastParagraph}`));
-        renderWithProviders(
-            <MemoryRouter>
-                <AssistantBubble
-                    message={message}
-                    hiddenSibling={null}
-                    isLastMessage
-                    canRetry
-                    projectUuid="project"
-                    agentUuid="agent"
-                />
-            </MemoryRouter>,
-        );
+        renderBubble();
         expect(await screen.findAllByRole('link')).toHaveLength(10);
 
         stream.parses = 0;
@@ -146,8 +149,52 @@ describe('streaming an answer', () => {
             await act(async () => stream.set(next));
         }
 
-        expect(await screen.findByText(lastParagraph)).toBeInTheDocument();
+        await waitFor(() =>
+            expect(document.body).toHaveTextContent(lastParagraph),
+        );
         expect(stream.parses).toBeGreaterThan(0);
         expect(stream.parses).toBeLessThanOrEqual(frames);
+    });
+});
+
+describe('streaming text after a tool call', () => {
+    it('mounts the new text fresh so its words fade in', async () => {
+        const toolCall = {
+            type: 'toolCall' as const,
+            toolCallId: 'call',
+            toolName: 'findExplores',
+            toolArgs: {},
+            toolResult: null,
+            isPreliminary: false,
+        };
+        stream.set(streamOf('Looking for the right explore'));
+        renderBubble();
+        await waitFor(() =>
+            expect(document.body).toHaveTextContent(
+                'Looking for the right explore',
+            ),
+        );
+        const firstWord = document.querySelector('[data-sd-animate]');
+        expect(firstWord).not.toBeNull();
+
+        const answer = 'Revenue grew last quarter';
+        await act(async () =>
+            stream.set({
+                ...streamOf(answer),
+                parts: [
+                    { type: 'text', text: 'Looking for the right explore' },
+                    toolCall,
+                    { type: 'text', text: answer },
+                ],
+            }),
+        );
+
+        await waitFor(() => expect(document.body).toHaveTextContent(answer));
+        expect(firstWord?.isConnected).toBe(false);
+        expect(
+            Array.from(document.querySelectorAll('[data-sd-animate]')).map(
+                (span) => span.textContent,
+            ),
+        ).toStrictEqual(answer.split(' '));
     });
 });

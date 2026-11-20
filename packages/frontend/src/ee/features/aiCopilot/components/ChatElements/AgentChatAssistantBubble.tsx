@@ -840,6 +840,8 @@ const AssistantBubbleContent: FC<{
                     const latestTextSeg = textSegments[textSegments.length - 1];
                     const finalAnswerMd = latestTextSeg ? (
                         <AnswerMarkdown
+                            // Remount per segment so its words fade in.
+                            key={latestTextSeg.idx}
                             context={answerMarkdownContext}
                             isStreaming={isStreaming}
                             className={clsx(
