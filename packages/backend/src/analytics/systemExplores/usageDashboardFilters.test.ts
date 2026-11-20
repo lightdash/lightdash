@@ -75,6 +75,8 @@ describe('usage dashboard filters', () => {
                 .filter(([, target]) => target === false)
                 .map(([slug]) => slug),
         ).toEqual([
+            // Always the last 26 weeks, so its grid fills the tile
+            'lightdash-analytics-query-activity-query-calendar',
             'lightdash-analytics-query-activity-querying-users-month-over-month',
             'lightdash-analytics-query-activity-queries-run-month-over-month',
         ]);

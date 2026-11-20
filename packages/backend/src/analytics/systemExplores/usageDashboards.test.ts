@@ -24,6 +24,7 @@ import {
     usageDimensionTable,
 } from '../eventStream/usageDimensions';
 import { userActivityColumns } from '../eventStream/userActivity';
+import { analyticsColorPalette } from './analyticsColorPalette';
 import {
     analyticsContentAsCode,
     analyticsLibraryChartBindings,
@@ -926,6 +927,42 @@ describe('built-in usage dashboards', () => {
             slug.endsWith('-query-calendar'),
         )!;
         expect(analyticsLibraryChartBindings.has(calendar.slug)).toBe(false);
+    });
+
+    it('draws the query calendar over a fixed 26 weeks in the palette colour', () => {
+        const calendar = analyticsContentAsCode
+            .flatMap(({ charts: all }) => all)
+            .find(({ slug }) => slug.endsWith('-query-calendar'))!;
+        // Its own period, so the grid always has the same number of columns and fills the tile
+        expect(calendar.metricQuery.filters.dimensions).toMatchObject({
+            and: [
+                {
+                    target: { fieldId: 'query_events_event_ts_raw' },
+                    operator: FilterOperator.IN_THE_PAST,
+                    values: [182],
+                },
+            ],
+        });
+        const spec = JSON.stringify(
+            calendar.chartConfig.type === ChartType.CUSTOM
+                ? calendar.chartConfig.config?.spec
+                : null,
+        );
+        // Columns span the width (27 calendar weeks, at most 64px each), from the left edge
+        expect(spec).toContain('min(width / 27, 64)');
+        expect(spec).not.toContain('column_offset');
+        // The ramp ends on the first palette colour, and the legend reads 9.3K, top right
+        expect(spec).toContain(
+            JSON.stringify([
+                '#E0E7FF',
+                analyticsColorPalette.colors[1],
+                analyticsColorPalette.colors[0],
+            ]),
+        );
+        expect(spec).toContain("upper(format(datum.value, '.2~s'))");
+        expect(spec).toContain('"orient":"top-right"');
+        // A label for every month that starts in the window
+        expect(spec).toContain('utcdate(datum.grid_day) === 1');
     });
 
     it('captions only the Queries sections with library charts and shows the query total compactly', () => {
