@@ -136,11 +136,11 @@ export const AgentSelector = ({
             width={compact ? 260 : 'target'}
             position="bottom-start"
         >
-            <Combobox.Target>
-                <Tooltip
-                    label={isAuto ? 'Auto' : selectedAgent.name}
-                    disabled={!avatarOnly}
-                >
+            <Tooltip
+                label={isAuto ? 'Auto' : selectedAgent.name}
+                disabled={!avatarOnly}
+            >
+                <Combobox.Target>
                     <UnstyledButton
                         {...viewAgentTourProps}
                         type="button"
@@ -173,15 +173,17 @@ export const AgentSelector = ({
                                     {isAuto ? 'Auto' : selectedAgent.name}
                                 </Text>
                             )}
-                            <MantineIcon
-                                icon={IconChevronDown}
-                                size="sm"
-                                color="dimmed"
-                            />
+                            {!avatarOnly && (
+                                <MantineIcon
+                                    icon={IconChevronDown}
+                                    size="sm"
+                                    color="dimmed"
+                                />
+                            )}
                         </Group>
                     </UnstyledButton>
-                </Tooltip>
-            </Combobox.Target>
+                </Combobox.Target>
+            </Tooltip>
 
             <Combobox.Dropdown miw={DROPDOWN_MIN_WIDTH}>
                 {showAutoOption && (
