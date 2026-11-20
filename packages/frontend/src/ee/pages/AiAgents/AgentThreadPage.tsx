@@ -98,8 +98,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         threadUuid,
     );
 
-    // Handle artifact selection based on thread changes
-    useAiAgentThreadArtifact({
+    const { isAutoOpenPending } = useAiAgentThreadArtifact({
         projectUuid,
         agentUuid,
         threadUuid,
@@ -409,7 +408,12 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         });
     };
 
-    if (isLoadingThread || !thread || agentQuery.isLoading) {
+    if (
+        isLoadingThread ||
+        !thread ||
+        agentQuery.isLoading ||
+        isAutoOpenPending
+    ) {
         return (
             <Center h="100%">
                 <Loader color="gray" />
