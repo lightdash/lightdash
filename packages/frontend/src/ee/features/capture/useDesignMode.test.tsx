@@ -1,8 +1,10 @@
+import { AI_THREAD_IMAGES_MAX_PER_PROMPT as CAP } from '@lightdash/common';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { useState, type FC } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import {
+    type CaptureMark,
     type DesignPayload,
     type DesignSendResult,
     type DesignSurface,
@@ -38,24 +40,33 @@ vi.mock('./appFrame', () => ({
     grabAppFrame: (...args: unknown[]) => grabAppFrame(...args),
 }));
 
+const composeImage = vi.fn(
+    async (_input: { frame: unknown; marks: CaptureMark[]; index: number }) =>
+        new File(['x'], 'capture-1.png'),
+);
 vi.mock('./composeImage', () => ({
     INK_COLOR: '#e03131',
-    composeImage: vi.fn(async () => new File(['x'], 'capture-1.png')),
+    composeImage: (...args: Parameters<typeof composeImage>) =>
+        composeImage(...args),
 }));
 
+// What the page looks like: a different shade is a different screen.
+let shade = 0;
 const fakeFrame = () => ({
     bitmap: { close: vi.fn(), width: 100, height: 100 },
-    thumb: new Uint8ClampedArray(16),
+    thumb: new Uint8ClampedArray(16).fill(shade),
 });
 
 const transcribe = vi.fn();
 let scroll = { x: 0, y: 0 };
+let tab: { uuid: string; name: string } | null = null;
 const surface: DesignSurface = {
     getRegion: () => new DOMRect(0, 0, 100, 100),
     getScroll: () => scroll,
     frameSource: 'dom',
     grabAppImage: null,
-    getTab: () => null,
+    watchScroll: null,
+    getTab: () => tab,
     resolveTarget: null,
     pickAt: null,
     transcribe: (audio) => transcribe(audio),
@@ -136,6 +147,36 @@ const drawMark = async () => {
     await keyUp({ key: 'Alt' });
 };
 
+const collected = () => {
+    const capture = api.session.bubbles[0]?.collection?.capture;
+    return capture?.status === 'recording' ? capture.marks : [];
+};
+
+// The bubble's place on screen, read back from where it was drawn.
+const mockBubbleRects = () =>
+    vi
+        .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+        .mockImplementation(function rectOf(this: HTMLElement) {
+            if (!this.hasAttribute('data-bubble-id')) return new DOMRect();
+            return new DOMRect(
+                parseFloat(this.style.getPropertyValue('--bubble-left')),
+                parseFloat(this.style.getPropertyValue('--bubble-top')),
+                320,
+                140,
+            );
+        });
+
+const sendFirst = async () => {
+    await drawMark();
+    await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+    const { id } = api.session.bubbles[0];
+    await act(async () => {
+        api.send(id, '');
+    });
+    await waitFor(() => expect(api.session.bubbles[0].status).toBe('thread'));
+    return id;
+};
+
 const turnOn = async (mic = false) => {
     renderWithProviders(<Harness />);
     await act(async () => {
@@ -147,6 +188,9 @@ const turnOn = async (mic = false) => {
 describe('useDesignMode', () => {
     beforeEach(() => {
         scroll = { x: 0, y: 0 };
+        tab = null;
+        shade = 0;
+        composeImage.mockClear();
         startVoice.mockReset();
         stopVoice.mockReset();
         grabDomFrame.mockReset();
@@ -184,7 +228,7 @@ describe('useDesignMode', () => {
         expect(grabDomFrame).not.toHaveBeenCalled();
     });
 
-    it('with the mic on, recording starts on the first press and Stop sends the words', async () => {
+    it('with the mic on, recording starts with the first stroke and Stop sends the words', async () => {
         stopVoice.mockResolvedValue({
             audio: new Blob(['audio'], { type: 'audio/webm' }),
             startedAtMs: performance.now(),
@@ -197,11 +241,16 @@ describe('useDesignMode', () => {
         await turnOn(true);
 
         await keyDown({ key: 'Alt', altKey: true });
+        // The key alone is not a mark: the mic waits for the pen to move.
+        expect(startVoice).not.toHaveBeenCalled();
+        await act(async () => {
+            fireEvent.mouseMove(holdLayer(), { clientX: 10, clientY: 10 });
+        });
         expect(startVoice).toHaveBeenCalledTimes(1);
-        fireEvent.mouseMove(holdLayer(), { clientX: 10, clientY: 10 });
         fireEvent.mouseMove(holdLayer(), { clientX: 40, clientY: 40 });
         await keyUp({ key: 'Alt' });
         await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        expect(startVoice).toHaveBeenCalledTimes(1);
         const [bubble] = api.session.bubbles;
         expect(bubble.input).toBe('mic');
 
@@ -225,7 +274,39 @@ describe('useDesignMode', () => {
         await drawMark();
         await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
         expect(api.session.bubbles[0].input).toBe('text');
+        expect(collected()).toHaveLength(1);
         expect(screen.getByRole('textbox')).toBeInTheDocument();
+    });
+
+    it('Stop with marks and no words keeps the marks in a text box and sends nothing', async () => {
+        await turnOn(true);
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        const { id } = api.session.bubbles[0];
+        expect(api.session.bubbles[0].input).toBe('mic');
+        expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+
+        // The recording comes back empty.
+        await act(async () => {
+            api.stop(id);
+        });
+        await waitFor(() => expect(api.session.bubbles[0].input).toBe('text'));
+        expect(onSend).not.toHaveBeenCalled();
+        expect(api.session.bubbles[0].status).toBe('collecting');
+        expect(collected()).toHaveLength(1);
+        expect(screen.getByRole('textbox')).toBeInTheDocument();
+    });
+
+    it('an Option shortcut with the mic on does not touch the microphone', async () => {
+        await turnOn(true);
+        await keyDown({ key: 'Alt', altKey: true });
+        await keyDown({ key: 'ArrowLeft', altKey: true });
+        await keyUp({ key: 'ArrowLeft', altKey: true });
+        await keyUp({ key: 'Alt' });
+        await keyDown({ key: 'Alt', altKey: true });
+        await keyUp({ key: 'Alt' });
+        expect(startVoice).not.toHaveBeenCalled();
+        expect(stopVoice).not.toHaveBeenCalled();
     });
 
     it('nothing to send is never sent', async () => {
@@ -251,6 +332,293 @@ describe('useDesignMode', () => {
         });
         await act(async () => {});
         expect(onSend).toHaveBeenCalledTimes(1);
+        expect(api.session.bubbles[0].input).toBe('text');
+    });
+
+    it('arming the mic while the reply is on its way out does not start a recording', async () => {
+        await turnOn();
+        const id = await sendFirst();
+        await act(async () => {
+            api.arm(id, 'mic');
+        });
+        expect(startVoice).toHaveBeenCalledTimes(1);
+
+        let stopped: (audio: null) => void = () => {};
+        stopVoice.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    stopped = resolve;
+                }),
+        );
+        await act(async () => {
+            api.stop(id);
+        });
+        // Still being stopped and transcribed: the Mic button does nothing.
+        await act(async () => {
+            api.arm(id, 'mic');
+        });
+        await act(async () => {
+            stopped(null);
+        });
+        await act(async () => {});
+        expect(startVoice).toHaveBeenCalledTimes(1);
+        expect(stopVoice).toHaveBeenCalledTimes(1);
+    });
+
+    it('marks on two tabs go out as two images, each with its own marks', async () => {
+        tab = { uuid: 'a', name: 'Overview' };
+        await turnOn();
+        await drawMark();
+        await waitFor(() => expect(collected()).toHaveLength(1));
+        // The same pixels on another tab are still another screen.
+        tab = { uuid: 'b', name: 'Marketing' };
+        await drawMark();
+        await waitFor(() => expect(collected()).toHaveLength(2));
+        expect(collected().map((m) => m.imageIndex)).toEqual([0, 1]);
+        expect(api.session.bubbles[0].collection?.tabUuids).toEqual(['a', 'b']);
+
+        await act(async () => {
+            api.send(api.session.bubbles[0].id, 'compare these');
+        });
+        await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+        const [payload] = onSend.mock.calls[0];
+        expect(payload.images).toHaveLength(2);
+        const composed = composeImage.mock.calls.map(([input]) => ({
+            index: input.index,
+            marks: input.marks.map((m) => m.number),
+        }));
+        expect(composed).toEqual([
+            { index: 0, marks: [1] },
+            { index: 1, marks: [2] },
+        ]);
+        const frames = composeImage.mock.calls.map(([input]) => input.frame);
+        expect(frames[0]).not.toBe(frames[1]);
+        expect(payload.summary).toContain('on tab "Marketing"');
+    });
+
+    it('a screen past the image cap is still marked, and told in words', async () => {
+        await turnOn();
+        for (let i = 0; i <= CAP; i += 1) {
+            shade = (i * 40) % 240;
+            await drawMark();
+            await waitFor(() => expect(collected()).toHaveLength(i + 1));
+        }
+        expect(collected().map((m) => m.imageIndex)).toEqual([
+            ...Array.from({ length: CAP }, (_, i) => i),
+            CAP,
+        ]);
+
+        await act(async () => {
+            api.send(api.session.bubbles[0].id, '');
+        });
+        await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+        const [payload] = onSend.mock.calls[0];
+        expect(payload.images).toHaveLength(CAP);
+        expect(payload.marks).toHaveLength(CAP + 1);
+        expect(payload.summary).toContain('Not shown in an image:');
+        expect(payload.summary).not.toContain(`Image ${CAP + 1}`);
+    });
+
+    it('an armed reply follows the user to another tab and comes into view', async () => {
+        const rects = mockBubbleRects();
+        try {
+            tab = { uuid: 'a', name: 'Overview' };
+            await turnOn();
+            const id = await sendFirst();
+            const bubble = () =>
+                document.querySelector<HTMLElement>('[data-bubble-id]');
+            const changeTab = async (uuid: string, top: number) => {
+                tab = { uuid, name: uuid };
+                scroll = { x: 0, y: top };
+                await act(async () => {
+                    window.dispatchEvent(new Event('scroll'));
+                });
+            };
+
+            // Sent and at rest, it lives on its home tab.
+            await changeTab('b', 1);
+            expect(bubble()).toBeNull();
+            await changeTab('a', 0);
+            await act(async () => {
+                api.arm(id, 'mic');
+            });
+            expect(startVoice).toHaveBeenCalledTimes(1);
+
+            // The other tab is scrolled far past where the bubble was left.
+            await changeTab('b', 900);
+            expect(bubble()).not.toBeNull();
+            expect(screen.getByRole('button', { name: 'Stop' })).toBeVisible();
+            const top = parseFloat(
+                bubble()?.style.getPropertyValue('--bubble-top') ?? '',
+            );
+            expect(top).toBeGreaterThanOrEqual(0);
+
+            await drawMark();
+            await waitFor(() => expect(collected()).toHaveLength(1));
+            expect(bubble()).not.toBeNull();
+            expect(
+                document.querySelector('[data-mark-number="2"]'),
+            ).not.toBeNull();
+        } finally {
+            rects.mockRestore();
+        }
+    });
+
+    it('a bubble scrolled out of view comes back beside the next mark', async () => {
+        const rects = mockBubbleRects();
+        try {
+            await turnOn();
+            await drawMark();
+            await waitFor(() => expect(collected()).toHaveLength(1));
+            scroll = { x: 0, y: 900 };
+            await act(async () => {
+                window.dispatchEvent(new Event('scroll'));
+            });
+            const top = () =>
+                parseFloat(
+                    document
+                        .querySelector<HTMLElement>('[data-bubble-id]')
+                        ?.style.getPropertyValue('--bubble-top') ?? '',
+                );
+            expect(top()).toBeLessThan(0);
+
+            await drawMark();
+            await waitFor(() => expect(collected()).toHaveLength(2));
+            expect(top()).toBeGreaterThanOrEqual(0);
+        } finally {
+            rects.mockRestore();
+        }
+    });
+
+    it('leaving Design Mode keeps sent bubbles on the page and drops unsent work', async () => {
+        await turnOn();
+        const id = await sendFirst();
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(2));
+
+        await keyDown({ key: 'Escape' });
+        await keyUp({ key: 'Escape' });
+        expect(api.session.bubbles).toHaveLength(1);
+        await keyDown({ key: 'Escape' });
+        expect(api.on).toBe(false);
+        expect(api.session.bubbles.map((b) => b.id)).toEqual([id]);
+        expect(
+            screen.queryByRole('button', { name: 'Leave Design Mode' }),
+        ).not.toBeInTheDocument();
+        const bubble = () =>
+            document.querySelector<HTMLElement>('[data-bubble-id]');
+        expect(bubble()).not.toBeNull();
+        expect(document.querySelector('[data-mark-number="1"]')).not.toBeNull();
+
+        // It still follows the page while Design Mode is off.
+        const before = bubble()?.style.getPropertyValue('--bubble-top');
+        scroll = { x: 0, y: 12 };
+        await act(async () => {
+            window.dispatchEvent(new Event('scroll'));
+        });
+        expect(bubble()?.style.getPropertyValue('--bubble-top')).toBe(
+            `${parseFloat(before ?? '') - 12}px`,
+        );
+
+        // Replying to it turns Design Mode back on.
+        await act(async () => {
+            api.arm(id, 'text');
+        });
+        expect(api.on).toBe(true);
+        expect(api.session.active).toEqual({ kind: 'bubble', bubbleId: id });
+    });
+
+    it('leaving Design Mode throws away an unsent reply but keeps its thread', async () => {
+        await turnOn();
+        const id = await sendFirst();
+        await act(async () => {
+            api.arm(id, 'mic');
+        });
+        await drawMark();
+        await waitFor(() => expect(collected()).toHaveLength(1));
+        await act(async () => {
+            api.setOn(false);
+        });
+        expect(stopVoice).toHaveBeenCalledTimes(1);
+        expect(api.session).toMatchObject({
+            active: { kind: 'page' },
+            bubbles: [{ id, status: 'thread', collection: null }],
+        });
+        expect(api.session.bubbles[0].sentMarks).toHaveLength(1);
+        expect(document.querySelector('[data-mark-number="2"]')).toBeNull();
+        expect(document.querySelector('[data-mark-number="1"]')).not.toBeNull();
+    });
+
+    describe('Esc', () => {
+        const openBubble = async () => {
+            await turnOn();
+            await drawMark();
+            await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        };
+
+        it('held down does not go on to leave Design Mode', async () => {
+            await openBubble();
+            await keyDown({ key: 'Escape' });
+            expect(api.session.bubbles).toHaveLength(0);
+            await keyDown({ key: 'Escape', repeat: true });
+            await keyDown({ key: 'Escape', repeat: true });
+            expect(api.on).toBe(true);
+        });
+
+        it('that cancels a composed character keeps the bubble', async () => {
+            await openBubble();
+            fireEvent.keyDown(screen.getByRole('textbox'), {
+                key: 'Escape',
+                isComposing: true,
+            });
+            expect(api.session.bubbles).toHaveLength(1);
+        });
+
+        it('in the bubble text box throws the bubble away, and nothing else hears it', async () => {
+            await openBubble();
+            const heard = vi.fn();
+            document.body.addEventListener('keydown', heard);
+            try {
+                const kept = fireEvent.keyDown(screen.getByRole('textbox'), {
+                    key: 'Escape',
+                });
+                expect(kept).toBe(false);
+                expect(heard).not.toHaveBeenCalled();
+                expect(api.session.bubbles).toHaveLength(0);
+                expect(api.on).toBe(true);
+            } finally {
+                document.body.removeEventListener('keydown', heard);
+            }
+        });
+
+        it('typed somewhere else is left to that place', async () => {
+            await openBubble();
+            const elsewhere = document.createElement('input');
+            const dialog = document.createElement('div');
+            dialog.setAttribute('role', 'dialog');
+            const inDialog = document.createElement('button');
+            dialog.append(inDialog);
+            document.body.append(elsewhere, dialog);
+            try {
+                expect(fireEvent.keyDown(elsewhere, { key: 'Escape' })).toBe(
+                    true,
+                );
+                expect(fireEvent.keyDown(inDialog, { key: 'Escape' })).toBe(
+                    true,
+                );
+                expect(api.session.bubbles).toHaveLength(1);
+
+                // With nothing unsent it does not leave Design Mode either.
+                await act(async () => {
+                    api.discard(api.session.bubbles[0].id);
+                });
+                fireEvent.keyDown(elsewhere, { key: 'Escape' });
+                expect(api.on).toBe(true);
+            } finally {
+                elsewhere.remove();
+                dialog.remove();
+            }
+        });
     });
 
     it('while a hold is down, bubbles stop taking the pointer', async () => {
@@ -460,7 +828,7 @@ describe('useDesignMode', () => {
         });
     });
 
-    it('an empty hold that ends before the mic starts still stops it, before the next start', async () => {
+    it('a hold called off before the mic starts still stops it, before the next start', async () => {
         let started: (state: 'on' | 'off') => void = () => {};
         startVoice.mockImplementationOnce(
             () =>
@@ -470,6 +838,9 @@ describe('useDesignMode', () => {
         );
         await turnOn(true);
         await keyDown({ key: 'Alt', altKey: true });
+        fireEvent.mouseMove(holdLayer(), { clientX: 10, clientY: 10 });
+        await keyDown({ key: 'e', altKey: true });
+        await keyUp({ key: 'e', altKey: true });
         await keyUp({ key: 'Alt' });
         expect(startVoice).toHaveBeenCalledTimes(1);
         expect(stopVoice).not.toHaveBeenCalled();
@@ -912,17 +1283,7 @@ describe('useDesignMode', () => {
     });
 
     it('a mark drawn close to the open bubble moves the bubble out of the way', async () => {
-        const rects = vi
-            .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
-            .mockImplementation(function rectOf(this: HTMLElement) {
-                if (!this.hasAttribute('data-bubble-id')) return new DOMRect();
-                return new DOMRect(
-                    parseFloat(this.style.getPropertyValue('--bubble-left')),
-                    parseFloat(this.style.getPropertyValue('--bubble-top')),
-                    320,
-                    140,
-                );
-            });
+        const rects = mockBubbleRects();
         try {
             await turnOn();
             await drawMark();

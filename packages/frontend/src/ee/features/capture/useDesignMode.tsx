@@ -23,6 +23,7 @@ import {
     activeCollection,
     canStartHold,
     designSessionReducer,
+    keepSent,
     nextMarkNumber,
     visibleBubbles,
     type Bubble,
@@ -32,9 +33,9 @@ import {
 } from './designSession';
 import { grabDomFrame } from './domFrame';
 import { sameScreen } from './frameGeometry';
-import { cancelsHold, holdToolForKey } from './holdKeys';
+import { cancelsHold, escapeIsForDesignMode, holdToolForKey } from './holdKeys';
 import { coveredTargets } from './markCoverage';
-import { placeBubble } from './placeBubble';
+import { intoView, placeBubble } from './placeBubble';
 import { type TabFrame } from './tabFrame';
 import {
     type Box,
@@ -70,9 +71,12 @@ type Hold = {
     picked: boolean;
     /** Used when the hold opens a bubble from the page. */
     newBubbleId: string;
-    /** The mic this hold started for a new bubble, if any. */
+    /** The mic this hold started for a new bubble, with its first stroke or pick. */
     voice: Promise<VoiceState> | null;
 };
+
+const viewportRect = (): DOMRect =>
+    new DOMRect(0, 0, window.innerWidth, window.innerHeight);
 
 type Recording = { bubbleId: string; voice: Promise<VoiceState> };
 
@@ -346,6 +350,8 @@ export const useDesignMode = (
                         : -1;
                 const marksBefore =
                     capture?.status === 'recording' ? capture.marks.length : 0;
+                const wasAtImageLimit =
+                    capture?.status === 'recording' && capture.atImageLimit;
                 const previous = framesRef.current.get(bubbleId)?.[lastSlot];
                 const tabUuid = tab?.uuid ?? null;
                 const isNewScreen =
@@ -372,20 +378,24 @@ export const useDesignMode = (
                 if (!got || !drawing?.drawing) {
                     frame.bitmap.close();
                     setInk([]);
-                    if (drawing?.atImageLimit) {
-                        showToastWarning(
-                            'This message has as many pictures as it can send',
-                        );
-                    }
                     abandon(hold);
                     return;
+                }
+                // The mark is kept either way; say so once per screen.
+                if (drawing.atImageLimit && !wasAtImageLimit) {
+                    showToastWarning(
+                        'This message has as many pictures as it can send. Marks on this screen will be described in words.',
+                    );
                 }
                 if (!clocksRef.current.has(got.bubble.id)) {
                     clocksRef.current.set(got.bubble.id, clock);
                 }
                 const frames = framesRef.current.get(got.bubble.id) ?? [];
                 const slot = drawing.drawing.imageIndex;
-                if (slot === drawing.imageCount) {
+                if (
+                    slot === drawing.imageCount &&
+                    slot < AI_THREAD_IMAGES_MAX_PER_PROMPT
+                ) {
                     frames[slot]?.bitmap.close();
                     frames[slot] = frame;
                     framesRef.current.set(got.bubble.id, frames);
@@ -485,12 +495,7 @@ export const useDesignMode = (
                     markRect: markNow,
                     current: onScreen,
                     size: onScreen ?? NEW_BUBBLE_SIZE,
-                    viewport: new DOMRect(
-                        0,
-                        0,
-                        window.innerWidth,
-                        window.innerHeight,
-                    ),
+                    viewport: viewportRect(),
                     pointer: {
                         x: made.pointer.x - dx,
                         y: made.pointer.y - dy,
@@ -513,9 +518,11 @@ export const useDesignMode = (
                 setInk([]);
                 const newest = marks[marks.length - 1];
                 if (!newest || marks.length <= marksBefore) return;
+                // Not on screen yet, or moved out of the mark's way.
                 if (
-                    onScreen &&
-                    (at.x !== onScreen.left || at.y !== onScreen.top)
+                    !onScreen ||
+                    at.x !== onScreen.left ||
+                    at.y !== onScreen.top
                 ) {
                     dispatch({
                         type: 'moved',
@@ -567,35 +574,36 @@ export const useDesignMode = (
         ],
     );
 
-    const beginHold = useCallback(
-        (tool: DesignTool) => {
-            const current = surfaceRef.current;
-            if (!current || !onRef.current || holdRef.current) return;
-            if (tool === 'cursor' && !current.pickAt) return;
-            if (!canStartHold(sessionRef.current)) return;
-            const region = current.getRegion();
-            const newBubbleId = uuidv4();
-            let voice: Promise<VoiceState> | null = null;
-            // The mic starts with the first press of a new bubble.
-            const opensBubble = activeCollection(sessionRef.current) === null;
-            if (opensBubble && micOnRef.current && !recordingRef.current) {
-                voice = beginRecording(newBubbleId);
-            }
-            setInk([]);
-            setHover(null);
-            setRect(region);
-            setHolding(tool);
-            holdRef.current = {
-                tool,
-                startAbs: performance.now(),
-                rect: region,
-                scroll: current.getScroll(),
-                strokes: [],
-                current: null,
-                picked: false,
-                newBubbleId,
-                voice,
-            };
+    const beginHold = useCallback((tool: DesignTool) => {
+        const current = surfaceRef.current;
+        if (!current || !onRef.current || holdRef.current) return;
+        if (tool === 'cursor' && !current.pickAt) return;
+        if (!canStartHold(sessionRef.current)) return;
+        const region = current.getRegion();
+        setInk([]);
+        setHover(null);
+        setRect(region);
+        setHolding(tool);
+        holdRef.current = {
+            tool,
+            startAbs: performance.now(),
+            rect: region,
+            scroll: current.getScroll(),
+            strokes: [],
+            current: null,
+            picked: false,
+            newBubbleId: uuidv4(),
+            voice: null,
+        };
+    }, []);
+
+    // The mic starts with a new bubble's first stroke or pick, not the bare
+    // key: Option and Control are also pressed for shortcuts.
+    const startHoldVoice = useCallback(
+        (hold: Hold) => {
+            if (hold.voice || !micOnRef.current || recordingRef.current) return;
+            if (activeCollection(sessionRef.current) !== null) return;
+            hold.voice = beginRecording(hold.newBubbleId);
         },
         [beginRecording],
     );
@@ -659,6 +667,7 @@ export const useDesignMode = (
                 setHover(hit ? boxInRegion(hit.rect, hold.rect) : null);
                 return;
             }
+            startHoldVoice(hold);
             hold.current = {
                 points: hold.current
                     ? [...hold.current.points, point]
@@ -666,7 +675,7 @@ export const useDesignMode = (
             };
             refreshInk();
         },
-        [refreshInk],
+        [refreshInk, startHoldVoice],
     );
 
     const onStrokeEnd = useCallback(() => {
@@ -685,6 +694,7 @@ export const useDesignMode = (
             if (!hit) return;
             hold.picked = true;
             setHover(null);
+            startHoldVoice(hold);
             commit(hold, {
                 kind: 'pick',
                 target: hit.target,
@@ -693,7 +703,7 @@ export const useDesignMode = (
                 pointer: at,
             });
         },
-        [commit],
+        [commit, startHoldVoice],
     );
 
     const onPick = useCallback(
@@ -855,6 +865,8 @@ export const useDesignMode = (
                     clearFrames(bubbleId);
                     clocksRef.current.delete(bubbleId);
                     phrasesRef.current.delete(bubbleId);
+                    // Nothing shows a recording once this is sent.
+                    dropRecording(bubbleId);
                     if (result === 'cancelled') {
                         // Back to unsent first, so a reply keeps its thread.
                         dispatch({ type: 'sendFailed', bubbleId });
@@ -889,6 +901,7 @@ export const useDesignMode = (
         [
             clearFrames,
             dispatch,
+            dropRecording,
             endHold,
             endRecording,
             showToastError,
@@ -903,36 +916,6 @@ export const useDesignMode = (
     const stop = useCallback(
         (bubbleId: string) => finish(bubbleId, ''),
         [finish],
-    );
-
-    const arm = useCallback(
-        (bubbleId: string, input: BubbleInput) => {
-            const sessionBefore = sessionRef.current;
-            const before = sessionBefore.bubbles.find((b) => b.id === bubbleId);
-            const next = dispatch({ type: 'arm', bubbleId, input });
-            // The reducer only arms a thread bubble; anything else is ignored.
-            if (next === sessionBefore) return;
-            if (!before?.collection) {
-                clocksRef.current.set(bubbleId, performance.now());
-            }
-            const recording = recordingRef.current;
-            if (
-                recording &&
-                (recording.bubbleId !== bubbleId || input === 'text')
-            ) {
-                dropRecording(recording.bubbleId);
-            }
-            if (input !== 'mic' || recordingRef.current) return;
-            const voice = beginRecording(bubbleId);
-            void voice.then((state) => {
-                if (state === 'on') return;
-                if (recordingRef.current?.voice === voice) {
-                    recordingRef.current = null;
-                }
-                dispatch({ type: 'inputChanged', bubbleId, input: 'text' });
-            });
-        },
-        [beginRecording, dispatch, dropRecording],
     );
 
     const removeBubble = useCallback(
@@ -981,6 +964,37 @@ export const useDesignMode = (
         [removeBubble],
     );
 
+    // Swaps the session for a smaller one and lets go of what the rest held.
+    const putAway = useCallback(
+        (next: DesignSession) => {
+            const recording = recordingRef.current;
+            if (recording) dropRecording(recording.bubbleId);
+            // A reply on its way out still needs its pictures and words.
+            const busy = new Set(
+                next.bubbles.filter((b) => b.collection).map((b) => b.id),
+            );
+            [...framesRef.current.keys()]
+                .filter((id) => !busy.has(id))
+                .forEach(clearFrames);
+            [clocksRef.current, phrasesRef.current].forEach((kept) =>
+                [...kept.keys()]
+                    .filter((id) => !busy.has(id))
+                    .forEach((id) => kept.delete(id)),
+            );
+            setPlaced((prev) =>
+                prev.filter((m) =>
+                    next.bubbles.some(
+                        (b) =>
+                            b.id === m.bubbleId && m.number < nextMarkNumber(b),
+                    ),
+                ),
+            );
+            sessionRef.current = next;
+            setSession(next);
+        },
+        [clearFrames, dropRecording],
+    );
+
     const setMicOn = useCallback((value: boolean) => {
         micOnRef.current = value;
         setMicOnState(value);
@@ -1002,20 +1016,45 @@ export const useDesignMode = (
             sessionRef.current.bubbles.forEach((b) =>
                 cancelSendRef.current(b.id),
             );
-            const recording = recordingRef.current;
-            if (recording) dropRecording(recording.bubbleId);
-            framesRef.current.forEach((frames) =>
-                frames.forEach((f) => f.bitmap.close()),
-            );
-            framesRef.current.clear();
-            clocksRef.current.clear();
-            phrasesRef.current.clear();
             downKeysRef.current.clear();
-            setPlaced([]);
-            sessionRef.current = EMPTY;
-            setSession(EMPTY);
+            // Sent conversations stay on the page; unsent work goes.
+            putAway(keepSent(sessionRef.current));
         },
-        [cancelHold, dropRecording, refreshScroll],
+        [cancelHold, putAway, refreshScroll],
+    );
+
+    const arm = useCallback(
+        (bubbleId: string, input: BubbleInput) => {
+            // Its last reply is still being stopped, transcribed or sent.
+            if (finishingRef.current.has(bubbleId)) return;
+            const sessionBefore = sessionRef.current;
+            const before = sessionBefore.bubbles.find((b) => b.id === bubbleId);
+            const next = dispatch({ type: 'arm', bubbleId, input });
+            // The reducer only arms a thread bubble; anything else is ignored.
+            if (next === sessionBefore) return;
+            // A reply to a bubble left on the page brings Design Mode back.
+            setOn(true);
+            if (!before?.collection) {
+                clocksRef.current.set(bubbleId, performance.now());
+            }
+            const recording = recordingRef.current;
+            if (
+                recording &&
+                (recording.bubbleId !== bubbleId || input === 'text')
+            ) {
+                dropRecording(recording.bubbleId);
+            }
+            if (input !== 'mic' || recordingRef.current) return;
+            const voice = beginRecording(bubbleId);
+            void voice.then((state) => {
+                if (state === 'on') return;
+                if (recordingRef.current?.voice === voice) {
+                    recordingRef.current = null;
+                }
+                dispatch({ type: 'inputChanged', bubbleId, input: 'text' });
+            });
+        },
+        [beginRecording, dispatch, dropRecording, setOn],
     );
 
     const toggle = useCallback(() => setOn(!onRef.current), [setOn]);
@@ -1023,11 +1062,12 @@ export const useDesignMode = (
     useHotkeys(surface ? [['mod+shift+X', toggle]] : [], [], true);
 
     // Esc throws away an unsent bubble; with none, it leaves Design Mode.
-    const onEscape = useCallback(() => {
+    // Says whether it did anything.
+    const onEscape = useCallback((): boolean => {
         const s = sessionRef.current;
         const active = activeCollection(s)?.bubble ?? null;
         // A send in flight is left alone: the bubble is no longer unsent.
-        if (active?.status === 'sending') return;
+        if (active?.status === 'sending') return false;
         const unsent =
             active && active.status !== 'queued'
                 ? active
@@ -1038,6 +1078,7 @@ export const useDesignMode = (
                   );
         if (unsent) discard(unsent.id);
         else setOn(false);
+        return true;
     }, [discard, setOn]);
 
     useEffect(() => {
@@ -1054,7 +1095,15 @@ export const useDesignMode = (
                     cancelHold();
                     return;
                 }
-                if (event.key === 'Escape') onEscape();
+                // One Esc does one thing: nothing else on the page hears it.
+                if (
+                    event.key === 'Escape' &&
+                    escapeIsForDesignMode(event) &&
+                    onEscape()
+                ) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
                 return;
             }
             const tool = holdToolForKey(event);
@@ -1098,41 +1147,72 @@ export const useDesignMode = (
                 toolbarRef.current?.focus({ preventScroll: true });
             }, 0);
         };
+        window.addEventListener('keydown', onKeyDown, true);
+        window.addEventListener('keyup', onKeyUp, true);
+        window.addEventListener('contextmenu', onContextMenu, true);
+        window.addEventListener('blur', onBlur);
+        return () => {
+            window.removeEventListener('keydown', onKeyDown, true);
+            window.removeEventListener('keyup', onKeyUp, true);
+            window.removeEventListener('contextmenu', onContextMenu, true);
+            window.removeEventListener('blur', onBlur);
+        };
+    }, [beginHold, cancelHold, endHold, on, onEscape]);
+
+    // Marks and bubbles follow the page for as long as any are on it, also
+    // after Design Mode is left.
+    const following = on || session.bubbles.length > 0;
+    useEffect(() => {
+        if (!following) return undefined;
         const refreshRect = () => {
             if (holdRef.current) return;
             const region = surfaceRef.current?.getRegion();
             if (region) setRect(region);
         };
-        // An app frame scrolls without telling this window, so ask on a timer too.
+        // An app's frame can move or resize without telling this window.
         const refreshPlace = () => {
             refreshRect();
             refreshScroll();
         };
         const rectTimer = window.setInterval(refreshPlace, RECT_REFRESH_MS);
-
-        window.addEventListener('keydown', onKeyDown, true);
-        window.addEventListener('keyup', onKeyUp, true);
-        window.addEventListener('contextmenu', onContextMenu, true);
-        window.addEventListener('blur', onBlur);
+        const unwatch = surfaceRef.current?.watchScroll?.(refreshScroll);
         window.addEventListener('resize', refreshRect);
         window.addEventListener('scroll', refreshScroll, true);
         return () => {
             window.removeEventListener('scroll', refreshScroll, true);
-            window.clearInterval(rectTimer);
-            window.removeEventListener('keydown', onKeyDown, true);
-            window.removeEventListener('keyup', onKeyUp, true);
-            window.removeEventListener('contextmenu', onContextMenu, true);
-            window.removeEventListener('blur', onBlur);
             window.removeEventListener('resize', refreshRect);
+            unwatch?.();
+            window.clearInterval(rectTimer);
         };
-    }, [beginHold, cancelHold, endHold, on, onEscape, refreshScroll]);
+    }, [following, refreshScroll, surface]);
 
     // The page stops offering Design Mode (flag off, preview closed).
     useEffect(() => {
-        if (!surface && onRef.current) setOn(false);
-    }, [setOn, surface]);
+        if (surface) return;
+        if (onRef.current) setOn(false);
+        if (sessionRef.current.bubbles.length > 0) putAway(EMPTY);
+    }, [putAway, setOn, surface]);
 
     const tabUuid = surface?.getTab()?.uuid ?? null;
+    // The open bubble follows the user to another tab; bring it into view there.
+    useEffect(() => {
+        const current = surfaceRef.current;
+        const open = activeCollection(sessionRef.current);
+        if (!current || !open) return;
+        const onScreen = document
+            .querySelector(`[data-bubble-id="${open.bubble.id}"]`)
+            ?.getBoundingClientRect();
+        if (!onScreen) return;
+        const at = intoView(onScreen, viewportRect());
+        if (at.x === onScreen.left && at.y === onScreen.top) return;
+        const scrollNow = current.getScroll();
+        dispatch({
+            type: 'moved',
+            bubbleId: open.bubble.id,
+            anchor: { x: at.x + scrollNow.x, y: at.y + scrollNow.y },
+        });
+    }, [dispatch, tabUuid]);
+
     const passthrough = holding !== null;
     // The app's own picker takes the click, so the ink layer stays out of the way.
     const inkTakesPointer =
@@ -1150,21 +1230,25 @@ export const useDesignMode = (
             ),
     );
 
+    // Left behind by Design Mode, sent bubbles and their marks stay; the
+    // ink layer and the toolbar go.
     const element =
-        on && rect
+        rect && (on || shownBubbles.length > 0 || shownMarks.length > 0)
             ? createPortal(
                   <>
-                      <InkOverlay
-                          rect={rect}
-                          holding={inkTakesPointer}
-                          inkVisible
-                          strokes={ink}
-                          fading={null}
-                          hover={hover}
-                          onStrokePoint={onStrokePoint}
-                          onStrokeEnd={onStrokeEnd}
-                          onPick={holding === 'cursor' ? onPick : null}
-                      />
+                      {on && (
+                          <InkOverlay
+                              rect={rect}
+                              holding={inkTakesPointer}
+                              inkVisible
+                              strokes={ink}
+                              fading={null}
+                              hover={hover}
+                              onStrokePoint={onStrokePoint}
+                              onStrokeEnd={onStrokeEnd}
+                              onPick={holding === 'cursor' ? onPick : null}
+                          />
+                      )}
                       <MarkLayer
                           region={rect}
                           scroll={scroll}
@@ -1193,13 +1277,15 @@ export const useDesignMode = (
                               {opts.renderBubbleBody?.(bubble, session) ?? null}
                           </DesignBubble>
                       ))}
-                      <DesignToolbar
-                          ref={toolbarRef}
-                          tool={holding}
-                          micOn={micOn}
-                          onMicChange={setMicOn}
-                          onClose={() => setOn(false)}
-                      />
+                      {on && (
+                          <DesignToolbar
+                              ref={toolbarRef}
+                              tool={holding}
+                              micOn={micOn}
+                              onMicChange={setMicOn}
+                              onClose={() => setOn(false)}
+                          />
+                      )}
                   </>,
                   document.body,
               )

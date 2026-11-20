@@ -39,6 +39,8 @@ const mocks = vi.hoisted(() => ({
     mode: undefined as string | undefined,
     embedded: false,
     flagEnabled: true,
+    canUseAgents: true,
+    agents: [{ uuid: 'agent-1' }] as unknown[],
     surface: null as unknown,
     opts: null as unknown,
     design: {
@@ -114,6 +116,12 @@ vi.mock('../capture/useBubbleSend', () => ({
         cancel: mocks.cancelSend,
         picker: mocks.picker,
     }),
+}));
+vi.mock('../aiCopilot/hooks/useAiAgentsButtonVisibility', () => ({
+    useProjectAiAgentButtonVisibility: () => mocks.canUseAgents,
+}));
+vi.mock('../aiCopilot/components/Launcher/useDefaultAiAgent', () => ({
+    useDefaultAiAgent: () => ({ agents: mocks.agents }),
 }));
 vi.mock('../aiCopilot/components/Launcher/launcherDockExtras', () => ({
     useLauncherDockExtras: () => null,
@@ -205,6 +213,8 @@ describe('DashboardDesignMode', () => {
         mocks.mode = undefined;
         mocks.embedded = false;
         mocks.flagEnabled = true;
+        mocks.canUseAgents = true;
+        mocks.agents = [{ uuid: 'agent-1' }];
         mocks.surface = null;
         mocks.opts = null;
         mocks.picker = null;
@@ -253,6 +263,22 @@ describe('DashboardDesignMode', () => {
         expect(
             screen.getByRole('button', { name: 'Design Mode' }),
         ).toBeInTheDocument();
+    });
+
+    it('not offered to someone with no agent to send to', () => {
+        mocks.canUseAgents = false;
+        const noAccess = renderWithProviders(<DashboardDesignMode />);
+        expect(
+            screen.queryByRole('button', { name: 'Design Mode' }),
+        ).toBeNull();
+        noAccess.unmount();
+
+        mocks.canUseAgents = true;
+        mocks.agents = [];
+        renderWithProviders(<DashboardDesignMode />);
+        expect(
+            screen.queryByRole('button', { name: 'Design Mode' }),
+        ).toBeNull();
     });
 
     it('the dock button turns Design Mode on and off', () => {

@@ -23,6 +23,7 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import { chipLabel } from '../chipLabel';
 import { type Bubble } from '../designSession';
 import { CAPTURE_IGNORE_ATTRIBUTE } from '../frameSource';
+import { DESIGN_INPUT_ATTRIBUTE } from '../holdKeys';
 import classes from './DesignBubble.module.css';
 
 type Props = {
@@ -60,12 +61,18 @@ const DesignBubble: FC<Props> = ({
             : [];
     const typing = bubble.status === 'collecting' && !listening;
 
-    // The text box keeps focus between marks, so typing carries on.
+    // The text box takes focus when it appears and after each new mark, so
+    // typing carries on. A hold that made no mark leaves focus where it was.
     const markCount = collected.length;
+    const focusedAtMarks = useRef(0);
     useEffect(() => {
-        if (typing && !passthrough) {
-            inputRef.current?.focus({ preventScroll: true });
+        if (!typing) {
+            focusedAtMarks.current = 0;
+            return;
         }
+        if (passthrough || markCount <= focusedAtMarks.current) return;
+        focusedAtMarks.current = markCount;
+        inputRef.current?.focus({ preventScroll: true });
     }, [markCount, passthrough, typing]);
 
     const stopRow = (
@@ -89,6 +96,7 @@ const DesignBubble: FC<Props> = ({
                     <Textarea
                         ref={inputRef}
                         aria-label="Message"
+                        {...{ [DESIGN_INPUT_ATTRIBUTE]: '' }}
                         placeholder="Say what to change"
                         autosize
                         minRows={1}

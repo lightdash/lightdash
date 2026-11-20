@@ -1,3 +1,5 @@
+import { APP_SDK_CAPTURE_SCROLL_MESSAGE } from '@lightdash/common';
+import { act } from '@testing-library/react';
 import { createRef, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
@@ -173,6 +175,43 @@ describe('AppViewDesignMode', () => {
         expect(surface()?.getTab()).toBeNull();
         expect(surface()?.getRegion()).toEqual(new DOMRect(100, 50, 800, 600));
         expect(surface()?.transcribe).not.toBeNull();
+    });
+
+    it("marks follow the app's own scroll, which only the app can report", () => {
+        Object.defineProperty(frame, 'contentWindow', {
+            value: window,
+            configurable: true,
+        });
+        const say = (data: unknown, source: Window | null = window) =>
+            act(() => {
+                window.dispatchEvent(
+                    new MessageEvent('message', { data, source }),
+                );
+            });
+        try {
+            renderDesign();
+            const changed = vi.fn();
+            const unwatch = surface()?.watchScroll?.(changed);
+            expect(surface()?.getScroll()).toEqual({ x: 0, y: 0 });
+
+            say({ type: APP_SDK_CAPTURE_SCROLL_MESSAGE, x: 0, y: 240 });
+            expect(surface()?.getScroll()).toEqual({ x: 0, y: 240 });
+            expect(changed).toHaveBeenCalledTimes(1);
+
+            // Not from the app, or not an offset: ignored.
+            say({ type: APP_SDK_CAPTURE_SCROLL_MESSAGE, x: 0, y: 900 }, null);
+            say({ type: APP_SDK_CAPTURE_SCROLL_MESSAGE, x: 'left', y: 900 });
+            say({ type: 'lightdash:sdk:something-else', x: 0, y: 900 });
+            expect(surface()?.getScroll()).toEqual({ x: 0, y: 240 });
+            expect(changed).toHaveBeenCalledTimes(1);
+
+            unwatch?.();
+            say({ type: APP_SDK_CAPTURE_SCROLL_MESSAGE, x: 0, y: 0 });
+            expect(surface()?.getScroll()).toEqual({ x: 0, y: 0 });
+            expect(changed).toHaveBeenCalledTimes(1);
+        } finally {
+            Reflect.deleteProperty(frame, 'contentWindow');
+        }
     });
 
     it('a send carries the app and the screenshot', async () => {

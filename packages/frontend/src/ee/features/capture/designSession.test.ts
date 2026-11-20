@@ -3,6 +3,7 @@ import {
     activeCollection,
     canStartHold,
     designSessionReducer,
+    keepSent,
     nextMarkNumber,
     visibleBubbles,
     type DesignAction,
@@ -149,8 +150,17 @@ describe('designSessionReducer', () => {
             ...hold('a', 1000, 'b', true),
         );
         expect(s.bubbles[0].collection?.tabUuids).toEqual(['a', 'b']);
+        const slots = (session: DesignSession) => {
+            const capture = session.bubbles[0].collection?.capture;
+            return capture?.status === 'recording'
+                ? capture.marks.map((m) => m.imageIndex)
+                : [];
+        };
+        // The mark already on tab a keeps its image slot.
+        expect(slots(s)).toEqual([0, 1]);
         const same = run(s, ...hold('a', 2000, 'b', false));
         expect(same.bubbles[0].collection?.tabUuids).toEqual(['a', 'b']);
+        expect(slots(same)).toEqual([0, 1, 1]);
     });
 
     it('visibleBubbles shows sent bubbles on their home tab only, and the collecting bubble on every tab', () => {
@@ -159,6 +169,54 @@ describe('designSessionReducer', () => {
         s = run(s, ...hold('b', 1000, 'tab2'));
         expect(visibleBubbles(s, 'tab1').map((b) => b.id)).toEqual(['a', 'b']);
         expect(visibleBubbles(s, 'tab2').map((b) => b.id)).toEqual(['b']);
+    });
+
+    it('an armed reply follows the user to another tab', () => {
+        let s = run(empty, ...hold('a', 0, 'tab1'));
+        s = sendAndFinish(s, 'a');
+        expect(visibleBubbles(s, 'tab2')).toEqual([]);
+        s = run(s, { type: 'arm', bubbleId: 'a', input: 'mic' });
+        expect(visibleBubbles(s, 'tab2').map((b) => b.id)).toEqual(['a']);
+        s = run(s, ...hold('a', 1000, 'tab2', true));
+        expect(visibleBubbles(s, 'tab2').map((b) => b.id)).toEqual(['a']);
+        // Sent or thrown away, it lives on its home tab again.
+        expect(
+            visibleBubbles(run(s, { type: 'discard', bubbleId: 'a' }), 'tab2'),
+        ).toEqual([]);
+        expect(visibleBubbles(sendAndFinish(s, 'a'), 'tab2')).toEqual([]);
+        expect(visibleBubbles(sendAndFinish(s, 'a'), 'tab1')).toHaveLength(1);
+    });
+
+    it('keepSent keeps sent conversations and drops everything unsent', () => {
+        let s = run(empty, ...hold('a', 0));
+        s = sendAndFinish(s, 'a');
+        s = run(s, ...hold('b', 1000));
+        s = sendAndFinish(s, 'b');
+        s = run(
+            s,
+            { type: 'arm', bubbleId: 'a', input: 'text' },
+            ...hold('a', 2000),
+        );
+        // b's reply is on its way out; c was never sent; q waits in a bundle.
+        const sending = {
+            ...s.bubbles[1],
+            status: 'sending' as const,
+            collection: s.bubbles[0].collection,
+        };
+        const never = { ...s.bubbles[0], id: 'c', threadId: null };
+        const queued = { ...never, id: 'q', status: 'queued' as const };
+        const kept = keepSent({
+            ...s,
+            bubbles: [s.bubbles[0], sending, never, queued],
+        });
+        expect(kept.active).toEqual({ kind: 'page' });
+        expect(kept.bubbles.map((b) => b.id)).toEqual(['a', 'b']);
+        expect(kept.bubbles[0]).toMatchObject({
+            status: 'thread',
+            collection: null,
+        });
+        expect(kept.bubbles[0].sentMarks).toHaveLength(1);
+        expect(kept.bubbles[1]).toBe(sending);
     });
 
     it('discard removes an unsent bubble; close removes a sent bubble', () => {

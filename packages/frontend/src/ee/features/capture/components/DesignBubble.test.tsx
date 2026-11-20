@@ -166,4 +166,62 @@ describe('DesignBubble', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Close' }));
         expect(onClose).toHaveBeenCalledTimes(1);
     });
+    describe('focus', () => {
+        const noop = () => {};
+        const draw = (bubble: Bubble, passthrough: boolean) => (
+            <DesignBubble
+                bubble={bubble}
+                position={{ x: 0, y: 0 }}
+                passthrough={passthrough}
+                listening={false}
+                onSend={noop}
+                onStop={noop}
+                onDiscard={noop}
+                onClose={noop}
+            >
+                {null}
+            </DesignBubble>
+        );
+        const oneMark = (): Bubble =>
+            hold('text', 0).reduce(designSessionReducer, {
+                bubbles: [],
+                active: { kind: 'page' },
+            }).bubbles[0];
+
+        it('a hold that made no mark leaves focus where it was', () => {
+            const elsewhere = document.createElement('input');
+            document.body.append(elsewhere);
+            try {
+                const bubble = oneMark();
+                const { rerender } = renderWithProviders(draw(bubble, false));
+                expect(screen.getByLabelText('Message')).toHaveFocus();
+
+                elsewhere.focus();
+                rerender(draw(bubble, true));
+                rerender(draw(bubble, false));
+                expect(elsewhere).toHaveFocus();
+            } finally {
+                elsewhere.remove();
+            }
+        });
+
+        it('a new mark brings focus back to the text box', () => {
+            const elsewhere = document.createElement('input');
+            document.body.append(elsewhere);
+            try {
+                const { rerender } = renderWithProviders(
+                    draw(oneMark(), false),
+                );
+                elsewhere.focus();
+                rerender(draw(oneMark(), true));
+                // The mark lands while the hold is still down.
+                rerender(draw(bubbleWith('text'), true));
+                expect(elsewhere).toHaveFocus();
+                rerender(draw(bubbleWith('text'), false));
+                expect(screen.getByLabelText('Message')).toHaveFocus();
+            } finally {
+                elsewhere.remove();
+            }
+        });
+    });
 });

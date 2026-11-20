@@ -23,6 +23,8 @@ import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi
 import useIsEmbedded from '../../providers/Embed/useIsEmbedded';
 import launcherClasses from '../aiCopilot/components/Launcher/AiAgentsLauncher.module.css';
 import { useLauncherDockExtras } from '../aiCopilot/components/Launcher/launcherDockExtras';
+import { useDefaultAiAgent } from '../aiCopilot/components/Launcher/useDefaultAiAgent';
+import { useProjectAiAgentButtonVisibility } from '../aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { chipLabel } from '../capture/chipLabel';
 import { type Bubble } from '../capture/designSession';
 import {
@@ -86,6 +88,8 @@ const DashboardDesignSurface: FC<Props> = ({
             getRegion: () =>
                 new DOMRect(0, 0, window.innerWidth, window.innerHeight),
             getScroll: dashboardScroll,
+            // The dashboard scrolls with the window.
+            watchScroll: null,
             // Drawn from the page itself, so there is no share prompt.
             frameSource: 'dom',
             grabAppImage: null,
@@ -178,16 +182,20 @@ const DashboardDesignSurface: FC<Props> = ({
     );
 };
 
-/** Offers Design Mode on a dashboard that is being viewed, never in an embed. */
+/** Offers Design Mode on a dashboard that is being viewed by someone with an agent to send to, never in an embed. */
 const DashboardDesignMode: FC = () => {
     const { mode } = useParams<{ mode?: string }>();
     const isEmbedded = useIsEmbedded();
     const flag = useServerFeatureFlag(FeatureFlags.DashboardCapture);
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const dashboard = useDashboardContext((c) => c.dashboard);
+    // Every bubble goes to an agent: no agent, nothing to offer.
+    const canUseAgents = useProjectAiAgentButtonVisibility(projectUuid);
+    const hasAgent = useDefaultAiAgent(projectUuid).agents.length > 0;
 
     if (!flag.data?.enabled || mode === 'edit' || isEmbedded) return null;
     if (!projectUuid || !dashboard) return null;
+    if (!canUseAgents || !hasAgent) return null;
 
     return (
         <DashboardDesignSurface

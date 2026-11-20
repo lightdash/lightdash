@@ -56,8 +56,8 @@ export const appImageScale = (
 
 /**
  * Asks the surface for its picture (the whole page, from the top) and keeps
- * the part the size of the region. The app does not report how far it has
- * scrolled, so a scrolled app still gives the top of the page.
+ * the part the size of the region. The picture always starts at the top of
+ * the page, so a scrolled app is still pictured from its top.
  */
 export const grabAppFrame = async (
     grabImage: () => Promise<unknown>,

@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { APP_SDK_CAPTURE_SCROLL_MESSAGE } from '@lightdash/common';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { type ElementSelectedEvent } from '../../../features/apps/hooks/useAppSdkBridge';
 import { captureTranscriber } from '../../../features/apps/utils/transcribeCapture';
 import useApp from '../../../providers/App/useApp';
@@ -34,6 +35,28 @@ export const useAppFrameSurface = ({
     // The element the app reported, only while its pick is being made.
     const pickedRef = useRef<Picked | null>(null);
 
+    // How far the app says it has scrolled. A bundle built before the SDK
+    // said so stays at zero, and its marks do not follow a scroll.
+    const scrollRef = useRef({ x: 0, y: 0 });
+    const scrollWatchersRef = useRef(new Set<() => void>());
+    useEffect(() => {
+        const onMessage = (event: MessageEvent) => {
+            const frame = getFrameRef.current();
+            if (!(frame instanceof HTMLIFrameElement)) return;
+            if (event.source !== frame.contentWindow) return;
+            const data: unknown = event.data;
+            if (!data || typeof data !== 'object') return;
+            const { type, x, y } = data as Record<string, unknown>;
+            if (type !== APP_SDK_CAPTURE_SCROLL_MESSAGE) return;
+            if (typeof x !== 'number' || typeof y !== 'number') return;
+            if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+            scrollRef.current = { x, y };
+            scrollWatchersRef.current.forEach((changed) => changed());
+        };
+        window.addEventListener('message', onMessage);
+        return () => window.removeEventListener('message', onMessage);
+    }, []);
+
     const voiceTranscriptionAvailable =
         health.data?.ai.voiceTranscriptionAvailable;
     // No picture from the app, no Design Mode: marks need something to sit on.
@@ -44,8 +67,13 @@ export const useAppFrameSurface = ({
                       getRegion: () =>
                           getFrameRef.current()?.getBoundingClientRect() ??
                           new DOMRect(),
-                      // The app does not say how far it has scrolled.
-                      getScroll: () => ({ x: 0, y: 0 }),
+                      getScroll: () => scrollRef.current,
+                      watchScroll: (onChange) => {
+                          scrollWatchersRef.current.add(onChange);
+                          return () => {
+                              scrollWatchersRef.current.delete(onChange);
+                          };
+                      },
                       frameSource: 'app',
                       grabAppImage: captureScreenshot,
                       // Tabs inside an app cannot be seen from outside it.

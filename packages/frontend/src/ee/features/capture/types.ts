@@ -39,13 +39,13 @@ export type TranscriptWord = { startMs: number; endMs: number; text: string };
 
 export type VoiceState = 'on' | 'off';
 
-export const MAX_CAPTURE_IMAGES = 5;
-
 /** A page that offers Design Mode: where to draw, how to picture it, what is on it. */
 export type DesignSurface = {
     getRegion: () => DOMRect;
     /** Scroll offset of the surface's content, for content coords. */
     getScroll: () => { x: number; y: number };
+    /** Tells when the scroll changed. Null when the surface scrolls with the window. */
+    watchScroll: ((onChange: () => void) => () => void) | null;
     frameSource: 'dom' | 'app';
     /** Required when frameSource is 'app'. */
     grabAppImage: (() => Promise<Blob>) | null;

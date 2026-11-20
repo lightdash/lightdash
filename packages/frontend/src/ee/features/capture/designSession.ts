@@ -122,7 +122,23 @@ export const visibleBubbles = (
     s: DesignSession,
     tabUuid: string | null,
 ): Bubble[] =>
-    s.bubbles.filter((b) => b.status !== 'thread' || b.homeTabUuid === tabUuid);
+    s.bubbles.filter(
+        (b) =>
+            b.status !== 'thread' ||
+            b.homeTabUuid === tabUuid ||
+            // A reply being collected follows the user, like an unsent bubble.
+            (activeBubbleId(s) === b.id && b.collection !== null),
+    );
+
+/** What stays on the page when Design Mode is left: sent conversations, without unsent work. */
+export const keepSent = (s: DesignSession): DesignSession => ({
+    bubbles: s.bubbles.flatMap((b) => {
+        if (!b.threadId) return [];
+        // A reply already on its way out is left to finish.
+        return [b.status === 'thread' ? { ...b, collection: null } : b];
+    }),
+    active: PAGE,
+});
 
 export const designSessionReducer = (
     s: DesignSession,
