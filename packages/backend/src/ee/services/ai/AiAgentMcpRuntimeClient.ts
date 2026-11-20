@@ -29,6 +29,7 @@ import {
     asSchema,
     dynamicTool,
     jsonSchema,
+    type JSONSchema7,
     type JSONValue,
     type ToolSet,
 } from 'ai';
@@ -1212,17 +1213,18 @@ const toMcpToolDefinition = (
     _meta: (tool.meta ?? undefined) as McpToolDefinition['_meta'],
 });
 
-const liveSchemaValidator = new Ajv({
-    strict: false,
-    validateFormats: false,
-    logger: false,
-});
-
-// A schema the validator cannot compile passes, as live tools ran unchecked before.
-const isValidForLiveSchema = (schema: unknown, input: unknown): boolean => {
+// Without $schema/$id, any draft compiles on a fresh validator; a schema that still
+// cannot compile passes, as live tools ran unchecked before.
+const isValidForLiveSchema = (schema: JSONSchema7, input: unknown): boolean => {
+    const { $schema, $id, ...validatedSchema } = schema;
     try {
-        return !!liveSchemaValidator.validate(schema as object, input);
-    } catch {
+        return !!new Ajv({
+            strict: false,
+            validateFormats: false,
+            logger: false,
+        }).validate(validatedSchema, input);
+    } catch (error) {
+        Logger.debug('[AiAgent][MCP] Skipped live input check', error);
         return true;
     }
 };
