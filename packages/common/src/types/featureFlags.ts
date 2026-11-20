@@ -318,6 +318,11 @@ export enum FeatureFlags {
      * @lightdash/sdk < 3.245.0 (first with PR #32548): older SDKs crash the whole embed.
      */
     ComposerCharts = 'composer-charts',
+    /**
+     * Off by default: the top navbar is replaced by a left sidebar. Frontend
+     * only, so user and organization overrides both apply.
+     */
+    LeftNavigation = 'left-navigation',
 }
 
 export type FeatureFlag = {
