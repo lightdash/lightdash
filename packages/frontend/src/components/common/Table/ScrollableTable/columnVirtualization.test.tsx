@@ -8,7 +8,6 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import ScrollableTable from '.';
 import { renderWithProviders } from '../../../../testing/testUtils';
-import { ColumnWindowingContext } from '../ColumnWindowingContext';
 import { TableProvider } from '../TableProvider';
 import { type TableColumn } from '../types';
 
@@ -71,6 +70,8 @@ it.each(['dashboard', 'explore', 'row grouping', 'grouped headers'] as const)(
                     showRowGrouping={mode === 'row grouping'}
                 />
             </TableProvider>,
+            undefined,
+            { columnWindowing: true },
         );
         expect(await screen.findByText('value 1')).toBeInTheDocument();
         expect(screen.queryByText('Field 99')).toBeNull();
@@ -114,19 +115,17 @@ it.each(['dashboard', 'explore', 'row grouping', 'grouped headers'] as const)(
 it('renders every column when column windowing is off', async () => {
     const { row, columns } = makeWideTable();
     renderWithProviders(
-        <ColumnWindowingContext.Provider value={false}>
-            <TableProvider
-                data={[row]}
-                columns={columns}
-                totalRowsCount={1}
-                isFetchingRows={false}
-                fetchMoreRows={vi.fn()}
-                footer={{ show: true }}
-                hideRowNumbers
-            >
-                <ScrollableTable />
-            </TableProvider>
-        </ColumnWindowingContext.Provider>,
+        <TableProvider
+            data={[row]}
+            columns={columns}
+            totalRowsCount={1}
+            isFetchingRows={false}
+            fetchMoreRows={vi.fn()}
+            footer={{ show: true }}
+            hideRowNumbers
+        >
+            <ScrollableTable />
+        </TableProvider>,
     );
     expect(await screen.findByText('value 99')).toBeInTheDocument();
     expect(screen.getByText('Field 99')).toBeInTheDocument();
@@ -150,7 +149,9 @@ it('uses the reordered visible columns and their current widths', async () => {
             <ScrollableTable />
         </TableProvider>
     );
-    const { rerender } = renderWithProviders(renderTable(columns));
+    const { rerender } = renderWithProviders(renderTable(columns), undefined, {
+        columnWindowing: true,
+    });
     expect(await screen.findByText('value 1')).toBeInTheDocument();
     const fields = columns.map((field, index) => ({
         ...field,
@@ -199,6 +200,8 @@ it('keeps a focused header mounted while scrolling until focus leaves it', async
         >
             <ScrollableTable minimal={false} />
         </TableProvider>,
+        undefined,
+        { columnWindowing: true },
     );
     const handle = await screen.findByRole('button', { name: 'Field 1' });
     handle.focus();
@@ -230,6 +233,8 @@ it('keeps the dragged column mounted when scrolling to a distant drop target', a
         >
             <ScrollableTable minimal={false} />
         </TableProvider>,
+        undefined,
+        { columnWindowing: true },
     );
     const table = screen.getByRole('table');
     const handle = await within(table).findByRole('button', {
@@ -284,6 +289,8 @@ it('resizes the same field on rows with a merged dimension', async () => {
                 showSubtotals={false}
             />
         </TableProvider>,
+        undefined,
+        { columnWindowing: true },
     );
     expect((await screen.findByText('value 0')).closest('td')).toHaveAttribute(
         'rowspan',
@@ -330,6 +337,8 @@ it('fits the Total label and sizes unsaved columns using their displayed content
         >
             <ScrollableTable />
         </TableProvider>,
+        undefined,
+        { columnWindowing: true },
     );
     const table = (await screen.findByText('Total')).closest('table')!;
     const columnWidth = (index: number) => {
@@ -359,6 +368,8 @@ it.each([false, true])(
             >
                 <ScrollableTable />
             </TableProvider>,
+            undefined,
+            { columnWindowing: true },
         );
         expect(await screen.findByText('value 0')).toBeInTheDocument();
         expect(screen.getByRole('table')).toHaveAttribute(

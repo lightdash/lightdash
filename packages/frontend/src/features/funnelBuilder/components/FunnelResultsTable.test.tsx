@@ -10,7 +10,11 @@ vi.mock('../store', () => ({ useAppSelector: vi.fn() }));
 
 afterEach(() => vi.restoreAllMocks());
 
-function renderFunnel(count: number, breakdownValue?: string) {
+function renderFunnel(
+    count: number,
+    breakdownValue?: string,
+    columnWindowing = true,
+) {
     const results: FunnelQueryResult = {
         sql: '',
         steps: Array.from({ length: count }, (_, i) => ({
@@ -26,7 +30,7 @@ function renderFunnel(count: number, breakdownValue?: string) {
     vi.mocked(useAppSelector).mockReturnValue(results);
     render(
         <MantineProvider env="test">
-            <ColumnWindowingContext.Provider value>
+            <ColumnWindowingContext.Provider value={columnWindowing}>
                 <FunnelResultsTable />
             </ColumnWindowingContext.Provider>
         </MantineProvider>,
@@ -106,4 +110,13 @@ it('scrolls step headers and their metrics together in a wide funnel with a brea
             .slice(-3)
             .map((th) => th.textContent),
     ).toEqual(['Users', 'Conv %', 'Time']);
+});
+
+it('renders every step of a wide funnel when column windowing is off', () => {
+    renderFunnel(60, 'Free', false);
+    const table = screen.getByRole('table');
+    expect(table).not.toHaveAttribute('aria-colcount');
+    expect(within(table).getByText('Event 1')).toBeInTheDocument();
+    expect(within(table).getByText('Event 60')).toBeInTheDocument();
+    expect(within(table).getByText('59m')).toBeInTheDocument();
 });

@@ -36,6 +36,8 @@ it('scrolls to the last source column with its matching sample value', async () 
             tableLabel="Orders"
             onClose={vi.fn()}
         />,
+        undefined,
+        { columnWindowing: true },
     );
 
     const table = within(

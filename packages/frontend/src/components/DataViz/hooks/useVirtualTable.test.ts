@@ -3,6 +3,13 @@ import { renderHookWithProviders } from '../../../testing/testUtils';
 import { useVirtualTable } from './useVirtualTable';
 
 describe('SQL results column widths', () => {
+    it('skips column windowing when the flag is off', () => {
+        const columnNames = Array.from({ length: 41 }, (_, i) => String(i));
+        const { result } = renderHookWithProviders(() =>
+            useVirtualTable({ isCompact: true, columnNames, rows: [] }),
+        );
+        expect(result.current.columnWindow).toBeUndefined();
+    });
     it('sizes JSON preview columns without serializing offscreen objects', () => {
         const columnNames = Array.from({ length: 41 }, (_, i) => String(i));
         const value = {
@@ -10,13 +17,16 @@ describe('SQL results column widths', () => {
                 throw new Error('offscreen serialization');
             },
         };
-        const { result } = renderHookWithProviders(() =>
-            useVirtualTable({
-                isCompact: true,
-                enableJsonViewer: true,
-                columnNames,
-                rows: [{ '40': value }],
-            }),
+        const { result } = renderHookWithProviders(
+            () =>
+                useVirtualTable({
+                    isCompact: true,
+                    enableJsonViewer: true,
+                    columnNames,
+                    rows: [{ '40': value }],
+                }),
+            undefined,
+            { columnWindowing: true },
         );
         expect(result.current.columnWindow?.width).toBeGreaterThan(0);
     });
@@ -28,12 +38,15 @@ describe('SQL results column widths', () => {
                 (_, i) => `field.${i}`,
             );
             const render = (value: string) =>
-                renderHookWithProviders(() =>
-                    useVirtualTable({
-                        isCompact,
-                        columnNames,
-                        rows: [{ 'field.0': value }],
-                    }),
+                renderHookWithProviders(
+                    () =>
+                        useVirtualTable({
+                            isCompact,
+                            columnNames,
+                            rows: [{ 'field.0': value }],
+                        }),
+                    undefined,
+                    { columnWindowing: true },
                 ).result.current;
             const narrow = render('a');
             const wide = render('a longer value in the result set');

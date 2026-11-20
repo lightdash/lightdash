@@ -46,6 +46,8 @@ describe('wide SQL results', () => {
                         columnsConfig={{}}
                         density="compact"
                     />,
+                    undefined,
+                    { columnWindowing: true },
                 );
                 expect(
                     screen.getByRole('columnheader', { name: '#' }),
@@ -57,6 +59,8 @@ describe('wide SQL results', () => {
             } else {
                 renderWithProviders(
                     <ChartDataTable columnNames={columnNames} rows={rows} />,
+                    undefined,
+                    { columnWindowing: true },
                 );
             }
             const table = screen.getByRole('table');
@@ -93,6 +97,22 @@ describe('wide SQL results', () => {
             expect(createdColumnIds()).not.toContain('field_50');
         },
     );
+
+    it('renders every column when column windowing is off', () => {
+        const columnNames = Array.from({ length: 100 }, (_, i) => `field_${i}`);
+        const rows = [
+            Object.fromEntries(
+                columnNames.map((name) => [name, `value_${name}`]),
+            ),
+        ];
+        renderWithProviders(
+            <ChartDataTable columnNames={columnNames} rows={rows} />,
+        );
+        const table = screen.getByRole('table');
+        expect(table).not.toHaveAttribute('aria-colcount');
+        expect(within(table).getByText('value_field_0')).toBeInTheDocument();
+        expect(within(table).getByText('value_field_99')).toBeInTheDocument();
+    });
 });
 
 describe('ChartDataTable — pivoted column sort affordance (#12560)', () => {

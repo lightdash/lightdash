@@ -66,6 +66,8 @@ describe('PreviewRowsPeek', () => {
                     fields={schema.fields}
                     context={context}
                 />,
+                undefined,
+                { columnWindowing: true },
             );
 
             for (const modal of [false, true]) {

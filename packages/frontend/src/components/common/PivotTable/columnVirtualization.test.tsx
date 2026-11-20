@@ -13,6 +13,63 @@ import { PIVOT_CELL_PADDING } from './getPivotColumnWidths';
 
 afterEach(() => vi.restoreAllMocks());
 
+function buildPivot(metricsAsRows: boolean) {
+    const valuesColumns = Array.from({ length: 80 }, (_, index) => ({
+        referenceField: 'sales',
+        aggregation: VizAggregationOptions.ANY,
+        pivotColumnName: `sales_${index}`,
+        pivotValues: [
+            { referenceField: 'year', value: '2026' },
+            { referenceField: 'week', value: `week ${index}` },
+        ],
+    }));
+    const row: ResultRow = {
+        region: { value: { raw: 'West', formatted: 'West' } },
+        ...Object.fromEntries(
+            valuesColumns.map(({ pivotColumnName }, index) => [
+                pivotColumnName,
+                { value: { raw: index, formatted: String(index) } },
+            ]),
+        ),
+    };
+    const getField = () => undefined;
+    const getFieldLabel = (id: string) =>
+        id === 'week' ? 'Order fulfillment week of year' : id;
+    const data = convertSqlPivotedRowsToPivotData({
+        rows: ['Oakland', 'Portland'].map((city) => ({
+            ...row,
+            city: { value: { raw: city, formatted: city } },
+        })),
+        pivotDetails: {
+            indexColumn: [
+                { type: VizIndexType.CATEGORY, reference: 'region' },
+                { type: VizIndexType.CATEGORY, reference: 'city' },
+            ],
+            groupByColumns: [{ reference: 'year' }, { reference: 'week' }],
+            valuesColumns,
+            sortBy: [],
+            originalColumns: {},
+            totalColumnCount: 80,
+        },
+        pivotConfig: {
+            metricsAsRows,
+            columnTotals: true,
+            rowTotals: true,
+        },
+        warehouseColumnTotals: Object.fromEntries(
+            valuesColumns.map(({ pivotColumnName }, index) => [
+                pivotColumnName,
+                index === 0 ? 1234567890123 : 100 + index,
+            ]),
+        ),
+        warehouseGrandTotals: { sales: 888 },
+        groupedSubtotals: undefined,
+        getField,
+        getFieldLabel,
+    });
+    return { data, getField, getFieldLabel };
+}
+
 it.each([false, true])(
     'keeps merged headers, frozen row spans and totals aligned while scrolling with metricsAsRows=%s',
     async (metricsAsRows) => {
@@ -22,59 +79,7 @@ it.each([false, true])(
         vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(
             200,
         );
-        const valuesColumns = Array.from({ length: 80 }, (_, index) => ({
-            referenceField: 'sales',
-            aggregation: VizAggregationOptions.ANY,
-            pivotColumnName: `sales_${index}`,
-            pivotValues: [
-                { referenceField: 'year', value: '2026' },
-                { referenceField: 'week', value: `week ${index}` },
-            ],
-        }));
-        const row: ResultRow = {
-            region: { value: { raw: 'West', formatted: 'West' } },
-            ...Object.fromEntries(
-                valuesColumns.map(({ pivotColumnName }, index) => [
-                    pivotColumnName,
-                    { value: { raw: index, formatted: String(index) } },
-                ]),
-            ),
-        };
-        const getField = () => undefined;
-        const getFieldLabel = (id: string) =>
-            id === 'week' ? 'Order fulfillment week of year' : id;
-        const data = convertSqlPivotedRowsToPivotData({
-            rows: ['Oakland', 'Portland'].map((city) => ({
-                ...row,
-                city: { value: { raw: city, formatted: city } },
-            })),
-            pivotDetails: {
-                indexColumn: [
-                    { type: VizIndexType.CATEGORY, reference: 'region' },
-                    { type: VizIndexType.CATEGORY, reference: 'city' },
-                ],
-                groupByColumns: [{ reference: 'year' }, { reference: 'week' }],
-                valuesColumns,
-                sortBy: [],
-                originalColumns: {},
-                totalColumnCount: 80,
-            },
-            pivotConfig: {
-                metricsAsRows,
-                columnTotals: true,
-                rowTotals: true,
-            },
-            warehouseColumnTotals: Object.fromEntries(
-                valuesColumns.map(({ pivotColumnName }, index) => [
-                    pivotColumnName,
-                    index === 0 ? 1234567890123 : 100 + index,
-                ]),
-            ),
-            warehouseGrandTotals: { sales: 888 },
-            groupedSubtotals: undefined,
-            getField,
-            getFieldLabel,
-        });
+        const { data, getField, getFieldLabel } = buildPivot(metricsAsRows);
         const saveWidth = vi.fn();
         renderWithProviders(
             <PivotTable
@@ -91,6 +96,8 @@ it.each([false, true])(
                 onColumnWidthChange={saveWidth}
                 columnProperties={{ region: { frozen: true } }}
             />,
+            undefined,
+            { columnWindowing: true },
         );
         const table = screen.getByRole('table') as HTMLTableElement;
         const body = within(table.tBodies[0].querySelector('tr')!);
@@ -170,3 +177,27 @@ it.each([false, true])(
         expect(table.style.minWidth).toBe(minWidth);
     },
 );
+
+it('renders every pivot column when column windowing is off', async () => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
+    const { data, getField, getFieldLabel } = buildPivot(false);
+    renderWithProviders(
+        <PivotTable
+            data={data}
+            conditionalFormattings={[]}
+            minMaxMap={{}}
+            getField={getField}
+            getFieldLabel={getFieldLabel}
+            hideRowNumbers={false}
+            isMinimal={false}
+            showRowGrouping
+            enableContextMenu={false}
+            renderSortMenu={() => null}
+        />,
+    );
+    const table = screen.getByRole('table');
+    expect(table).not.toHaveAttribute('aria-colcount');
+    expect(within(table).getByText('week 0')).toBeInTheDocument();
+    expect(within(table).getByText('week 79')).toBeInTheDocument();
+    expect(within(table).getByText('1,234,567,890,123')).toBeInTheDocument();
+});
