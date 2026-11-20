@@ -124,6 +124,7 @@ describe('findAgentSelectionMessageByTs', () => {
         ).toEqual({
             text: `<@${BOT_USER_ID}> what were revenues last month?`,
             ts: FOLLOW_UP_TS,
+            attachments: [],
         });
     });
 
@@ -131,6 +132,7 @@ describe('findAgentSelectionMessageByTs', () => {
         expect(findAgentSelectionMessageByTs(threadMessages, ROOT_TS)).toEqual({
             text: `<@${BOT_USER_ID}> which agents are available here?`,
             ts: ROOT_TS,
+            attachments: [],
         });
     });
 
@@ -165,6 +167,7 @@ describe('findLegacyAgentSelectionMessage', () => {
         ).toEqual({
             text: `<@${BOT_USER_ID}> which agents are available here?`,
             ts: ROOT_TS,
+            attachments: [],
         });
     });
 
@@ -185,7 +188,11 @@ describe('findLegacyAgentSelectionMessage', () => {
                     isMultiAgentChannel: true,
                 },
             ),
-        ).toEqual({ text: 'second', ts: FOLLOW_UP_TS });
+        ).toEqual({
+            text: 'second',
+            ts: FOLLOW_UP_TS,
+            attachments: [],
+        });
     });
 
     it('requires a bot mention outside the multi-agent channel', () => {
@@ -208,6 +215,7 @@ describe('findLegacyAgentSelectionMessage', () => {
         ).toEqual({
             text: `<@${BOT_USER_ID}> revenues?`,
             ts: FOLLOW_UP_TS,
+            attachments: [],
         });
     });
 
@@ -288,6 +296,7 @@ describe('resolveAgentSelectionPrompt', () => {
         ).toEqual({
             text: `<@${BOT_USER_ID}> what were revenues last month?`,
             ts: FOLLOW_UP_TS,
+            attachments: [],
         });
     });
 
@@ -300,6 +309,42 @@ describe('resolveAgentSelectionPrompt', () => {
         ).toEqual({
             text: `<@${BOT_USER_ID}> which agents are available here?`,
             ts: ROOT_TS,
+            attachments: [],
+        });
+    });
+
+    it('carries the files on the message the picker was posted for, not those on other messages', async () => {
+        const [root, other, followUp] = threadMessages;
+        expect(
+            await resolveAgentSelectionPrompt(
+                buildSlackClient([
+                    { ...root, files: [{ id: 'F-ROOT' }] },
+                    other,
+                    { ...followUp, files: [{ id: 'F-ONE' }, { id: 'F-TWO' }] },
+                ]),
+                { ...args, promptSlackTs: FOLLOW_UP_TS },
+            ),
+        ).toEqual({
+            text: `<@${BOT_USER_ID}> what were revenues last month?`,
+            ts: FOLLOW_UP_TS,
+            attachments: [{ slackFileId: 'F-ONE' }, { slackFileId: 'F-TWO' }],
+        });
+    });
+
+    it('carries the files on a legacy picker message', async () => {
+        const [root, ...rest] = threadMessages;
+        expect(
+            await resolveAgentSelectionPrompt(
+                buildSlackClient([
+                    { ...root, files: [{ id: 'F-ROOT' }] },
+                    ...rest,
+                ]),
+                { ...args, promptSlackTs: null },
+            ),
+        ).toEqual({
+            text: `<@${BOT_USER_ID}> which agents are available here?`,
+            ts: ROOT_TS,
+            attachments: [{ slackFileId: 'F-ROOT' }],
         });
     });
 
@@ -327,6 +372,7 @@ describe('resolveAgentSelectionPrompt', () => {
         ).toEqual({
             text: `<@${BOT_USER_ID}> which agents are available here?`,
             ts: ROOT_TS,
+            attachments: [],
         });
     });
 });

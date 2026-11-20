@@ -1,18 +1,48 @@
-import { type AiAgentSummary } from '@lightdash/common';
+import {
+    type AiAgentSummary,
+    type AiPromptContext,
+    type AiPromptContextInput,
+} from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
-import { expect, test, vi } from 'vitest';
+import { beforeEach, expect, test, vi, type Mock } from 'vitest';
+import { type useAiAgentRouterFlow } from '../../hooks/useAiAgentRouterFlow';
+import {
+    LAUNCHER_AUTO_AGENT,
+    type LauncherSelectedAgent,
+} from './launcherAgentSelection';
 import { useAiAgentLauncherRouter } from './useAiAgentLauncherRouter';
 
-vi.mock('../../hooks/useAiAgentRouterFlow', () => ({
-    useAiAgentRouterFlow: () => ({
-        confirmPick: vi.fn(),
+type RouterFlow = ReturnType<typeof useAiAgentRouterFlow>;
+type RouterFlowOptions = Parameters<typeof useAiAgentRouterFlow>[0];
+
+const flow = vi.hoisted(
+    (): {
+        handleSubmit: Mock<RouterFlow['handleSubmit']>;
+        submitUntilCreated: Mock<RouterFlow['submitUntilCreated']>;
+        options: RouterFlowOptions | undefined;
+        phase: RouterFlow['phase'];
+    } => ({
         handleSubmit: vi.fn(),
-        isLocked: false,
-        isPickingAgent: false,
-        isRouting: false,
+        submitUntilCreated: vi.fn(),
+        options: undefined,
         phase: { kind: 'idle' },
-        sortedCandidates: [],
     }),
+);
+
+vi.mock('../../hooks/useAiAgentRouterFlow', () => ({
+    useAiAgentRouterFlow: (options: RouterFlowOptions) => {
+        flow.options = options;
+        return {
+            confirmPick: vi.fn(),
+            handleSubmit: flow.handleSubmit,
+            submitUntilCreated: flow.submitUntilCreated,
+            isLocked: false,
+            isPickingAgent: flow.phase.kind === 'picker',
+            isRouting: false,
+            phase: flow.phase,
+            sortedCandidates: [],
+        };
+    },
 }));
 
 const agent: AiAgentSummary = {
@@ -46,7 +76,22 @@ const agent: AiAgentSummary = {
     version: 1,
     threadRetentionHours: null,
 };
-const setup = () => {
+const imageContext: AiPromptContextInput = [
+    { type: 'thread_image', fileUuid: 'image-1' },
+];
+const imageSnapshot: AiPromptContext = [
+    {
+        type: 'thread_image',
+        fileUuid: 'image-1',
+        fileName: 'chart.png',
+        sizeBytes: 1024,
+        mediaType: 'image/png',
+        width: 800,
+        height: 600,
+    },
+];
+
+const setup = (selectedAgent: NonNullable<LauncherSelectedAgent> = agent) => {
     const createThreadForAgent =
         vi.fn<
             Parameters<
@@ -55,7 +100,7 @@ const setup = () => {
         >();
     const { result } = renderHook(() =>
         useAiAgentLauncherRouter({
-            agent,
+            agent: selectedAgent,
             agents: [agent],
             contextInput: [],
             createThreadForAgent,
@@ -68,6 +113,13 @@ const setup = () => {
     return { result, createThreadForAgent };
 };
 
+beforeEach(() => {
+    flow.handleSubmit.mockReset();
+    flow.submitUntilCreated.mockReset();
+    flow.options = undefined;
+    flow.phase = { kind: 'idle' };
+});
+
 test('concrete-agent launcher submission waits for creation and returns its result', async () => {
     const { result, createThreadForAgent } = setup();
     createThreadForAgent.mockResolvedValue({ uuid: 'created-thread' });
@@ -75,13 +127,13 @@ test('concrete-agent launcher submission waits for creation and returns its resu
         result.current.handleSubmit({
             message: 'Recreate this chart',
             toolHints: [],
-            context: [{ type: 'thread_image', fileUuid: 'image-1' }],
+            context: imageContext,
         }),
     ).resolves.toEqual({ uuid: 'created-thread' });
     expect(createThreadForAgent).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({
             agentUuid: 'agent-1',
-            context: [{ type: 'thread_image', fileUuid: 'image-1' }],
+            context: imageContext,
         }),
     );
 });
@@ -93,7 +145,102 @@ test('concrete-agent launcher creation rejection reaches the composer', async ()
         result.current.handleSubmit({
             message: 'Keep this draft',
             toolHints: [],
-            context: [{ type: 'thread_image', fileUuid: 'image-1' }],
+            context: imageContext,
         }),
     ).rejects.toThrow('Creation failed');
+});
+
+test('auto submission that waits for the conversation hands the images to the router flow and returns its outcome', async () => {
+    const { result, createThreadForAgent } = setup(LAUNCHER_AUTO_AGENT);
+    flow.submitUntilCreated.mockRejectedValue(new Error('Creation failed'));
+
+    await expect(
+        result.current.submitUntilCreated({
+            message: 'Recreate this chart',
+            toolHints: [],
+            context: imageContext,
+            optimisticContext: imageSnapshot,
+        }),
+    ).rejects.toThrow('Creation failed');
+
+    expect(flow.submitUntilCreated).toHaveBeenCalledExactlyOnceWith({
+        message: 'Recreate this chart',
+        context: imageContext,
+        optimisticContext: imageSnapshot,
+        toolHints: [],
+    });
+    expect(flow.handleSubmit).not.toHaveBeenCalled();
+    expect(createThreadForAgent).not.toHaveBeenCalled();
+});
+
+test('auto submission that only waits for the router is answered at the picker', async () => {
+    const { result } = setup(LAUNCHER_AUTO_AGENT);
+    flow.handleSubmit.mockResolvedValue(undefined);
+
+    await expect(
+        result.current.handleSubmit({
+            message: 'Investigate churn',
+            toolHints: [],
+        }),
+    ).resolves.toBeUndefined();
+
+    expect(flow.handleSubmit).toHaveBeenCalledOnce();
+    expect(flow.submitUntilCreated).not.toHaveBeenCalled();
+});
+
+test('a routing failure sends the images to the fallback agent once and reports a failed creation', async () => {
+    const { createThreadForAgent } = setup(LAUNCHER_AUTO_AGENT);
+    createThreadForAgent.mockRejectedValue(new Error('Creation failed'));
+
+    await expect(
+        flow.options?.onRouteError?.({
+            fallbackAgent: agent,
+            message: 'Recreate this chart',
+            context: imageContext,
+            optimisticContext: imageSnapshot,
+            toolHints: [],
+        }),
+    ).rejects.toThrow('Creation failed');
+
+    expect(createThreadForAgent).toHaveBeenCalledExactlyOnceWith({
+        agentUuid: 'agent-1',
+        message: 'Recreate this chart',
+        context: imageContext,
+        optimisticContext: imageSnapshot,
+        toolHints: [],
+    });
+});
+
+test('the message waiting for a pick exposes its held images', () => {
+    flow.phase = {
+        kind: 'picker',
+        context: imageContext,
+        decision: {
+            decision: {
+                candidates: [],
+                confidence: 'low',
+                decisionUuid: 'decision-1',
+                reasoning: 'Could not decide',
+                suggestedAgentUuid: 'agent-1',
+            },
+            nextAction: 'show_picker',
+        },
+        optimisticContext: [
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dash-1',
+                dashboardSlug: null,
+                pinnedVersionUuid: null,
+                displayName: 'Sales',
+                runtimeOverrides: null,
+            },
+            ...imageSnapshot,
+        ],
+        prompt: 'Recreate this chart',
+        toolHints: [],
+    };
+    const { result } = setup(LAUNCHER_AUTO_AGENT);
+
+    expect(result.current.waitingPrompt).toBe('Recreate this chart');
+    expect(result.current.waitingImages).toEqual(imageSnapshot);
 });

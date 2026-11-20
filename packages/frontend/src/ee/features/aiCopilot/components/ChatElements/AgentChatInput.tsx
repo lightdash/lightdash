@@ -2025,6 +2025,8 @@ export const AgentChatInput = ({
                                     {toolbarStart}
                                     {showThreadToolbar &&
                                         renderThreadToolbarStart()}
+                                    {!isThreadComposer &&
+                                        renderImageAttachControl(false)}
                                 </Group>
                             }
                             toolbarRight={
@@ -2100,6 +2102,8 @@ export const AgentChatInput = ({
                                 {renderComposerActionsMenu()}
                                 {renderThemeButton()}
                                 {toolbarStart}
+                                {!isThreadComposer &&
+                                    renderImageAttachControl(false)}
                             </Group>
                         }
                         toolbarRight={

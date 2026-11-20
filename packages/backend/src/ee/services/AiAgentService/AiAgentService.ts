@@ -789,6 +789,10 @@ import {
     type SlackArtifactDeliveryRuntime,
 } from './SlackArtifactImageDelivery';
 import {
+    slackPromptAttachmentRefs,
+    type SlackPromptAttachmentRef,
+} from './slackPromptAttachments';
+import {
     canGeneratePostResponseSuggestions,
     filterSuggestionsByEnabledTools,
     getEnabledSuggestionTools,
@@ -19281,6 +19285,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         prompt: string;
         promptSlackTs: string;
         agentUuid: string | null;
+        // Files on the Slack message. Nothing reads them yet: image ingestion
+        // downloads and claims them here.
+        attachments: SlackPromptAttachmentRef[];
         modelConfig?: AiAgentModelConfig | null;
         threadMessages?: Array<
             Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
@@ -23176,6 +23183,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 prompt: event.text,
                 promptSlackTs: event.ts,
                 agentUuid: agentConfig.uuid ?? null,
+                attachments: slackPromptAttachmentRefs(event),
                 threadMessages: undefined,
             });
         } catch (e) {
@@ -23328,6 +23336,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         slackUserId: string;
         promptText: string;
         promptSlackTs: string;
+        attachments: SlackPromptAttachmentRef[];
         forwardToAgent: boolean;
     }): Promise<void> {
         const [slackPromptUuid] = await this.createSlackPrompt({
@@ -23340,6 +23349,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             prompt: args.promptText,
             promptSlackTs: args.promptSlackTs,
             agentUuid: args.agentConfig.uuid,
+            attachments: args.attachments,
         });
 
         // The thread and its agent binding are written above; a meta-query has
@@ -23554,6 +23564,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     slackUserId: body.user.id,
                     promptText: selectedPrompt.text,
                     promptSlackTs: selectedPrompt.ts,
+                    attachments: selectedPrompt.attachments,
                     forwardToAgent: !shouldSkipForwardingQuery,
                 });
             } catch (e) {
@@ -23852,6 +23863,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                         slackUserId: originalMessage.user,
                         promptText: originalMessage.text,
                         promptSlackTs: originalMessage.ts,
+                        attachments: slackPromptAttachmentRefs(originalMessage),
                         forwardToAgent: true,
                     });
                 } catch (e) {
@@ -24577,6 +24589,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 prompt: originalMessageText,
                 promptSlackTs: messageTs,
                 agentUuid: agentConfig.uuid ?? null,
+                attachments: slackPromptAttachmentRefs(originalMessage),
             });
         } catch (e) {
             if (e instanceof AiDuplicateSlackPromptError) {
@@ -24882,6 +24895,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 prompt: event.text,
                 promptSlackTs: event.ts,
                 agentUuid: agentConfig.uuid ?? null,
+                attachments: slackPromptAttachmentRefs(event),
                 threadMessages,
             });
         } catch (e) {

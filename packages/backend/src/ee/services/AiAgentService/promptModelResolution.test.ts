@@ -138,6 +138,7 @@ const sendOnEachPath = {
             prompt: 'hi',
             promptSlackTs: '1700000000.000100',
             agentUuid,
+            attachments: [],
             modelConfig,
         }),
 };
@@ -229,6 +230,7 @@ const followUpOnEachPath = {
             prompt: 'hi',
             promptSlackTs: '1700000000.000100',
             agentUuid,
+            attachments: [],
             modelConfig,
         }),
 };

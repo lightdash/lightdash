@@ -308,10 +308,12 @@ const NewThreadPanel: FC<{
 
     const {
         confirmPick,
-        handleSubmit,
+        // The composer keeps a draft with images until its conversation exists.
+        submitUntilCreated: handleSubmit,
         isLocked,
         isPickingAgent,
         sortedCandidates,
+        waitingImages,
         waitingPrompt,
     } = useAiAgentLauncherRouter({
         agent,
@@ -330,7 +332,10 @@ const NewThreadPanel: FC<{
     useEffect(() => {
         if (!pendingPrompt || !isPinnedContextReady || isLocked) return;
         dispatch(clearPendingPrompt());
-        void handleSubmit({ message: pendingPrompt, toolHints: [] });
+        // The creation mutation reports its own failure.
+        void Promise.resolve(
+            handleSubmit({ message: pendingPrompt, toolHints: [] }),
+        ).catch(() => undefined);
     }, [dispatch, handleSubmit, isLocked, isPinnedContextReady, pendingPrompt]);
 
     const displayName = isAuto ? 'Auto' : agent.name;
@@ -409,6 +414,7 @@ const NewThreadPanel: FC<{
                     <LauncherAgentPicker
                         candidates={sortedCandidates}
                         onPick={confirmPick}
+                        waitingImages={waitingImages}
                         waitingPrompt={waitingPrompt}
                     />
                 )}
@@ -417,9 +423,6 @@ const NewThreadPanel: FC<{
                     key={composerSeed ?? 'composer'}
                     defaultValue={composerSeed ?? undefined}
                     onSubmit={handleSubmit}
-                    imageAttachmentsUnavailableReason={
-                        isAuto ? 'Choose an agent to attach images' : undefined
-                    }
                     onStartDeepResearch={
                         concreteAgent && canStartDeepResearch
                             ? handleStartDeepResearch

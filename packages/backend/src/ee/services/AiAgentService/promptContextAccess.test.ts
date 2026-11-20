@@ -610,6 +610,31 @@ describe('validatePromptContextAccess for images', () => {
         );
     });
 
+    it("looks for the images among the sender's own uploads in the agent's organisation, whichever agent was picked", async () => {
+        const { validate, aiThreadFileModel } = buildService([], [], {
+            imagesEnabled: true,
+            threadFiles: [ownImage],
+        });
+        await expect(validate(context)).resolves.toEqual(context);
+        expect(
+            aiThreadFileModel.findClaimableByUser,
+        ).toHaveBeenCalledExactlyOnceWith({
+            fileUuids: [ownImage.uuid],
+            userUuid: USER_UUID,
+            organizationUuid: agent.organizationUuid,
+        });
+    });
+
+    it('refuses a held image that is no longer claimable and says to upload it again', async () => {
+        const { validate } = buildService([], [], {
+            imagesEnabled: true,
+            threadFiles: [],
+        });
+        await expect(validate(context)).rejects.toThrow(
+            'One or more attached files are unavailable. Remove them and upload again.',
+        );
+    });
+
     it('rejects images belonging to another uploader', async () => {
         const { validate } = buildService([], [], {
             imagesEnabled: true,

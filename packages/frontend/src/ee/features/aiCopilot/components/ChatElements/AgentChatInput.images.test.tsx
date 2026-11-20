@@ -396,8 +396,95 @@ test('magic-sniffed images route before filename-based CSV fallback while docume
     expect(mocks.documents).toHaveBeenCalledWith([notes, csv]);
 });
 
+const autoComposer = {
+    agentUuid: undefined,
+    threadUuid: undefined,
+    selectedAgent: 'auto',
+    agents: [],
+} satisfies Partial<ComponentProps<typeof AgentChatInput>>;
+const threadComposer = {
+    threadModelName: 'Test model',
+} satisfies Partial<ComponentProps<typeof AgentChatInput>>;
+const imageControls = () => ({
+    menuItem: screen.queryByRole('menuitem', {
+        name: 'Attach an image',
+        hidden: true,
+    }),
+    toolbarButton: screen.queryByRole('button', {
+        name: 'Attach an image',
+        hidden: true,
+    }),
+});
+
+test('with the router picking the agent, the plus menu and the toolbar both offer "Attach an image"', () => {
+    renderInput(autoComposer);
+    expect(
+        screen.getByRole('menuitem', {
+            name: 'Attach a document',
+            hidden: true,
+        }),
+    ).toBeInTheDocument();
+    const { menuItem, toolbarButton } = imageControls();
+    expect(menuItem).toBeEnabled();
+    expect(toolbarButton).toBeEnabled();
+});
+
+test('an open conversation offers "Attach an image" in the plus menu and in the toolbar', () => {
+    renderInput(threadComposer);
+    const { menuItem, toolbarButton } = imageControls();
+    expect(menuItem).toBeEnabled();
+    expect(toolbarButton).toBeEnabled();
+});
+
+describe.each([
+    ['a new conversation with the router', autoComposer],
+    ['an open conversation', threadComposer],
+])('image controls in %s', (_surface, surface) => {
+    test.each([
+        [
+            'in battle mode',
+            {
+                imageAttachmentsUnavailableReason:
+                    'Start a single conversation to attach images',
+            },
+            true,
+        ],
+        ['with the flag off', {}, false],
+    ])('are hidden %s', (_label, props, flagOn) => {
+        mocks.imagesEnabled = flagOn;
+        renderInput({ ...surface, ...props });
+        expect(
+            screen.getByRole('menuitem', {
+                name: 'Attach a document',
+                hidden: true,
+            }),
+        ).toBeInTheDocument();
+        expect(imageControls()).toEqual({
+            menuItem: null,
+            toolbarButton: null,
+        });
+    });
+});
+
+test('with the router picking the agent, pasted and dropped images are attached', async () => {
+    const { container } = renderInput(autoComposer);
+    const pasted = new File(['png'], 'clipboard.png', { type: 'image/png' });
+    expect(paste(pasted)).toBe(false);
+    expect(mocks.images).toHaveBeenCalledWith([pasted]);
+    mocks.images.mockClear();
+    const dropped = new File(
+        [new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])],
+        'chart.png',
+    );
+    fireEvent.drop(screen.getByRole('textbox').parentElement ?? container, {
+        dataTransfer: { types: ['Files'], files: [dropped] },
+    });
+    await waitFor(() => expect(mocks.images).toHaveBeenCalledWith([dropped]));
+    expect(mocks.toast).not.toHaveBeenCalled();
+});
+
 test('unsupported host modes hide the picker and block image paste/drop without changing document routing', async () => {
-    const reason = 'Choose an agent to attach images';
+    const reason = 'Start a single conversation to attach images';
     const { container } = renderInput({
         imageAttachmentsUnavailableReason: reason,
     });
@@ -415,7 +502,7 @@ test('unsupported host modes hide the picker and block image paste/drop without 
     expect(mocks.images).not.toHaveBeenCalled();
 });
 
-test('changing to battle/auto after attachment blocks submit before retain and preserves every draft resource', () => {
+test('changing to battle mode after attachment blocks submit before retain and preserves every draft resource', () => {
     const onSubmit = vi.fn();
     const { rerenderInput } = renderInput({ onSubmit });
     attachReadyImage();

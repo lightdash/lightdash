@@ -1,4 +1,8 @@
 import type { WebClient } from '@slack/web-api';
+import {
+    slackPromptAttachmentRefs,
+    type SlackPromptAttachmentRef,
+} from './slackPromptAttachments';
 
 export type AgentSelectionValue = {
     agentUuid: string;
@@ -53,11 +57,13 @@ export type SlackThreadMessage = {
     user?: string;
     text?: string;
     ts?: string;
+    files?: { id?: string }[];
 };
 
 export type AgentSelectionPrompt = {
     text: string;
     ts: string;
+    attachments: SlackPromptAttachmentRef[];
 };
 
 export const findAgentSelectionMessageByTs = (
@@ -65,7 +71,13 @@ export const findAgentSelectionMessageByTs = (
     promptSlackTs: string,
 ): AgentSelectionPrompt | null => {
     const message = messages.find((msg) => msg.ts === promptSlackTs);
-    return message?.text ? { text: message.text, ts: promptSlackTs } : null;
+    return message?.text
+        ? {
+              text: message.text,
+              ts: promptSlackTs,
+              attachments: slackPromptAttachmentRefs(message),
+          }
+        : null;
 };
 
 // Legacy pickers carry no ts: answers the user's first message in the thread.
@@ -85,7 +97,11 @@ export const findLegacyAgentSelectionMessage = (
     });
 
     return message?.text && message.ts
-        ? { text: message.text, ts: message.ts }
+        ? {
+              text: message.text,
+              ts: message.ts,
+              attachments: slackPromptAttachmentRefs(message),
+          }
         : null;
 };
 

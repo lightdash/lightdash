@@ -3,7 +3,7 @@ import {
     type AiPromptContext,
     type AiPromptContextInput,
 } from '@lightdash/common';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
     useAiAgentRouterFlow,
     type AiAgentRouterCandidate,
@@ -61,12 +61,13 @@ export const useAiAgentLauncherRouter = ({
         isRouting,
         phase,
         sortedCandidates,
+        submitUntilCreated: submitToRouterUntilCreated,
     } = useAiAgentRouterFlow({
         agents,
         createThreadForAgent,
-        onRouteError: ({ fallbackAgent, ...args }) => {
+        onRouteError: async ({ fallbackAgent, ...args }) => {
             if (fallbackAgent) {
-                void createThreadForAgent({
+                await createThreadForAgent({
                     ...args,
                     agentUuid: fallbackAgent.uuid,
                 });
@@ -75,60 +76,77 @@ export const useAiAgentLauncherRouter = ({
         projectUuid,
     });
 
-    const handleSubmit = useCallback(
-        async ({
-            message,
-            toolHints,
-            context,
-            optimisticContext,
-        }: SubmitArgs) => {
-            if (!isPinnedContextReady) return;
-
-            const mergedContext = mergeAiPromptContextInput(
-                contextInput,
+    const submitWith = useCallback(
+        (submitToRouter: typeof handleRouterSubmit) =>
+            async ({
+                message,
+                toolHints,
                 context,
-            );
-            const mergedOptimisticContext = mergeAiPromptContextItems(
-                previewItems,
                 optimisticContext,
-            );
+            }: SubmitArgs) => {
+                if (!isPinnedContextReady) return;
 
-            if (!isLauncherAutoAgent(agent)) {
-                return createThreadForAgent({
-                    agentUuid: agent.uuid,
+                const mergedContext = mergeAiPromptContextInput(
+                    contextInput,
+                    context,
+                );
+                const mergedOptimisticContext = mergeAiPromptContextItems(
+                    previewItems,
+                    optimisticContext,
+                );
+
+                if (!isLauncherAutoAgent(agent)) {
+                    return createThreadForAgent({
+                        agentUuid: agent.uuid,
+                        message,
+                        context: mergedContext,
+                        optimisticContext: mergedOptimisticContext,
+                        toolHints,
+                    });
+                }
+
+                return submitToRouter({
                     message,
                     context: mergedContext,
                     optimisticContext: mergedOptimisticContext,
                     toolHints,
                 });
-            }
-
-            // Auto routing may resolve at the picker, before creation; the host gates images there.
-            return handleRouterSubmit({
-                message,
-                context: mergedContext,
-                optimisticContext: mergedOptimisticContext,
-                toolHints,
-            });
-        },
+            },
         [
             agent,
             contextInput,
             createThreadForAgent,
-            handleRouterSubmit,
             isPinnedContextReady,
             previewItems,
         ],
+    );
+    // With Auto this resolves once the router has answered, also at the picker.
+    const handleSubmit = useMemo(
+        () => submitWith(handleRouterSubmit),
+        [handleRouterSubmit, submitWith],
+    );
+    // With Auto this resolves only once the conversation exists: for a
+    // composer that keeps the draft and its uploads until then.
+    const submitUntilCreated = useMemo(
+        () => submitWith(submitToRouterUntilCreated),
+        [submitToRouterUntilCreated, submitWith],
     );
 
     return {
         confirmPick,
         handleSubmit,
+        submitUntilCreated,
         isLocked: isCreatingThread || isLocked,
         isPickingAgent,
         isRouting,
         // The message held back until the user picks an agent.
         waitingPrompt: phase.kind === 'picker' ? phase.prompt : null,
+        waitingImages:
+            phase.kind === 'picker'
+                ? (phase.optimisticContext ?? []).filter(
+                      (item) => item.type === 'thread_image',
+                  )
+                : [],
         sortedCandidates,
     };
 };
