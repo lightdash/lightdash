@@ -1,3 +1,10 @@
+## [3.358.1](https://github.com/lightdash/lightdash/compare/3.358.0...3.358.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **data-apps:** mark upload version error when unverify fails ([#32953](https://github.com/lightdash/lightdash/issues/32953)) ([2870b7f](https://github.com/lightdash/lightdash/commit/2870b7f69c57f53bcd14158a2f6c111607886d27))
+
 # [3.358.0](https://github.com/lightdash/lightdash/compare/3.357.2...3.358.0) (2026-11-20)
 
 
