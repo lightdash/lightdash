@@ -2,6 +2,7 @@ import {
     AgentToolOutput,
     AI_DATA_APP_BUILD_PENDING_GRACE_MS,
     AI_DEEP_RESEARCH_TERMINAL_STATUSES,
+    AI_THREAD_IMAGE_MEDIA_TYPES,
     AI_USER_THREAD_CREATED_FROM,
     AI_WRITEBACK_PENDING_GRACE_MS,
     AI_WRITEBACK_RUN_TERMINAL_STATUSES,
@@ -120,6 +121,7 @@ import {
     type AiAgentJevDecision,
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
+    type AiPromptThreadImageSnapshot,
     type ComposerNodeColumn,
     type ServedSkillMetadata,
     type ThreadComposerQueryNode,
@@ -282,6 +284,7 @@ import {
     DbAiEvalRunResult,
     DbAiEvalRunResultAssessment,
 } from '../database/entities/aiEvals';
+import { AiThreadImageObjectTableName } from '../database/entities/aiThreadFile';
 import {
     COMPOSER_SESSION_SCOPE_TYPE,
     ComposerQueryNodesTableName,
@@ -358,6 +361,14 @@ const isTurnDecisionRow = (
     AI_PROMPT_TURN_DECISION_OPERATIONS.some(
         (operation) => operation === row.operation,
     );
+
+// One shape for what a prompt stores about an image and what a reader requires.
+const threadImageSnapshotSchema = z.object({
+    sizeBytes: z.number().int().positive(),
+    mediaType: z.enum(AI_THREAD_IMAGE_MEDIA_TYPES),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+}) satisfies z.ZodType<AiPromptThreadImageSnapshot>;
 
 const storedChoicesSchema = z.object({
     options: z.array(z.object({ label: z.string(), prompt: z.string() })),
@@ -7659,7 +7670,9 @@ export class AiAgentModel {
         // the prompt, and the conditional update is the ownership check. One
         // generic error covers not-found, not-owner and already-sent alike.
         const threadFileUuids = context.flatMap((c) =>
-            c.type === 'thread_file' ? [c.fileUuid] : [],
+            c.type === 'thread_file' || c.type === 'thread_image'
+                ? [c.fileUuid]
+                : [],
         );
         const claimedFiles = await this.aiThreadFileModel.claimForPrompt(trx, {
             fileUuids: threadFileUuids,
@@ -7674,6 +7687,18 @@ export class AiAgentModel {
         }
         const claimedFileByUuid = new Map(
             claimedFiles.map((file) => [file.ai_thread_file_uuid, file]),
+        );
+        const imageKeys = claimedFiles.flatMap((file) =>
+            file.storage_key === null ? [] : [file.storage_key],
+        );
+        const imageObjects =
+            imageKeys.length === 0
+                ? []
+                : await trx(AiThreadImageObjectTableName)
+                      .whereIn('storage_key', imageKeys)
+                      .select('*');
+        const imageByKey = new Map(
+            imageObjects.map((image) => [image.storage_key, image]),
         );
 
         const chartUuids = context.flatMap((c) =>
@@ -8166,9 +8191,32 @@ export class AiAgentModel {
                         entity_ref: ctx.fullName,
                         display_name: ctx.fullName,
                     };
+                case 'thread_image': {
+                    const file = claimedFileByUuid.get(ctx.fileUuid);
+                    const image = imageByKey.get(file?.storage_key ?? '');
+                    if (!file || file.kind !== 'image' || !image) {
+                        throw new ParameterError(
+                            'One or more attached images are unavailable. Remove them and upload again.',
+                        );
+                    }
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type: ctx.type,
+                        entity_uuid: ctx.fileUuid,
+                        entity_ref: null,
+                        pinned_version_uuid: null,
+                        display_name: file.file_name,
+                        runtime_overrides: {
+                            sizeBytes: image.size_bytes,
+                            mediaType: image.media_type,
+                            width: image.width,
+                            height: image.height,
+                        } satisfies z.infer<typeof threadImageSnapshotSchema>,
+                    };
+                }
                 case 'thread_file': {
                     const file = claimedFileByUuid.get(ctx.fileUuid);
-                    if (!file) {
+                    if (!file || file.kind !== 'text') {
                         throw new ParameterError(
                             'One or more attached files are unavailable. Remove them and upload again.',
                         );
@@ -8838,6 +8886,17 @@ export class AiAgentModel {
                     versionNumber: snapshot?.versionNumber ?? null,
                     builtIn: snapshot?.builtIn ?? row.entity_uuid === null,
                     displayName: row.display_name,
+                };
+            }
+            case 'thread_image': {
+                const snapshot = threadImageSnapshotSchema.parse(
+                    row.runtime_overrides,
+                );
+                return {
+                    type: 'thread_image',
+                    fileUuid: requireEntityUuid(),
+                    fileName: row.display_name ?? 'Image',
+                    ...snapshot,
                 };
             }
             case 'thread_file': {

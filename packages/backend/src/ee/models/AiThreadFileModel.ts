@@ -1,25 +1,60 @@
 import {
     AI_THREAD_FILE_UNCLAIMED_TTL_HOURS,
+    AI_THREAD_IMAGES_MAX_PER_PROMPT,
+    assertUnreachable,
+    ParameterError,
     type AiThreadFile,
 } from '@lightdash/common';
-import { Knex } from 'knex';
+import { type Knex } from 'knex';
+import { AiThreadTableName } from '../database/entities/ai';
 import {
     AiThreadFileTableName,
+    AiThreadImageObjectTableName,
     type DbAiThreadFile,
+    type DbAiThreadImageObject,
 } from '../database/entities/aiThreadFile';
 
-export type AiThreadFileWithContent = AiThreadFile & { content: string };
+export type AiThreadFileWithContent =
+    | (Extract<AiThreadFile, { kind: 'text' }> & { content: string })
+    | (Extract<AiThreadFile, { kind: 'image' }> & {
+          storageKey: string;
+          uploadedAt: Date | null;
+      });
+
+export const IMAGE_ATTACHMENT_LIMIT_MESSAGE = `Attach up to ${AI_THREAD_IMAGES_MAX_PER_PROMPT} images per message`;
 
 const UNCLAIMED_TTL_INTERVAL = `${AI_THREAD_FILE_UNCLAIMED_TTL_HOURS} hours`;
 
-const toAiThreadFile = (row: DbAiThreadFile): AiThreadFile => ({
-    uuid: row.ai_thread_file_uuid,
-    fileName: row.file_name,
-    sizeBytes: row.size_bytes,
-    threadUuid: row.ai_thread_uuid,
-    promptUuid: row.ai_prompt_uuid,
-    createdAt: row.created_at,
-});
+const toAiThreadFile = (
+    row: DbAiThreadFile,
+    image: DbAiThreadImageObject | undefined,
+): AiThreadFile => {
+    const metadata = {
+        uuid: row.ai_thread_file_uuid,
+        fileName: row.file_name,
+        sizeBytes: row.size_bytes,
+        threadUuid: row.ai_thread_uuid,
+        promptUuid: row.ai_prompt_uuid,
+        createdAt: row.created_at,
+    };
+    switch (row.kind) {
+        case 'text':
+            return { ...metadata, kind: 'text' };
+        case 'image':
+            if (!image || image.organization_uuid !== row.organization_uuid) {
+                throw new Error('Image attachment metadata is unavailable');
+            }
+            return {
+                ...metadata,
+                kind: 'image',
+                mediaType: image.media_type,
+                width: image.width,
+                height: image.height,
+            };
+        default:
+            return assertUnreachable(row.kind, 'Unknown attachment kind');
+    }
+};
 
 export class AiThreadFileModel {
     private readonly database: Knex;
@@ -44,42 +79,106 @@ export class AiThreadFileModel {
                 size_bytes: args.sizeBytes,
             })
             .returning('*');
-        if (!row) {
-            throw new Error('Failed to create thread file');
-        }
-        return toAiThreadFile(row);
+        if (!row) throw new Error('Failed to create thread file');
+        return toAiThreadFile(row, undefined);
     }
 
-    /** Unclaimed, unexpired files the user uploaded, by uuid. */
+    async createImage(args: {
+        fileUuid: string;
+        createdByUserUuid: string;
+        fileName: string;
+        object: Omit<
+            DbAiThreadImageObject,
+            'uploaded_at' | 'cleanup_attempted_at' | 'created_by_user_uuid'
+        >;
+    }): Promise<AiThreadFile> {
+        return this.database.transaction(async (trx) => {
+            const [image] = await trx(AiThreadImageObjectTableName)
+                .insert({
+                    ...args.object,
+                    created_by_user_uuid: args.createdByUserUuid,
+                })
+                .returning('*');
+            const [row] = await trx(AiThreadFileTableName)
+                .insert({
+                    ai_thread_file_uuid: args.fileUuid,
+                    organization_uuid: args.object.organization_uuid,
+                    created_by_user_uuid: args.createdByUserUuid,
+                    file_name: args.fileName,
+                    content: '',
+                    kind: 'image',
+                    storage_key: args.object.storage_key,
+                    size_bytes: args.object.size_bytes,
+                })
+                .returning('*');
+            if (!row || !image)
+                throw new Error('Failed to create image attachment');
+            return toAiThreadFile(row, image);
+        });
+    }
+
+    async markImageUploaded(storageKey: string): Promise<void> {
+        await this.database(AiThreadImageObjectTableName)
+            .where('storage_key', storageKey)
+            .update({ uploaded_at: new Date() });
+    }
+
+    private async imageObjects(rows: DbAiThreadFile[]) {
+        const keys = rows.flatMap((row) =>
+            row.storage_key === null ? [] : [row.storage_key],
+        );
+        const objects =
+            keys.length === 0
+                ? []
+                : await this.database(AiThreadImageObjectTableName)
+                      .whereIn('storage_key', keys)
+                      .select('*');
+        return new Map(objects.map((object) => [object.storage_key, object]));
+    }
+
     async findClaimableByUser(args: {
         fileUuids: string[];
         userUuid: string;
         organizationUuid: string;
     }): Promise<AiThreadFile[]> {
         if (args.fileUuids.length === 0) return [];
-        const rows = await this.database(AiThreadFileTableName)
+        const rows = await this.claimable(this.database)
             .whereIn('ai_thread_file_uuid', args.fileUuids)
             .where('created_by_user_uuid', args.userUuid)
             .where('organization_uuid', args.organizationUuid)
+            .select('*');
+        const objects = await this.imageObjects(rows);
+        return rows.map((row) =>
+            toAiThreadFile(row, objects.get(row.storage_key ?? '')),
+        );
+    }
+
+    // Used by both the pre-check and the authoritative transactional claim.
+    private claimable(db: Knex) {
+        return db(AiThreadFileTableName)
             .whereNull('ai_thread_uuid')
+            .whereNull('claimed_at')
             .where(
                 'created_at',
                 '>',
-                this.database.raw('NOW() - ?::interval', [
-                    UNCLAIMED_TTL_INTERVAL,
-                ]),
+                db.raw('NOW() - ?::interval', [UNCLAIMED_TTL_INTERVAL]),
             )
-            .select<DbAiThreadFile[]>('*');
-        return rows.map(toAiThreadFile);
+            .where((query) =>
+                query
+                    .where('kind', 'text')
+                    .orWhere((images) =>
+                        images
+                            .where('kind', 'image')
+                            .whereIn(
+                                'storage_key',
+                                db(AiThreadImageObjectTableName)
+                                    .select('storage_key')
+                                    .whereNotNull('uploaded_at'),
+                            ),
+                    ),
+            );
     }
 
-    /**
-     * Attach files to a prompt. The conditional update is the ownership check:
-     * only the uploader's own unclaimed, unexpired files match, and a file
-     * already sent elsewhere no longer matches. Returns how many rows changed
-     * so the caller can reject the whole request on a shortfall.
-     */
-    // eslint-disable-next-line class-methods-use-this
     async claimForPrompt(
         trx: Knex,
         args: {
@@ -90,15 +189,21 @@ export class AiThreadFileModel {
         },
     ): Promise<DbAiThreadFile[]> {
         if (args.fileUuids.length === 0) return [];
-        return trx(AiThreadFileTableName)
+        const threadOrganization = trx(AiThreadTableName)
+            .select('organization_uuid')
+            .where('ai_thread_uuid', args.threadUuid);
+        const images = await this.claimable(trx)
             .whereIn('ai_thread_file_uuid', args.fileUuids)
             .where('created_by_user_uuid', args.userUuid)
-            .whereNull('ai_thread_uuid')
-            .where(
-                'created_at',
-                '>',
-                trx.raw('NOW() - ?::interval', [UNCLAIMED_TTL_INTERVAL]),
-            )
+            .whereIn('organization_uuid', threadOrganization)
+            .where('kind', 'image')
+            .select('ai_thread_file_uuid');
+        if (images.length > AI_THREAD_IMAGES_MAX_PER_PROMPT)
+            throw new ParameterError(IMAGE_ATTACHMENT_LIMIT_MESSAGE);
+        return this.claimable(trx)
+            .whereIn('ai_thread_file_uuid', args.fileUuids)
+            .where('created_by_user_uuid', args.userUuid)
+            .whereIn('organization_uuid', threadOrganization)
             .update({
                 ai_thread_uuid: args.threadUuid,
                 ai_prompt_uuid: args.promptUuid,
@@ -107,21 +212,36 @@ export class AiThreadFileModel {
             .returning('*');
     }
 
-    /** Files owned by a thread, oldest first, with their text. */
     async findForThread(
         threadUuid: string,
     ): Promise<AiThreadFileWithContent[]> {
         const rows = await this.database(AiThreadFileTableName)
             .where('ai_thread_uuid', threadUuid)
             .orderBy('created_at', 'asc')
-            .select<DbAiThreadFile[]>('*');
-        return rows.map((row) => ({
-            ...toAiThreadFile(row),
-            content: row.content,
-        }));
+            .select('*');
+        const objects = await this.imageObjects(rows);
+        return rows.map((row): AiThreadFileWithContent => {
+            const image = objects.get(row.storage_key ?? '');
+            const file = toAiThreadFile(row, image);
+            switch (file.kind) {
+                case 'text':
+                    return { ...file, content: row.content };
+                case 'image':
+                    if (!image)
+                        throw new Error(
+                            'Image attachment metadata is unavailable',
+                        );
+                    return {
+                        ...file,
+                        storageKey: image.storage_key,
+                        uploadedAt: image.uploaded_at,
+                    };
+                default:
+                    return assertUnreachable(file, 'Unknown attachment kind');
+            }
+        });
     }
 
-    /** Deletes only the uploader's own unclaimed file. Returns whether a row went. */
     async deleteUnclaimed(args: {
         fileUuid: string;
         userUuid: string;
@@ -130,6 +250,7 @@ export class AiThreadFileModel {
             .where('ai_thread_file_uuid', args.fileUuid)
             .where('created_by_user_uuid', args.userUuid)
             .whereNull('ai_thread_uuid')
+            .whereNull('claimed_at')
             .delete();
         return deleted > 0;
     }
@@ -146,23 +267,93 @@ export class AiThreadFileModel {
         userUuid: string,
         windowMs: number,
     ): Promise<number> {
-        const [row] = await this.database(AiThreadFileTableName)
-            .where('created_by_user_uuid', userUuid)
-            .where('created_at', '>', new Date(Date.now() - windowMs))
-            .count<{ count: string }[]>({ count: '*' });
-        return Number(row?.count ?? 0);
+        const since = new Date(Date.now() - windowMs);
+        // Images are counted from their ledger, which outlives a deleted file
+        // row: removing an upload does not hand the slot back.
+        const [[documents], [images]] = await Promise.all([
+            this.database(AiThreadFileTableName)
+                .where('created_by_user_uuid', userUuid)
+                .where('kind', 'text')
+                .where('created_at', '>', since)
+                .count<{ count: string }[]>({ count: '*' }),
+            this.database(AiThreadImageObjectTableName)
+                .where('created_by_user_uuid', userUuid)
+                .where('created_at', '>', since)
+                .count<{ count: string }[]>({ count: '*' }),
+        ]);
+        return Number(documents?.count ?? 0) + Number(images?.count ?? 0);
     }
 
-    /** Removes unclaimed uploads older than the TTL. Returns the number swept. */
     async sweepExpiredUnclaimed(): Promise<number> {
         return this.database(AiThreadFileTableName)
+            .whereIn(
+                'ai_thread_file_uuid',
+                this.database(AiThreadFileTableName)
+                    .select('ai_thread_file_uuid')
+                    .whereNull('ai_thread_uuid')
+                    .where(
+                        'created_at',
+                        '<=',
+                        this.database.raw('NOW() - ?::interval', [
+                            UNCLAIMED_TTL_INTERVAL,
+                        ]),
+                    )
+                    .orderBy('created_at')
+                    .limit(100),
+            )
             .whereNull('ai_thread_uuid')
-            .where(
-                'created_at',
-                '<=',
-                this.database.raw('NOW() - ?::interval', [
-                    UNCLAIMED_TTL_INTERVAL,
-                ]),
+            .delete();
+    }
+
+    async findImageObjectsForCleanup(
+        attemptedBefore = new Date(),
+    ): Promise<DbAiThreadImageObject[]> {
+        return (
+            this.database(AiThreadImageObjectTableName)
+                .where((query) =>
+                    query
+                        .whereNull('cleanup_attempted_at')
+                        .orWhere('cleanup_attempted_at', '<', attemptedBefore),
+                )
+                // Images live as long as their thread: only objects no file row
+                // references any more (deleted thread, failed upload) are removed.
+                .where(
+                    'created_at',
+                    '<=',
+                    this.database.raw("NOW() - interval '1 hour'"),
+                )
+                .whereNotExists(
+                    this.database(AiThreadFileTableName)
+                        .select('storage_key')
+                        .whereRaw('?? = ??', [
+                            `${AiThreadFileTableName}.storage_key`,
+                            `${AiThreadImageObjectTableName}.storage_key`,
+                        ]),
+                )
+                .orderBy('cleanup_attempted_at', 'asc', 'first')
+                .orderBy('created_at')
+                .limit(100)
+                .select('*')
+        );
+    }
+
+    async markImageCleanupAttempted(storageKey: string): Promise<void> {
+        await this.database(AiThreadImageObjectTableName)
+            .where('storage_key', storageKey)
+            .update({ cleanup_attempted_at: new Date() });
+    }
+
+    /** Forgets an image whose bytes are gone; a referenced one is left alone. */
+    async removeImageObject(storageKey: string): Promise<void> {
+        await this.database(AiThreadImageObjectTableName)
+            .where('storage_key', storageKey)
+            .whereNotExists(
+                this.database(AiThreadFileTableName)
+                    .select('storage_key')
+                    .whereRaw('?? = ??', [
+                        `${AiThreadFileTableName}.storage_key`,
+                        `${AiThreadImageObjectTableName}.storage_key`,
+                    ]),
             )
             .delete();
     }

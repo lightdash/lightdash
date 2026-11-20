@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     ATTRIBUTION_KEYS,
     getAiCallTelemetry,
+    hasBinaryModelInputs,
     type AiCallAttribution,
 } from './aiCallTelemetry';
 
@@ -104,6 +105,59 @@ describe('getAiCallTelemetry', () => {
         });
 
         expect(runtimeContext.organizationUuid).toBe('shadowed');
+    });
+
+    it('withholds binary input content without losing output or cost attribution', () => {
+        const messages = [
+            {
+                role: 'user',
+                content: [
+                    {
+                        type: 'file',
+                        data: { type: 'data', data: Buffer.alloc(2048) },
+                        mediaType: 'image/png',
+                    },
+                ],
+            },
+        ] satisfies import('ai').ModelMessage[];
+        const { telemetry, runtimeContext } = getAiCallTelemetry({
+            functionId: 'image-chat',
+            feature: 'agent',
+            keyManagement: 'self-managed',
+            organizationUuid: 'org',
+            projectUuid: 'project',
+            recordIO: true,
+            hasBinaryInputs: hasBinaryModelInputs(messages),
+        });
+        expect(telemetry.recordInputs).toBe(false);
+        expect(telemetry.recordOutputs).toBe(true);
+        expect(runtimeContext).toMatchObject({
+            feature: 'agent',
+            organizationUuid: 'org',
+            projectUuid: 'project',
+            keyManagement: 'self-managed',
+        });
+        expect(runtimeContext).not.toHaveProperty('hasBinaryInputs');
+        expect(
+            hasBinaryModelInputs([
+                { role: 'user', content: 'text-only prompt' },
+            ]),
+        ).toBe(false);
+        expect(
+            hasBinaryModelInputs([
+                {
+                    role: 'tool',
+                    content: [
+                        {
+                            type: 'tool-result',
+                            toolCallId: 'id',
+                            toolName: 'tool',
+                            output: { type: 'json', value: { answer: 42 } },
+                        },
+                    ],
+                },
+            ]),
+        ).toBe(false);
     });
 
     it('keeps prompt and response capture off unless asked', () => {

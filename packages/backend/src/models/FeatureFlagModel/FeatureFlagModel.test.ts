@@ -276,6 +276,46 @@ describe('FeatureFlagModel', () => {
         });
     });
 
+    describe('ai-thread-images needs an uploads bucket', () => {
+        const organizationOn = buildFakeDatabase({
+            flag: { default_enabled: false },
+            orgOverride: { enabled: true },
+        });
+        const args = {
+            user: dbUser,
+            featureFlagId: FeatureFlags.AiThreadImages,
+        };
+        it('is off without a bucket even when the organization has it on', async () => {
+            const model = buildModel({ uploads: { s3: null } }, organizationOn);
+            await expect(model.get(args)).resolves.toEqual({
+                id: FeatureFlags.AiThreadImages,
+                enabled: false,
+            });
+        });
+        it('follows the stored flag once a bucket is configured', async () => {
+            const uploads = {
+                s3: {
+                    endpoint: 'http://localhost:9000',
+                    bucket: 'uploads',
+                    region: 'us-east-1',
+                    expirationTime: 259200,
+                },
+            };
+            await expect(
+                buildModel({ uploads }, organizationOn).get(args),
+            ).resolves.toEqual({
+                id: FeatureFlags.AiThreadImages,
+                enabled: true,
+            });
+            await expect(
+                buildModel({ uploads }, buildFakeDatabase({})).get(args),
+            ).resolves.toEqual({
+                id: FeatureFlags.AiThreadImages,
+                enabled: false,
+            });
+        });
+    });
+
     describe('env var override', () => {
         it('returns enabled for any flag listed in LIGHTDASH_ENABLE_FEATURE_FLAGS', async () => {
             const model = buildModel({

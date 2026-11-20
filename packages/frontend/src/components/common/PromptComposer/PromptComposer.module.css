@@ -247,6 +247,16 @@
     }
 }
 
+/* Attachments fill the space the tall empty editor would otherwise reserve. */
+.root[data-variant='card'][data-size='lg'][data-has-attachments]
+    .editorContent {
+    min-height: rem(60px);
+
+    :global(.ProseMirror) {
+        min-height: rem(34px);
+    }
+}
+
 /* --- inline editor surface --- */
 
 /* Editor stacked above the attachment row; wrapped pills must never share
@@ -328,6 +338,19 @@
 
 .root[data-variant='inline'] .attachments {
     padding: 0 var(--mantine-spacing-xs) rem(4px) var(--composer-inline-inset);
+}
+
+/* Tall attachments scroll inside the single-row composer instead of growing
+ * it past a small panel, and the actions stay on the bottom row. The height
+ * cuts the third card in half so it is clear there is more to scroll to. */
+.root[data-variant='inline'] .attachments {
+    max-height: rem(172px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.root[data-variant='inline'][data-has-attachments] {
+    align-items: flex-end;
 }
 
 .toolbar {

@@ -720,6 +720,8 @@ import {
 import {
     AiThreadFileTable,
     AiThreadFileTableName,
+    AiThreadImageObjectTable,
+    AiThreadImageObjectTableName,
 } from '../ee/database/entities/aiThreadFile';
 import {
     AppSharedStateHistoryTable,
@@ -1019,6 +1021,7 @@ declare module 'knex/types/tables' {
         [AiAgentDocumentTableName]: AiAgentDocumentTable;
         [AiAgentDocumentAccessTableName]: AiAgentDocumentAccessTable;
         [AiThreadFileTableName]: AiThreadFileTable;
+        [AiThreadImageObjectTableName]: AiThreadImageObjectTable;
         [AiAgentSkillTableName]: AiAgentSkillTable;
         [AiAgentSkillVersionTableName]: AiAgentSkillVersionTable;
         [AiAgentSkillAccessTableName]: AiAgentSkillAccessTable;

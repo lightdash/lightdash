@@ -371,6 +371,7 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                 className={`${classes.root} ${className ?? ''}`}
                 data-variant={variant}
                 data-size={size}
+                data-has-attachments={attachments ? true : undefined}
                 data-accent={accent}
                 data-disabled={disabled || undefined}
                 data-resized={editorHeight !== null || undefined}

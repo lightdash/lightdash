@@ -63,6 +63,8 @@ export class FeatureFlagModel {
                 this.getEnableTimezoneSupportEnabled.bind(this),
             [FeatureFlags.MobileAppAccess]:
                 this.getMobileAppAccessEnabled.bind(this),
+            [FeatureFlags.AiThreadImages]:
+                this.getAiThreadImagesEnabled.bind(this),
         };
     }
 
@@ -171,6 +173,18 @@ export class FeatureFlagModel {
         options: FeatureFlagQueryOptions = {},
     ): Promise<FeatureFlag> {
         return this.getWithEnvFallback(args, true, options);
+    }
+
+    // Images need a durable uploads bucket (UPLOADS_S3_BUCKET). Without one
+    // the flag is off; with one it follows the stored flag, off by default.
+    private async getAiThreadImagesEnabled(
+        args: FeatureFlagLogicArgs,
+        options: FeatureFlagQueryOptions = {},
+    ): Promise<FeatureFlag> {
+        if (this.lightdashConfig.uploads.s3 === null) {
+            return { id: args.featureFlagId, enabled: false };
+        }
+        return this.getWithEnvFallback(args, false, options);
     }
 
     // DB value (user override → org override → flag default) wins. Falls
