@@ -6,7 +6,7 @@ export type ContentIconSetKey = (typeof CONTENT_ICON_SET_KEYS)[number];
 const store = createChoiceStore(
     'lightdash-content-icon-set',
     CONTENT_ICON_SET_KEYS,
-    'current',
+    'a',
 );
 
 export const isContentIconSetKey = store.isKey;

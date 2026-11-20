@@ -66,3 +66,10 @@
     background-color: var(--mantine-color-default-hover);
     color: var(--mantine-color-text);
 }
+
+.search {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: var(--mantine-spacing-md);
+    align-items: start;
+}

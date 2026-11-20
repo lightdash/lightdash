@@ -49,25 +49,20 @@ export const IconBox: FC<IconBoxProps> = ({
     ...mantineIconProps
 }) => {
     const boxStyle = useIconBoxStyleKey();
-    const isCompact = boxStyle === 'compact';
     const iconElement = (
         <MantineIcon
             icon={icon}
             color={color}
             fill={color}
             fillOpacity={0.1}
-            size={isCompact ? 18 : size}
+            size={size}
             strokeWidth={1.6}
             {...mantineIconProps}
         />
     );
 
-    if (boxStyle === 'none' || isCompact) {
-        return (
-            <Box className={classes.iconBare} data-compact={isCompact}>
-                {iconElement}
-            </Box>
-        );
+    if (boxStyle === 'none') {
+        return <Box className={classes.iconBare}>{iconElement}</Box>;
     }
 
     return (
@@ -75,10 +70,8 @@ export const IconBox: FC<IconBoxProps> = ({
             w={boxSize}
             h={boxSize}
             radius="md"
-            bg={boxStyle === 'tinted' ? undefined : bg}
-            c={color}
+            bg={bg}
             className={classes.iconBox}
-            data-box-style={boxStyle}
         >
             {iconElement}
         </Paper>

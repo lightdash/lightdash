@@ -372,4 +372,6 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuids }) => {
     );
 };
 
+export { SelectItem as AddChartSelectItem };
+
 export default AddChartTilesModal;

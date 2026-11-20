@@ -7,25 +7,9 @@
     background-color: var(--mantine-color-ldGray-0);
 }
 
-.iconBox[data-box-style='square'] {
-    border-radius: 4px;
-}
-
-.iconBox[data-box-style='tinted'] {
-    background-color: color-mix(in srgb, currentColor 12%, transparent);
-    border-color: transparent;
-}
-
 .iconBare {
     display: flex;
     flex: none;
-}
-
-/* Sits on the first text line and pulls the label closer than the boxed gap. */
-.iconBare[data-compact='true'] {
-    align-self: flex-start;
-    margin-top: 2px;
-    margin-right: -6px;
 }
 
 .tooltipPointerEvents {
