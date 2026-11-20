@@ -1214,8 +1214,7 @@ const toMcpToolDefinitions = (
     })),
 });
 
-// Mirrors @ai-sdk/mcp's toolsFromDefinitions from the stored definition, and
-// runs the live tool once the server is reached on the first call.
+// Mirrors @ai-sdk/mcp's toolsFromDefinitions for a stored definition.
 const toOnDemandMcpTool = (
     definition: McpToolDefinition,
     getLiveTools: () => Promise<ToolSet>,
