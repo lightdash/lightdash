@@ -144,7 +144,7 @@ export const OUTLINE_ICONS: ContentIconSet = {
         'OutlineTreemap',
         <>
             <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
-            <path d="M11 3.5v17M11 12.5h9.5" fill="none" />
+            <path d="M11 3.5v17M11 12.5h9.5M15.75 12.5v8" fill="none" />
         </>,
     ),
     gauge: createContentIcon(
@@ -164,11 +164,9 @@ export const OUTLINE_ICONS: ContentIconSet = {
     sankey: createContentIcon(
         'OutlineSankey',
         <>
-            <path
-                d="M4 6.5c7 0 7 4 13.5 4M4 17.5c7 0 7 -4 13.5 -4"
-                fill="none"
-            />
-            <rect x="17.5" y="7.5" width="3" height="9" rx="0.75" />
+            <path d="M6.5 16.25c5.5 0 5.5 -8.5 11 -8.5" fill="none" />
+            <rect x="3.5" y="12" width="3" height="8.5" rx="0.75" />
+            <rect x="17.5" y="3.5" width="3" height="8.5" rx="0.75" />
         </>,
     ),
     custom: createContentIcon(
@@ -180,12 +178,17 @@ export const OUTLINE_ICONS: ContentIconSet = {
             />
         </>,
     ),
-    // Fallback for a custom chart type with no icon chosen: a generic chart tile.
+    // Fallback for a custom chart type with no icon chosen: a chart tile with a person badge, for user-defined.
     dataAppViz: createContentIcon(
         'OutlineDataAppViz',
         <>
-            <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
-            <path d="M7.5 14.5l3 -3.5l2.5 2l3.5 -4" fill="none" />
+            <path
+                d="M12 20.5h-6.5a2 2 0 0 1 -2 -2v-13a2 2 0 0 1 2 -2h13a2 2 0 0 1 2 2v6.5"
+                fill="none"
+            />
+            <path d="M7 12.5l2.5 -3l2.5 2l3.5 -4.5" fill="none" />
+            <circle cx="17.5" cy="15.5" r="1.9" />
+            <path d="M14 20.75a3.5 3.5 0 0 1 7 0" fill="none" />
         </>,
     ),
 };

@@ -91,7 +91,7 @@ const CHART_KIND_LABELS: Record<ChartKind, string> = {
     [ChartKind.MAP]: 'Map',
     [ChartKind.SANKEY]: 'Sankey',
     [ChartKind.CUSTOM]: 'Vega (legacy)',
-    [ChartKind.DATA_APP_VIZ]: 'Custom chart type, no icon',
+    [ChartKind.DATA_APP_VIZ]: 'Custom chart type (user-defined)',
 };
 
 type IconRow = { name: ContentIconName; label: string; color: string };
@@ -119,7 +119,7 @@ const MATRIX_ROWS: IconRow[] = [
     { name: 'custom', label: 'Vega (legacy)', color: CHART_COLOR },
     {
         name: 'dataAppViz',
-        label: 'Custom chart type, no icon',
+        label: 'Custom chart type (user-defined)',
         color: CHART_COLOR,
     },
 ];
