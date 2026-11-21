@@ -27,10 +27,9 @@ import {
     LightdashPage,
     LightdashRequestMethodHeader,
     LightdashUser,
+    LiveSourceErrorCode,
     LiveSourceErrorOrigin,
-    LiveSourceInternalErrorCode,
     LiveSourceRefusalCode,
-    LiveSourceUpstreamErrorCode,
     MergeJoinType,
     MergeQueryErrorKind,
     MobileAppPlatform,
@@ -835,7 +834,7 @@ export type QueryCompletedEvent = BaseTrack & {
         integration?: ApiConnectorType;
         apiQueryOutcome?: LiveQueryOutcome;
         /** Set only when a live_source query failed. */
-        errorCode?: LiveSourceInternalErrorCode | LiveSourceUpstreamErrorCode;
+        errorCode?: LiveSourceErrorCode;
         errorOrigin?: LiveSourceErrorOrigin;
         truncated?: boolean;
     };

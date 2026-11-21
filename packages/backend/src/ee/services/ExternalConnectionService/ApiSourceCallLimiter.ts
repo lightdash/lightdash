@@ -107,8 +107,16 @@ export class ApiSourceCallLimiter {
             if (acquired) return;
             if (this.now().getTime() >= giveUpAt) {
                 throw new TooManyRequestsError(
-                    `Connection "${connection.name}" is already running ${limits.concurrentCalls} queries at once. Retry in ${BUSY_RETRY_AFTER_SECONDS} seconds.`,
-                    { retryAfterSeconds: BUSY_RETRY_AFTER_SECONDS },
+                    `Live data source "${connection.name}" is already running ${limits.concurrentCalls} queries at once. Retry in ${BUSY_RETRY_AFTER_SECONDS} seconds.`,
+                    {
+                        retryAfterSeconds: BUSY_RETRY_AFTER_SECONDS,
+                        // Our own limit, not the API's
+                        liveSourceErrorCode:
+                            'live_source.internal.concurrency_limit',
+                        liveSourceErrorCodes: [
+                            'live_source.internal.concurrency_limit',
+                        ],
+                    },
                 );
             }
             // eslint-disable-next-line no-await-in-loop
@@ -143,7 +151,7 @@ export class ApiSourceCallLimiter {
             ),
         );
         throw new TooManyRequestsError(
-            `Connection "${connection.name}" reached its limit of ${limit} calls per ${unit}. Retry after ${retryAfterSeconds} seconds.`,
+            `Live data source "${connection.name}" reached its limit of ${limit} calls per ${unit}. Retry after ${retryAfterSeconds} seconds.`,
             { retryAfterSeconds },
         );
     }

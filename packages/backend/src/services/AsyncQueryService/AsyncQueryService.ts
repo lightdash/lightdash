@@ -191,8 +191,7 @@ import {
     type FieldValueSearchResult,
     type Filters,
     type InvalidateExploresResultsCache,
-    type LiveSourceInternalErrorCode,
-    type LiveSourceUpstreamErrorCode,
+    type LiveSourceErrorCode,
     type MergeQueryChart,
     type MergeQueryExecutionMode,
     type Organization,
@@ -417,8 +416,8 @@ import {
 } from '../QuerySourceService/live/explores/build';
 import { toLiveQueryError } from '../QuerySourceService/live/explores/definition';
 import {
+    getLiveQueryFailure,
     getLiveQueryOutcome,
-    getLiveSourceQueryErrorCode,
     isLiveSourceErrorReportable,
     type LiveQueryOutcome,
 } from '../QuerySourceService/live/query/outcome';
@@ -13472,6 +13471,7 @@ export class AsyncQueryService extends ProjectService {
             query: payload.query,
             rowLimit: limit,
             outcome: 'ok',
+            errorCode: null,
             errorMessage: null,
             durationMs: Date.now() - queryCreatedAt.getTime(),
             rowCount: stored.totalRowCount,
@@ -13534,6 +13534,7 @@ export class AsyncQueryService extends ProjectService {
                     call: Pick<
                         LiveQueryCall,
                         | 'outcome'
+                        | 'errorCode'
                         | 'errorMessage'
                         | 'rowCount'
                         | 'columnCount'
@@ -13550,16 +13551,23 @@ export class AsyncQueryService extends ProjectService {
                         ...call,
                     });
                 try {
-                    const result = await this.traceComposerQueryStage(
-                        'api',
-                        'execute',
-                        {
-                            op: 'http.client',
-                            name: 'api.query.execute',
-                            attributes,
-                        },
-                        () => this.executeLiveRequest(source, payload, limit),
-                    );
+                    const { result, shaped } =
+                        await this.traceComposerQueryStage(
+                            'api',
+                            'execute',
+                            {
+                                op: 'http.client',
+                                name: 'api.query.execute',
+                                attributes,
+                            },
+                            () =>
+                                this.executeLiveRequest(
+                                    source,
+                                    payload,
+                                    limit,
+                                    toResult,
+                                ),
+                        );
                     executeMs = Date.now() - startedAt;
                     span.setAttributes({
                         'lightdash.rowCount': result.rows.length,
@@ -13570,7 +13578,6 @@ export class AsyncQueryService extends ProjectService {
                             : {}),
                     });
 
-                    const shaped = toResult(result);
                     const resultsStorageClient =
                         this.getResultsStorageClientForContext(context);
                     if (!resultsStorageClient.isEnabled) {
@@ -13651,6 +13658,7 @@ export class AsyncQueryService extends ProjectService {
                     });
                     logCall({
                         outcome: 'ok',
+                        errorCode: null,
                         errorMessage: null,
                         rowCount: shaped.rows.length,
                         columnCount: Object.keys(shaped.columns).length,
@@ -13665,8 +13673,7 @@ export class AsyncQueryService extends ProjectService {
                     );
                 } catch (e) {
                     const message = getErrorMessage(e);
-                    const outcome = getLiveQueryOutcome(e);
-                    const errorCode = getLiveSourceQueryErrorCode(outcome);
+                    const { outcome, errorCode } = getLiveQueryFailure(e);
                     span.setAttributes({
                         'lightdash.error': message,
                         ...(errorCode
@@ -13751,6 +13758,7 @@ export class AsyncQueryService extends ProjectService {
                     });
                     logCall({
                         outcome,
+                        errorCode,
                         errorMessage: message,
                         rowCount: null,
                         columnCount: null,
@@ -13777,12 +13785,19 @@ export class AsyncQueryService extends ProjectService {
             : null;
     }
 
-    /** One live query, measured by outcome; rethrows what it caught. */
+    /**
+     * One live query, shaped into result rows and measured by outcome, so a
+     * refusal of the rows read counts as one; rethrows what it caught.
+     */
     private async executeLiveRequest(
         source: MeteredLiveSource,
         payload: ApiSourcePayload,
         limit: number,
-    ): Promise<LiveQueryResult> {
+        toResult: ApiResultShaper,
+    ): Promise<{
+        result: LiveQueryResult;
+        shaped: ReturnType<ApiResultShaper>;
+    }> {
         const connectorType = source.integration.connector;
         const startedAt = Date.now();
         this.prometheusMetrics?.trackApiSourceInflight(connectorType, 1);
@@ -13791,6 +13806,7 @@ export class AsyncQueryService extends ProjectService {
                 query: payload.query,
                 limit,
             });
+            const shaped = toResult(result);
             this.prometheusMetrics?.observeApiSourceRequest(
                 connectorType,
                 'ok',
@@ -13801,7 +13817,7 @@ export class AsyncQueryService extends ProjectService {
                     connectorType,
                 );
             }
-            return result;
+            return { result, shaped };
         } catch (error) {
             this.prometheusMetrics?.observeApiSourceRequest(
                 connectorType,
@@ -13839,10 +13855,7 @@ export class AsyncQueryService extends ProjectService {
         connector: ApiConnectorType;
         queryCreatedAt: Date;
         outcome: LiveQueryOutcome;
-        errorCode?:
-            | LiveSourceInternalErrorCode
-            | LiveSourceUpstreamErrorCode
-            | null;
+        errorCode?: LiveSourceErrorCode | null;
         errorMessage: string | null;
         totalRowCount: number | null;
         columnsCount: number | null;

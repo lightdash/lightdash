@@ -291,6 +291,7 @@ import {
     validExplore,
 } from '../ProjectService/ProjectService.mock';
 import { buildLiveExplores } from '../QuerySourceService/live/explores/build';
+import { tooManyRowsError } from '../QuerySourceService/live/query/rows';
 import { QuerySourceRegistry } from '../QuerySourceService/QuerySourceRegistry';
 import { QuerySourceService } from '../QuerySourceService/QuerySourceService';
 import { SemanticLayerQuerySource } from '../QuerySourceService/sources/SemanticLayerQuerySource';
@@ -6262,6 +6263,42 @@ describe('AsyncQueryService', () => {
 
             expect(queryHistoryModel.update).not.toHaveBeenCalled();
         });
+    });
+
+    test('a refusal of the rows read is measured as a refusal, not a success', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const prometheusMetrics = {
+            trackApiSourceInflight: vi.fn(),
+            observeApiSourceRequest: vi.fn(),
+            incrementApiSourceTruncated: vi.fn(),
+        };
+        Object.assign(service, { prometheusMetrics });
+        const source = {
+            integration: {
+                connector: 'github',
+                parseRequest: (query: string) => query,
+                run: async () => ({ columns: [], rows: [], hasMoreRows: true }),
+            },
+            settings: {},
+            calls: {},
+        };
+        await expect(
+            service['executeLiveRequest'](
+                source as never,
+                { query: '{}' } as never,
+                10,
+                () => {
+                    throw tooManyRowsError({ label: 'GitHub', maxRows: 999 });
+                },
+            ),
+        ).rejects.toThrow('more than 999 rows');
+        expect(
+            prometheusMetrics.observeApiSourceRequest,
+        ).toHaveBeenCalledExactlyOnceWith(
+            'github',
+            'invalid_request',
+            expect.any(Number),
+        );
     });
 
     test('a live explore skips pre-aggregate routing', async () => {
