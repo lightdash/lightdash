@@ -1478,6 +1478,10 @@ export class AsyncQueryService extends ProjectService {
         aiPlan: AiExecutionPlan | null;
         warehouseCredentials: ResolvedWarehouseCredentials;
     }): Promise<PreAggregationRoutingDecision> {
+        // Live explores have no warehouse to materialize into
+        if (explore.type === ExploreType.API_SOURCE) {
+            return { target: 'warehouse' };
+        }
         const identityChecksEnabled =
             identityEnabled ?? (await this.isResultIdentityEnabled(account));
         const bypassPreAggregates =
