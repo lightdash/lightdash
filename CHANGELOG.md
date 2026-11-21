@@ -1,3 +1,10 @@
+# [3.361.0](https://github.com/lightdash/lightdash/compare/3.360.0...3.361.0) (2026-11-21)
+
+
+### Features
+
+* **live-sources:** read four Salesforce objects from one source ([#33102](https://github.com/lightdash/lightdash/issues/33102)) ([f86d724](https://github.com/lightdash/lightdash/commit/f86d7245fcd54789f1fc63ca92e3ba2402ca4fdc)), closes [#33101](https://github.com/lightdash/lightdash/issues/33101)
+
 # [3.360.0](https://github.com/lightdash/lightdash/compare/3.359.1...3.360.0) (2026-11-21)
 
 

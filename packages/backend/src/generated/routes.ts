@@ -16417,26 +16417,11 @@ const models: TsoaRoute.Models = {
         enums: ['salesforce'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SalesforceObject: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['Opportunity'] },
-                { dataType: 'enum', enums: ['Account'] },
-                { dataType: 'enum', enums: ['Lead'] },
-                { dataType: 'enum', enums: ['Contact'] },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SalesforceApiSource: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                object: { ref: 'SalesforceObject', required: true },
                 connector: {
                     ref: 'ApiConnectorType.SALESFORCE',
                     required: true,
@@ -93118,12 +93103,6 @@ export function RegisterRoutes(app: Router) {
             dataType: 'string',
         },
         name: { in: 'query', name: 'name', required: true, dataType: 'string' },
-        object: {
-            in: 'query',
-            name: 'object',
-            required: true,
-            dataType: 'string',
-        },
         connectionUuid: {
             in: 'query',
             name: 'connectionUuid',
