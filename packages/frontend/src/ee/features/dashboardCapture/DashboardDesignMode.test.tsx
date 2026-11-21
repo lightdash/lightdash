@@ -48,6 +48,7 @@ const mocks = vi.hoisted(() => ({
         on: false,
         setOn: vi.fn(),
         session: { bubbles: [], active: { kind: 'page' } } as unknown,
+        screenChanged: vi.fn(),
         arm: vi.fn(),
         send: vi.fn(),
     },

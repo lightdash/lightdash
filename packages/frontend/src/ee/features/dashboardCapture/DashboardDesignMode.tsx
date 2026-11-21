@@ -5,7 +5,14 @@ import {
 } from '@lightdash/common';
 import { Badge, Button, Group, Tooltip, UnstyledButton } from '@mantine/core';
 import { IconPencil } from '@tabler/icons-react';
-import { useCallback, useMemo, useRef, type FC, type ReactNode } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    type FC,
+    type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -198,6 +205,14 @@ const DashboardDesignSurface: FC<Props> = ({
         onBubbleRemoved: null,
     });
     conversations.attach(design);
+
+    // Tiles added, moved or removed, as by an agent's edit: a new screen.
+    const tileLayout = useMemo(
+        () => JSON.stringify(dashboardTiles ?? []),
+        [dashboardTiles],
+    );
+    const { screenChanged } = design;
+    useEffect(() => screenChanged(), [screenChanged, tileLayout]);
 
     const toggle = (
         <Tooltip label="Design Mode" position="top">
