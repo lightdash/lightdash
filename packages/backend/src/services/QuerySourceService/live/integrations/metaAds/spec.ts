@@ -16,13 +16,9 @@ export const metaAdsSpec: LiveIntegrationSpec = {
         token: true,
         oauth: 'needs_review',
     },
-    limits: {
-        paging: {
-            description: '500 rows a page, up to 10 pages (5,000 rows).',
-        },
-        rateLimiting: {
-            description:
-                "Load counted per app and ad account; Meta publishes no fixed number. Kept well below what Meta's best-practices page warns about.",
-        },
+    paging: { description: '500 rows a page, up to 10 pages (5,000 rows).' },
+    rateLimiting: {
+        description:
+            "Load counted per app and ad account; Meta publishes no fixed number. Kept well below what Meta's best-practices page warns about.",
     },
 };

@@ -16,13 +16,9 @@ export const attioSpec: LiveIntegrationSpec = {
         token: true,
         oauth: 'no_review',
     },
-    limits: {
-        paging: {
-            description: '500 records a page, up to 20 pages (9,999 rows).',
-        },
-        rateLimiting: {
-            description:
-                '100 reads a second per workspace; list queries scored by filters and sorts over 10 seconds. Well under the read limit; filter-heavy queries are scored more tightly.',
-        },
+    paging: { description: '500 records a page, up to 20 pages (9,999 rows).' },
+    rateLimiting: {
+        description:
+            '100 reads a second per workspace; list queries scored by filters and sorts over 10 seconds. Well under the read limit; filter-heavy queries are scored more tightly.',
     },
 };

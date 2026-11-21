@@ -16,14 +16,12 @@ export const hubspotSpec: LiveIntegrationSpec = {
         token: true,
         oauth: 'no_review',
     },
-    limits: {
-        paging: {
-            description:
-                '200 records a page, up to 5 pages (1,000 rows); counts and lists both page.',
-        },
-        rateLimiting: {
-            description:
-                'About 5 searches a second per account; private apps 100 to 190 calls per 10 seconds by plan. Stays well under 5 searches a second, since one query can page 5 times.',
-        },
+    paging: {
+        description:
+            '200 records a page, up to 5 pages (1,000 rows); counts and lists both page.',
+    },
+    rateLimiting: {
+        description:
+            'About 5 searches a second per account; private apps 100 to 190 calls per 10 seconds by plan. Stays well under 5 searches a second, since one query can page 5 times.',
     },
 };

@@ -16,11 +16,9 @@ export const googleAdsSpec: LiveIntegrationSpec = {
         token: false,
         oauth: 'needs_review',
     },
-    limits: {
-        paging: { description: 'One call, up to 9,999 rows.' },
-        rateLimiting: {
-            description:
-                "Daily operations shared by every connection of the server's Google client (2,880 at Explorer access). So one source can't use up the shared daily operations.",
-        },
+    paging: { description: 'One call, up to 9,999 rows.' },
+    rateLimiting: {
+        description:
+            "Daily operations shared by every connection of the server's Google client (2,880 at Explorer access). So one source can't use up the shared daily operations.",
     },
 };

@@ -16,14 +16,12 @@ export const githubSpec: LiveIntegrationSpec = {
         token: true,
         oauth: 'no_review',
     },
-    limits: {
-        paging: {
-            description:
-                '100 results a page, up to 10 pages; search stops at 1,000 results.',
-        },
-        rateLimiting: {
-            description:
-                "Search: 30 calls a minute per token. REST: 5,000 an hour. Matches search's 30 a minute exactly, which leaves no room for the token's other users.",
-        },
+    paging: {
+        description:
+            '100 results a page, up to 10 pages; search stops at 1,000 results.',
+    },
+    rateLimiting: {
+        description:
+            "Search: 30 calls a minute per token. REST: 5,000 an hour. Matches search's 30 a minute exactly, which leaves no room for the token's other users.",
     },
 };

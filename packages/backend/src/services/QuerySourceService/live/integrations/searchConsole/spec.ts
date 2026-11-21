@@ -15,11 +15,9 @@ export const searchConsoleSpec: LiveIntegrationSpec = {
         token: false,
         oauth: 'needs_review',
     },
-    limits: {
-        paging: { description: 'One call, up to 24,999 rows.' },
-        rateLimiting: {
-            description:
-                'Search Analytics: 1,200 queries a minute per site and per user. Half the per-minute limit.',
-        },
+    paging: { description: 'One call, up to 24,999 rows.' },
+    rateLimiting: {
+        description:
+            'Search Analytics: 1,200 queries a minute per site and per user. Half the per-minute limit.',
     },
 };

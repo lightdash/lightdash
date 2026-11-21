@@ -22,34 +22,18 @@ export type LiveAuthNeed =
     | 'vendor_approval'
     | 'sales_contract';
 
-/**
- * - `answer`: answerable today
- * - `needs_change`: the API could answer it, but the integration needs a change
- * - `api_cant`: the tool's live API can't give it; only ingestion would
- */
-export type LiveUseCaseExpect = 'answer' | 'needs_change' | 'api_cant';
-
-/**
- * - `unverified`: no test run confirmed `expect`; it is read from the code
- * - `no_data`: the test accounts were too empty to check
- * - `capped`: right only while the records read stay under the row limit
- */
-export type LiveUseCaseTag = 'unverified' | 'no_data' | 'capped';
-
-type LiveUseCaseVerdict = {
+type LiveUseCaseBase = {
     /** Stable: test results are kept against it. */
     id: string;
-    expect: LiveUseCaseExpect;
-    /** What answers it today, or what stands in the way. */
-    why: string;
-    tags?: LiveUseCaseTag[];
+    /** Whether the integration can answer it today. */
+    possible: boolean;
 };
 
 /** A question people expect to ask, for agents to test the integration with. */
-export type LiveUseCaseQuestion = LiveUseCaseVerdict & { question: string };
+export type LiveUseCaseQuestion = LiveUseCaseBase & { question: string };
 
 /** A tile of a dashboard people expect to build. */
-export type LiveUseCaseChart = LiveUseCaseVerdict & {
+export type LiveUseCaseChart = LiveUseCaseBase & {
     title: string;
     detail: string;
 };
@@ -98,14 +82,8 @@ export type LiveIntegrationSpec = {
         token: boolean;
         oauth: 'none' | 'no_review' | 'needs_review';
     };
-    /**
-     * What the vendor's API caps, and why the integration's own limits sit
-     * where they do. One entry per kind of limit.
-     */
-    limits: {
-        /** How results page and where they stop. */
-        paging: { description: string };
-        /** Calls per second, minute or day. */
-        rateLimiting: { description: string };
-    };
+    /** How the vendor's API pages results and where it stops. */
+    paging: { description: string };
+    /** The vendor's rate limits, and why the integration's own sit where they do. */
+    rateLimiting: { description: string };
 };

@@ -15,11 +15,9 @@ export const ga4Spec: LiveIntegrationSpec = {
         token: false,
         oauth: 'needs_review',
     },
-    limits: {
-        paging: { description: 'One report call, up to 24,999 rows.' },
-        rateLimiting: {
-            description:
-                'Standard properties: 10 requests at once, plus hourly and daily tokens per property. Half the concurrent limit; Google reports token use back.',
-        },
+    paging: { description: 'One report call, up to 24,999 rows.' },
+    rateLimiting: {
+        description:
+            'Standard properties: 10 requests at once, plus hourly and daily tokens per property. Half the concurrent limit; Google reports token use back.',
     },
 };

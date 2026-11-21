@@ -15,11 +15,9 @@ export const youtubeAnalyticsSpec: LiveIntegrationSpec = {
         token: false,
         oauth: 'needs_review',
     },
-    limits: {
-        paging: { description: 'One call, up to 9,999 rows.' },
-        rateLimiting: {
-            description:
-                'Google publishes no per-minute figure for YouTube Analytics. Matches GA4.',
-        },
+    paging: { description: 'One call, up to 9,999 rows.' },
+    rateLimiting: {
+        description:
+            'Google publishes no per-minute figure for YouTube Analytics. Matches GA4.',
     },
 };

@@ -16,11 +16,9 @@ export const linkedInAdsSpec: LiveIntegrationSpec = {
         token: false,
         oauth: 'needs_review',
     },
-    limits: {
-        paging: { description: 'One call, up to 14,999 rows.' },
-        rateLimiting: {
-            description:
-                "Daily per-app and per-member limits shown in LinkedIn's developer portal, not published as fixed numbers. Same defaults as the other ads integrations.",
-        },
+    paging: { description: 'One call, up to 14,999 rows.' },
+    rateLimiting: {
+        description:
+            "Daily per-app and per-member limits shown in LinkedIn's developer portal, not published as fixed numbers. Same defaults as the other ads integrations.",
     },
 };
