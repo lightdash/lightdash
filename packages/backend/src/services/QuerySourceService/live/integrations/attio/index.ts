@@ -87,8 +87,7 @@ export const attioIntegration = defineLiveIntegration({
     plannedModelNames: [],
     level: {
         value: 2,
-        description:
-            'No. Attio has no aggregates, so counts are computed locally.',
+        description: 'No. Attio has no aggregates; it returns records only.',
     },
     auth: {
         description:
@@ -98,10 +97,10 @@ export const attioIntegration = defineLiveIntegration({
         token: true,
         oauth: 'no_review',
     },
-    paging: { description: '500 records a page, up to 20 pages (9,999 rows).' },
+    paging: { description: 'Up to 500 records a page, with limit and offset.' },
     rateLimiting: {
         description:
-            '100 reads a second per workspace; list queries scored by filters and sorts over 10 seconds. Well under the read limit; filter-heavy queries are scored more tightly.',
+            '100 reads a second per workspace; list queries are scored by their filters and sorts over 10 seconds.',
     },
     useCases: attioUseCases,
     validate: ({ object }) => {

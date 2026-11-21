@@ -97,16 +97,19 @@ export const ga4Integration = defineLiveIntegration({
     },
     auth: {
         description:
-            'Offers OAuth sign-in. Needs Google verification of the scope (in review since 17 Nov). Until then: a warning screen and a 100-user cap.',
+            'Offers OAuth sign-in. Needs Google verification of the scope; unverified apps show a warning screen and are capped at 100 users.',
         testWith: 'test_account',
         needs: ['gmail'],
         token: false,
         oauth: 'needs_review',
     },
-    paging: { description: 'One report call, up to 24,999 rows.' },
+    paging: {
+        description:
+            'One report call returns up to 250,000 rows; offset pages beyond that.',
+    },
     rateLimiting: {
         description:
-            'Standard properties: 10 requests at once, plus hourly and daily tokens per property. Half the concurrent limit; Google reports token use back.',
+            'Standard properties: 10 requests at once, plus hourly and daily quota tokens per property.',
     },
     useCases: ga4UseCases,
     validate: ({ propertyId }) => {

@@ -7,16 +7,18 @@ import { type ApiConnectorType } from '@lightdash/common';
  */
 export type LiveIntegrationLevel = 1 | 2 | 3 | 4 | 5;
 
+/** Where a tester gets real data; `unknown` when no way is known. */
 export type LiveAuthTestWith =
     | 'test_account'
-    | 'our_account'
+    | 'real_account'
     | 'paid_account'
-    | 'cant_test';
+    | 'unknown';
 
+/** What a tester must provide beyond a password; `invite` is someone with access adding them. */
 export type LiveAuthNeed =
     | 'gmail'
     | 'phone'
-    | 'someone_adds_us'
+    | 'invite'
     | 'card'
     | 'real_person'
     | 'vendor_approval'
@@ -71,7 +73,7 @@ export type LiveIntegrationSpec = {
      */
     level: { value: LiveIntegrationLevel; description: string };
     /**
-     * How hard access is, for us to test and for customers to connect.
+     * How hard access is, for testers and for customers connecting.
      * Token and OAuth are separate ways in.
      */
     auth: {
@@ -84,7 +86,7 @@ export type LiveIntegrationSpec = {
     };
     /** How the vendor's API pages results and where it stops. */
     paging: { description: string };
-    /** The vendor's rate limits, and why the integration's own sit where they do. */
+    /** The vendor's rate limits. */
     rateLimiting: { description: string };
     /** What people expect to ask it and build with it, and whether each is possible today. */
     useCases: LiveUseCases;

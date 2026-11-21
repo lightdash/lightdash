@@ -102,10 +102,13 @@ export const linkedInAdsIntegration = defineLiveIntegration({
         token: false,
         oauth: 'needs_review',
     },
-    paging: { description: 'One call, up to 14,999 rows.' },
+    paging: {
+        description:
+            'One adAnalytics call returns up to 15,000 rows, with no paging.',
+    },
     rateLimiting: {
         description:
-            "Daily per-app and per-member limits shown in LinkedIn's developer portal, not published as fixed numbers. Same defaults as the other ads integrations.",
+            "Daily per-app and per-member limits shown in LinkedIn's developer portal, not published as fixed numbers.",
     },
     useCases: linkedInAdsUseCases,
     validate: ({ adAccountId }) => {

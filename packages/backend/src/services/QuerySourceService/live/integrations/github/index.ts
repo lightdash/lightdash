@@ -100,7 +100,7 @@ export const githubIntegration = defineLiveIntegration({
     level: {
         value: 2,
         description:
-            'Counts only. Search returns a total count for a filter; anything else is aggregated locally after paging.',
+            'Counts only. Search returns a total count for a filter; nothing else is totalled.',
     },
     auth: {
         description:
@@ -112,11 +112,11 @@ export const githubIntegration = defineLiveIntegration({
     },
     paging: {
         description:
-            '100 results a page, up to 10 pages; search stops at 1,000 results.',
+            'Search returns 100 results a page and stops at 1,000 results.',
     },
     rateLimiting: {
         description:
-            "Search: 30 calls a minute per token. REST: 5,000 an hour. Matches search's 30 a minute exactly, which leaves no room for the token's other users.",
+            'Search: 30 calls a minute per token. REST: 5,000 calls an hour.',
     },
     useCases: githubUseCases,
     validate: ({ owner, repo }) => {

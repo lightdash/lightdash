@@ -105,10 +105,13 @@ export const googleAdsIntegration = defineLiveIntegration({
         token: false,
         oauth: 'needs_review',
     },
-    paging: { description: 'One call, up to 9,999 rows.' },
+    paging: {
+        description:
+            'GAQL search returns results in pages of up to 10,000 rows.',
+    },
     rateLimiting: {
         description:
-            "Daily operations shared by every connection of the server's Google client (2,880 at Explorer access). So one source can't use up the shared daily operations.",
+            'Daily operations per developer token, shared by every account it serves (2,880 at Explorer access).',
     },
     useCases: googleAdsUseCases,
     validate: ({ customerId, loginCustomerId }) => {

@@ -87,16 +87,19 @@ export const youtubeAnalyticsIntegration = defineLiveIntegration({
     },
     auth: {
         description:
-            'Offers OAuth sign-in. Needs Google verification of the scope (in review since 17 Nov). Until then: a warning screen and a 100-user cap.',
-        testWith: 'our_account',
-        needs: ['gmail', 'someone_adds_us'],
+            'Offers OAuth sign-in. Needs Google verification of the scope; unverified apps show a warning screen and are capped at 100 users.',
+        testWith: 'real_account',
+        needs: ['gmail', 'invite'],
         token: false,
         oauth: 'needs_review',
     },
-    paging: { description: 'One call, up to 9,999 rows.' },
+    paging: {
+        description:
+            'One report call; startIndex and maxResults page larger results.',
+    },
     rateLimiting: {
         description:
-            'Google publishes no per-minute figure for YouTube Analytics. Matches GA4.',
+            'Google publishes no per-minute figure for YouTube Analytics.',
     },
     useCases: youtubeAnalyticsUseCases,
     validate: ({ channelId }) => {

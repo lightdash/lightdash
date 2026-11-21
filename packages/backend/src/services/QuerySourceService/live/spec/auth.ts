@@ -2,9 +2,9 @@ import { type LiveAuthNeed, type LiveIntegrationSpec } from './types';
 
 const TEST_WITH_POINTS = {
     test_account: 3,
-    our_account: 2,
+    real_account: 2,
     paid_account: 1,
-    cant_test: 0,
+    unknown: 0,
 } as const;
 
 const BLOCKING_NEEDS = new Set<LiveAuthNeed>([
@@ -14,7 +14,7 @@ const BLOCKING_NEEDS = new Set<LiveAuthNeed>([
     'sales_contract',
 ]);
 
-/** Gmail alone 2; plus a phone or someone adding us 1; anything blocking 0. */
+/** Gmail alone 2; plus a phone or an invite 1; anything blocking 0. */
 const getNeedsPoints = (needs: LiveAuthNeed[]) => {
     if (needs.some((need) => BLOCKING_NEEDS.has(need))) return 0;
     return needs.length === 1 && needs[0] === 'gmail' ? 2 : 1;

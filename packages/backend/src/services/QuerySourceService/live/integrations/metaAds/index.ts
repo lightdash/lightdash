@@ -87,10 +87,10 @@ export const metaAdsIntegration = defineLiveIntegration({
         token: true,
         oauth: 'needs_review',
     },
-    paging: { description: '500 rows a page, up to 10 pages (5,000 rows).' },
+    paging: { description: 'Insights pages results with cursors.' },
     rateLimiting: {
         description:
-            "Load counted per app and ad account; Meta publishes no fixed number. Kept well below what Meta's best-practices page warns about.",
+            'Load is counted per app and ad account; Meta publishes no fixed number.',
     },
     useCases: metaAdsUseCases,
     validate: ({ adAccountId }) => {

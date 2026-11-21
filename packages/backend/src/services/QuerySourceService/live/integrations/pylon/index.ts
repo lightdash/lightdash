@@ -96,23 +96,22 @@ export const pylonIntegration = defineLiveIntegration({
     plannedModelNames: ['messages', 'users', 'teams'],
     level: {
         value: 2,
-        description:
-            'No. Filtered search returns records; totals are computed locally.',
+        description: 'No. Filtered search returns records but no totals.',
     },
     auth: {
         description: 'Offers a token. No vendor review is needed.',
-        testWith: 'our_account',
-        needs: ['gmail', 'someone_adds_us'],
+        testWith: 'real_account',
+        needs: ['gmail', 'invite'],
         token: true,
         oauth: 'none',
     },
     paging: {
         description:
-            '1,000 records a page, up to 10 pages, plus name lookups (up to 23 calls a query).',
+            'Search returns up to 1,000 records a page, with a cursor.',
     },
     rateLimiting: {
         description:
-            '120 calls a minute per search endpoint, per workspace; no limit on calls at once. A query can make 23 calls, so 2 at a time keeps a busy dashboard under 120 a minute.',
+            '120 calls a minute per search endpoint, per workspace; no limit on calls at once.',
     },
     useCases: pylonUseCases,
     validate: () => {},

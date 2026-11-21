@@ -102,7 +102,7 @@ export const salesforceIntegration = defineLiveIntegration({
     level: {
         value: 4,
         description:
-            'Yes. SOQL supports GROUP BY and aggregate functions (COUNT, SUM, AVG), so Salesforce does the work. Results come back in batches of up to 2,000 rows.',
+            'Yes. SOQL supports GROUP BY and aggregate functions (COUNT, SUM, AVG), so Salesforce does the work.',
     },
     auth: {
         description: 'Offers OAuth sign-in. No vendor review is needed.',
@@ -113,11 +113,11 @@ export const salesforceIntegration = defineLiveIntegration({
     },
     paging: {
         description:
-            'Records in batches of 2,000, up to 9,999 rows; aggregate queries are one call up to 2,000 groups.',
+            'Records come in batches of up to 2,000, followed by a next-records URL; aggregate queries return up to 2,000 groups.',
     },
     rateLimiting: {
         description:
-            "API calls per 24 hours per org (15,000 on Developer Edition, 100,000 and up on paid), shared with the org's other apps. 500 an hour keeps one source under the smallest daily allowance.",
+            "API calls per 24 hours per org (15,000 on Developer Edition, 100,000 and up on paid), shared with the org's other apps.",
     },
     useCases: salesforceUseCases,
     validate: () => {},

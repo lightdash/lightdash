@@ -82,16 +82,19 @@ export const searchConsoleIntegration = defineLiveIntegration({
     },
     auth: {
         description:
-            'Offers OAuth sign-in. Needs Google verification of the scope (in review since 17 Nov). Until then: a warning screen and a 100-user cap.',
-        testWith: 'our_account',
-        needs: ['gmail', 'someone_adds_us'],
+            'Offers OAuth sign-in. Needs Google verification of the scope; unverified apps show a warning screen and are capped at 100 users.',
+        testWith: 'real_account',
+        needs: ['gmail', 'invite'],
         token: false,
         oauth: 'needs_review',
     },
-    paging: { description: 'One call, up to 24,999 rows.' },
+    paging: {
+        description:
+            'One call returns up to 25,000 rows; startRow pages beyond that.',
+    },
     rateLimiting: {
         description:
-            'Search Analytics: 1,200 queries a minute per site and per user. Half the per-minute limit.',
+            'Search Analytics: 1,200 queries a minute per site and per user.',
     },
     useCases: searchConsoleUseCases,
     validate: ({ siteUrl }) => {

@@ -89,8 +89,7 @@ export const hubspotIntegration = defineLiveIntegration({
     plannedModelNames: [],
     level: {
         value: 2,
-        description:
-            'No. Search filters records, but totals are computed locally after paging, so live queries only work for small filtered slices.',
+        description: 'No. Search filters records but returns no totals.',
     },
     auth: {
         description:
@@ -102,11 +101,11 @@ export const hubspotIntegration = defineLiveIntegration({
     },
     paging: {
         description:
-            '200 records a page, up to 5 pages (1,000 rows); counts and lists both page.',
+            'Search returns up to 200 records a page and stops at 10,000 results.',
     },
     rateLimiting: {
         description:
-            'About 5 searches a second per account; private apps 100 to 190 calls per 10 seconds by plan. Stays well under 5 searches a second, since one query can page 5 times.',
+            'About 5 searches a second per account; private apps 100 to 190 calls per 10 seconds by plan.',
     },
     useCases: hubspotUseCases,
     validate: () => {},

@@ -1,5 +1,5 @@
 // What people expect to ask across several tools, or a tool joined to the
-// company's warehouse, and whether composer answers it today.
+// company's warehouse, and whether each is possible today.
 import { ApiConnectorType } from '@lightdash/common';
 import type { LiveCrossToolUseCases } from './types';
 
