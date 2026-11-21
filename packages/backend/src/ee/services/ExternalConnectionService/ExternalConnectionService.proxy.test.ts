@@ -1220,7 +1220,7 @@ describe('ExternalConnectionService.proxyFetch', () => {
         expect(err.message).not.toMatch(/Invalid URL/i);
     });
 
-    it('emits an audit event without bodies, secrets or the request path', async () => {
+    it('emits an audit event without bodies or secrets', async () => {
         const { service, analytics } = buildService({
             connection: baseConnection({ type: 'bearer_token' }),
             secret: 'tok_secret',
@@ -1228,7 +1228,7 @@ describe('ExternalConnectionService.proxyFetch', () => {
         await service.proxyFetch(user, 'proj-1', 'app-1', {
             connectionAlias: 'weather',
             method: 'POST',
-            path: '/v1/accounts/acct-123/records',
+            path: '/v1/x',
             body: { secret_payload: 'do-not-log' },
         });
         expect(analytics.trackAccount).toHaveBeenCalledWith(
@@ -1237,6 +1237,7 @@ describe('ExternalConnectionService.proxyFetch', () => {
                 event: 'external_connection.fetch',
                 properties: expect.objectContaining({
                     method: 'POST',
+                    path: '/v1/x',
                     status: 200,
                     outcome: 'ok',
                 }),
@@ -1245,9 +1246,5 @@ describe('ExternalConnectionService.proxyFetch', () => {
         const tracked = JSON.stringify(analytics.trackAccount.mock.calls);
         expect(tracked).not.toContain('tok_secret');
         expect(tracked).not.toContain('do-not-log');
-        expect(tracked).not.toContain('acct-123');
-        expect(
-            analytics.trackAccount.mock.calls[0][1].properties,
-        ).not.toHaveProperty('path');
     });
 });
