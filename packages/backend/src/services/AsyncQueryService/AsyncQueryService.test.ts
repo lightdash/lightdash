@@ -6264,6 +6264,28 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    test('a live explore skips pre-aggregate routing', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const getRoutingDecision = vi.fn(() => ({
+            target: 'pre_aggregate' as const,
+        }));
+        Object.assign(service, {
+            preAggregateStrategy: { getRoutingDecision },
+        });
+        await expect(
+            service['getPreAggregationRoutingDecision']({
+                account: sessionAccount,
+                metricQuery: metricQueryMock,
+                explore: { ...validExplore, type: ExploreType.API_SOURCE },
+                context: QueryExecutionContext.EXPLORE,
+                forceWarehouse: false,
+                warehouseCredentials: warehouseCredentialsMock,
+                aiPlan: null,
+            }),
+        ).resolves.toEqual({ target: 'warehouse' });
+        expect(getRoutingDecision).not.toHaveBeenCalled();
+    });
+
     test.each([
         aiExecutionPlanMock,
         aiServiceAccountPlanMock,
