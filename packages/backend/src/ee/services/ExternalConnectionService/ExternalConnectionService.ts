@@ -3803,6 +3803,7 @@ export class ExternalConnectionService extends BaseService {
                 connectionAlias: req.connectionAlias,
                 connection,
                 method,
+                path: req.path,
                 status: null,
                 outcome: 'rate_limited',
                 start,
@@ -3852,6 +3853,7 @@ export class ExternalConnectionService extends BaseService {
                 connectionAlias: req.connectionAlias,
                 connection,
                 method,
+                path: req.path,
                 status: null,
                 outcome,
                 start,
@@ -3881,6 +3883,7 @@ export class ExternalConnectionService extends BaseService {
             connectionAlias: req.connectionAlias,
             connection,
             method,
+            path: req.path,
             status: result.response.status,
             outcome: result.response.status >= 400 ? 'upstream_error' : 'ok',
             start,
@@ -4254,6 +4257,7 @@ export class ExternalConnectionService extends BaseService {
         connectionAlias: string;
         connection: ExternalConnection;
         method: ExternalConnectionMethod;
+        path: string;
         status: number | null;
         outcome: 'ok' | 'rejected' | 'rate_limited' | 'upstream_error';
         start: number;
@@ -4269,6 +4273,7 @@ export class ExternalConnectionService extends BaseService {
                 externalConnectionUuid: args.connection.externalConnectionUuid,
                 connectionAlias: args.connectionAlias,
                 method: args.method,
+                path: args.path,
                 status: args.status,
                 outcome: args.outcome,
                 durationMs: Math.round(performance.now() - args.start),
