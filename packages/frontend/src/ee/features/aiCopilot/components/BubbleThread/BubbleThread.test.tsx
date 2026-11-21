@@ -11,7 +11,9 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockedLightdashApi } from '../../../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../../../testing/testUtils';
+import { buildDesignPrompt } from '../../../capture/buildDesignPrompt';
 import { store } from '../../store';
+import { isAgentThreadQuiet } from '../../streaming/quietAgentThreads';
 import { type AiAgentToolResult } from '../../types';
 import { BubbleThread } from './BubbleThread';
 
@@ -31,6 +33,8 @@ const state = vi.hoisted(() => ({
     threadHookArgs: [] as unknown[][],
     mutationHookArgs: [] as unknown[][],
     isStreaming: false,
+    userMessage: 'Make this chart a bar chart',
+    composerProps: [] as Record<string, unknown>[],
 }));
 
 vi.mock('../../../../../api');
@@ -85,7 +89,7 @@ vi.mock('../../hooks/useProjectAiAgents', async (importOriginal) => ({
                     {
                         role: 'user',
                         uuid: 'prompt-1',
-                        message: 'Make this chart a bar chart',
+                        message: state.userMessage,
                         createdAt: '2026-11-20T09:00:00.000Z',
                         context: [],
                         hidden: false,
@@ -116,32 +120,32 @@ vi.mock('../ChatElements/AgentChatAssistantBubble', () => ({
 }));
 // The composer is covered by its own tests: here it is a reply button.
 vi.mock('../ChatElements/AgentChatInput', () => ({
-    AgentChatInput: ({
-        onSubmit,
-        toolbarStart,
-        loading,
-    }: {
+    AgentChatInput: (props: {
         onSubmit: Submit;
         toolbarStart: ReactNode;
         loading: boolean;
-    }) => (
-        <div>
-            {toolbarStart}
-            <button
-                type="button"
-                disabled={loading}
-                onClick={() =>
-                    void onSubmit({
-                        message: 'Make it blue',
-                        toolHints: [],
-                        context: replyContext,
-                    })
-                }
-            >
-                Send reply
-            </button>
-        </div>
-    ),
+    }) => {
+        state.composerProps.push(props);
+        const { onSubmit, toolbarStart, loading } = props;
+        return (
+            <div>
+                {toolbarStart}
+                <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() =>
+                        void onSubmit({
+                            message: 'Make it blue',
+                            toolHints: [],
+                            context: replyContext,
+                        })
+                    }
+                >
+                    Send reply
+                </button>
+            </div>
+        );
+    },
 }));
 
 type Props = ComponentProps<typeof BubbleThread>;
@@ -201,6 +205,8 @@ describe('BubbleThread', () => {
         state.threadHookArgs = [];
         state.mutationHookArgs = [];
         state.isStreaming = false;
+        state.userMessage = 'Make this chart a bar chart';
+        state.composerProps = [];
         mockedLightdashApi.mockResolvedValue([
             { uuid: 'agent-1', name: 'Data agent', imageUrl: null },
         ] as AiAgentSummary[]);
@@ -313,7 +319,7 @@ describe('BubbleThread', () => {
         expect(state.navigate).not.toHaveBeenCalled();
     });
 
-    it('opens a dashboard the agent made elsewhere', () => {
+    it('stays on the page when the agent makes a dashboard elsewhere', () => {
         window.history.pushState(
             {},
             '',
@@ -327,10 +333,44 @@ describe('BubbleThread', () => {
                 'new-dashboard',
             ),
         );
-        expect(state.navigate).toHaveBeenCalledWith(
-            '/projects/project-1/dashboards/dashboard-2/view',
-            { viewTransition: true },
-        );
+        expect(state.navigate).not.toHaveBeenCalled();
+    });
+
+    it('its reply box takes no focus and keeps one height as the thread scrolls', () => {
+        renderThread();
+        expect(state.composerProps.at(-1)).toMatchObject({
+            autoFocus: false,
+            hideSuggestionsWhenScrolledUp: false,
+        });
+    });
+
+    it('shows a message sent from a bubble as its marks and typed words', () => {
+        state.userMessage = buildDesignPrompt({
+            surfaceHeading: 'These requests are about the dashboard "Sales".',
+            summary:
+                '[Design Mode capture, 0:04. The attached image shows the page with numbered red marks.]\n- ① (0:01) picked the bar "credit_card" on "Revenue"\n- ② (0:02) circled, middle',
+            typed: 'make these orange',
+            hasImages: true,
+        });
+        renderThread();
+        expect(screen.getByLabelText('Mark 1')).toHaveTextContent('1');
+        expect(screen.getByLabelText('Mark 2')).toHaveTextContent('2');
+        expect(screen.getByText('make these orange')).toBeInTheDocument();
+        expect(screen.queryByText(/Design Mode capture/)).toBeNull();
+        expect(screen.queryByText(/These requests are about/)).toBeNull();
+    });
+
+    it('shows any other message the usual way', () => {
+        renderThread();
+        expect(
+            screen.getByText('Make this chart a bar chart'),
+        ).toBeInTheDocument();
+        expect(screen.queryByLabelText('Mark 1')).toBeNull();
+    });
+
+    it("keeps its thread's agent from scrolling the page", () => {
+        renderThread();
+        expect(isAgentThreadQuiet('thread-1')).toBe(true);
     });
 
     it('stays on the page when the agent cannot be fetched', async () => {

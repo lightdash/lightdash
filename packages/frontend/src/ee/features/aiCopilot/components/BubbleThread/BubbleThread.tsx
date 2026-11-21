@@ -1,4 +1,6 @@
 import {
+    type AiAgentMessageUser,
+    type AiAgentUser,
     type AiPromptContext,
     type AiPromptContextInput,
 } from '@lightdash/common';
@@ -17,11 +19,13 @@ import {
     IconPointer,
     IconX,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC } from 'react';
+import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import { createPath, useLocation, useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import useApp from '../../../../../providers/App/useApp';
+import { BUBBLE_DRAG_ATTRIBUTE } from '../../../capture/bubblePointer';
+import { readDesignPrompt } from '../../../capture/buildDesignPrompt';
 import { type BubbleInput } from '../../../capture/designSession';
 import { AgentContainerWidthContext } from '../../hooks/useAgentMaxWidth';
 import { useDashboardPageContextCuration } from '../../hooks/useDashboardPageContextCuration';
@@ -32,10 +36,27 @@ import { AgentChatInput } from '../ChatElements/AgentChatInput';
 import { getPendingAskUser } from '../ChatElements/askUserQuestions';
 import { contextItemsToContentMentionSuggestions } from '../ChatElements/contentMentions';
 import classes from './BubbleThread.module.css';
+import BubbleUserMessage from './BubbleUserMessage';
 import { useBubbleThreadPost } from './useBubbleThreadPost';
 
 // The chat inside lays itself out for this width, not the window's.
 const BUBBLE_WIDTH_PX = 420;
+
+// A message sent from a bubble shows as the marks and words the user gave it.
+const renderUserMessage = (
+    message: AiAgentMessageUser<AiAgentUser>,
+): ReactNode | null => {
+    const read = readDesignPrompt(message.message);
+    if (!read) return null;
+    return (
+        <BubbleUserMessage
+            marks={read.marks}
+            words={[read.said.join(' '), read.typed]
+                .filter((part) => part !== '')
+                .join('\n\n')}
+        />
+    );
+};
 
 // Stylus and Cursor are held keys: their buttons only make this bubble the target.
 const REPLY_TOOLS: {
@@ -189,6 +210,7 @@ export const BubbleThread: FC<Props> = ({
             <Box className={classes.thread}>
                 <Group
                     className={classes.header}
+                    {...{ [BUBBLE_DRAG_ATTRIBUTE]: '' }}
                     gap="xs"
                     wrap="nowrap"
                     justify="space-between"
@@ -228,6 +250,7 @@ export const BubbleThread: FC<Props> = ({
                             agentUuid={agentUuid}
                             renderArtifactsInline
                             onDashboardLinkClick={handleDashboardLinkClick}
+                            renderUserMessage={renderUserMessage}
                             onChoiceSelect={
                                 isInputDisabled || isBusy
                                     ? undefined
@@ -240,6 +263,9 @@ export const BubbleThread: FC<Props> = ({
                         >
                             <AgentChatInput
                                 accessCalloutVariant="inline"
+                                // Another bubble's text box may be in use.
+                                autoFocus={false}
+                                hideSuggestionsWhenScrolledUp={false}
                                 dense
                                 fullWidth
                                 disabled={isInputDisabled}

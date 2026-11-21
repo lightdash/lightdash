@@ -26,9 +26,27 @@
     overflow: hidden;
 }
 
+/* The message list is the one thing that scrolls: the page never scrolls with it. */
+.body > * {
+    overscroll-behavior: contain;
+}
+
 /* The bubble already has a gutter: drop the composer's own. */
 .body [data-layout] {
     padding-left: 0;
     padding-right: 0;
     padding-bottom: 0;
+}
+
+.userMessage {
+    align-self: flex-end;
+    max-width: 85%;
+    overflow: visible;
+    background-color: var(--mantine-color-ldGray-1);
+}
+
+/* A single newline in a message is a line break. */
+.userWords {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }

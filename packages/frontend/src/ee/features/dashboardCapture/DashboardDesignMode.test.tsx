@@ -4,6 +4,7 @@ import { type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { type BubbleReplyPost } from '../aiCopilot/components/BubbleThread/BubbleReplyPoster';
+import { TYPED_WORDS_MARK } from '../capture/buildDesignPrompt';
 import { type Bubble, type DesignSession } from '../capture/designSession';
 import {
     type CaptureMark,
@@ -351,7 +352,7 @@ describe('DashboardDesignMode', () => {
             [
                 'These requests are about the dashboard "Sales".',
                 '- ① (0:01) picked "Title of tile-1"',
-                'make this green',
+                `${TYPED_WORDS_MARK}make this green`,
             ].join('\n\n'),
         );
     });
@@ -395,7 +396,9 @@ describe('DashboardDesignMode', () => {
         expect(posted.context).toEqual([
             { type: 'chart', chartUuid: 'chart-mentioned' },
         ]);
-        expect(posted.buildPrompt(true)).toBe('and this one');
+        expect(posted.buildPrompt(true)).toBe(
+            `${TYPED_WORDS_MARK}and this one`,
+        );
     });
 
     it('shows the agent picker in the bubble that waits on it', () => {
