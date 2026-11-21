@@ -87,7 +87,6 @@ export type ExternalConnectionEvent = BaseTrack &
                   externalConnectionUuid: string;
                   connectionAlias: string;
                   method: ExternalConnectionMethod;
-                  path: string;
                   status: number | null;
                   outcome:
                       | 'ok'
