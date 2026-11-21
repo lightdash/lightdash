@@ -432,6 +432,41 @@ describe('DesignBubble', () => {
             expect(onExpand).toHaveBeenCalledTimes(1);
         });
 
+        it('opened from its pill, focus goes to Minimise', () => {
+            const sent = bubbleWith('text', sendStarted(true), threadReady);
+            const props = {
+                position: { x: 0, y: 0 },
+                scrollsWithPage: false,
+                stack: 0,
+                passthrough: false,
+                listening: false,
+                onRaise: vi.fn(),
+                onMove: vi.fn(),
+                onSend: vi.fn(),
+                onStop: vi.fn(),
+                onDiscard: vi.fn(),
+                onClose: vi.fn(),
+                onMinimise: vi.fn(),
+                onExpand: vi.fn(),
+            };
+            const { rerender } = renderWithProviders(
+                <DesignBubble bubble={sent} {...props}>
+                    <button type="button" data-bubble-pill="">
+                        pill
+                    </button>
+                </DesignBubble>,
+            );
+            fireEvent.click(screen.getByRole('button', { name: 'pill' }));
+            rerender(
+                <DesignBubble bubble={{ ...sent, minimised: false }} {...props}>
+                    <span>thread</span>
+                </DesignBubble>,
+            );
+            expect(
+                screen.getByRole('button', { name: 'Minimise' }),
+            ).toHaveFocus();
+        });
+
         it('takes its colour from the bubble', () => {
             setup(bubbleWith('text'));
             const root = document.querySelector<HTMLElement>(

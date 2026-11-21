@@ -189,10 +189,6 @@ const DesignBubble: FC<Props> = ({
             )
             ?.focus({ preventScroll: true });
     }, [minimised]);
-    const expand = () => {
-        toggledHereRef.current = true;
-        onExpand();
-    };
 
     const sendingRow = (
         <Group gap="xs" wrap="nowrap">
@@ -262,7 +258,7 @@ const DesignBubble: FC<Props> = ({
                         state="working"
                         marks={collected.map((mark) => mark.number)}
                         color={color}
-                        onExpand={expand}
+                        onExpand={onExpand}
                     />
                 ) : (
                     sendingRow
@@ -322,7 +318,16 @@ const DesignBubble: FC<Props> = ({
     );
     // A drag ends in a click on what was dragged: it is not a press.
     const dropClick = (event: ReactMouseEvent) => {
-        if (!draggedRef.current) return;
+        if (!draggedRef.current) {
+            // A press on the pill, whoever drew it, opens the bubble from here.
+            if (
+                event.target instanceof Element &&
+                event.target.closest(`[${BUBBLE_PILL_ATTRIBUTE}]`)
+            ) {
+                toggledHereRef.current = true;
+            }
+            return;
+        }
         draggedRef.current = false;
         event.preventDefault();
         event.stopPropagation();
