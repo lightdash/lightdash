@@ -1,22 +1,37 @@
 import { ApiConnectorType } from '@lightdash/common';
 import { attioSpec } from '../integrations/attio/spec';
+import { attioUseCases } from '../integrations/attio/useCases';
 import { ga4Spec } from '../integrations/ga4/spec';
+import { ga4UseCases } from '../integrations/ga4/useCases';
 import { githubSpec } from '../integrations/github/spec';
+import { githubUseCases } from '../integrations/github/useCases';
 import { googleAdsSpec } from '../integrations/googleAds/spec';
+import { googleAdsUseCases } from '../integrations/googleAds/useCases';
 import { hubspotSpec } from '../integrations/hubspot/spec';
+import { hubspotUseCases } from '../integrations/hubspot/useCases';
 import { linkedInAdsSpec } from '../integrations/linkedInAds/spec';
+import { linkedInAdsUseCases } from '../integrations/linkedInAds/useCases';
 import { metaAdsSpec } from '../integrations/metaAds/spec';
+import { metaAdsUseCases } from '../integrations/metaAds/useCases';
 import { postHogSpec } from '../integrations/postHog/spec';
+import { postHogUseCases } from '../integrations/postHog/useCases';
 import { pylonSpec } from '../integrations/pylon/spec';
+import { pylonUseCases } from '../integrations/pylon/useCases';
 import { salesforceSpec } from '../integrations/salesforce/spec';
+import { salesforceUseCases } from '../integrations/salesforce/useCases';
 import { searchConsoleSpec } from '../integrations/searchConsole/spec';
+import { searchConsoleUseCases } from '../integrations/searchConsole/useCases';
 import { youtubeAnalyticsSpec } from '../integrations/youtubeAnalytics/spec';
-import { getLiveIntegration } from '../registry';
-import { type LiveAuthNeed, type LiveIntegrationSpec } from './types';
+import { youtubeAnalyticsUseCases } from '../integrations/youtubeAnalytics/useCases';
+import {
+    type LiveAuthNeed,
+    type LiveIntegrationSpec,
+    type LiveUseCases,
+} from './types';
 
-export { crossToolSpec } from './crossTool';
+export { crossToolUseCases } from './crossToolUseCases';
 
-/** One spec per integration; a missing one fails typecheck. */
+/** One per integration; a missing one fails typecheck. */
 export const LIVE_SPECS: { [C in ApiConnectorType]: LiveIntegrationSpec } = {
     [ApiConnectorType.GA4]: ga4Spec,
     [ApiConnectorType.SEARCH_CONSOLE]: searchConsoleSpec,
@@ -30,6 +45,22 @@ export const LIVE_SPECS: { [C in ApiConnectorType]: LiveIntegrationSpec } = {
     [ApiConnectorType.ATTIO]: attioSpec,
     [ApiConnectorType.HUBSPOT]: hubspotSpec,
     [ApiConnectorType.SALESFORCE]: salesforceSpec,
+};
+
+/** One per integration; a missing one fails typecheck. */
+export const LIVE_USE_CASES: { [C in ApiConnectorType]: LiveUseCases } = {
+    [ApiConnectorType.GA4]: ga4UseCases,
+    [ApiConnectorType.SEARCH_CONSOLE]: searchConsoleUseCases,
+    [ApiConnectorType.POSTHOG]: postHogUseCases,
+    [ApiConnectorType.META_ADS]: metaAdsUseCases,
+    [ApiConnectorType.GOOGLE_ADS]: googleAdsUseCases,
+    [ApiConnectorType.YOUTUBE_ANALYTICS]: youtubeAnalyticsUseCases,
+    [ApiConnectorType.LINKEDIN_ADS]: linkedInAdsUseCases,
+    [ApiConnectorType.GITHUB]: githubUseCases,
+    [ApiConnectorType.PYLON]: pylonUseCases,
+    [ApiConnectorType.ATTIO]: attioUseCases,
+    [ApiConnectorType.HUBSPOT]: hubspotUseCases,
+    [ApiConnectorType.SALESFORCE]: salesforceUseCases,
 };
 
 const TEST_WITH_POINTS = {
@@ -46,20 +77,6 @@ const BLOCKING_NEEDS = new Set<LiveAuthNeed>([
     'sales_contract',
 ]);
 
-/** Whether a customer can paste a token they created, which no vendor reviews. */
-const acceptsToken = (connector: ApiConnectorType) => {
-    const integration = getLiveIntegration(connector);
-    try {
-        integration.checkAuth({
-            type: 'bearer_token',
-            origin: integration.origins[0],
-        });
-        return true;
-    } catch {
-        return false;
-    }
-};
-
 /** Gmail alone 2; plus a phone or someone adding us 1; anything blocking 0. */
 const getNeedsPoints = (needs: LiveAuthNeed[]) => {
     if (needs.some((need) => BLOCKING_NEEDS.has(need))) return 0;
@@ -74,15 +91,14 @@ const getAuthRating = (score: number) => {
 
 /**
  * How easy access is, out of 7: where test data comes from (3), what a
- * person must provide (2), token sign-in (1) and no vendor review (1).
+ * person must provide (2), a token a customer can paste (1), and a way in
+ * with no vendor review (1).
  */
-export const getLiveAuthScore = (connector: ApiConnectorType) => {
-    const { testWith, needs, oauthReview } = LIVE_SPECS[connector].auth;
-    const hasToken = acceptsToken(connector);
+export const getLiveAuthScore = ({ auth }: LiveIntegrationSpec) => {
     const score =
-        TEST_WITH_POINTS[testWith] +
-        getNeedsPoints(needs) +
-        (hasToken ? 1 : 0) +
-        (hasToken || oauthReview === null ? 1 : 0);
+        TEST_WITH_POINTS[auth.testWith] +
+        getNeedsPoints(auth.needs) +
+        (auth.token ? 1 : 0) +
+        (auth.token || auth.oauth === 'no_review' ? 1 : 0);
     return { score, rating: getAuthRating(score) };
 };
