@@ -49,6 +49,8 @@ const describeMark = (mark: CaptureMark): string => {
             const from =
                 mark.target?.label ?? describePosition(mark.arrow.from);
             const to = mark.arrowTo?.label ?? describePosition(mark.arrow.to);
+            // A short tick that starts and ends on one thing points at it.
+            if (from === to) return `pointed at ${from}`;
             return `arrow from ${from} to ${to}`;
         }
         case 'pick':

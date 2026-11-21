@@ -331,4 +331,39 @@ describe('buildSummary', () => {
         });
         expect(same).not.toContain('on tab');
     });
+
+    it('a tick that starts and ends on one thing points at it', () => {
+        const target = {
+            kind: 'tile',
+            id: 't1',
+            label: 'Revenue',
+            parentId: null,
+        };
+        const [base] = [
+            {
+                number: 1,
+                imageIndex: 0,
+                startMs: 0,
+                endMs: 100,
+                strokes: [{ points: [{ x: 0.1, y: 0.1 }] }],
+                shape: 'arrow' as const,
+                box: { x: 0.1, y: 0.1, width: 0.01, height: 0.02 },
+                arrow: { from: { x: 0.1, y: 0.1 }, to: { x: 0.1, y: 0.12 } },
+                target,
+                arrowTo: target,
+                trail: [],
+                covers: [],
+                tool: 'stylus' as const,
+                tabName: null,
+            },
+        ];
+        const summary = buildSummary({
+            durationMs: 1000,
+            imageCount: 1,
+            marks: [base],
+            transcript: [],
+        });
+        expect(summary).toContain('pointed at Revenue');
+        expect(summary).not.toContain('arrow from');
+    });
 });
