@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hydra</title>
+<style>
+:root {
+  --bg: #fafaf9; --panel: #ffffff; --text: #1c1917; --muted: #78716c; --line: #e7e5e4;
+  --yes: #15803d; --yes-bg: #dcfce7; --no: #b91c1c; --no-bg: #fee2e2;
+  --mid: #a16207; --mid-bg: #fef9c3; --accent: #6d28d9;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c0a09; --panel: #1c1917; --text: #f5f5f4; --muted: #a8a29e; --line: #292524;
+    --yes: #4ade80; --yes-bg: #14532d; --no: #f87171; --no-bg: #450a0a;
+    --mid: #facc15; --mid-bg: #422006; --accent: #a78bfa;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 -apple-system, system-ui, sans-serif; }
+main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 17px; margin: 0; }
+h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 16px 0 6px; }
+.sub { color: var(--muted); margin-bottom: 20px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin: 16px 0; }
+.head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 12px; }
+.fact { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.fact b { display: block; font-size: 12px; color: var(--muted); font-weight: 600; }
+.pill { display: inline-block; border-radius: 999px; padding: 1px 8px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.yes, .easy { color: var(--yes); background: var(--yes-bg); }
+.no, .hard { color: var(--no); background: var(--no-bg); }
+.medium, .other { color: var(--mid); background: var(--mid-bg); }
+.verdict { border-left: 3px solid var(--accent); padding: 4px 0 4px 12px; margin-top: 12px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 6px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; border-top: 0; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wrap { overflow-x: auto; }
+.muted { color: var(--muted); }
+a { color: var(--accent); }
+button { font: inherit; color: var(--accent); background: none; border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x: auto; font-size: 12px; }
+details summary { cursor: pointer; color: var(--muted); margin-top: 8px; }
+.brand { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: lowercase; margin-bottom: 10px; }
+.brand svg { width: 16px; height: 16px; }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script id="data" type="application/json">__HYDRA_DATA__</script>
+<script>
+const data = JSON.parse(document.getElementById('data').textContent);
+const app = document.getElementById('app');
+
+const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const pill = (text, cls) => `<span class="pill ${cls}">${esc(text)}</span>`;
+const possiblePill = (possible) => (possible ? pill('possible', 'yes') : pill('not possible', 'no'));
+const outcomeClass = (outcome) => ({ pass: 'yes', regression: 'no', flip: 'other' })[outcome] ?? 'other';
+
+const cases = (useCases) => [
+  ...useCases.questions.map((q) => ({ id: q.id, text: q.question, possible: q.possible })),
+  ...useCases.dashboards.flatMap((d) => d.charts.map((c) => ({ id: c.id, text: `${c.title}: ${c.detail}`, possible: c.possible, dashboard: d.name }))),
+];
+const countPossible = (useCases) => {
+  const all = cases(useCases);
+  return `${all.filter((c) => c.possible).length}/${all.length}`;
+};
+
+const authText = (auth) => {
+  const ways = [auth.token && 'token', auth.oauth !== 'none' && `OAuth (${auth.oauth.replace('_', ' ')})`].filter(Boolean).join(' + ') || 'none';
+  return `${esc(ways)}<br><span class="muted">test with ${esc(auth.testWith.replace('_', ' '))}; needs ${esc(auth.needs.join(', '))}</span><br>${esc(auth.description)}`;
+};
+
+const summary = (integrations) => `
+  <div class="card wrap"><table>
+    <tr><th>Integration</th><th>Level</th><th>Auth</th><th>Possible</th><th>Paging</th></tr>
+    ${integrations.map((i) => `<tr>
+      <td><a href="#${esc(i.name)}">${esc(i.label)}</a></td>
+      <td class="num">${i.level.value}</td>
+      <td class="num">${pill(`${i.authScore.score}/7 ${i.authScore.rating}`, i.authScore.rating)}</td>
+      <td class="num">${countPossible(i.useCases)}</td>
+      <td>${esc(i.paging.description)}</td>
+    </tr>`).join('')}
+  </table></div>`;
+
+const resultCell = (results, id) => {
+  const result = results?.[id];
+  if (!results) return '';
+  if (!result) return '<td class="muted">not tried</td>';
+  return `<td>${pill(result.outcome, outcomeClass(result.outcome))}${result.note ? `<div class="muted">${esc(result.note)}</div>` : ''}</td>`;
+};
+
+const caseTable = (integration) => {
+  const results = integration.results;
+  const rows = cases(integration.useCases);
+  return `<div class="wrap"><table>
+    <tr><th>Use case</th><th>Expected</th>${results ? '<th>Result</th>' : ''}</tr>
+    ${rows.map((c) => `<tr>
+      <td>${c.dashboard ? `<span class="muted">${esc(c.dashboard)} · </span>` : ''}${esc(c.text)}</td>
+      <td>${possiblePill(c.possible)}</td>
+      ${resultCell(results, c.id)}
+    </tr>`).join('')}
+  </table></div>`;
+};
+
+const tally = (results) => {
+  const counts = Object.values(results).reduce((acc, r) => ({ ...acc, [r.outcome]: (acc[r.outcome] ?? 0) + 1 }), {});
+  return Object.entries(counts).map(([outcome, n]) => pill(`${n} ${outcome}`, outcomeClass(outcome))).join(' ');
+};
+
+const integrationCard = (i, index) => `
+  <section class="card" id="${esc(i.name)}">
+    <div class="head">
+      <h2>${esc(i.label)}</h2>
+      <span class="muted">${esc(i.name)}</span>
+      ${pill(`level ${i.level.value}`, 'other')}
+      ${pill(`auth ${i.authScore.score}/7 ${i.authScore.rating}`, i.authScore.rating)}
+      <span class="muted">${countPossible(i.useCases)} possible</span>
+      ${i.results ? tally(i.results) : ''}
+    </div>
+    ${i.verdict ? `<div class="verdict">${esc(i.verdict)}</div>` : ''}
+    <div class="facts">
+      <div class="fact"><b>Level</b>${esc(i.level.description)}</div>
+      <div class="fact"><b>Auth</b>${authText(i.auth)}</div>
+      <div class="fact"><b>Paging</b>${esc(i.paging.description)}</div>
+      <div class="fact"><b>Rate limiting</b>${esc(i.rateLimiting.description)}</div>
+    </div>
+    ${i.snippet ? `<h3>Definition <button data-toggle="snippet-${index}">Show</button></h3><pre id="snippet-${index}" hidden>${esc(i.snippet)}</pre>` : ''}
+    <details ${data.mode === 'view' ? '' : 'open'}><summary>Use cases</summary>${caseTable(i)}</details>
+  </section>`;
+
+const generated = new Date(data.generatedAt).toLocaleString();
+const brand = `<div class="brand"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true">
+  <path d="M8 15V9M8 9C8 6 5 6 4 3M8 9c0-3 3-3 4-6M8 9V2"/><circle cx="4" cy="2.6" r="1.1" fill="currentColor"/><circle cx="12" cy="2.6" r="1.1" fill="currentColor"/><circle cx="8" cy="1.6" r="1.1" fill="currentColor"/>
+</svg>hydra</div>`;
+app.innerHTML = `
+  ${brand}
+  <h1>${esc(data.title)}</h1>
+  <div class="sub">${esc(data.mode)} · ${esc(generated)}${data.summary ? ` · ${esc(data.summary)}` : ''}</div>
+  ${data.integrations.length > 1 ? summary(data.integrations) : ''}
+  ${data.integrations.map(integrationCard).join('')}`;
+
+app.addEventListener('click', (event) => {
+  const id = event.target.dataset?.toggle;
+  if (!id) return;
+  const block = document.getElementById(id);
+  block.hidden = !block.hidden;
+  event.target.textContent = block.hidden ? 'Show' : 'Hide';
+});
+</script>
+</body>
+</html>
