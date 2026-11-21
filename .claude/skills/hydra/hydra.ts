@@ -22,8 +22,12 @@ type PageIntegration = Pick<
 > & {
     name: string;
     label: string;
-    /** assess: the go/no-go in a sentence or two. */
-    verdict?: string;
+    /** assess: how much it's worth and what it costs; the page derives the call from the two. */
+    verdict?: {
+        value: { level: 'high' | 'medium' | 'low'; reason: string };
+        effort: { level: 'easy' | 'medium' | 'hard'; reason: string };
+        points?: string[];
+    };
     /** assess: the explores the integration would offer, from what the API returns natively. */
     explores?: {
         name: string;

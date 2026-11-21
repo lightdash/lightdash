@@ -76,12 +76,23 @@ a.row:hover, .row.case:hover { background: var(--hover); }
 .tag { font-size: 12px; line-height: 20px; padding: 0 7px; border-radius: 4px; background: var(--raised); color: var(--text-2); }
 .tag.warn { color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); }
 
-.verdict { padding: 18px 20px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); margin-bottom: 20px; }
+.verdict { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; padding: 20px 22px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); margin-bottom: 20px; }
 .verdict .k { font-size: 11px; font-weight: 500; color: var(--text-3); margin-bottom: 6px; }
-.verdict .headline { font-size: 14px; font-weight: 500; margin-bottom: 10px; }
-.verdict ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.verdict .headline { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; letter-spacing: -.01em; margin-bottom: 14px; }
+.verdict .axes { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 8px 12px; margin-bottom: 14px; font-size: 12.5px; }
+.verdict .axes .kk { padding-top: 1px; }
+.verdict .axes .status { display: block; color: var(--text); font-weight: 500; }
+.verdict .axes .dot { display: inline-block; margin-right: 6px; vertical-align: 1px; }
+.verdict .axes .why { color: var(--text-2); font-weight: 400; margin-left: 6px; }
+.verdict ul { margin: 0; padding: 14px 0 0; border-top: 1px solid var(--line); list-style: none; display: grid; gap: 8px; }
 .verdict li { position: relative; padding-left: 14px; font-size: 12.5px; line-height: 1.6; color: var(--text-2); }
 .verdict li::before { content: ''; position: absolute; left: 2px; top: 9px; width: 4px; height: 4px; border-radius: 50%; background: var(--text-3); }
+.matrix { display: grid; grid-template-columns: auto repeat(3, 34px); grid-template-rows: repeat(3, 34px) auto; gap: 3px; align-content: start; font-size: 10.5px; color: var(--text-3); }
+.matrix .cell { border-radius: 5px; background: color-mix(in srgb, var(--zone) 10%, transparent); }
+.matrix .cell.on { background: var(--zone); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--zone); }
+.matrix .ylab { display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; }
+.matrix .xlab { text-align: center; padding-top: 4px; }
+.matrix .axis { grid-column: 2 / span 3; text-align: center; padding-top: 2px; }
 
 .cases .row { grid-template-columns: 112px minmax(0, 1fr); }
 .cases.results .row { grid-template-columns: 112px minmax(0, 1fr) 150px; }
@@ -126,6 +137,7 @@ pre { margin: 0 0 8px; padding: 14px; border: 1px solid var(--line); border-radi
   .props > .prop, .props > .prop.auth { grid-column: 1; grid-row: auto; }
   .overview .row { grid-template-columns: minmax(0, 1fr) 48px 96px; }
   .overview .row > :nth-child(n+4) { display: none; }
+  .verdict { grid-template-columns: minmax(0, 1fr); }
   .explorer { grid-template-columns: minmax(0, 1fr); }
   .rail { border-right: 0; border-bottom: 1px solid var(--line); max-height: 240px; }
   .frow { grid-template-columns: 14px minmax(0, 1fr); }
@@ -277,9 +289,43 @@ const explorer = (explores) => {
   </div>`;
 };
 
-const verdictBlock = (verdict) => {
-  const [headline, ...points] = verdict.split(/(?<=\.)\s+(?=[A-Z])/);
-  return `<div class="verdict"><div class="k">Verdict</div><div class="headline">${esc(headline)}</div>${points.length ? `<ul>${points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}</div>`;
+const VALUES = ['high', 'medium', 'low'];
+const EFFORTS = ['easy', 'medium', 'hard'];
+const CALLS = {
+  high: { easy: 'build', medium: 'build', hard: 'plan' },
+  medium: { easy: 'build', medium: 'plan', hard: 'later' },
+  low: { easy: 'later', medium: 'skip', hard: 'skip' },
+};
+const CALL = {
+  build: { label: 'Build now', color: 'green' },
+  plan: { label: 'Plan it', color: 'blue' },
+  later: { label: 'Later', color: 'amber' },
+  skip: { label: 'Skip', color: 'red' },
+};
+const VALUE_COLOR = { high: 'green', medium: 'amber', low: 'red' };
+const EFFORT_COLOR = { easy: 'green', medium: 'amber', hard: 'red' };
+const matrix = (value, effort) => `<div class="matrix" aria-label="Value against effort">
+  ${VALUES.map((v) => `<span class="ylab">${v}</span>${EFFORTS.map((e) => {
+    const call = CALL[CALLS[v][e]];
+    return `<span class="cell ${v === value && e === effort ? 'on' : ''}" style="--zone: var(--${call.color})" title="${v} value, ${e} effort: ${call.label}"></span>`;
+  }).join('')}`).join('')}
+  <span></span>${EFFORTS.map((e) => `<span class="xlab">${e}</span>`).join('')}
+  <span></span><span class="axis">effort → · value ↑</span>
+</div>`;
+const verdictBlock = ({ value, effort, points = [] }) => {
+  const call = CALL[CALLS[value.level][effort.level]];
+  return `<div class="verdict">
+    <div>
+      <div class="k">Verdict</div>
+      <div class="headline">${dot(call.color)}${call.label}</div>
+      <div class="axes">
+        <span class="kk">Value</span><span class="status">${dot(VALUE_COLOR[value.level])}${esc(value.level)}<span class="why">· ${esc(value.reason)}</span></span>
+        <span class="kk">Effort</span><span class="status">${dot(EFFORT_COLOR[effort.level])}${esc(effort.level)}<span class="why">· ${esc(effort.reason)}</span></span>
+      </div>
+      ${points.length ? `<ul>${points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}
+    </div>
+    ${matrix(value.level, effort.level)}
+  </div>`;
 };
 const FILTERS = (i) => [['all', 'All'], ...(i.results ? [['tried', 'Tried']] : []), ['possible', 'Possible'], ['not', 'Not possible']];
 const state = { filter: data.mode === 'test' ? 'tried' : 'all', explore: 0, field: null, expanded: new Set([0]) };
