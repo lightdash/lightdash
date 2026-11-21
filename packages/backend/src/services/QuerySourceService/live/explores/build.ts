@@ -2,9 +2,11 @@ import {
     ApiConnectorType,
     assertUnreachable,
     DimensionType,
+    getEffectiveItemType,
     getItemId,
     getItemMap,
     isDimension,
+    isMetric,
     SupportedDbtAdapter,
     UnexpectedServerError,
     type Explore,
@@ -509,6 +511,26 @@ export const assertLiveResultComplete = ({
     }
 };
 
+/**
+ * A result column's type: a dimension's own, or a metric's, where a minimum
+ * or maximum of a date stays a date.
+ */
+const toResultColumnType = (
+    field: ItemsMap[string] | undefined,
+    fields: ItemsMap,
+): DimensionType => {
+    if (!field) return DimensionType.NUMBER;
+    if (isDimension(field)) return field.type;
+    // Custom metrics carry their base dimension's type
+    if (isMetric(field) && field.baseDimensionType) {
+        return field.baseDimensionType;
+    }
+    const type = getEffectiveItemType(field, fields);
+    return type === DimensionType.DATE || type === DimensionType.TIMESTAMP
+        ? type
+        : DimensionType.NUMBER;
+};
+
 /** The connector's rows as result rows keyed by field id, sorted and limited. */
 export const toLiveResult = ({
     compiled,
@@ -540,13 +562,7 @@ export const toLiveResult = ({
             const field = fields[fieldId];
             return [
                 fieldId,
-                {
-                    reference: fieldId,
-                    type:
-                        field && isDimension(field)
-                            ? field.type
-                            : DimensionType.NUMBER,
-                },
+                { reference: fieldId, type: toResultColumnType(field, fields) },
             ];
         }),
     );

@@ -206,6 +206,19 @@ describe('compilePostHogQuery with SQL features', () => {
         expect(hogql).toContain('ORDER BY c4 DESC');
     });
 
+    test('counts sessions without the empty session ID of events outside one', () => {
+        const { query: hogql } = compile(
+            query({
+                dimensions: [field('week')],
+                metrics: [field('unique_sessions')],
+                sorts: [],
+            }),
+        );
+        expect(hogql).toContain(
+            `COUNT(DISTINCT nullIf("${EXPLORE}".$session_id, ''))`,
+        );
+    });
+
     test('compiles custom dimensions and custom metrics on event properties', () => {
         const { query: hogql, fieldIdsByColumn } = compile(
             query({
