@@ -16,6 +16,7 @@ import {
     type LiveRunResult,
     type LiveScanResult,
 } from '../../types';
+import { SalesforceObjectAccessError } from './errors';
 import {
     SALESFORCE_MAX_AGGREGATE_ROWS,
     SALESFORCE_MAX_CALLS,
@@ -287,8 +288,9 @@ export const runSalesforceQuery = async ({
 
 /**
  * Reads each object's describe, whose fields become its explore's fields.
- * An object the signed-in user can't read keeps its built-in fields; the
- * scan fails only when no object can be read.
+ * An object the signed-in user can't read keeps its built-in fields; any
+ * other failed call, such as a throttled one, fails the scan so the last
+ * good scan stays.
  */
 export const scanSalesforceDescribe = async ({
     calls,
@@ -307,15 +309,21 @@ export const scanSalesforceDescribe = async ({
             ),
         ),
     );
+    const failed = results.flatMap((result) =>
+        result.status === 'rejected' ? [result.reason as unknown] : [],
+    );
+    const [unexpected] = failed.filter(
+        (error) => !(error instanceof SalesforceObjectAccessError),
+    );
+    if (unexpected !== undefined) {
+        throw unexpected;
+    }
     const read = SALESFORCE_OBJECTS.flatMap((object, index) => {
         const result = results[index];
         return result.status === 'fulfilled' ? [[object, result.value]] : [];
     });
     if (read.length === 0) {
-        const [first] = results;
-        throw first.status === 'rejected'
-            ? first.reason
-            : new ParameterError('Salesforce returned no object fields');
+        throw failed[0];
     }
     return { salesforceDescribe: Object.fromEntries(read) };
 };

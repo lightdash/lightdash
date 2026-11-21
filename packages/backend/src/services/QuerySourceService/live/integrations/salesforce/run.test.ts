@@ -345,6 +345,18 @@ describe('salesforceIntegration scan and setup test', () => {
         await expect(none.source.scan()).rejects.toThrow('read access');
     });
 
+    it('fails the scan when a describe is throttled, so the last good scan stays', async () => {
+        const { source } = connect(
+            response(OPPORTUNITY_DESCRIBE),
+            response(salesforceError('REQUEST_LIMIT_EXCEEDED', 'limit'), 403),
+            response({ name: 'Lead', fields: [] }),
+            response({ name: 'Contact', fields: [] }),
+        );
+        await expect(source.scan()).rejects.toBeInstanceOf(
+            TooManyRequestsError,
+        );
+    });
+
     it('reports the API calls the org has left today', () => {
         expect(summarizeSalesforceTest(LIMITS_RESPONSE)).toEqual({
             summary: 'Connected to your Salesforce org',
