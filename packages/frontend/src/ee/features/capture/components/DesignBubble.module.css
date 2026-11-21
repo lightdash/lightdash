@@ -44,6 +44,11 @@
     opacity: 0.15;
 }
 
+/* The focus ring is drawn inside the button: the bubble's edge would cut an outer one. */
+.controls :global(.mantine-ActionIcon-root):focus-visible {
+    outline-offset: -2px;
+}
+
 .cornerControls {
     position: absolute;
     top: 12px;

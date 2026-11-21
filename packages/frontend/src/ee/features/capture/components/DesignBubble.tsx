@@ -290,7 +290,11 @@ const DesignBubble: FC<Props> = ({
         <Group
             gap={2}
             wrap="nowrap"
-            className={bare ? classes.cornerControls : undefined}
+            className={
+                bare
+                    ? `${classes.controls} ${classes.cornerControls}`
+                    : classes.controls
+            }
         >
             {canMinimise(bubble) && !listening && (
                 <ActionIcon
