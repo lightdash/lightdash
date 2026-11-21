@@ -1,14 +1,11 @@
 import { getSalesforceSignInUrl } from './salesforceConnection';
 
 describe('getSalesforceSignInUrl', () => {
-    it('starts sign-in with the object, keeping a reconnected source', () => {
+    it('starts sign-in with the name, keeping a reconnected source', () => {
         const url = new URL(
             getSalesforceSignInUrl(
                 'project-1',
-                {
-                    name: ' Pipeline ',
-                    object: 'Opportunity',
-                },
+                { name: ' Pipeline ' },
                 'connection-1',
                 'settings',
             ),
@@ -19,7 +16,6 @@ describe('getSalesforceSignInUrl', () => {
         );
         expect(Object.fromEntries(url.searchParams)).toMatchObject({
             name: 'Pipeline',
-            object: 'Opportunity',
             connectionUuid: 'connection-1',
         });
     });

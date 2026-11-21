@@ -3,6 +3,7 @@ import {
     DimensionType,
     getSalesforceDescribePath,
     ParameterError,
+    SALESFORCE_OBJECTS,
     SALESFORCE_QUERY_PATH,
     type SalesforceObject,
 } from '@lightdash/common';
@@ -271,9 +272,8 @@ const runRecords = async (
     };
 };
 
-/** Runs one SOQL query on the source's object. */
+/** Runs one SOQL query on the request's object. */
 export const runSalesforceQuery = async ({
-    settings: { object },
     request,
     limit,
     calls,
@@ -282,23 +282,40 @@ export const runSalesforceQuery = async ({
     SalesforceRequest
 >): Promise<LiveRunResult> =>
     request.kind === 'aggregate'
-        ? runAggregate(object, request, limit, calls)
-        : runRecords(object, request, limit, calls);
+        ? runAggregate(request.object, request, limit, calls)
+        : runRecords(request.object, request, limit, calls);
 
-/** Reads the object's describe, whose fields become the source's fields. */
+/**
+ * Reads each object's describe, whose fields become its explore's fields.
+ * An object the signed-in user can't read keeps its built-in fields; the
+ * scan fails only when no object can be read.
+ */
 export const scanSalesforceDescribe = async ({
-    settings: { object },
     calls,
 }: {
-    settings: { object: SalesforceObject };
     calls: LiveCalls;
-}): Promise<LiveScanResult> => ({
-    salesforceDescribe: await calls.fetch(
-        {
-            method: 'GET',
-            path: getSalesforceDescribePath(object),
-            body: undefined,
-        },
-        z.unknown(),
-    ),
-});
+}): Promise<LiveScanResult> => {
+    const results = await Promise.allSettled(
+        SALESFORCE_OBJECTS.map((object) =>
+            calls.fetch(
+                {
+                    method: 'GET',
+                    path: getSalesforceDescribePath(object),
+                    body: undefined,
+                },
+                z.unknown(),
+            ),
+        ),
+    );
+    const read = SALESFORCE_OBJECTS.flatMap((object, index) => {
+        const result = results[index];
+        return result.status === 'fulfilled' ? [[object, result.value]] : [];
+    });
+    if (read.length === 0) {
+        const [first] = results;
+        throw first.status === 'rejected'
+            ? first.reason
+            : new ParameterError('Salesforce returned no object fields');
+    }
+    return { salesforceDescribe: Object.fromEntries(read) };
+};

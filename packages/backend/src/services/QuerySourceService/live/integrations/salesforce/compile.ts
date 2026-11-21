@@ -15,12 +15,14 @@ import {
 } from '@lightdash/common';
 import {
     getApiName,
+    getLiveDefinitionName,
     getLiveExplore,
     toFieldCombinationIssue,
     toLiveQueryError,
     type LiveCompiledRequest,
 } from '../../explores/definition';
 import { getLiveDateRange, toAbsoluteDateRange } from '../../query/dateRange';
+import { toSalesforceObject } from './explores';
 import {
     parseSalesforceExpression,
     type SalesforceColumnType,
@@ -343,6 +345,7 @@ export const compileSalesforceQuery = ({
         : null;
 
     const request: SalesforceRequest = {
+        object: toSalesforceObject(getLiveDefinitionName(explore)),
         kind: isAggregate ? 'aggregate' : 'records',
         columns: [
             ...metricQuery.dimensions.map((fieldId) => ({

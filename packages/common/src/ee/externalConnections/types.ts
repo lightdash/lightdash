@@ -87,7 +87,7 @@ export type HubspotApiSource = {
     connector: ApiConnectorType.HUBSPOT;
 };
 
-/** The Salesforce objects a source can read, one per source. */
+/** The Salesforce objects a source reads, one explore each, Opportunity first. */
 export const SALESFORCE_OBJECTS = [
     'Opportunity',
     'Account',
@@ -96,10 +96,9 @@ export const SALESFORCE_OBJECTS = [
 ] as const;
 export type SalesforceObject = (typeof SALESFORCE_OBJECTS)[number];
 
+/** One sign-in reads every object in SALESFORCE_OBJECTS, so nothing else is set. */
 export type SalesforceApiSource = {
     connector: ApiConnectorType.SALESFORCE;
-    /** The standard object the source reads, by its API name. */
-    object: SalesforceObject;
 };
 
 /** Connector settings of a live source; the server fixes its access rules. */

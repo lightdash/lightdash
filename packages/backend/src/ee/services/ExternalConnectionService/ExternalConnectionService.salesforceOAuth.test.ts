@@ -41,10 +41,7 @@ const existingConnection = {
     name: 'Pipeline',
     kind: 'live_source',
     origin: ORG,
-    apiSource: {
-        connector: ApiConnectorType.SALESFORCE,
-        object: 'Opportunity',
-    },
+    apiSource: { connector: ApiConnectorType.SALESFORCE },
 } as ExternalConnection;
 
 const buildService = ({
@@ -120,7 +117,6 @@ const buildService = ({
 const SESSION: SalesforceOAuthSession = {
     projectUuid: 'proj-1',
     name: 'Pipeline',
-    object: 'Opportunity',
     connectionUuid: null,
     clientId: 'client-1',
     redirectUri: `${SITE_URL}/api/v1/ee/salesforce/oauth/callback`,
@@ -129,14 +125,10 @@ const SESSION: SalesforceOAuthSession = {
 
 const start = (
     service: ExternalConnectionService,
-    overrides: {
-        object?: string;
-        connectionUuid?: string | null;
-    } = {},
+    overrides: { connectionUuid?: string | null } = {},
 ) =>
     service.startSalesforceOAuth(account, 'proj-1', {
         name: ' Pipeline ',
-        object: 'Opportunity',
         connectionUuid: null,
         ...overrides,
     });
@@ -165,10 +157,7 @@ describe('Salesforce sign-in', () => {
         expect(url.searchParams.get('state')).toBe(state);
         expect(url.searchParams.get('code_challenge_method')).toBe('S256');
         expect(url.searchParams.get('redirect_uri')).toBe(SESSION.redirectUri);
-        expect(session).toMatchObject({
-            name: 'Pipeline',
-            object: 'Opportunity',
-        });
+        expect(session).toMatchObject({ name: 'Pipeline' });
     });
 
     it('refuses to start for a user who cannot manage live data sources', async () => {
@@ -188,22 +177,18 @@ describe('Salesforce sign-in', () => {
         expect(externalConnectionModel.create).not.toHaveBeenCalled();
     });
 
-    it('refuses an object it does not read', async () => {
+    it('refuses to reconnect a source that is not a Salesforce one', async () => {
+        const { service, externalConnectionModel } = buildService();
+        externalConnectionModel.findByUuid.mockResolvedValue({
+            ...existingConnection,
+            apiSource: { connector: ApiConnectorType.HUBSPOT },
+        });
         await expect(
-            start(buildService().service, { object: 'User' }),
+            start(service, { connectionUuid: 'conn-1' }),
         ).rejects.toThrow(ParameterError);
     });
 
-    it('refuses to point a reconnect at another object', async () => {
-        await expect(
-            start(buildService().service, {
-                object: 'Lead',
-                connectionUuid: 'conn-1',
-            }),
-        ).rejects.toThrow('different Salesforce object');
-    });
-
-    it("stores the sign-in on the org's own My Domain once the user can read the object", async () => {
+    it("stores the sign-in on the org's own My Domain once the user can read the objects", async () => {
         const { service, externalConnectionModel, fetchToken } = buildService();
         await service.completeSalesforceOAuth(account, SESSION, 'the-code');
 
@@ -215,10 +200,13 @@ describe('Salesforce sign-in', () => {
         expect(tokenBody.get('client_secret')).toBe('secret-1');
         expect(tokenBody.get('code_verifier')).toBe('verifier-1');
 
-        const [checkUrl, checkOptions] = mockSecureFetch.mock.calls[0];
-        expect(checkUrl).toBe(
-            `${ORG}/services/data/v62.0/sobjects/Opportunity/describe`,
+        expect(mockSecureFetch.mock.calls.map(([url]) => url)).toEqual(
+            ['Opportunity', 'Account', 'Lead', 'Contact'].map(
+                (object) =>
+                    `${ORG}/services/data/v62.0/sobjects/${object}/describe`,
+            ),
         );
+        const [, checkOptions] = mockSecureFetch.mock.calls[0];
         expect(checkOptions.headers).toMatchObject({
             Authorization: 'Bearer sf_token',
         });
@@ -238,12 +226,12 @@ describe('Salesforce sign-in', () => {
             allowedPathPrefixes: [
                 '/services/data/v62.0/query',
                 '/services/data/v62.0/sobjects/Opportunity/describe',
+                '/services/data/v62.0/sobjects/Account/describe',
+                '/services/data/v62.0/sobjects/Lead/describe',
+                '/services/data/v62.0/sobjects/Contact/describe',
                 '/services/data/v62.0/limits',
             ],
-            apiSource: {
-                connector: ApiConnectorType.SALESFORCE,
-                object: 'Opportunity',
-            },
+            apiSource: { connector: ApiConnectorType.SALESFORCE },
         });
         expect(JSON.parse(created.secret as string)).toMatchObject({
             accessToken: 'sf_token',
@@ -292,8 +280,17 @@ describe('Salesforce sign-in', () => {
         expect(externalConnectionModel.update).not.toHaveBeenCalled();
     });
 
+    it('saves the source when the user can read only some objects', async () => {
+        mockSecureFetch
+            .mockResolvedValueOnce(jsonResponse(200, { fields: [] }))
+            .mockResolvedValue(jsonResponse(403, []));
+        const { service, externalConnectionModel } = buildService();
+        await service.completeSalesforceOAuth(account, SESSION, 'the-code');
+        expect(externalConnectionModel.create).toHaveBeenCalled();
+    });
+
     it.each([403, 404])(
-        'saves nothing when the object check returns %s',
+        'saves nothing when every object check returns %s',
         async (status) => {
             mockSecureFetch.mockResolvedValue(jsonResponse(status, []));
             const { service, externalConnectionModel } = buildService();

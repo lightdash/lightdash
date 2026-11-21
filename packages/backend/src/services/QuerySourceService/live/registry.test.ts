@@ -62,10 +62,7 @@ const SAMPLE_SETTINGS: {
         object: 'companies',
     },
     [ApiConnectorType.HUBSPOT]: { connector: ApiConnectorType.HUBSPOT },
-    [ApiConnectorType.SALESFORCE]: {
-        connector: ApiConnectorType.SALESFORCE,
-        object: 'Opportunity',
-    },
+    [ApiConnectorType.SALESFORCE]: { connector: ApiConnectorType.SALESFORCE },
 };
 
 const SERVER_ERROR: LiveHttpResponse = {

@@ -20,14 +20,17 @@ import { compileSalesforceQuery } from './compile';
 import { toSalesforceError } from './errors';
 import {
     isInternalSalesforceField,
+    readSalesforceDescribe,
     SALESFORCE_BOOLEAN_FILTERS,
     SALESFORCE_DATE_FILTERS,
+    SALESFORCE_EXPLORES,
     SALESFORCE_MAX_CALLS,
     SALESFORCE_MAX_RECORD_ROWS,
     SALESFORCE_METRIC_FILTERS,
     SALESFORCE_NUMBER_FILTERS,
-    SALESFORCE_RECORDS_EXPLORE,
+    SALESFORCE_SCANNED_MODELS,
     SALESFORCE_TEXT_FILTERS,
+    toSalesforceObject,
     withSalesforceFields,
 } from './explores';
 import { runSalesforceQuery, scanSalesforceDescribe } from './run';
@@ -43,10 +46,10 @@ export const salesforceIntegration = defineLiveIntegration({
     settings: CATALOG.settings,
     origins: ['https://<your domain>.my.salesforce.com'],
     acceptsOrigin: isSalesforceInstanceOrigin,
-    access: ({ object }) => ({
+    access: () => ({
         pathPrefixes: [
             SALESFORCE_QUERY_PATH,
-            getSalesforceDescribePath(object),
+            ...SALESFORCE_OBJECTS.map(getSalesforceDescribePath),
             SALESFORCE_LIMITS_PATH,
         ],
         methods: ['GET'],
@@ -92,17 +95,10 @@ export const salesforceIntegration = defineLiveIntegration({
         },
         pushdown: ALL_PUSHDOWN_REFUSED,
     },
-    explores: [SALESFORCE_RECORDS_EXPLORE],
+    explores: SALESFORCE_EXPLORES,
     plannedModelNames: [],
-    validate: ({ object }) => {
-        if (!(SALESFORCE_OBJECTS as readonly string[]).includes(object)) {
-            throw new ParameterError(
-                `The Salesforce object must be one of ${SALESFORCE_OBJECTS.join(
-                    ', ',
-                )}`,
-            );
-        }
-    },
+    // The sign-in decides the org; the settings name only the connector
+    validate: () => {},
     checkAuth: ({ type, oauthTokenUrl }) => {
         if (
             type !== 'oauth_authorization_code' ||
@@ -114,8 +110,8 @@ export const salesforceIntegration = defineLiveIntegration({
             );
         }
     },
-    describeTarget: ({ settings: { object } }) =>
-        `Salesforce ${object} records`,
+    describeTarget: () =>
+        'Salesforce org: opportunities, accounts, leads and contacts',
     parseRequest: jsonRequest(`${LABEL} query`, salesforceRequestSchema),
     compile: ({ explore, metricQuery, now }) =>
         compileSalesforceQuery({
@@ -124,14 +120,20 @@ export const salesforceIntegration = defineLiveIntegration({
             today: getIsoDateInTimeZone(now, 'UTC'),
         }),
     run: runSalesforceQuery,
-    toError: (response, settings) => toSalesforceError(response, settings),
+    toError: toSalesforceError,
     summarizeTest: summarizeSalesforceTest,
     scan: {
         read: scanSalesforceDescribe,
         withScannedFields: (definition, scan) =>
-            scan.salesforceDescribe
-                ? withSalesforceFields(definition, scan.salesforceDescribe)
-                : definition,
+            withSalesforceFields(
+                definition,
+                readSalesforceDescribe(
+                    scan.salesforceDescribe,
+                    toSalesforceObject(definition.name),
+                ),
+            ),
         isInternalField: isInternalSalesforceField,
+        // Opportunities is the first explore; the other objects are scanned too
+        models: SALESFORCE_SCANNED_MODELS,
     },
 });

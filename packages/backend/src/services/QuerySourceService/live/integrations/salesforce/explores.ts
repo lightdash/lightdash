@@ -2,7 +2,9 @@ import {
     DimensionType,
     FilterOperator,
     MetricType,
+    SALESFORCE_OBJECTS,
     TimeFrames,
+    type SalesforceObject,
 } from '@lightdash/common';
 import { z } from 'zod';
 import type {
@@ -163,10 +165,24 @@ const COUNT: LiveMetricDefinition = {
     aggregation: { aggregation: 'additive' },
 };
 
-export const SALESFORCE_RECORDS_EXPLORE: LiveExploreDefinition = {
-    name: 'records',
-    label: 'Records',
-    description: `Records of one Salesforce object, read live with SOQL. With a metric, Salesforce groups and totals the records itself and returns at most ${SALESFORCE_MAX_AGGREGATE_ROWS.toLocaleString(
+/** Each object's explore, named and labelled as people say it. */
+const OBJECT_EXPLORES: Record<
+    SalesforceObject,
+    { name: string; label: string }
+> = {
+    Opportunity: { name: 'opportunities', label: 'Opportunities' },
+    Account: { name: 'accounts', label: 'Accounts' },
+    Lead: { name: 'leads', label: 'Leads' },
+    Contact: { name: 'contacts', label: 'Contacts' },
+};
+
+/**
+ * One object's built-in fields, which every record has; a scan adds the
+ * object's own fields.
+ */
+const toObjectExplore = (object: SalesforceObject): LiveExploreDefinition => ({
+    ...OBJECT_EXPLORES[object],
+    description: `Salesforce ${object} records, read live with SOQL. With a metric, Salesforce groups and totals the records itself and returns at most ${SALESFORCE_MAX_AGGREGATE_ROWS.toLocaleString(
         'en-US',
     )} rows, in one call. Without one, it lists records, at most ${SALESFORCE_MAX_RECORD_ROWS.toLocaleString(
         'en-US',
@@ -177,7 +193,42 @@ export const SALESFORCE_RECORDS_EXPLORE: LiveExploreDefinition = {
     maxMetrics: null,
     dateRange: null,
     incompatible: [],
+});
+
+/** Opportunities first: an integration's first explore is its main one. */
+export const SALESFORCE_EXPLORES = SALESFORCE_OBJECTS.map(toObjectExplore) as [
+    LiveExploreDefinition,
+    ...LiveExploreDefinition[],
+];
+
+/** Names of the explores scans add fields to besides the first. */
+export const SALESFORCE_SCANNED_MODELS = SALESFORCE_EXPLORES.slice(1).map(
+    ({ name }) => name,
+);
+
+/** The object an explore definition reads. */
+export const toSalesforceObject = (
+    definitionName: string,
+): SalesforceObject => {
+    const object = SALESFORCE_OBJECTS.find(
+        (candidate) => OBJECT_EXPLORES[candidate].name === definitionName,
+    );
+    if (!object) {
+        throw new Error(`"${definitionName}" isn't a Salesforce object`);
+    }
+    return object;
 };
+
+/** One object's describe from a scan; anything else reads as none. */
+export const readSalesforceDescribe = (
+    scanned: unknown,
+    object: SalesforceObject,
+): unknown =>
+    scanned !== null &&
+    typeof scanned === 'object' &&
+    Object.hasOwn(scanned, object)
+        ? (scanned as Record<string, unknown>)[object]
+        : undefined;
 
 const describeFieldSchema = z.object({
     name: z.string(),
