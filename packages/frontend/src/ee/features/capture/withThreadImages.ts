@@ -17,12 +17,19 @@ export const withThreadImages = async (
     lightdashApi: LightdashApi,
     canSendImages: boolean,
     { buildPrompt, images, context }: MarkedMessage,
-): Promise<{ prompt: string; context: AiPromptContextInput }> => {
+): Promise<{
+    prompt: string;
+    context: AiPromptContextInput;
+    /** The images were meant to go with the message but could not upload. */
+    imagesDropped: boolean;
+}> => {
     const fileUuids =
         canSendImages && images.length > 0
             ? await uploadCaptureImages(lightdashApi, images)
             : [];
     return {
+        imagesDropped:
+            canSendImages && images.length > 0 && fileUuids.length === 0,
         prompt: buildPrompt(fileUuids.length > 0),
         context: [
             ...context,

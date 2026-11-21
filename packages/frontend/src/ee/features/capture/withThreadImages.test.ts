@@ -32,6 +32,7 @@ describe('withThreadImages', () => {
 
         expect(mocks.uploadCaptureImages).toHaveBeenCalledWith(api, [image]);
         expect(sent).toEqual({
+            imagesDropped: false,
             prompt: 'with images',
             context: [...context, { type: 'thread_image', fileUuid: 'file-1' }],
         });
@@ -41,14 +42,22 @@ describe('withThreadImages', () => {
         const sent = await withThreadImages(api, false, message([image]));
 
         expect(mocks.uploadCaptureImages).not.toHaveBeenCalled();
-        expect(sent).toEqual({ prompt: 'text only', context });
+        expect(sent).toEqual({
+            prompt: 'text only',
+            context,
+            imagesDropped: false,
+        });
     });
 
     it('sends text only when there are no images', async () => {
         const sent = await withThreadImages(api, true, message([]));
 
         expect(mocks.uploadCaptureImages).not.toHaveBeenCalled();
-        expect(sent).toEqual({ prompt: 'text only', context });
+        expect(sent).toEqual({
+            prompt: 'text only',
+            context,
+            imagesDropped: false,
+        });
     });
 
     it('sends text only when the upload fails', async () => {
@@ -56,6 +65,10 @@ describe('withThreadImages', () => {
 
         const sent = await withThreadImages(api, true, message([image]));
 
-        expect(sent).toEqual({ prompt: 'text only', context });
+        expect(sent).toEqual({
+            prompt: 'text only',
+            context,
+            imagesDropped: true,
+        });
     });
 });

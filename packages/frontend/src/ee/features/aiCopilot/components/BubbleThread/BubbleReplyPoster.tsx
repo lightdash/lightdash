@@ -1,5 +1,6 @@
 import { FeatureFlags } from '@lightdash/common';
 import { useEffect, useRef, type FC } from 'react';
+import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 import {
@@ -31,17 +32,25 @@ const BubbleReplyPoster: FC<Props> = ({
     register,
 }) => {
     const lightdashApi = useLightdashApi();
+    const { showToastWarning } = useToaster();
     const imagesFlag = useServerFeatureFlag(FeatureFlags.AiThreadImages);
     const canSendImages = imagesFlag.data?.enabled === true;
     const { post } = useBubbleThreadPost(projectUuid, agentUuid, threadId);
 
     const replyRef = useRef<BubbleReplyPost | null>(null);
     replyRef.current = async (input) => {
-        const { prompt, context } = await withThreadImages(
+        const { prompt, context, imagesDropped } = await withThreadImages(
             lightdashApi,
             canSendImages,
             input,
         );
+        if (imagesDropped) {
+            showToastWarning({
+                title: 'The screenshot could not be attached',
+                subtitle:
+                    'The agent got your words without the marked picture.',
+            });
+        }
         await post({
             prompt,
             toolHints: [],

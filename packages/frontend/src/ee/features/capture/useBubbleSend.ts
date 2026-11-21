@@ -1,5 +1,6 @@
 import { FeatureFlags } from '@lightdash/common';
 import { useCallback, useMemo, useRef, useState } from 'react';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import {
@@ -51,6 +52,7 @@ export const useBubbleSend = (
     picker: BubbleSendPicker | null;
 } => {
     const lightdashApi = useLightdashApi();
+    const { showToastWarning } = useToaster();
     const imagesFlag = useServerFeatureFlag(FeatureFlags.AiThreadImages);
     const canSendImages = imagesFlag.data?.enabled === true;
     const { selectedAgent, agents } = useDefaultAiAgent(projectUuid);
@@ -69,14 +71,21 @@ export const useBubbleSend = (
 
     const createFor = useCallback(
         async (input: BubbleSendInput, agentUuid: string) => {
-            const { prompt, context } = await withThreadImages(
+            const { prompt, context, imagesDropped } = await withThreadImages(
                 lightdashApi,
                 canSendImages,
                 input,
             );
+            if (imagesDropped) {
+                showToastWarning({
+                    title: 'The screenshot could not be attached',
+                    subtitle:
+                        'The agent got your words without the marked picture.',
+                });
+            }
             return createThread({ agentUuid, prompt, context });
         },
-        [canSendImages, createThread, lightdashApi],
+        [canSendImages, createThread, lightdashApi, showToastWarning],
     );
 
     const settle = useCallback(() => {

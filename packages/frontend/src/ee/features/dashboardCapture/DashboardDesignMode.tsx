@@ -107,7 +107,10 @@ const DashboardDesignSurface: FC<Props> = ({
                 const tab = activeTabRef.current;
                 return tab ? { uuid: tab.uuid, name: tab.name } : null;
             },
-            resolveTarget: (point) => targetAtPoint(point, tilesOnTab()),
+            // Ink names the bar or cell it lands on, like a pick does.
+            resolveTarget: (point) =>
+                pickPartAt(point, tilesOnTab())?.target ??
+                targetAtPoint(point, tilesOnTab()),
             pickAt: (point) => pickPartAt(point, tilesOnTab()),
             transcribe: captureTranscriber(
                 lightdashApi,
