@@ -18,6 +18,7 @@ const point = (
     encode: { x: [0], y: [1] },
     dimensionNames: ['payments_method', 'payments_total'],
     baseAxis: 'x',
+    baseAxisIsTime: false,
     rect,
     ...overrides,
 });
@@ -68,6 +69,45 @@ describe('chartTarget', () => {
         );
     });
 
+    it('writes a time axis timestamp as its day, with the time if it has one', () => {
+        const at = (ms: number) =>
+            chartTarget(
+                point({
+                    seriesType: 'line',
+                    value: [ms, 56],
+                    dimensionNames: null,
+                    baseAxisIsTime: true,
+                }),
+                tile,
+            ).label;
+        expect(at(Date.UTC(2025, 0, 10))).toContain(
+            'point "2025-01-10" in series "Total revenue" (56)',
+        );
+        expect(at(Date.UTC(2025, 0, 10, 14, 30))).toContain(
+            'point "2025-01-10 14:30"',
+        );
+    });
+
+    it('names a reference line by the text on it', () => {
+        expect(
+            chartTarget(
+                {
+                    kind: 'reference',
+                    seriesIndex: 0,
+                    index: 1,
+                    text: '16.43',
+                    rect,
+                },
+                tile,
+            ),
+        ).toEqual({
+            kind: 'chart-reference',
+            id: 'tile-1/reference/0/1',
+            label: 'reference line "16.43" on "Revenue per payment method"',
+            parentId: 'tile-1',
+        });
+    });
+
     it('names a pie slice by its name and value, without a series', () => {
         const target = chartTarget(
             point({
@@ -83,6 +123,18 @@ describe('chartTarget', () => {
         );
         expect(target.label).toBe(
             'slice "coupon" (310) on "Revenue per payment method"',
+        );
+    });
+
+    it('groups the digits of an amount that arrives as text', () => {
+        const target = chartTarget(
+            point({
+                value: { payments_method: 'coupon', payments_total: '1005' },
+            }),
+            tile,
+        );
+        expect(target.label).toContain(
+            'bar "coupon" in series "Total revenue" (1,005)',
         );
     });
 

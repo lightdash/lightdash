@@ -19,9 +19,19 @@ export type ChartHit =
           dimensionNames: string[] | null;
           /** The axis the categories run along; null off a grid. */
           baseAxis: 'x' | 'y' | null;
+          /** True when that axis is a time axis: its values are timestamps. */
+          baseAxisIsTime: boolean;
           rect: ChartRect;
       }
     | { kind: 'series'; seriesName: string; rect: ChartRect }
+    | {
+          kind: 'reference';
+          seriesIndex: number;
+          index: number;
+          /** The text drawn on the line; empty when it has none. */
+          text: string;
+          rect: ChartRect;
+      }
     | {
           kind: 'axis';
           axis: 'x' | 'y';
@@ -42,9 +52,10 @@ type ZrElement = {
     style: { text: unknown } | undefined;
     getBoundingRect: () => ZrRect;
     children: (() => ZrElement[]) | undefined;
+    getTextContent: (() => ZrElement | null | undefined) | undefined;
     [key: string]: unknown;
 };
-type EcData = { seriesIndex: unknown; dataIndex: unknown };
+type EcData = { seriesIndex: unknown; dataIndex: unknown; dataModel: unknown };
 type SeriesData = {
     count: () => number;
     getItemLayout: (index: number) => unknown;
@@ -61,7 +72,9 @@ type SeriesModel = {
         encode: Record<string, number[]> | undefined;
         dimensionNames: string[] | undefined;
     };
-    getBaseAxis: (() => { dim: string } | null | undefined) | undefined;
+    getBaseAxis:
+        | (() => { dim: string; type: string } | null | undefined)
+        | undefined;
 };
 type AxisModel = {
     componentIndex: number;
@@ -138,7 +151,8 @@ const pointHit = (
     rect: ChartRect,
 ): ChartHit => {
     const params = series.getDataParams(dataIndex);
-    const baseAxis = series.getBaseAxis?.()?.dim;
+    const axis = series.getBaseAxis?.();
+    const baseAxis = axis?.dim;
     return {
         kind: 'point',
         seriesType: series.subType,
@@ -150,6 +164,7 @@ const pointHit = (
         encode: params.encode ?? null,
         dimensionNames: params.dimensionNames ?? null,
         baseAxis: baseAxis === 'x' || baseAxis === 'y' ? baseAxis : null,
+        baseAxisIsTime: axis?.type === 'time',
         rect,
     };
 };
@@ -192,6 +207,25 @@ const legendHit = (element: ZrElement): ChartHit | null => {
     return { kind: 'series', seriesName: texts[0], rect: rectOf(element) };
 };
 
+// A reference line: a marker a series draws, with the text on it.
+const referenceHit = (
+    element: ZrElement,
+    seriesIndex: number,
+    index: number,
+): ChartHit => {
+    const texts = (element.children?.() ?? []).flatMap((child) => {
+        const text = child.getTextContent?.()?.style?.text;
+        return typeof text === 'string' && text !== '' ? [text] : [];
+    });
+    return {
+        kind: 'reference',
+        seriesIndex,
+        index,
+        text: texts[0] ?? '',
+        rect: rectOf(element),
+    };
+};
+
 // An element under the pointer, or one that holds it, that names data.
 const elementHit = (
     instance: Instance,
@@ -210,6 +244,12 @@ const elementHit = (
                 .getModel()
                 .getSeriesByIndex(data.seriesIndex);
             if (!series || !POINT_SERIES.has(series.subType)) return null;
+            // A marker keeps its own data: its index is not a data point's.
+            if (data.dataModel) {
+                return typeof data.dataIndex === 'number'
+                    ? referenceHit(element, data.seriesIndex, data.dataIndex)
+                    : null;
+            }
             if (typeof data.dataIndex === 'number') {
                 return pointHit(
                     series,

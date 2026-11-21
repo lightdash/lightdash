@@ -40,6 +40,25 @@ const formatValue = (value: unknown): string | null => {
     return null;
 };
 
+// A time axis holds timestamps: write the day, and the time when it has one.
+const formatTime = (value: unknown): string | null => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+    const iso = new Date(value).toISOString();
+    return iso.endsWith('T00:00:00.000Z')
+        ? iso.slice(0, 10)
+        : `${iso.slice(0, 10)} ${iso.slice(11, 16)}`;
+};
+
+const NUMERIC = /^-?\d+(\.\d+)?$/;
+
+// An amount, which a warehouse may hand over as text.
+const formatAmount = (value: unknown): string | null =>
+    formatValue(
+        typeof value === 'string' && NUMERIC.test(value)
+            ? Number(value)
+            : value,
+    );
+
 const POINT_NOUN: Record<string, string> = {
     bar: 'bar',
     line: 'point',
@@ -54,17 +73,19 @@ const readPoint = (
 ): { category: string | null; amount: string | null } => {
     if (hit.baseAxis) {
         const valueAxis = hit.baseAxis === 'x' ? 'y' : 'x';
+        const at = encoded(hit, hit.baseAxis);
         return {
             category:
-                formatValue(encoded(hit, hit.baseAxis)) ??
+                (hit.baseAxisIsTime ? formatTime(at) : null) ??
+                formatValue(at) ??
                 formatValue(hit.name),
-            amount: formatValue(encoded(hit, valueAxis)),
+            amount: formatAmount(encoded(hit, valueAxis)),
         };
     }
     return {
         category:
             formatValue(hit.name) ?? formatValue(encoded(hit, 'itemName')),
-        amount: formatValue(hit.value) ?? formatValue(encoded(hit, 'value')),
+        amount: formatAmount(hit.value) ?? formatAmount(encoded(hit, 'value')),
     };
 };
 
@@ -98,6 +119,18 @@ export const chartTarget = (hit: ChartHit, tile: PartTile): CaptureTarget => {
                 id: `${tile.uuid}/series/${hit.seriesName}`,
                 label: onTile(
                     `series "${clip(hit.seriesName, NAME_MAX)}"`,
+                    tile.title,
+                ),
+                parentId: tile.uuid,
+            };
+        case 'reference':
+            return {
+                kind: 'chart-reference',
+                id: `${tile.uuid}/reference/${hit.seriesIndex}/${hit.index}`,
+                label: onTile(
+                    hit.text
+                        ? `reference line "${clip(hit.text, NAME_MAX)}"`
+                        : 'reference line',
                     tile.title,
                 ),
                 parentId: tile.uuid,
