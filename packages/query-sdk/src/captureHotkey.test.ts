@@ -126,27 +126,18 @@ describe('mountCaptureHotkey', () => {
         const down = press({ key: 'Alt', code: 'AltLeft', altKey: true });
         release({ key: 'Alt', code: 'AltLeft' });
         expect(postMessage.mock.calls).toEqual([
-            [
-                { type: CAPTURE_HOLD_MESSAGE, tool: 'stylus', phase: 'down' },
-                '*',
-            ],
-            [{ type: CAPTURE_HOLD_MESSAGE, tool: 'stylus', phase: 'up' }, '*'],
+            [{ type: CAPTURE_HOLD_MESSAGE, phase: 'down' }, '*'],
+            [{ type: CAPTURE_HOLD_MESSAGE, phase: 'up' }, '*'],
         ]);
         // The app still gets the key: only the host is told.
         expect(down.defaultPrevented).toBe(false);
     });
 
-    it('Control hold is forwarded down and up', () => {
+    it('Control is not a hold key', () => {
         const postMessage = mount();
         press({ key: 'Control', code: 'ControlLeft', ctrlKey: true });
         release({ key: 'Control', code: 'ControlLeft' });
-        expect(postMessage.mock.calls).toEqual([
-            [
-                { type: CAPTURE_HOLD_MESSAGE, tool: 'cursor', phase: 'down' },
-                '*',
-            ],
-            [{ type: CAPTURE_HOLD_MESSAGE, tool: 'cursor', phase: 'up' }, '*'],
-        ]);
+        expect(postMessage).not.toHaveBeenCalled();
     });
 
     it('a hold key pressed with another modifier, or repeating, starts no hold', () => {
@@ -160,12 +151,11 @@ describe('mountCaptureHotkey', () => {
         expect(postMessage).not.toHaveBeenCalled();
     });
 
-    it('a hold message says which tool and phase, nothing else', () => {
+    it('a hold message says its phase, nothing else', () => {
         const postMessage = mount();
-        press({ key: 'Alt', code: 'AltRight', altKey: true });
+        press({ key: 'Alt', code: 'AltLeft', altKey: true });
         expect(Object.keys(postMessage.mock.calls[0][0]).sort()).toEqual([
             'phase',
-            'tool',
             'type',
         ]);
     });

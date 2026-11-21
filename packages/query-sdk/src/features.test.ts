@@ -20,6 +20,7 @@ const AVAILABLE_MESSAGE_TO_FEATURE: Record<string, string> = {
     'lightdash:lineage:available': 'lineage',
     'lightdash:sdk:screenshot-available': 'screenshot',
     'lightdash:sdk:pdf-export-available': 'pdf-export',
+    'lightdash:sdk:inspect-at-available': 'design-mode',
 };
 
 describe('SDK_FEATURES registry', () => {

@@ -33,6 +33,28 @@ export type InspectAvailableMessage = {
     type: 'lightdash:inspect:available';
 };
 
+/** Host → iframe: which element is at this point, in the iframe's viewport pixels? */
+export type InspectAtRequestMessage = {
+    type: 'lightdash:sdk:inspect-at';
+    id: string;
+    x: number;
+    y: number;
+};
+
+/** Iframe → host: the answer, with the same label and rect a click selects; null over nothing. */
+export type InspectAtResponseMessage = {
+    type: 'lightdash:sdk:inspect-at-response';
+    id: string;
+    element: Pick<InspectSelectedMessage, 'label' | 'rect'> | null;
+};
+
+/** Announced on mount so the host knows it can ask; older SDKs never send it. */
+export type InspectAtAvailableMessage = {
+    type: 'lightdash:sdk:inspect-at-available';
+};
+
+const MAX_REQUEST_ID_LENGTH = 100;
+
 const OVERLAY_ID = 'lightdash-inspector-overlay';
 const LABEL_ID = 'lightdash-inspector-label';
 const HIGHLIGHT_COLOR = '#7c3aed';
@@ -163,18 +185,45 @@ let currentTarget: Element | null = null;
 let parentWindow: Window | null = null;
 let listenersAttached = false;
 let messageListenerAttached = false;
-// The element a Control click picked through the context menu, until the
-// next press, so a click that follows the menu does not pick it again.
-let pickedByMenu: Element | null = null;
+
+function describeElement(
+    target: Element,
+): Pick<InspectSelectedMessage, 'label' | 'rect'> {
+    const { x, y, width, height } = target.getBoundingClientRect();
+    return { label: buildLabel(target), rect: { x, y, width, height } };
+}
 
 function postSelected(target: Element) {
-    const { x, y, width, height } = target.getBoundingClientRect();
     parentWindow?.postMessage(
         {
             type: 'lightdash:inspect:selected',
-            label: buildLabel(target),
-            rect: { x, y, width, height },
+            ...describeElement(target),
         } satisfies InspectSelectedMessage,
+        '*',
+    );
+}
+
+// The page background is not an element anyone means to point at.
+function elementAt(x: number, y: number): Element | null {
+    const el = document.elementFromPoint(x, y);
+    if (!el || isOurOwnElement(el)) return null;
+    if (el === document.documentElement || el === document.body) return null;
+    return el;
+}
+
+function answerInspectAt(data: Record<string, unknown>) {
+    const { id, x, y } = data;
+    if (typeof id !== 'string' || id.length === 0) return;
+    if (id.length > MAX_REQUEST_ID_LENGTH) return;
+    if (typeof x !== 'number' || typeof y !== 'number') return;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    const el = elementAt(x, y);
+    parentWindow?.postMessage(
+        {
+            type: 'lightdash:sdk:inspect-at-response',
+            id,
+            element: el ? describeElement(el) : null,
+        } satisfies InspectAtResponseMessage,
         '*',
     );
 }
@@ -201,22 +250,6 @@ function onClick(e: MouseEvent) {
     const target = e.target as Element | null;
     if (!target || isOurOwnElement(target)) return;
     swallow(e);
-    if (target === pickedByMenu) return;
-    postSelected(target);
-}
-
-function onPointerDown() {
-    pickedByMenu = null;
-}
-
-// On macOS a Control click opens the context menu and may never become a
-// click, so while Control is held the menu itself picks the element.
-function onContextMenu(e: MouseEvent) {
-    if (!enabled || !e.ctrlKey) return;
-    const target = e.target as Element | null;
-    if (!target || isOurOwnElement(target)) return;
-    swallow(e);
-    pickedByMenu = target;
     postSelected(target);
 }
 
@@ -234,7 +267,6 @@ function setEnabled(next: boolean) {
     } else {
         document.documentElement.style.cursor = '';
         currentTarget = null;
-        pickedByMenu = null;
         hideOverlay();
     }
 }
@@ -245,8 +277,6 @@ function attachListeners() {
     // Capture phase — we need to see events before the app's own handlers.
     window.addEventListener('pointermove', onPointerMove, true);
     window.addEventListener('click', onClick, true);
-    window.addEventListener('pointerdown', onPointerDown, true);
-    window.addEventListener('contextmenu', onContextMenu, true);
     window.addEventListener('scroll', onScrollOrResize, true);
     window.addEventListener('resize', onScrollOrResize, true);
 }
@@ -255,7 +285,8 @@ function attachListeners() {
  * Mounts the inspector. Listens for `lightdash:inspect:enable` /
  * `lightdash:inspect:disable` from the parent window and posts back a
  * `lightdash:inspect:selected` event when the user clicks an element while
- * inspect mode is active. Idempotent — safe to call multiple times.
+ * inspect mode is active. Also answers the host's `lightdash:sdk:inspect-at`
+ * with the element at a point. Idempotent — safe to call multiple times.
  */
 export function mountInspector(parent: Window): void {
     if (typeof window === 'undefined' || typeof document === 'undefined') {
@@ -273,6 +304,13 @@ export function mountInspector(parent: Window): void {
         } satisfies InspectAvailableMessage,
         '*',
     );
+    // Hosts that never ask ignore this.
+    parent.postMessage(
+        {
+            type: 'lightdash:sdk:inspect-at-available',
+        } satisfies InspectAtAvailableMessage,
+        '*',
+    );
 
     if (messageListenerAttached) return;
     messageListenerAttached = true;
@@ -283,6 +321,12 @@ export function mountInspector(parent: Window): void {
             | { type?: unknown }
             | undefined;
         if (!data || typeof data.type !== 'string') return;
+        if (data.type === 'lightdash:sdk:inspect-at') {
+            // Only the host may ask what is on screen.
+            if (event.source !== parentWindow) return;
+            answerInspectAt(data as Record<string, unknown>);
+            return;
+        }
         if (data.type === 'lightdash:inspect:enable') {
             setEnabled(true);
         } else if (data.type === 'lightdash:inspect:disable') {
