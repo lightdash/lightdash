@@ -27,7 +27,12 @@ const badgeTop = (container: HTMLElement) =>
 describe('MarkLayer', () => {
     it('marks are placed in content coordinates, whatever the scroll', () => {
         const { container } = renderWithProviders(
-            <MarkLayer clip={null} shiftRef={null} marks={[mark]} />,
+            <MarkLayer
+                clip={null}
+                shiftRef={null}
+                marks={[mark]}
+                colorOf={() => '#1971c2'}
+            />,
         );
         expect(badgeTop(container)).toBe('300px');
         expect(container.querySelector('path')).toHaveAttribute(
@@ -47,6 +52,7 @@ describe('MarkLayer', () => {
                 clip={new DOMRect(10, 20, 800, 600)}
                 shiftRef={shift}
                 marks={[mark]}
+                colorOf={() => '#1971c2'}
             />,
         );
         const layer = container.querySelector('[data-clipped]') as HTMLElement;
@@ -63,11 +69,37 @@ describe('MarkLayer', () => {
                 clip={null}
                 shiftRef={null}
                 marks={[{ ...mark, strokes: [], outlined: true }]}
+                colorOf={() => '#1971c2'}
             />,
         );
         const outline = container.querySelector(
             '[data-mark-outline]',
         ) as HTMLElement;
         expect(outline.style.getPropertyValue('--mark-width')).toBe('120px');
+    });
+
+    it("each mark is drawn in its own bubble's colour", () => {
+        const colors: Record<string, string> = { a: '#e03131', b: '#1971c2' };
+        const { container } = renderWithProviders(
+            <MarkLayer
+                clip={null}
+                shiftRef={null}
+                marks={[
+                    mark,
+                    { ...mark, bubbleId: 'b', number: 1, outlined: true },
+                ]}
+                colorOf={(bubbleId) => colors[bubbleId]}
+            />,
+        );
+        const [first, second] = [...container.querySelectorAll('path')];
+        expect(first).toHaveAttribute('stroke', '#e03131');
+        expect(second).toHaveAttribute('stroke', '#1971c2');
+        const colorOn = (selector: string) =>
+            (
+                container.querySelector(selector) as HTMLElement
+            ).style.getPropertyValue('--bubble-color');
+        expect(colorOn('[data-mark-number="2"]')).toBe('#e03131');
+        expect(colorOn('[data-mark-number="1"]')).toBe('#1971c2');
+        expect(colorOn('[data-mark-outline]')).toBe('#1971c2');
     });
 });

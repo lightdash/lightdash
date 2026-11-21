@@ -1827,4 +1827,92 @@ describe('useDesignMode', () => {
         });
         expect(screen.getByText('the target')).toBeInTheDocument();
     });
+
+    it('a sent bubble minimises while the agent works, and opens and minimises by hand', async () => {
+        await turnOn();
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        const { id } = api.session.bubbles[0];
+        await act(async () => {
+            api.send(id, 'hello');
+        });
+        await waitFor(() =>
+            expect(api.session.bubbles[0].status).toBe('thread'),
+        );
+        expect(api.session.bubbles[0]).toMatchObject({
+            minimised: true,
+            unread: true,
+        });
+        // Its marks stay on the page.
+        expect(document.querySelector('[data-mark-number="1"]')).not.toBeNull();
+        expect(
+            document.querySelector(`[data-bubble-id="${id}"]`),
+        ).toHaveAttribute('data-minimised', 'true');
+
+        await act(async () => {
+            api.expand(id);
+        });
+        expect(api.session.bubbles[0]).toMatchObject({
+            minimised: false,
+            unread: false,
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Minimise' }));
+        expect(api.session.bubbles[0].minimised).toBe(true);
+    });
+
+    it('where bubbles show no conversation, a sent bubble does not minimise', async () => {
+        const Bare: FC = () => {
+            api = useDesignMode(surface, {
+                onSend,
+                renderBubbleBody: null,
+                picker: null,
+                cancelSend,
+                onBubbleRemoved: null,
+            });
+            return <>{api.element}</>;
+        };
+        let settle: (result: DesignSendResult) => void = () => {};
+        onSend.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    settle = resolve;
+                }),
+        );
+        renderWithProviders(<Bare />);
+        await act(async () => {
+            api.setOn(true);
+        });
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        const { id } = api.session.bubbles[0];
+        await act(async () => {
+            api.send(id, 'hello');
+        });
+        await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+        expect(api.session.bubbles[0]).toMatchObject({
+            status: 'sending',
+            minimised: false,
+        });
+        await act(async () => {
+            settle('queued');
+        });
+    });
+
+    it("each bubble's marks take its own colour", async () => {
+        await turnOn();
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
+        await act(async () => {
+            api.send(api.session.bubbles[0].id, 'hello');
+        });
+        await waitFor(() =>
+            expect(api.session.bubbles[0].status).toBe('thread'),
+        );
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(2));
+        const colors = [
+            ...document.querySelectorAll<HTMLElement>('[data-mark-number]'),
+        ].map((el) => el.style.getPropertyValue('--bubble-color'));
+        expect(colors).toEqual(['#e03131', '#1971c2']);
+    });
 });

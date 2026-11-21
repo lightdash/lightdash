@@ -19,13 +19,22 @@ import {
     IconPointer,
     IconX,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC, type ReactNode } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
 import { createPath, useLocation, useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import useApp from '../../../../../providers/App/useApp';
+import { pillState } from '../../../capture/bubblePill';
 import { BUBBLE_DRAG_ATTRIBUTE } from '../../../capture/bubblePointer';
 import { readDesignPrompt } from '../../../capture/buildDesignPrompt';
+import BubblePill from '../../../capture/components/BubblePill';
 import { type BubbleInput } from '../../../capture/designSession';
 import { AgentContainerWidthContext } from '../../hooks/useAgentMaxWidth';
 import { useDashboardPageContextCuration } from '../../hooks/useDashboardPageContextCuration';
@@ -43,19 +52,33 @@ import { useBubbleThreadPost } from './useBubbleThreadPost';
 const BUBBLE_WIDTH_PX = 420;
 
 // A message sent from a bubble shows as the marks and words the user gave it.
-const renderUserMessage = (
-    message: AiAgentMessageUser<AiAgentUser>,
-): ReactNode | null => {
-    const read = readDesignPrompt(message.message);
-    if (!read) return null;
-    return (
-        <BubbleUserMessage
-            marks={read.marks}
-            words={[read.said.join(' '), read.typed]
-                .filter((part) => part !== '')
-                .join('\n\n')}
-        />
-    );
+const userMessageIn =
+    (color: string) =>
+    (message: AiAgentMessageUser<AiAgentUser>): ReactNode | null => {
+        const read = readDesignPrompt(message.message);
+        if (!read) return null;
+        return (
+            <BubbleUserMessage
+                color={color}
+                marks={read.marks}
+                words={[read.said.join(' '), read.typed]
+                    .filter((part) => part !== '')
+                    .join('\n\n')}
+            />
+        );
+    };
+
+/** What a minimised bubble's pill is told by its host. */
+export type BubbleThreadPill = {
+    /** The numbers of the bubble's marks, oldest first. */
+    marks: number[];
+    /** A message is on its way to the agent. */
+    sending: boolean;
+    /** The last message could not be sent. */
+    failed: boolean;
+    /** A reply was asked for and the bubble has not been open since. */
+    unread: boolean;
+    onExpand: () => void;
 };
 
 // Stylus and Cursor are held keys: their buttons only make this bubble the target.
@@ -101,6 +124,13 @@ type Props = {
     ) => Promise<void>;
     /** Null when the host draws its own close button. */
     onClose: (() => void) | null;
+    /** The colour of the bubble's marks. */
+    color: string;
+    /**
+     * Minimised: a pill shows and the conversation stays alive out of sight,
+     * so the agent's work still lands. Null when the conversation is open.
+     */
+    pill: BubbleThreadPill | null;
 };
 
 export const BubbleThread: FC<Props> = ({
@@ -112,6 +142,8 @@ export const BubbleThread: FC<Props> = ({
     replyCollecting,
     onSendReply,
     onClose,
+    color,
+    pill,
 }) => {
     const { user } = useApp();
     const navigate = useNavigate();
@@ -204,129 +236,165 @@ export const BubbleThread: FC<Props> = ({
     );
 
     const agentName = agent?.name ?? 'AI';
+    const renderUserMessage = useMemo(() => userMessageIn(color), [color]);
+
+    const minimised = pill !== null;
+    const isWorking =
+        isBusy || isLoadingThread || !thread || (pill?.sending ?? false);
+    // A reply that came while minimised is unread until the bubble is opened.
+    const [cameWhileMinimised, setCameWhileMinimised] = useState(false);
+    useEffect(() => {
+        if (!minimised) setCameWhileMinimised(false);
+        else if (isWorking) setCameWhileMinimised(true);
+    }, [isWorking, minimised]);
 
     return (
         <AgentContainerWidthContext.Provider value={BUBBLE_WIDTH_PX}>
-            <Box className={classes.thread}>
-                <Group
-                    className={classes.header}
-                    {...{ [BUBBLE_DRAG_ATTRIBUTE]: '' }}
-                    gap="xs"
-                    wrap="nowrap"
-                    justify="space-between"
-                >
-                    <Group gap="xs" wrap="nowrap" className={classes.agentName}>
-                        <LightdashUserAvatar
-                            size="sm"
-                            name={agentName}
-                            src={agent?.imageUrl}
-                        />
-                        <Text size="sm" fw={500} truncate>
-                            {agentName}
-                        </Text>
+            {pill && (
+                <BubblePill
+                    agent={{
+                        name: agentName,
+                        imageUrl: agent?.imageUrl ?? null,
+                    }}
+                    state={pillState({
+                        failed: pill.failed,
+                        working: isWorking,
+                        asked:
+                            getPendingAskUser(thread?.messages.at(-1)) !== null,
+                        unread: pill.unread || cameWhileMinimised,
+                    })}
+                    marks={pill.marks}
+                    color={color}
+                    onExpand={pill.onExpand}
+                />
+            )}
+            {/* Kept, out of sight, at its full size: its scroll and draft stay. */}
+            <Box className={classes.keep} data-minimised={minimised}>
+                <Box className={classes.thread}>
+                    <Group
+                        className={classes.header}
+                        {...{ [BUBBLE_DRAG_ATTRIBUTE]: '' }}
+                        gap="xs"
+                        wrap="nowrap"
+                        justify="space-between"
+                    >
+                        <Group
+                            gap="xs"
+                            wrap="nowrap"
+                            className={classes.agentName}
+                        >
+                            <LightdashUserAvatar
+                                size="sm"
+                                name={agentName}
+                                src={agent?.imageUrl}
+                            />
+                            <Text size="sm" fw={500} truncate>
+                                {agentName}
+                            </Text>
+                        </Group>
+                        {onClose && (
+                            <ActionIcon
+                                size="sm"
+                                aria-label="Close"
+                                onClick={onClose}
+                            >
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        )}
                     </Group>
-                    {onClose && (
-                        <ActionIcon
-                            size="sm"
-                            aria-label="Close"
-                            onClick={onClose}
-                        >
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
-                    )}
-                </Group>
-                {isLoadingThread || !thread ? (
-                    <Center p="md">
-                        <Loader size="sm" color="gray" />
-                    </Center>
-                ) : (
-                    <Box className={classes.body}>
-                        <AgentChatDisplay
-                            thread={thread}
-                            agentName={agentName}
-                            height="auto"
-                            enableAutoScroll
-                            projectUuid={projectUuid}
-                            agentUuid={agentUuid}
-                            renderArtifactsInline
-                            onDashboardLinkClick={handleDashboardLinkClick}
-                            renderUserMessage={renderUserMessage}
-                            onChoiceSelect={
-                                isInputDisabled || isBusy
-                                    ? undefined
-                                    : (choice) =>
-                                          postToThread({
-                                              message: choice,
-                                              toolHints: [],
-                                          })
-                            }
-                        >
-                            <AgentChatInput
-                                accessCalloutVariant="inline"
-                                // Another bubble's text box may be in use.
-                                autoFocus={false}
-                                hideSuggestionsWhenScrolledUp={false}
-                                dense
-                                fullWidth
-                                disabled={isInputDisabled}
-                                disabledReason="This thread is read-only."
-                                loading={isBusy}
-                                onSubmit={handleSubmit}
-                                placeholder={`Reply to ${agentName}`}
-                                toolbarStart={
-                                    <Group gap={2} wrap="nowrap">
-                                        {REPLY_TOOLS.map((tool) => (
-                                            <Tooltip
-                                                key={tool.label}
-                                                label={tool.hint}
-                                                withinPortal={false}
-                                            >
-                                                <ActionIcon
-                                                    size="sm"
-                                                    aria-label={tool.label}
-                                                    variant={
-                                                        armed
-                                                            ? 'light'
-                                                            : 'subtle'
-                                                    }
-                                                    disabled={
-                                                        otherTargetActive ||
-                                                        isInputDisabled
-                                                    }
-                                                    onClick={() =>
-                                                        onArm(tool.input)
-                                                    }
-                                                >
-                                                    <MantineIcon
-                                                        icon={tool.icon}
-                                                    />
-                                                </ActionIcon>
-                                            </Tooltip>
-                                        ))}
-                                    </Group>
-                                }
-                                messageCount={thread.messages.length}
+                    {isLoadingThread || !thread ? (
+                        <Center p="md">
+                            <Loader size="sm" color="gray" />
+                        </Center>
+                    ) : (
+                        <Box className={classes.body}>
+                            <AgentChatDisplay
+                                thread={thread}
+                                agentName={agentName}
+                                height="auto"
+                                enableAutoScroll
                                 projectUuid={projectUuid}
                                 agentUuid={agentUuid}
-                                threadUuid={threadId}
-                                contentMentionPriorityItems={
-                                    contentMentionItems
+                                renderArtifactsInline
+                                onDashboardLinkClick={handleDashboardLinkClick}
+                                renderUserMessage={renderUserMessage}
+                                onChoiceSelect={
+                                    isInputDisabled || isBusy
+                                        ? undefined
+                                        : (choice) =>
+                                              postToThread({
+                                                  message: choice,
+                                                  toolHints: [],
+                                              })
                                 }
-                                // The question card's options would repeat as chips.
-                                showSuggestions={
-                                    getPendingAskUser(
-                                        thread.messages.at(-1),
-                                    ) === null
-                                }
-                                latestAssistantMessageUuid={
-                                    thread.messages.findLast(
-                                        (m) => m.role === 'assistant',
-                                    )?.uuid
-                                }
-                            />
-                        </AgentChatDisplay>
-                    </Box>
-                )}
+                            >
+                                <AgentChatInput
+                                    accessCalloutVariant="inline"
+                                    // Another bubble's text box may be in use.
+                                    autoFocus={false}
+                                    hideSuggestionsWhenScrolledUp={false}
+                                    dense
+                                    fullWidth
+                                    disabled={isInputDisabled}
+                                    disabledReason="This thread is read-only."
+                                    loading={isBusy}
+                                    onSubmit={handleSubmit}
+                                    placeholder={`Reply to ${agentName}`}
+                                    toolbarStart={
+                                        <Group gap={2} wrap="nowrap">
+                                            {REPLY_TOOLS.map((tool) => (
+                                                <Tooltip
+                                                    key={tool.label}
+                                                    label={tool.hint}
+                                                    withinPortal={false}
+                                                >
+                                                    <ActionIcon
+                                                        size="sm"
+                                                        aria-label={tool.label}
+                                                        variant={
+                                                            armed
+                                                                ? 'light'
+                                                                : 'subtle'
+                                                        }
+                                                        disabled={
+                                                            otherTargetActive ||
+                                                            isInputDisabled
+                                                        }
+                                                        onClick={() =>
+                                                            onArm(tool.input)
+                                                        }
+                                                    >
+                                                        <MantineIcon
+                                                            icon={tool.icon}
+                                                        />
+                                                    </ActionIcon>
+                                                </Tooltip>
+                                            ))}
+                                        </Group>
+                                    }
+                                    messageCount={thread.messages.length}
+                                    projectUuid={projectUuid}
+                                    agentUuid={agentUuid}
+                                    threadUuid={threadId}
+                                    contentMentionPriorityItems={
+                                        contentMentionItems
+                                    }
+                                    // The question card's options would repeat as chips.
+                                    showSuggestions={
+                                        getPendingAskUser(
+                                            thread.messages.at(-1),
+                                        ) === null
+                                    }
+                                    latestAssistantMessageUuid={
+                                        thread.messages.findLast(
+                                            (m) => m.role === 'assistant',
+                                        )?.uuid
+                                    }
+                                />
+                            </AgentChatDisplay>
+                        </Box>
+                    )}
+                </Box>
             </Box>
         </AgentContainerWidthContext.Provider>
     );

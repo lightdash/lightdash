@@ -13,6 +13,7 @@ import { createPortal } from 'react-dom';
 import { v4 as uuidv4 } from 'uuid';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { grabAppFrame } from './appFrame';
+import { bubbleColor, nextBubbleColor } from './bubblePalette';
 import { bringToFront, stackOrder } from './bubbleStack';
 import { buildSummary } from './buildSummary';
 import { type ShiftUpAction } from './captureReducer';
@@ -206,6 +207,8 @@ export const useDesignMode = (
     stop: (bubbleId: string) => void;
     discard: (bubbleId: string) => void;
     close: (bubbleId: string) => void;
+    minimise: (bubbleId: string) => void;
+    expand: (bubbleId: string) => void;
     holding: DesignTool | null;
     /** An app's own element picker reported a click, at this viewport point. */
     framePick: (at: { x: number; y: number }) => void;
@@ -235,6 +238,8 @@ export const useDesignMode = (
     pickerRef.current = opts.picker;
     const cancelSendRef = useRef(opts.cancelSend);
     cancelSendRef.current = opts.cancelSend;
+    const showsThreadRef = useRef(opts.renderBubbleBody !== null);
+    showsThreadRef.current = opts.renderBubbleBody !== null;
     const onBubbleRemovedRef = useRef(opts.onBubbleRemoved);
     onBubbleRemovedRef.current = opts.onBubbleRemoved;
 
@@ -1073,6 +1078,9 @@ export const useDesignMode = (
                         type: 'sendStarted',
                         bubbleId,
                         needsPicker: false,
+                        // Out of the way while the agent works, where the
+                        // bubble goes on to show the conversation.
+                        minimise: showsThreadRef.current,
                     });
                     sending = true;
                     const images = await Promise.all(
@@ -1516,35 +1524,55 @@ export const useDesignMode = (
         });
     }, [dispatch, tabUuid]);
 
-    // A sent bubble grows into a conversation: once, when it first shows as
-    // one, it takes the room beside its marks, wherever on the page they are.
-    const roomedRef = useRef(new Set<string>());
+    // A sent bubble takes the room beside its marks, wherever on the page they
+    // are, each time it changes form: a conversation needs more than a pill.
+    const roomedRef = useRef(new Map<string, 'pill' | 'full'>());
     useEffect(() => {
         const current = surfaceRef.current;
         if (!current) return;
         const scrollNow = current.getScroll();
         visibleBubbles(session, tabUuid).forEach((bubble) => {
-            if (bubble.status !== 'thread' && bubble.status !== 'picking-agent')
-                return;
-            if (roomedRef.current.has(bubble.id)) return;
+            const form = bubble.minimised
+                ? 'pill'
+                : bubble.status === 'thread' ||
+                    bubble.status === 'picking-agent'
+                  ? 'full'
+                  : null;
+            const was = roomedRef.current.get(bubble.id) ?? null;
+            if (form === null || form === was) return;
             const onScreen = bubbleElement(bubble.id)?.getBoundingClientRect();
             if (!onScreen) return;
-            roomedRef.current.add(bubble.id);
-            if (userPlacedRef.current.has(bubble.id)) return;
-            const at = besideMarks({
-                marks: placed
-                    .filter(
-                        (m) =>
-                            m.bubbleId === bubble.id && m.tabUuid === tabUuid,
-                    )
-                    .map((m) => onScreenRect(m, scrollNow)),
-                current: { x: onScreen.left, y: onScreen.top },
-                size: SENT_BUBBLE_SIZE,
-                bounds: pageRect(scrollNow),
-                avoid: otherBubbleRects(bubble.id),
-                reach: ATTACHED_PX,
-            });
-            if (at.x === onScreen.left && at.y === onScreen.top) return;
+            roomedRef.current.set(bubble.id, form);
+            const size = form === 'pill' ? onScreen : SENT_BUBBLE_SIZE;
+            const here = { x: onScreen.left, y: onScreen.top };
+            // Opened from a pill, the conversation is wanted in view.
+            const opened = form === 'full' && was === 'pill';
+            const fits =
+                size.width <= window.innerWidth &&
+                size.height <= window.innerHeight;
+            const at = userPlacedRef.current.has(bubble.id)
+                ? opened
+                    ? intoView(
+                          new DOMRect(here.x, here.y, size.width, size.height),
+                          viewportRect(),
+                      )
+                    : here
+                : besideMarks({
+                      marks: placed
+                          .filter(
+                              (m) =>
+                                  m.bubbleId === bubble.id &&
+                                  m.tabUuid === tabUuid,
+                          )
+                          .map((m) => onScreenRect(m, scrollNow)),
+                      current: here,
+                      size,
+                      bounds:
+                          opened && fits ? viewportRect() : pageRect(scrollNow),
+                      avoid: otherBubbleRects(bubble.id),
+                      reach: ATTACHED_PX,
+                  });
+            if (at.x === here.x && at.y === here.y) return;
             dispatch({
                 type: 'moved',
                 bubbleId: bubble.id,
@@ -1552,6 +1580,19 @@ export const useDesignMode = (
             });
         });
     }, [dispatch, placed, session, tabUuid]);
+
+    const minimise = useCallback(
+        (bubbleId: string) => {
+            dispatch({ type: 'minimise', bubbleId });
+        },
+        [dispatch],
+    );
+    const expand = useCallback(
+        (bubbleId: string) => {
+            dispatch({ type: 'expand', bubbleId });
+        },
+        [dispatch],
+    );
 
     const raise = useCallback((bubbleId: string) => {
         setOrder((prev) =>
@@ -1601,6 +1642,17 @@ export const useDesignMode = (
             ),
     );
 
+    const colorOf = (bubbleId: string): string =>
+        bubbleColor(session.bubbles.find((b) => b.id === bubbleId)?.color ?? 0);
+    // Ink takes the colour of the bubble it goes into; on the page, the next one's.
+    const inkColor = bubbleColor(
+        activeCollection(session)?.bubble.color ??
+            nextBubbleColor(
+                session.bubbles.at(-1)?.color ?? null,
+                session.bubbles.map((b) => b.color),
+            ),
+    );
+
     const bubbleNodes = shownBubbles.map((bubble) => (
         <DesignBubble
             key={bubble.id}
@@ -1620,6 +1672,8 @@ export const useDesignMode = (
             onStop={() => stop(bubble.id)}
             onDiscard={() => discard(bubble.id)}
             onClose={() => close(bubble.id)}
+            onMinimise={() => minimise(bubble.id)}
+            onExpand={() => expand(bubble.id)}
         >
             {opts.renderBubbleBody?.(bubble, session) ?? null}
         </DesignBubble>
@@ -1639,6 +1693,7 @@ export const useDesignMode = (
                                 holding={inkTakesPointer}
                                 inkVisible
                                 strokes={ink}
+                                color={inkColor}
                                 fading={null}
                                 hover={hover}
                                 onStrokePoint={onStrokePoint}
@@ -1652,6 +1707,7 @@ export const useDesignMode = (
                                     clip={rect}
                                     shiftRef={marksShiftRef}
                                     marks={shownMarks}
+                                    colorOf={colorOf}
                                 />
                                 <Box
                                     ref={bubblesShiftRef}
@@ -1693,6 +1749,7 @@ export const useDesignMode = (
                                 clip={null}
                                 shiftRef={null}
                                 marks={shownMarks}
+                                colorOf={colorOf}
                             />
                             {bubbleNodes}
                         </>,
@@ -1712,6 +1769,8 @@ export const useDesignMode = (
         stop,
         discard,
         close,
+        minimise,
+        expand,
         holding,
         framePick,
         frameHold,

@@ -1,5 +1,4 @@
 import { type CSSProperties, type FC, type MouseEvent } from 'react';
-import { INK_COLOR } from '../composeImage';
 import { CAPTURE_IGNORE_ATTRIBUTE } from '../frameSource';
 import { type Box, type Point, type Stroke } from '../types';
 import classes from './InkOverlay.module.css';
@@ -13,6 +12,8 @@ type Props = {
     /** Ink is hidden until the clean picture of the screen has been taken. */
     inkVisible: boolean;
     strokes: Stroke[];
+    /** The colour of the bubble the ink goes into. */
+    color: string;
     fading: FadingMark | null;
     /** Cursor: the outline of the element under the pointer. */
     hover: Box | null;
@@ -32,6 +33,7 @@ const InkOverlay: FC<Props> = ({
     holding,
     inkVisible,
     strokes,
+    color,
     fading,
     hover,
     onStrokePoint,
@@ -50,7 +52,7 @@ const InkOverlay: FC<Props> = ({
                 key={i}
                 d={toPath(stroke)}
                 fill="none"
-                stroke={INK_COLOR}
+                stroke={color}
                 strokeWidth={3}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -82,6 +84,7 @@ const InkOverlay: FC<Props> = ({
                         '--region-top': `${rect.top}px`,
                         '--region-width': `${rect.width}px`,
                         '--region-height': `${rect.height}px`,
+                        '--bubble-color': color,
                     } as CSSProperties
                 }
                 // Moving the mouse draws; a click must not reach the app.

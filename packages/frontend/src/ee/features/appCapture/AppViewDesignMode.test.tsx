@@ -34,6 +34,7 @@ const mocks = vi.hoisted(() => ({
         session: { bubbles: [], active: { kind: 'page' } } as unknown,
         arm: vi.fn(),
         send: vi.fn(),
+        expand: vi.fn(),
         framePick: vi.fn(),
         frameHold: vi.fn(),
     },
@@ -109,6 +110,10 @@ const bubble = (overrides: Partial<Bubble>): Bubble => ({
     sentMarks: [],
     threadId: null,
     agentUuid: null,
+    color: 0,
+    minimised: false,
+    unread: false,
+    sendFailed: false,
     ...overrides,
 });
 

@@ -10,7 +10,7 @@ import {
     Text,
     Textarea,
 } from '@mantine/core';
-import { IconMicrophone, IconX } from '@tabler/icons-react';
+import { IconMicrophone, IconMinus, IconX } from '@tabler/icons-react';
 import {
     useEffect,
     useRef,
@@ -20,15 +20,18 @@ import {
     type ReactNode,
 } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { BUBBLE_COLOR_VAR, bubbleColor } from '../bubblePalette';
+import { BUBBLE_PILL_ATTRIBUTE } from '../bubblePill';
 import {
     BUBBLE_DRAG_ATTRIBUTE,
     clampDrag,
     dragStartsOn,
     wheelScrollsInside,
 } from '../bubblePointer';
-import { type Bubble } from '../designSession';
+import { canMinimise, type Bubble } from '../designSession';
 import { CAPTURE_IGNORE_ATTRIBUTE } from '../frameSource';
 import { DESIGN_INPUT_ATTRIBUTE } from '../holdKeys';
+import BubblePill from './BubblePill';
 import classes from './DesignBubble.module.css';
 
 // A press on the header that moves less than this is a click.
@@ -56,7 +59,12 @@ type Props = {
     onStop: () => void;
     onDiscard: () => void;
     onClose: () => void;
-    /** The agent picker or the thread, once the bubble is sent. */
+    onMinimise: () => void;
+    onExpand: () => void;
+    /**
+     * The agent picker or the thread, once the bubble is sent. A minimised
+     * conversation draws its own pill here.
+     */
     children: ReactNode;
 };
 
@@ -73,8 +81,12 @@ const DesignBubble: FC<Props> = ({
     onStop,
     onDiscard,
     onClose,
+    onMinimise,
+    onExpand,
     children,
 }) => {
+    const color = bubbleColor(bubble.color);
+    const { minimised } = bubble;
     const [text, setText] = useState('');
     const inputRef = useRef<HTMLTextAreaElement | null>(null);
     const collected =
@@ -102,6 +114,8 @@ const DesignBubble: FC<Props> = ({
     onMoveRef.current = onMove;
     const [dragging, setDragging] = useState(false);
     const dragRef = useRef<{ end: () => void } | null>(null);
+    // The click that ends a drag is not a press on what was dragged.
+    const draggedRef = useRef(false);
     useEffect(() => () => dragRef.current?.end(), []);
     // The key hold marks the page: the bubble is let go of.
     useEffect(() => {
@@ -116,6 +130,7 @@ const DesignBubble: FC<Props> = ({
         // No text selection, and focus stays where the user was typing.
         event.preventDefault();
         dragRef.current?.end();
+        draggedRef.current = false;
         const from = { x: event.clientX, y: event.clientY };
         const start = root.getBoundingClientRect();
         let moving = false;
@@ -125,6 +140,7 @@ const DesignBubble: FC<Props> = ({
             if (!moving && Math.hypot(dx, dy) < DRAG_START_PX) return;
             if (!moving) setDragging(true);
             moving = true;
+            draggedRef.current = true;
             onMoveRef.current(
                 clampDrag(
                     { x: start.left + dx, y: start.top + dy },
@@ -159,6 +175,33 @@ const DesignBubble: FC<Props> = ({
         root.addEventListener('wheel', onWheel, { passive: false });
         return () => root.removeEventListener('wheel', onWheel);
     }, []);
+
+    // Minimised or expanded from inside it, focus goes to what took its place.
+    const toggledHereRef = useRef(false);
+    useEffect(() => {
+        if (!toggledHereRef.current) return;
+        toggledHereRef.current = false;
+        rootRef.current
+            ?.querySelector<HTMLElement>(
+                minimised
+                    ? `[${BUBBLE_PILL_ATTRIBUTE}]`
+                    : '[data-bubble-minimise]',
+            )
+            ?.focus({ preventScroll: true });
+    }, [minimised]);
+    const expand = () => {
+        toggledHereRef.current = true;
+        onExpand();
+    };
+
+    const sendingRow = (
+        <Group gap="xs" wrap="nowrap">
+            <Loader size="xs" />
+            <Text size="sm" c="dimmed">
+                Sending
+            </Text>
+        </Group>
+    );
 
     const stopRow = (
         <Group gap="xs" wrap="nowrap" justify="space-between">
@@ -204,13 +247,25 @@ const DesignBubble: FC<Props> = ({
                     </Badge>
                 );
             case 'sending':
-                return (
-                    <Group gap="xs" wrap="nowrap">
-                        <Loader size="xs" />
-                        <Text size="sm" c="dimmed">
-                            Sending
-                        </Text>
-                    </Group>
+                // A reply keeps its conversation, so nothing in it is lost.
+                if (bubble.threadId) {
+                    return (
+                        <>
+                            {children}
+                            {!minimised && sendingRow}
+                        </>
+                    );
+                }
+                return minimised ? (
+                    <BubblePill
+                        agent={null}
+                        state="working"
+                        marks={collected.map((mark) => mark.number)}
+                        color={color}
+                        onExpand={expand}
+                    />
+                ) : (
+                    sendingRow
                 );
             case 'picking-agent':
                 return children;
@@ -218,7 +273,7 @@ const DesignBubble: FC<Props> = ({
                 return (
                     <>
                         {children}
-                        {listening && stopRow}
+                        {!minimised && listening && stopRow}
                     </>
                 );
             default:
@@ -235,24 +290,53 @@ const DesignBubble: FC<Props> = ({
     // A conversation with nothing collected has its own header: the close
     // button sits in that row's corner instead of taking a row.
     const bare = bubble.status === 'thread' && collected.length === 0;
-    const closeButton = (
-        <ActionIcon
-            size="sm"
-            className={bare ? classes.cornerClose : undefined}
-            aria-label={unsent ? 'Discard' : 'Close'}
-            onClick={unsent ? onDiscard : onClose}
+    const controls = (
+        <Group
+            gap={2}
+            wrap="nowrap"
+            className={bare ? classes.cornerControls : undefined}
         >
-            <MantineIcon icon={IconX} />
-        </ActionIcon>
+            {canMinimise(bubble) && !listening && (
+                <ActionIcon
+                    size="sm"
+                    aria-label="Minimise"
+                    data-bubble-minimise=""
+                    onClick={() => {
+                        toggledHereRef.current = true;
+                        onMinimise();
+                    }}
+                >
+                    <MantineIcon icon={IconMinus} />
+                </ActionIcon>
+            )}
+            {bubble.status !== 'sending' && (
+                <ActionIcon
+                    size="sm"
+                    aria-label={unsent ? 'Discard' : 'Close'}
+                    onClick={unsent ? onDiscard : onClose}
+                >
+                    <MantineIcon icon={IconX} />
+                </ActionIcon>
+            )}
+        </Group>
     );
+    // A drag ends in a click on what was dragged: it is not a press.
+    const dropClick = (event: ReactMouseEvent) => {
+        if (!draggedRef.current) return;
+        draggedRef.current = false;
+        event.preventDefault();
+        event.stopPropagation();
+    };
 
     return (
         <Paper
             ref={rootRef}
             className={classes.bubble}
             shadow="md"
-            p="xs"
+            p={minimised ? 0 : 'xs'}
+            radius={minimised ? 'xl' : undefined}
             data-bubble-id={bubble.id}
+            data-minimised={minimised}
             data-passthrough={passthrough}
             data-dragging={dragging}
             {...{ [CAPTURE_IGNORE_ATTRIBUTE]: '' }}
@@ -260,13 +344,15 @@ const DesignBubble: FC<Props> = ({
                 '--bubble-left': `${position.x}px`,
                 '--bubble-top': `${position.y}px`,
                 '--bubble-stack': `${Math.min(stack, MAX_STACK)}`,
+                [BUBBLE_COLOR_VAR]: color,
             }}
+            onClickCapture={dropClick}
             onMouseDownCapture={onRaise}
             onFocusCapture={onRaise}
             onMouseDown={startDrag}
         >
-            {bare ? (
-                closeButton
+            {minimised ? null : bare ? (
+                controls
             ) : (
                 <Group
                     gap="xs"
@@ -281,7 +367,7 @@ const DesignBubble: FC<Props> = ({
                                 key={mark.number}
                                 circle
                                 size="md"
-                                color="red"
+                                color={color}
                                 variant="filled"
                                 aria-label={`Mark ${mark.number}`}
                             >
@@ -289,7 +375,7 @@ const DesignBubble: FC<Props> = ({
                             </Badge>
                         ))}
                     </Group>
-                    {bubble.status !== 'sending' && closeButton}
+                    {controls}
                 </Group>
             )}
             <Box>{body()}</Box>

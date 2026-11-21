@@ -9,14 +9,13 @@ const CONTROLS =
 const KEEP_WIDTH_PX = 80;
 const KEEP_HEIGHT_PX = 40;
 
-/** A press here drags the bubble: on its header, not on a control in it. */
+/** A press here drags the bubble: on its header or pill, not on a control in a header. */
 export const dragStartsOn = (target: Element, bubble: Element): boolean => {
     const handle = target.closest(`[${BUBBLE_DRAG_ATTRIBUTE}]`);
-    return (
-        handle !== null &&
-        bubble.contains(handle) &&
-        !handle.contains(target.closest(CONTROLS))
-    );
+    if (handle === null || !bubble.contains(handle)) return false;
+    const control = target.closest(CONTROLS);
+    // A pill is a button that is its own handle.
+    return control === handle || !handle.contains(control);
 };
 
 /**

@@ -9,6 +9,14 @@
     max-width: 420px;
     transition: opacity 120ms ease;
     overscroll-behavior: contain;
+    /* Its marks' colour, along the top. */
+    border-top: 3px solid var(--bubble-color);
+}
+
+/* A pill: as small as what it says, edged in its marks' colour. */
+.bubble[data-minimised='true'] {
+    min-width: 0;
+    border: 1.5px solid var(--bubble-color);
 }
 
 /* The row a bubble is moved by. */
@@ -26,6 +34,7 @@
 /* While a hold is down the bubble is a faint outline the pointer goes through. */
 .bubble[data-passthrough='true'] {
     background: transparent;
+    border-color: color-mix(in srgb, var(--bubble-color) 15%, transparent);
     box-shadow: none;
     pointer-events: none;
 }
@@ -34,7 +43,7 @@
     opacity: 0.15;
 }
 
-.cornerClose {
+.cornerControls {
     position: absolute;
     top: 12px;
     right: 10px;

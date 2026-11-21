@@ -13,6 +13,7 @@ const setup = (holding: boolean) => {
             holding={holding}
             inkVisible
             strokes={[]}
+            color="#1971c2"
             fading={null}
             hover={null}
             onStrokePoint={onStrokePoint}

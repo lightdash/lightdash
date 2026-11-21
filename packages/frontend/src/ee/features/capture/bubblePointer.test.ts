@@ -32,6 +32,16 @@ describe('dragStartsOn', () => {
         expect(dragStartsOn(get('box'), bubble)).toBe(false);
     });
 
+    it('a pill is a button that drags the bubble by itself', () => {
+        const bubble = document.createElement('div');
+        bubble.innerHTML = `<button id="pill" ${BUBBLE_DRAG_ATTRIBUTE}><span id="label">Working</span></button>`;
+        document.body.append(bubble);
+        expect(dragStartsOn(bubble.querySelector('#pill')!, bubble)).toBe(true);
+        expect(dragStartsOn(bubble.querySelector('#label')!, bubble)).toBe(
+            true,
+        );
+    });
+
     it("another bubble's header does not drag this one", () => {
         const one = build();
         const other = build();

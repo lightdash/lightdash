@@ -7,6 +7,23 @@
     max-height: min(420px, calc(100vh - 200px));
 }
 
+/* Minimised: laid out as when open, but taking no room and shown to no one. */
+.keep[data-minimised='true'] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.keep[data-minimised='true'] > .thread {
+    width: calc(420px - 2 * var(--mantine-spacing-xs));
+    max-width: none;
+}
+
 .header {
     flex: 0 0 auto;
     padding-bottom: var(--mantine-spacing-xs);

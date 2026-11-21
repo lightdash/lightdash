@@ -35,6 +35,7 @@ const state = vi.hoisted(() => ({
     isStreaming: false,
     userMessage: 'Make this chart a bar chart',
     composerProps: [] as Record<string, unknown>[],
+    asked: false,
 }));
 
 vi.mock('../../../../../api');
@@ -107,6 +108,10 @@ vi.mock('../../hooks/useProjectAiAgents', async (importOriginal) => ({
         };
     },
 }));
+vi.mock('../ChatElements/askUserQuestions', () => ({
+    getPendingAskUser: () =>
+        state.asked ? { toolCallId: 'ask-1', questions: [] } : null,
+}));
 vi.mock('../ChatElements/ScrollToBottom', () => ({ default: () => null }));
 vi.mock('../ChatElements/AgentChatUserBubble', () => ({
     UserBubble: ({ message }: { message: { message: string } }) => (
@@ -159,6 +164,8 @@ const baseProps = (overrides: Partial<Props> = {}): Props => ({
     replyCollecting: false,
     onSendReply: vi.fn().mockResolvedValue(undefined),
     onClose: null,
+    color: '#e03131',
+    pill: null,
     ...overrides,
 });
 
@@ -207,6 +214,7 @@ describe('BubbleThread', () => {
         state.isStreaming = false;
         state.userMessage = 'Make this chart a bar chart';
         state.composerProps = [];
+        state.asked = false;
         mockedLightdashApi.mockResolvedValue([
             { uuid: 'agent-1', name: 'Data agent', imageUrl: null },
         ] as AiAgentSummary[]);
@@ -409,5 +417,116 @@ describe('BubbleThread', () => {
         renderThread({ onClose });
         fireEvent.click(screen.getByRole('button', { name: 'Close' }));
         expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    describe('minimised', () => {
+        const pill = (overrides: Partial<NonNullable<Props['pill']>> = {}) => ({
+            marks: [1, 2],
+            sending: false,
+            failed: false,
+            unread: true,
+            onExpand: vi.fn(),
+            ...overrides,
+        });
+
+        it('is a pill, with the conversation kept out of sight', () => {
+            renderThread({ pill: pill() });
+            expect(
+                screen.getByRole('button', { name: 'Expand: Reply ready' }),
+            ).toBeInTheDocument();
+            const kept = screen
+                .getByText('Done, it is a bar chart now')
+                .closest('[data-minimised]');
+            expect(kept).toHaveAttribute('data-minimised', 'true');
+        });
+
+        it('open, it has no pill and hides nothing', () => {
+            renderThread();
+            expect(
+                screen.queryByRole('button', { name: /^Expand/ }),
+            ).toBeNull();
+            expect(
+                screen
+                    .getByText('Done, it is a bar chart now')
+                    .closest('[data-minimised]'),
+            ).toHaveAttribute('data-minimised', 'false');
+        });
+
+        it('pressing the pill expands', () => {
+            const onExpand = vi.fn();
+            renderThread({ pill: pill({ onExpand }) });
+            fireEvent.click(screen.getByRole('button', { name: /^Expand/ }));
+            expect(onExpand).toHaveBeenCalledTimes(1);
+        });
+
+        it('says Working while the reply streams, then Reply ready', () => {
+            state.isStreaming = true;
+            const props = baseProps({ pill: pill({ unread: false }) });
+            const { rerender } = renderWithProviders(ui(props));
+            expect(
+                screen.getByRole('button', { name: 'Expand: Working' }),
+            ).toBeInTheDocument();
+            state.isStreaming = false;
+            rerender(ui({ ...props }));
+            // It came while minimised, so it is unread whatever the host says.
+            expect(
+                screen.getByRole('button', { name: 'Expand: Reply ready' }),
+            ).toBeInTheDocument();
+        });
+
+        it('says Working while a reply is on its way out', () => {
+            renderThread({ pill: pill({ sending: true }) });
+            expect(
+                screen.getByRole('button', { name: 'Expand: Working' }),
+            ).toBeInTheDocument();
+        });
+
+        it('says when the agent waits on an answer', () => {
+            state.asked = true;
+            renderThread({ pill: pill() });
+            expect(
+                screen.getByRole('button', {
+                    name: 'Expand: Needs your answer',
+                }),
+            ).toBeInTheDocument();
+        });
+
+        it('says when the last message could not be sent', () => {
+            renderThread({ pill: pill({ failed: true }) });
+            expect(
+                screen.getByRole('button', { name: 'Expand: Could not send' }),
+            ).toBeInTheDocument();
+        });
+
+        it('a read conversation is named after its agent', async () => {
+            renderThread({ pill: pill({ unread: false }) });
+            expect(
+                await screen.findByRole('button', {
+                    name: 'Expand: Data agent',
+                }),
+            ).toBeInTheDocument();
+        });
+
+        it('keeps the same conversation when it is opened again', () => {
+            const props = baseProps({ pill: pill() });
+            const { rerender } = renderWithProviders(ui(props));
+            const kept = screen.getByText('Done, it is a bar chart now');
+            rerender(ui({ ...props, pill: null }));
+            expect(screen.getByText('Done, it is a bar chart now')).toBe(kept);
+        });
+
+        it("draws the user's marks in the bubble's colour", () => {
+            state.userMessage = buildDesignPrompt({
+                surfaceHeading: 'About the dashboard.',
+                summary:
+                    '[Design Mode capture, 0:04. The attached image shows the page with numbered red marks.]\n- ① (0:01) circled, middle',
+                typed: 'make it blue',
+                hasImages: true,
+            });
+            renderThread({ color: '#1971c2' });
+            expect(screen.getByLabelText('Mark 1')).toHaveStyle({
+                '--badge-bg': '#1971c2',
+            });
+        });
     });
 });

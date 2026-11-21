@@ -1,4 +1,5 @@
 import { assertUnreachable } from '@lightdash/common';
+import { nextBubbleColor } from './bubblePalette';
 import {
     captureReducer,
     type CaptureState,
@@ -25,6 +26,14 @@ export type Bubble = {
     sentMarks: CaptureMark[];
     threadId: string | null;
     agentUuid: string | null;
+    /** Its place in the bubble palette: its marks, chips and pill take this colour. */
+    color: number;
+    /** Shown as a small pill; its marks stay on the page. */
+    minimised: boolean;
+    /** A reply was asked for and the bubble has not been open since. */
+    unread: boolean;
+    /** Its last reply could not be sent and waits, unsent, to be tried again. */
+    sendFailed: boolean;
 };
 export type DesignSession = {
     bubbles: Bubble[];
@@ -51,7 +60,15 @@ export type DesignAction =
     | { type: 'arm'; bubbleId: string; input: BubbleInput }
     | { type: 'inputChanged'; bubbleId: string; input: BubbleInput }
     | { type: 'queue'; bubbleId: string }
-    | { type: 'sendStarted'; bubbleId: string; needsPicker: boolean }
+    | {
+          type: 'sendStarted';
+          bubbleId: string;
+          needsPicker: boolean;
+          /** The bubble gets out of the way while the agent works. */
+          minimise: boolean;
+      }
+    | { type: 'minimise'; bubbleId: string }
+    | { type: 'expand'; bubbleId: string }
     // The agent picker opened or closed in a bubble that is being sent.
     | { type: 'picking'; bubbleId: string; open: boolean }
     | {
@@ -65,6 +82,8 @@ export type DesignAction =
     | { type: 'close'; bubbleId: string };
 
 const PAGE = { kind: 'page' } as const;
+// A bubble that is open has been seen.
+const OPEN = { minimised: false, unread: false, sendFailed: false } as const;
 
 const collectedMarks = (c: Collection | null): CaptureMark[] =>
     c && c.capture.status === 'recording' ? c.capture.marks : [];
@@ -94,6 +113,11 @@ const updateBubble = (
     ...s,
     bubbles: s.bubbles.map((b) => (b.id === id ? fn(b) : b)),
 });
+
+/** A sent bubble can be a pill, unless marks are being collected in it. */
+export const canMinimise = (b: Bubble): boolean =>
+    b.status === 'sending' ||
+    (b.status === 'thread' && !isInProgress(b.collection));
 
 export const nextMarkNumber = (b: Bubble): number =>
     b.sentMarks.length + collectedMarks(b.collection).length + 1;
@@ -158,6 +182,13 @@ export const designSessionReducer = (
                     sentMarks: [],
                     threadId: null,
                     agentUuid: null,
+                    color: nextBubbleColor(
+                        s.bubbles.at(-1)?.color ?? null,
+                        s.bubbles.map((b) => b.color),
+                    ),
+                    minimised: false,
+                    unread: false,
+                    sendFailed: false,
                 };
                 session = {
                     bubbles: [...s.bubbles, bubble],
@@ -182,7 +213,12 @@ export const designSessionReducer = (
                 if (slot !== null && slot >= tabUuids.length) {
                     tabUuids[slot] = action.tabUuid;
                 }
-                return { ...b, collection: { capture, tabUuids } };
+                // What is being marked into is on show.
+                return {
+                    ...b,
+                    minimised: false,
+                    collection: { capture, tabUuids },
+                };
             });
         }
         case 'strokeAdded': {
@@ -265,6 +301,7 @@ export const designSessionReducer = (
                     if (b.id === target.id) {
                         return {
                             ...b,
+                            ...OPEN,
                             input: action.input,
                             // Marks already made are kept; an empty one restarts for this input.
                             collection:
@@ -298,6 +335,7 @@ export const designSessionReducer = (
             }
             const next = updateBubble(s, bubble.id, (b) => ({
                 ...b,
+                ...OPEN,
                 status: 'queued',
             }));
             return activeBubbleId(s) === bubble.id
@@ -313,15 +351,36 @@ export const designSessionReducer = (
                           status: action.needsPicker
                               ? 'picking-agent'
                               : 'sending',
+                          minimised: action.minimise && !action.needsPicker,
+                          unread: action.minimise,
+                          sendFailed: false,
                       }
                     : b,
             );
+        case 'minimise': {
+            const bubble = s.bubbles.find((b) => b.id === action.bubbleId);
+            if (!bubble || !canMinimise(bubble)) return s;
+            // An empty reply being collected goes: nothing marks into a pill.
+            const next = updateBubble(s, bubble.id, (b) => ({
+                ...b,
+                minimised: true,
+                collection: b.status === 'thread' ? null : b.collection,
+            }));
+            return bubble.status === 'thread' && activeBubbleId(s) === bubble.id
+                ? { ...next, active: PAGE }
+                : next;
+        }
+        case 'expand':
+            return updateBubble(s, action.bubbleId, (b) => ({ ...b, ...OPEN }));
         case 'picking':
             return updateBubble(s, action.bubbleId, (b) =>
                 b.status === (action.open ? 'sending' : 'picking-agent')
                     ? {
                           ...b,
                           status: action.open ? 'picking-agent' : 'sending',
+                          // The picker has to be seen; once picked, the bubble
+                          // minimises unless the user opened it themselves.
+                          minimised: !action.open && b.unread,
                       }
                     : b,
             );
@@ -341,7 +400,10 @@ export const designSessionReducer = (
         case 'sendFailed':
             return updateBubble(s, action.bubbleId, (b) =>
                 b.status === 'picking-agent' || b.status === 'sending'
-                    ? { ...b, status: b.threadId ? 'thread' : 'collecting' }
+                    ? b.threadId
+                        ? { ...b, status: 'thread', sendFailed: true }
+                        : // An unsent bubble is open, to be sent again.
+                          { ...b, ...OPEN, status: 'collecting' }
                     : b,
             );
         case 'discard': {
@@ -352,6 +414,7 @@ export const designSessionReducer = (
                 const next = updateBubble(s, bubble.id, (b) => ({
                     ...b,
                     collection: null,
+                    sendFailed: false,
                 }));
                 return activeBubbleId(s) === bubble.id
                     ? { ...next, active: PAGE }

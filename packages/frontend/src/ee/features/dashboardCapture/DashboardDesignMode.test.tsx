@@ -51,6 +51,7 @@ const mocks = vi.hoisted(() => ({
         screenChanged: vi.fn(),
         arm: vi.fn(),
         send: vi.fn(),
+        expand: vi.fn(),
     },
     bubbleSend: vi.fn(),
     cancelSend: vi.fn(),
@@ -191,6 +192,10 @@ const threadBubble = (overrides: Partial<Bubble>): Bubble => ({
     sentMarks: [],
     threadId: 'thread-1',
     agentUuid: 'agent-1',
+    color: 0,
+    minimised: false,
+    unread: false,
+    sendFailed: false,
     ...overrides,
 });
 

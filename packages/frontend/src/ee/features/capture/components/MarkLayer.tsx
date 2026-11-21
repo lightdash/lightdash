@@ -1,6 +1,6 @@
 import { Box } from '@mantine/core';
 import { type FC, type Ref } from 'react';
-import { INK_COLOR } from '../composeImage';
+import { BUBBLE_COLOR_VAR } from '../bubblePalette';
 import { CAPTURE_IGNORE_ATTRIBUTE } from '../frameSource';
 import { type LayerMark, type Stroke } from '../types';
 import classes from './MarkLayer.module.css';
@@ -15,6 +15,8 @@ type Props = {
     shiftRef: Ref<HTMLDivElement> | null;
     /** Boxes and strokes are content pixels. */
     marks: LayerMark[];
+    /** The colour of a bubble's marks. */
+    colorOf: (bubbleId: string) => string;
 };
 
 const toPath = (stroke: Stroke): string =>
@@ -22,7 +24,7 @@ const toPath = (stroke: Stroke): string =>
         .map((point, i) => `${i === 0 ? 'M' : 'L'}${point.x} ${point.y}`)
         .join(' ');
 
-const MarkLayer: FC<Props> = ({ clip, shiftRef, marks }) => (
+const MarkLayer: FC<Props> = ({ clip, shiftRef, marks, colorOf }) => (
     <Box
         className={classes.layer}
         data-clipped={clip !== null}
@@ -47,7 +49,7 @@ const MarkLayer: FC<Props> = ({ clip, shiftRef, marks }) => (
                             key={`${mark.bubbleId}-${mark.number}-${i}`}
                             d={toPath(stroke)}
                             fill="none"
-                            stroke={INK_COLOR}
+                            stroke={colorOf(mark.bubbleId)}
                             strokeWidth={3}
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -67,6 +69,7 @@ const MarkLayer: FC<Props> = ({ clip, shiftRef, marks }) => (
                             '--mark-top': `${mark.box.y}px`,
                             '--mark-width': `${mark.box.width}px`,
                             '--mark-height': `${mark.box.height}px`,
+                            [BUBBLE_COLOR_VAR]: colorOf(mark.bubbleId),
                         }}
                     />
                 ))}
@@ -78,6 +81,7 @@ const MarkLayer: FC<Props> = ({ clip, shiftRef, marks }) => (
                     __vars={{
                         '--mark-left': `${mark.box.x}px`,
                         '--mark-top': `${mark.box.y}px`,
+                        [BUBBLE_COLOR_VAR]: colorOf(mark.bubbleId),
                     }}
                 >
                     {mark.number}

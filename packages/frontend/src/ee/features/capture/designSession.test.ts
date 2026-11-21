@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { BUBBLE_COLOR_COUNT } from './bubblePalette';
 import {
     activeCollection,
     canStartHold,
@@ -56,7 +57,12 @@ const hold = (
 const sendAndFinish = (s: DesignSession, id: string) =>
     run(
         s,
-        { type: 'sendStarted', bubbleId: id, needsPicker: false },
+        {
+            type: 'sendStarted',
+            bubbleId: id,
+            needsPicker: false,
+            minimise: false,
+        },
         { type: 'threadReady', bubbleId: id, threadId: 't', agentUuid: 'a' },
     );
 
@@ -228,12 +234,22 @@ describe('designSessionReducer', () => {
 
     it('sendFailed returns the bubble to collecting with its marks', () => {
         let s = run(empty, ...hold('a', 0));
-        s = run(s, { type: 'sendStarted', bubbleId: 'a', needsPicker: true });
+        s = run(s, {
+            type: 'sendStarted',
+            bubbleId: 'a',
+            needsPicker: true,
+            minimise: false,
+        });
         expect(s.bubbles[0].status).toBe('picking-agent');
         s = run(s, { type: 'sendFailed', bubbleId: 'a' });
         expect(s.bubbles[0].status).toBe('collecting');
         expect(s.bubbles[0].collection).not.toBeNull();
-        s = run(s, { type: 'sendStarted', bubbleId: 'a', needsPicker: false });
+        s = run(s, {
+            type: 'sendStarted',
+            bubbleId: 'a',
+            needsPicker: false,
+            minimise: false,
+        });
         expect(s.bubbles[0].status).toBe('sending');
     });
 
@@ -241,7 +257,12 @@ describe('designSessionReducer', () => {
         let s = run(empty, ...hold('a', 0));
         s = run(s, { type: 'picking', bubbleId: 'a', open: true });
         expect(s.bubbles[0].status).toBe('collecting');
-        s = run(s, { type: 'sendStarted', bubbleId: 'a', needsPicker: false });
+        s = run(s, {
+            type: 'sendStarted',
+            bubbleId: 'a',
+            needsPicker: false,
+            minimise: false,
+        });
         s = run(s, { type: 'picking', bubbleId: 'a', open: true });
         expect(s.bubbles[0].status).toBe('picking-agent');
         s = run(s, { type: 'picking', bubbleId: 'a', open: false });
@@ -305,7 +326,12 @@ describe('designSessionReducer', () => {
             s,
             { type: 'arm', bubbleId: 'a', input: 'text' },
             ...hold('x', 5000),
-            { type: 'sendStarted', bubbleId: 'a', needsPicker: false },
+            {
+                type: 'sendStarted',
+                bubbleId: 'a',
+                needsPicker: false,
+                minimise: false,
+            },
             { type: 'sendFailed', bubbleId: 'a' },
         );
         expect(s.bubbles[0].status).toBe('thread');
@@ -335,6 +361,7 @@ describe('designSessionReducer', () => {
             type: 'sendStarted',
             bubbleId: 'a',
             needsPicker: false,
+            minimise: false,
         });
         expect(s.bubbles[0].status).toBe('sending');
         s = run(s, { type: 'queue', bubbleId: 'a' });
@@ -358,7 +385,12 @@ describe('designSessionReducer', () => {
     it('canStartHold is false while a bubble is sending', () => {
         let s = run(empty, ...hold('a', 0));
         expect(canStartHold(s)).toBe(true);
-        s = run(s, { type: 'sendStarted', bubbleId: 'a', needsPicker: false });
+        s = run(s, {
+            type: 'sendStarted',
+            bubbleId: 'a',
+            needsPicker: false,
+            minimise: false,
+        });
         expect(canStartHold(s)).toBe(false);
     });
 
@@ -375,6 +407,280 @@ describe('designSessionReducer', () => {
         expect(s.bubbles[0].input).toBe('text');
         expect(activeCollection(s)?.collection.capture).toMatchObject({
             marks: [{ number: 1 }],
+        });
+    });
+
+    // A bubble on the page with its conversation open: sent, then left alone.
+    const sent = (s: DesignSession, id: string, at: number) =>
+        sendAndFinish(run(s, ...hold(id, at)), id);
+    const startSend = (id: string): DesignAction => ({
+        type: 'sendStarted',
+        bubbleId: id,
+        needsPicker: false,
+        minimise: true,
+    });
+    const ready = (id: string): DesignAction => ({
+        type: 'threadReady',
+        bubbleId: id,
+        threadId: 't',
+        agentUuid: 'a',
+    });
+    const bubbleOf = (s: DesignSession, id: string) =>
+        s.bubbles.find((b) => b.id === id);
+
+    describe('colours', () => {
+        it('are given in palette order and come round again once all are used', () => {
+            let s = empty;
+            const ids = Array.from(
+                { length: BUBBLE_COLOR_COUNT + 2 },
+                (_, i) => `b${i}`,
+            );
+            ids.forEach((id, i) => {
+                s = sent(s, id, i * 1000);
+            });
+            expect(s.bubbles.map((b) => b.color)).toEqual(
+                ids.map((_, i) => i % BUBBLE_COLOR_COUNT),
+            );
+        });
+
+        it('a closed bubble gives its colour back, used once the rest are', () => {
+            let s = sent(sent(sent(empty, 'a', 0), 'b', 1000), 'c', 2000);
+            s = run(s, { type: 'close', bubbleId: 'b' });
+            const more = Array.from(
+                { length: BUBBLE_COLOR_COUNT - 2 },
+                (_, i) => `n${i}`,
+            );
+            more.forEach((id, i) => {
+                s = sent(s, id, 3000 + i * 1000);
+            });
+            // 3, 4, 5, then the freed 1: never 0 or 2, which are on the page.
+            expect(more.map((id) => bubbleOf(s, id)?.color)).toEqual([
+                ...Array.from(
+                    { length: BUBBLE_COLOR_COUNT - 3 },
+                    (_, i) => i + 3,
+                ),
+                1,
+            ]);
+        });
+
+        it('a thrown-away bubble does not use a colour up', () => {
+            let s = run(empty, ...hold('a', 0), {
+                type: 'discard',
+                bubbleId: 'a',
+            });
+            s = run(s, ...hold('b', 1000));
+            expect(s.bubbles[0].color).toBe(0);
+        });
+    });
+
+    describe('minimise', () => {
+        it('a send that asks for it minimises the bubble and marks the reply unread', () => {
+            const s = run(empty, ...hold('a', 0), startSend('a'));
+            expect(s.bubbles[0]).toMatchObject({
+                status: 'sending',
+                minimised: true,
+                unread: true,
+            });
+            expect(run(s, ready('a')).bubbles[0]).toMatchObject({
+                status: 'thread',
+                minimised: true,
+                unread: true,
+            });
+        });
+
+        it('a send that does not ask leaves the bubble as it is', () => {
+            const s = run(empty, ...hold('a', 0), {
+                type: 'sendStarted',
+                bubbleId: 'a',
+                needsPicker: false,
+                minimise: false,
+            });
+            expect(s.bubbles[0]).toMatchObject({
+                minimised: false,
+                unread: false,
+            });
+        });
+
+        it('a reply minimises the bubble again', () => {
+            let s = run(empty, ...hold('a', 0), startSend('a'), ready('a'), {
+                type: 'expand',
+                bubbleId: 'a',
+            });
+            s = run(
+                s,
+                { type: 'arm', bubbleId: 'a', input: 'text' },
+                ...hold('a', 1000),
+                startSend('a'),
+            );
+            expect(s.bubbles[0]).toMatchObject({
+                status: 'sending',
+                minimised: true,
+            });
+        });
+
+        it('the agent picker opens the bubble; picking minimises it', () => {
+            let s = run(empty, ...hold('a', 0), startSend('a'), {
+                type: 'picking',
+                bubbleId: 'a',
+                open: true,
+            });
+            expect(s.bubbles[0]).toMatchObject({
+                status: 'picking-agent',
+                minimised: false,
+            });
+            s = run(s, { type: 'picking', bubbleId: 'a', open: false });
+            expect(s.bubbles[0]).toMatchObject({
+                status: 'sending',
+                minimised: true,
+            });
+        });
+
+        it('a picker in a bubble that was not minimised leaves it open', () => {
+            const s = run(
+                empty,
+                ...hold('a', 0),
+                {
+                    type: 'sendStarted',
+                    bubbleId: 'a',
+                    needsPicker: false,
+                    minimise: false,
+                },
+                { type: 'picking', bubbleId: 'a', open: true },
+                { type: 'picking', bubbleId: 'a', open: false },
+            );
+            expect(s.bubbles[0].minimised).toBe(false);
+        });
+
+        it('expanded during a run, it stays expanded when the thread is ready', () => {
+            const s = run(
+                empty,
+                ...hold('a', 0),
+                startSend('a'),
+                { type: 'expand', bubbleId: 'a' },
+                ready('a'),
+            );
+            expect(s.bubbles[0]).toMatchObject({
+                status: 'thread',
+                minimised: false,
+                unread: false,
+            });
+        });
+
+        it('minimised by hand, a read conversation stays minimised and read', () => {
+            let s = run(empty, ...hold('a', 0), startSend('a'), ready('a'), {
+                type: 'expand',
+                bubbleId: 'a',
+            });
+            s = run(s, { type: 'minimise', bubbleId: 'a' });
+            expect(s.bubbles[0]).toMatchObject({
+                minimised: true,
+                unread: false,
+            });
+        });
+
+        it('unsent and queued bubbles do not minimise', () => {
+            let s = run(empty, ...hold('a', 0), {
+                type: 'minimise',
+                bubbleId: 'a',
+            });
+            expect(s.bubbles[0].minimised).toBe(false);
+            s = run(s, startSend('a'), { type: 'queue', bubbleId: 'a' });
+            expect(s.bubbles[0]).toMatchObject({
+                status: 'queued',
+                minimised: false,
+            });
+            s = run(s, { type: 'minimise', bubbleId: 'a' });
+            expect(s.bubbles[0].minimised).toBe(false);
+        });
+
+        it('a bubble collecting a reply does not minimise', () => {
+            const s = run(
+                sent(empty, 'a', 0),
+                { type: 'arm', bubbleId: 'a', input: 'text' },
+                ...hold('a', 1000),
+                { type: 'minimise', bubbleId: 'a' },
+            );
+            expect(s.bubbles[0].minimised).toBe(false);
+        });
+
+        it('minimising an armed bubble with nothing collected hands the page back', () => {
+            const s = run(
+                sent(empty, 'a', 0),
+                { type: 'arm', bubbleId: 'a', input: 'text' },
+                { type: 'minimise', bubbleId: 'a' },
+            );
+            expect(s.bubbles[0]).toMatchObject({
+                minimised: true,
+                collection: null,
+            });
+            expect(s.active).toEqual({ kind: 'page' });
+        });
+
+        it('arming a minimised bubble expands it', () => {
+            const s = run(empty, ...hold('a', 0), startSend('a'), ready('a'), {
+                type: 'arm',
+                bubbleId: 'a',
+                input: 'text',
+            });
+            expect(s.bubbles[0]).toMatchObject({
+                minimised: false,
+                unread: false,
+            });
+            expect(s.active).toEqual({ kind: 'bubble', bubbleId: 'a' });
+        });
+
+        it('a first send that fails opens the bubble to try again', () => {
+            const s = run(empty, ...hold('a', 0), startSend('a'), {
+                type: 'sendFailed',
+                bubbleId: 'a',
+            });
+            expect(s.bubbles[0]).toMatchObject({
+                status: 'collecting',
+                minimised: false,
+                unread: false,
+                sendFailed: false,
+            });
+        });
+
+        it('a reply that fails stays minimised and says so, until expanded', () => {
+            let s = run(
+                sent(empty, 'a', 0),
+                { type: 'arm', bubbleId: 'a', input: 'text' },
+                ...hold('a', 1000),
+                startSend('a'),
+                { type: 'sendFailed', bubbleId: 'a' },
+            );
+            expect(s.bubbles[0]).toMatchObject({
+                status: 'thread',
+                minimised: true,
+                sendFailed: true,
+            });
+            s = run(s, { type: 'expand', bubbleId: 'a' });
+            expect(s.bubbles[0]).toMatchObject({
+                minimised: false,
+                sendFailed: false,
+            });
+            // Its unsent marks are still there to send again.
+            expect(nextMarkNumber(s.bubbles[0])).toBe(3);
+        });
+
+        it('a mark drawn into a minimised bubble expands it', () => {
+            let s = run(
+                sent(empty, 'a', 0),
+                { type: 'arm', bubbleId: 'a', input: 'text' },
+                ...hold('a', 1000),
+                startSend('a'),
+                { type: 'sendFailed', bubbleId: 'a' },
+            );
+            s = run(s, ...hold('a', 2000));
+            expect(s.bubbles[0].minimised).toBe(false);
+        });
+
+        it('keepSent keeps a bubble minimised', () => {
+            const s = keepSent(
+                run(empty, ...hold('a', 0), startSend('a'), ready('a')),
+            );
+            expect(s.bubbles[0].minimised).toBe(true);
         });
     });
 });

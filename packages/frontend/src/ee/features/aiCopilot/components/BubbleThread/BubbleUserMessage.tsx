@@ -7,10 +7,12 @@ type Props = {
     marks: number[];
     /** What the user said and typed; empty when they only marked. */
     words: string;
+    /** The colour of the bubble's marks. */
+    color: string;
 };
 
 /** The user's own message in a bubble: their marks and their words, nothing generated. */
-const BubbleUserMessage: FC<Props> = ({ marks, words }) => (
+const BubbleUserMessage: FC<Props> = ({ marks, words, color }) => (
     <Card
         radius="lg"
         py="xs"
@@ -25,7 +27,7 @@ const BubbleUserMessage: FC<Props> = ({ marks, words }) => (
                         key={number}
                         circle
                         size="md"
-                        color="red"
+                        color={color}
                         variant="filled"
                         aria-label={`Mark ${number}`}
                     >

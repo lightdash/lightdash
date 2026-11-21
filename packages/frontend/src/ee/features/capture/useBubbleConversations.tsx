@@ -5,6 +5,7 @@ import BubbleReplyPoster, {
 } from '../aiCopilot/components/BubbleThread/BubbleReplyPoster';
 import { BubbleThread } from '../aiCopilot/components/BubbleThread/BubbleThread';
 import { LauncherAgentPicker } from '../aiCopilot/components/Launcher/LauncherAgentPicker';
+import { bubbleColor } from './bubblePalette';
 import { buildDesignPrompt } from './buildDesignPrompt';
 import {
     activeCollection,
@@ -30,6 +31,7 @@ type Design = {
     session: DesignSession;
     arm: (bubbleId: string, input: BubbleInput) => void;
     send: (bubbleId: string, typed: string) => void;
+    expand: (bubbleId: string) => void;
 };
 
 /**
@@ -128,7 +130,9 @@ export const useBubbleConversations = (
             ) : null;
         }
         const { threadId, agentUuid } = bubble;
-        if (bubble.status !== 'thread' || !threadId || !agentUuid) return null;
+        // A reply on its way out keeps its conversation.
+        const shown = bubble.status === 'thread' || bubble.status === 'sending';
+        if (!shown || !threadId || !agentUuid) return null;
 
         const active = activeCollection(session);
         const armed =
@@ -140,7 +144,7 @@ export const useBubbleConversations = (
 
         return (
             <>
-                {above}
+                {bubble.minimised ? null : above}
                 <BubbleThread
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
@@ -155,6 +159,25 @@ export const useBubbleConversations = (
                     }}
                     // The bubble draws its own close button.
                     onClose={null}
+                    color={bubbleColor(bubble.color)}
+                    pill={
+                        bubble.minimised
+                            ? {
+                                  marks: [
+                                      ...bubble.sentMarks,
+                                      ...(bubble.collection?.capture.status ===
+                                      'recording'
+                                          ? bubble.collection.capture.marks
+                                          : []),
+                                  ].map((mark) => mark.number),
+                                  sending: bubble.status === 'sending',
+                                  failed: bubble.sendFailed,
+                                  unread: bubble.unread,
+                                  onExpand: () =>
+                                      designRef.current?.expand(bubble.id),
+                              }
+                            : null
+                    }
                 />
             </>
         );

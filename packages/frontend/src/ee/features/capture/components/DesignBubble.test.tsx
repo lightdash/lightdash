@@ -62,6 +62,8 @@ const setup = (
         onClose: vi.fn(),
         onRaise: vi.fn(),
         onMove: vi.fn(),
+        onMinimise: vi.fn(),
+        onExpand: vi.fn(),
     };
     renderWithProviders(
         <DesignBubble
@@ -147,6 +149,7 @@ describe('DesignBubble', () => {
                 type: 'sendStarted',
                 bubbleId: 'a',
                 needsPicker: true,
+                minimise: false,
             }),
         );
         expect(screen.getByText('thread area')).toBeInTheDocument();
@@ -157,7 +160,12 @@ describe('DesignBubble', () => {
         const { onClose } = setup(
             bubbleWith(
                 'text',
-                { type: 'sendStarted', bubbleId: 'a', needsPicker: false },
+                {
+                    type: 'sendStarted',
+                    bubbleId: 'a',
+                    needsPicker: false,
+                    minimise: false,
+                },
                 {
                     type: 'threadReady',
                     bubbleId: 'a',
@@ -261,6 +269,8 @@ describe('DesignBubble', () => {
                 onStop={noop}
                 onDiscard={noop}
                 onClose={noop}
+                onMinimise={noop}
+                onExpand={noop}
             >
                 {null}
             </DesignBubble>
@@ -305,6 +315,131 @@ describe('DesignBubble', () => {
             } finally {
                 elsewhere.remove();
             }
+        });
+    });
+
+    describe('minimise', () => {
+        const threadReady: DesignAction = {
+            type: 'threadReady',
+            bubbleId: 'a',
+            threadId: 't',
+            agentUuid: 'agent',
+        };
+        const sendStarted = (minimise: boolean): DesignAction => ({
+            type: 'sendStarted',
+            bubbleId: 'a',
+            needsPicker: false,
+            minimise,
+        });
+
+        it('a conversation has Minimise next to Close', () => {
+            const { onMinimise, onClose } = setup(
+                bubbleWith('text', sendStarted(false), threadReady),
+            );
+            fireEvent.click(screen.getByRole('button', { name: 'Minimise' }));
+            expect(onMinimise).toHaveBeenCalledTimes(1);
+            expect(onClose).not.toHaveBeenCalled();
+            expect(
+                screen.getByRole('button', { name: 'Close' }),
+            ).toBeInTheDocument();
+        });
+
+        it('a bubble being sent can be minimised', () => {
+            setup(bubbleWith('text', sendStarted(false)));
+            expect(
+                screen.getByRole('button', { name: 'Minimise' }),
+            ).toBeInTheDocument();
+        });
+
+        it.each([
+            ['unsent', []],
+            [
+                'picking an agent',
+                [{ ...sendStarted(false), needsPicker: true }],
+            ],
+            ['queued', [{ type: 'queue', bubbleId: 'a' }]],
+        ] as [string, DesignAction[]][])(
+            'a bubble that is %s has no Minimise',
+            (_, actions) => {
+                setup(bubbleWith('text', ...actions));
+                expect(
+                    screen.queryByRole('button', { name: 'Minimise' }),
+                ).toBeNull();
+            },
+        );
+
+        it('a bubble collecting a reply has no Minimise', () => {
+            setup(
+                bubbleWith(
+                    'text',
+                    sendStarted(false),
+                    threadReady,
+                    { type: 'arm', bubbleId: 'a', input: 'text' },
+                    ...hold('text', 5000),
+                ),
+            );
+            expect(
+                screen.queryByRole('button', { name: 'Minimise' }),
+            ).toBeNull();
+        });
+
+        it('minimised while it is sent, it is a Working pill that expands', () => {
+            const { onExpand } = setup(bubbleWith('text', sendStarted(true)));
+            const pill = screen.getByRole('button', {
+                name: 'Expand: Working',
+            });
+            expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
+            expect(screen.queryByText('Sending')).toBeNull();
+            fireEvent.click(pill);
+            expect(onExpand).toHaveBeenCalledTimes(1);
+        });
+
+        it('a minimised conversation shows only what its host draws', () => {
+            const { container } = (() => {
+                const bubble = bubbleWith(
+                    'text',
+                    sendStarted(true),
+                    threadReady,
+                );
+                setup(bubble);
+                return { container: document.body };
+            })();
+            expect(screen.getByText('thread area')).toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
+            expect(
+                screen.queryByRole('button', { name: 'Minimise' }),
+            ).toBeNull();
+            expect(
+                container.querySelector('[data-bubble-id="a"]'),
+            ).toHaveAttribute('data-minimised', 'true');
+        });
+
+        it('a pill dragged is not pressed', () => {
+            const { onExpand, onMove } = setup(
+                bubbleWith('text', sendStarted(true)),
+            );
+            const pill = screen.getByRole('button', {
+                name: 'Expand: Working',
+            });
+            fireEvent.mouseDown(pill, { button: 0, clientX: 10, clientY: 10 });
+            fireEvent.mouseMove(window, { clientX: 60, clientY: 40 });
+            fireEvent.mouseUp(window);
+            fireEvent.click(pill);
+            expect(onMove).toHaveBeenCalled();
+            expect(onExpand).not.toHaveBeenCalled();
+            // The next press is a press again.
+            fireEvent.click(pill);
+            expect(onExpand).toHaveBeenCalledTimes(1);
+        });
+
+        it('takes its colour from the bubble', () => {
+            setup(bubbleWith('text'));
+            const root = document.querySelector<HTMLElement>(
+                '[data-bubble-id="a"]',
+            )!;
+            expect(root.style.getPropertyValue('--bubble-color')).toBe(
+                '#e03131',
+            );
         });
     });
 });

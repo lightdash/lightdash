@@ -37,6 +37,7 @@ import launcherClasses from '../aiCopilot/components/Launcher/AiAgentsLauncher.m
 import { useLauncherDockExtras } from '../aiCopilot/components/Launcher/launcherDockExtras';
 import { useDefaultAiAgent } from '../aiCopilot/components/Launcher/useDefaultAiAgent';
 import { useProjectAiAgentButtonVisibility } from '../aiCopilot/hooks/useAiAgentsButtonVisibility';
+import { bubbleColor } from '../capture/bubblePalette';
 import { type Bubble } from '../capture/designSession';
 import {
     type DesignPayload,
@@ -181,7 +182,7 @@ const DashboardDesignSurface: FC<Props> = ({
                             <Badge
                                 circle
                                 size="sm"
-                                color="red"
+                                color={bubbleColor(bubble.color)}
                                 variant="filled"
                             >
                                 {mark.number}

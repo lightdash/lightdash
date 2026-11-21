@@ -47,7 +47,7 @@
     top: var(--mark-top);
     width: var(--mark-width);
     height: var(--mark-height);
-    border: 2px solid #e03131;
+    border: 2px solid var(--bubble-color);
     border-radius: 6px;
 }
 
@@ -60,7 +60,7 @@
     height: 22px;
     padding: 0 6px;
     border-radius: 11px;
-    background: #e03131;
+    background: var(--bubble-color);
     color: #fff;
     font-size: 12px;
     font-weight: 700;

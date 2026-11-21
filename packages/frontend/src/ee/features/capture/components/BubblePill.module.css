@@ -1,0 +1,35 @@
+/* A minimised bubble: the whole of it is one button, edged in its marks' colour. */
+.pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 10px 0 3px;
+    border-radius: inherit;
+    color: var(--mantine-color-text);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+}
+
+.pill:hover {
+    background: var(--mantine-color-default-hover);
+}
+
+.pill:focus-visible {
+    outline: 2px solid var(--bubble-color);
+    outline-offset: 2px;
+}
+
+/* A reply nobody has opened yet. */
+.unread {
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--bubble-color);
+}
+
+.more {
+    margin-left: -2px;
+}
