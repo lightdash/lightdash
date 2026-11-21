@@ -1,6 +1,6 @@
 import html2canvas from 'html2canvas-pro';
 import { CAPTURE_IGNORE_ATTRIBUTE, pageRectForRegion } from './frameSource';
-import { toThumb, type TabFrame } from './tabFrame';
+import { type TabFrame } from './tabFrame';
 
 /**
  * Draws the visible part of the page from the DOM, so the browser never
@@ -31,5 +31,5 @@ export const grabDomFrame = async (region: DOMRect): Promise<TabFrame> => {
             element.hasAttribute(CAPTURE_IGNORE_ATTRIBUTE),
     });
     const bitmap = await createImageBitmap(canvas);
-    return { bitmap, thumb: toThumb(bitmap) };
+    return { bitmap };
 };

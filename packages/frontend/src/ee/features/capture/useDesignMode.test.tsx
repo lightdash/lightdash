@@ -1,7 +1,7 @@
 import { AI_THREAD_IMAGES_MAX_PER_PROMPT as CAP } from '@lightdash/common';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { useState, type FC } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import {
     type CaptureMark,
@@ -50,11 +50,8 @@ vi.mock('./composeImage', () => ({
         composeImage(...args),
 }));
 
-// What the page looks like: a different shade is a different screen.
-let shade = 0;
 const fakeFrame = () => ({
     bitmap: { close: vi.fn(), width: 100, height: 100 },
-    thumb: new Uint8ClampedArray(16).fill(shade),
 });
 
 const transcribe = vi.fn();
@@ -206,7 +203,6 @@ describe('useDesignMode', () => {
         scroll = { x: 0, y: 0 };
         scrollContainer = null;
         tab = null;
-        shade = 0;
         composeImage.mockClear();
         startVoice.mockReset();
         stopVoice.mockReset();
@@ -232,8 +228,10 @@ describe('useDesignMode', () => {
 
         await keyUp({ key: 'Alt' });
         await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
-        expect(grabDomFrame).toHaveBeenCalledTimes(1);
         expect(api.holding).toBe(null);
+        // The picture comes once the hand is still, not with the release.
+        expect(grabDomFrame).not.toHaveBeenCalled();
+        await waitFor(() => expect(grabDomFrame).toHaveBeenCalledTimes(1));
     });
 
     it('an empty hold never opens a bubble', async () => {
@@ -416,7 +414,8 @@ describe('useDesignMode', () => {
     it('a screen past the image cap is still marked, and told in words', async () => {
         await turnOn();
         for (let i = 0; i <= CAP; i += 1) {
-            shade = (i * 40) % 240;
+            // Each mark is made further down the page: another screen.
+            scroll = { x: 0, y: i * 200 };
             await drawMark();
             await waitFor(() => expect(collected()).toHaveLength(i + 1));
         }
@@ -668,9 +667,9 @@ describe('useDesignMode', () => {
 
         fireEvent.keyUp(textbox, { key: 'e', altKey: true });
         fireEvent.keyUp(textbox, { key: 'Alt' });
-        await act(async () => {});
-        expect(grabDomFrame).toHaveBeenCalledTimes(1);
+        await waitFor(() => expect(grabDomFrame).toHaveBeenCalledTimes(1));
         expect(api.session.bubbles).toHaveLength(1);
+        expect(collected()).toHaveLength(1);
     });
 
     it('a Control hold picks an element with each click', async () => {
@@ -1269,7 +1268,7 @@ describe('useDesignMode', () => {
         expect(document.querySelector('[data-mark-number]')).toBeNull();
     });
 
-    it('a scroll between release and the frame landing keeps the bubble beside its mark', async () => {
+    it('a scroll during the hold keeps the bubble beside its mark', async () => {
         const px = (name: string, selector: string) =>
             parseFloat(
                 (
@@ -1279,7 +1278,7 @@ describe('useDesignMode', () => {
         const gap = () =>
             px('--bubble-top', '[data-bubble-id]') -
             px('--mark-top', '[data-mark-number="1"]');
-        const drawAt = async (top: number) => {
+        const drawAt = async (top: number, scrolledTo: number | null) => {
             await keyDown({ key: 'Alt', altKey: true });
             fireEvent.mouseMove(holdLayer(), { clientX: 10, clientY: top });
             fireEvent.mouseMove(holdLayer(), {
@@ -1290,12 +1289,18 @@ describe('useDesignMode', () => {
                 clientX: 70,
                 clientY: top + 10,
             });
+            if (scrolledTo !== null) {
+                scroll = { x: 0, y: scrolledTo };
+                await act(async () => {
+                    window.dispatchEvent(new Event('scroll'));
+                });
+            }
             await keyUp({ key: 'Alt' });
         };
 
         // A mark low enough that the bubble is not held in by the top margin.
         await turnOn();
-        await drawAt(40);
+        await drawAt(40, null);
         await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
         const still = gap();
         await act(async () => {
@@ -1303,26 +1308,13 @@ describe('useDesignMode', () => {
         });
         expect(api.session.bubbles).toHaveLength(0);
 
-        // The page scrolls up by 30 while the frame is being grabbed, so
-        // this mark ends at the same place on screen as the one above.
-        let land: (frame: ReturnType<typeof fakeFrame>) => void = () => {};
-        grabDomFrame.mockImplementation(
-            () =>
-                new Promise((resolve) => {
-                    land = resolve;
-                }),
-        );
+        // The page scrolls up by 30 before the key is let go, so this
+        // mark ends at the same place on screen as the one above.
         scroll = { x: 0, y: 50 };
         await act(async () => {
             window.dispatchEvent(new Event('scroll'));
         });
-        await drawAt(10);
-        expect(api.session.bubbles).toHaveLength(0);
-        scroll = { x: 0, y: 20 };
-        await act(async () => {
-            window.dispatchEvent(new Event('scroll'));
-            land(fakeFrame());
-        });
+        await drawAt(10, 20);
         await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
         // 40 on screen: its place in the content less the scroll of 20.
         expect(px('--mark-top', '[data-mark-number="1"]')).toBe(60);
@@ -1517,6 +1509,255 @@ describe('useDesignMode', () => {
                 );
             });
             expect(stackOf(first)).toBeGreaterThan(stackOf(second));
+        });
+    });
+
+    describe('the picture of the page', () => {
+        // Time moves only when a test says so.
+        const wait = (ms: number) =>
+            act(async () => {
+                await vi.advanceTimersByTimeAsync(ms);
+            });
+        const composed = () =>
+            composeImage.mock.calls.map(([input]) => ({
+                index: input.index,
+                marks: input.marks.map((m) => m.number),
+            }));
+
+        beforeEach(() => {
+            vi.useFakeTimers({
+                toFake: ['setTimeout', 'clearTimeout', 'Date'],
+            });
+        });
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        it('a second mark on the same screen does not grab again', async () => {
+            await turnOn();
+            await drawMark();
+            await wait(500);
+            expect(grabDomFrame).toHaveBeenCalledTimes(1);
+
+            await drawMark();
+            await wait(2000);
+            expect(collected().map((m) => m.imageIndex)).toEqual([0, 0]);
+            expect(grabDomFrame).toHaveBeenCalledTimes(1);
+
+            await act(async () => {
+                api.send(api.session.bubbles[0].id, 'these two');
+            });
+            await wait(0);
+            expect(onSend).toHaveBeenCalledTimes(1);
+            expect(composed()).toEqual([{ index: 0, marks: [1, 2] }]);
+            expect(grabDomFrame).toHaveBeenCalledTimes(1);
+        });
+
+        it('the grab waits for a quiet moment and is postponed by a new hold', async () => {
+            await turnOn();
+            await drawMark();
+            // The mark and its bubble are there at once; the picture is not.
+            expect(collected()).toHaveLength(1);
+            expect(grabDomFrame).not.toHaveBeenCalled();
+
+            await wait(300);
+            await keyDown({ key: 'Alt', altKey: true });
+            await wait(2000);
+            expect(grabDomFrame).not.toHaveBeenCalled();
+            fireEvent.mouseMove(holdLayer(), { clientX: 20, clientY: 60 });
+            fireEvent.mouseMove(holdLayer(), { clientX: 50, clientY: 80 });
+            await keyUp({ key: 'Alt' });
+            expect(collected()).toHaveLength(2);
+
+            await wait(300);
+            expect(grabDomFrame).not.toHaveBeenCalled();
+            await wait(200);
+            expect(grabDomFrame).toHaveBeenCalledTimes(1);
+        });
+
+        it('a moving pointer postpones the grab too', async () => {
+            await turnOn();
+            await drawMark();
+            await wait(300);
+            fireEvent.mouseMove(document.body, { clientX: 5, clientY: 5 });
+            await wait(300);
+            expect(grabDomFrame).not.toHaveBeenCalled();
+            await wait(200);
+            expect(grabDomFrame).toHaveBeenCalledTimes(1);
+        });
+
+        it('send waits for the pending grab and the image has both marks', async () => {
+            let land: (frame: ReturnType<typeof fakeFrame>) => void = () => {};
+            grabDomFrame.mockImplementation(
+                () =>
+                    new Promise((resolve) => {
+                        land = resolve;
+                    }),
+            );
+            await turnOn();
+            await drawMark();
+            await drawMark();
+            expect(collected()).toHaveLength(2);
+            expect(grabDomFrame).not.toHaveBeenCalled();
+
+            await act(async () => {
+                api.send(api.session.bubbles[0].id, 'both');
+            });
+            expect(grabDomFrame).toHaveBeenCalledTimes(1);
+            await wait(1000);
+            expect(onSend).not.toHaveBeenCalled();
+
+            await act(async () => {
+                land(fakeFrame());
+            });
+            await wait(0);
+            expect(onSend).toHaveBeenCalledTimes(1);
+            expect(onSend.mock.calls[0][0].images).toHaveLength(1);
+            expect(composed()).toEqual([{ index: 0, marks: [1, 2] }]);
+            expect(grabDomFrame).toHaveBeenCalledTimes(1);
+        });
+
+        it('scrolling before the grab runs still grabs, and the marks stay on what they marked', async () => {
+            await turnOn();
+            await drawMark();
+            const drawn = collected()[0].box.y;
+            expect(grabDomFrame).not.toHaveBeenCalled();
+
+            scroll = { x: 0, y: 5 };
+            await act(async () => {
+                window.dispatchEvent(new Event('scroll'));
+            });
+            expect(grabDomFrame).toHaveBeenCalledTimes(1);
+
+            await act(async () => {
+                api.send(api.session.bubbles[0].id, 'this');
+            });
+            await wait(0);
+            expect(onSend).toHaveBeenCalledTimes(1);
+            // The page is 100 tall and was pictured 5 further down.
+            const [input] = composeImage.mock.calls[0];
+            expect(input.marks[0].box.y).toBeCloseTo(drawn - 0.05);
+            expect(onSend.mock.calls[0][0].marks[0].box.y).toBe(drawn);
+        });
+
+        it('a mark after a scroll gets a picture of its own', async () => {
+            await turnOn();
+            await drawMark();
+            scroll = { x: 0, y: 300 };
+            await act(async () => {
+                window.dispatchEvent(new Event('scroll'));
+            });
+            await drawMark();
+            await wait(500);
+            expect(collected().map((m) => m.imageIndex)).toEqual([0, 1]);
+            expect(grabDomFrame).toHaveBeenCalledTimes(2);
+        });
+
+        it('a press on the page takes the picture first, and the next mark gets its own', async () => {
+            await turnOn();
+            await drawMark();
+            fireEvent.pointerDown(document.body);
+            expect(grabDomFrame).toHaveBeenCalledTimes(1);
+
+            await drawMark();
+            await wait(500);
+            expect(collected().map((m) => m.imageIndex)).toEqual([0, 1]);
+            expect(grabDomFrame).toHaveBeenCalledTimes(2);
+        });
+
+        it('a press in the bubble leaves the picture for later', async () => {
+            await turnOn();
+            await drawMark();
+            fireEvent.pointerDown(screen.getByRole('textbox'));
+            fireEvent.keyDown(screen.getByRole('textbox'), { key: 'a' });
+            expect(grabDomFrame).not.toHaveBeenCalled();
+        });
+
+        it('replaced content is pictured at once, and the next mark gets its own', async () => {
+            await turnOn();
+            await drawMark();
+            await act(async () => {
+                api.screenChanged();
+            });
+            expect(grabDomFrame).toHaveBeenCalledTimes(1);
+            await drawMark();
+            expect(collected().map((m) => m.imageIndex)).toEqual([0, 1]);
+        });
+
+        it('a tab change takes the picture at once', async () => {
+            tab = { uuid: 'a', name: 'Overview' };
+            await turnOn();
+            await drawMark();
+            tab = { uuid: 'b', name: 'Marketing' };
+            await act(async () => redraw());
+            expect(grabDomFrame).toHaveBeenCalledTimes(1);
+        });
+
+        it('discarding a bubble drops its pending grab', async () => {
+            await turnOn();
+            await drawMark();
+            await act(async () => {
+                api.discard(api.session.bubbles[0].id);
+            });
+            await wait(2000);
+            expect(api.session.bubbles).toHaveLength(0);
+            expect(grabDomFrame).not.toHaveBeenCalled();
+        });
+
+        it('a picture that lands after its bubble was thrown away is let go', async () => {
+            const frame = fakeFrame();
+            let land: () => void = () => {};
+            grabDomFrame.mockImplementation(
+                () =>
+                    new Promise((resolve) => {
+                        land = () => resolve(frame);
+                    }),
+            );
+            await turnOn();
+            await drawMark();
+            await wait(500);
+            expect(grabDomFrame).toHaveBeenCalledTimes(1);
+            await act(async () => {
+                api.discard(api.session.bubbles[0].id);
+                land();
+            });
+            expect(frame.bitmap.close).toHaveBeenCalledTimes(1);
+        });
+
+        it('leaving Design Mode drops the pending grab', async () => {
+            await turnOn();
+            await drawMark();
+            await act(async () => {
+                api.setOn(false);
+            });
+            await wait(2000);
+            expect(grabDomFrame).not.toHaveBeenCalled();
+        });
+
+        it('a picture that fails is tried again when the bubble is sent', async () => {
+            grabDomFrame.mockRejectedValueOnce(new Error('no picture'));
+            await turnOn();
+            await drawMark();
+            await wait(500);
+            expect(grabDomFrame).toHaveBeenCalledTimes(1);
+            expect(collected()).toHaveLength(1);
+
+            await act(async () => {
+                api.send(api.session.bubbles[0].id, 'again');
+            });
+            await wait(0);
+            expect(grabDomFrame).toHaveBeenCalledTimes(2);
+            expect(onSend.mock.calls[0][0].images).toHaveLength(1);
+        });
+
+        it('the page takes no pointer while its picture is owed', async () => {
+            await turnOn();
+            await drawMark();
+            expect(
+                document.querySelector('[data-design-shield]'),
+            ).not.toBeNull();
+            await wait(500);
+            expect(document.querySelector('[data-design-shield]')).toBeNull();
         });
     });
 

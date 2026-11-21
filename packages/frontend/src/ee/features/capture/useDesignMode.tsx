@@ -36,7 +36,8 @@ import {
     type DesignSession,
 } from './designSession';
 import { grabDomFrame } from './domFrame';
-import { sameScreen } from './frameGeometry';
+import { sameScreen, shiftMarks, type ScreenView } from './frameGeometry';
+import { CAPTURE_IGNORE_ATTRIBUTE } from './frameSource';
 import { cancelsHold, escapeIsForDesignMode, holdToolForKey } from './holdKeys';
 import { coveredTargets } from './markCoverage';
 import { ATTACHED_PX, besideMarks, intoView } from './placeBubble';
@@ -66,7 +67,23 @@ const NEW_BUBBLE_SIZE = { width: 320, height: 120 };
 const SENT_BUBBLE_SIZE = { width: 420, height: 500 };
 // The open bubble keeps off the strip along the bottom where the toolbar sits.
 const TOOLBAR_STRIP_PX = 72;
+// The page is pictured once the hand has been still for this long.
+const QUIET_MS = 400;
+const SHIELD_ATTRIBUTE = 'data-design-shield';
 const EMPTY: DesignSession = { bubbles: [], active: { kind: 'page' } };
+
+/** One picture of a bubble's collection, taken after its first mark landed. */
+type Shot = {
+    view: ScreenView;
+    region: DOMRect;
+    frame: TabFrame | null;
+    grabbing: Promise<void> | null;
+    failed: boolean;
+    /** Its bubble is gone: a picture still on its way is thrown away. */
+    dropped: boolean;
+    /** How far the page had scrolled from the view when the picture was taken. */
+    scrolled: { x: number; y: number };
+};
 
 type Hold = {
     tool: DesignTool;
@@ -194,6 +211,8 @@ export const useDesignMode = (
     framePick: (at: { x: number; y: number }) => void;
     /** A hold key went down or came up inside an app frame. */
     frameHold: (tool: DesignTool, phase: 'down' | 'up') => void;
+    /** The page's content was replaced, as after an agent's edit. */
+    screenChanged: () => void;
     element: ReactNode;
 } => {
     // Read through refs so the callbacks below keep a stable identity.
@@ -277,7 +296,13 @@ export const useDesignMode = (
 
     const holdRef = useRef<Hold | null>(null);
     const downKeysRef = useRef(new Set<string>());
-    const framesRef = useRef(new Map<string, TabFrame[]>());
+    // shots[i] is the picture of image slot i.
+    const shotsRef = useRef(new Map<string, Shot[]>());
+    const epochRef = useRef(0);
+    const grabTimerRef = useRef<number | null>(null);
+    const lastActivityRef = useRef(0);
+    // A picture is waiting: the page under the pointer is kept as it is.
+    const [shielded, setShielded] = useState(false);
     // When each bubble's current collection started, on the performance clock.
     const clocksRef = useRef(new Map<string, number>());
     const recordingRef = useRef<Recording | null>(null);
@@ -308,10 +333,123 @@ export const useDesignMode = (
     // A layer drawn for the first time starts where the scroll is.
     useLayoutEffect(refreshScroll);
 
-    const clearFrames = useCallback((bubbleId: string) => {
-        framesRef.current.get(bubbleId)?.forEach((f) => f.bitmap.close());
-        framesRef.current.delete(bubbleId);
+    const waitingShots = useCallback(
+        (): Shot[] =>
+            [...shotsRef.current.values()]
+                .flat()
+                .filter((s) => !s.frame && !s.grabbing && !s.failed),
+        [],
+    );
+    const refreshShield = useCallback(() => {
+        setShielded(waitingShots().length > 0);
+    }, [waitingShots]);
+
+    const clearFrames = useCallback(
+        (bubbleId: string) => {
+            shotsRef.current.get(bubbleId)?.forEach((shot) => {
+                shot.dropped = true;
+                shot.frame?.bitmap.close();
+                shot.frame = null;
+            });
+            shotsRef.current.delete(bubbleId);
+            refreshShield();
+        },
+        [refreshShield],
+    );
+
+    const startGrab = useCallback(
+        (shot: Shot): Promise<void> => {
+            if (shot.frame || shot.dropped) return Promise.resolve();
+            if (shot.grabbing) return shot.grabbing;
+            const current = surfaceRef.current;
+            if (!current) return Promise.resolve();
+            const scrollNow = current.getScroll();
+            shot.failed = false;
+            shot.scrolled = {
+                x: scrollNow.x - shot.view.scroll.x,
+                y: scrollNow.y - shot.view.scroll.y,
+            };
+            let frame: Promise<TabFrame>;
+            try {
+                frame = grabFrame(current, shot.region);
+            } catch (error) {
+                frame = Promise.reject(error);
+            }
+            shot.grabbing = frame.then(
+                (got) => {
+                    shot.grabbing = null;
+                    if (shot.dropped) got.bitmap.close();
+                    else shot.frame = got;
+                },
+                () => {
+                    shot.grabbing = null;
+                    shot.failed = true;
+                    if (!shot.dropped) {
+                        showToastError('Could not capture the screen');
+                    }
+                },
+            );
+            return shot.grabbing;
+        },
+        [showToastError],
+    );
+
+    // Takes the pictures still owed, before what they should show is gone.
+    const grabNow = useCallback(() => {
+        if (grabTimerRef.current !== null) {
+            window.clearTimeout(grabTimerRef.current);
+            grabTimerRef.current = null;
+        }
+        const waiting = waitingShots();
+        if (waiting.length === 0) return;
+        waiting.forEach((shot) => void startGrab(shot));
+        refreshShield();
+    }, [refreshShield, startGrab, waitingShots]);
+
+    // Drawing the page blocks the pen, so it waits until the hand is still.
+    const grabWhenQuiet = useCallback(() => {
+        if (grabTimerRef.current !== null) {
+            window.clearTimeout(grabTimerRef.current);
+            grabTimerRef.current = null;
+        }
+        if (waitingShots().length === 0) return;
+        const tick = () => {
+            grabTimerRef.current = null;
+            // The end of the hold asks again.
+            if (holdRef.current) return;
+            const quietFor = Date.now() - lastActivityRef.current;
+            if (quietFor < QUIET_MS) {
+                grabTimerRef.current = window.setTimeout(
+                    tick,
+                    QUIET_MS - quietFor,
+                );
+                return;
+            }
+            grabNow();
+        };
+        grabTimerRef.current = window.setTimeout(tick, QUIET_MS);
+    }, [grabNow, waitingShots]);
+    const postponeGrab = useCallback(() => {
+        if (grabTimerRef.current === null) return;
+        window.clearTimeout(grabTimerRef.current);
+        grabTimerRef.current = null;
     }, []);
+    useEffect(() => postponeGrab, [postponeGrab]);
+
+    // Every picture of a bubble, taken now if it was still owed.
+    const picturesOf = useCallback(
+        (bubbleId: string): Promise<void> =>
+            Promise.all(
+                (shotsRef.current.get(bubbleId) ?? []).map(startGrab),
+            ).then(() => refreshShield()),
+        [refreshShield, startGrab],
+    );
+
+    // The page's content was replaced: marks made from now need a new picture.
+    const screenChanged = useCallback(() => {
+        grabNow();
+        epochRef.current += 1;
+    }, [grabNow]);
 
     const beginRecording = useCallback(
         (bubbleId: string): Promise<VoiceState> => {
@@ -373,25 +511,13 @@ export const useDesignMode = (
             const current = surfaceRef.current;
             if (!current) return;
             const region = hold.rect;
-            const framePromise = grabFrame(current, region);
-            framePromise.catch(() => {});
             const tab = current.getTab();
 
             queueRef.current = queueRef.current.then(async () => {
-                let frame: TabFrame;
-                try {
-                    frame = await framePromise;
-                } catch {
-                    setInk([]);
-                    showToastError('Could not capture the screen');
-                    abandon(hold);
-                    return;
-                }
                 const voice = hold.voice ? await hold.voice : null;
                 if (voice === 'off') dropRecording(hold.newBubbleId);
                 const before = sessionRef.current;
                 if (!onRef.current || !canStartHold(before)) {
-                    frame.bitmap.close();
                     setInk([]);
                     abandon(hold);
                     return;
@@ -409,12 +535,17 @@ export const useDesignMode = (
                     capture?.status === 'recording' ? capture.marks.length : 0;
                 const wasAtImageLimit =
                     capture?.status === 'recording' && capture.atImageLimit;
-                const previous = framesRef.current.get(bubbleId)?.[lastSlot];
+                const previous = shotsRef.current.get(bubbleId)?.[lastSlot];
                 const tabUuid = tab?.uuid ?? null;
+                // Known without a picture, so a mark never waits for one.
+                const view: ScreenView = {
+                    tabUuid,
+                    scroll: hold.scroll,
+                    size: { width: region.width, height: region.height },
+                    epoch: epochRef.current,
+                };
                 const isNewScreen =
-                    !previous ||
-                    open?.collection.tabUuids[lastSlot] !== tabUuid ||
-                    !sameScreen(frame.thumb, previous.thumb);
+                    !previous || !sameScreen(previous.view, view);
 
                 const started = dispatch({
                     type: 'holdStarted',
@@ -433,7 +564,6 @@ export const useDesignMode = (
                         ? got.collection.capture
                         : null;
                 if (!got || !drawing?.drawing) {
-                    frame.bitmap.close();
                     setInk([]);
                     abandon(hold);
                     return;
@@ -447,18 +577,10 @@ export const useDesignMode = (
                 if (!clocksRef.current.has(got.bubble.id)) {
                     clocksRef.current.set(got.bubble.id, clock);
                 }
-                const frames = framesRef.current.get(got.bubble.id) ?? [];
                 const slot = drawing.drawing.imageIndex;
-                if (
+                const opensImage =
                     slot === drawing.imageCount &&
-                    slot < AI_THREAD_IMAGES_MAX_PER_PROMPT
-                ) {
-                    frames[slot]?.bitmap.close();
-                    frames[slot] = frame;
-                    framesRef.current.set(got.bubble.id, frames);
-                } else {
-                    frame.bitmap.close();
-                }
+                    slot < AI_THREAD_IMAGES_MAX_PER_PROMPT;
 
                 const toViewport = (point: Point) => ({
                     x: region.left + point.x * region.width,
@@ -598,6 +720,30 @@ export const useDesignMode = (
                 setInk([]);
                 const newest = marks[marks.length - 1];
                 if (!newest || marks.length <= marksBefore) return;
+                if (opensImage) {
+                    const shots = shotsRef.current.get(got.bubble.id) ?? [];
+                    const shot: Shot = {
+                        view,
+                        region,
+                        frame: null,
+                        grabbing: null,
+                        failed: false,
+                        dropped: false,
+                        scrolled: { x: 0, y: 0 },
+                    };
+                    const stale = shots[slot];
+                    if (stale) {
+                        stale.dropped = true;
+                        stale.frame?.bitmap.close();
+                    }
+                    shots[slot] = shot;
+                    shotsRef.current.set(got.bubble.id, shots);
+                    // An app draws its own picture, off this page's thread.
+                    if (current.frameSource === 'app') void startGrab(shot);
+                }
+                lastActivityRef.current = Date.now();
+                grabWhenQuiet();
+                refreshShield();
                 // Not on screen yet, or moved out of the mark's way.
                 if (
                     !onScreen ||
@@ -648,36 +794,42 @@ export const useDesignMode = (
             abandon,
             dispatch,
             dropRecording,
+            grabWhenQuiet,
             refreshScroll,
-            showToastError,
+            refreshShield,
             showToastWarning,
+            startGrab,
             updatePlaced,
         ],
     );
 
-    const beginHold = useCallback((tool: DesignTool) => {
-        const current = surfaceRef.current;
-        if (!current || !onRef.current || holdRef.current) return;
-        if (tool === 'cursor' && !current.pickAt) return;
-        if (!canStartHold(sessionRef.current)) return;
-        const region = current.getRegion();
-        setInk([]);
-        setHover(null);
-        setRect(region);
-        setHolding(tool);
-        holdRef.current = {
-            tool,
-            startAbs: performance.now(),
-            rect: region,
-            scroll: current.getScroll(),
-            strokes: [],
-            current: null,
-            picked: false,
-            lastPick: null,
-            newBubbleId: uuidv4(),
-            voice: null,
-        };
-    }, []);
+    const beginHold = useCallback(
+        (tool: DesignTool) => {
+            const current = surfaceRef.current;
+            if (!current || !onRef.current || holdRef.current) return;
+            if (tool === 'cursor' && !current.pickAt) return;
+            if (!canStartHold(sessionRef.current)) return;
+            const region = current.getRegion();
+            postponeGrab();
+            setInk([]);
+            setHover(null);
+            setRect(region);
+            setHolding(tool);
+            holdRef.current = {
+                tool,
+                startAbs: performance.now(),
+                rect: region,
+                scroll: current.getScroll(),
+                strokes: [],
+                current: null,
+                picked: false,
+                lastPick: null,
+                newBubbleId: uuidv4(),
+                voice: null,
+            };
+        },
+        [postponeGrab],
+    );
 
     // The mic starts with a new bubble's first stroke or pick, not the bare
     // key: Option and Control are also pressed for shortcuts.
@@ -697,16 +849,19 @@ export const useDesignMode = (
         setHolding(null);
         setInk([]);
         setHover(null);
+        lastActivityRef.current = Date.now();
+        grabWhenQuiet();
         if (!hold.picked) abandon(hold);
-    }, [abandon]);
+    }, [abandon, grabWhenQuiet]);
 
-    // Drawing the page blocks the pen, so the picture is taken on release.
     const endHold = useCallback(() => {
         const hold = holdRef.current;
         if (!hold) return;
         holdRef.current = null;
         setHolding(null);
         setHover(null);
+        lastActivityRef.current = Date.now();
+        grabWhenQuiet();
         if (hold.tool === 'cursor') {
             if (!hold.picked) abandon(hold);
             return;
@@ -720,7 +875,7 @@ export const useDesignMode = (
             return;
         }
         commit(hold, { kind: 'strokes', strokes, endAbs: performance.now() });
-    }, [abandon, commit]);
+    }, [abandon, commit, grabWhenQuiet]);
 
     const refreshInk = useCallback(() => {
         const hold = holdRef.current;
@@ -824,6 +979,8 @@ export const useDesignMode = (
 
             queueRef.current = queueRef.current.then(async () => {
                 let sending = false;
+                // Sending is the last moment the page is known to be as marked.
+                const pictures = picturesOf(bubbleId);
                 try {
                     const clock =
                         clocksRef.current.get(bubbleId) ?? performance.now();
@@ -864,6 +1021,7 @@ export const useDesignMode = (
                         }
                     }
 
+                    await pictures;
                     // Discarded or closed while the audio was transcribed.
                     const latest = sessionRef.current.bubbles.find(
                         (b) => b.id === bubbleId,
@@ -895,31 +1053,44 @@ export const useDesignMode = (
                         return;
                     }
 
+                    const pictured = (
+                        shotsRef.current.get(bubbleId) ?? []
+                    ).slice(
+                        0,
+                        Math.min(
+                            capture.imageCount,
+                            AI_THREAD_IMAGES_MAX_PER_PROMPT,
+                        ),
+                    );
+                    const frames = pictured.flatMap((shot) =>
+                        shot.frame ? [shot.frame] : [],
+                    );
+                    // A picture that could not be taken is tried again on the next send.
+                    if (frames.length < pictured.length) {
+                        throw new Error('A marked screen has no picture');
+                    }
                     dispatch({
                         type: 'sendStarted',
                         bubbleId,
                         needsPicker: false,
                     });
                     sending = true;
-                    const frames = framesRef.current.get(bubbleId) ?? [];
                     const images = await Promise.all(
-                        frames
-                            .slice(
-                                0,
-                                Math.min(
-                                    capture.imageCount,
-                                    AI_THREAD_IMAGES_MAX_PER_PROMPT,
+                        pictured.map((shot, index) =>
+                            composeImage({
+                                frame: frames[index].bitmap,
+                                marks: shiftMarks(
+                                    marks.filter((m) => m.imageIndex === index),
+                                    {
+                                        x: -shot.scrolled.x / shot.region.width,
+                                        y:
+                                            -shot.scrolled.y /
+                                            shot.region.height,
+                                    },
                                 ),
-                            )
-                            .map((frame, index) =>
-                                composeImage({
-                                    frame: frame.bitmap,
-                                    marks: marks.filter(
-                                        (m) => m.imageIndex === index,
-                                    ),
-                                    index,
-                                }),
-                            ),
+                                index,
+                            }),
+                        ),
                     );
                     const built =
                         marks.length > 0 || phrases.length > 0
@@ -981,6 +1152,7 @@ export const useDesignMode = (
             dropRecording,
             endHold,
             endRecording,
+            picturesOf,
             showToastError,
             showToastWarning,
         ],
@@ -1053,7 +1225,7 @@ export const useDesignMode = (
             const busy = new Set(
                 next.bubbles.filter((b) => b.collection).map((b) => b.id),
             );
-            [...framesRef.current.keys()]
+            [...shotsRef.current.keys()]
                 .filter((id) => !busy.has(id))
                 .forEach(clearFrames);
             [clocksRef.current, phrasesRef.current].forEach((kept) =>
@@ -1287,7 +1459,45 @@ export const useDesignMode = (
         if (sessionRef.current.bubbles.length > 0) putAway(EMPTY);
     }, [putAway, setOn, surface]);
 
+    // Whatever may change the page comes after its picture.
+    useEffect(() => {
+        if (!on) return undefined;
+        const beforeChange = (event: Event) => {
+            if (event instanceof KeyboardEvent && !cancelsHold(event)) return;
+            const own =
+                event.target instanceof Element
+                    ? event.target.closest(`[${CAPTURE_IGNORE_ATTRIBUTE}]`)
+                    : null;
+            // Design Mode's own bubbles and toolbar change nothing in the picture.
+            if (own && !own.hasAttribute(SHIELD_ATTRIBUTE)) return;
+            grabNow();
+            // A press or a key may have changed what is on the page.
+            if (event.type === 'pointerdown' || event.type === 'keydown') {
+                epochRef.current += 1;
+            }
+        };
+        const onMove = () => {
+            lastActivityRef.current = Date.now();
+        };
+        const types = ['pointerdown', 'wheel', 'scroll', 'keydown'] as const;
+        types.forEach((type) =>
+            window.addEventListener(type, beforeChange, {
+                capture: true,
+                passive: true,
+            }),
+        );
+        window.addEventListener('mousemove', onMove, true);
+        return () => {
+            types.forEach((type) =>
+                window.removeEventListener(type, beforeChange, true),
+            );
+            window.removeEventListener('mousemove', onMove, true);
+        };
+    }, [grabNow, on]);
+
     const tabUuid = surface?.getTab()?.uuid ?? null;
+    // A tab that changed with no click: its picture is taken while it can be.
+    useEffect(() => grabNow(), [grabNow, tabUuid]);
     // The open bubble follows the user to another tab; bring it into view there.
     useEffect(() => {
         const current = surfaceRef.current;
@@ -1451,6 +1661,17 @@ export const useDesignMode = (
                                 </Box>
                             </>
                         )}
+                        {on && shielded && !passthrough && (
+                            <Box
+                                className={layerClasses.shield}
+                                {...{
+                                    [CAPTURE_IGNORE_ATTRIBUTE]: '',
+                                    [SHIELD_ATTRIBUTE]: '',
+                                }}
+                                // The press took the picture; focus stays put.
+                                onMouseDown={(event) => event.preventDefault()}
+                            />
+                        )}
                         {on && (
                             <DesignToolbar
                                 ref={toolbarRef}
@@ -1494,6 +1715,7 @@ export const useDesignMode = (
         holding,
         framePick,
         frameHold,
+        screenChanged,
         element,
     };
 };

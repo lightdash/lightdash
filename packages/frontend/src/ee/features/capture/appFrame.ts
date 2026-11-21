@@ -1,5 +1,5 @@
 import { type Size } from './frameGeometry';
-import { toThumb, type TabFrame } from './tabFrame';
+import { type TabFrame } from './tabFrame';
 
 /** Once the app has answered the probe, a frame may take this long. */
 const APP_FRAME_TIMEOUT_MS = 5000;
@@ -86,7 +86,7 @@ export const grabAppFrame = async (
         context.fillRect(0, 0, canvas.width, canvas.height);
         context.drawImage(page, 0, 0);
         const bitmap = await createImageBitmap(canvas);
-        return { bitmap, thumb: toThumb(bitmap) };
+        return { bitmap };
     } finally {
         page.close();
     }
