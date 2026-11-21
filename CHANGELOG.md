@@ -1,3 +1,10 @@
+# [3.360.0](https://github.com/lightdash/lightdash/compare/3.359.1...3.360.0) (2026-11-21)
+
+
+### Features
+
+* **live-sources:** add Salesforce integration with SOQL aggregation ([#32992](https://github.com/lightdash/lightdash/issues/32992)) ([9391c6d](https://github.com/lightdash/lightdash/commit/9391c6d17d398da8c7cd30ef41e6f91533b441b9)), closes [#32991](https://github.com/lightdash/lightdash/issues/32991)
+
 ## [3.359.1](https://github.com/lightdash/lightdash/compare/3.359.0...3.359.1) (2026-11-20)
 
 
