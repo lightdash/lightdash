@@ -52,8 +52,12 @@ export const toGithubError = (
     const detail = message ? `: ${message}` : '';
     if (isRateLimited(response, message)) {
         const retryAfterSeconds = getRetryAfterSeconds(response.headers, now);
+        // GitHub's own message names the account's user ID or IP address
+        const limit = /secondary rate limit/i.test(message)
+            ? 'secondary rate limit'
+            : 'rate limit';
         return new TooManyRequestsError(
-            `GitHub rate limit reached${detail}. Search allows about 30 queries a minute per token; retry ${
+            `GitHub ${limit} reached. Search allows about 30 queries a minute per token; retry ${
                 retryAfterSeconds
                     ? `in ${retryAfterSeconds} seconds`
                     : 'shortly'
