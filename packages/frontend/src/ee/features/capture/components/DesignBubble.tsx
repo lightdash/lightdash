@@ -15,24 +15,41 @@ import {
     useEffect,
     useRef,
     useState,
-    type CSSProperties,
     type FC,
+    type MouseEvent as ReactMouseEvent,
     type ReactNode,
 } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import {
+    BUBBLE_DRAG_ATTRIBUTE,
+    clampDrag,
+    dragStartsOn,
+    wheelScrollsInside,
+} from '../bubblePointer';
 import { type Bubble } from '../designSession';
 import { CAPTURE_IGNORE_ATTRIBUTE } from '../frameSource';
 import { DESIGN_INPUT_ATTRIBUTE } from '../holdKeys';
 import classes from './DesignBubble.module.css';
 
+// A press on the header that moves less than this is a click.
+const DRAG_START_PX = 3;
+// Bubbles stay under modals and popovers however many there are.
+const MAX_STACK = 60;
+
 type Props = {
     bubble: Bubble;
     /** Top left, in viewport pixels. */
     position: { x: number; y: number };
+    /** Its place among the bubbles, 0 at the back. */
+    stack: number;
     /** A hold is down: the bubble fades and lets the pointer through. */
     passthrough: boolean;
     /** The mic is recording into this bubble. */
     listening: boolean;
+    /** Pressed or focused: it comes to the front. */
+    onRaise: () => void;
+    /** Dragged by its header to this top left, in viewport pixels. */
+    onMove: (position: { x: number; y: number }) => void;
     onSend: (text: string) => void;
     onStop: () => void;
     onDiscard: () => void;
@@ -44,8 +61,11 @@ type Props = {
 const DesignBubble: FC<Props> = ({
     bubble,
     position,
+    stack,
     passthrough,
     listening,
+    onRaise,
+    onMove,
     onSend,
     onStop,
     onDiscard,
@@ -73,6 +93,68 @@ const DesignBubble: FC<Props> = ({
         focusedAtMarks.current = markCount;
         inputRef.current?.focus({ preventScroll: true });
     }, [markCount, passthrough, typing]);
+
+    const rootRef = useRef<HTMLDivElement | null>(null);
+    const onMoveRef = useRef(onMove);
+    onMoveRef.current = onMove;
+    const [dragging, setDragging] = useState(false);
+    const dragRef = useRef<{ end: () => void } | null>(null);
+    useEffect(() => () => dragRef.current?.end(), []);
+    // The key hold marks the page: the bubble is let go of.
+    useEffect(() => {
+        if (passthrough) dragRef.current?.end();
+    }, [passthrough]);
+
+    const startDrag = (event: ReactMouseEvent<HTMLDivElement>) => {
+        const root = rootRef.current;
+        if (!root || passthrough || event.button !== 0) return;
+        if (!(event.target instanceof Element)) return;
+        if (!dragStartsOn(event.target, root)) return;
+        // No text selection, and focus stays where the user was typing.
+        event.preventDefault();
+        dragRef.current?.end();
+        const from = { x: event.clientX, y: event.clientY };
+        const start = position;
+        let moving = false;
+        const move = (next: MouseEvent) => {
+            const dx = next.clientX - from.x;
+            const dy = next.clientY - from.y;
+            if (!moving && Math.hypot(dx, dy) < DRAG_START_PX) return;
+            if (!moving) setDragging(true);
+            moving = true;
+            onMoveRef.current(
+                clampDrag(
+                    { x: start.x + dx, y: start.y + dy },
+                    root.getBoundingClientRect(),
+                    new DOMRect(0, 0, window.innerWidth, window.innerHeight),
+                ),
+            );
+        };
+        const end = () => {
+            window.removeEventListener('mousemove', move);
+            window.removeEventListener('mouseup', end);
+            dragRef.current = null;
+            setDragging(false);
+        };
+        dragRef.current = { end };
+        window.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', end);
+    };
+
+    // The wheel scrolls what is in the bubble and never the page under it.
+    useEffect(() => {
+        const root = rootRef.current;
+        if (!root) return undefined;
+        const onWheel = (event: WheelEvent) => {
+            if (event.ctrlKey || !(event.target instanceof Element)) return;
+            const delta = { x: event.deltaX, y: event.deltaY };
+            if (!wheelScrollsInside(event.target, root, delta)) {
+                event.preventDefault();
+            }
+        };
+        root.addEventListener('wheel', onWheel, { passive: false });
+        return () => root.removeEventListener('wheel', onWheel);
+    }, []);
 
     const stopRow = (
         <Group gap="xs" wrap="nowrap" justify="space-between">
@@ -162,23 +244,33 @@ const DesignBubble: FC<Props> = ({
 
     return (
         <Paper
+            ref={rootRef}
             className={classes.bubble}
             shadow="md"
             p="xs"
             data-bubble-id={bubble.id}
             data-passthrough={passthrough}
+            data-dragging={dragging}
             {...{ [CAPTURE_IGNORE_ATTRIBUTE]: '' }}
-            style={
-                {
-                    '--bubble-left': `${position.x}px`,
-                    '--bubble-top': `${position.y}px`,
-                } as CSSProperties
-            }
+            __vars={{
+                '--bubble-left': `${position.x}px`,
+                '--bubble-top': `${position.y}px`,
+                '--bubble-stack': `${Math.min(stack, MAX_STACK)}`,
+            }}
+            onMouseDownCapture={onRaise}
+            onFocusCapture={onRaise}
+            onMouseDown={startDrag}
         >
             {bare ? (
                 closeButton
             ) : (
-                <Group gap="xs" wrap="nowrap" justify="space-between" mb={6}>
+                <Group
+                    gap="xs"
+                    wrap="nowrap"
+                    justify="space-between"
+                    mb={6}
+                    {...{ [BUBBLE_DRAG_ATTRIBUTE]: '' }}
+                >
                     <Group gap={4}>
                         {collected.map((mark) => (
                             <Badge

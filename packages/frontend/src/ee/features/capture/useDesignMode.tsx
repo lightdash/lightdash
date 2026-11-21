@@ -11,6 +11,7 @@ import { createPortal } from 'react-dom';
 import { v4 as uuidv4 } from 'uuid';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { grabAppFrame } from './appFrame';
+import { bringToFront, stackOrder } from './bubbleStack';
 import { buildSummary } from './buildSummary';
 import { type ShiftUpAction } from './captureReducer';
 import { classifyMark } from './classifyStroke';
@@ -35,7 +36,7 @@ import { grabDomFrame } from './domFrame';
 import { sameScreen } from './frameGeometry';
 import { cancelsHold, escapeIsForDesignMode, holdToolForKey } from './holdKeys';
 import { coveredTargets } from './markCoverage';
-import { intoView, placeBubble, placeClear } from './placeBubble';
+import { ATTACHED_PX, besideMarks, intoView } from './placeBubble';
 import { type TabFrame } from './tabFrame';
 import {
     type Box,
@@ -60,7 +61,7 @@ const RECT_REFRESH_MS = 500;
 const NEW_BUBBLE_SIZE = { width: 320, height: 120 };
 // The room a sent bubble is given: its conversation grows to about this.
 const SENT_BUBBLE_SIZE = { width: 420, height: 500 };
-// Bubbles keep off the strip along the bottom where the toolbar sits.
+// The open bubble keeps off the strip along the bottom where the toolbar sits.
 const TOOLBAR_STRIP_PX = 72;
 const EMPTY: DesignSession = { bubbles: [], active: { kind: 'page' } };
 
@@ -82,25 +83,49 @@ type Hold = {
 };
 
 const viewportRect = (): DOMRect =>
-    new DOMRect(0, 0, window.innerWidth, window.innerHeight - TOOLBAR_STRIP_PX);
+    new DOMRect(0, 0, window.innerWidth, window.innerHeight);
+
+const toolbarStrip = (): DOMRect =>
+    new DOMRect(
+        0,
+        window.innerHeight - TOOLBAR_STRIP_PX,
+        window.innerWidth,
+        TOOLBAR_STRIP_PX,
+    );
+
+// The whole page in viewport pixels: a sent bubble may sit anywhere on it.
+const pageRect = (scroll: { x: number; y: number }): DOMRect =>
+    new DOMRect(
+        0,
+        -scroll.y,
+        window.innerWidth,
+        Math.max(
+            document.documentElement.scrollHeight,
+            scroll.y + window.innerHeight,
+        ),
+    );
+
+const bubbleElement = (bubbleId: string): Element | null =>
+    document.querySelector(`[data-bubble-id="${bubbleId}"]`);
+
+const otherBubbleRects = (bubbleId: string): DOMRect[] =>
+    [...document.querySelectorAll('[data-bubble-id]')]
+        .filter((el) => el.getAttribute('data-bubble-id') !== bubbleId)
+        .map((el) => el.getBoundingClientRect());
+
+const onScreenRect = (mark: LayerMark, scroll: { x: number; y: number }) =>
+    new DOMRect(
+        mark.box.x - scroll.x,
+        mark.box.y - scroll.y,
+        mark.box.width,
+        mark.box.height,
+    );
 
 type Recording = { bubbleId: string; voice: Promise<VoiceState> };
 
-// pointer is where the mouse was when the mark was made, in viewport pixels.
 type Commit =
-    | {
-          kind: 'strokes';
-          strokes: Stroke[];
-          endAbs: number;
-          pointer: { x: number; y: number };
-      }
-    | {
-          kind: 'pick';
-          target: CaptureTarget;
-          rect: DOMRect;
-          endAbs: number;
-          pointer: { x: number; y: number };
-      };
+    | { kind: 'strokes'; strokes: Stroke[]; endAbs: number }
+    | { kind: 'pick'; target: CaptureTarget; rect: DOMRect; endAbs: number };
 
 const grabFrame = (
     surface: DesignSurface,
@@ -228,6 +253,19 @@ export const useDesignMode = (
     const [ink, setInk] = useState<Stroke[]>([]);
     const [hover, setHover] = useState<Box | null>(null);
     const [placed, setPlaced] = useState<LayerMark[]>([]);
+    // Read by a mark that lands before the last one has been drawn.
+    const placedRef = useRef<LayerMark[]>([]);
+    const updatePlaced = useCallback(
+        (change: (prev: LayerMark[]) => LayerMark[]) => {
+            placedRef.current = change(placedRef.current);
+            setPlaced(placedRef.current);
+        },
+        [],
+    );
+    // Bubble ids from back to front.
+    const [order, setOrder] = useState<string[]>([]);
+    // Bubbles the user dragged: they stay where they were put.
+    const userPlacedRef = useRef(new Set<string>());
     const [scroll, setScroll] = useState({ x: 0, y: 0 });
 
     const holdRef = useRef<Hold | null>(null);
@@ -494,19 +532,42 @@ export const useDesignMode = (
                 );
                 // The bubble only moves here, on release, never mid-stroke.
                 const onScreen =
-                    document
-                        .querySelector(`[data-bubble-id="${got.bubble.id}"]`)
-                        ?.getBoundingClientRect() ?? null;
-                const at = placeBubble({
-                    markRect: markNow,
-                    current: onScreen,
-                    size: onScreen ?? NEW_BUBBLE_SIZE,
-                    viewport: viewportRect(),
-                    pointer: {
-                        x: made.pointer.x - dx,
-                        y: made.pointer.y - dy,
-                    },
-                });
+                    bubbleElement(got.bubble.id)?.getBoundingClientRect() ??
+                    null;
+                const newNumber = nextMarkNumber(got.bubble);
+                const ownMarks = [
+                    ...placedRef.current
+                        .filter(
+                            (m) =>
+                                m.bubbleId === got.bubble.id &&
+                                m.tabUuid === tabUuid &&
+                                m.number < newNumber,
+                        )
+                        .map((m) => onScreenRect(m, scrollNow)),
+                    markNow,
+                ];
+                // Stays beside its marks and in view, so its text box can be
+                // reached. One the user moved stays where they put it.
+                const at =
+                    onScreen && userPlacedRef.current.has(got.bubble.id)
+                        ? { x: onScreen.left, y: onScreen.top }
+                        : besideMarks({
+                              marks: ownMarks,
+                              current: onScreen
+                                  ? { x: onScreen.left, y: onScreen.top }
+                                  : null,
+                              size: onScreen ?? NEW_BUBBLE_SIZE,
+                              bounds: viewportRect(),
+                              avoid: [
+                                  ...otherBubbleRects(got.bubble.id),
+                                  toolbarStrip(),
+                              ],
+                              // A conversation only moves off a new mark.
+                              reach:
+                                  got.bubble.status === 'thread'
+                                      ? Infinity
+                                      : ATTACHED_PX,
+                          });
                 // Content coords: the viewport position plus the scroll.
                 const anchor = {
                     x: at.x + scrollNow.x,
@@ -559,7 +620,7 @@ export const useDesignMode = (
                     outlined: made.kind === 'pick',
                 };
                 // A number used again replaces the mark thrown away before it.
-                setPlaced((prev) => [
+                updatePlaced((prev) => [
                     ...prev.filter(
                         (m) =>
                             m.bubbleId !== layerMark.bubbleId ||
@@ -577,6 +638,7 @@ export const useDesignMode = (
             refreshScroll,
             showToastError,
             showToastWarning,
+            updatePlaced,
         ],
     );
 
@@ -644,16 +706,7 @@ export const useDesignMode = (
             abandon(hold);
             return;
         }
-        const lastStroke = strokes[strokes.length - 1];
-        commit(hold, {
-            kind: 'strokes',
-            strokes,
-            endAbs: performance.now(),
-            pointer: holdPoint(
-                hold,
-                lastStroke.points[lastStroke.points.length - 1],
-            ),
-        });
+        commit(hold, { kind: 'strokes', strokes, endAbs: performance.now() });
     }, [abandon, commit]);
 
     const refreshInk = useCallback(() => {
@@ -712,7 +765,6 @@ export const useDesignMode = (
                 target: hit.target,
                 rect: hit.rect,
                 endAbs: performance.now(),
-                pointer: at,
             });
         },
         [commit, startHoldVoice],
@@ -937,7 +989,10 @@ export const useDesignMode = (
             clocksRef.current.delete(bubbleId);
             phrasesRef.current.delete(bubbleId);
             const { bubbles } = dispatch({ type, bubbleId });
-            setPlaced((prev) =>
+            if (!bubbles.some((b) => b.id === bubbleId)) {
+                userPlacedRef.current.delete(bubbleId);
+            }
+            updatePlaced((prev) =>
                 prev.filter((m) =>
                     bubbles.some(
                         (b) =>
@@ -949,7 +1004,7 @@ export const useDesignMode = (
                 onBubbleRemovedRef.current?.(bubbleId);
             }
         },
-        [clearFrames, dispatch, dropRecording],
+        [clearFrames, dispatch, dropRecording, updatePlaced],
     );
     const discard = useCallback(
         (bubbleId: string) => {
@@ -993,7 +1048,7 @@ export const useDesignMode = (
                     .filter((id) => !busy.has(id))
                     .forEach((id) => kept.delete(id)),
             );
-            setPlaced((prev) =>
+            updatePlaced((prev) =>
                 prev.filter((m) =>
                     next.bubbles.some(
                         (b) =>
@@ -1004,7 +1059,7 @@ export const useDesignMode = (
             sessionRef.current = next;
             setSession(next);
         },
-        [clearFrames, dropRecording],
+        [clearFrames, dropRecording, updatePlaced],
     );
 
     const setMicOn = useCallback((value: boolean) => {
@@ -1211,9 +1266,8 @@ export const useDesignMode = (
         const current = surfaceRef.current;
         const open = activeCollection(sessionRef.current);
         if (!current || !open) return;
-        const onScreen = document
-            .querySelector(`[data-bubble-id="${open.bubble.id}"]`)
-            ?.getBoundingClientRect();
+        if (userPlacedRef.current.has(open.bubble.id)) return;
+        const onScreen = bubbleElement(open.bubble.id)?.getBoundingClientRect();
         if (!onScreen) return;
         const at = intoView(onScreen, viewportRect());
         if (at.x === onScreen.left && at.y === onScreen.top) return;
@@ -1226,7 +1280,7 @@ export const useDesignMode = (
     }, [dispatch, tabUuid]);
 
     // A sent bubble grows into a conversation: once, when it first shows as
-    // one, it moves to where that leaves its marks uncovered.
+    // one, it takes the room beside its marks, wherever on the page they are.
     const roomedRef = useRef(new Set<string>());
     useEffect(() => {
         const current = surfaceRef.current;
@@ -1236,29 +1290,22 @@ export const useDesignMode = (
             if (bubble.status !== 'thread' && bubble.status !== 'picking-agent')
                 return;
             if (roomedRef.current.has(bubble.id)) return;
-            const onScreen = document
-                .querySelector(`[data-bubble-id="${bubble.id}"]`)
-                ?.getBoundingClientRect();
+            const onScreen = bubbleElement(bubble.id)?.getBoundingClientRect();
             if (!onScreen) return;
             roomedRef.current.add(bubble.id);
-            const at = placeClear({
+            if (userPlacedRef.current.has(bubble.id)) return;
+            const at = besideMarks({
                 marks: placed
                     .filter(
                         (m) =>
                             m.bubbleId === bubble.id && m.tabUuid === tabUuid,
                     )
-                    .map(
-                        (m) =>
-                            new DOMRect(
-                                m.box.x - scrollNow.x,
-                                m.box.y - scrollNow.y,
-                                m.box.width,
-                                m.box.height,
-                            ),
-                    ),
+                    .map((m) => onScreenRect(m, scrollNow)),
                 current: { x: onScreen.left, y: onScreen.top },
                 size: SENT_BUBBLE_SIZE,
-                viewport: viewportRect(),
+                bounds: pageRect(scrollNow),
+                avoid: otherBubbleRects(bubble.id),
+                reach: ATTACHED_PX,
             });
             if (at.x === onScreen.left && at.y === onScreen.top) return;
             dispatch({
@@ -1269,6 +1316,33 @@ export const useDesignMode = (
         });
     }, [dispatch, placed, session, tabUuid]);
 
+    const raise = useCallback((bubbleId: string) => {
+        setOrder((prev) =>
+            bringToFront(
+                stackOrder(
+                    prev,
+                    sessionRef.current.bubbles.map((b) => b.id),
+                ),
+                bubbleId,
+            ),
+        );
+    }, []);
+
+    // Dropped where the user dragged it: it is not placed for them again.
+    const moveByUser = useCallback(
+        (bubbleId: string, at: { x: number; y: number }) => {
+            const scrollNow = surfaceRef.current?.getScroll();
+            if (!scrollNow) return;
+            userPlacedRef.current.add(bubbleId);
+            dispatch({
+                type: 'moved',
+                bubbleId,
+                anchor: { x: at.x + scrollNow.x, y: at.y + scrollNow.y },
+            });
+        },
+        [dispatch],
+    );
+
     const passthrough = holding !== null;
     // The app's own picker takes the click, so the ink layer stays out of the way.
     const inkTakesPointer =
@@ -1277,6 +1351,10 @@ export const useDesignMode = (
     // A bubble shows once its first mark has landed and it has a place.
     const shownBubbles = visibleBubbles(session, tabUuid).filter(
         (b) => nextMarkNumber(b) > 1,
+    );
+    const stacked = stackOrder(
+        order,
+        session.bubbles.map((b) => b.id),
     );
     const shownMarks = placed.filter(
         (m) =>
@@ -1318,7 +1396,10 @@ export const useDesignMode = (
                                   x: bubble.anchor.x - scroll.x,
                                   y: bubble.anchor.y - scroll.y,
                               }}
+                              stack={stacked.indexOf(bubble.id)}
                               passthrough={passthrough}
+                              onRaise={() => raise(bubble.id)}
+                              onMove={(at) => moveByUser(bubble.id, at)}
                               listening={
                                   bubble.collection !== null &&
                                   bubble.input === 'mic' &&

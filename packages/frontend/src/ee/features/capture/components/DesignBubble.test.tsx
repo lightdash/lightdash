@@ -60,11 +60,14 @@ const setup = (
         onStop: vi.fn(),
         onDiscard: vi.fn(),
         onClose: vi.fn(),
+        onRaise: vi.fn(),
+        onMove: vi.fn(),
     };
     renderWithProviders(
         <DesignBubble
             bubble={bubble}
             position={{ x: 120, y: 80 }}
+            stack={2}
             passthrough={opts.passthrough ?? false}
             listening={opts.listening ?? false}
             {...handlers}
@@ -166,14 +169,88 @@ describe('DesignBubble', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Close' }));
         expect(onClose).toHaveBeenCalledTimes(1);
     });
+    describe('moving and stacking', () => {
+        const root = () =>
+            document.querySelector('[data-bubble-id="a"]') as HTMLElement;
+        const header = () => screen.getByLabelText('Mark 1').parentElement!;
+
+        it('is dragged by its header to where it is dropped', () => {
+            const { onMove, onSend } = setup(bubbleWith('text'));
+            const kept = fireEvent.mouseDown(header(), {
+                clientX: 200,
+                clientY: 100,
+            });
+            // No text selection starts, and the text box keeps its focus.
+            expect(kept).toBe(false);
+            fireEvent.mouseMove(window, { clientX: 230, clientY: 140 });
+            expect(onMove).toHaveBeenLastCalledWith({ x: 150, y: 120 });
+            expect(root()).toHaveAttribute('data-dragging', 'true');
+            fireEvent.mouseUp(window);
+            fireEvent.mouseMove(window, { clientX: 400, clientY: 400 });
+            expect(onMove).toHaveBeenCalledTimes(1);
+            expect(root()).toHaveAttribute('data-dragging', 'false');
+            expect(onSend).not.toHaveBeenCalled();
+        });
+
+        it('a press that barely moves is not a drag', () => {
+            const { onMove } = setup(bubbleWith('text'));
+            fireEvent.mouseDown(header(), { clientX: 200, clientY: 100 });
+            fireEvent.mouseMove(window, { clientX: 201, clientY: 101 });
+            fireEvent.mouseUp(window);
+            expect(onMove).not.toHaveBeenCalled();
+        });
+
+        it('its close button and its body do not drag it', () => {
+            const { onMove, onDiscard } = setup(bubbleWith('text'));
+            const close = screen.getByRole('button', { name: 'Discard' });
+            fireEvent.mouseDown(close, { clientX: 200, clientY: 100 });
+            fireEvent.mouseMove(window, { clientX: 260, clientY: 160 });
+            fireEvent.mouseUp(window);
+            fireEvent.mouseDown(screen.getByRole('textbox'), {
+                clientX: 200,
+                clientY: 100,
+            });
+            fireEvent.mouseMove(window, { clientX: 260, clientY: 160 });
+            fireEvent.mouseUp(window);
+            expect(onMove).not.toHaveBeenCalled();
+            fireEvent.click(close);
+            expect(onDiscard).toHaveBeenCalledTimes(1);
+        });
+
+        it('does not move while a hold is down', () => {
+            const { onMove } = setup(bubbleWith('text'), { passthrough: true });
+            fireEvent.mouseDown(header(), { clientX: 200, clientY: 100 });
+            fireEvent.mouseMove(window, { clientX: 260, clientY: 160 });
+            expect(onMove).not.toHaveBeenCalled();
+        });
+
+        it('a press or focus anywhere in it brings it to the front', () => {
+            const { onRaise } = setup(bubbleWith('text'));
+            // Opening focuses its text box, which raised it once already.
+            onRaise.mockClear();
+            fireEvent.mouseDown(screen.getByRole('textbox'));
+            expect(onRaise).toHaveBeenCalledTimes(1);
+            fireEvent.focus(screen.getByRole('button', { name: 'Discard' }));
+            expect(onRaise).toHaveBeenCalledTimes(2);
+        });
+
+        it('takes its place in the stack', () => {
+            setup(bubbleWith('text'));
+            expect(root().style.getPropertyValue('--bubble-stack')).toBe('2');
+        });
+    });
+
     describe('focus', () => {
         const noop = () => {};
         const draw = (bubble: Bubble, passthrough: boolean) => (
             <DesignBubble
                 bubble={bubble}
                 position={{ x: 0, y: 0 }}
+                stack={0}
                 passthrough={passthrough}
                 listening={false}
+                onRaise={noop}
+                onMove={noop}
                 onSend={noop}
                 onStop={noop}
                 onDiscard={noop}

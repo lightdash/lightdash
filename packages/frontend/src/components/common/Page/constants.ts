@@ -25,6 +25,9 @@ export const SIDEBAR_ANIMATION_DURATION = 150;
 
 export const Z_INDEX_STICKY = 100;
 export const Z_INDEX_STICKY_HEADER = 110;
+// Design Mode marks and bubbles sit over the page, under modals and popovers.
+export const Z_INDEX_DESIGN_MARKS = 120;
+export const Z_INDEX_DESIGN_BUBBLE = 130;
 export const Z_INDEX_FLOATING = 1000;
 export const Z_INDEX_TOUR = 10000;
 export const Z_INDEX_TOUR_CARD = 10001;

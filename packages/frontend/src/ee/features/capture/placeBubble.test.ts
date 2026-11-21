@@ -1,205 +1,160 @@
 import { describe, expect, it } from 'vitest';
-import { placeBubble, placeClear } from './placeBubble';
+import { ATTACHED_PX, besideMarks, intoView } from './placeBubble';
 
 const viewport = new DOMRect(0, 0, 800, 600);
 const size = { width: 200, height: 100 };
-const overlaps = (a: DOMRect, b: DOMRect) =>
-    a.left < b.right &&
-    a.right > b.left &&
-    a.top < b.bottom &&
-    a.bottom > b.top;
-
-describe('placeBubble', () => {
-    it('stays put when the new mark is far away', () => {
-        const at = placeBubble({
-            markRect: new DOMRect(600, 400, 50, 50),
-            current: new DOMRect(100, 100, 200, 100),
-            size,
-            viewport,
-            pointer: { x: 640, y: 420 },
-        });
-        expect(at).toEqual({ x: 100, y: 100 });
+const place = (
+    marks: DOMRect[],
+    over: Partial<Parameters<typeof besideMarks>[0]> = {},
+) =>
+    besideMarks({
+        marks,
+        current: null,
+        size,
+        bounds: viewport,
+        avoid: [],
+        reach: ATTACHED_PX,
+        ...over,
     });
 
-    it('a bubble scrolled out of view comes back beside the new mark', () => {
-        const markRect = new DOMRect(400, 300, 100, 100);
-        const pointer = { x: 490, y: 350 };
-        [
-            new DOMRect(100, -400, 200, 100),
-            new DOMRect(100, 560, 200, 100),
-            new DOMRect(-50, 100, 200, 100),
-            new DOMRect(700, 100, 200, 100),
-        ].forEach((current) => {
-            expect(
-                placeBubble({ markRect, current, size, viewport, pointer }),
-            ).toEqual({ x: 168, y: 300 });
+describe('besideMarks', () => {
+    it('opens to the right of its mark, a small gap away', () => {
+        expect(place([new DOMRect(400, 300, 100, 100)])).toEqual({
+            x: 512,
+            y: 300,
         });
     });
 
-    it('a bubble taller than the viewport stays put while its top is in view', () => {
-        const tall = { width: 200, height: 900 };
+    it('goes left when the right has no room', () => {
+        expect(place([new DOMRect(650, 300, 100, 100)])).toEqual({
+            x: 438,
+            y: 300,
+        });
+    });
+
+    it('goes below, then above, when neither side has room', () => {
+        expect(place([new DOMRect(20, 100, 760, 50)])).toEqual({
+            x: 20,
+            y: 162,
+        });
+        expect(place([new DOMRect(20, 450, 760, 100)])).toEqual({
+            x: 20,
+            y: 338,
+        });
+    });
+
+    it('sits beside all of its marks together', () => {
         expect(
-            placeBubble({
-                markRect: new DOMRect(600, 400, 50, 50),
-                current: new DOMRect(100, 0, 200, 900),
-                size: tall,
-                viewport,
-                pointer: { x: 640, y: 420 },
-            }),
-        ).toEqual({ x: 100, y: 0 });
+            place([
+                new DOMRect(100, 100, 50, 50),
+                new DOMRect(100, 300, 50, 50),
+            ]),
+        ).toEqual({ x: 162, y: 100 });
     });
 
-    it('moves beside the mark, away from the pointer, when they overlap', () => {
-        const markRect = new DOMRect(400, 300, 100, 100);
-        const current = new DOMRect(420, 320, 200, 100);
-        // The pointer ended on the mark's right, so the bubble goes left.
+    it('stays where it is while that is beside its marks', () => {
+        const current = { x: 170, y: 120 };
         expect(
-            placeBubble({
-                markRect,
-                current,
-                size,
-                viewport,
-                pointer: { x: 490, y: 350 },
-            }),
-        ).toEqual({ x: 168, y: 300 });
+            place(
+                [
+                    new DOMRect(100, 100, 50, 50),
+                    new DOMRect(100, 200, 50, 50),
+                    new DOMRect(100, 300, 50, 50),
+                ],
+                { current },
+            ),
+        ).toEqual(current);
+    });
+
+    it('a bubble far from its marks comes beside them', () => {
         expect(
-            placeBubble({
-                markRect,
-                current,
-                size,
-                viewport,
-                pointer: { x: 410, y: 350 },
+            place(
+                [new DOMRect(60, 200, 40, 30), new DOMRect(60, 260, 40, 30)],
+                { current: { x: 500, y: 300 } },
+            ),
+        ).toEqual({ x: 112, y: 200 });
+    });
+
+    it('moves off a mark made under it', () => {
+        const mark = new DOMRect(300, 150, 60, 60);
+        const at = place([new DOMRect(100, 100, 50, 50), mark], {
+            current: { x: 162, y: 100 },
+        });
+        expect(at).not.toEqual({ x: 162, y: 100 });
+        expect(at.x >= mark.right || at.x + size.width <= mark.left).toBe(true);
+    });
+
+    it('takes a free side over one another bubble is on', () => {
+        expect(
+            place([new DOMRect(400, 300, 100, 100)], {
+                avoid: [new DOMRect(520, 280, 200, 200)],
             }),
-        ).toEqual({ x: 532, y: 300 });
+        ).toEqual({ x: 188, y: 300 });
     });
 
-    it('moves when the bubble sits within 24px of the mark', () => {
-        const at = placeBubble({
-            markRect: new DOMRect(400, 300, 100, 100),
-            current: new DOMRect(510, 300, 200, 100),
-            size,
-            viewport,
-            pointer: { x: 410, y: 350 },
-        });
-        expect(at).toEqual({ x: 532, y: 300 });
-    });
-
-    it('opens beside the first mark when there is no bubble yet', () => {
-        const at = placeBubble({
-            markRect: new DOMRect(400, 300, 100, 100),
-            current: null,
-            size,
-            viewport,
-            pointer: { x: 410, y: 350 },
-        });
-        expect(at).toEqual({ x: 532, y: 300 });
-    });
-
-    it('stays inside the viewport', () => {
-        const corners = [
-            {
-                markRect: new DOMRect(10, 10, 50, 50),
-                pointer: { x: 50, y: 30 },
-            },
-            {
-                markRect: new DOMRect(700, 580, 80, 15),
-                pointer: { x: 710, y: 590 },
-            },
+    it('lands on another bubble before it covers its own marks', () => {
+        const others = [
+            new DOMRect(0, 0, 800, 290),
+            new DOMRect(0, 410, 800, 190),
+            new DOMRect(520, 280, 280, 200),
+            new DOMRect(0, 280, 390, 200),
         ];
-        corners.forEach(({ markRect, pointer }) => {
-            const at = placeBubble({
-                markRect,
-                current: null,
-                size,
-                viewport,
-                pointer,
-            });
-            expect(at.x).toBeGreaterThanOrEqual(16);
-            expect(at.y).toBeGreaterThanOrEqual(16);
-            expect(at.x + size.width).toBeLessThanOrEqual(800 - 16);
-            expect(at.y + size.height).toBeLessThanOrEqual(600 - 16);
-            expect(
-                overlaps(
-                    new DOMRect(at.x, at.y, size.width, size.height),
-                    markRect,
-                ),
-            ).toBe(false);
+        expect(
+            place([new DOMRect(400, 300, 100, 100)], { avoid: others }),
+        ).toEqual({ x: 512, y: 300 });
+    });
+
+    it('covers as little of its marks as it can when no side is clear', () => {
+        const at = place([new DOMRect(0, 0, 700, 600)]);
+        expect(at.x).toBe(584);
+    });
+
+    it('is not kept inside the viewport when it has the whole page', () => {
+        const page = new DOMRect(0, -1000, 800, 3000);
+        expect(
+            place([new DOMRect(400, -500, 100, 100)], { bounds: page }),
+        ).toEqual({ x: 512, y: -500 });
+        // Where it was, off screen, is still beside its marks.
+        expect(
+            place([new DOMRect(400, -500, 100, 100)], {
+                bounds: page,
+                current: { x: 520, y: -480 },
+            }),
+        ).toEqual({ x: 520, y: -480 });
+    });
+
+    it('scrolled out of the viewport, it comes back beside its marks', () => {
+        expect(
+            place([new DOMRect(400, 300, 100, 100)], {
+                current: { x: 512, y: -400 },
+            }),
+        ).toEqual({ x: 512, y: 300 });
+    });
+
+    it('with a long reach it only moves off a mark or back into its room', () => {
+        const current = { x: 500, y: 400 };
+        expect(
+            place([new DOMRect(60, 60, 40, 30)], { current, reach: Infinity }),
+        ).toEqual(current);
+    });
+
+    it('with no marks on screen it stays where it is', () => {
+        expect(place([], { current: { x: 40, y: 900 } })).toEqual({
+            x: 40,
+            y: 900,
         });
     });
 });
 
-describe('placeClear', () => {
-    const big = { width: 300, height: 300 };
-    const at = (p: { x: number; y: number }) =>
-        new DOMRect(p.x, p.y, big.width, big.height);
-
-    it('a bubble that grew over its mark moves off it', () => {
-        const mark = new DOMRect(380, 250, 80, 60);
-        const placed = placeClear({
-            marks: [mark],
-            current: { x: 300, y: 200 },
-            size: big,
-            viewport,
+describe('intoView', () => {
+    it('brings a bubble back inside the viewport', () => {
+        expect(intoView(new DOMRect(-50, 900, 200, 100), viewport)).toEqual({
+            x: 16,
+            y: 484,
         });
-        expect(overlaps(at(placed), mark)).toBe(false);
-    });
-
-    it('stays clear of every mark, not only the newest', () => {
-        const first = new DOMRect(40, 150, 80, 60);
-        const newest = new DOMRect(380, 150, 80, 60);
-        const placed = placeClear({
-            marks: [first, newest],
-            current: { x: 100, y: 100 },
-            size: big,
-            viewport,
+        expect(intoView(new DOMRect(100, 100, 200, 100), viewport)).toEqual({
+            x: 100,
+            y: 100,
         });
-        expect(overlaps(at(placed), first)).toBe(false);
-        expect(overlaps(at(placed), newest)).toBe(false);
-    });
-
-    it('stays inside the room it is given', () => {
-        const room = new DOMRect(0, 0, 800, 520);
-        const mark = new DOMRect(600, 400, 80, 60);
-        const placed = placeClear({
-            marks: [mark],
-            current: { x: 560, y: 380 },
-            size: big,
-            viewport: room,
-        });
-        expect(placed.y + big.height).toBeLessThanOrEqual(520 - 16);
-        expect(placed.x).toBeGreaterThanOrEqual(16);
-    });
-
-    it('covers as little of the marks as it can when no place is clear', () => {
-        const block = new DOMRect(0, 0, 560, 600);
-        const placed = placeClear({
-            marks: [block],
-            current: { x: 100, y: 80 },
-            size: big,
-            viewport,
-        });
-        expect(placed.x).toBe(484);
-    });
-
-    it('stays where it is when that covers no mark', () => {
-        expect(
-            placeClear({
-                marks: [new DOMRect(600, 400, 80, 60)],
-                current: { x: 100, y: 100 },
-                size: big,
-                viewport,
-            }),
-        ).toEqual({ x: 100, y: 100 });
-    });
-
-    it('with no marks on screen it only comes inside the room', () => {
-        expect(
-            placeClear({
-                marks: [],
-                current: { x: -50, y: 900 },
-                size: big,
-                viewport,
-            }),
-        ).toEqual({ x: 16, y: 284 });
     });
 });

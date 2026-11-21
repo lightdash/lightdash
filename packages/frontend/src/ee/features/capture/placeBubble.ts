@@ -1,30 +1,21 @@
 type Position = { x: number; y: number };
 type Size = { width: number; height: number };
 
-const NEAR_PX = 24;
 const MARGIN_PX = 16;
-const GAP_PX = 32;
+const GAP_PX = 12;
+/** A bubble this close to its marks still reads as theirs. */
+export const ATTACHED_PX = 48;
 
-const isNear = (a: DOMRect, b: DOMRect): boolean =>
-    a.left <= b.right + NEAR_PX &&
-    a.right >= b.left - NEAR_PX &&
-    a.top <= b.bottom + NEAR_PX &&
-    a.bottom >= b.top - NEAR_PX;
-
-const clampTo = (at: Position, size: Size, viewport: DOMRect): Position => {
-    const minX = viewport.left + MARGIN_PX;
-    const minY = viewport.top + MARGIN_PX;
-    return {
-        x: Math.max(
-            minX,
-            Math.min(at.x, viewport.right - MARGIN_PX - size.width),
-        ),
-        y: Math.max(
-            minY,
-            Math.min(at.y, viewport.bottom - MARGIN_PX - size.height),
-        ),
-    };
-};
+const clampTo = (at: Position, size: Size, bounds: DOMRect): Position => ({
+    x: Math.max(
+        bounds.left + MARGIN_PX,
+        Math.min(at.x, bounds.right - MARGIN_PX - size.width),
+    ),
+    y: Math.max(
+        bounds.top + MARGIN_PX,
+        Math.min(at.y, bounds.bottom - MARGIN_PX - size.height),
+    ),
+});
 
 // A bubble taller than the viewport counts while its top is in view.
 const inView = (rect: DOMRect, viewport: DOMRect): boolean =>
@@ -39,90 +30,93 @@ export const intoView = (current: DOMRect, viewport: DOMRect): Position =>
         ? { x: current.left, y: current.top }
         : clampTo({ x: current.left, y: current.top }, current, viewport);
 
-/** Where a bubble's top left goes, in viewport pixels. */
-export const placeBubble = ({
-    markRect,
-    current,
-    size,
-    viewport,
-    pointer,
-}: {
-    markRect: DOMRect | null;
-    current: DOMRect | null;
-    size: Size;
-    viewport: DOMRect;
-    pointer: Position;
-}): Position => {
-    if (!markRect) {
-        return current
-            ? { x: current.left, y: current.top }
-            : clampTo({ x: pointer.x + GAP_PX, y: pointer.y }, size, viewport);
-    }
-    // Scrolled out of view, it comes back beside the new mark.
-    if (current && !isNear(current, markRect) && inView(current, viewport)) {
-        return { x: current.left, y: current.top };
-    }
-    const left = { x: markRect.left - GAP_PX - size.width, y: markRect.top };
-    const right = { x: markRect.right + GAP_PX, y: markRect.top };
-    const above = { x: markRect.left, y: markRect.top - GAP_PX - size.height };
-    const below = { x: markRect.left, y: markRect.bottom + GAP_PX };
-    const pointerOnRight = pointer.x >= markRect.left + markRect.width / 2;
-    const pointerBelow = pointer.y >= markRect.top + markRect.height / 2;
-    // Away from the pointer first, then wherever the viewport leaves room.
-    const sides = [
-        ...(pointerOnRight ? [left, right] : [right, left]),
-        ...(pointerBelow ? [above, below] : [below, above]),
-    ].map((side) => clampTo(side, size, viewport));
-    const clear = sides.find(
-        (side) =>
-            !isNear(
-                new DOMRect(side.x, side.y, size.width, size.height),
-                markRect,
-            ),
-    );
-    return clear ?? sides[0];
-};
-
 const overlapArea = (a: DOMRect, b: DOMRect): number =>
     Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) *
     Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
 
+const covered = (rect: DOMRect, others: DOMRect[]): number =>
+    others.reduce((sum, other) => sum + overlapArea(rect, other), 0);
+
+const gapBetween = (a: DOMRect, b: DOMRect): number =>
+    Math.max(
+        0,
+        a.left - b.right,
+        b.left - a.right,
+        a.top - b.bottom,
+        b.top - a.bottom,
+    );
+
+const boundsOf = (rects: DOMRect[]): DOMRect => {
+    const left = Math.min(...rects.map((r) => r.left));
+    const top = Math.min(...rects.map((r) => r.top));
+    return new DOMRect(
+        left,
+        top,
+        Math.max(...rects.map((r) => r.right)) - left,
+        Math.max(...rects.map((r) => r.bottom)) - top,
+    );
+};
+
+// Right, left, below, above.
+const sidesOf = (rect: DOMRect, size: Size): Position[] => [
+    { x: rect.right + GAP_PX, y: rect.top },
+    { x: rect.left - GAP_PX - size.width, y: rect.top },
+    { x: rect.left, y: rect.bottom + GAP_PX },
+    { x: rect.left, y: rect.top - GAP_PX - size.height },
+];
+
 /**
- * Where a bubble that has grown goes: where it is when that is clear of its
- * marks, else beside one of them (newest last), else over as little as it can.
+ * Where a bubble's top left goes so it sits beside its own marks: where it is
+ * while that is still beside them, else right, left, below or above all of
+ * them, else beside the newest. A side that is off its marks and off `avoid`
+ * wins; covering `avoid` comes before covering its own marks.
  */
-export const placeClear = ({
+export const besideMarks = ({
     marks,
     current,
     size,
-    viewport,
+    bounds,
+    avoid,
+    reach,
 }: {
+    /** The bubble's marks, oldest first. */
     marks: DOMRect[];
-    current: Position;
+    current: Position | null;
     size: Size;
-    viewport: DOMRect;
+    /** The room it may use: the viewport, or the whole page once sent. */
+    bounds: DOMRect;
+    /** Other bubbles and the toolbar. */
+    avoid: DOMRect[];
+    /** How far from its marks a bubble may be and stay where it is. */
+    reach: number;
 }): Position => {
-    const around = [...marks].reverse().flatMap((mark) => [
-        { x: mark.right + GAP_PX, y: mark.top },
-        { x: mark.left - GAP_PX - size.width, y: mark.top },
-        { x: mark.left, y: mark.bottom + GAP_PX },
-        { x: mark.left, y: mark.top - GAP_PX - size.height },
-    ]);
-    const places = [current, ...around].map((place) => {
-        const at = clampTo(place, size, viewport);
-        const rect = new DOMRect(at.x, at.y, size.width, size.height);
-        return {
-            at,
-            near: marks.some((mark) => isNear(rect, mark)),
-            covered: marks.reduce(
-                (sum, mark) => sum + overlapArea(rect, mark),
-                0,
-            ),
-        };
-    });
-    const clear = places.find((place) => !place.near);
-    if (clear) return clear.at;
+    if (marks.length === 0) {
+        return current ?? clampTo(bounds, size, bounds);
+    }
+    const all = boundsOf(marks);
+    const rectAt = (at: Position) =>
+        new DOMRect(at.x, at.y, size.width, size.height);
+    const stays =
+        current !== null &&
+        clampTo(current, size, bounds).x === current.x &&
+        clampTo(current, size, bounds).y === current.y &&
+        gapBetween(rectAt(current), all) <= reach;
+    const places = [
+        ...(stays && current ? [current] : []),
+        ...[
+            ...sidesOf(all, size),
+            ...sidesOf(marks[marks.length - 1], size),
+        ].map((side) => clampTo(side, size, bounds)),
+    ].map((at) => ({
+        at,
+        onMarks: covered(rectAt(at), marks),
+        onOthers: covered(rectAt(at), avoid),
+    }));
+    const offMarks = places.filter((place) => place.onMarks === 0);
+    const free = offMarks.find((place) => place.onOthers === 0);
+    if (free) return free.at;
+    if (offMarks.length > 0) return offMarks[0].at;
     return places.reduce((best, place) =>
-        place.covered < best.covered ? place : best,
+        place.onMarks < best.onMarks ? place : best,
     ).at;
 };

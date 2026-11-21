@@ -2,10 +2,24 @@
     position: fixed;
     left: var(--bubble-left);
     top: var(--bubble-top);
-    z-index: 10000;
+    /* Over the page and each other, under modals, popovers and the toolbar. */
+    z-index: calc(var(--ld-z-design-bubble) + var(--bubble-stack, 0));
     min-width: 280px;
     max-width: 420px;
     transition: opacity 120ms ease;
+    overscroll-behavior: contain;
+}
+
+/* The row a bubble is moved by. */
+.bubble [data-bubble-drag-handle] {
+    cursor: grab;
+    user-select: none;
+}
+
+.bubble[data-dragging='true'],
+.bubble[data-dragging='true'] [data-bubble-drag-handle] {
+    cursor: grabbing;
+    user-select: none;
 }
 
 /* While a hold is down the bubble is a faint outline the pointer goes through. */

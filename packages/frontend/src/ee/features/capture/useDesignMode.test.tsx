@@ -1334,6 +1334,121 @@ describe('useDesignMode', () => {
         }
     });
 
+    describe('where a bubble sits', () => {
+        const bubbles = () => [
+            ...document.querySelectorAll<HTMLElement>('[data-bubble-id]'),
+        ];
+        const px = (el: HTMLElement, name: string) =>
+            parseFloat(el.style.getPropertyValue(name));
+        const header = (el: HTMLElement) =>
+            el.querySelector<HTMLElement>('[data-bubble-drag-handle]')!;
+        const dragBy = async (el: HTMLElement, dx: number, dy: number) => {
+            fireEvent.mouseDown(header(el), { clientX: 300, clientY: 300 });
+            await act(async () => {
+                fireEvent.mouseMove(window, {
+                    clientX: 300 + dx,
+                    clientY: 300 + dy,
+                });
+            });
+            fireEvent.mouseUp(window);
+        };
+
+        it('a sent bubble is not brought back into view: it stays by its marks', async () => {
+            const rects = mockBubbleRects();
+            try {
+                await turnOn();
+                await drawMark();
+                await waitFor(() =>
+                    expect(api.session.bubbles).toHaveLength(1),
+                );
+                const { anchor, id } = api.session.bubbles[0];
+                scroll = { x: 0, y: 900 };
+                await act(async () => {
+                    window.dispatchEvent(new Event('scroll'));
+                });
+                await act(async () => {
+                    api.send(id, 'hello');
+                });
+                await waitFor(() =>
+                    expect(api.session.bubbles[0].status).toBe('thread'),
+                );
+                expect(api.session.bubbles[0].anchor).toEqual(anchor);
+                expect(px(bubbles()[0], '--bubble-top')).toBeLessThan(0);
+            } finally {
+                rects.mockRestore();
+            }
+        });
+
+        it('dragged by its header, it stays where it was dropped', async () => {
+            const rects = mockBubbleRects();
+            try {
+                await turnOn();
+                await drawMark();
+                await waitFor(() =>
+                    expect(api.session.bubbles).toHaveLength(1),
+                );
+                const before = api.session.bubbles[0].anchor;
+                scroll = { x: 0, y: 5 };
+                await act(async () => {
+                    window.dispatchEvent(new Event('scroll'));
+                });
+                await dragBy(bubbles()[0], 200, 150);
+                const dropped = api.session.bubbles[0].anchor;
+                // Stored with the page's scroll, so it scrolls with the page.
+                expect(dropped).toEqual({
+                    x: before.x + 200,
+                    y: before.y + 150,
+                });
+
+                // Neither a new mark under it nor being sent moves it again.
+                await keyDown({ key: 'Alt', altKey: true });
+                fireEvent.mouseMove(holdLayer(), {
+                    clientX: dropped.x + 5,
+                    clientY: dropped.y,
+                });
+                fireEvent.mouseMove(holdLayer(), {
+                    clientX: dropped.x + 30,
+                    clientY: dropped.y + 20,
+                });
+                await keyUp({ key: 'Alt' });
+                await waitFor(() => expect(collected()).toHaveLength(2));
+                expect(api.session.bubbles[0].anchor).toEqual(dropped);
+                await act(async () => {
+                    api.send(api.session.bubbles[0].id, 'hello');
+                });
+                await waitFor(() =>
+                    expect(api.session.bubbles[0].status).toBe('thread'),
+                );
+                expect(api.session.bubbles[0].anchor).toEqual(dropped);
+            } finally {
+                rects.mockRestore();
+            }
+        });
+
+        it('the bubble last pressed is in front; a new one opens in front', async () => {
+            await turnOn();
+            const first = await sendFirst();
+            await drawMark();
+            await waitFor(() => expect(api.session.bubbles).toHaveLength(2));
+            const stackOf = (id: string) =>
+                px(
+                    document.querySelector<HTMLElement>(
+                        `[data-bubble-id="${id}"]`,
+                    )!,
+                    '--bubble-stack',
+                );
+            const second = api.session.bubbles[1].id;
+            expect(stackOf(second)).toBeGreaterThan(stackOf(first));
+
+            await act(async () => {
+                fireEvent.mouseDown(
+                    document.querySelector(`[data-bubble-id="${first}"]`)!,
+                );
+            });
+            expect(stackOf(first)).toBeGreaterThan(stackOf(second));
+        });
+    });
+
     it('a sent bubble shows the body the page gives it', async () => {
         const Body: FC = () => {
             api = useDesignMode(surface, {

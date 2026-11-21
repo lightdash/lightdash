@@ -1,7 +1,7 @@
 .layer {
     position: fixed;
     inset: 0;
-    z-index: 9999;
+    z-index: var(--ld-z-design-marks);
     /* Marks scrolled out of the surface are cut off at its edges. */
     clip-path: inset(
         var(--region-top) calc(100% - var(--region-right))
