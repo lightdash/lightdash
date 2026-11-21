@@ -45,7 +45,7 @@ button { font: inherit; color: var(--accent); background: none; border: 1px soli
 pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x: auto; font-size: 12px; }
 details summary { cursor: pointer; color: var(--muted); margin-top: 8px; }
 .brand { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: lowercase; margin-bottom: 10px; }
-.brand svg { width: 16px; height: 16px; }
+.brand svg { width: 18px; height: 18px; }
 </style>
 </head>
 <body>
@@ -133,8 +133,21 @@ const integrationCard = (i, index) => `
   </section>`;
 
 const generated = new Date(data.generatedAt).toLocaleString();
-const brand = `<div class="brand"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true">
-  <path d="M8 15V9M8 9C8 6 5 6 4 3M8 9c0-3 3-3 4-6M8 9V2"/><circle cx="4" cy="2.6" r="1.1" fill="currentColor"/><circle cx="12" cy="2.6" r="1.1" fill="currentColor"/><circle cx="8" cy="1.6" r="1.1" fill="currentColor"/>
+const brand = `<div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true">
+  <circle cx="16" cy="16" r="15.5" fill="#d71414"/>
+  <circle cx="16" cy="16" r="13.6" fill="none" stroke="#111" stroke-width="2"/>
+  <g fill="none" stroke="#111" stroke-width="2" stroke-linecap="round">
+    <path d="M16 26V14"/>
+    <path d="M16 18c-3 0-5-2-6-5s-3-4-4-3"/>
+    <path d="M16 18c3 0 5-2 6-5s3-4 4-3"/>
+    <path d="M16 22c-3 0-6 1-7 3s-2 2-3 1"/>
+    <path d="M16 22c3 0 6 1 7 3s2 2 3 1"/>
+  </g>
+  <g fill="#111">
+    <circle cx="16" cy="10.5" r="3.6"/>
+    <circle cx="5.6" cy="10.4" r="1.7"/><circle cx="26.4" cy="10.4" r="1.7"/>
+    <circle cx="5.6" cy="25.6" r="1.7"/><circle cx="26.4" cy="25.6" r="1.7"/>
+  </g>
 </svg>hydra</div>`;
 app.innerHTML = `
   ${brand}
