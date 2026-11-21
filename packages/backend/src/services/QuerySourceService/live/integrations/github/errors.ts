@@ -53,7 +53,7 @@ export const toGithubError = (
     if (isRateLimited(response, message)) {
         const retryAfterSeconds = getRetryAfterSeconds(response.headers, now);
         return new TooManyRequestsError(
-            `GitHub rate limit reached${detail}. Search allows about 30 queries a minute per token; retry ${
+            `GitHub rate limit reached${detail}. GitHub allows 5,000 calls an hour per token, and search about 30 a minute; retry ${
                 retryAfterSeconds
                     ? `in ${retryAfterSeconds} seconds`
                     : 'shortly'

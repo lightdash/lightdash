@@ -89,7 +89,7 @@ const issue = (name: string) => `github_issues_${name}`;
 const contributor = (name: string) => `github_contributors_${name}`;
 
 describe('compileGithubQuery on pull requests', () => {
-    it('counts with the search total, filters as qualifiers', () => {
+    it('counts from the pull request list, with one filter per rule', () => {
         const { request } = compile(
             PULL_REQUESTS,
             query('github_pull_requests', {
@@ -105,14 +105,23 @@ describe('compileGithubQuery on pull requests', () => {
             }),
         );
         expect(request).toEqual({
-            kind: 'search',
+            kind: 'list',
             type: 'pr',
-            q: 'is:merged author:octocat merged:2026-10-01..2026-10-31',
+            filters: [
+                { column: 'state', op: 'eq', value: 'merged' },
+                { column: 'author', op: 'eq', value: 'octocat' },
+                {
+                    column: 'merged_at',
+                    op: 'between',
+                    start: '2026-10-01',
+                    end: '2026-10-31',
+                },
+            ],
             columns: ['total_count'],
         });
     });
 
-    it('lists rows with a text search, negations and label matches', () => {
+    it('searches when a word filter needs it, with negations and label matches', () => {
         const { request, localSorts } = compile(
             PULL_REQUESTS,
             query('github_pull_requests', {
@@ -157,17 +166,66 @@ describe('compileGithubQuery on pull requests', () => {
         expect(compiled.requestLimit).toBe(GITHUB_MAX_QUERY_ROWS);
     });
 
-    it('maps closed to closed without merging', () => {
+    it('counts with one GraphQL total when GraphQL applies every filter', () => {
         const { request } = compile(
             PULL_REQUESTS,
             query('github_pull_requests', {
                 metrics: [pr('count')],
                 filters: filters(
+                    rule(pr('state'), FilterOperator.EQUALS, ['merged']),
+                    rule(pr('labels'), FilterOperator.EQUALS, ['🐛 bug']),
+                ),
+            }),
+        );
+        expect(request).toEqual({
+            kind: 'count',
+            type: 'pr',
+            state: 'merged',
+            label: '🐛 bug',
+        });
+        expect(
+            compile(
+                PULL_REQUESTS,
+                query('github_pull_requests', { metrics: [pr('count')] }),
+            ).request,
+        ).toEqual({ kind: 'count', type: 'pr' });
+    });
+
+    it('counts from the list when GraphQL cannot apply a filter', () => {
+        const { request } = compile(
+            PULL_REQUESTS,
+            query('github_pull_requests', {
+                metrics: [pr('count')],
+                filters: filters(
+                    rule(pr('labels'), FilterOperator.NOT_EQUALS, ['chore']),
+                ),
+            }),
+        );
+        expect(request.kind).toBe('list');
+    });
+
+    it('maps closed to closed without merging in a search', () => {
+        const { request } = compile(
+            PULL_REQUESTS,
+            query('github_pull_requests', {
+                metrics: [pr('count')],
+                filters: filters(
+                    rule(pr('title'), FilterOperator.INCLUDE, ['fix']),
                     rule(pr('state'), FilterOperator.EQUALS, ['closed']),
                 ),
             }),
         );
-        expect(request.q).toBe('is:closed is:unmerged');
+        expect(request.q).toBe('"fix" in:title is:closed is:unmerged');
+    });
+
+    it('sorts comments locally, since GitHub orders them by a count it does not return', () => {
+        const metricQuery = query('github_pull_requests', {
+            dimensions: [pr('number'), pr('comments')],
+            sorts: [{ fieldId: pr('comments'), descending: true }],
+        });
+        const { request, localSorts } = compile(PULL_REQUESTS, metricQuery);
+        expect(request).not.toHaveProperty('sort');
+        expect(localSorts).toEqual(metricQuery.sorts);
     });
 
     it('turns relative and open-ended dates into ranges', () => {
@@ -186,8 +244,20 @@ describe('compileGithubQuery on pull requests', () => {
                 ),
             }),
         );
-        expect(request.q).toMatch(/^created:2026-11-\d\d\.\.2026-11-1\d /);
-        expect(request.q).toContain('closed:2008-01-01..2025-12-31');
+        expect(request.filters).toEqual([
+            {
+                column: 'created_at',
+                op: 'between',
+                start: expect.stringMatching(/^2026-11-1\d$/),
+                end: expect.stringMatching(/^2026-11-1\d$/),
+            },
+            {
+                column: 'closed_at',
+                op: 'between',
+                start: '2008-01-01',
+                end: '2025-12-31',
+            },
+        ]);
     });
 
     it('refuses an unknown state with the ones it knows', () => {
@@ -250,7 +320,28 @@ describe('the shared check on pull requests', () => {
 });
 
 describe('compileGithubQuery on issues', () => {
-    it('searches issues and maps state reasons', () => {
+    it('counts issues by author and assignee with one GraphQL total', () => {
+        const { request } = compile(
+            ISSUES,
+            query('github_issues', {
+                metrics: [issue('count')],
+                filters: filters(
+                    rule(issue('state'), FilterOperator.EQUALS, ['open']),
+                    rule(issue('author'), FilterOperator.EQUALS, ['octocat']),
+                    rule(issue('assignee'), FilterOperator.EQUALS, ['jo']),
+                ),
+            }),
+        );
+        expect(request).toEqual({
+            kind: 'count',
+            type: 'issue',
+            state: 'open',
+            author: 'octocat',
+            assignee: 'jo',
+        });
+    });
+
+    it('lists issues with state and state reason filters', () => {
         const { request } = compile(
             ISSUES,
             query('github_issues', {
@@ -264,9 +355,12 @@ describe('compileGithubQuery on issues', () => {
             }),
         );
         expect(request).toEqual({
-            kind: 'search',
+            kind: 'list',
             type: 'issue',
-            q: 'is:closed reason:"not planned"',
+            filters: [
+                { column: 'state', op: 'eq', value: 'closed' },
+                { column: 'state_reason', op: 'eq', value: 'not_planned' },
+            ],
             columns: ['number', 'state_reason'],
         });
     });

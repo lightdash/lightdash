@@ -1,6 +1,9 @@
 import {
     ApiConnectorType,
     getGithubContributorsPath,
+    getGithubIssuesPath,
+    getGithubPullsPath,
+    GITHUB_GRAPHQL_PATH,
     GITHUB_ORIGIN,
     GITHUB_SEARCH_PATH,
     LIVE_INTEGRATION_CATALOG,
@@ -48,27 +51,31 @@ export const githubIntegration = defineLiveIntegration({
     access: ({ owner, repo }) => ({
         pathPrefixes: [
             GITHUB_SEARCH_PATH,
+            getGithubPullsPath(owner, repo),
+            getGithubIssuesPath(owner, repo),
             getGithubContributorsPath(owner, repo),
+            GITHUB_GRAPHQL_PATH,
         ],
-        methods: ['GET'],
+        // POST is for GraphQL counts only; run sends no other POST
+        methods: ['GET', 'POST'],
         headers: {
             Accept: 'application/vnd.github+json',
             'X-GitHub-Api-Version': '2022-11-28',
             'User-Agent': 'Lightdash',
         },
     }),
-    // Search allows 30 calls a minute per token, the tightest of GitHub's
-    // limits; the REST API allows 5,000 an hour.
+    // The REST API allows 5,000 calls an hour per token, and lists page
+    // 100 at a time; search allows 30 a minute and GitHub refuses past that.
     limits: {
         concurrentCalls: 3,
-        callsPerMinute: 30,
-        callsPerHour: 1_800,
+        callsPerMinute: 80,
+        callsPerHour: 4_500,
         callsPerQuery: GITHUB_CALLS_PER_QUERY,
         timeoutMs: 30_000,
         maxRows: GITHUB_MAX_QUERY_ROWS,
     },
-    // Search ANDs one flat list of qualifiers, one value each; counts come
-    // from the search total and can't be grouped. Dates are UTC days.
+    // Filters AND one flat list, one value each; counts are of the listed
+    // items and can't be grouped. Dates are UTC days.
     capabilities: {
         filters: {
             operators: {
