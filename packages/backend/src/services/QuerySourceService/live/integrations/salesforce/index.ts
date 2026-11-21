@@ -102,10 +102,10 @@ export const salesforceIntegration = defineLiveIntegration({
     level: {
         value: 4,
         description:
-            'Yes. SOQL supports GROUP BY and aggregate functions (COUNT, SUM, AVG), so Salesforce does the work.',
+            'SOQL supports GROUP BY and aggregates (COUNT, SUM, AVG), so Salesforce totals itself.',
     },
     auth: {
-        description: 'Offers OAuth sign-in. No vendor review is needed.',
+        description: 'No vendor review is needed.',
         testWith: 'test_account',
         needs: ['gmail'],
         token: false,

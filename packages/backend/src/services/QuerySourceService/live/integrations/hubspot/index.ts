@@ -89,11 +89,10 @@ export const hubspotIntegration = defineLiveIntegration({
     plannedModelNames: [],
     level: {
         value: 2,
-        description: 'No. Search filters records but returns no totals.',
+        description: 'Search filters records but returns no totals.',
     },
     auth: {
-        description:
-            'Offers a token and OAuth sign-in. No vendor review is needed.',
+        description: 'No vendor review is needed.',
         testWith: 'test_account',
         needs: ['gmail', 'phone'],
         token: true,

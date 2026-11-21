@@ -77,10 +77,15 @@ export type LiveIntegrationSpec = {
      * Token and OAuth are separate ways in.
      */
     auth: {
+        /** What the vendor must review or approve, if anything. */
         description: string;
         testWith: LiveAuthTestWith;
         needs: [LiveAuthNeed, ...LiveAuthNeed[]];
-        /** A customer can create a token or key and paste it. */
+        /**
+         * The ways in the vendor offers, whatever the integration's
+         * `checkAuth` accepts today: a token or key a customer creates and
+         * pastes, and OAuth sign-in with or without a vendor review.
+         */
         token: boolean;
         oauth: 'none' | 'no_review' | 'needs_review';
     };

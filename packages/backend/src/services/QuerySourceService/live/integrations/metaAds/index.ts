@@ -77,11 +77,11 @@ export const metaAdsIntegration = defineLiveIntegration({
     level: {
         value: 3,
         description:
-            'Yes. Insights returns totals per campaign, ad set, ad and date.',
+            'Insights returns totals per campaign, ad set, ad and date.',
     },
     auth: {
         description:
-            'Offers a token and OAuth sign-in. Needs Meta business verification and App Review for ads_read.',
+            'Needs Meta business verification and App Review for ads_read.',
         testWith: 'paid_account',
         needs: ['gmail', 'phone', 'card', 'real_person'],
         token: true,

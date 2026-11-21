@@ -96,16 +96,21 @@ export const postHogIntegration = defineLiveIntegration({
     },
     explores: [POSTHOG_EVENTS_EXPLORE],
     plannedModelNames: ['persons', 'sessions'],
-    level: { value: 5, description: 'Yes. HogQL is SQL.' },
+    level: {
+        value: 5,
+        description: 'HogQL is SQL, so PostHog totals everything itself.',
+    },
     auth: {
-        description:
-            'Offers a token and OAuth sign-in. No vendor review is needed.',
+        description: 'No vendor review is needed.',
         testWith: 'test_account',
         needs: ['gmail'],
         token: true,
         oauth: 'no_review',
     },
-    paging: { description: 'One HogQL query returns up to 50,000 rows.' },
+    paging: {
+        description:
+            '100 rows by default; up to 50,000 rows per query with an explicit LIMIT.',
+    },
     rateLimiting: {
         description:
             'Query API per project: 3 at once, 240 a minute, 2,400 an hour.',

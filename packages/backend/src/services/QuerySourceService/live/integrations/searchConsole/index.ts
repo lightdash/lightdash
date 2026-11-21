@@ -76,13 +76,10 @@ export const searchConsoleIntegration = defineLiveIntegration({
     },
     explores: [SEARCH_CONSOLE_PERFORMANCE_EXPLORE],
     plannedModelNames: ['search_appearance'],
-    level: {
-        value: 3,
-        description: 'Yes. Reports return totals per dimension.',
-    },
+    level: { value: 3, description: 'Reports return totals per dimension.' },
     auth: {
         description:
-            'Offers OAuth sign-in. Needs Google verification of the scope; unverified apps show a warning screen and are capped at 100 users.',
+            'Needs Google verification of the scope; unverified apps show a warning screen and are capped at 100 users.',
         testWith: 'real_account',
         needs: ['gmail', 'invite'],
         token: false,

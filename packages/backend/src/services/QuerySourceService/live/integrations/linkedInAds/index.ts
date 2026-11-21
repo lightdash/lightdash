@@ -91,12 +91,11 @@ export const linkedInAdsIntegration = defineLiveIntegration({
     ],
     level: {
         value: 3,
-        description:
-            'Yes. adAnalytics returns totals per pivot and time grain.',
+        description: 'adAnalytics returns totals per pivot and time grain.',
     },
     auth: {
         description:
-            "Offers OAuth sign-in. Needs Advertising API approval: Development tier first, then Standard tier to read customers' ad accounts.",
+            "Needs Advertising API approval: Development tier first, then Standard tier to read customers' ad accounts.",
         testWith: 'paid_account',
         needs: ['gmail', 'phone', 'card', 'real_person', 'vendor_approval'],
         token: false,

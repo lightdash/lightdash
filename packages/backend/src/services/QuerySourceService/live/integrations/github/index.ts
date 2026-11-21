@@ -100,11 +100,10 @@ export const githubIntegration = defineLiveIntegration({
     level: {
         value: 2,
         description:
-            'Counts only. Search returns a total count for a filter; nothing else is totalled.',
+            'Search returns a total count per filter; nothing else is totalled.',
     },
     auth: {
-        description:
-            'Offers a token and OAuth sign-in. No vendor review is needed.',
+        description: 'No vendor review is needed.',
         testWith: 'test_account',
         needs: ['gmail', 'phone'],
         token: true,

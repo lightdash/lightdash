@@ -96,10 +96,10 @@ export const pylonIntegration = defineLiveIntegration({
     plannedModelNames: ['messages', 'users', 'teams'],
     level: {
         value: 2,
-        description: 'No. Filtered search returns records but no totals.',
+        description: 'Filtered search returns records but no totals.',
     },
     auth: {
-        description: 'Offers a token. No vendor review is needed.',
+        description: 'No vendor review is needed.',
         testWith: 'real_account',
         needs: ['gmail', 'invite'],
         token: true,

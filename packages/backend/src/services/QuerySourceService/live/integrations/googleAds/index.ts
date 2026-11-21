@@ -95,11 +95,11 @@ export const googleAdsIntegration = defineLiveIntegration({
     level: {
         value: 3,
         description:
-            'Yes. GAQL reports return totals by the segments you pick (date, campaign, ad group).',
+            'GAQL reports return totals by the segments you pick (date, campaign, ad group).',
     },
     auth: {
         description:
-            'Offers OAuth sign-in. Needs Google verification plus a Google Ads access level: Explorer, then Basic or Standard for real customer volume.',
+            'Needs Google verification plus a Google Ads access level: Explorer, then Basic or Standard for real customer volume.',
         testWith: 'paid_account',
         needs: ['gmail', 'card'],
         token: false,

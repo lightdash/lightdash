@@ -87,11 +87,10 @@ export const attioIntegration = defineLiveIntegration({
     plannedModelNames: [],
     level: {
         value: 2,
-        description: 'No. Attio has no aggregates; it returns records only.',
+        description: 'Attio has no aggregates; it returns records only.',
     },
     auth: {
-        description:
-            'Offers a token and OAuth sign-in. No vendor review is needed.',
+        description: 'No vendor review is needed.',
         testWith: 'test_account',
         needs: ['gmail'],
         token: true,
