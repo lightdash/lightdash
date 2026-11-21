@@ -52,6 +52,7 @@ h2 { font-size: 12px; font-weight: 500; color: var(--text-3); margin: 28px 0 8px
 .chip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border: 1px solid var(--line-2); border-radius: 999px; font-size: 12px; color: var(--text-2); white-space: nowrap; background: var(--surface); }
 .bar { display: inline-block; width: 64px; height: 4px; border-radius: 2px; background: var(--line-2); overflow: hidden; vertical-align: middle; }
 .bar i { display: block; height: 100%; background: var(--green); }
+.bar i.amber { background: var(--amber); } .bar i.red { background: var(--red); }
 
 .list { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
 .row { display: grid; align-items: center; gap: 12px; min-height: 40px; padding: 8px 14px; border-top: 1px solid var(--line); }
@@ -66,7 +67,12 @@ a.row:hover, .row.case:hover { background: var(--hover); }
 .prop { background: var(--surface); padding: 12px 14px; }
 .prop .k { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 500; color: var(--text-3); margin-bottom: 4px; }
 .prop .v { color: var(--text); }
-.prop .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.kv { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 7px 12px; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.kk { font-size: 12px; color: var(--text-3); }
+.kv .status { color: var(--text); }
+.tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.tag { font-size: 12px; line-height: 20px; padding: 0 7px; border-radius: 4px; background: var(--raised); color: var(--text-2); }
+.tag.warn { color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); }
 
 .callout { display: flex; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-left: 2px solid var(--brand); border-radius: 8px; background: var(--surface); margin-bottom: 16px; }
 
@@ -135,7 +141,12 @@ const possibleShare = (useCases) => {
 };
 const coverage = (useCases) => {
   const { yes, total, pct } = possibleShare(useCases);
-  return `<span style="display:flex;align-items:center;gap:8px"><span class="bar"><i style="width:${pct}%"></i></span><span class="mono t2">${yes}/${total}</span></span>`;
+  return `<span style="display:flex;align-items:center;gap:8px"><span class="bar"><i class="${coverageColor(useCases)}" style="width:${pct}%"></i></span><span class="mono t2">${yes}/${total}</span></span>`;
+};
+const coverageColor = (useCases) => {
+  const { pct } = possibleShare(useCases);
+  if (pct >= 66) return 'green';
+  return pct >= 40 ? 'amber' : 'red';
 };
 const authChip = (i) => chip(i.authScore.rating, RATING_COLOR[i.authScore.rating]);
 
@@ -153,13 +164,23 @@ const overview = (integrations) => `
     </a>`).join('')}
   </div>`;
 
+const BLOCKING_NEEDS = ['card', 'real_person', 'vendor_approval', 'sales_contract'];
+const OAUTH = {
+  none: { color: '', text: 'Not offered' },
+  no_review: { color: 'green', text: 'Self-serve, no review' },
+  needs_review: { color: 'amber', text: 'Vendor review required' },
+};
+const TEST_WITH = { test_account: ['green', 'Free test account'], real_account: ['amber', 'A real account'], paid_account: ['amber', 'A paid account'], unknown: ['red', 'No known way'] };
 const authValue = (auth) => {
-  const ways = [auth.token && 'Token', auth.oauth !== 'none' && `OAuth, ${words(auth.oauth)}`].filter(Boolean);
+  const oauth = OAUTH[auth.oauth];
+  const [testColor, testText] = TEST_WITH[auth.testWith];
+  const tag = (need) => `<span class="tag ${BLOCKING_NEEDS.includes(need) ? 'warn' : ''}">${esc(words(need))}</span>`;
   return `<div class="v">${esc(auth.description)}</div>
-    <div class="meta">
-      ${(ways.length ? ways : ['No way in']).map((w) => chip(w)).join('')}
-      ${chip(`test with ${words(auth.testWith)}`)}
-      ${auth.needs.map((n) => chip(words(n))).join('')}
+    <div class="kv">
+      <span class="kk">Token</span><span class="status">${dot(auth.token ? 'green' : '')}${auth.token ? 'Customer pastes a key' : 'Not offered'}</span>
+      <span class="kk">OAuth</span><span class="status">${dot(oauth.color)}${oauth.text}</span>
+      <span class="kk">Test with</span><span class="status">${dot(testColor)}${testText}</span>
+      <span class="kk">Tester needs</span><span class="tags">${auth.needs.map(tag).join('')}</span>
     </div>`;
 };
 
@@ -243,7 +264,7 @@ const render = () => {
         <a href="#" class="${selected ? '' : 'on'}"><span class="grow">Overview</span></a>
         <div class="label">Integrations</div>
         ${data.integrations.map((i) => `<a href="#${esc(i.name)}" class="${selected === i ? 'on' : ''}">
-          ${dot(RATING_COLOR[i.authScore.rating])}<span class="grow">${esc(i.label)}</span><span class="mono t3">L${i.level.value}</span>
+          ${dot(coverageColor(i.useCases))}<span class="grow">${esc(i.label)}</span><span class="mono t3">L${i.level.value}</span>
         </a>`).join('')}
       </nav>` : ''}
       <main>${selected ? detail(selected) : overview(data.integrations)}</main>
