@@ -278,24 +278,23 @@ describe('BubbleThread', () => {
         expect(state.createMessage).not.toHaveBeenCalled();
     });
 
-    it("the reply bar's Stylus arms this bubble", async () => {
+    it("the reply bar's Mark and Mic arm this bubble", async () => {
         const props = renderThread();
-        await enabledTool('Stylus');
-        fireEvent.click(screen.getByRole('button', { name: 'Stylus' }));
-        expect(props.onArm).toHaveBeenLastCalledWith('text');
-        fireEvent.click(screen.getByRole('button', { name: 'Cursor' }));
+        await enabledTool('Mark');
+        expect(screen.queryByRole('button', { name: 'Cursor' })).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Mark' }));
         expect(props.onArm).toHaveBeenLastCalledWith('text');
         fireEvent.click(screen.getByRole('button', { name: 'Mic' }));
         expect(props.onArm).toHaveBeenLastCalledWith('mic');
-        expect(props.onArm).toHaveBeenCalledTimes(3);
+        expect(props.onArm).toHaveBeenCalledTimes(2);
     });
 
     it('the reply bar tools are disabled while another target is active', async () => {
         const props = baseProps();
         const { rerender } = renderWithProviders(ui(props));
-        await enabledTool('Stylus');
+        await enabledTool('Mark');
         rerender(ui({ ...props, replyCollecting: true }));
-        for (const name of ['Stylus', 'Cursor', 'Mic']) {
+        for (const name of ['Mark', 'Mic']) {
             const button = screen.getByRole('button', { name });
             expect(button).toBeDisabled();
             fireEvent.click(button);
@@ -305,7 +304,7 @@ describe('BubbleThread', () => {
 
     it('the reply bar tools stay enabled on the armed bubble', async () => {
         renderThread({ armed: true, replyCollecting: true });
-        for (const name of ['Stylus', 'Cursor', 'Mic']) {
+        for (const name of ['Mark', 'Mic']) {
             await enabledTool(name);
         }
     });
@@ -396,7 +395,7 @@ describe('BubbleThread', () => {
             ),
         );
         // Lets the failed query settle and run its error handler.
-        await enabledTool('Stylus');
+        await enabledTool('Mark');
         await new Promise((resolve) => setTimeout(resolve, 0));
         expect(state.navigate).not.toHaveBeenCalled();
         expect(

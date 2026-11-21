@@ -39,7 +39,7 @@ import {
 import { grabDomFrame } from './domFrame';
 import { sameScreen, shiftMarks, type ScreenView } from './frameGeometry';
 import { CAPTURE_IGNORE_ATTRIBUTE } from './frameSource';
-import { cancelsHold, escapeIsForDesignMode, holdToolForKey } from './holdKeys';
+import { cancelsHold, escapeIsForDesignMode, startsHold } from './holdKeys';
 import { coveredTargets } from './markCoverage';
 import { ATTACHED_PX, besideMarks, intoView } from './placeBubble';
 import { type TabFrame } from './tabFrame';
@@ -50,8 +50,8 @@ import {
     type DesignPayload,
     type DesignSendResult,
     type DesignSurface,
-    type DesignTool,
     type LayerMark,
+    type PickedElement,
     type Point,
     type Stroke,
     type TranscriptPhrase,
@@ -86,16 +86,22 @@ type Shot = {
     scrolled: { x: number; y: number };
 };
 
+/**
+ * One Option hold. Clicks pick and drags draw, in any order. The strokes drawn
+ * since the last pick are one ink mark, committed on release or just before
+ * the next pick, so marks number in the order they were made.
+ */
 type Hold = {
-    tool: DesignTool;
+    /** When the next mark began: the hold's start, or the last mark's end. */
     startAbs: number;
     rect: DOMRect;
     scroll: { x: number; y: number };
+    /** The ink mark being drawn: its finished strokes and the one in hand. */
     strokes: Stroke[];
     current: Stroke | null;
-    /** Cursor: one pick per hold. */
-    picked: boolean;
-    /** The last element picked in this hold, so one click is one mark. */
+    /** A mark came out of this hold, so its bubble is kept. */
+    marked: boolean;
+    /** The last element picked since the last stroke, so one click is one mark. */
     lastPick: string | null;
     /** Used when the hold opens a bubble from the page. */
     newBubbleId: string;
@@ -146,7 +152,8 @@ type Recording = { bubbleId: string; voice: Promise<VoiceState> };
 
 type Commit =
     | { kind: 'strokes'; strokes: Stroke[]; endAbs: number }
-    | { kind: 'pick'; target: CaptureTarget; rect: DOMRect; endAbs: number };
+    // Known once the surface answers: null when the click hit nothing.
+    | { kind: 'pick'; found: Promise<PickedElement | null>; endAbs: number };
 
 const grabFrame = (
     surface: DesignSurface,
@@ -158,10 +165,6 @@ const grabFrame = (
     }
     return grabAppFrame(surface.grabAppImage, region);
 };
-
-// An app is picked by a click inside its own frame, which this page cannot see.
-const picksInFrame = (surface: DesignSurface | null): boolean =>
-    surface?.frameSource === 'app';
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
@@ -209,11 +212,10 @@ export const useDesignMode = (
     close: (bubbleId: string) => void;
     minimise: (bubbleId: string) => void;
     expand: (bubbleId: string) => void;
-    holding: DesignTool | null;
-    /** An app's own element picker reported a click, at this viewport point. */
-    framePick: (at: { x: number; y: number }) => void;
-    /** A hold key went down or came up inside an app frame. */
-    frameHold: (tool: DesignTool, phase: 'down' | 'up') => void;
+    /** Option is held. */
+    holding: boolean;
+    /** Option went down or came up inside an app frame. */
+    frameHold: (phase: 'down' | 'up') => void;
     /** The page's content was replaced, as after an agent's edit. */
     screenChanged: () => void;
     element: ReactNode;
@@ -276,9 +278,17 @@ export const useDesignMode = (
     const [micOn, setMicOnState] = useState(false);
     const micOnRef = useRef(false);
     const [rect, setRect] = useState<DOMRect | null>(null);
-    const [holding, setHolding] = useState<DesignTool | null>(null);
+    const [holding, setHolding] = useState(false);
     const [ink, setInk] = useState<Stroke[]>([]);
+    // Ink marks on their way into a bubble stay drawn until they land.
+    const landingInkRef = useRef<Stroke[][]>([]);
     const [hover, setHover] = useState<MarkBox | null>(null);
+    // Hover asks the surface once a frame; an answer to an older ask is dropped.
+    const hoverAskRef = useRef<{
+        point: Point | null;
+        frame: number | null;
+        seq: number;
+    }>({ point: null, frame: null, seq: 0 });
     const [placed, setPlaced] = useState<LayerMark[]>([]);
     // Read by a mark that lands before the last one has been drawn.
     const placedRef = useRef<LayerMark[]>([]);
@@ -511,19 +521,43 @@ export const useDesignMode = (
         [dropRecording],
     );
 
+    const refreshInk = useCallback(() => {
+        const hold = holdRef.current;
+        const live = hold
+            ? hold.current
+                ? [...hold.strokes, hold.current]
+                : hold.strokes
+            : [];
+        setInk([...landingInkRef.current.flat(), ...live]);
+    }, []);
+
     const commit = useCallback(
         (hold: Hold, made: Commit) => {
             const current = surfaceRef.current;
-            if (!current) return;
+            const landing = made.kind === 'strokes' ? made.strokes : null;
+            if (landing) landingInkRef.current.push(landing);
+            const landed = () => {
+                if (!landing) return;
+                landingInkRef.current = landingInkRef.current.filter(
+                    (strokes) => strokes !== landing,
+                );
+                refreshInk();
+            };
+            if (!current) {
+                landed();
+                return;
+            }
             const region = hold.rect;
             const tab = current.getTab();
 
-            queueRef.current = queueRef.current.then(async () => {
+            const land = async () => {
+                const picked = made.kind === 'pick' ? await made.found : null;
+                // A click on nothing makes no mark.
+                if (made.kind === 'pick' && !picked) return;
                 const voice = hold.voice ? await hold.voice : null;
                 if (voice === 'off') dropRecording(hold.newBubbleId);
                 const before = sessionRef.current;
                 if (!onRef.current || !canStartHold(before)) {
-                    setInk([]);
                     abandon(hold);
                     return;
                 }
@@ -554,7 +588,7 @@ export const useDesignMode = (
 
                 const started = dispatch({
                     type: 'holdStarted',
-                    tool: hold.tool,
+                    kind: made.kind === 'pick' ? 'pick' : 'ink',
                     atMs: hold.startAbs - clock,
                     tabUuid,
                     isNewScreen,
@@ -569,7 +603,6 @@ export const useDesignMode = (
                         ? got.collection.capture
                         : null;
                 if (!got || !drawing?.drawing) {
-                    setInk([]);
                     abandon(hold);
                     return;
                 }
@@ -642,16 +675,18 @@ export const useDesignMode = (
                         tabName: tab?.name ?? null,
                         box: null,
                     };
-                } else {
-                    box = boxInRegion(made.rect, region);
+                } else if (picked) {
+                    box = boxInRegion(picked.rect, region);
                     mark = {
-                        target: made.target,
+                        target: picked.target,
                         arrowTo: null,
-                        trail: [made.target],
-                        covers: [{ target: made.target, share: 1 }],
+                        trail: [picked.target],
+                        covers: [{ target: picked.target, share: 1 }],
                         tabName: tab?.name ?? null,
                         box,
                     };
+                } else {
+                    return;
                 }
                 const markRect = new DOMRect(
                     region.left + box.x * region.width,
@@ -722,7 +757,6 @@ export const useDesignMode = (
                 const after = activeCollection(done)?.collection.capture;
                 const marks: CaptureMark[] =
                     after?.status === 'recording' ? after.marks : [];
-                setInk([]);
                 const newest = marks[marks.length - 1];
                 if (!newest || marks.length <= marksBefore) return;
                 if (opensImage) {
@@ -793,6 +827,13 @@ export const useDesignMode = (
                     layerMark,
                 ]);
                 refreshScroll();
+            };
+            queueRef.current = queueRef.current.then(async () => {
+                try {
+                    await land();
+                } finally {
+                    landed();
+                }
             });
         },
         [
@@ -800,6 +841,7 @@ export const useDesignMode = (
             dispatch,
             dropRecording,
             grabWhenQuiet,
+            refreshInk,
             refreshScroll,
             refreshShield,
             showToastWarning,
@@ -808,36 +850,42 @@ export const useDesignMode = (
         ],
     );
 
-    const beginHold = useCallback(
-        (tool: DesignTool) => {
-            const current = surfaceRef.current;
-            if (!current || !onRef.current || holdRef.current) return;
-            if (tool === 'cursor' && !current.pickAt) return;
-            if (!canStartHold(sessionRef.current)) return;
-            const region = current.getRegion();
-            postponeGrab();
-            setInk([]);
-            setHover(null);
-            setRect(region);
-            setHolding(tool);
-            holdRef.current = {
-                tool,
-                startAbs: performance.now(),
-                rect: region,
-                scroll: current.getScroll(),
-                strokes: [],
-                current: null,
-                picked: false,
-                lastPick: null,
-                newBubbleId: uuidv4(),
-                voice: null,
-            };
-        },
-        [postponeGrab],
-    );
+    const forgetHover = useCallback(() => {
+        const ask = hoverAskRef.current;
+        ask.point = null;
+        ask.seq += 1;
+        if (ask.frame !== null) {
+            window.cancelAnimationFrame(ask.frame);
+            ask.frame = null;
+        }
+        setHover(null);
+    }, []);
+
+    const beginHold = useCallback(() => {
+        const current = surfaceRef.current;
+        if (!current || !onRef.current || holdRef.current) return;
+        if (!canStartHold(sessionRef.current)) return;
+        const region = current.getRegion();
+        postponeGrab();
+        forgetHover();
+        setRect(region);
+        setHolding(true);
+        holdRef.current = {
+            startAbs: performance.now(),
+            rect: region,
+            scroll: current.getScroll(),
+            strokes: [],
+            current: null,
+            marked: false,
+            lastPick: null,
+            newBubbleId: uuidv4(),
+            voice: null,
+        };
+        refreshInk();
+    }, [forgetHover, postponeGrab, refreshInk]);
 
     // The mic starts with a new bubble's first stroke or pick, not the bare
-    // key: Option and Control are also pressed for shortcuts.
+    // key: Option is also pressed for shortcuts.
     const startHoldVoice = useCallback(
         (hold: Hold) => {
             if (hold.voice || !micOnRef.current || recordingRef.current) return;
@@ -847,58 +895,85 @@ export const useDesignMode = (
         [beginRecording],
     );
 
+    // The strokes drawn since the last pick become one ink mark.
+    const flushInk = useCallback(
+        (hold: Hold) => {
+            const strokes = hold.current
+                ? [...hold.strokes, hold.current]
+                : hold.strokes;
+            if (strokes.length === 0) return;
+            const ink = { ...hold };
+            hold.strokes = [];
+            hold.current = null;
+            hold.marked = true;
+            hold.lastPick = null;
+            hold.startAbs = performance.now();
+            commit(ink, {
+                kind: 'strokes',
+                strokes,
+                endAbs: performance.now(),
+            });
+        },
+        [commit],
+    );
+
     const cancelHold = useCallback(() => {
         const hold = holdRef.current;
         if (!hold) return;
         holdRef.current = null;
-        setHolding(null);
-        setInk([]);
-        setHover(null);
+        setHolding(false);
+        forgetHover();
+        refreshInk();
         lastActivityRef.current = Date.now();
         grabWhenQuiet();
-        if (!hold.picked) abandon(hold);
-    }, [abandon, grabWhenQuiet]);
+        if (!hold.marked) abandon(hold);
+    }, [abandon, forgetHover, grabWhenQuiet, refreshInk]);
 
     const endHold = useCallback(() => {
         const hold = holdRef.current;
         if (!hold) return;
         holdRef.current = null;
-        setHolding(null);
-        setHover(null);
+        setHolding(false);
+        forgetHover();
         lastActivityRef.current = Date.now();
         grabWhenQuiet();
-        if (hold.tool === 'cursor') {
-            if (!hold.picked) abandon(hold);
-            return;
-        }
-        const strokes = hold.current
-            ? [...hold.strokes, hold.current]
-            : hold.strokes;
-        if (strokes.length === 0) {
-            setInk([]);
-            abandon(hold);
-            return;
-        }
-        commit(hold, { kind: 'strokes', strokes, endAbs: performance.now() });
-    }, [abandon, commit, grabWhenQuiet]);
+        flushInk(hold);
+        refreshInk();
+        if (!hold.marked) abandon(hold);
+    }, [abandon, flushInk, forgetHover, grabWhenQuiet, refreshInk]);
 
-    const refreshInk = useCallback(() => {
-        const hold = holdRef.current;
-        if (!hold) return;
-        setInk(hold.current ? [...hold.strokes, hold.current] : hold.strokes);
+    const onHover = useCallback((point: Point | null) => {
+        const ask = hoverAskRef.current;
+        if (point === null) {
+            ask.point = null;
+            ask.seq += 1;
+            setHover(null);
+            return;
+        }
+        ask.point = point;
+        if (ask.frame !== null) return;
+        ask.frame = window.requestAnimationFrame(() => {
+            ask.frame = null;
+            const hold = holdRef.current;
+            const at = ask.point;
+            const pickAt = surfaceRef.current?.pickAt ?? null;
+            if (!hold || !at || !pickAt) return;
+            ask.seq += 1;
+            const seq = ask.seq;
+            pickAt(holdPoint(hold, at)).then(
+                (hit) => {
+                    if (seq !== ask.seq || holdRef.current !== hold) return;
+                    setHover(hit ? boxInRegion(hit.rect, hold.rect) : null);
+                },
+                () => {},
+            );
+        });
     }, []);
 
     const onStrokePoint = useCallback(
         (point: Point) => {
             const hold = holdRef.current;
             if (!hold) return;
-            if (hold.tool === 'cursor') {
-                const hit = surfaceRef.current?.pickAt?.(
-                    holdPoint(hold, point),
-                );
-                setHover(hit ? boxInRegion(hit.rect, hold.rect) : null);
-                return;
-            }
             startHoldVoice(hold);
             hold.current = {
                 points: hold.current
@@ -918,46 +993,42 @@ export const useDesignMode = (
         refreshInk();
     }, [refreshInk]);
 
-    const framePick = useCallback(
-        (at: { x: number; y: number }) => {
-            const hold = holdRef.current;
-            if (!hold || hold.tool !== 'cursor') return;
-            const hit = surfaceRef.current?.pickAt?.(at);
-            if (!hit) return;
-            const pickKey = `${hit.target.kind}:${hit.target.id}`;
-            if (hold.lastPick === pickKey) return;
-            hold.lastPick = pickKey;
-            hold.picked = true;
-            setHover(null);
-            startHoldVoice(hold);
-            // Each click of one hold is its own mark, timed from the last.
-            const pick = { ...hold };
-            hold.startAbs = performance.now();
-            commit(pick, {
-                kind: 'pick',
-                target: hit.target,
-                rect: hit.rect,
-                endAbs: performance.now(),
-            });
-        },
-        [commit, startHoldVoice],
-    );
-
     const onPick = useCallback(
         (point: Point) => {
             const hold = holdRef.current;
-            if (hold) framePick(holdPoint(hold, point));
+            const pickAt = surfaceRef.current?.pickAt ?? null;
+            if (!hold || !pickAt) return;
+            // Ink drawn before this click is the mark before it.
+            flushInk(hold);
+            refreshInk();
+            forgetHover();
+            const pick: Hold = { ...hold };
+            hold.startAbs = performance.now();
+            const found = pickAt(holdPoint(hold, point)).then(
+                (hit) => {
+                    if (!hit) return null;
+                    const pickKey = `${hit.target.kind}:${hit.target.id}`;
+                    if (hold.lastPick === pickKey) return null;
+                    hold.lastPick = pickKey;
+                    hold.marked = true;
+                    if (holdRef.current === hold) startHoldVoice(hold);
+                    pick.voice = hold.voice;
+                    return hit;
+                },
+                () => null,
+            );
+            commit(pick, { kind: 'pick', found, endAbs: performance.now() });
         },
-        [framePick],
+        [commit, flushInk, forgetHover, refreshInk, startHoldVoice],
     );
 
     const frameHold = useCallback(
-        (tool: DesignTool, phase: 'down' | 'up') => {
+        (phase: 'down' | 'up') => {
             if (phase === 'up') {
-                if (holdRef.current?.tool === tool) endHold();
+                endHold();
                 return;
             }
-            if (downKeysRef.current.size === 0) beginHold(tool);
+            if (downKeysRef.current.size === 0) beginHold();
         },
         [beginHold, endHold],
     );
@@ -1366,55 +1437,44 @@ export const useDesignMode = (
                 }
                 return;
             }
-            const tool = holdToolForKey(event);
-            if (!tool || downKeys.size > 0) return;
-            beginHold(tool);
+            if (startsHold(event) && downKeys.size === 0) beginHold();
         };
         const onKeyUp = (event: KeyboardEvent) => {
             downKeys.delete(event.code || event.key);
             // A held Command swallows the other keys' keyup on macOS.
             if (event.key === 'Meta') downKeys.clear();
-            const hold = holdRef.current;
-            if (!hold) return;
-            if (
-                (hold.tool === 'stylus' && event.key === 'Alt') ||
-                (hold.tool === 'cursor' && event.key === 'Control')
-            ) {
-                endHold();
-            }
+            if (event.key === 'Alt') endHold();
         };
-        const onContextMenu = (event: MouseEvent) => {
-            if (holdRef.current?.tool === 'cursor' || event.ctrlKey) {
-                event.preventDefault();
-            }
+        // A press with Option held is a mark: the page under it must not act
+        // on it, and Option+click must not download a link.
+        const onHeldClick = (event: MouseEvent) => {
+            if (!holdRef.current) return;
+            event.preventDefault();
+            event.stopPropagation();
         };
         // A sealed iframe swallows keys once clicked, so take focus back.
         const onBlur = () => {
-            // Picking in an app means clicking into its frame: the hold stays.
-            const picking =
-                holdRef.current?.tool === 'cursor' &&
-                picksInFrame(surfaceRef.current);
-            if (!picking) endHold();
+            endHold();
             downKeys.clear();
             window.setTimeout(() => {
-                if (document.activeElement?.tagName !== 'IFRAME') {
-                    if (picking && holdRef.current?.tool === 'cursor') {
-                        endHold();
-                    }
-                    return;
-                }
+                if (document.activeElement?.tagName !== 'IFRAME') return;
                 window.focus();
                 toolbarRef.current?.focus({ preventScroll: true });
             }, 0);
         };
+        const heldTypes = ['click', 'auxclick', 'dragstart'] as const;
         window.addEventListener('keydown', onKeyDown, true);
         window.addEventListener('keyup', onKeyUp, true);
-        window.addEventListener('contextmenu', onContextMenu, true);
+        heldTypes.forEach((type) =>
+            window.addEventListener(type, onHeldClick, true),
+        );
         window.addEventListener('blur', onBlur);
         return () => {
             window.removeEventListener('keydown', onKeyDown, true);
             window.removeEventListener('keyup', onKeyUp, true);
-            window.removeEventListener('contextmenu', onContextMenu, true);
+            heldTypes.forEach((type) =>
+                window.removeEventListener(type, onHeldClick, true),
+            );
             window.removeEventListener('blur', onBlur);
         };
     }, [beginHold, cancelHold, endHold, on, onEscape]);
@@ -1621,10 +1681,7 @@ export const useDesignMode = (
         [dispatch],
     );
 
-    const passthrough = holding !== null;
-    // The app's own picker takes the click, so the ink layer stays out of the way.
-    const inkTakesPointer =
-        passthrough && !(holding === 'cursor' && picksInFrame(surface));
+    const passthrough = holding;
 
     // A bubble shows once its first mark has landed and it has a place.
     const shownBubbles = visibleBubbles(session, tabUuid).filter(
@@ -1690,15 +1747,16 @@ export const useDesignMode = (
                         {on && (
                             <InkOverlay
                                 rect={rect}
-                                holding={inkTakesPointer}
+                                holding={holding}
                                 inkVisible
                                 strokes={ink}
                                 color={inkColor}
                                 fading={null}
                                 hover={hover}
+                                onHover={onHover}
                                 onStrokePoint={onStrokePoint}
                                 onStrokeEnd={onStrokeEnd}
-                                onPick={holding === 'cursor' ? onPick : null}
+                                onPick={onPick}
                             />
                         )}
                         {scrollContainer === null && (
@@ -1731,7 +1789,7 @@ export const useDesignMode = (
                         {on && (
                             <DesignToolbar
                                 ref={toolbarRef}
-                                tool={holding}
+                                holding={holding}
                                 micOn={micOn}
                                 onMicChange={setMicOn}
                                 onClose={() => setOn(false)}
@@ -1772,7 +1830,6 @@ export const useDesignMode = (
         minimise,
         expand,
         holding,
-        framePick,
         frameHold,
         screenChanged,
         element,

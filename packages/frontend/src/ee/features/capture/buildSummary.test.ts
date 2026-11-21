@@ -11,7 +11,6 @@ const mark = (
     imageIndex: 0,
     strokes: [],
     shape: 'circle',
-    tool: 'stylus',
     tabName: null,
     box: { x: 0.7, y: 0.05, width: 0.2, height: 0.2 },
     arrow: null,
@@ -279,7 +278,6 @@ describe('buildSummary', () => {
                     startMs: 4000,
                     endMs: 4100,
                     shape: 'pick',
-                    tool: 'cursor',
                     target: {
                         kind: 'chart-point',
                         id: 't/point/0/1',
@@ -301,7 +299,6 @@ describe('buildSummary', () => {
                 startMs: number * 4000,
                 endMs: number * 4000 + 200,
                 shape: 'pick',
-                tool: 'cursor',
                 tabName,
                 target: { kind: 'tile', id: label, label, parentId: null },
             });
@@ -353,7 +350,6 @@ describe('buildSummary', () => {
                 arrowTo: target,
                 trail: [],
                 covers: [],
-                tool: 'stylus' as const,
                 tabName: null,
             },
         ];

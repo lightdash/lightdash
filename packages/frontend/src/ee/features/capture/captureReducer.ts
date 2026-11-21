@@ -7,7 +7,7 @@ import {
     type CaptureCover,
     type CaptureMark,
     type CaptureTarget,
-    type DesignTool,
+    type MarkKind,
     type Box,
     type Stroke,
     type VoiceState,
@@ -25,7 +25,7 @@ export type CaptureState =
           drawing: {
               imageIndex: number;
               startMs: number;
-              tool: DesignTool;
+              kind: MarkKind;
               strokes: Stroke[];
           } | null;
           atImageLimit: boolean;
@@ -39,7 +39,7 @@ export type ShiftUpAction = {
     trail: CaptureTarget[];
     covers: CaptureCover[];
     tabName: string | null;
-    /** The picked element's bounds; used for cursor picks, null for strokes. */
+    /** The picked element's bounds; used for picks, null for ink. */
     box: Box | null;
 };
 
@@ -49,7 +49,7 @@ export type CaptureAction =
           type: 'shiftDown';
           atMs: number;
           isNewScreen: boolean;
-          tool: DesignTool;
+          kind: MarkKind;
       }
     | { type: 'strokeAdded'; stroke: Stroke }
     | ShiftUpAction
@@ -90,7 +90,7 @@ export const captureReducer = (
                           )
                         : state.imageCount - 1,
                     startMs: action.atMs,
-                    tool: action.tool,
+                    kind: action.kind,
                     strokes: [],
                 },
             };
@@ -107,7 +107,7 @@ export const captureReducer = (
         case 'shiftUp': {
             if (state.status !== 'recording' || !state.drawing) return state;
             const { drawing } = state;
-            const isPick = drawing.tool === 'cursor';
+            const isPick = drawing.kind === 'pick';
             if (!isPick && drawing.strokes.length === 0) {
                 return { ...state, drawing: null };
             }
@@ -125,7 +125,6 @@ export const captureReducer = (
                 endMs: action.atMs,
                 strokes: isPick ? [] : drawing.strokes,
                 ...shape,
-                tool: drawing.tool,
                 tabName: action.tabName,
                 target: action.target,
                 arrowTo: action.arrowTo,

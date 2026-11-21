@@ -1,6 +1,6 @@
 import { type AppSdkCaptureHold } from '@lightdash/common';
 import { forwardRef, useCallback, useEffect, useImperativeHandle } from 'react';
-import { type ElementSelectedEvent } from '../../../features/apps/hooks/useAppSdkBridge';
+import { type InspectedElement } from '../../../features/apps/hooks/useIframeInspectAt';
 import { type DesignPayload, type DesignSendResult } from '../capture/types';
 import { useBubbleConversations } from '../capture/useBubbleConversations';
 import { useDesignMode } from '../capture/useDesignMode';
@@ -8,10 +8,8 @@ import { useAppFrameSurface } from './useAppFrameSurface';
 
 export type AppViewDesignModeHandle = {
     toggle: () => void;
-    /** A hold key went down or came up inside the app. */
+    /** The hold key went down or came up inside the app. */
     hold: (hold: AppSdkCaptureHold) => void;
-    /** The app's element picker reported a click. */
-    elementSelected: (event: ElementSelectedEvent) => void;
 };
 
 type Props = {
@@ -23,8 +21,12 @@ type Props = {
     getFrame: () => HTMLElement | null;
     /** The app's own picture of itself. Null when its bundle cannot take one. */
     captureScreenshot: (() => Promise<Blob>) | null;
-    /** Whether Design Mode is on, and whether a Cursor hold is picking. */
-    onStateChange: (on: boolean, picking: boolean) => void;
+    /** Asks the app what element is at a point in its own pixels. */
+    inspectAt: (point: {
+        x: number;
+        y: number;
+    }) => Promise<InspectedElement | null>;
+    onStateChange: (on: boolean) => void;
 };
 
 /** Design Mode on a published app: mark it, say what to change, read the reply there. */
@@ -36,16 +38,18 @@ const AppViewDesignMode = forwardRef<AppViewDesignModeHandle, Props>(
             appName,
             getFrame,
             captureScreenshot,
+            inspectAt,
             onStateChange,
         },
         ref,
     ) => {
         const conversations = useBubbleConversations(projectUuid);
         const { send: sendMessage } = conversations;
-        const { surface, elementSelected } = useAppFrameSurface({
+        const { surface } = useAppFrameSurface({
             projectUuid,
             getFrame,
             captureScreenshot,
+            inspectAt,
         });
 
         const onSend = useCallback(
@@ -70,20 +74,18 @@ const AppViewDesignMode = forwardRef<AppViewDesignModeHandle, Props>(
         });
         conversations.attach(design);
 
-        const { on, setOn, framePick, frameHold } = design;
-        const picking = on && design.holding === 'cursor';
+        const { on, setOn, frameHold } = design;
         useEffect(() => {
-            onStateChange(on, picking);
-        }, [on, onStateChange, picking]);
+            onStateChange(on);
+        }, [on, onStateChange]);
 
         useImperativeHandle(
             ref,
             () => ({
                 toggle: () => setOn(!on),
-                hold: ({ tool, phase }) => frameHold(tool, phase),
-                elementSelected: (event) => elementSelected(event, framePick),
+                hold: ({ phase }) => frameHold(phase),
             }),
-            [elementSelected, frameHold, framePick, on, setOn],
+            [frameHold, on, setOn],
         );
 
         return (

@@ -50,9 +50,7 @@ import { getVisiblePreviewTokenError } from '../features/apps/hooks/previewToken
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppInspector } from '../features/apps/hooks/useAppInspector';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
-import { type ElementSelectedEvent } from '../features/apps/hooks/useAppSdkBridge';
 import { useCanEditVerifiedDataApp } from '../features/apps/hooks/useCanEditDataApp';
-import { useElementPicker } from '../features/apps/hooks/useElementPicker';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useNewerAppVersion } from '../features/apps/hooks/useNewerAppVersion';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
@@ -243,37 +241,25 @@ export default function AppPreviewTest() {
         }
         return capture();
     }, []);
+    const inspectPreviewAt = useCallback(
+        (point: { x: number; y: number }) =>
+            previewRef.current?.inspectAt(point) ?? Promise.resolve(null),
+        [],
+    );
 
     // Design Mode: mark the running app and say what to change; each bubble
     // of marks becomes an agent conversation shown beside them.
     const previewBodyRef = useRef<HTMLDivElement>(null);
     const designRef = useRef<AppViewDesignModeHandle>(null);
-    const [designState, setDesignState] = useState({
-        on: false,
-        picking: false,
-    });
-    const handleDesignStateChange = useCallback(
-        (on: boolean, picking: boolean) => setDesignState({ on, picking }),
-        [],
-    );
+    const [designOn, setDesignOn] = useState(false);
     const designModeOffered =
         captureFlag.data?.enabled === true &&
         !isEmbedded &&
         canUseAgents &&
         hasCaptureAgent &&
         Boolean(token && version !== undefined && !isFullscreen);
-    // A Cursor hold picks with the app's own element picker.
-    const elementPicker = useElementPicker({
-        identityKey,
-        enabled: designModeOffered && designState.picking,
-    });
     // Stable: the preview re-attaches its message listener when these change.
     const toggleDesignMode = useCallback(() => designRef.current?.toggle(), []);
-    const handleElementSelected = useCallback(
-        (event: ElementSelectedEvent) =>
-            designRef.current?.elementSelected(event),
-        [],
-    );
     const handleCaptureHold = useCallback(
         (hold: AppSdkCaptureHold) => designRef.current?.hold(hold),
         [],
@@ -426,9 +412,6 @@ export default function AppPreviewTest() {
                         analysisController.setMountedQueryUuids
                     }
                     {...inspector.iframeProps}
-                    {...elementPicker.iframeProps}
-                    // The pick keeps where the element is, which the picker drops.
-                    onElementSelected={handleElementSelected}
                     onCaptureHotkey={toggleDesignMode}
                     onCaptureHold={handleCaptureHold}
                 />
@@ -495,7 +478,7 @@ export default function AppPreviewTest() {
                             previewTools={
                                 designModeOffered && (
                                     <DesignModeButton
-                                        active={designState.on}
+                                        active={designOn}
                                         screenshotAvailable={
                                             screenshotAvailable
                                         }
@@ -615,7 +598,8 @@ export default function AppPreviewTest() {
                                 ? capturePreviewScreenshot
                                 : null
                         }
-                        onStateChange={handleDesignStateChange}
+                        inspectAt={inspectPreviewAt}
+                        onStateChange={setDesignOn}
                     />
                 )}
                 {body}

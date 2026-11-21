@@ -3673,7 +3673,24 @@ describe('Design Mode hold keys forwarded from the app', () => {
         return onCaptureHold;
     };
 
-    it('passes on which hold key went down and came up', () => {
+    it('passes on the hold key going down and coming up', () => {
+        const onCaptureHold = renderWithHandler();
+
+        dispatchFetchMessage({
+            type: APP_SDK_CAPTURE_HOLD_MESSAGE,
+            phase: 'down',
+        });
+        dispatchFetchMessage({
+            type: APP_SDK_CAPTURE_HOLD_MESSAGE,
+            phase: 'up',
+        });
+        expect(onCaptureHold.mock.calls).toEqual([
+            [{ phase: 'down' }],
+            [{ phase: 'up' }],
+        ]);
+    });
+
+    it("keeps an older bundle's Option hold and drops its Control hold", () => {
         const onCaptureHold = renderWithHandler();
 
         dispatchFetchMessage({
@@ -3684,12 +3701,9 @@ describe('Design Mode hold keys forwarded from the app', () => {
         dispatchFetchMessage({
             type: APP_SDK_CAPTURE_HOLD_MESSAGE,
             tool: 'cursor',
-            phase: 'up',
+            phase: 'down',
         });
-        expect(onCaptureHold.mock.calls).toEqual([
-            [{ tool: 'stylus', phase: 'down' }],
-            [{ tool: 'cursor', phase: 'up' }],
-        ]);
+        expect(onCaptureHold.mock.calls).toEqual([[{ phase: 'down' }]]);
     });
 
     it('ignores a hold message with an unknown tool or phase', () => {

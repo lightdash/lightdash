@@ -31,6 +31,10 @@ import {
 } from './hooks/useAppSdkBridge';
 import { useAppUrlStateSync } from './hooks/useAppUrlStateSync';
 import { useAppViewOutcomes } from './hooks/useAppViewOutcomes';
+import {
+    useIframeInspectAt,
+    type InspectedElement,
+} from './hooks/useIframeInspectAt';
 import { useIframePdfExport } from './hooks/useIframePdfExport';
 import { useIframeScreenshot } from './hooks/useIframeScreenshot';
 import { withColorSchemeParam } from './utils/appIframeUrl';
@@ -39,6 +43,11 @@ export type AppIframePreviewHandle = {
     captureScreenshot: () => Promise<File>;
     /** Runs the app's registered Download PDF builder; rejects if none. */
     exportPdf: () => Promise<Blob>;
+    /** The element at a point in the app's viewport; null when there is none or the bundle cannot say. */
+    inspectAt: (point: {
+        x: number;
+        y: number;
+    }) => Promise<InspectedElement | null>;
 };
 
 type Props = {
@@ -425,11 +434,13 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         });
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
         const { exportPdf } = useIframePdfExport(iframeRef);
+        const { inspectAt } = useIframeInspectAt(iframeRef, identityKey);
 
-        useImperativeHandle(ref, () => ({ captureScreenshot, exportPdf }), [
-            captureScreenshot,
-            exportPdf,
-        ]);
+        useImperativeHandle(
+            ref,
+            () => ({ captureScreenshot, exportPdf, inspectAt }),
+            [captureScreenshot, exportPdf, inspectAt],
+        );
 
         // Reset availability to false when the served bundle changes (new app or
         // new version). Fires before the browser starts loading the new content,

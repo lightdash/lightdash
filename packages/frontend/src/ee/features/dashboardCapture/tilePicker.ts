@@ -62,7 +62,7 @@ export const tileTarget = (tile: DashboardTile): CaptureTarget => ({
 });
 
 /**
- * Cursor: the tile under a viewport point, with its bounds. Pass the active
+ * A pick: the tile under a viewport point, with its bounds. Pass the active
  * tab's tiles; a tile that is not among them is never picked.
  */
 export const pickTileAt = (

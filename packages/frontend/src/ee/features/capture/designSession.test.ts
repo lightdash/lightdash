@@ -39,7 +39,7 @@ const hold = (
 ): DesignAction[] => [
     {
         type: 'holdStarted',
-        tool: 'stylus',
+        kind: 'ink',
         atMs: at,
         tabUuid,
         isNewScreen,

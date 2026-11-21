@@ -171,7 +171,6 @@ const mark = (overrides: Partial<CaptureMark>): CaptureMark => ({
     endMs: 100,
     strokes: [],
     shape: 'circle',
-    tool: 'stylus',
     tabName: 'Overview',
     box: { x: 0, y: 0, width: 0.1, height: 0.1 },
     arrow: null,
@@ -334,7 +333,6 @@ describe('DashboardDesignMode', () => {
                 marks: [
                     mark({
                         shape: 'pick',
-                        tool: 'cursor',
                         target: {
                             kind: 'tile',
                             id: 'tile-1',

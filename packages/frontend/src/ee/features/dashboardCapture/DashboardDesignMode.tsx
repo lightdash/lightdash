@@ -121,7 +121,7 @@ const DashboardDesignSurface: FC<Props> = ({
             resolveTarget: (point) =>
                 pickPartAt(point, tilesOnTab())?.target ??
                 targetAtPoint(point, tilesOnTab()),
-            pickAt: (point) => pickPartAt(point, tilesOnTab()),
+            pickAt: async (point) => pickPartAt(point, tilesOnTab()),
             transcribe: captureTranscriber(
                 lightdashApi,
                 projectUuid,

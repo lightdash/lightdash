@@ -10,7 +10,6 @@ import {
     type DesignPayload,
     type DesignSendResult,
     type DesignSurface,
-    type DesignTool,
 } from '../capture/types';
 import { type BubbleSendInput } from '../capture/useBubbleSend';
 import AppViewDesignMode, {
@@ -30,12 +29,11 @@ const mocks = vi.hoisted(() => ({
     design: {
         on: false,
         setOn: vi.fn(),
-        holding: null as string | null,
+        holding: false,
         session: { bubbles: [], active: { kind: 'page' } } as unknown,
         arm: vi.fn(),
         send: vi.fn(),
         expand: vi.fn(),
-        framePick: vi.fn(),
         frameHold: vi.fn(),
     },
     bubbleSend: vi.fn(),
@@ -88,7 +86,14 @@ const opts = () => mocks.opts as DesignOpts;
 const surface = () => mocks.surface as DesignSurface | null;
 const image = new File(['x'], 'capture-0.jpg', { type: 'image/jpeg' });
 const screenshot = vi.fn(async () => new Blob(['x'], { type: 'image/png' }));
-const onStateChange = vi.fn<(on: boolean, picking: boolean) => void>();
+const onStateChange = vi.fn<(on: boolean) => void>();
+const inspectAt =
+    vi.fn<
+        (point: { x: number; y: number }) => Promise<{
+            label: string;
+            rect: { x: number; y: number; width: number; height: number };
+        } | null>
+    >();
 
 const payload = (overrides: Partial<DesignPayload>): DesignPayload => ({
     bubbleId: 'bubble-1',
@@ -144,6 +149,7 @@ const renderDesign = (
                     ? screenshot
                     : overrides.captureScreenshot
             }
+            inspectAt={inspectAt}
             onStateChange={onStateChange}
         />,
     );
@@ -159,10 +165,10 @@ describe('AppViewDesignMode', () => {
         mocks.surface = null;
         mocks.opts = null;
         mocks.design.on = false;
-        mocks.design.holding = null;
+        mocks.design.holding = false;
         mocks.design.session = { bubbles: [], active: { kind: 'page' } };
         mocks.design.setOn.mockClear();
-        mocks.design.framePick.mockReset();
+        inspectAt.mockReset();
         mocks.design.frameHold.mockClear();
         mocks.bubbleSend.mockReset();
         mocks.replyPost.mockReset();
@@ -281,77 +287,44 @@ describe('AppViewDesignMode', () => {
         expect(sent.context).toEqual([]);
     });
 
-    it('a Cursor hold turns the element picker on', () => {
+    it('reports whether Design Mode is on', () => {
         mocks.design.on = true;
-        const { rerender, handle } = renderDesign();
-        expect(onStateChange).toHaveBeenLastCalledWith(true, false);
-        void handle;
-
-        mocks.design.holding = 'cursor' satisfies DesignTool;
-        rerender(
-            <AppViewDesignMode
-                projectUuid="project-1"
-                attachedAppUuid="app-1"
-                appName="Sales pulse"
-                getFrame={() => frame}
-                captureScreenshot={screenshot}
-                onStateChange={onStateChange}
-            />,
-        );
-        expect(onStateChange).toHaveBeenLastCalledWith(true, true);
+        renderDesign();
+        expect(onStateChange).toHaveBeenLastCalledWith(true);
     });
 
-    it('an element picked in the app is marked where it is on the page', () => {
-        const picked: unknown[] = [];
-        mocks.design.framePick.mockImplementation(
-            (point: { x: number; y: number }) => {
-                picked.push({ point, hit: surface()?.pickAt?.(point) });
-            },
-        );
-        const { handle } = renderDesign();
-
-        handle().elementSelected({
+    it('a pick asks the app in its own pixels and is marked where it is on the page', async () => {
+        inspectAt.mockResolvedValueOnce({
             label: '[button "Save" @src/App.tsx:12]',
             rect: { x: 12, y: 34, width: 120, height: 40 },
         });
+        renderDesign();
 
-        expect(picked).toEqual([
-            {
-                point: { x: 172, y: 104 },
-                hit: {
-                    target: {
-                        kind: 'element',
-                        id: '[button "Save" @src/App.tsx:12]',
-                        label: '[button "Save" @src/App.tsx:12]',
-                        parentId: null,
-                    },
-                    rect: new DOMRect(112, 84, 120, 40),
-                },
+        await expect(surface()?.pickAt?.({ x: 172, y: 104 })).resolves.toEqual({
+            target: {
+                kind: 'element',
+                id: '[button "Save" @src/App.tsx:12]',
+                label: '[button "Save" @src/App.tsx:12]',
+                parentId: null,
             },
-        ]);
-        // Nothing is picked until the app reports the next click.
-        expect(surface()?.pickAt?.({ x: 172, y: 104 })).toBeNull();
+            rect: new DOMRect(112, 84, 120, 40),
+        });
+        expect(inspectAt).toHaveBeenCalledWith({ x: 72, y: 54 });
     });
 
-    it('an app that sends no rect is marked at its top right', () => {
-        const rects: (DOMRect | undefined)[] = [];
-        mocks.design.framePick.mockImplementation(
-            (point: { x: number; y: number }) => {
-                rects.push(surface()?.pickAt?.(point)?.rect);
-            },
+    it('a bundle that cannot say what is at a point picks nothing', async () => {
+        inspectAt.mockResolvedValueOnce(null);
+        renderDesign();
+        await expect(surface()?.pickAt?.({ x: 172, y: 104 })).resolves.toBe(
+            null,
         );
-        const { handle } = renderDesign();
-
-        handle().elementSelected({ label: '[button "Save"]' });
-
-        expect(rects).toEqual([new DOMRect(900, 50, 0, 0)]);
     });
 
     it('passes on hold keys and the toggle from inside the app', () => {
         const { handle } = renderDesign();
 
-        handle().hold({ tool: 'stylus', phase: 'down' });
-        expect(mocks.design.frameHold).toHaveBeenCalledWith('stylus', 'down');
+        handle().hold({ phase: 'down' });
+        expect(mocks.design.frameHold).toHaveBeenCalledWith('down');
 
         handle().toggle();
         expect(mocks.design.setOn).toHaveBeenLastCalledWith(true);

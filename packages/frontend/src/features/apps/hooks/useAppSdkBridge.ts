@@ -486,7 +486,7 @@ export type ElementSelectedEvent = {
     rect?: ElementRect;
 };
 
-const parseElementRect = (value: unknown): ElementRect | null => {
+export const parseElementRect = (value: unknown): ElementRect | null => {
     if (!value || typeof value !== 'object') return null;
     const { x, y, width, height } = value as Record<string, unknown>;
     return [x, y, width, height].every(Number.isFinite)
@@ -494,14 +494,16 @@ const parseElementRect = (value: unknown): ElementRect | null => {
         : null;
 };
 
+// Bundles built while there were two hold keys name the key as a tool: only
+// the Option one ('stylus') is still a hold.
 const parseCaptureHold = (data: {
     tool?: unknown;
     phase?: unknown;
 }): AppSdkCaptureHold | null => {
     const { tool, phase } = data;
-    if (tool !== 'stylus' && tool !== 'cursor') return null;
+    if (tool !== undefined && tool !== 'stylus') return null;
     if (phase !== 'down' && phase !== 'up') return null;
-    return { tool, phase };
+    return { phase };
 };
 
 /**
@@ -694,8 +696,8 @@ export type UseAppSdkBridgeParams = {
      */
     onCaptureHotkey?: () => void;
     /**
-     * A Design Mode hold key (Option/Alt or Control, on its own) went down or
-     * came up while focus was inside the app. Absent = dropped. Bundles built
+     * Design Mode's hold key (Option/Alt, on its own) went down or came up
+     * while focus was inside the app. Absent = dropped. Bundles built
      * before the SDK forwarded the hold keys never send it.
      */
     onCaptureHold?: (hold: AppSdkCaptureHold) => void;

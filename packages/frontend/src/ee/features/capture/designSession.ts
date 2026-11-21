@@ -5,7 +5,7 @@ import {
     type CaptureState,
     type ShiftUpAction,
 } from './captureReducer';
-import { type CaptureMark, type DesignTool, type Stroke } from './types';
+import { type CaptureMark, type MarkKind, type Stroke } from './types';
 
 export type BubbleInput = 'text' | 'mic';
 // tabUuids[i] is the dashboard tab of image slot i.
@@ -43,7 +43,7 @@ export type DesignSession = {
 export type DesignAction =
     | {
           type: 'holdStarted';
-          tool: DesignTool;
+          kind: MarkKind;
           atMs: number;
           tabUuid: string | null;
           isNewScreen: boolean;
@@ -203,7 +203,7 @@ export const designSessionReducer = (
                     type: 'shiftDown',
                     atMs: action.atMs,
                     isNewScreen: action.isNewScreen,
-                    tool: action.tool,
+                    kind: action.kind,
                 });
                 const slot =
                     capture.status === 'recording' && capture.drawing

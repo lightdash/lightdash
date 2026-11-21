@@ -1,5 +1,3 @@
-import { type DesignTool } from './types';
-
 const MODIFIER_KEYS = new Set([
     'Alt',
     'AltGraph',
@@ -18,13 +16,9 @@ const MODIFIER_KEYS = new Set([
     'SymbolLock',
 ]);
 
-/** The tool a key starts when held on its own: Option draws, Control picks. */
-export const holdToolForKey = (e: KeyboardEvent): DesignTool | null => {
-    if (e.repeat || e.metaKey || e.shiftKey) return null;
-    if (e.key === 'Alt' && !e.ctrlKey) return 'stylus';
-    if (e.key === 'Control' && !e.altKey) return 'cursor';
-    return null;
-};
+/** Option pressed on its own starts a hold. AltGr reports Control too, so it never does. */
+export const startsHold = (e: KeyboardEvent): boolean =>
+    e.key === 'Alt' && !e.repeat && !e.metaKey && !e.shiftKey && !e.ctrlKey;
 
 /** Marks the bubble's own text box, where Esc throws the bubble away. */
 export const DESIGN_INPUT_ATTRIBUTE = 'data-design-input';

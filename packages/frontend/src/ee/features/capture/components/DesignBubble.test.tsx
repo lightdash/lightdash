@@ -13,7 +13,7 @@ import DesignBubble from './DesignBubble';
 const hold = (input: BubbleInput, at: number): DesignAction[] => [
     {
         type: 'holdStarted',
-        tool: 'stylus',
+        kind: 'ink',
         atMs: at,
         tabUuid: null,
         isNewScreen: false,

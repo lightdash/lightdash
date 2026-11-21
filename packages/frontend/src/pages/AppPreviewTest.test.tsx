@@ -15,7 +15,8 @@ type DesignModeProps = {
     appName: string;
     attachedAppUuid: string | null;
     captureScreenshot: (() => Promise<Blob>) | null;
-    onStateChange: (on: boolean, picking: boolean) => void;
+    inspectAt: (point: { x: number; y: number }) => Promise<unknown>;
+    onStateChange: (on: boolean) => void;
 };
 
 type HeaderActionsProps = {
@@ -256,19 +257,14 @@ describe('AppPreviewTest', () => {
         ).not.toBeNull();
     });
 
-    it('a Cursor hold turns the app’s element picker on', () => {
+    it('Design Mode asks the app what is at a point and never turns its element picker on', async () => {
         renderWithProviders(<AppPreviewTest />);
-        expect(latestIframeProps().inspectorEnabled).toBe(false);
+        const props = mocks.designMode.mock.calls.at(-1)?.[0];
+        // No preview is mounted in this test: nothing can be picked.
+        await expect(props?.inspectAt({ x: 1, y: 2 })).resolves.toBeNull();
 
-        act(() =>
-            mocks.designMode.mock.calls.at(-1)?.[0].onStateChange(true, true),
-        );
-        expect(latestIframeProps().inspectorEnabled).toBe(true);
-
-        act(() =>
-            mocks.designMode.mock.calls.at(-1)?.[0].onStateChange(true, false),
-        );
-        expect(latestIframeProps().inspectorEnabled).toBe(false);
+        act(() => props?.onStateChange(true));
+        expect(latestIframeProps().inspectorEnabled).toBeUndefined();
     });
 
     it('offers no Design Mode in an embed', () => {

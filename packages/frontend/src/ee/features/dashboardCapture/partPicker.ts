@@ -28,7 +28,7 @@ const pickBigNumberAt = (hit: Element, tile: PartTile): Picked | null => {
 };
 
 /**
- * Cursor: the smallest nameable thing under a viewport point (a bar, a legend
+ * A pick: the smallest nameable thing under a viewport point (a bar, a legend
  * entry, an axis, a table cell, a big number), else the tile it is on.
  */
 export const pickPartAt = (

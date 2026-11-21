@@ -55,7 +55,7 @@ const within = (rect: DOMRect, bounds: DOMRect): DOMRect => {
     );
 };
 
-/** Cursor on a table: the body cell or the column header that was hit. */
+/** A pick on a table: the body cell or the column header that was hit. */
 export const pickTableAt = (
     hit: Element,
     tileElement: Element,

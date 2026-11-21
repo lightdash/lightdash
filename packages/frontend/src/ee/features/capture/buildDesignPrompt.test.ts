@@ -14,7 +14,6 @@ const mark: CaptureMark = {
     endMs: 2000,
     strokes: [],
     shape: 'circle',
-    tool: 'stylus',
     tabName: null,
     box: { x: 0.1, y: 0.1, width: 0.1, height: 0.1 },
     arrow: null,
@@ -93,7 +92,6 @@ describe('readDesignPrompt', () => {
         startMs: 4000,
         endMs: 4100,
         shape: 'pick',
-        tool: 'cursor',
         target: {
             kind: 'bar',
             id: 'bar-1',

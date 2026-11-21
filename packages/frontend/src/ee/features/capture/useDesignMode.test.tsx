@@ -152,9 +152,10 @@ const holdLayer = () => {
 
 const drawMark = async () => {
     await keyDown({ key: 'Alt', altKey: true });
-    fireEvent.mouseMove(holdLayer(), { clientX: 10, clientY: 10 });
+    fireEvent.mouseDown(holdLayer(), { clientX: 10, clientY: 10 });
     fireEvent.mouseMove(holdLayer(), { clientX: 40, clientY: 40 });
     fireEvent.mouseMove(holdLayer(), { clientX: 70, clientY: 20 });
+    fireEvent.mouseUp(holdLayer(), { clientX: 70, clientY: 20 });
     await keyUp({ key: 'Alt' });
 };
 
@@ -221,14 +222,15 @@ describe('useDesignMode', () => {
     it('pressing Option does not grab the page; releasing after drawing does', async () => {
         await turnOn();
         await keyDown({ key: 'Alt', altKey: true });
-        expect(api.holding).toBe('stylus');
-        fireEvent.mouseMove(holdLayer(), { clientX: 10, clientY: 10 });
+        expect(api.holding).toBe(true);
+        fireEvent.mouseDown(holdLayer(), { clientX: 10, clientY: 10 });
         fireEvent.mouseMove(holdLayer(), { clientX: 40, clientY: 40 });
+        fireEvent.mouseUp(holdLayer(), { clientX: 40, clientY: 40 });
         expect(grabDomFrame).not.toHaveBeenCalled();
 
         await keyUp({ key: 'Alt' });
         await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
-        expect(api.holding).toBe(null);
+        expect(api.holding).toBe(false);
         // The picture comes once the hand is still, not with the release.
         expect(grabDomFrame).not.toHaveBeenCalled();
         await waitFor(() => expect(grabDomFrame).toHaveBeenCalledTimes(1));
@@ -256,13 +258,16 @@ describe('useDesignMode', () => {
         await turnOn(true);
 
         await keyDown({ key: 'Alt', altKey: true });
-        // The key alone is not a mark: the mic waits for the pen to move.
+        // The key alone is not a mark, nor is a press: the mic waits for the stroke.
+        expect(startVoice).not.toHaveBeenCalled();
+        fireEvent.mouseDown(holdLayer(), { clientX: 10, clientY: 10 });
         expect(startVoice).not.toHaveBeenCalled();
         await act(async () => {
-            fireEvent.mouseMove(holdLayer(), { clientX: 10, clientY: 10 });
+            fireEvent.mouseMove(holdLayer(), { clientX: 40, clientY: 40 });
         });
         expect(startVoice).toHaveBeenCalledTimes(1);
-        fireEvent.mouseMove(holdLayer(), { clientX: 40, clientY: 40 });
+        fireEvent.mouseMove(holdLayer(), { clientX: 70, clientY: 20 });
+        fireEvent.mouseUp(holdLayer(), { clientX: 70, clientY: 20 });
         await keyUp({ key: 'Alt' });
         await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
         expect(startVoice).toHaveBeenCalledTimes(1);
@@ -660,10 +665,10 @@ describe('useDesignMode', () => {
         textbox.focus();
 
         fireEvent.keyDown(textbox, { key: 'Alt', altKey: true });
-        expect(api.holding).toBe('stylus');
+        expect(api.holding).toBe(true);
         const kept = fireEvent.keyDown(textbox, { key: 'e', altKey: true });
         expect(kept).toBe(true);
-        expect(api.holding).toBe(null);
+        expect(api.holding).toBe(false);
 
         fireEvent.keyUp(textbox, { key: 'e', altKey: true });
         fireEvent.keyUp(textbox, { key: 'Alt' });
@@ -672,66 +677,259 @@ describe('useDesignMode', () => {
         expect(collected()).toHaveLength(1);
     });
 
-    it('a Control hold picks an element with each click', async () => {
-        const target = {
+    describe('one hold clicks to pick and drags to draw', () => {
+        const revenue = {
             kind: 'tile',
             id: 't1',
             label: 'Revenue',
             parentId: null,
         };
-        const other = {
+        const orders = {
             kind: 'tile',
             id: 't2',
             label: 'Orders',
             parentId: null,
         };
-        surface.pickAt = (point) => ({
-            target: point.x < 23 ? target : other,
-            rect: new DOMRect(10, 20, 30, 40),
+        // Revenue on the left half of the page, Orders on the right.
+        const pickAt = vi.fn<
+            (point: {
+                x: number;
+                y: number;
+            }) => Promise<{ target: typeof revenue; rect: DOMRect } | null>
+        >(async (point) =>
+            point.x < 50
+                ? { target: revenue, rect: new DOMRect(10, 20, 30, 40) }
+                : { target: orders, rect: new DOMRect(60, 20, 30, 40) },
+        );
+        const click = (x: number, y: number) => {
+            fireEvent.mouseDown(holdLayer(), { clientX: x, clientY: y });
+            fireEvent.mouseUp(holdLayer(), { clientX: x, clientY: y });
+        };
+        const drag = (points: [number, number][]) => {
+            const [[x, y], ...rest] = points;
+            fireEvent.mouseDown(holdLayer(), { clientX: x, clientY: y });
+            rest.forEach(([mx, my]) =>
+                fireEvent.mouseMove(holdLayer(), { clientX: mx, clientY: my }),
+            );
+            const [lx, ly] = points[points.length - 1];
+            fireEvent.mouseUp(holdLayer(), { clientX: lx, clientY: ly });
+        };
+
+        beforeEach(() => {
+            pickAt.mockClear();
+            surface.pickAt = pickAt;
         });
-        try {
+        afterEach(() => {
+            surface.pickAt = null;
+        });
+
+        it('a click picks', async () => {
             await turnOn();
-            await keyDown({ key: 'Control', ctrlKey: true });
-            expect(api.holding).toBe('cursor');
-            const menu = new MouseEvent('contextmenu', {
+            await keyDown({ key: 'Alt', altKey: true });
+            click(20, 30);
+            await keyUp({ key: 'Alt' });
+            await waitFor(() => expect(collected()).toHaveLength(1));
+            expect(pickAt).toHaveBeenCalledWith({ x: 20, y: 30 });
+            expect(collected()[0]).toMatchObject({
+                shape: 'pick',
+                strokes: [],
+                target: revenue,
+                box: {
+                    x: expect.closeTo(0.1),
+                    y: expect.closeTo(0.2),
+                    width: expect.closeTo(0.3),
+                    height: expect.closeTo(0.4),
+                },
+            });
+        });
+
+        it('a drag past the threshold draws from the press point', async () => {
+            await turnOn();
+            await keyDown({ key: 'Alt', altKey: true });
+            drag([
+                [20, 30],
+                [22, 30],
+                [40, 50],
+                [60, 30],
+            ]);
+            await keyUp({ key: 'Alt' });
+            await waitFor(() => expect(collected()).toHaveLength(1));
+            const [mark] = collected();
+            expect(mark.shape).not.toBe('pick');
+            expect(mark.strokes[0].points[0]).toEqual({ x: 0.2, y: 0.3 });
+            expect(mark.strokes[0].points).toHaveLength(4);
+            expect(pickAt).not.toHaveBeenCalled();
+        });
+
+        it('a pick then a stroke then a pick number 1, 2, 3', async () => {
+            await turnOn();
+            await keyDown({ key: 'Alt', altKey: true });
+            click(20, 30);
+            drag([
+                [10, 70],
+                [40, 90],
+                [70, 70],
+            ]);
+            click(70, 30);
+            await keyUp({ key: 'Alt' });
+            await waitFor(() => expect(collected()).toHaveLength(3));
+            expect(api.session.bubbles).toHaveLength(1);
+            expect(
+                collected().map((m) => [m.number, m.shape, m.target]),
+            ).toEqual([
+                [1, 'pick', revenue],
+                [2, expect.not.stringMatching('pick'), null],
+                [3, 'pick', orders],
+            ]);
+        });
+
+        it('strokes drawn in one hold are one mark, and the same element twice in a row is one pick', async () => {
+            await turnOn();
+            await keyDown({ key: 'Alt', altKey: true });
+            drag([
+                [10, 70],
+                [40, 90],
+            ]);
+            drag([
+                [50, 70],
+                [80, 90],
+            ]);
+            click(70, 30);
+            click(75, 35);
+            await keyUp({ key: 'Alt' });
+            await waitFor(() => expect(collected()).toHaveLength(2));
+            await act(async () => {});
+            expect(collected()).toHaveLength(2);
+            expect(collected()[0].strokes).toHaveLength(2);
+            expect(collected()[1]).toMatchObject({
+                number: 2,
+                shape: 'pick',
+                target: orders,
+            });
+        });
+
+        it('a click on nothing makes no mark', async () => {
+            pickAt.mockResolvedValueOnce(null);
+            await turnOn();
+            await keyDown({ key: 'Alt', altKey: true });
+            click(20, 30);
+            await keyUp({ key: 'Alt' });
+            await act(async () => {});
+            expect(api.session.bubbles).toHaveLength(0);
+            expect(grabDomFrame).not.toHaveBeenCalled();
+        });
+
+        it('hovering with Option held outlines what a click would pick, and a stroke hides it', async () => {
+            await turnOn();
+            await keyDown({ key: 'Alt', altKey: true });
+            fireEvent.mouseMove(holdLayer(), { clientX: 20, clientY: 30 });
+            const outline = () =>
+                holdLayer().querySelector<HTMLElement>('[class*="hover"]');
+            await waitFor(() => expect(outline()).not.toBeNull());
+            expect(outline()?.style.getPropertyValue('--hover-left')).toBe(
+                '10%',
+            );
+            drag([
+                [20, 30],
+                [40, 50],
+            ]);
+            expect(outline()).toBeNull();
+            await keyUp({ key: 'Alt' });
+        });
+
+        it('with the mic on, a pick starts the mic for a new bubble', async () => {
+            await turnOn(true);
+            await keyDown({ key: 'Alt', altKey: true });
+            fireEvent.mouseDown(holdLayer(), { clientX: 20, clientY: 30 });
+            expect(startVoice).not.toHaveBeenCalled();
+            await act(async () => {
+                fireEvent.mouseUp(holdLayer(), { clientX: 20, clientY: 30 });
+            });
+            expect(startVoice).toHaveBeenCalledTimes(1);
+            await keyUp({ key: 'Alt' });
+            await waitFor(() => expect(collected()).toHaveLength(1));
+            expect(api.session.bubbles[0].input).toBe('mic');
+        });
+
+        it('a pick does not activate the link it lands on', async () => {
+            const followed = vi.fn();
+            const link = document.createElement('a');
+            link.href = 'https://example.com/report.csv';
+            link.addEventListener('click', followed);
+            document.body.append(link);
+            try {
+                await turnOn();
+                await keyDown({ key: 'Alt', altKey: true });
+                click(20, 30);
+                // The browser may still aim the click at what is under the pen.
+                const optionClick = new MouseEvent('click', {
+                    bubbles: true,
+                    cancelable: true,
+                    altKey: true,
+                });
+                link.dispatchEvent(optionClick);
+                expect(optionClick.defaultPrevented).toBe(true);
+                expect(followed).not.toHaveBeenCalled();
+                await keyUp({ key: 'Alt' });
+
+                // Without the hold, the page has its clicks back.
+                const plainClick = new MouseEvent('click', {
+                    bubbles: true,
+                    cancelable: true,
+                });
+                link.dispatchEvent(plainClick);
+                expect(followed).toHaveBeenCalledTimes(1);
+                plainClick.preventDefault();
+            } finally {
+                link.remove();
+            }
+        });
+
+        it('a press does not select text or start a drag', async () => {
+            await turnOn();
+            await keyDown({ key: 'Alt', altKey: true });
+            const down = fireEvent.mouseDown(holdLayer(), {
+                clientX: 20,
+                clientY: 30,
+            });
+            expect(down).toBe(false);
+            const dragStart = new Event('dragstart', {
                 bubbles: true,
                 cancelable: true,
             });
-            window.dispatchEvent(menu);
-            expect(menu.defaultPrevented).toBe(true);
+            document.body.dispatchEvent(dragStart);
+            expect(dragStart.defaultPrevented).toBe(true);
+            await keyUp({ key: 'Alt' });
+        });
 
-            fireEvent.mouseDown(holdLayer(), { clientX: 20, clientY: 30 });
-            fireEvent.mouseDown(holdLayer(), { clientX: 25, clientY: 35 });
-            await keyUp({ key: 'Control' });
-            await waitFor(() =>
-                expect(
-                    api.session.bubbles[0]?.collection?.capture,
-                ).toMatchObject({ marks: [{ number: 1 }, { number: 2 }] }),
-            );
-            expect(api.session.bubbles).toHaveLength(1);
-            const capture = api.session.bubbles[0].collection?.capture;
-            expect(capture).toMatchObject({
-                marks: [
-                    {
-                        shape: 'pick',
-                        tool: 'cursor',
-                        target,
-                        box: {
-                            x: expect.closeTo(0.1),
-                            y: expect.closeTo(0.2),
-                            width: expect.closeTo(0.3),
-                            height: expect.closeTo(0.4),
-                        },
-                    },
-                    { shape: 'pick', tool: 'cursor', target: other },
-                ],
+        it('Control does nothing', async () => {
+            await turnOn();
+            await keyDown({ key: 'Control', ctrlKey: true });
+            expect(api.holding).toBe(false);
+            expect(document.querySelector('[data-holding="true"]')).toBeNull();
+            const menu = new MouseEvent('contextmenu', {
+                bubbles: true,
+                cancelable: true,
+                ctrlKey: true,
             });
-        } finally {
-            surface.pickAt = null;
-        }
+            window.dispatchEvent(menu);
+            expect(menu.defaultPrevented).toBe(false);
+            await keyUp({ key: 'Control' });
+            expect(api.session.bubbles).toHaveLength(0);
+        });
+
+        it('AltGr does not start a hold', async () => {
+            await turnOn();
+            // Windows and Linux keyboards send Control, then Alt with Control down.
+            await keyDown({ key: 'Control', ctrlKey: true, altKey: true });
+            await keyDown({ key: 'Alt', ctrlKey: true, altKey: true });
+            expect(api.holding).toBe(false);
+            await keyUp({ key: 'Alt', ctrlKey: true });
+            await keyUp({ key: 'Control' });
+        });
     });
 
-    describe('on an app, which is picked from inside its own frame', () => {
+    describe('on an app', () => {
         const element = {
             target: {
                 kind: 'element',
@@ -741,10 +939,15 @@ describe('useDesignMode', () => {
             },
             rect: new DOMRect(20, 20, 30, 10),
         };
-        const useAppSurface = (picked: { current: typeof element | null }) => {
+        const useAppSurface = (
+            pickAt: (point: {
+                x: number;
+                y: number;
+            }) => Promise<typeof element | null>,
+        ) => {
             surface.frameSource = 'app';
             surface.grabAppImage = async () => new Blob();
-            surface.pickAt = () => picked.current;
+            surface.pickAt = pickAt;
         };
         const restoreSurface = () => {
             surface.frameSource = 'dom';
@@ -757,30 +960,18 @@ describe('useDesignMode', () => {
             grabAppFrame.mockImplementation(async () => fakeFrame());
         });
 
-        it('a Control hold leaves the pointer to the app, and its click is the pick', async () => {
-            useAppSurface({ current: element });
+        it('the ink layer takes the pointer, and a click asks the app what it picks', async () => {
+            const pickAt = vi.fn(async () => element);
+            useAppSurface(pickAt);
             try {
                 await turnOn();
-                await keyDown({ key: 'Control', ctrlKey: true });
-                expect(api.holding).toBe('cursor');
-                // The click has to reach the app's own element picker.
-                expect(
-                    document.querySelector('[data-holding="true"]'),
-                ).toBeNull();
-
-                await act(async () => {
-                    api.framePick({ x: 35, y: 25 });
-                    api.framePick({ x: 35, y: 25 });
-                });
-                await waitFor(() =>
-                    expect(api.session.bubbles).toHaveLength(1),
-                );
-                const capture = api.session.bubbles[0].collection?.capture;
-                const marks =
-                    capture?.status === 'recording' ? capture.marks : [];
-                expect(marks).toHaveLength(1);
-                expect(marks[0]).toMatchObject({
-                    tool: 'cursor',
+                await keyDown({ key: 'Alt', altKey: true });
+                fireEvent.mouseDown(holdLayer(), { clientX: 35, clientY: 25 });
+                fireEvent.mouseUp(holdLayer(), { clientX: 35, clientY: 25 });
+                await keyUp({ key: 'Alt' });
+                await waitFor(() => expect(collected()).toHaveLength(1));
+                expect(pickAt).toHaveBeenCalledWith({ x: 35, y: 25 });
+                expect(collected()[0]).toMatchObject({
                     shape: 'pick',
                     target: element.target,
                     box: {
@@ -791,79 +982,98 @@ describe('useDesignMode', () => {
                     },
                 });
                 expect(grabAppFrame).toHaveBeenCalledTimes(1);
-                await keyUp({ key: 'Control' });
             } finally {
                 restoreSurface();
             }
         });
 
-        it('the click moving focus into the app does not end the hold', async () => {
-            useAppSurface({ current: element });
+        it('a pick answered after a later stroke still numbers first', async () => {
+            let answer: (picked: typeof element | null) => void = () => {};
+            useAppSurface(
+                () =>
+                    new Promise((resolve) => {
+                        answer = resolve;
+                    }),
+            );
+            try {
+                await turnOn();
+                await keyDown({ key: 'Alt', altKey: true });
+                fireEvent.mouseDown(holdLayer(), { clientX: 35, clientY: 25 });
+                fireEvent.mouseUp(holdLayer(), { clientX: 35, clientY: 25 });
+                fireEvent.mouseDown(holdLayer(), { clientX: 10, clientY: 70 });
+                fireEvent.mouseMove(holdLayer(), { clientX: 40, clientY: 90 });
+                fireEvent.mouseUp(holdLayer(), { clientX: 40, clientY: 90 });
+                await keyUp({ key: 'Alt' });
+                await act(async () => {
+                    answer(element);
+                });
+                await waitFor(() => expect(collected()).toHaveLength(2));
+                expect(collected().map((m) => m.shape)[0]).toBe('pick');
+                expect(collected()[1].shape).not.toBe('pick');
+            } finally {
+                restoreSurface();
+            }
+        });
+
+        it('a bundle that cannot say what is under the pointer still takes ink', async () => {
+            useAppSurface(async () => null);
+            try {
+                await turnOn();
+                await keyDown({ key: 'Alt', altKey: true });
+                fireEvent.mouseDown(holdLayer(), { clientX: 35, clientY: 25 });
+                fireEvent.mouseUp(holdLayer(), { clientX: 35, clientY: 25 });
+                fireEvent.mouseDown(holdLayer(), { clientX: 10, clientY: 70 });
+                fireEvent.mouseMove(holdLayer(), { clientX: 40, clientY: 90 });
+                fireEvent.mouseUp(holdLayer(), { clientX: 40, clientY: 90 });
+                await keyUp({ key: 'Alt' });
+                await waitFor(() => expect(collected()).toHaveLength(1));
+                expect(collected()[0].shape).not.toBe('pick');
+            } finally {
+                restoreSurface();
+            }
+        });
+
+        it('focus moving into the app ends the hold', async () => {
+            useAppSurface(async () => element);
             const focused = vi.spyOn(document, 'activeElement', 'get');
-            const blurWindow = () =>
-                act(async () => {
+            try {
+                await turnOn();
+                await keyDown({ key: 'Alt', altKey: true });
+                focused.mockReturnValue(document.createElement('iframe'));
+                await act(async () => {
                     window.dispatchEvent(new Event('blur'));
                     await new Promise((resolve) => setTimeout(resolve, 0));
                 });
-            try {
-                await turnOn();
-                await keyDown({ key: 'Control', ctrlKey: true });
-                focused.mockReturnValue(document.createElement('iframe'));
-                await blurWindow();
-                expect(api.holding).toBe('cursor');
-
-                // Focus leaving for anywhere else ends it as before.
-                focused.mockReturnValue(document.body);
-                await blurWindow();
-                expect(api.holding).toBeNull();
+                expect(api.holding).toBe(false);
             } finally {
                 focused.mockRestore();
                 restoreSurface();
             }
         });
 
-        it('a pick with no Control hold is ignored', async () => {
-            useAppSurface({ current: element });
+        it('the hold key pressed inside the app starts and ends a hold', async () => {
+            useAppSurface(async () => null);
             try {
                 await turnOn();
                 await act(async () => {
-                    api.framePick({ x: 35, y: 25 });
+                    api.frameHold('down');
                 });
-                expect(api.session.bubbles).toHaveLength(0);
-                expect(grabAppFrame).not.toHaveBeenCalled();
+                expect(api.holding).toBe(true);
+                await act(async () => {
+                    api.frameHold('up');
+                });
+                expect(api.holding).toBe(false);
             } finally {
                 restoreSurface();
             }
         });
 
-        it('hold keys pressed inside the app start and end a hold', async () => {
-            useAppSurface({ current: null });
-            try {
-                await turnOn();
-                await act(async () => {
-                    api.frameHold('stylus', 'down');
-                });
-                expect(api.holding).toBe('stylus');
-                // The release of the other key is not this hold's.
-                await act(async () => {
-                    api.frameHold('cursor', 'up');
-                });
-                expect(api.holding).toBe('stylus');
-                await act(async () => {
-                    api.frameHold('stylus', 'up');
-                });
-                expect(api.holding).toBeNull();
-            } finally {
-                restoreSurface();
-            }
-        });
-
-        it('hold keys from the app do nothing while Design Mode is off', async () => {
+        it('the hold key from the app does nothing while Design Mode is off', async () => {
             renderWithProviders(<Harness />);
             await act(async () => {
-                api.frameHold('stylus', 'down');
+                api.frameHold('down');
             });
-            expect(api.holding).toBeNull();
+            expect(api.holding).toBe(false);
         });
     });
 
@@ -877,7 +1087,8 @@ describe('useDesignMode', () => {
         );
         await turnOn(true);
         await keyDown({ key: 'Alt', altKey: true });
-        fireEvent.mouseMove(holdLayer(), { clientX: 10, clientY: 10 });
+        fireEvent.mouseDown(holdLayer(), { clientX: 10, clientY: 10 });
+        fireEvent.mouseMove(holdLayer(), { clientX: 40, clientY: 40 });
         await keyDown({ key: 'e', altKey: true });
         await keyUp({ key: 'e', altKey: true });
         await keyUp({ key: 'Alt' });
@@ -1216,12 +1427,11 @@ describe('useDesignMode', () => {
     it('the toolbar shows the hold hints and its close button leaves Design Mode', async () => {
         await turnOn();
         expect(screen.getByText('Hold ⌥')).toBeInTheDocument();
-        expect(screen.getByText('Hold ⌃')).toBeInTheDocument();
+        expect(screen.queryByText('Hold ⌃')).toBeNull();
         await keyDown({ key: 'Alt', altKey: true });
-        expect(document.querySelector('[data-tool="stylus"]')).toHaveAttribute(
-            'data-active',
-            'true',
-        );
+        expect(
+            screen.getByText('Mark').closest('[data-active]'),
+        ).toHaveAttribute('data-active', 'true');
         await keyUp({ key: 'Alt' });
 
         fireEvent.click(screen.getByRole('button', { name: 'Mic' }));
@@ -1280,12 +1490,16 @@ describe('useDesignMode', () => {
             px('--mark-top', '[data-mark-number="1"]');
         const drawAt = async (top: number, scrolledTo: number | null) => {
             await keyDown({ key: 'Alt', altKey: true });
-            fireEvent.mouseMove(holdLayer(), { clientX: 10, clientY: top });
+            fireEvent.mouseDown(holdLayer(), { clientX: 10, clientY: top });
             fireEvent.mouseMove(holdLayer(), {
                 clientX: 40,
                 clientY: top + 30,
             });
             fireEvent.mouseMove(holdLayer(), {
+                clientX: 70,
+                clientY: top + 10,
+            });
+            fireEvent.mouseUp(holdLayer(), {
                 clientX: 70,
                 clientY: top + 10,
             });
@@ -1331,8 +1545,9 @@ describe('useDesignMode', () => {
 
             // Far from the bubble: it stays put.
             await keyDown({ key: 'Alt', altKey: true });
-            fireEvent.mouseMove(holdLayer(), { clientX: 5, clientY: 60 });
+            fireEvent.mouseDown(holdLayer(), { clientX: 5, clientY: 60 });
             fireEvent.mouseMove(holdLayer(), { clientX: 20, clientY: 90 });
+            fireEvent.mouseUp(holdLayer(), { clientX: 20, clientY: 90 });
             await keyUp({ key: 'Alt' });
             await waitFor(() =>
                 expect(screen.getByLabelText('Mark 2')).toBeInTheDocument(),
@@ -1340,8 +1555,9 @@ describe('useDesignMode', () => {
             expect(api.session.bubbles[0].anchor).toEqual(first);
 
             await keyDown({ key: 'Alt', altKey: true });
-            fireEvent.mouseMove(holdLayer(), { clientX: 80, clientY: 10 });
+            fireEvent.mouseDown(holdLayer(), { clientX: 80, clientY: 10 });
             fireEvent.mouseMove(holdLayer(), { clientX: 99, clientY: 40 });
+            fireEvent.mouseUp(holdLayer(), { clientX: 99, clientY: 40 });
             await keyUp({ key: 'Alt' });
             await waitFor(() =>
                 expect(screen.getByLabelText('Mark 3')).toBeInTheDocument(),
@@ -1422,11 +1638,15 @@ describe('useDesignMode', () => {
 
                 // Neither a new mark under it nor being sent moves it again.
                 await keyDown({ key: 'Alt', altKey: true });
-                fireEvent.mouseMove(holdLayer(), {
+                fireEvent.mouseDown(holdLayer(), {
                     clientX: dropped.x + 5,
                     clientY: dropped.y,
                 });
                 fireEvent.mouseMove(holdLayer(), {
+                    clientX: dropped.x + 30,
+                    clientY: dropped.y + 20,
+                });
+                fireEvent.mouseUp(holdLayer(), {
                     clientX: dropped.x + 30,
                     clientY: dropped.y + 20,
                 });
@@ -1564,8 +1784,9 @@ describe('useDesignMode', () => {
             await keyDown({ key: 'Alt', altKey: true });
             await wait(2000);
             expect(grabDomFrame).not.toHaveBeenCalled();
-            fireEvent.mouseMove(holdLayer(), { clientX: 20, clientY: 60 });
+            fireEvent.mouseDown(holdLayer(), { clientX: 20, clientY: 60 });
             fireEvent.mouseMove(holdLayer(), { clientX: 50, clientY: 80 });
+            fireEvent.mouseUp(holdLayer(), { clientX: 50, clientY: 80 });
             await keyUp({ key: 'Alt' });
             expect(collected()).toHaveLength(2);
 
@@ -1663,6 +1884,21 @@ describe('useDesignMode', () => {
             await wait(500);
             expect(collected().map((m) => m.imageIndex)).toEqual([0, 1]);
             expect(grabDomFrame).toHaveBeenCalledTimes(2);
+        });
+
+        it('a press with Option held is a mark, not a press on the page', async () => {
+            await turnOn();
+            await drawMark();
+            await keyDown({ key: 'Alt', altKey: true });
+            fireEvent.pointerDown(holdLayer());
+            fireEvent.mouseDown(holdLayer(), { clientX: 12, clientY: 12 });
+            fireEvent.mouseMove(holdLayer(), { clientX: 40, clientY: 40 });
+            fireEvent.mouseUp(holdLayer(), { clientX: 40, clientY: 40 });
+            expect(grabDomFrame).not.toHaveBeenCalled();
+            await keyUp({ key: 'Alt' });
+            await wait(500);
+            expect(collected().map((m) => m.imageIndex)).toEqual([0, 0]);
+            expect(grabDomFrame).toHaveBeenCalledTimes(1);
         });
 
         it('a press in the bubble leaves the picture for later', async () => {

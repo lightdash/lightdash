@@ -3,7 +3,8 @@ export type Point = { x: number; y: number };
 export type Box = { x: number; y: number; width: number; height: number };
 export type Stroke = { points: Point[] };
 export type MarkShape = 'circle' | 'underline' | 'arrow' | 'scribble' | 'pick';
-export type DesignTool = 'stylus' | 'cursor';
+/** A mark drawn with the pointer, or an element picked with a click. */
+export type MarkKind = 'ink' | 'pick';
 export type CaptureTarget = {
     kind: string;
     id: string;
@@ -13,6 +14,9 @@ export type CaptureTarget = {
 };
 
 /** A target under a mark and the share (0 to 1) of the mark's area on it. */
+/** An element a click picked, with its bounds in viewport pixels. */
+export type PickedElement = { target: CaptureTarget; rect: DOMRect };
+
 export type CaptureCover = { target: CaptureTarget; share: number };
 
 export type CaptureMark = {
@@ -22,7 +26,6 @@ export type CaptureMark = {
     endMs: number;
     strokes: Stroke[];
     shape: MarkShape;
-    tool: DesignTool;
     /** The dashboard tab the mark was made on; null when there are no tabs. */
     tabName: string | null;
     box: Box;
@@ -64,12 +67,9 @@ export type DesignSurface = {
     resolveTarget:
         | ((point: { x: number; y: number }) => CaptureTarget | null)
         | null;
-    /** Cursor: the element under a viewport point, with its bounds. Null when Cursor is unsupported. */
+    /** What a click at a viewport point picks, with its bounds. Null when nothing can be picked. */
     pickAt:
-        | ((point: {
-              x: number;
-              y: number;
-          }) => { target: CaptureTarget; rect: DOMRect } | null)
+        | ((point: { x: number; y: number }) => Promise<PickedElement | null>)
         | null;
     transcribe: ((audio: Blob) => Promise<TranscriptWord[]>) | null;
 };
@@ -98,6 +98,6 @@ export type LayerMark = {
     tabUuid: string | null;
     box: Box;
     strokes: Stroke[];
-    /** A cursor pick: the element's bounds are outlined. */
+    /** A pick: the element's bounds are outlined. */
     outlined: boolean;
 };

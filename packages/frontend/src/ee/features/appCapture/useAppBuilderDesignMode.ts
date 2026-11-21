@@ -1,6 +1,6 @@
 import { type AppSdkCaptureHold } from '@lightdash/common';
 import { useCallback, useRef, type ReactNode } from 'react';
-import { type ElementSelectedEvent } from '../../../features/apps/hooks/useAppSdkBridge';
+import { type InspectedElement } from '../../../features/apps/hooks/useIframeInspectAt';
 import { type DesignPayload, type DesignSendResult } from '../capture/types';
 import { useDesignMode } from '../capture/useDesignMode';
 import { useAppFrameSurface } from './useAppFrameSurface';
@@ -16,6 +16,7 @@ export const useAppBuilderDesignMode = ({
     projectUuid,
     getFrame,
     captureScreenshot,
+    inspectAt,
     busy,
     attachedCount,
     attach,
@@ -27,6 +28,11 @@ export const useAppBuilderDesignMode = ({
     getFrame: () => HTMLElement | null;
     /** The preview's own picture of itself. Null turns Design Mode off. */
     captureScreenshot: (() => Promise<Blob>) | null;
+    /** Asks the preview what element is at a point in its own pixels. */
+    inspectAt: (point: {
+        x: number;
+        y: number;
+    }) => Promise<InspectedElement | null>;
     /** The builder cannot take a prompt right now. */
     busy: boolean;
     /** Files already attached to the builder's next prompt. */
@@ -39,13 +45,9 @@ export const useAppBuilderDesignMode = ({
     /** False when the preview cannot be marked. */
     available: boolean;
     on: boolean;
-    /** A Cursor hold is picking: the preview's element picker should be on. */
-    picking: boolean;
     toggle: () => void;
-    /** A hold key went down or came up inside the preview. */
+    /** The hold key went down or came up inside the preview. */
     hold: (hold: AppSdkCaptureHold) => void;
-    /** The preview's element picker reported a click. */
-    elementSelected: (event: ElementSelectedEvent) => void;
     bundle: {
         chips: BundleChip[];
         waiting: boolean;
@@ -54,10 +56,11 @@ export const useAppBuilderDesignMode = ({
     };
     element: ReactNode;
 } => {
-    const { surface, elementSelected: selectInFrame } = useAppFrameSurface({
+    const { surface } = useAppFrameSurface({
         projectUuid,
         getFrame,
         captureScreenshot,
+        inspectAt,
     });
 
     // Set below, once Design Mode exists: the bundle takes bubbles off the page.
@@ -88,26 +91,20 @@ export const useAppBuilderDesignMode = ({
         cancelSend: noCancel,
         onBubbleRemoved: drop,
     });
-    const { on, setOn, framePick, frameHold } = design;
+    const { on, setOn, frameHold } = design;
     closeRef.current = design.close;
 
     const toggle = useCallback(() => setOn(!on), [on, setOn]);
     const hold = useCallback(
-        ({ tool, phase }: AppSdkCaptureHold) => frameHold(tool, phase),
+        ({ phase }: AppSdkCaptureHold) => frameHold(phase),
         [frameHold],
-    );
-    const elementSelected = useCallback(
-        (event: ElementSelectedEvent) => selectInFrame(event, framePick),
-        [framePick, selectInFrame],
     );
 
     return {
         available: surface !== null,
         on,
-        picking: on && design.holding === 'cursor',
         toggle,
         hold,
-        elementSelected,
         bundle: {
             chips: bundle.chips,
             waiting: bundle.waiting,

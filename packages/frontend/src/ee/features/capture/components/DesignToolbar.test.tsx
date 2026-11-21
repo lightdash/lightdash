@@ -1,16 +1,15 @@
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
-import { type DesignTool } from '../types';
 import DesignToolbar from './DesignToolbar';
 
-const setup = (tool: DesignTool | null, micOn = false) => {
+const setup = (holding: boolean, micOn = false) => {
     const onMicChange = vi.fn();
     const onClose = vi.fn();
     renderWithProviders(
         <DesignToolbar
             ref={null}
-            tool={tool}
+            holding={holding}
             micOn={micOn}
             onMicChange={onMicChange}
             onClose={onClose}
@@ -20,28 +19,25 @@ const setup = (tool: DesignTool | null, micOn = false) => {
 };
 
 describe('DesignToolbar', () => {
-    it('shows the hold hint for each tool', () => {
-        setup(null);
-        expect(screen.getByText('Stylus')).toBeInTheDocument();
+    it('shows the one tool and how to use it', () => {
+        setup(false);
+        expect(screen.getByText('Mark')).toBeInTheDocument();
         expect(screen.getByText('Hold ⌥')).toBeInTheDocument();
-        expect(screen.getByText('Cursor')).toBeInTheDocument();
-        expect(screen.getByText('Hold ⌃')).toBeInTheDocument();
+        expect(
+            screen.getByText('Click to pick, drag to draw'),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Hold ⌃')).toBeNull();
     });
 
-    it('marks the tool being held', () => {
-        setup('cursor');
-        expect(document.querySelector('[data-tool="cursor"]')).toHaveAttribute(
-            'data-active',
-            'true',
-        );
-        expect(document.querySelector('[data-tool="stylus"]')).toHaveAttribute(
-            'data-active',
-            'false',
-        );
+    it('shows when Option is held', () => {
+        setup(true);
+        expect(
+            screen.getByText('Mark').closest('[data-active]'),
+        ).toHaveAttribute('data-active', 'true');
     });
 
     it('the mic button toggles the mic', () => {
-        const { onMicChange } = setup(null, false);
+        const { onMicChange } = setup(false, false);
         const mic = screen.getByRole('button', { name: 'Mic' });
         expect(mic).toHaveAttribute('aria-pressed', 'false');
         fireEvent.click(mic);
@@ -49,7 +45,7 @@ describe('DesignToolbar', () => {
     });
 
     it('the close button leaves Design Mode', () => {
-        const { onClose } = setup(null);
+        const { onClose } = setup(false);
         fireEvent.click(
             screen.getByRole('button', { name: 'Leave Design Mode' }),
         );

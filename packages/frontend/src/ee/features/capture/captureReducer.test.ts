@@ -30,7 +30,7 @@ const hold = (
         type: 'shiftDown',
         atMs,
         isNewScreen,
-        tool: 'stylus',
+        kind: 'ink',
     });
     s = captureReducer(s, { type: 'strokeAdded', stroke });
     return captureReducer(s, {
@@ -101,7 +101,7 @@ describe('captureReducer', () => {
             type: 'shiftDown',
             atMs: 0,
             isNewScreen: true,
-            tool: 'stylus',
+            kind: 'ink',
         });
         s = captureReducer(s, { type: 'strokeAdded', stroke });
         s = captureReducer(s, {
@@ -153,7 +153,7 @@ describe('captureReducer', () => {
             type: 'shiftDown',
             atMs: 1000,
             isNewScreen: true,
-            tool: 'stylus',
+            kind: 'ink',
         });
         s = captureReducer(s, {
             type: 'shiftUp',
@@ -174,7 +174,7 @@ describe('captureReducer', () => {
             type: 'shiftDown',
             atMs: 1,
             isNewScreen: true,
-            tool: 'stylus',
+            kind: 'ink',
         });
         expect(down).toMatchObject({
             drawing: { imageIndex: CAP },
@@ -200,7 +200,7 @@ describe('captureReducer', () => {
                 type: 'shiftDown',
                 atMs: 1,
                 isNewScreen: false,
-                tool: 'stylus',
+                kind: 'ink',
             }),
         ).toMatchObject({
             drawing: { imageIndex: CAP - 1 },
@@ -208,7 +208,7 @@ describe('captureReducer', () => {
         });
     });
 
-    it('a cursor pick becomes a mark with no strokes', () => {
+    it('a pick becomes a mark with no strokes', () => {
         const T = {
             kind: 'tile',
             id: 't1',
@@ -220,7 +220,7 @@ describe('captureReducer', () => {
             type: 'shiftDown',
             atMs: 1000,
             isNewScreen: true,
-            tool: 'cursor',
+            kind: 'pick',
         });
         s = captureReducer(s, {
             type: 'shiftUp',
@@ -237,7 +237,6 @@ describe('captureReducer', () => {
             marks: [
                 {
                     shape: 'pick',
-                    tool: 'cursor',
                     strokes: [],
                     target: T,
                     box,

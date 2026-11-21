@@ -671,6 +671,11 @@ const AppGenerate: FC = () => {
         }
         return capture();
     }, []);
+    const inspectPreviewAt = useCallback(
+        (point: { x: number; y: number }) =>
+            previewRef.current?.inspectAt(point) ?? Promise.resolve(null),
+        [],
+    );
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const captureFlag = useServerFeatureFlag(FeatureFlags.DataAppCapture);
     const isChartStudioAvailable = useChartStudioAvailable();
@@ -1260,6 +1265,7 @@ const AppGenerate: FC = () => {
             designOffered && screenshotAvailable
                 ? capturePreviewScreenshot
                 : null,
+        inspectAt: inspectPreviewAt,
         busy: isLoading,
         attachedCount: fileAttachments.length,
         attach: attachBundleImage,
@@ -3742,16 +3748,7 @@ const AppGenerate: FC = () => {
                                         }
                                         onAppStateEvent={handleAppStateEvent}
                                         {...elementPicker.iframeProps}
-                                        // A Cursor hold picks with the app's own element picker.
-                                        inspectorEnabled={
-                                            elementPicker.enabled ||
-                                            design.picking
-                                        }
                                         onElementSelected={(event) => {
-                                            if (design.picking) {
-                                                design.elementSelected(event);
-                                                return;
-                                            }
                                             elementPicker.select(event);
                                             setMobilePanel('build');
                                         }}

@@ -13,12 +13,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import {
-    IconMicrophone,
-    IconPencil,
-    IconPointer,
-    IconX,
-} from '@tabler/icons-react';
+import { IconMicrophone, IconPencil, IconX } from '@tabler/icons-react';
 import {
     useCallback,
     useEffect,
@@ -81,7 +76,7 @@ export type BubbleThreadPill = {
     onExpand: () => void;
 };
 
-// Stylus and Cursor are held keys: their buttons only make this bubble the target.
+// Marking is a held key: its button only makes this bubble the target.
 const REPLY_TOOLS: {
     label: string;
     hint: string;
@@ -89,15 +84,9 @@ const REPLY_TOOLS: {
     input: BubbleInput;
 }[] = [
     {
-        label: 'Stylus',
-        hint: 'Stylus: hold ⌥ and draw',
+        label: 'Mark',
+        hint: 'Mark: hold ⌥, click to pick or drag to draw',
         icon: IconPencil,
-        input: 'text',
-    },
-    {
-        label: 'Cursor',
-        hint: 'Cursor: hold ⌃ and click',
-        icon: IconPointer,
         input: 'text',
     },
     {
@@ -112,7 +101,7 @@ type Props = {
     projectUuid: string;
     agentUuid: string;
     threadId: string;
-    /** This bubble is the one Stylus, Cursor and Mic add to. */
+    /** This bubble is the one marks and the mic add to. */
     armed: boolean;
     onArm: (input: BubbleInput) => void;
     /** Marks or speech are being collected: here when armed, somewhere else when not. */

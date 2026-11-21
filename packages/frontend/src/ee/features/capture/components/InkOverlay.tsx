@@ -1,13 +1,24 @@
-import { type CSSProperties, type FC, type MouseEvent } from 'react';
+import {
+    useEffect,
+    useRef,
+    type CSSProperties,
+    type FC,
+    type MouseEvent,
+} from 'react';
 import { CAPTURE_IGNORE_ATTRIBUTE } from '../frameSource';
 import { type Box, type Point, type Stroke } from '../types';
 import classes from './InkOverlay.module.css';
 
 export type FadingMark = { strokes: Stroke[]; number: number; box: Box };
 
+/** How far, in pixels, a press moves before it draws instead of picking. */
+const DRAG_THRESHOLD_PX = 4;
+
+type Press = { x: number; y: number; points: Point[]; drawing: boolean };
+
 type Props = {
     rect: DOMRect;
-    /** Shift is held: the layer takes the pointer. */
+    /** Option is held: the layer takes the pointer. */
     holding: boolean;
     /** Ink is hidden until the clean picture of the screen has been taken. */
     inkVisible: boolean;
@@ -15,12 +26,14 @@ type Props = {
     /** The colour of the bubble the ink goes into. */
     color: string;
     fading: FadingMark | null;
-    /** Cursor: the outline of the element under the pointer. */
+    /** The outline of what a click would pick. */
     hover: Box | null;
+    /** The pointer moved with no button down; null when it left. */
+    onHover: (point: Point | null) => void;
     onStrokePoint: (point: Point) => void;
     onStrokeEnd: () => void;
-    /** Cursor: a press picks what is under the pointer. Null for the stylus. */
-    onPick: ((point: Point) => void) | null;
+    /** A press released without moving past the threshold. */
+    onPick: (point: Point) => void;
 };
 
 const toPath = (stroke: Stroke): string =>
@@ -36,14 +49,43 @@ const InkOverlay: FC<Props> = ({
     color,
     fading,
     hover,
+    onHover,
     onStrokePoint,
     onStrokeEnd,
     onPick,
 }) => {
+    const pressRef = useRef<Press | null>(null);
+    useEffect(() => {
+        if (!holding) pressRef.current = null;
+    }, [holding]);
+
     const toPoint = (event: MouseEvent<HTMLDivElement>): Point => ({
         x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
         y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)),
     });
+
+    // A press that stays put picks; one that moves draws from where it began.
+    const onMove = (event: MouseEvent<HTMLDivElement>) => {
+        if (!holding) return;
+        const press = pressRef.current;
+        if (!press) {
+            onHover(toPoint(event));
+            return;
+        }
+        if (press.drawing) {
+            onStrokePoint(toPoint(event));
+            return;
+        }
+        press.points.push(toPoint(event));
+        const moved = Math.hypot(
+            event.clientX - press.x,
+            event.clientY - press.y,
+        );
+        if (moved <= DRAG_THRESHOLD_PX) return;
+        press.drawing = true;
+        onHover(null);
+        press.points.forEach(onStrokePoint);
+    };
 
     const renderStrokes = (items: Stroke[]) =>
         items.map((stroke, i) => (
@@ -87,15 +129,31 @@ const InkOverlay: FC<Props> = ({
                         '--bubble-color': color,
                     } as CSSProperties
                 }
-                // Moving the mouse draws; a click must not reach the app.
+                // No text selection, native drag or focus change under the press.
                 onMouseDown={(event) => {
                     event.preventDefault();
-                    if (holding && onPick) onPick(toPoint(event));
+                    if (!holding || event.button !== 0) return;
+                    pressRef.current = {
+                        x: event.clientX,
+                        y: event.clientY,
+                        points: [toPoint(event)],
+                        drawing: false,
+                    };
                 }}
-                onMouseMove={(event) => {
-                    if (holding) onStrokePoint(toPoint(event));
+                onMouseMove={onMove}
+                onMouseUp={() => {
+                    const press = pressRef.current;
+                    pressRef.current = null;
+                    if (!press) return;
+                    if (press.drawing) onStrokeEnd();
+                    else onPick(press.points[0]);
                 }}
-                onMouseLeave={onStrokeEnd}
+                onMouseLeave={() => {
+                    const press = pressRef.current;
+                    pressRef.current = null;
+                    if (press?.drawing) onStrokeEnd();
+                    onHover(null);
+                }}
             >
                 <svg
                     className={classes.ink}

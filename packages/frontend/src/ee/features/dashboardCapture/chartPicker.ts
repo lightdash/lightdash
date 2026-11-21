@@ -152,7 +152,7 @@ export const chartTarget = (hit: ChartHit, tile: PartTile): CaptureTarget => {
     }
 };
 
-/** Cursor on a chart: the bar, point, slice, legend entry or axis under a viewport point. */
+/** A pick on a chart: the bar, point, slice, legend entry or axis under a viewport point. */
 export const pickChartAt = (
     hit: Element,
     point: { x: number; y: number },

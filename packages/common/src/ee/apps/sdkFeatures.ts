@@ -327,7 +327,7 @@ export const SDK_FEATURES: SdkFeature[] = [
         appliesTo: ['data_app'],
         label: 'Design Mode',
         description:
-            'Point at an element of the running app in Design Mode, and keep its hold keys working after a click inside the app. Design Mode also needs in-app screenshots.',
+            'Click an element of the running app in Design Mode to pick it, and keep its hold key working after a click inside the app. Design Mode also needs in-app screenshots.',
     },
 ];
 
