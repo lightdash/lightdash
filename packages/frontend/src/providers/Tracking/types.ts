@@ -1145,14 +1145,6 @@ type HomepageRecommendedActionRestoredEvent = {
     properties: HomepageRecommendedActionProperties;
 };
 
-type HomepageStarsMediaCardClickedEvent = {
-    name: EventName.HOMEPAGE_STARS_MEDIA_CARD_CLICKED;
-    properties: {
-        cardKey: string;
-        href: string;
-    };
-};
-
 type CreateProjectColumnsDefinedButtonClickedEvent = {
     name: EventName.CREATE_PROJECT_COLUMNS_DEFINED_BUTTON_CLICKED;
     properties: {
@@ -1478,7 +1470,6 @@ export type EventData =
     | HomepageAskSubmittedEvent
     | HomepageRecommendedActionImpressionEvent
     | HomepageRecommendedActionRestoredEvent
-    | HomepageStarsMediaCardClickedEvent
     | CreateProjectColumnsDefinedButtonClickedEvent
     | HomepageQuickActionClickedEvent
     | DocumentChartExploreClickedEvent
