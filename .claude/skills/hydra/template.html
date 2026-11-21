@@ -4,165 +4,265 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hydra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #fafaf9; --panel: #ffffff; --text: #1c1917; --muted: #78716c; --line: #e7e5e4;
-  --yes: #15803d; --yes-bg: #dcfce7; --no: #b91c1c; --no-bg: #fee2e2;
-  --mid: #a16207; --mid-bg: #fef9c3; --accent: #6d28d9;
+  --bg: #fbfbfc; --surface: #ffffff; --raised: #f4f4f6; --hover: #f0f0f3;
+  --text: #1b1b1f; --text-2: #5d5d66; --text-3: #8f8f99; --line: #e8e8ec; --line-2: #dcdce2;
+  --brand: #e5484d; --green: #2f9e5b; --red: #e5484d; --amber: #d48a0b; --blue: #5e6ad2;
+  --sans: Inter, -apple-system, system-ui, sans-serif; --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0c0a09; --panel: #1c1917; --text: #f5f5f4; --muted: #a8a29e; --line: #292524;
-    --yes: #4ade80; --yes-bg: #14532d; --no: #f87171; --no-bg: #450a0a;
-    --mid: #facc15; --mid-bg: #422006; --accent: #a78bfa;
+    --bg: #0e0e10; --surface: #141417; --raised: #1b1b1f; --hover: #1f1f24;
+    --text: #ececef; --text-2: #a1a1aa; --text-3: #6b6b75; --line: #232328; --line-2: #2e2e35;
+    --green: #4cc38a; --red: #f2555a; --amber: #f1a10d; --blue: #8b94f3;
   }
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 -apple-system, system-ui, sans-serif; }
-main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
-h1 { font-size: 22px; margin: 0 0 4px; }
-h2 { font-size: 17px; margin: 0; }
-h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 16px 0 6px; }
-.sub { color: var(--muted); margin-bottom: 20px; }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin: 16px 0; }
-.head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; }
-.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 12px; }
-.fact { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
-.fact b { display: block; font-size: 12px; color: var(--muted); font-weight: 600; }
-.pill { display: inline-block; border-radius: 999px; padding: 1px 8px; font-size: 12px; font-weight: 600; white-space: nowrap; }
-.yes, .easy { color: var(--yes); background: var(--yes-bg); }
-.no, .hard { color: var(--no); background: var(--no-bg); }
-.medium, .other { color: var(--mid); background: var(--mid-bg); }
-.verdict { border-left: 3px solid var(--accent); padding: 4px 0 4px 12px; margin-top: 12px; }
-table { width: 100%; border-collapse: collapse; }
-th, td { text-align: left; padding: 6px 8px; border-top: 1px solid var(--line); vertical-align: top; }
-th { font-size: 12px; color: var(--muted); font-weight: 600; border-top: 0; }
-td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.wrap { overflow-x: auto; }
-.muted { color: var(--muted); }
-a { color: var(--accent); }
-button { font: inherit; color: var(--accent); background: none; border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
-pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x: auto; font-size: 12px; }
-details summary { cursor: pointer; color: var(--muted); margin-top: 8px; }
-.brand { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: lowercase; margin-bottom: 10px; }
-.brand svg { width: 18px; height: 18px; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.5 var(--sans); -webkit-font-smoothing: antialiased; font-feature-settings: 'cv11', 'ss01'; }
+a { color: inherit; text-decoration: none; }
+.mono { font-family: var(--mono); font-size: 12px; }
+.t2 { color: var(--text-2); }
+.t3 { color: var(--text-3); }
+
+.top { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(8px); }
+.logo { display: flex; align-items: center; gap: 7px; font-weight: 600; letter-spacing: -.01em; }
+.logo svg { width: 18px; height: 18px; color: var(--brand); }
+.crumb { color: var(--text-3); }
+.top .spacer { flex: 1; }
+
+.shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: calc(100vh - 44px); }
+.shell.single { grid-template-columns: minmax(0, 1fr); }
+nav { border-right: 1px solid var(--line); padding: 10px 8px; position: sticky; top: 44px; height: calc(100vh - 44px); overflow-y: auto; }
+nav .label { padding: 6px 8px; font-size: 11px; font-weight: 500; color: var(--text-3); }
+nav a { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-radius: 6px; color: var(--text-2); }
+nav a:hover { background: var(--hover); color: var(--text); }
+nav a.on { background: var(--raised); color: var(--text); }
+nav a .grow { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+main { padding: 28px 32px 80px; max-width: 1040px; width: 100%; }
+
+h1 { font-size: 20px; font-weight: 600; letter-spacing: -.02em; margin: 0; }
+.subtitle { color: var(--text-3); margin: 4px 0 24px; }
+h2 { font-size: 12px; font-weight: 500; color: var(--text-3); margin: 28px 0 8px; display: flex; align-items: center; gap: 8px; }
+
+.dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--text-3); }
+.dot.green { background: var(--green); } .dot.red { background: var(--red); } .dot.amber { background: var(--amber); } .dot.blue { background: var(--blue); }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border: 1px solid var(--line-2); border-radius: 999px; font-size: 12px; color: var(--text-2); white-space: nowrap; background: var(--surface); }
+.bar { display: inline-block; width: 64px; height: 4px; border-radius: 2px; background: var(--line-2); overflow: hidden; vertical-align: middle; }
+.bar i { display: block; height: 100%; background: var(--green); }
+
+.list { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.row { display: grid; align-items: center; gap: 12px; min-height: 40px; padding: 8px 14px; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+a.row:hover, .row.case:hover { background: var(--hover); }
+.row.head { min-height: 32px; font-size: 11px; font-weight: 500; color: var(--text-3); background: var(--raised); }
+.overview .row { grid-template-columns: minmax(140px, 1.2fr) 56px 120px 130px minmax(0, 2fr); }
+.row .name { font-weight: 500; }
+.row .clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
+
+.props { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.prop { background: var(--surface); padding: 12px 14px; }
+.prop .k { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 500; color: var(--text-3); margin-bottom: 4px; }
+.prop .v { color: var(--text); }
+.prop .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+.callout { display: flex; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-left: 2px solid var(--brand); border-radius: 8px; background: var(--surface); margin-bottom: 16px; }
+
+.cases .row { grid-template-columns: 112px minmax(0, 1fr); }
+.cases.results .row { grid-template-columns: 112px minmax(0, 1fr) 150px; }
+.group { padding: 8px 14px; font-size: 12px; font-weight: 500; background: var(--raised); border-top: 1px solid var(--line); display: flex; gap: 8px; align-items: baseline; }
+.group:first-child { border-top: 0; }
+.group .t3 { font-weight: 400; }
+.status { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-2); }
+.note { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+
+.tabs { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); margin-left: auto; }
+.tabs button { font: inherit; font-size: 12px; color: var(--text-2); background: none; border: 0; border-radius: 6px; padding: 2px 10px; cursor: pointer; }
+.tabs button.on { background: var(--raised); color: var(--text); }
+.btn { font: inherit; font-size: 12px; color: var(--text-2); background: var(--surface); border: 1px solid var(--line-2); border-radius: 6px; padding: 2px 10px; cursor: pointer; }
+.btn:hover { color: var(--text); background: var(--hover); }
+pre { margin: 0 0 8px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow-x: auto; font: 12px/1.6 var(--mono); }
+
+@media (max-width: 800px) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  nav { display: none; }
+  main { padding: 20px 16px 64px; }
+  .props { grid-template-columns: minmax(0, 1fr); }
+  .overview .row { grid-template-columns: minmax(0, 1fr) 48px 96px; }
+  .overview .row > :nth-child(n+4) { display: none; }
+  .cases .row, .cases.results .row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
 </style>
 </head>
 <body>
-<main id="app"></main>
+<div id="app"></div>
 <script id="data" type="application/json">__HYDRA_DATA__</script>
 <script>
 const data = JSON.parse(document.getElementById('data').textContent);
 const app = document.getElementById('app');
 
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-const pill = (text, cls) => `<span class="pill ${cls}">${esc(text)}</span>`;
-const possiblePill = (possible) => (possible ? pill('possible', 'yes') : pill('not possible', 'no'));
-const outcomeClass = (outcome) => ({ pass: 'yes', regression: 'no', flip: 'other' })[outcome] ?? 'other';
+const RATING_COLOR = { easy: 'green', medium: 'amber', hard: 'red' };
+const OUTCOME_COLOR = { pass: 'green', regression: 'red', flip: 'blue', blocked: 'amber' };
+const dot = (color) => `<span class="dot ${color ?? ''}"></span>`;
+const chip = (text, color) => `<span class="chip">${color ? dot(color) : ''}${esc(text)}</span>`;
+const words = (value) => value.replace(/_/g, ' ');
+
+const LOGO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+  <path d="M12 21v-6.5"/>
+  <path d="M12 14.5V6.8"/>
+  <path d="M12 15.5c-2.6 0-3.6-1.6-4-3.6-.3-1.6-.6-3-1.6-3.6"/>
+  <path d="M12 15.5c2.6 0 3.6-1.6 4-3.6.3-1.6.6-3 1.6-3.6"/>
+  <path d="M12 17.8c-3.2 0-5.2-.6-6.2-2.2-.5-.9-.7-1.6-1.4-1.9"/>
+  <path d="M12 17.8c3.2 0 5.2-.6 6.2-2.2.5-.9.7-1.6 1.4-1.9"/>
+  <g fill="currentColor" stroke="none">
+    <circle cx="12" cy="4.6" r="2.3"/>
+    <circle cx="6.1" cy="7.1" r="1.75"/><circle cx="17.9" cy="7.1" r="1.75"/>
+    <circle cx="3.6" cy="12.6" r="1.6"/><circle cx="20.4" cy="12.6" r="1.6"/>
+  </g>
+</svg>`;
 
 const cases = (useCases) => [
-  ...useCases.questions.map((q) => ({ id: q.id, text: q.question, possible: q.possible })),
-  ...useCases.dashboards.flatMap((d) => d.charts.map((c) => ({ id: c.id, text: `${c.title}: ${c.detail}`, possible: c.possible, dashboard: d.name }))),
+  ...useCases.questions.map((q) => ({ ...q, text: q.question, group: 'Questions' })),
+  ...useCases.dashboards.flatMap((d) => d.charts.map((c) => ({ ...c, text: c.title, detail: c.detail, group: d.name, purpose: d.purpose }))),
 ];
-const countPossible = (useCases) => {
+const possibleShare = (useCases) => {
   const all = cases(useCases);
-  return `${all.filter((c) => c.possible).length}/${all.length}`;
+  const yes = all.filter((c) => c.possible).length;
+  return { yes, total: all.length, pct: all.length ? Math.round((yes / all.length) * 100) : 0 };
+};
+const coverage = (useCases) => {
+  const { yes, total, pct } = possibleShare(useCases);
+  return `<span style="display:flex;align-items:center;gap:8px"><span class="bar"><i style="width:${pct}%"></i></span><span class="mono t2">${yes}/${total}</span></span>`;
+};
+const authChip = (i) => chip(`${i.authScore.score}/7 ${i.authScore.rating}`, RATING_COLOR[i.authScore.rating]);
+
+const overview = (integrations) => `
+  <h1>${esc(data.title)}</h1>
+  <div class="subtitle">${integrations.length} integrations</div>
+  <div class="list overview">
+    <div class="row head"><span>Integration</span><span>Level</span><span>Auth</span><span>Possible</span><span>Paging</span></div>
+    ${integrations.map((i) => `<a class="row" href="#${esc(i.name)}">
+      <span class="name">${esc(i.label)}</span>
+      <span class="mono t2">L${i.level.value}</span>
+      <span>${authChip(i)}</span>
+      ${coverage(i.useCases)}
+      <span class="clip">${esc(i.paging.description)}</span>
+    </a>`).join('')}
+  </div>`;
+
+const authValue = (auth) => {
+  const ways = [auth.token && 'Token', auth.oauth !== 'none' && `OAuth, ${words(auth.oauth)}`].filter(Boolean);
+  return `<div class="v">${esc(auth.description)}</div>
+    <div class="meta">
+      ${(ways.length ? ways : ['No way in']).map((w) => chip(w)).join('')}
+      ${chip(`test with ${words(auth.testWith)}`)}
+      ${auth.needs.map((n) => chip(words(n))).join('')}
+    </div>`;
 };
 
-const authText = (auth) => {
-  const ways = [auth.token && 'token', auth.oauth !== 'none' && `OAuth (${auth.oauth.replace('_', ' ')})`].filter(Boolean).join(' + ') || 'none';
-  return `${esc(ways)}<br><span class="muted">test with ${esc(auth.testWith.replace('_', ' '))}; needs ${esc(auth.needs.join(', '))}</span><br>${esc(auth.description)}`;
-};
+const caseStatus = (possible) => `<span class="status">${dot(possible ? 'green' : '')}${possible ? 'Possible' : 'Not possible'}</span>`;
+const resultCell = (result) => (result
+  ? `<span><span class="status">${dot(OUTCOME_COLOR[result.outcome])}${esc(words(result.outcome))}</span>${result.note ? `<div class="note">${esc(result.note)}</div>` : ''}</span>`
+  : '<span class="status t3">Not tried</span>');
 
-const summary = (integrations) => `
-  <div class="card wrap"><table>
-    <tr><th>Integration</th><th>Level</th><th>Auth</th><th>Possible</th><th>Paging</th></tr>
-    ${integrations.map((i) => `<tr>
-      <td><a href="#${esc(i.name)}">${esc(i.label)}</a></td>
-      <td class="num">${i.level.value}</td>
-      <td class="num">${pill(`${i.authScore.score}/7 ${i.authScore.rating}`, i.authScore.rating)}</td>
-      <td class="num">${countPossible(i.useCases)}</td>
-      <td>${esc(i.paging.description)}</td>
-    </tr>`).join('')}
-  </table></div>`;
-
-const resultCell = (results, id) => {
-  const result = results?.[id];
-  if (!results) return '';
-  if (!result) return '<td class="muted">not tried</td>';
-  return `<td>${pill(result.outcome, outcomeClass(result.outcome))}${result.note ? `<div class="muted">${esc(result.note)}</div>` : ''}</td>`;
-};
-
-const caseTable = (integration) => {
+const caseList = (integration, filter) => {
   const results = integration.results;
-  const rows = cases(integration.useCases);
-  return `<div class="wrap"><table>
-    <tr><th>Use case</th><th>Expected</th>${results ? '<th>Result</th>' : ''}</tr>
-    ${rows.map((c) => `<tr>
-      <td>${c.dashboard ? `<span class="muted">${esc(c.dashboard)} · </span>` : ''}${esc(c.text)}</td>
-      <td>${possiblePill(c.possible)}</td>
-      ${resultCell(results, c.id)}
-    </tr>`).join('')}
-  </table></div>`;
+  const shown = cases(integration.useCases).filter((c) => {
+    if (filter === 'possible') return c.possible;
+    if (filter === 'not') return !c.possible;
+    if (filter === 'tried') return results?.[c.id];
+    return true;
+  });
+  const groups = [...new Set(shown.map((c) => c.group))];
+  if (shown.length === 0) return '<div class="list"><div class="row t3">Nothing here.</div></div>';
+  return `<div class="list cases ${results ? 'results' : ''}">${groups.map((g) => {
+    const inGroup = shown.filter((c) => c.group === g);
+    return `<div class="group">${esc(g)}${inGroup[0].purpose ? `<span class="t3">${esc(inGroup[0].purpose)}</span>` : ''}</div>
+      ${inGroup.map((c) => `<div class="row case">
+        ${caseStatus(c.possible)}
+        <span>${esc(c.text)}${c.detail ? `<div class="note">${esc(c.detail)}</div>` : ''}</span>
+        ${results ? resultCell(results[c.id]) : ''}
+      </div>`).join('')}`;
+  }).join('')}</div>`;
 };
 
 const tally = (results) => {
   const counts = Object.values(results).reduce((acc, r) => ({ ...acc, [r.outcome]: (acc[r.outcome] ?? 0) + 1 }), {});
-  return Object.entries(counts).map(([outcome, n]) => pill(`${n} ${outcome}`, outcomeClass(outcome))).join(' ');
+  return Object.entries(counts).map(([outcome, n]) => chip(`${n} ${words(outcome)}`, OUTCOME_COLOR[outcome])).join(' ');
 };
 
-const integrationCard = (i, index) => `
-  <section class="card" id="${esc(i.name)}">
-    <div class="head">
-      <h2>${esc(i.label)}</h2>
-      <span class="muted">${esc(i.name)}</span>
-      ${pill(`level ${i.level.value}`, 'other')}
-      ${pill(`auth ${i.authScore.score}/7 ${i.authScore.rating}`, i.authScore.rating)}
-      <span class="muted">${countPossible(i.useCases)} possible</span>
-      ${i.results ? tally(i.results) : ''}
-    </div>
-    ${i.verdict ? `<div class="verdict">${esc(i.verdict)}</div>` : ''}
-    <div class="facts">
-      <div class="fact"><b>Level</b>${esc(i.level.description)}</div>
-      <div class="fact"><b>Auth</b>${authText(i.auth)}</div>
-      <div class="fact"><b>Paging</b>${esc(i.paging.description)}</div>
-      <div class="fact"><b>Rate limiting</b>${esc(i.rateLimiting.description)}</div>
-    </div>
-    ${i.snippet ? `<h3>Definition <button data-toggle="snippet-${index}">Show</button></h3><pre id="snippet-${index}" hidden>${esc(i.snippet)}</pre>` : ''}
-    <details ${data.mode === 'view' ? '' : 'open'}><summary>Use cases</summary>${caseTable(i)}</details>
-  </section>`;
+const FILTERS = (i) => [['all', 'All'], ...(i.results ? [['tried', 'Tried']] : []), ['possible', 'Possible'], ['not', 'Not possible']];
+const state = { filter: data.mode === 'test' ? 'tried' : 'all', snippet: false };
 
-const generated = new Date(data.generatedAt).toLocaleString();
-const brand = `<div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true">
-  <circle cx="16" cy="16" r="15.5" fill="#d71414"/>
-  <circle cx="16" cy="16" r="13.6" fill="none" stroke="#111" stroke-width="2"/>
-  <g fill="none" stroke="#111" stroke-width="2" stroke-linecap="round">
-    <path d="M16 26V14"/>
-    <path d="M16 18c-3 0-5-2-6-5s-3-4-4-3"/>
-    <path d="M16 18c3 0 5-2 6-5s3-4 4-3"/>
-    <path d="M16 22c-3 0-6 1-7 3s-2 2-3 1"/>
-    <path d="M16 22c3 0 6 1 7 3s2 2 3 1"/>
-  </g>
-  <g fill="#111">
-    <circle cx="16" cy="10.5" r="3.6"/>
-    <circle cx="5.6" cy="10.4" r="1.7"/><circle cx="26.4" cy="10.4" r="1.7"/>
-    <circle cx="5.6" cy="25.6" r="1.7"/><circle cx="26.4" cy="25.6" r="1.7"/>
-  </g>
-</svg>hydra</div>`;
-app.innerHTML = `
-  ${brand}
-  <h1>${esc(data.title)}</h1>
-  <div class="sub">${esc(data.mode)} · ${esc(generated)}${data.summary ? ` · ${esc(data.summary)}` : ''}</div>
-  ${data.integrations.length > 1 ? summary(data.integrations) : ''}
-  ${data.integrations.map(integrationCard).join('')}`;
+const detail = (i) => {
+  const share = possibleShare(i.useCases);
+  return `
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <h1>${esc(i.label)}</h1>
+    <span class="mono t3">${esc(i.name)}</span>
+  </div>
+  <div class="subtitle" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+    ${chip(`Level ${i.level.value}`)} ${authChip(i)} ${chip(`${share.yes} of ${share.total} possible`)} ${i.results ? tally(i.results) : ''}
+  </div>
+  ${i.verdict ? `<div class="callout"><span class="t3" style="font-weight:500">Verdict</span><span>${esc(i.verdict)}</span></div>` : ''}
+  <div class="props">
+    <div class="prop"><div class="k">Level <span class="mono">${i.level.value}/5</span></div><div class="v">${esc(i.level.description)}</div></div>
+    <div class="prop"><div class="k">Auth</div>${authValue(i.auth)}</div>
+    <div class="prop"><div class="k">Paging</div><div class="v">${esc(i.paging.description)}</div></div>
+    <div class="prop"><div class="k">Rate limiting</div><div class="v">${esc(i.rateLimiting.description)}</div></div>
+  </div>
+  ${i.snippet ? `<h2>Definition <button class="btn" data-action="snippet">${state.snippet ? 'Hide' : 'Show'}</button></h2>${state.snippet ? `<pre>${esc(i.snippet)}</pre>` : ''}` : ''}
+  <h2>Use cases
+    <span class="tabs">${FILTERS(i).map(([key, label]) => `<button data-filter="${key}" class="${state.filter === key ? 'on' : ''}">${label}</button>`).join('')}</span>
+  </h2>
+  ${caseList(i, state.filter)}`;
+};
 
-app.addEventListener('click', (event) => {
-  const id = event.target.dataset?.toggle;
-  if (!id) return;
-  const block = document.getElementById(id);
-  block.hidden = !block.hidden;
-  event.target.textContent = block.hidden ? 'Show' : 'Hide';
+const current = () => {
+  const name = decodeURIComponent(location.hash.slice(1));
+  return data.integrations.length === 1 ? data.integrations[0] : data.integrations.find((i) => i.name === name);
+};
+
+const render = () => {
+  const selected = current();
+  const many = data.integrations.length > 1;
+  const generated = new Date(data.generatedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  app.innerHTML = `
+    <header class="top">
+      <a class="logo" href="#">${LOGO}hydra</a>
+      <span class="crumb">/</span><span class="t2">${esc(data.mode)}</span>
+      ${selected && many ? `<span class="crumb">/</span><span>${esc(selected.label)}</span>` : ''}
+      <span class="spacer"></span>
+      <span class="t3">${esc(data.summary ?? generated)}</span>
+    </header>
+    <div class="shell ${many ? '' : 'single'}">
+      ${many ? `<nav>
+        <a href="#" class="${selected ? '' : 'on'}"><span class="grow">Overview</span></a>
+        <div class="label">Integrations</div>
+        ${data.integrations.map((i) => `<a href="#${esc(i.name)}" class="${selected === i ? 'on' : ''}">
+          ${dot(RATING_COLOR[i.authScore.rating])}<span class="grow">${esc(i.label)}</span><span class="mono t3">L${i.level.value}</span>
+        </a>`).join('')}
+      </nav>` : ''}
+      <main>${selected ? detail(selected) : overview(data.integrations)}</main>
+    </div>`;
+};
+
+window.addEventListener('hashchange', () => {
+  state.filter = data.mode === 'test' ? 'tried' : 'all';
+  render();
+  window.scrollTo(0, 0);
 });
+app.addEventListener('click', (event) => {
+  const target = event.target.closest('button');
+  if (!target) return;
+  if (target.dataset.filter) state.filter = target.dataset.filter;
+  if (target.dataset.action === 'snippet') state.snippet = !state.snippet;
+  render();
+});
+render();
 </script>
 </body>
 </html>
