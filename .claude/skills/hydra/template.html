@@ -273,7 +273,7 @@ const explorer = (explores) => {
 };
 
 const FILTERS = (i) => [['all', 'All'], ...(i.results ? [['tried', 'Tried']] : []), ['possible', 'Possible'], ['not', 'Not possible']];
-const state = { filter: data.mode === 'test' ? 'tried' : 'all', snippet: false, explore: 0, field: null, expanded: new Set([0]) };
+const state = { filter: data.mode === 'test' ? 'tried' : 'all', explore: 0, field: null, expanded: new Set([0]) };
 
 const detail = (i) => {
   const share = possibleShare(i.useCases);
@@ -293,7 +293,6 @@ const detail = (i) => {
     <div class="prop"><div class="k">Rate limiting</div><div class="v">${esc(i.rateLimiting.description)}</div></div>
   </div>
   ${i.explores?.length ? `<h2>Explores <span class="t3" style="font-weight:400">${i.explores.length}</span></h2>${explorer(i.explores)}` : ''}
-  ${i.snippet ? `<h2>Definition <button class="btn" data-action="snippet">${state.snippet ? 'Hide' : 'Show'}</button></h2>${state.snippet ? `<pre>${esc(i.snippet)}</pre>` : ''}` : ''}
   <h2>Use cases
     <span class="tabs">${FILTERS(i).map(([key, label]) => `<button data-filter="${key}" class="${state.filter === key ? 'on' : ''}">${label}</button>`).join('')}</span>
   </h2>
@@ -348,7 +347,6 @@ app.addEventListener('click', (event) => {
     state.field = field;
   }
   if (target.dataset.filter) state.filter = target.dataset.filter;
-  if (target.dataset.action === 'snippet') state.snippet = !state.snippet;
   render();
 });
 render();

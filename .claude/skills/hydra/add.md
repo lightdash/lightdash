@@ -2,7 +2,7 @@
 
 A live integration turns a metric query on a live data source explore into calls to one external API and its rows into a result. Nothing is synced or stored. One integration is one folder plus a few registry entries; the shared engine does the rest.
 
-If there is no assess page for the tool yet, run `assess` first; its definition snippet is your starting spec. Read one existing integration end to end before writing yours. Pick the closest:
+If there is no assess page for the tool yet, run `assess` first; its spec and explores are your starting point. Read one existing integration end to end before writing yours. Pick the closest:
 
 | Shape of the API | Copy |
 |---|---|

@@ -32,8 +32,6 @@ type PageIntegration = Pick<
         dimensions: { name: string; description?: string }[];
         metrics: { name: string; description?: string }[];
     }[];
-    /** assess: the definition block to paste into the new integration. */
-    snippet?: string;
     /** test: what each tried case did, by use case id. */
     results?: Record<string, { outcome: string; note?: string }>;
 };
