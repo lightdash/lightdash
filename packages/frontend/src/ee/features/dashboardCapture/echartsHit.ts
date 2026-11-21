@@ -110,6 +110,7 @@ const SNAP_RADIUS = 16;
 const SNAP_MAX_POINTS = 5000;
 const POINT_SIZE = 14;
 const MIN_AXIS_BAND = 6;
+const LEGEND_PAD = 4;
 
 // ECharts keeps each element's data under a key it numbers at load time.
 let ecDataKey: string | null = null;
@@ -204,7 +205,18 @@ const legendHit = (element: ZrElement): ChartHit | null => {
         typeof child.style?.text === 'string' ? [child.style.text] : [],
     );
     if (texts.length === 0 || texts[0] === '') return null;
-    return { kind: 'series', seriesName: texts[0], rect: rectOf(element) };
+    // The entry's own box sits tight on its text: give the outline some air.
+    const rect = rectOf(element);
+    return {
+        kind: 'series',
+        seriesName: texts[0],
+        rect: {
+            x: rect.x - LEGEND_PAD,
+            y: rect.y - LEGEND_PAD,
+            width: rect.width + LEGEND_PAD * 2,
+            height: rect.height + LEGEND_PAD * 2,
+        },
+    };
 };
 
 // A reference line: a marker a series draws, with the text on it.
