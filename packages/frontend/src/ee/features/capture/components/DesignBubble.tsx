@@ -38,8 +38,10 @@ const MAX_STACK = 60;
 
 type Props = {
     bubble: Bubble;
-    /** Top left, in viewport pixels. */
+    /** Top left, in content pixels. */
     position: { x: number; y: number };
+    /** It sits in the page's own content, which the browser scrolls. */
+    scrollsWithPage: boolean;
     /** Its place among the bubbles, 0 at the back. */
     stack: number;
     /** A hold is down: the bubble fades and lets the pointer through. */
@@ -61,6 +63,7 @@ type Props = {
 const DesignBubble: FC<Props> = ({
     bubble,
     position,
+    scrollsWithPage,
     stack,
     passthrough,
     listening,
@@ -114,7 +117,7 @@ const DesignBubble: FC<Props> = ({
         event.preventDefault();
         dragRef.current?.end();
         const from = { x: event.clientX, y: event.clientY };
-        const start = position;
+        const start = root.getBoundingClientRect();
         let moving = false;
         const move = (next: MouseEvent) => {
             const dx = next.clientX - from.x;
@@ -124,9 +127,10 @@ const DesignBubble: FC<Props> = ({
             moving = true;
             onMoveRef.current(
                 clampDrag(
-                    { x: start.x + dx, y: start.y + dy },
-                    root.getBoundingClientRect(),
+                    { x: start.left + dx, y: start.top + dy },
+                    start,
                     new DOMRect(0, 0, window.innerWidth, window.innerHeight),
+                    scrollsWithPage,
                 ),
             );
         };

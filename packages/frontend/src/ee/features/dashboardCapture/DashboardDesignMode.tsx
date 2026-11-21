@@ -43,6 +43,7 @@ import { pickPartAt } from './partPicker';
 import {
     chartUuidsForMarks,
     dashboardScroll,
+    dashboardScrollContainer,
     targetAtPoint,
 } from './tilePicker';
 
@@ -98,6 +99,7 @@ const DashboardDesignSurface: FC<Props> = ({
             getRegion: () =>
                 new DOMRect(0, 0, window.innerWidth, window.innerHeight),
             getScroll: dashboardScroll,
+            getScrollContainer: dashboardScrollContainer,
             // The dashboard scrolls with the window.
             watchScroll: null,
             // Drawn from the page itself, so there is no share prompt.

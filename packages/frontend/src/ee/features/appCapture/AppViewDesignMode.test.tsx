@@ -4,6 +4,7 @@ import { createRef, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { type BubbleReplyPost } from '../aiCopilot/components/BubbleThread/BubbleReplyPoster';
+import { TYPED_WORDS_MARK } from '../capture/buildDesignPrompt';
 import { type Bubble, type DesignSession } from '../capture/designSession';
 import {
     type DesignPayload,
@@ -236,7 +237,7 @@ describe('AppViewDesignMode', () => {
             [
                 'These requests are about the data app "Sales pulse".',
                 '- ① (0:01) picked "[button "Save"]"',
-                'make this green',
+                `${TYPED_WORDS_MARK}make this green`,
             ].join('\n\n'),
         );
     });
@@ -317,6 +318,7 @@ describe('AppViewDesignMode', () => {
                         kind: 'element',
                         id: '[button "Save" @src/App.tsx:12]',
                         label: '[button "Save" @src/App.tsx:12]',
+                        parentId: null,
                     },
                     rect: new DOMRect(112, 84, 120, 40),
                 },

@@ -141,15 +141,28 @@ const scrolls = (element: Element): boolean => {
     );
 };
 
-/** How far the dashboard is scrolled: its scrolling container, else the window. */
-export const dashboardScroll = (): { x: number; y: number } => {
+// The element the dashboard scrolls in; null when it scrolls with the window.
+const innerScroller = (): Element | null => {
     let element =
         document.querySelector('.react-grid-layout')?.parentElement ?? null;
     while (element && element !== document.body) {
-        if (scrolls(element)) {
-            return { x: element.scrollLeft, y: element.scrollTop };
-        }
+        if (scrolls(element)) return element;
         element = element.parentElement;
     }
-    return { x: window.scrollX, y: window.scrollY };
+    return null;
 };
+
+/** How far the dashboard is scrolled: its scrolling container, else the window. */
+export const dashboardScroll = (): { x: number; y: number } => {
+    const element = innerScroller();
+    return element
+        ? { x: element.scrollLeft, y: element.scrollTop }
+        : { x: window.scrollX, y: window.scrollY };
+};
+
+/**
+ * Where marks and bubbles go to scroll with the dashboard: the page itself
+ * when the window scrolls it. Null when it scrolls inside an element of its own.
+ */
+export const dashboardScrollContainer = (): HTMLElement | null =>
+    innerScroller() ? null : document.body;

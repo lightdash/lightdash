@@ -1,21 +1,43 @@
+/* In the page's own content: marks scroll with it, under its sticky bars. */
 .layer {
-    position: fixed;
-    inset: 0;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 0;
     z-index: var(--ld-z-design-marks);
-    /* Marks scrolled out of the surface are cut off at its edges. */
-    clip-path: inset(
-        var(--region-top) calc(100% - var(--region-right))
-            calc(100% - var(--region-bottom)) var(--region-left)
-    );
     pointer-events: none;
     user-select: none;
 }
 
+/* Over a surface that scrolls on its own: cut off at the surface's edges. */
+.layer[data-clipped='true'] {
+    position: fixed;
+    inset: 0;
+    width: auto;
+    height: auto;
+    clip-path: inset(
+        var(--region-top) calc(100% - var(--region-right))
+            calc(100% - var(--region-bottom)) var(--region-left)
+    );
+}
+
+/* Content coordinates start here; shifted by the surface's own scroll. */
+.content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 0;
+    will-change: transform;
+}
+
 .ink {
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
+    left: 0;
+    top: 0;
+    width: 1px;
+    height: 1px;
     overflow: visible;
 }
 

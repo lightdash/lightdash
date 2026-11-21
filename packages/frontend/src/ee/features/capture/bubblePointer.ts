@@ -19,15 +19,24 @@ export const dragStartsOn = (target: Element, bubble: Element): boolean => {
     );
 };
 
-/** Where a dragged bubble may be dropped: its header stays within reach. */
+/**
+ * Where a dragged bubble may be dropped: its header stays within reach. `whole`
+ * keeps all of its width in view, for a bubble that would widen the page.
+ */
 export const clampDrag = (
     at: Position,
     size: { width: number; height: number },
     viewport: DOMRect,
+    whole: boolean,
 ): Position => ({
     x: Math.max(
-        viewport.left + KEEP_WIDTH_PX - size.width,
-        Math.min(at.x, viewport.right - KEEP_WIDTH_PX),
+        whole ? viewport.left : viewport.left + KEEP_WIDTH_PX - size.width,
+        Math.min(
+            at.x,
+            whole
+                ? viewport.right - size.width
+                : viewport.right - KEEP_WIDTH_PX,
+        ),
     ),
     y: Math.max(viewport.top, Math.min(at.y, viewport.bottom - KEEP_HEIGHT_PX)),
 });

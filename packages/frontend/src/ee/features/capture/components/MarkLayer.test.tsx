@@ -25,36 +25,43 @@ const badgeTop = (container: HTMLElement) =>
     ).style.getPropertyValue('--mark-top');
 
 describe('MarkLayer', () => {
-    it('marks are placed in content coordinates and move with scroll', () => {
-        const region = new DOMRect(0, 0, 800, 600);
-        const { container, rerender } = renderWithProviders(
-            <MarkLayer
-                region={region}
-                scroll={{ x: 0, y: 200 }}
-                marks={[mark]}
-            />,
+    it('marks are placed in content coordinates, whatever the scroll', () => {
+        const { container } = renderWithProviders(
+            <MarkLayer clip={null} shiftRef={null} marks={[mark]} />,
         );
-        expect(badgeTop(container)).toBe('100px');
-        expect(container.querySelector('g')).toHaveAttribute(
-            'transform',
-            'translate(0 -200)',
+        expect(badgeTop(container)).toBe('300px');
+        expect(container.querySelector('path')).toHaveAttribute(
+            'd',
+            'M40 300 L160 360',
         );
+        expect(container.querySelector('[data-clipped]')).toHaveAttribute(
+            'data-clipped',
+            'false',
+        );
+    });
 
-        rerender(
+    it('over a surface that scrolls on its own, it is cut off at the surface and can be shifted', () => {
+        const shift = { current: null as HTMLDivElement | null };
+        const { container } = renderWithProviders(
             <MarkLayer
-                region={region}
-                scroll={{ x: 0, y: 250 }}
+                clip={new DOMRect(10, 20, 800, 600)}
+                shiftRef={shift}
                 marks={[mark]}
             />,
         );
-        expect(badgeTop(container)).toBe('50px');
+        const layer = container.querySelector('[data-clipped]') as HTMLElement;
+        expect(layer).toHaveAttribute('data-clipped', 'true');
+        expect(layer.style.getPropertyValue('--region-top')).toBe('20px');
+        expect(
+            shift.current?.querySelector('[data-mark-number="2"]'),
+        ).not.toBeNull();
     });
 
     it('a picked element keeps its outline', () => {
         const { container } = renderWithProviders(
             <MarkLayer
-                region={new DOMRect(0, 0, 800, 600)}
-                scroll={{ x: 0, y: 0 }}
+                clip={null}
+                shiftRef={null}
                 marks={[{ ...mark, strokes: [], outlined: true }]}
             />,
         );

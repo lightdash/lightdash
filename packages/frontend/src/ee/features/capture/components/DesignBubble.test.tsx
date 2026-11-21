@@ -67,6 +67,7 @@ const setup = (
         <DesignBubble
             bubble={bubble}
             position={{ x: 120, y: 80 }}
+            scrollsWithPage={false}
             stack={2}
             passthrough={opts.passthrough ?? false}
             listening={opts.listening ?? false}
@@ -176,6 +177,10 @@ describe('DesignBubble', () => {
 
         it('is dragged by its header to where it is dropped', () => {
             const { onMove, onSend } = setup(bubbleWith('text'));
+            // Where the bubble is on screen when the drag starts.
+            vi.spyOn(root(), 'getBoundingClientRect').mockReturnValue(
+                new DOMRect(120, 80, 300, 120),
+            );
             const kept = fireEvent.mouseDown(header(), {
                 clientX: 200,
                 clientY: 100,
@@ -246,6 +251,7 @@ describe('DesignBubble', () => {
             <DesignBubble
                 bubble={bubble}
                 position={{ x: 0, y: 0 }}
+                scrollsWithPage={false}
                 stack={0}
                 passthrough={passthrough}
                 listening={false}

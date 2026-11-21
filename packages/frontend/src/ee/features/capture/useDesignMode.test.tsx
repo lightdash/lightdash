@@ -59,10 +59,13 @@ const fakeFrame = () => ({
 
 const transcribe = vi.fn();
 let scroll = { x: 0, y: 0 };
+// Null: the surface scrolls on its own and the layers are shifted to follow.
+let scrollContainer: HTMLElement | null = null;
 let tab: { uuid: string; name: string } | null = null;
 const surface: DesignSurface = {
     getRegion: () => new DOMRect(0, 0, 100, 100),
     getScroll: () => scroll,
+    getScrollContainer: () => scrollContainer,
     frameSource: 'dom',
     grabAppImage: null,
     watchScroll: null,
@@ -81,9 +84,20 @@ let showPicker: (picker: Picker | null) => void = () => {};
 const cancelSend = vi.fn<(bubbleId: string) => void>();
 const onBubbleRemoved = vi.fn<(bubbleId: string) => void>();
 
+// The page draws again, as it does when its tab changes.
+let redraw: () => void = () => {};
+
+// How far the layers that follow a self-scrolling surface are shifted.
+const shifts = () =>
+    [...document.querySelectorAll<HTMLElement>('[data-bubble-id]')].map(
+        (el) => el.parentElement?.style.transform ?? '',
+    );
+
 const Harness: FC = () => {
     const [picker, setPicker] = useState<Picker | null>(null);
     showPicker = setPicker;
+    const [, setDrawn] = useState(0);
+    redraw = () => setDrawn((n) => n + 1);
     api = useDesignMode(surface, {
         onSend,
         renderBubbleBody: (bubble) =>
@@ -159,8 +173,10 @@ const mockBubbleRects = () =>
         .mockImplementation(function rectOf(this: HTMLElement) {
             if (!this.hasAttribute('data-bubble-id')) return new DOMRect();
             return new DOMRect(
-                parseFloat(this.style.getPropertyValue('--bubble-left')),
-                parseFloat(this.style.getPropertyValue('--bubble-top')),
+                parseFloat(this.style.getPropertyValue('--bubble-left')) -
+                    scroll.x,
+                parseFloat(this.style.getPropertyValue('--bubble-top')) -
+                    scroll.y,
                 320,
                 140,
             );
@@ -188,6 +204,7 @@ const turnOn = async (mic = false) => {
 describe('useDesignMode', () => {
     beforeEach(() => {
         scroll = { x: 0, y: 0 };
+        scrollContainer = null;
         tab = null;
         shade = 0;
         composeImage.mockClear();
@@ -432,6 +449,7 @@ describe('useDesignMode', () => {
                 scroll = { x: 0, y: top };
                 await act(async () => {
                     window.dispatchEvent(new Event('scroll'));
+                    redraw();
                 });
             };
 
@@ -448,9 +466,10 @@ describe('useDesignMode', () => {
             await changeTab('b', 900);
             expect(bubble()).not.toBeNull();
             expect(screen.getByRole('button', { name: 'Stop' })).toBeVisible();
-            const top = parseFloat(
-                bubble()?.style.getPropertyValue('--bubble-top') ?? '',
-            );
+            const top =
+                parseFloat(
+                    bubble()?.style.getPropertyValue('--bubble-top') ?? '',
+                ) - scroll.y;
             expect(top).toBeGreaterThanOrEqual(0);
 
             await drawMark();
@@ -474,12 +493,13 @@ describe('useDesignMode', () => {
             await act(async () => {
                 window.dispatchEvent(new Event('scroll'));
             });
+            // Where it is on screen: its place in the content, less the scroll.
             const top = () =>
                 parseFloat(
                     document
                         .querySelector<HTMLElement>('[data-bubble-id]')
                         ?.style.getPropertyValue('--bubble-top') ?? '',
-                );
+                ) - scroll.y;
             expect(top()).toBeLessThan(0);
 
             await drawMark();
@@ -516,9 +536,8 @@ describe('useDesignMode', () => {
         await act(async () => {
             window.dispatchEvent(new Event('scroll'));
         });
-        expect(bubble()?.style.getPropertyValue('--bubble-top')).toBe(
-            `${parseFloat(before ?? '') - 12}px`,
-        );
+        expect(bubble()?.style.getPropertyValue('--bubble-top')).toBe(before);
+        expect(shifts()).toEqual(['translate(0px, -12px)']);
 
         // Replying to it turns Design Mode back on.
         await act(async () => {
@@ -1235,8 +1254,14 @@ describe('useDesignMode', () => {
         await act(async () => {
             window.dispatchEvent(new Event('scroll'));
         });
-        expect(px(bubble(), '--bubble-top')).toBe(bubbleTop - 12);
-        expect(px(badge(), '--mark-top')).toBe(badgeTop - 12);
+        // Both keep their place in the content; their layers are shifted,
+        // with no new drawing of either.
+        expect(px(bubble(), '--bubble-top')).toBe(bubbleTop);
+        expect(px(badge(), '--mark-top')).toBe(badgeTop);
+        expect(shifts()).toEqual(['translate(0px, -12px)']);
+        expect(badge().parentElement?.style.transform).toBe(
+            'translate(0px, -12px)',
+        );
 
         await act(async () => {
             api.close(api.session.bubbles[0].id);
@@ -1299,7 +1324,8 @@ describe('useDesignMode', () => {
             land(fakeFrame());
         });
         await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
-        expect(px('--mark-top', '[data-mark-number="1"]')).toBe(40);
+        // 40 on screen: its place in the content less the scroll of 20.
+        expect(px('--mark-top', '[data-mark-number="1"]')).toBe(60);
         expect(gap()).toBe(still);
     });
 
@@ -1373,7 +1399,9 @@ describe('useDesignMode', () => {
                     expect(api.session.bubbles[0].status).toBe('thread'),
                 );
                 expect(api.session.bubbles[0].anchor).toEqual(anchor);
-                expect(px(bubbles()[0], '--bubble-top')).toBeLessThan(0);
+                expect(
+                    px(bubbles()[0], '--bubble-top') - scroll.y,
+                ).toBeLessThan(0);
             } finally {
                 rects.mockRestore();
             }
@@ -1422,6 +1450,49 @@ describe('useDesignMode', () => {
                 expect(api.session.bubbles[0].anchor).toEqual(dropped);
             } finally {
                 rects.mockRestore();
+            }
+        });
+
+        it('on a page that scrolls them itself, marks and bubbles sit in the page and are never shifted', async () => {
+            scrollContainer = document.createElement('main');
+            document.body.append(scrollContainer);
+            try {
+                await turnOn();
+                scroll = { x: 0, y: 300 };
+                await drawMark();
+                await waitFor(() =>
+                    expect(api.session.bubbles).toHaveLength(1),
+                );
+                const bubble = bubbles()[0];
+                const badge = document.querySelector<HTMLElement>(
+                    '[data-mark-number="1"]',
+                )!;
+                expect(scrollContainer.contains(bubble)).toBe(true);
+                expect(scrollContainer.contains(badge)).toBe(true);
+                // Content coordinates: where it was drawn plus the scroll.
+                expect(px(badge, '--mark-top')).toBe(310);
+                expect(px(bubble, '--bubble-top')).toBe(
+                    api.session.bubbles[0].anchor.y,
+                );
+
+                scroll = { x: 0, y: 500 };
+                await act(async () => {
+                    window.dispatchEvent(new Event('scroll'));
+                });
+                expect(px(badge, '--mark-top')).toBe(310);
+                expect(shifts()).toEqual(['']);
+                // The toolbar stays on the window, not in the page.
+                expect(
+                    scrollContainer.contains(screen.getByText('Design Mode')),
+                ).toBe(false);
+
+                // Leaving and closing takes the layer out of the page.
+                await act(async () => {
+                    api.setOn(false);
+                });
+                expect(scrollContainer.childElementCount).toBe(0);
+            } finally {
+                scrollContainer.remove();
             }
         });
 

@@ -1,8 +1,10 @@
 import { AI_THREAD_IMAGES_MAX_PER_PROMPT } from '@lightdash/common';
+import { Box } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
 import {
     useCallback,
     useEffect,
+    useLayoutEffect,
     useRef,
     useState,
     type ReactNode,
@@ -16,6 +18,7 @@ import { buildSummary } from './buildSummary';
 import { type ShiftUpAction } from './captureReducer';
 import { classifyMark } from './classifyStroke';
 import DesignBubble from './components/DesignBubble';
+import layerClasses from './components/DesignLayer.module.css';
 import DesignToolbar from './components/DesignToolbar';
 import InkOverlay from './components/InkOverlay';
 import MarkLayer from './components/MarkLayer';
@@ -39,7 +42,7 @@ import { coveredTargets } from './markCoverage';
 import { ATTACHED_PX, besideMarks, intoView } from './placeBubble';
 import { type TabFrame } from './tabFrame';
 import {
-    type Box,
+    type Box as MarkBox,
     type CaptureMark,
     type CaptureTarget,
     type DesignPayload,
@@ -144,7 +147,7 @@ const picksInFrame = (surface: DesignSurface | null): boolean =>
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
-const boxInRegion = (rect: DOMRect, region: DOMRect): Box => {
+const boxInRegion = (rect: DOMRect, region: DOMRect): MarkBox => {
     const x = clamp01((rect.left - region.left) / region.width);
     const y = clamp01((rect.top - region.top) / region.height);
     return {
@@ -251,7 +254,7 @@ export const useDesignMode = (
     const [rect, setRect] = useState<DOMRect | null>(null);
     const [holding, setHolding] = useState<DesignTool | null>(null);
     const [ink, setInk] = useState<Stroke[]>([]);
-    const [hover, setHover] = useState<Box | null>(null);
+    const [hover, setHover] = useState<MarkBox | null>(null);
     const [placed, setPlaced] = useState<LayerMark[]>([]);
     // Read by a mark that lands before the last one has been drawn.
     const placedRef = useRef<LayerMark[]>([]);
@@ -266,7 +269,11 @@ export const useDesignMode = (
     const [order, setOrder] = useState<string[]>([]);
     // Bubbles the user dragged: they stay where they were put.
     const userPlacedRef = useRef(new Set<string>());
-    const [scroll, setScroll] = useState({ x: 0, y: 0 });
+    // The layers moved by hand, for a surface that scrolls on its own.
+    const marksShiftRef = useRef<HTMLDivElement | null>(null);
+    const bubblesShiftRef = useRef<HTMLDivElement | null>(null);
+    // The layer in the page's own content, which the browser scrolls.
+    const [pageLayer, setPageLayer] = useState<HTMLElement | null>(null);
 
     const holdRef = useRef<Hold | null>(null);
     const downKeysRef = useRef(new Set<string>());
@@ -287,13 +294,19 @@ export const useDesignMode = (
         now: absoluteNow,
     });
 
+    // Straight onto the layers: a render per scroll event would trail it.
     const refreshScroll = useCallback(() => {
         const next = surfaceRef.current?.getScroll();
         if (!next) return;
-        setScroll((prev) =>
-            prev.x === next.x && prev.y === next.y ? prev : next,
-        );
+        const shift = `translate(${-next.x}px, ${-next.y}px)`;
+        [marksShiftRef.current, bubblesShiftRef.current].forEach((layer) => {
+            if (layer && layer.style.transform !== shift) {
+                layer.style.transform = shift;
+            }
+        });
     }, []);
+    // A layer drawn for the first time starts where the scroll is.
+    useLayoutEffect(refreshScroll);
 
     const clearFrames = useCallback((bubbleId: string) => {
         framesRef.current.get(bubbleId)?.forEach((f) => f.bitmap.close());
@@ -451,7 +464,7 @@ export const useDesignMode = (
                     x: region.left + point.x * region.width,
                     y: region.top + point.y * region.height,
                 });
-                let box: Box;
+                let box: MarkBox;
                 let mark: Omit<ShiftUpAction, 'type' | 'atMs'>;
                 if (made.kind === 'strokes') {
                     made.strokes.forEach((stroke) =>
@@ -1229,6 +1242,20 @@ export const useDesignMode = (
     // Marks and bubbles follow the page for as long as any are on it, also
     // after Design Mode is left.
     const following = on || session.bubbles.length > 0;
+    const scrollContainer = following
+        ? (surface?.getScrollContainer() ?? null)
+        : null;
+    useEffect(() => {
+        if (!scrollContainer) return undefined;
+        const layer = document.createElement('div');
+        layer.className = layerClasses.inPage;
+        scrollContainer.append(layer);
+        setPageLayer(layer);
+        return () => {
+            layer.remove();
+            setPageLayer(null);
+        };
+    }, [scrollContainer]);
     useEffect(() => {
         if (!following) return undefined;
         const refreshRect = () => {
@@ -1364,69 +1391,94 @@ export const useDesignMode = (
             ),
     );
 
+    const bubbleNodes = shownBubbles.map((bubble) => (
+        <DesignBubble
+            key={bubble.id}
+            bubble={bubble}
+            position={bubble.anchor}
+            scrollsWithPage={scrollContainer !== null}
+            stack={stacked.indexOf(bubble.id)}
+            passthrough={passthrough}
+            onRaise={() => raise(bubble.id)}
+            onMove={(at) => moveByUser(bubble.id, at)}
+            listening={
+                bubble.collection !== null &&
+                bubble.input === 'mic' &&
+                (bubble.status === 'collecting' || bubble.status === 'thread')
+            }
+            onSend={(text) => send(bubble.id, text)}
+            onStop={() => stop(bubble.id)}
+            onDiscard={() => discard(bubble.id)}
+            onClose={() => close(bubble.id)}
+        >
+            {opts.renderBubbleBody?.(bubble, session) ?? null}
+        </DesignBubble>
+    ));
+
     // Left behind by Design Mode, sent bubbles and their marks stay; the
     // ink layer and the toolbar go.
+    const shown = on || shownBubbles.length > 0 || shownMarks.length > 0;
     const element =
-        rect && (on || shownBubbles.length > 0 || shownMarks.length > 0)
-            ? createPortal(
-                  <>
-                      {on && (
-                          <InkOverlay
-                              rect={rect}
-                              holding={inkTakesPointer}
-                              inkVisible
-                              strokes={ink}
-                              fading={null}
-                              hover={hover}
-                              onStrokePoint={onStrokePoint}
-                              onStrokeEnd={onStrokeEnd}
-                              onPick={holding === 'cursor' ? onPick : null}
-                          />
-                      )}
-                      <MarkLayer
-                          region={rect}
-                          scroll={scroll}
-                          marks={shownMarks}
-                      />
-                      {shownBubbles.map((bubble) => (
-                          <DesignBubble
-                              key={bubble.id}
-                              bubble={bubble}
-                              position={{
-                                  x: bubble.anchor.x - scroll.x,
-                                  y: bubble.anchor.y - scroll.y,
-                              }}
-                              stack={stacked.indexOf(bubble.id)}
-                              passthrough={passthrough}
-                              onRaise={() => raise(bubble.id)}
-                              onMove={(at) => moveByUser(bubble.id, at)}
-                              listening={
-                                  bubble.collection !== null &&
-                                  bubble.input === 'mic' &&
-                                  (bubble.status === 'collecting' ||
-                                      bubble.status === 'thread')
-                              }
-                              onSend={(text) => send(bubble.id, text)}
-                              onStop={() => stop(bubble.id)}
-                              onDiscard={() => discard(bubble.id)}
-                              onClose={() => close(bubble.id)}
-                          >
-                              {opts.renderBubbleBody?.(bubble, session) ?? null}
-                          </DesignBubble>
-                      ))}
-                      {on && (
-                          <DesignToolbar
-                              ref={toolbarRef}
-                              tool={holding}
-                              micOn={micOn}
-                              onMicChange={setMicOn}
-                              onClose={() => setOn(false)}
-                          />
-                      )}
-                  </>,
-                  document.body,
-              )
-            : null;
+        rect && shown ? (
+            <>
+                {createPortal(
+                    <>
+                        {on && (
+                            <InkOverlay
+                                rect={rect}
+                                holding={inkTakesPointer}
+                                inkVisible
+                                strokes={ink}
+                                fading={null}
+                                hover={hover}
+                                onStrokePoint={onStrokePoint}
+                                onStrokeEnd={onStrokeEnd}
+                                onPick={holding === 'cursor' ? onPick : null}
+                            />
+                        )}
+                        {scrollContainer === null && (
+                            <>
+                                <MarkLayer
+                                    clip={rect}
+                                    shiftRef={marksShiftRef}
+                                    marks={shownMarks}
+                                />
+                                <Box
+                                    ref={bubblesShiftRef}
+                                    className={layerClasses.shifted}
+                                >
+                                    {bubbleNodes}
+                                </Box>
+                            </>
+                        )}
+                        {on && (
+                            <DesignToolbar
+                                ref={toolbarRef}
+                                tool={holding}
+                                micOn={micOn}
+                                onMicChange={setMicOn}
+                                onClose={() => setOn(false)}
+                            />
+                        )}
+                    </>,
+                    document.body,
+                )}
+                {/* In the page itself, the browser scrolls marks and bubbles. */}
+                {scrollContainer !== null &&
+                    pageLayer &&
+                    createPortal(
+                        <>
+                            <MarkLayer
+                                clip={null}
+                                shiftRef={null}
+                                marks={shownMarks}
+                            />
+                            {bubbleNodes}
+                        </>,
+                        pageLayer,
+                    )}
+            </>
+        ) : null;
 
     return {
         on,

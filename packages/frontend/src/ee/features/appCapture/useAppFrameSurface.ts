@@ -68,6 +68,8 @@ export const useAppFrameSurface = ({
                           getFrameRef.current()?.getBoundingClientRect() ??
                           new DOMRect(),
                       getScroll: () => scrollRef.current,
+                      // The app scrolls inside its own frame.
+                      getScrollContainer: () => null,
                       watchScroll: (onChange) => {
                           scrollWatchersRef.current.add(onChange);
                           return () => {

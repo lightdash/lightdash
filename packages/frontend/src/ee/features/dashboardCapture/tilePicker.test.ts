@@ -4,6 +4,7 @@ import { type CaptureMark, type CaptureTarget } from '../capture/types';
 import {
     chartUuidsForMarks,
     dashboardScroll,
+    dashboardScrollContainer,
     MAX_CHART_CONTEXT,
     pickTileAt,
     targetAtPoint,
@@ -176,6 +177,9 @@ describe('dashboardScroll', () => {
         document.body.appendChild(scroller);
 
         expect(dashboardScroll()).toEqual({ x: 0, y: 240 });
+        // Marks cannot be put in it, so they follow its scroll instead.
+        expect(dashboardScrollContainer()).toBeNull();
+        scroller.remove();
     });
 
     it('falls back to the window when nothing else scrolls', () => {
@@ -183,5 +187,7 @@ describe('dashboardScroll', () => {
             x: window.scrollX,
             y: window.scrollY,
         });
+        // The page scrolls the dashboard: marks go in the page.
+        expect(dashboardScrollContainer()).toBe(document.body);
     });
 });

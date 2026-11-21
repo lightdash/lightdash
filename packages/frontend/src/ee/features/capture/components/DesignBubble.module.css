@@ -1,5 +1,6 @@
+/* Placed in content coordinates inside a layer that scrolls with the content. */
 .bubble {
-    position: fixed;
+    position: absolute;
     left: var(--bubble-left);
     top: var(--bubble-top);
     /* Over the page and each other, under modals, popovers and the toolbar. */

@@ -44,21 +44,30 @@ describe('clampDrag', () => {
     const size = { width: 300, height: 200 };
 
     it('leaves a drop inside the viewport alone', () => {
-        expect(clampDrag({ x: 100, y: 50 }, size, viewport)).toEqual({
+        expect(clampDrag({ x: 100, y: 50 }, size, viewport, false)).toEqual({
             x: 100,
             y: 50,
         });
     });
 
     it('keeps the header within reach at every edge', () => {
-        expect(clampDrag({ x: -900, y: -50 }, size, viewport)).toEqual({
+        expect(clampDrag({ x: -900, y: -50 }, size, viewport, false)).toEqual({
             x: -220,
             y: 0,
         });
-        expect(clampDrag({ x: 900, y: 900 }, size, viewport)).toEqual({
+        expect(clampDrag({ x: 900, y: 900 }, size, viewport, false)).toEqual({
             x: 720,
             y: 560,
         });
+    });
+});
+
+describe('clampDrag of a bubble that is part of the page', () => {
+    it('keeps its whole width in view, so the page does not grow sideways', () => {
+        const viewport = new DOMRect(0, 0, 800, 600);
+        const size = { width: 300, height: 200 };
+        expect(clampDrag({ x: -900, y: 50 }, size, viewport, true).x).toBe(0);
+        expect(clampDrag({ x: 900, y: 50 }, size, viewport, true).x).toBe(500);
     });
 });
 

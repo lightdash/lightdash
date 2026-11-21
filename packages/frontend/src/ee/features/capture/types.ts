@@ -50,6 +50,11 @@ export type DesignSurface = {
     getRegion: () => DOMRect;
     /** Scroll offset of the surface's content, for content coords. */
     getScroll: () => { x: number; y: number };
+    /**
+     * Where marks and bubbles are put so the browser scrolls them with the
+     * content. Null when the content scrolls somewhere they cannot be put.
+     */
+    getScrollContainer: () => HTMLElement | null;
     /** Tells when the scroll changed. Null when the surface scrolls with the window. */
     watchScroll: ((onChange: () => void) => () => void) | null;
     frameSource: 'dom' | 'app';
