@@ -2,9 +2,7 @@ import {
     type AiPromptContext,
     type AiPromptContextInput,
 } from '@lightdash/common';
-import { useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router';
-import { useOptionalProjectRoute } from '../../../../../hooks/useProjectRoute';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import {
     useCreateAgentThreadMessageMutation,
@@ -13,8 +11,7 @@ import {
 import { useRefreshDocumentOnAgentSave } from '../../hooks/useRefreshDocumentOnAgentSave';
 import { selectThreadSqlMode } from '../../store/aiAgentThreadModeSlice';
 import { useAiAgentStoreSelector } from '../../store/hooks';
-import { type AiAgentToolResult } from '../../types';
-import { getDashboardNavigationUrlFromContentToolResult } from '../../utils/contentToolResultNavigation';
+import { keepAgentThreadQuiet } from '../../streaming/quietAgentThreads';
 
 export type BubbleThreadPostInput = {
     prompt: string;
@@ -25,14 +22,15 @@ export type BubbleThreadPostInput = {
 
 /**
  * Posts a message to a bubble's conversation. What the agent then saves shows
- * on the page, the same for a typed reply and for a reply with marks.
+ * on the page without moving it, the same for a typed reply and one with marks.
  */
 export const useBubbleThreadPost = (
     projectUuid: string,
     agentUuid: string,
     threadId: string,
 ) => {
-    const navigate = useNavigate();
+    // Other bubbles may be in use: this one's agent never scrolls the page.
+    useEffect(() => keepAgentThreadQuiet(threadId), [threadId]);
     // The agents list never redirects on a refusal; the single-agent query does.
     const { data: agents } = useProjectAiAgents({
         projectUuid,
@@ -43,23 +41,8 @@ export const useBubbleThreadPost = (
         [agents, agentUuid],
     );
 
-    const refreshDocumentOnAgentSave =
-        useRefreshDocumentOnAgentSave(projectUuid);
-    const projectSlug = useOptionalProjectRoute()?.project.slug ?? null;
-    const handleToolResult = useCallback(
-        (toolResult: AiAgentToolResult) => {
-            refreshDocumentOnAgentSave(toolResult);
-            // Null when the agent edited the dashboard that is already open.
-            const dashboardUrl = getDashboardNavigationUrlFromContentToolResult(
-                { projectUuid, projectSlug },
-                toolResult,
-            );
-            if (!dashboardUrl) return;
-
-            void navigate(dashboardUrl, { viewTransition: true });
-        },
-        [navigate, projectSlug, projectUuid, refreshDocumentOnAgentSave],
-    );
+    // A dashboard made elsewhere is linked in the reply: the page stays put.
+    const handleToolResult = useRefreshDocumentOnAgentSave(projectUuid);
 
     const { mutateAsync: createMessage, isLoading: isPosting } =
         useCreateAgentThreadMessageMutation(projectUuid, agentUuid, threadId, {

@@ -201,6 +201,7 @@ describe('planDashboardAiAgentChanges', () => {
             planDashboardAiAgentChanges({
                 parts: [dashboardEditPart],
                 handledToolCallIds: new Set(),
+                quietToolCallIds: new Set(),
                 currentDashboardSlug: 'jaffle-dashboard',
                 pendingChartToFocus: null,
             }),
@@ -216,6 +217,7 @@ describe('planDashboardAiAgentChanges', () => {
             planDashboardAiAgentChanges({
                 parts: [chartEditPart],
                 handledToolCallIds: new Set(),
+                quietToolCallIds: new Set(),
                 currentDashboardSlug: 'jaffle-dashboard',
                 pendingChartToFocus: null,
             }),
@@ -232,11 +234,34 @@ describe('planDashboardAiAgentChanges', () => {
         });
     });
 
+    it('refreshes without focusing for tool calls that must not move the page', () => {
+        expect(
+            planDashboardAiAgentChanges({
+                parts: [chartEditPart, dashboardEditPart],
+                handledToolCallIds: new Set(),
+                quietToolCallIds: new Set(['chart-edit', 'dashboard-edit']),
+                currentDashboardSlug: 'jaffle-dashboard',
+                pendingChartToFocus: {
+                    type: 'chart',
+                    slug: 'orders-over-time',
+                },
+            }).actions,
+        ).toEqual([
+            {
+                type: 'refreshChart',
+                chart: { type: 'chart', slug: 'orders-over-time' },
+                focusTile: false,
+            },
+            { type: 'refreshDashboard', focusChart: null },
+        ]);
+    });
+
     it('plans a dashboard refresh when a chart is created on the current dashboard', () => {
         expect(
             planDashboardAiAgentChanges({
                 parts: [chartCreatePart],
                 handledToolCallIds: new Set(),
+                quietToolCallIds: new Set(),
                 currentDashboardSlug: 'jaffle-dashboard',
                 pendingChartToFocus: null,
             }),
@@ -287,6 +312,7 @@ describe('planDashboardAiAgentChanges', () => {
             planDashboardAiAgentChanges({
                 parts: [composerCreatePart(dashboardSlug)],
                 handledToolCallIds: new Set(),
+                quietToolCallIds: new Set(),
                 currentDashboardSlug: 'jaffle-dashboard',
                 pendingChartToFocus: null,
             }).actions;
@@ -308,6 +334,7 @@ describe('planDashboardAiAgentChanges', () => {
             planDashboardAiAgentChanges({
                 parts: [dashboardEditPart],
                 handledToolCallIds: new Set(),
+                quietToolCallIds: new Set(),
                 currentDashboardSlug: 'jaffle-dashboard',
                 pendingChartToFocus: {
                     type: 'chart',
@@ -331,6 +358,7 @@ describe('planDashboardAiAgentChanges', () => {
             planDashboardAiAgentChanges({
                 parts: [dashboardEditPart],
                 handledToolCallIds: new Set(),
+                quietToolCallIds: new Set(),
                 currentDashboardSlug: 'other-dashboard',
                 pendingChartToFocus: null,
             }),
@@ -363,6 +391,7 @@ describe('planDashboardAiAgentChanges', () => {
             planDashboardAiAgentChanges({
                 parts: [composerChartEditPart],
                 handledToolCallIds: new Set(),
+                quietToolCallIds: new Set(),
                 currentDashboardSlug: 'jaffle-dashboard',
                 pendingChartToFocus: null,
             }).actions,
@@ -380,6 +409,7 @@ describe('planDashboardAiAgentChanges', () => {
             planDashboardAiAgentChanges({
                 parts: [sqlChartEditPart],
                 handledToolCallIds: new Set(),
+                quietToolCallIds: new Set(),
                 currentDashboardSlug: 'jaffle-dashboard',
                 pendingChartToFocus: null,
             }),
@@ -401,6 +431,7 @@ describe('planDashboardAiAgentChanges', () => {
             planDashboardAiAgentChanges({
                 parts: [sqlChartCreatePart, dashboardEditPart],
                 handledToolCallIds: new Set(),
+                quietToolCallIds: new Set(),
                 currentDashboardSlug: 'jaffle-dashboard',
                 pendingChartToFocus: null,
             }),
@@ -421,6 +452,7 @@ describe('planDashboardAiAgentChanges', () => {
             planDashboardAiAgentChanges({
                 parts: [sqlChartCreatePart],
                 handledToolCallIds: new Set(),
+                quietToolCallIds: new Set(),
                 currentDashboardSlug: 'jaffle-dashboard',
                 pendingChartToFocus: null,
             }),
@@ -436,6 +468,7 @@ describe('planDashboardAiAgentChanges', () => {
             planDashboardAiAgentChanges({
                 parts: [dashboardEditPart],
                 handledToolCallIds: new Set(['dashboard-edit']),
+                quietToolCallIds: new Set(),
                 currentDashboardSlug: 'jaffle-dashboard',
                 pendingChartToFocus: null,
             }),
