@@ -1,3 +1,16 @@
+## [3.361.1](https://github.com/lightdash/lightdash/compare/3.361.0...3.361.1) (2026-11-21)
+
+
+### Bug Fixes
+
+* **external-connections:** drop the request path from the fetch analytics event ([#33135](https://github.com/lightdash/lightdash/issues/33135)) ([a25b8e8](https://github.com/lightdash/lightdash/commit/a25b8e8b180f95e6ead2a836511841359579eb81))
+* **live-sources:** apply Pylon null filters and filter first response on the column's minutes ([#33138](https://github.com/lightdash/lightdash/issues/33138)) ([5cefc4c](https://github.com/lightdash/lightdash/commit/5cefc4ce6bcd989cbbd17b2b816f11e5e1ed5eb0))
+* **live-sources:** count PostHog sessions without empty IDs and type min or max of a date as a date ([#33139](https://github.com/lightdash/lightdash/issues/33139)) ([3dc5381](https://github.com/lightdash/lightdash/commit/3dc53814c0603209ada1f42f27375e1384bb0038))
+* **live-sources:** file row-cap and call-budget refusals as refusals in telemetry ([#33136](https://github.com/lightdash/lightdash/issues/33136)) ([2ec010f](https://github.com/lightdash/lightdash/commit/2ec010f8720cc6dc7253092ba7e307a9fe6ffee9))
+* **live-sources:** keep the GitHub account out of rate-limit messages ([#33140](https://github.com/lightdash/lightdash/issues/33140)) ([5361560](https://github.com/lightdash/lightdash/commit/5361560fd8e112d122f71770d17041754a7e9b22))
+* **live-sources:** stop adding up GA4 sessions and users in totals ([#33137](https://github.com/lightdash/lightdash/issues/33137)) ([316cf1e](https://github.com/lightdash/lightdash/commit/316cf1e6c9962858aa261a4e31c01447bc28a41d))
+* **live-sources:** turn pre-aggregates off for live explores ([#33134](https://github.com/lightdash/lightdash/issues/33134)) ([2820ce6](https://github.com/lightdash/lightdash/commit/2820ce63c2cf8e27f9c0e64adc2c92611839d7a8))
+
 # [3.361.0](https://github.com/lightdash/lightdash/compare/3.360.0...3.361.0) (2026-11-21)
 
 
