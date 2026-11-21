@@ -76,7 +76,12 @@ a.row:hover, .row.case:hover { background: var(--hover); }
 .tag { font-size: 12px; line-height: 20px; padding: 0 7px; border-radius: 4px; background: var(--raised); color: var(--text-2); }
 .tag.warn { color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); }
 
-.callout { display: flex; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-left: 2px solid var(--brand); border-radius: 8px; background: var(--surface); margin-bottom: 16px; }
+.verdict { padding: 18px 20px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); margin-bottom: 20px; }
+.verdict .k { font-size: 11px; font-weight: 500; color: var(--text-3); margin-bottom: 6px; }
+.verdict .headline { font-size: 14px; font-weight: 500; margin-bottom: 10px; }
+.verdict ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.verdict li { position: relative; padding-left: 14px; font-size: 12.5px; line-height: 1.6; color: var(--text-2); max-width: 68ch; }
+.verdict li::before { content: ''; position: absolute; left: 2px; top: 9px; width: 4px; height: 4px; border-radius: 50%; background: var(--text-3); }
 
 .cases .row { grid-template-columns: 112px minmax(0, 1fr); }
 .cases.results .row { grid-template-columns: 112px minmax(0, 1fr) 150px; }
@@ -272,6 +277,10 @@ const explorer = (explores) => {
   </div>`;
 };
 
+const verdictBlock = (verdict) => {
+  const [headline, ...points] = verdict.split(/(?<=\.)\s+(?=[A-Z])/);
+  return `<div class="verdict"><div class="k">Verdict</div><div class="headline">${esc(headline)}</div>${points.length ? `<ul>${points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}</div>`;
+};
 const FILTERS = (i) => [['all', 'All'], ...(i.results ? [['tried', 'Tried']] : []), ['possible', 'Possible'], ['not', 'Not possible']];
 const state = { filter: data.mode === 'test' ? 'tried' : 'all', explore: 0, field: null, expanded: new Set([0]) };
 
@@ -285,7 +294,7 @@ const detail = (i) => {
   <div class="subtitle" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
     ${chip(`Level ${i.level.value}`)} ${chip(`${share.yes} of ${share.total} possible`)} ${i.results ? tally(i.results) : ''}
   </div>
-  ${i.verdict ? `<div class="callout"><span class="t3" style="font-weight:500">Verdict</span><span>${esc(i.verdict)}</span></div>` : ''}
+  ${i.verdict ? verdictBlock(i.verdict) : ''}
   <div class="props">
     <div class="prop"><div class="k">Level <span class="mono">${i.level.value}/5</span></div><div class="v">${esc(i.level.description)}</div></div>
     <div class="prop auth"><div class="k">Auth <span class="status">${dot(RATING_COLOR[i.authScore.rating])}${esc(i.authScore.rating)}</span></div>${authValue(i.auth)}</div>

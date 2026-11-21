@@ -28,7 +28,7 @@ Decide whether a tool we don't have yet is worth an integration, and how hard it
 1. Read the vendor's API docs: what it answers by itself, how you get in, how it pages, and its rate limits. Read two or three existing specs for the bar.
 2. Write the use cases a customer would expect, and mark each `possible` for the integration you'd build.
 3. Sketch the explores it would offer: for each, `name`, `label`, a one-line `description`, and the `dimensions` and `metrics` the API returns natively (`{ name, description? }`). Group fields the way the API groups its reports or objects; leave out anything we would have to compute.
-4. Write a page with one integration, `mode: "assess"`. The spec fields are as you'd write them, `name` is the would-be connector id, `verdict` is the go/no-go and its main reason in a sentence or two, and `explores` is the sketch from step 3.
+4. Write a page with one integration, `mode: "assess"`. The spec fields are as you'd write them, `name` is the would-be connector id, `verdict` is a short go/no-go sentence followed by two to four short sentences, one point each (the page shows the first as a headline and the rest as bullets), and `explores` is the sketch from step 3.
 5. Run `hydra.sh render <page.json>`.
 
 ## test <integration>
