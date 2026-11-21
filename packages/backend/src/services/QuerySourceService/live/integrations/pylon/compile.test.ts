@@ -152,11 +152,7 @@ describe('compilePylonQuery issues', () => {
                         'Example Co',
                     ]),
                     rule(issue('assignee_email'), FilterOperator.NULL, [true]),
-                    rule(
-                        issue('first_response_minutes'),
-                        FilterOperator.GREATER_THAN,
-                        [90],
-                    ),
+                    rule(issue('touches'), FilterOperator.GREATER_THAN, [2]),
                     rule(issue('updated_at'), FilterOperator.IN_THE_PAST, [7], {
                         unitOfTime: UnitOfTime.days,
                         completed: false,
@@ -191,14 +187,60 @@ describe('compilePylonQuery issues', () => {
             { field: 'account_name', operator: 'in', values: ['Example Co'] },
             { field: 'assignee_id', operator: 'is_unset' },
             {
-                field: 'time_to_first_response',
+                field: 'number_of_touches',
                 operator: 'greater_than',
-                value: '5400',
+                value: '2',
             },
             {
                 field: 'updated_at',
                 operator: 'time_range',
                 values: ['2026-11-10T00:00:00Z', '2026-11-18T00:00:00Z'],
+            },
+        ]);
+    });
+
+    it('sends null checks on account and assignee, which have no values', () => {
+        const { request } = compile(
+            ISSUES,
+            query('pylon_issues', {
+                dimensions: [issue('number')],
+                filters: filters(
+                    rule(issue('account_id'), FilterOperator.NULL, []),
+                    rule(issue('assignee_email'), FilterOperator.NOT_NULL, []),
+                ),
+            }),
+        );
+        expect(request.filters).toEqual([
+            LAST_30_DAYS,
+            { field: 'account_id', operator: 'is_unset' },
+            { field: 'assignee_id', operator: 'is_set' },
+        ]);
+        expect(request.localFilters).toEqual([
+            { column: 'account_id', operator: 'is_null' },
+            { column: 'assignee_id', operator: 'is_not_null' },
+        ]);
+    });
+
+    it('filters first response here, on the minutes the column reports', () => {
+        const { request } = compile(
+            ISSUES,
+            query('pylon_issues', {
+                dimensions: [issue('number')],
+                filters: filters(
+                    rule(
+                        issue('first_response_minutes'),
+                        FilterOperator.GREATER_THAN,
+                        [90],
+                    ),
+                ),
+            }),
+        );
+        expect(request.filters).toEqual([LAST_30_DAYS]);
+        expect(request.localFilters).toEqual([
+            {
+                column: 'first_response_minutes',
+                operator: 'greater_than',
+                value: 90,
             },
         ]);
     });

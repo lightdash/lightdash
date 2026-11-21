@@ -1,5 +1,6 @@
 import {
     ApiConnectorType,
+    assertUnreachable,
     DimensionType,
     PYLON_ACCOUNTS_SEARCH_PATH,
     PYLON_CONTACTS_SEARCH_PATH,
@@ -140,6 +141,25 @@ const groupSchema = z
     })
     .strict();
 
+/** A filter applied here on the rows read, where Pylon's search can't be trusted. */
+const localFilterSchema = z.union([
+    z
+        .object({
+            column: z.literal('first_response_minutes'),
+            operator: z.enum(['greater_than', 'less_than']),
+            value: z.number(),
+        })
+        .strict(),
+    z
+        .object({
+            column: z.enum(['account_id', 'assignee_id']),
+            operator: z.enum(['is_null', 'is_not_null']),
+        })
+        .strict(),
+]);
+
+export type PylonLocalFilter = z.infer<typeof localFilterSchema>;
+
 export type PylonFilterLeaf = z.infer<typeof leafSchema>;
 export type PylonFilter = PylonFilterLeaf | z.infer<typeof groupSchema>;
 
@@ -150,6 +170,8 @@ export const pylonRequestSchema = z
         /** ANDed; Pylon's own search filters, plus the lookup fields. */
         filters: z.array(z.union([leafSchema, groupSchema])),
         columns: z.array(z.string()).min(1, 'Ask for at least one column'),
+        /** ANDed; applied to the rows read, which are then read up to the cap. */
+        localFilters: z.array(localFilterSchema).optional(),
         sort: z
             .object({
                 field: z.string(),
@@ -171,6 +193,13 @@ export const pylonRequestSchema = z
                 });
             }
         });
+        if (request.localFilters?.length && request.kind !== 'issues') {
+            context.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['localFilters'],
+                message: 'Only issues take local filters',
+            });
+        }
         if (
             request.sort &&
             !allowed(SORT_FIELDS[request.kind], request.sort.field)
@@ -620,6 +649,31 @@ const toColumns = (names: string[]): LiveColumn[] =>
         };
     });
 
+/** Whether an issue passes a local filter; a missing number never matches, as in SQL. */
+const matchesLocalFilter = (issue: PylonIssue, filter: PylonLocalFilter) => {
+    switch (filter.column) {
+        case 'first_response_minutes': {
+            const value = readIssueColumn(issue, filter.column, {
+                accounts: new Map(),
+                users: new Map(),
+            });
+            if (typeof value !== 'number') return false;
+            return filter.operator === 'greater_than'
+                ? value > filter.value
+                : value < filter.value;
+        }
+        case 'account_id':
+        case 'assignee_id': {
+            const ref =
+                filter.column === 'account_id' ? issue.account : issue.assignee;
+            const isNull = !ref?.id;
+            return filter.operator === 'is_null' ? isNull : !isNull;
+        }
+        default:
+            return assertUnreachable(filter, 'Unknown Pylon local filter');
+    }
+};
+
 /** Runs one Pylon request: one search, paged by cursor. */
 export const runPylonQuery = async ({
     request,
@@ -630,31 +684,45 @@ export const runPylonQuery = async ({
     PylonRequest
 >): Promise<LiveRunResult> => {
     assertMaxRows(limit, PYLON_MAX_QUERY_ROWS);
-    const { kind, columns, sort } = request;
+    const { kind, columns, sort, localFilters = [] } = request;
     const resultColumns = toColumns(columns);
     const filters = await resolveLookups(request.filters, calls);
     if (!filters) {
         return { columns: resultColumns, rows: [], hasMoreRows: false };
     }
-    const { rows: records, hasMoreRows } = await readRowsWithinCap({
-        label: LABEL,
-        requestedRows: limit,
-        maxRows: PYLON_MAX_QUERY_ROWS,
-        pageSize: Math.min(PAGE_SIZE, limit + 1),
-        maxPages: MAX_PAGES,
-        fetchPage: async ({ limit: pageLimit, cursor }) => {
-            const page = await searchPage({
-                calls,
-                kind,
-                filters,
-                sort,
-                limit: pageLimit,
-                cursor,
-            });
-            return { rows: page.records, nextCursor: page.nextCursor };
-        },
-    });
-    const typedRecords = records as PylonRecord[];
+    // Rows filtered here are read up to the cap, so the limit counts kept rows
+    const rowsToRead = localFilters.length > 0 ? PYLON_MAX_QUERY_ROWS : limit;
+    const { rows: readRecords, hasMoreRows: hasMoreRead } =
+        await readRowsWithinCap({
+            label: LABEL,
+            requestedRows: rowsToRead,
+            maxRows: PYLON_MAX_QUERY_ROWS,
+            pageSize: Math.min(PAGE_SIZE, rowsToRead + 1),
+            maxPages: MAX_PAGES,
+            fetchPage: async ({ limit: pageLimit, cursor }) => {
+                const page = await searchPage({
+                    calls,
+                    kind,
+                    filters,
+                    sort,
+                    limit: pageLimit,
+                    cursor,
+                });
+                return { rows: page.records, nextCursor: page.nextCursor };
+            },
+        });
+    // Matches past the rows read would be missed, so the filter needs them all
+    if (localFilters.length > 0 && hasMoreRead) {
+        throw tooManyRowsError({ label: LABEL, maxRows: PYLON_MAX_QUERY_ROWS });
+    }
+    const keptRecords = (readRecords as PylonRecord[]).filter((record) =>
+        localFilters.every((filter) =>
+            matchesLocalFilter(record as PylonIssue, filter),
+        ),
+    );
+    const typedRecords = keptRecords.slice(0, limit);
+    const hasMoreRows =
+        localFilters.length > 0 ? keptRecords.length > limit : hasMoreRead;
     const names = await readNames(calls, typedRecords, columns);
     return {
         columns: resultColumns,
