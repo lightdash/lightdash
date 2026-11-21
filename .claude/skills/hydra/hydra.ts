@@ -24,6 +24,14 @@ type PageIntegration = Pick<
     label: string;
     /** assess: the go/no-go in a sentence or two. */
     verdict?: string;
+    /** assess: the explores the integration would offer, from what the API returns natively. */
+    explores?: {
+        name: string;
+        label: string;
+        description?: string;
+        dimensions: { name: string; description?: string }[];
+        metrics: { name: string; description?: string }[];
+    }[];
     /** assess: the definition block to paste into the new integration. */
     snippet?: string;
     /** test: what each tried case did, by use case id. */
