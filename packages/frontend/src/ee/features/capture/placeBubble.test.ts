@@ -104,6 +104,17 @@ describe('besideMarks', () => {
         ).toEqual({ x: 512, y: 300 });
     });
 
+    it('with another bubble on every side, it takes the side that covers least of it', () => {
+        const at = place([new DOMRect(400, 300, 100, 100)], {
+            avoid: [
+                new DOMRect(500, 250, 300, 150),
+                new DOMRect(0, 250, 400, 150),
+                new DOMRect(380, 400, 40, 30),
+            ],
+        });
+        expect(at).toEqual({ x: 400, y: 412 });
+    });
+
     it('covers as little of its marks as it can when no side is clear', () => {
         const at = place([new DOMRect(0, 0, 700, 600)]);
         expect(at.x).toBe(584);

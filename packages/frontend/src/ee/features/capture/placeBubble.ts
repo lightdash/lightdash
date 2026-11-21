@@ -69,7 +69,7 @@ const sidesOf = (rect: DOMRect, size: Size): Position[] => [
  * Where a bubble's top left goes so it sits beside its own marks: where it is
  * while that is still beside them, else right, left, below or above all of
  * them, else beside the newest. A side that is off its marks and off `avoid`
- * wins; covering `avoid` comes before covering its own marks.
+ * wins; covering a little of `avoid` comes before covering its own marks.
  */
 export const besideMarks = ({
     marks,
@@ -113,10 +113,14 @@ export const besideMarks = ({
         onOthers: covered(rectAt(at), avoid),
     }));
     const offMarks = places.filter((place) => place.onMarks === 0);
-    const free = offMarks.find((place) => place.onOthers === 0);
-    if (free) return free.at;
-    if (offMarks.length > 0) return offMarks[0].at;
-    return places.reduce((best, place) =>
-        place.onMarks < best.onMarks ? place : best,
+    // The first that covers least: of the others when one is off its marks.
+    return (offMarks.length > 0 ? offMarks : places).reduce((best, place) =>
+        (
+            offMarks.length > 0
+                ? place.onOthers < best.onOthers
+                : place.onMarks < best.onMarks
+        )
+            ? place
+            : best,
     ).at;
 };
