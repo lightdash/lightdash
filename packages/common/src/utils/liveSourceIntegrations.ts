@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+    SALESFORCE_OBJECTS,
     type ApiSourceOf,
     type ExternalConnectionApiSource,
 } from '../ee/externalConnections/types';
@@ -10,7 +11,8 @@ export type LiveSourceSetupKind =
     | 'google'
     | 'posthog'
     | 'token'
-    | 'linkedin_ads';
+    | 'linkedin_ads'
+    | 'salesforce';
 
 type LiveIntegrationCatalogFields<C extends ApiConnectorType> = {
     /** Stable id, sent with analytics events. */
@@ -184,6 +186,20 @@ export const LIVE_INTEGRATION_CATALOG: {
         }),
         getTarget: () => 'HubSpot account',
     },
+    [ApiConnectorType.SALESFORCE]: {
+        id: 'salesforce',
+        label: 'Salesforce',
+        messageLabel: 'Salesforce',
+        agentLabel: 'Salesforce',
+        description:
+            'Opportunities, accounts, leads or contacts, totalled by Salesforce with SOQL',
+        setup: 'salesforce',
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.SALESFORCE),
+            object: z.enum(SALESFORCE_OBJECTS),
+        }),
+        getTarget: ({ object }) => object,
+    },
 };
 
 /** One integration's catalog entry, for a source of any connector. */
@@ -225,11 +241,6 @@ export const REQUESTABLE_LIVE_INTEGRATIONS = [
         id: 'stripe',
         label: 'Stripe',
         description: 'Payments, subscriptions and revenue',
-    },
-    {
-        id: 'salesforce',
-        label: 'Salesforce',
-        description: 'Accounts, opportunities and pipeline with SOQL',
     },
     {
         id: 'mixpanel',

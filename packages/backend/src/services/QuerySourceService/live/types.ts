@@ -32,6 +32,12 @@ export type LiveIntegration<
     settings: z.ZodType<ApiSourceOf<C>>;
     /** The hosts a source may call; several when the API has regions. */
     origins: readonly [string, ...string[]];
+    /**
+     * For APIs on a host of each customer's own (a Salesforce My Domain):
+     * whether a source may call `origin`. `origins` then only names the
+     * shape in errors.
+     */
+    acceptsOrigin?: (origin: string) => boolean;
     /** What a source may call on its origin, whatever its stored connection says. */
     access: (settings: ApiSourceOf<C>) => {
         pathPrefixes: string[];
@@ -201,4 +207,6 @@ export type LiveScanResult = {
     attioAttributes?: unknown;
     /** HubSpot's property list for the source's object, as it returns it. */
     hubspotProperties?: unknown;
+    /** Salesforce's describe of the source's object, as it returns it. */
+    salesforceDescribe?: unknown;
 };

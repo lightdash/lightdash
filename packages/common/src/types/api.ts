@@ -892,6 +892,7 @@ export type HealthState = {
     hasLinear: boolean;
     hasPostHogOAuth: boolean;
     hasLinkedInAdsOAuth: boolean;
+    hasSalesforceOAuth: boolean;
     hasGoogleLiveSources: boolean;
     hasHeadlessBrowser: boolean;
     hasManagedAnalytics?: boolean;

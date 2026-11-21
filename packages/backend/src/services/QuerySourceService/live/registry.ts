@@ -12,6 +12,7 @@ import { linkedInAdsIntegration } from './integrations/linkedInAds';
 import { metaAdsIntegration } from './integrations/metaAds';
 import { postHogIntegration } from './integrations/postHog';
 import { pylonIntegration } from './integrations/pylon';
+import { salesforceIntegration } from './integrations/salesforce';
 import { searchConsoleIntegration } from './integrations/searchConsole';
 import { youtubeAnalyticsIntegration } from './integrations/youtubeAnalytics';
 import { type LiveIntegration } from './types';
@@ -31,6 +32,7 @@ const LIVE_INTEGRATIONS: {
     [ApiConnectorType.PYLON]: pylonIntegration,
     [ApiConnectorType.ATTIO]: attioIntegration,
     [ApiConnectorType.HUBSPOT]: hubspotIntegration,
+    [ApiConnectorType.SALESFORCE]: salesforceIntegration,
 };
 
 export const getLiveIntegration = (

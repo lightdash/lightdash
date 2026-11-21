@@ -34,14 +34,15 @@ type Props = {
     projectUuid: string;
     canUseGoogle: boolean;
     canUseLinkedInAds: boolean;
+    canUseSalesforce: boolean;
     onPick: (connector: ApiConnectorType) => void;
 };
 
 const toRequestableUnlessConnectable = (
     entry: LiveSourceCatalogEntry,
+    unconnectable: ReadonlySet<ApiConnectorType>,
 ): LiveSourceCatalogEntry =>
-    isAvailableLiveSource(entry) &&
-    entry.connector === ApiConnectorType.LINKEDIN_ADS
+    isAvailableLiveSource(entry) && unconnectable.has(entry.connector)
         ? {
               id: entry.id,
               status: 'requestable',
@@ -71,6 +72,7 @@ export const AddLiveSourceModal: FC<Props> = ({
     projectUuid,
     canUseGoogle,
     canUseLinkedInAds,
+    canUseSalesforce,
     onPick,
 }) => {
     const { user } = useApp();
@@ -83,10 +85,15 @@ export const AddLiveSourceModal: FC<Props> = ({
             canUseGoogle ||
             !isGoogleConnector(entry.connector),
     );
-    // LinkedIn needs a client most servers won't have, so it stays requestable
-    const shownEntries = canUseLinkedInAds
-        ? entries
-        : entries.map(toRequestableUnlessConnectable);
+    // LinkedIn and Salesforce need an app most servers won't have, so they
+    // stay requestable until the server has one
+    const unconnectable = new Set<ApiConnectorType>([
+        ...(canUseLinkedInAds ? [] : [ApiConnectorType.LINKEDIN_ADS]),
+        ...(canUseSalesforce ? [] : [ApiConnectorType.SALESFORCE]),
+    ]);
+    const shownEntries = entries.map((entry) =>
+        toRequestableUnlessConnectable(entry, unconnectable),
+    );
     const orderedEntries = [
         ...shownEntries.filter(isAvailableLiveSource),
         ...shownEntries.filter((entry) => !isAvailableLiveSource(entry)),

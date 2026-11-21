@@ -31,6 +31,8 @@ import {
 } from '../../externalConnections/liveSources/postHogConnection';
 import { PostHogConnectionModal } from '../../externalConnections/liveSources/PostHogConnectionModal';
 import { ReattachLiveSourceModal } from '../../externalConnections/liveSources/ReattachLiveSourceModal';
+import { getSalesforceSignInUrl } from '../../externalConnections/liveSources/salesforceConnection';
+import { SalesforceConnectionModal } from '../../externalConnections/liveSources/SalesforceConnectionModal';
 import { TokenLiveSourceModal } from '../../externalConnections/liveSources/TokenLiveSourceModal';
 import { useLiveSourceSignInResult } from '../../externalConnections/liveSources/useLiveSourceSignInResult';
 import { getSemanticStudioSourceUrl } from '../urls';
@@ -123,6 +125,7 @@ export const LiveSourceManager: FC<{
     const canSignIn = health?.hasPostHogOAuth ?? false;
     const canUseGoogle = health?.hasGoogleLiveSources ?? false;
     const canUseLinkedInAds = health?.hasLinkedInAdsOAuth ?? false;
+    const canUseSalesforce = health?.hasSalesforceOAuth ?? false;
 
     const actions = useMemo(
         (): LiveSourceActions => ({
@@ -188,12 +191,36 @@ export const LiveSourceManager: FC<{
                                   )
                             : null;
                     }
+                    case 'salesforce': {
+                        const { apiSource } = connection;
+                        return canUseSalesforce &&
+                            apiSource.connector === ApiConnectorType.SALESFORCE
+                            ? () =>
+                                  window.location.assign(
+                                      getSalesforceSignInUrl(
+                                          projectUuid,
+                                          {
+                                              name: connection.name,
+                                              object: apiSource.object,
+                                          },
+                                          connection.externalConnectionUuid,
+                                          'settings',
+                                      ),
+                                  )
+                            : null;
+                    }
                     default:
                         return assertUnreachable(setup, 'Unknown source setup');
                 }
             },
         }),
-        [projectUuid, canSignIn, canUseGoogle, canUseLinkedInAds],
+        [
+            projectUuid,
+            canSignIn,
+            canUseGoogle,
+            canUseLinkedInAds,
+            canUseSalesforce,
+        ],
     );
 
     if (!enabled) return <>{children}</>;
@@ -208,6 +235,7 @@ export const LiveSourceManager: FC<{
                 canSignIn={canSignIn}
                 canUseGoogle={canUseGoogle}
                 canUseLinkedInAds={canUseLinkedInAds}
+                canUseSalesforce={canUseSalesforce}
                 onRemoved={onRemoved}
             />
         </LiveSourceActionsContext.Provider>
@@ -272,6 +300,15 @@ const LiveSourceConnectDialog: FC<{
                     connection={connection}
                 />
             );
+        case 'salesforce':
+            return (
+                <SalesforceConnectionModal
+                    opened
+                    onClose={onClose}
+                    projectUuid={projectUuid}
+                    connection={connection}
+                />
+            );
         default:
             return assertUnreachable(setup, 'Unknown source setup');
     }
@@ -285,6 +322,7 @@ const LiveSourceDialogs: FC<{
     canSignIn: boolean;
     canUseGoogle: boolean;
     canUseLinkedInAds: boolean;
+    canUseSalesforce: boolean;
     onRemoved: () => void;
 }> = ({
     projectUuid,
@@ -294,6 +332,7 @@ const LiveSourceDialogs: FC<{
     canSignIn,
     canUseGoogle,
     canUseLinkedInAds,
+    canUseSalesforce,
     onRemoved,
 }) => {
     const navigate = useNavigate();
@@ -331,6 +370,7 @@ const LiveSourceDialogs: FC<{
                 projectUuid={projectUuid}
                 canUseGoogle={canUseGoogle}
                 canUseLinkedInAds={canUseLinkedInAds}
+                canUseSalesforce={canUseSalesforce}
                 onPick={(picked) =>
                     setDialog({ kind: 'create', connector: picked })
                 }
