@@ -5,7 +5,8 @@
     gap: 6px;
     height: 32px;
     padding: 0 10px 0 3px;
-    border-radius: inherit;
+    /* The hover fill follows the pill's own rounded ends. */
+    border-radius: 999px;
     color: var(--mantine-color-text);
     white-space: nowrap;
     cursor: pointer;
