@@ -91,15 +91,26 @@ a.row:hover, .row.case:hover { background: var(--hover); }
 .tabs button.on { background: var(--raised); color: var(--text); }
 .btn { font: inherit; font-size: 12px; color: var(--text-2); background: var(--surface); border: 1px solid var(--line-2); border-radius: 6px; padding: 2px 10px; cursor: pointer; }
 .btn:hover { color: var(--text); background: var(--hover); }
-.explore { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); margin-bottom: 8px; overflow: hidden; }
-.explore-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
-.explore-head .t2 { flex-basis: 100%; font-size: 12px; }
-.explore-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.fields { padding: 10px 14px; }
-.fields + .fields { border-left: 1px solid var(--line); }
-.fields .kk { margin-bottom: 6px; }
-.field { display: flex; flex-wrap: wrap; gap: 0 8px; align-items: baseline; padding: 3px 0; }
-.field .t3 { font-size: 12px; }
+.explorer { display: grid; grid-template-columns: 240px minmax(0, 1fr); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; min-height: 280px; }
+.rail { border-right: 1px solid var(--line); padding: 6px; overflow-y: auto; max-height: 520px; }
+.node { display: flex; align-items: center; gap: 6px; width: 100%; height: 28px; padding: 0 8px; border: 0; border-radius: 6px; background: none; color: var(--text-2); font: inherit; text-align: left; cursor: pointer; }
+.node:hover { background: var(--hover); }
+.node.on { background: var(--raised); color: var(--text); }
+.node .grow { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.node.leaf { padding-left: 30px; height: 26px; font-size: 12px; }
+.chev { width: 14px; height: 14px; flex: none; color: var(--text-3); transition: none; }
+.chev.open { transform: rotate(90deg); }
+.ficon { width: 14px; height: 14px; flex: none; }
+.ficon.dim { color: var(--blue); } .ficon.met { color: var(--amber); } .ficon.tbl { color: var(--text-3); }
+.pane { padding: 16px 18px; overflow: hidden; }
+.pane-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 4px; }
+.pane-head .name { font-size: 15px; font-weight: 600; }
+.pane .desc { color: var(--text-2); margin-bottom: 14px; }
+.ftable { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-bottom: 14px; }
+.ftable .fhead { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 11px; font-weight: 500; color: var(--text-3); background: var(--raised); }
+.frow { display: grid; grid-template-columns: 14px minmax(140px, 0.9fr) minmax(0, 1.4fr); gap: 10px; align-items: center; min-height: 32px; padding: 6px 12px; border-top: 1px solid var(--line); }
+.frow.on { background: color-mix(in srgb, var(--blue) 10%, transparent); }
+.frow .t3 { font-size: 12px; }
 pre { margin: 0 0 8px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow-x: auto; font: 12px/1.6 var(--mono); }
 
 @media (max-width: 800px) {
@@ -110,8 +121,10 @@ pre { margin: 0 0 8px; padding: 14px; border: 1px solid var(--line); border-radi
   .props > .prop, .props > .prop.auth { grid-column: 1; grid-row: auto; }
   .overview .row { grid-template-columns: minmax(0, 1fr) 48px 96px; }
   .overview .row > :nth-child(n+4) { display: none; }
-  .explore-body { grid-template-columns: minmax(0, 1fr); }
-  .fields + .fields { border-left: 0; border-top: 1px solid var(--line); }
+  .explorer { grid-template-columns: minmax(0, 1fr); }
+  .rail { border-right: 0; border-bottom: 1px solid var(--line); max-height: 240px; }
+  .frow { grid-template-columns: 14px minmax(0, 1fr); }
+  .frow > :last-child { grid-column: 2; }
   .cases .row, .cases.results .row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 }
 </style>
@@ -229,17 +242,38 @@ const tally = (results) => {
   return Object.entries(counts).map(([outcome, n]) => chip(`${n} ${words(outcome)}`, OUTCOME_COLOR[outcome])).join(' ');
 };
 
-const fieldList = (title, fields) => `<div class="fields">
-  <div class="kk">${title} <span class="mono">${fields.length}</span></div>
-  ${fields.length ? fields.map((f) => `<div class="field"><span class="mono">${esc(f.name)}</span>${f.description ? `<span class="t3">${esc(f.description)}</span>` : ''}</div>`).join('') : '<div class="t3">None</div>'}
+const ICON = {
+  chev: '<svg class="chev{open}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>',
+  tbl: '<svg class="ficon tbl" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 6.5h12M6.5 6.5V13"/></svg>',
+  dim: '<svg class="ficon dim" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 12.5L5.8 4h.4L9 12.5M3.9 10h4.2"/><path d="M10.5 8.2c.5-.6 1.1-.9 1.9-.9 1.1 0 1.6.6 1.6 1.6v3.6M14 10.2c-.5-.3-1.1-.4-1.7-.4-1.1 0-1.8.6-1.8 1.4 0 .8.6 1.3 1.5 1.3.8 0 1.5-.4 2-1"/></svg>',
+  met: '<svg class="ficon met" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 2.5L4.5 13.5M11.5 2.5L10 13.5M2.5 6h11M2 10.5h11"/></svg>',
+};
+const fieldsOf = (e) => [...e.dimensions.map((f) => ({ ...f, kind: 'dim' })), ...e.metrics.map((f) => ({ ...f, kind: 'met' }))];
+const fieldTable = (title, kind, fields) => `<div class="ftable">
+  <div class="fhead">${ICON[kind]}${title} <span class="mono">${fields.length}</span></div>
+  ${fields.length ? fields.map((f) => `<div class="frow ${state.field === f.name ? 'on' : ''}">${ICON[kind]}<span class="mono">${esc(f.name)}</span><span class="t3">${esc(f.description ?? '')}</span></div>`).join('') : '<div class="frow"><span></span><span class="t3">None</span></div>'}
 </div>`;
-const exploreCard = (e) => `<div class="explore">
-  <div class="explore-head"><span class="name">${esc(e.label)}</span><span class="mono t3">${esc(e.name)}</span>${e.description ? `<span class="t2">${esc(e.description)}</span>` : ''}</div>
-  <div class="explore-body">${fieldList('Dimensions', e.dimensions)}${fieldList('Metrics', e.metrics)}</div>
-</div>`;
+const explorer = (explores) => {
+  const selected = explores[state.explore] ?? explores[0];
+  return `<div class="explorer">
+    <div class="rail">${explores.map((e, index) => {
+      const open = state.expanded.has(index);
+      return `<button class="node ${index === state.explore && !state.field ? 'on' : ''}" data-explore="${index}">
+          ${ICON.chev.replace('{open}', open ? ' open' : '')}${ICON.tbl}<span class="grow">${esc(e.label)}</span><span class="mono t3">${fieldsOf(e).length}</span>
+        </button>
+        ${open ? fieldsOf(e).map((f) => `<button class="node leaf ${index === state.explore && state.field === f.name ? 'on' : ''}" data-explore="${index}" data-field="${esc(f.name)}">${ICON[f.kind]}<span class="grow mono">${esc(f.name)}</span></button>`).join('') : ''}`;
+    }).join('')}</div>
+    <div class="pane">
+      <div class="pane-head"><span class="name">${esc(selected.label)}</span><span class="mono t3">${esc(selected.name)}</span></div>
+      ${selected.description ? `<div class="desc">${esc(selected.description)}</div>` : ''}
+      ${fieldTable('Dimensions', 'dim', selected.dimensions)}
+      ${fieldTable('Metrics', 'met', selected.metrics)}
+    </div>
+  </div>`;
+};
 
 const FILTERS = (i) => [['all', 'All'], ...(i.results ? [['tried', 'Tried']] : []), ['possible', 'Possible'], ['not', 'Not possible']];
-const state = { filter: data.mode === 'test' ? 'tried' : 'all', snippet: false };
+const state = { filter: data.mode === 'test' ? 'tried' : 'all', snippet: false, explore: 0, field: null, expanded: new Set([0]) };
 
 const detail = (i) => {
   const share = possibleShare(i.useCases);
@@ -258,7 +292,7 @@ const detail = (i) => {
     <div class="prop"><div class="k">Paging</div><div class="v">${esc(i.paging.description)}</div></div>
     <div class="prop"><div class="k">Rate limiting</div><div class="v">${esc(i.rateLimiting.description)}</div></div>
   </div>
-  ${i.explores?.length ? `<h2>Explores <span class="t3" style="font-weight:400">${i.explores.length}</span></h2>${i.explores.map(exploreCard).join('')}` : ''}
+  ${i.explores?.length ? `<h2>Explores <span class="t3" style="font-weight:400">${i.explores.length}</span></h2>${explorer(i.explores)}` : ''}
   ${i.snippet ? `<h2>Definition <button class="btn" data-action="snippet">${state.snippet ? 'Hide' : 'Show'}</button></h2>${state.snippet ? `<pre>${esc(i.snippet)}</pre>` : ''}` : ''}
   <h2>Use cases
     <span class="tabs">${FILTERS(i).map(([key, label]) => `<button data-filter="${key}" class="${state.filter === key ? 'on' : ''}">${label}</button>`).join('')}</span>
@@ -303,6 +337,16 @@ window.addEventListener('hashchange', () => {
 app.addEventListener('click', (event) => {
   const target = event.target.closest('button');
   if (!target) return;
+  if (target.dataset.explore !== undefined) {
+    const index = Number(target.dataset.explore);
+    const field = target.dataset.field ?? null;
+    if (!field) {
+      if (state.explore === index && !state.field && state.expanded.has(index)) state.expanded.delete(index);
+      else state.expanded.add(index);
+    }
+    state.explore = index;
+    state.field = field;
+  }
   if (target.dataset.filter) state.filter = target.dataset.filter;
   if (target.dataset.action === 'snippet') state.snippet = !state.snippet;
   render();
