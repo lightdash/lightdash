@@ -226,12 +226,12 @@ const detail = (i) => {
     <span class="mono t3">${esc(i.name)}</span>
   </div>
   <div class="subtitle" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-    ${chip(`Level ${i.level.value}`)} ${authChip(i)} ${chip(`${share.yes} of ${share.total} possible`)} ${i.results ? tally(i.results) : ''}
+    ${chip(`Level ${i.level.value}`)} ${chip(`${share.yes} of ${share.total} possible`)} ${i.results ? tally(i.results) : ''}
   </div>
   ${i.verdict ? `<div class="callout"><span class="t3" style="font-weight:500">Verdict</span><span>${esc(i.verdict)}</span></div>` : ''}
   <div class="props">
     <div class="prop"><div class="k">Level <span class="mono">${i.level.value}/5</span></div><div class="v">${esc(i.level.description)}</div></div>
-    <div class="prop"><div class="k">Auth</div>${authValue(i.auth)}</div>
+    <div class="prop"><div class="k">Auth <span class="status">${dot(RATING_COLOR[i.authScore.rating])}${esc(i.authScore.rating)} to get access</span></div>${authValue(i.auth)}</div>
     <div class="prop"><div class="k">Paging</div><div class="v">${esc(i.paging.description)}</div></div>
     <div class="prop"><div class="k">Rate limiting</div><div class="v">${esc(i.rateLimiting.description)}</div></div>
   </div>
