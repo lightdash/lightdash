@@ -137,7 +137,7 @@ const coverage = (useCases) => {
   const { yes, total, pct } = possibleShare(useCases);
   return `<span style="display:flex;align-items:center;gap:8px"><span class="bar"><i style="width:${pct}%"></i></span><span class="mono t2">${yes}/${total}</span></span>`;
 };
-const authChip = (i) => chip(`${i.authScore.score}/7 ${i.authScore.rating}`, RATING_COLOR[i.authScore.rating]);
+const authChip = (i) => chip(i.authScore.rating, RATING_COLOR[i.authScore.rating]);
 
 const overview = (integrations) => `
   <h1>${esc(data.title)}</h1>
