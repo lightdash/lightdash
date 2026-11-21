@@ -95,7 +95,6 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'AiRouterController.getConfig',
     'AiRouterController.getInstruction',
     'AiRouterController.listDecisions',
-    'AiRouterController.routeCapture',
     'AiRouterController.upsertConfig',
     'AiRouterController.upsertInstruction',
     'AiServiceAccountController.delete',

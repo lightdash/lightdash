@@ -11,6 +11,8 @@ const mark = (
     imageIndex: 0,
     strokes: [],
     shape: 'circle',
+    tool: 'stylus',
+    tabName: null,
     box: { x: 0.7, y: 0.05, width: 0.2, height: 0.2 },
     arrow: null,
     target: null,
@@ -40,6 +42,59 @@ describe('describePosition', () => {
 });
 
 describe('buildSummary', () => {
+    it('lists marks that have no image under their own heading', () => {
+        const out = buildSummary({
+            durationMs: 9000,
+            imageCount: 2,
+            marks: [
+                mark({ number: 1, startMs: 1000, endMs: 1500 }),
+                mark({ number: 2, startMs: 3000, endMs: 3500, imageIndex: 1 }),
+                mark({
+                    number: 3,
+                    startMs: 5000,
+                    endMs: 5500,
+                    imageIndex: 2,
+                    target: {
+                        kind: 'tile',
+                        id: 't',
+                        label: 'Revenue',
+                        parentId: null,
+                    },
+                }),
+                mark({ number: 4, startMs: 7000, endMs: 7500, imageIndex: 1 }),
+            ],
+            transcript: [],
+        });
+        expect(out.split('\n').slice(1)).toEqual([
+            'Image 1:',
+            '- ① (0:01) circled, top right',
+            'Image 2 (after scrolling or clicking):',
+            '- ② (0:03) circled, top right',
+            'Not shown in an image:',
+            '- ③ (0:05) circled, top right on Revenue',
+            'Image 2 (after scrolling or clicking):',
+            '- ④ (0:07) circled, top right',
+        ]);
+        expect(out).not.toContain('Image 3');
+    });
+
+    it('with one image, a mark past it is still set apart', () => {
+        const out = buildSummary({
+            durationMs: 9000,
+            imageCount: 1,
+            marks: [
+                mark({ number: 1, startMs: 1000, endMs: 1500 }),
+                mark({ number: 2, startMs: 3000, endMs: 3500, imageIndex: 1 }),
+            ],
+            transcript: [],
+        });
+        expect(out.split('\n').slice(1)).toEqual([
+            '- ① (0:01) circled, top right',
+            'Not shown in an image:',
+            '- ② (0:03) circled, top right',
+        ]);
+    });
+
     it('formats the two-image example from the spec', () => {
         const out = buildSummary({
             durationMs: 19000,
@@ -74,7 +129,7 @@ describe('buildSummary', () => {
         });
         expect(out).toBe(
             [
-                '[Voice Design capture, 0:19. The 2 attached images show the page with numbered red marks, in order.]',
+                '[Design Mode capture, 0:19. The 2 attached images show the page with numbered red marks, in order.]',
                 'Image 1:',
                 '- ① (0:02) circled, top right: "this chart should be a line chart"',
                 '- ② (0:06) arrow from top right to bottom left: "and move it down here"',
@@ -86,7 +141,7 @@ describe('buildSummary', () => {
         );
     });
 
-    it('omits image headers for one image and the quote for a silent mark', () => {
+    it('omits image headers for one image, and the quote and the speech note with no speech', () => {
         const out = buildSummary({
             durationMs: 5000,
             imageCount: 1,
@@ -94,9 +149,8 @@ describe('buildSummary', () => {
             transcript: [],
         });
         expect(out.split('\n')).toEqual([
-            '[Voice Design capture, 0:05. The attached image shows the page with numbered red marks.]',
+            '[Design Mode capture, 0:05. The attached image shows the page with numbered red marks.]',
             '- ① (0:01) circled, top right',
-            LAST_LINE,
         ]);
     });
 
@@ -108,7 +162,7 @@ describe('buildSummary', () => {
             transcript: [{ atMs: 500, text: 'make it blue' }],
         });
         expect(out.split('\n')).toEqual([
-            '[Voice Design capture, 0:04. No marks were drawn.]',
+            '[Design Mode capture, 0:04. No marks were drawn.]',
             '- (0:00) "make it blue"',
             LAST_LINE,
         ]);
@@ -124,7 +178,12 @@ describe('buildSummary', () => {
                     number: 1,
                     startMs: 0,
                     endMs: 500,
-                    target: { kind: 'tile', id: 'abc', label: 'Revenue tile' },
+                    target: {
+                        kind: 'tile',
+                        id: 'abc',
+                        label: 'Revenue tile',
+                        parentId: null,
+                    },
                 }),
             ],
         });
@@ -191,11 +250,85 @@ describe('buildSummary', () => {
                     endMs: 500,
                     shape: 'arrow',
                     arrow: { from: { x: 0.1, y: 0.9 }, to: { x: 0.9, y: 0.1 } },
-                    target: { kind: 'tile', id: 'a', label: 'Top customers' },
-                    arrowTo: { kind: 'tile', id: 'b', label: 'Revenue' },
+                    target: {
+                        kind: 'tile',
+                        id: 'a',
+                        label: 'Top customers',
+                        parentId: null,
+                    },
+                    arrowTo: {
+                        kind: 'tile',
+                        id: 'b',
+                        label: 'Revenue',
+                        parentId: null,
+                    },
                 }),
             ],
         });
         expect(out).toContain('- ① (0:00) arrow from Top customers to Revenue');
+    });
+
+    it('writes a picked part as its own phrase, without more quotes', () => {
+        const out = buildSummary({
+            durationMs: 5000,
+            imageCount: 1,
+            transcript: [],
+            marks: [
+                mark({
+                    number: 3,
+                    startMs: 4000,
+                    endMs: 4100,
+                    shape: 'pick',
+                    tool: 'cursor',
+                    target: {
+                        kind: 'chart-point',
+                        id: 't/point/0/1',
+                        label: 'bar "credit_card" in series "Total revenue" (1,023) on "Revenue"',
+                        parentId: 't',
+                    },
+                }),
+            ],
+        });
+        expect(out).toContain(
+            '- \u2462 (0:04) picked bar "credit_card" in series "Total revenue" (1,023) on "Revenue"',
+        );
+    });
+
+    it('names the tab only when marks span tabs', () => {
+        const pick = (number: number, tabName: string, label: string) =>
+            mark({
+                number,
+                startMs: number * 4000,
+                endMs: number * 4000 + 200,
+                shape: 'pick',
+                tool: 'cursor',
+                tabName,
+                target: { kind: 'tile', id: label, label, parentId: null },
+            });
+        const span = buildSummary({
+            durationMs: 9000,
+            imageCount: 1,
+            marks: [
+                pick(1, 'Sales', 'Pipeline'),
+                pick(2, 'Marketing', 'Revenue by month'),
+            ],
+            transcript: [],
+        });
+        expect(span).toContain(
+            '- \u2460 (0:04) picked "Pipeline", on tab "Sales"',
+        );
+        expect(span).toContain(
+            '- \u2461 (0:08) picked "Revenue by month", on tab "Marketing"',
+        );
+        const same = buildSummary({
+            durationMs: 9000,
+            imageCount: 1,
+            marks: [
+                pick(1, 'Sales', 'Pipeline'),
+                pick(2, 'Sales', 'Revenue by month'),
+            ],
+            transcript: [],
+        });
+        expect(same).not.toContain('on tab');
     });
 });

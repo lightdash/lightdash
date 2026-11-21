@@ -1313,6 +1313,8 @@ export const useCreateAgentThreadMutation = (
         // Skip the default `navigate(...)` to the thread page. The launcher
         // uses this because it routes via its own panel/dock instead.
         skipNavigation?: boolean;
+        // The caller reports failures itself: no toast and no redirect here.
+        silentErrors?: boolean;
     },
 ) => {
     const lightdashApi = useLightdashApi();
@@ -1507,6 +1509,7 @@ export const useCreateAgentThreadMutation = (
             }
         },
         onError: ({ error }) => {
+            if (options?.silentErrors) return;
             if (isAiAgentAuthorizationError(error)) {
                 void navigate(
                     `${getAiAgentPageBase(projectUuid, isEmbed)}/not-authorized`,

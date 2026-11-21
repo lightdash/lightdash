@@ -1,5 +1,6 @@
 import {
     type AppColorScheme,
+    type AppSdkCaptureHold,
     type DataAppInsightAction,
     type DataAppInsightsPayload,
     type DataAppVizContext,
@@ -183,6 +184,8 @@ type Props = {
     onMountedQueriesChange?: (queryUuids: string[]) => void;
     /** The capture hotkey was pressed inside the app. Absent = no capture. */
     onCaptureHotkey?: () => void;
+    /** A Design Mode hold key went down or came up inside the app. */
+    onCaptureHold?: (hold: AppSdkCaptureHold) => void;
 };
 
 /**
@@ -258,6 +261,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
             onCaptureHotkey,
+            onCaptureHold,
         },
         ref,
     ) => {
@@ -417,6 +421,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
             onCaptureHotkey,
+            onCaptureHold,
         });
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
         const { exportPdf } = useIframePdfExport(iframeRef);

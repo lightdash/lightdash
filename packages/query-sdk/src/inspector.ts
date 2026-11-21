@@ -19,6 +19,9 @@ type DisableMessage = { type: 'lightdash:inspect:disable' };
 export type InspectSelectedMessage = {
     type: 'lightdash:inspect:selected';
     label: string;
+    /** The element's bounds in the iframe's viewport, in CSS pixels. Hosts
+     *  built before this field ignore it. */
+    rect: { x: number; y: number; width: number; height: number };
 };
 
 /**
@@ -63,9 +66,10 @@ function buildLabel(el: Element): string {
     for (let i = 0; i < ANCESTOR_TEXT_LOOKBACK && cur; i += 1) {
         const raw = (cur.textContent ?? '').replace(/\s+/g, ' ').trim();
         if (raw) {
-            text = raw.length > MAX_TEXT_LEN
-                ? `${raw.slice(0, MAX_TEXT_LEN)}…`
-                : raw;
+            text =
+                raw.length > MAX_TEXT_LEN
+                    ? `${raw.slice(0, MAX_TEXT_LEN)}…`
+                    : raw;
             break;
         }
         cur = cur.parentElement;
@@ -159,6 +163,29 @@ let currentTarget: Element | null = null;
 let parentWindow: Window | null = null;
 let listenersAttached = false;
 let messageListenerAttached = false;
+// The element a Control click picked through the context menu, until the
+// next press, so a click that follows the menu does not pick it again.
+let pickedByMenu: Element | null = null;
+
+function postSelected(target: Element) {
+    const { x, y, width, height } = target.getBoundingClientRect();
+    parentWindow?.postMessage(
+        {
+            type: 'lightdash:inspect:selected',
+            label: buildLabel(target),
+            rect: { x, y, width, height },
+        } satisfies InspectSelectedMessage,
+        '*',
+    );
+}
+
+function swallow(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof e.stopImmediatePropagation === 'function') {
+        e.stopImmediatePropagation();
+    }
+}
 
 function onPointerMove(e: PointerEvent) {
     if (!enabled) return;
@@ -173,19 +200,24 @@ function onClick(e: MouseEvent) {
     if (!enabled) return;
     const target = e.target as Element | null;
     if (!target || isOurOwnElement(target)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    if (typeof e.stopImmediatePropagation === 'function') {
-        e.stopImmediatePropagation();
-    }
-    const label = buildLabel(target);
-    parentWindow?.postMessage(
-        {
-            type: 'lightdash:inspect:selected',
-            label,
-        } satisfies InspectSelectedMessage,
-        '*',
-    );
+    swallow(e);
+    if (target === pickedByMenu) return;
+    postSelected(target);
+}
+
+function onPointerDown() {
+    pickedByMenu = null;
+}
+
+// On macOS a Control click opens the context menu and may never become a
+// click, so while Control is held the menu itself picks the element.
+function onContextMenu(e: MouseEvent) {
+    if (!enabled || !e.ctrlKey) return;
+    const target = e.target as Element | null;
+    if (!target || isOurOwnElement(target)) return;
+    swallow(e);
+    pickedByMenu = target;
+    postSelected(target);
 }
 
 function onScrollOrResize() {
@@ -202,6 +234,7 @@ function setEnabled(next: boolean) {
     } else {
         document.documentElement.style.cursor = '';
         currentTarget = null;
+        pickedByMenu = null;
         hideOverlay();
     }
 }
@@ -212,6 +245,8 @@ function attachListeners() {
     // Capture phase — we need to see events before the app's own handlers.
     window.addEventListener('pointermove', onPointerMove, true);
     window.addEventListener('click', onClick, true);
+    window.addEventListener('pointerdown', onPointerDown, true);
+    window.addEventListener('contextmenu', onContextMenu, true);
     window.addEventListener('scroll', onScrollOrResize, true);
     window.addEventListener('resize', onScrollOrResize, true);
 }
@@ -233,7 +268,9 @@ export function mountInspector(parent: Window): void {
     // SDKs running in resumed sandboxes don't send this, leaving the button
     // hidden — they keep working as before.
     parent.postMessage(
-        { type: 'lightdash:inspect:available' } satisfies InspectAvailableMessage,
+        {
+            type: 'lightdash:inspect:available',
+        } satisfies InspectAvailableMessage,
         '*',
     );
 

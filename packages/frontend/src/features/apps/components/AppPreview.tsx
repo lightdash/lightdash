@@ -1,4 +1,5 @@
 import {
+    type AppSdkCaptureHold,
     type DataAppInsightAction,
     type DataAppInsightsPayload,
     type DataAppVizContext,
@@ -12,6 +13,7 @@ import { getVisiblePreviewTokenError } from '../hooks/previewTokenQueryOptions';
 import { useAppPreviewToken } from '../hooks/useAppPreviewToken';
 import type {
     AppStateEvent,
+    ElementSelectedEvent,
     ExternalRequestEvent,
     QueryEvent,
     SdkManifest,
@@ -33,7 +35,7 @@ export type AppPreviewProps = {
     /** Reports app-state reads/writes for the same inspector tab. */
     onAppStateEvent?: (event: AppStateEvent) => void;
     inspectorEnabled?: boolean;
-    onElementSelected?: (event: { label: string }) => void;
+    onElementSelected?: (event: ElementSelectedEvent) => void;
     onInspectorAvailabilityChange?: (available: boolean) => void;
     onScreenshotAvailabilityChange?: (available: boolean) => void;
     onInspectorCancelled?: () => void;
@@ -58,6 +60,8 @@ export type AppPreviewProps = {
     onInsightAnalyseOnLoadChange?: (analyseOnLoad: boolean | null) => void;
     onMountedQueriesChange?: (queryUuids: string[]) => void;
     onCaptureHotkey?: () => void;
+    /** A Design Mode hold key went down or came up inside the app. */
+    onCaptureHold?: (hold: AppSdkCaptureHold) => void;
 };
 
 const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
@@ -93,6 +97,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
             onCaptureHotkey,
+            onCaptureHold,
         },
         ref,
     ) => {
@@ -173,6 +178,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 onInsightAnalyseOnLoadChange={onInsightAnalyseOnLoadChange}
                 onMountedQueriesChange={onMountedQueriesChange}
                 onCaptureHotkey={onCaptureHotkey}
+                onCaptureHold={onCaptureHold}
             />
         );
     },

@@ -138,7 +138,7 @@ describe('Permissions-Policy on the app page', () => {
         expect(response.header('permissions-policy')).toBe(ALLOWED);
     });
 
-    it('allows the microphone on the page when the organisation has Voice Design on', async () => {
+    it('allows the microphone on the page when the organisation has Design Mode on', async () => {
         server = await startServer({
             user: signedInUser,
             getFlag: flagsOn([FeatureFlags.DataAppCapture]),

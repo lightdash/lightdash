@@ -5,6 +5,8 @@ import { type CaptureMark, type Point, type TranscriptPhrase } from './types';
 const LEAD_MS = 1500;
 const TRAIL_MS = 2000;
 
+const NOT_SHOWN = -1;
+
 const LAST_LINE =
     'Speech is machine-transcribed and may mishear names. Trust the image where they disagree.';
 
@@ -49,6 +51,12 @@ const describeMark = (mark: CaptureMark): string => {
             const to = mark.arrowTo?.label ?? describePosition(mark.arrow.to);
             return `arrow from ${from} to ${to}`;
         }
+        case 'pick':
+            if (!mark.target) return `picked, ${describePosition(centre)}`;
+            // A part's label is already a phrase that quotes its own names.
+            return mark.target.parentId === null
+                ? `picked "${mark.target.label}"`
+                : `picked ${mark.target.label}`;
         default:
             return assertUnreachable(mark.shape, 'Unknown mark shape');
     }
@@ -57,10 +65,10 @@ const describeMark = (mark: CaptureMark): string => {
 const header = (durationMs: number, imageCount: number): string => {
     const clock = formatClock(durationMs);
     if (imageCount === 0)
-        return `[Voice Design capture, ${clock}. No marks were drawn.]`;
+        return `[Design Mode capture, ${clock}. No marks were drawn.]`;
     if (imageCount === 1)
-        return `[Voice Design capture, ${clock}. The attached image shows the page with numbered red marks.]`;
-    return `[Voice Design capture, ${clock}. The ${imageCount} attached images show the page with numbered red marks, in order.]`;
+        return `[Design Mode capture, ${clock}. The attached image shows the page with numbered red marks.]`;
+    return `[Design Mode capture, ${clock}. The ${imageCount} attached images show the page with numbered red marks, in order.]`;
 };
 
 type Entry =
@@ -68,7 +76,7 @@ type Entry =
     | { kind: 'speech'; atMs: number; text: string };
 
 /** Attaches each phrase to the mark it was said with; the rest stay loose. */
-export const assignSpeech = (
+const assignSpeech = (
     marks: CaptureMark[],
     transcript: TranscriptPhrase[],
 ): { speechByMark: Map<number, string[]>; loose: TranscriptPhrase[] } => {
@@ -114,32 +122,50 @@ export const buildSummary = (input: {
     ];
     entries.sort((a, b) => a.atMs - b.atMs);
 
+    const tabs = new Set(input.marks.map((mark) => mark.tabName));
+    const spansTabs = tabs.size > 1;
     const lines = [header(input.durationMs, input.imageCount)];
-    let currentImage = -1;
+    // Marks past the attached images share one heading and name no image.
+    const groupOf = (mark: CaptureMark): number =>
+        mark.imageIndex < input.imageCount ? mark.imageIndex : NOT_SHOWN;
+    const hasUnshown =
+        input.imageCount > 0 &&
+        input.marks.some((mark) => groupOf(mark) === NOT_SHOWN);
+    let currentGroup: number | null = null;
     for (const entry of entries) {
         if (entry.kind === 'speech') {
             lines.push(`- (${formatClock(entry.atMs)}) "${entry.text}"`);
         } else {
             const { mark } = entry;
-            if (input.imageCount > 1 && mark.imageIndex !== currentImage) {
-                currentImage = mark.imageIndex;
+            const group = groupOf(mark);
+            const changed = group !== currentGroup;
+            if (hasUnshown && changed && group === NOT_SHOWN) {
+                lines.push('Not shown in an image:');
+            } else if (
+                changed &&
+                group !== NOT_SHOWN &&
+                (input.imageCount > 1 || currentGroup === NOT_SHOWN)
+            ) {
                 lines.push(
-                    currentImage === 0
+                    group === 0
                         ? 'Image 1:'
-                        : `Image ${currentImage + 1} (after scrolling or clicking):`,
+                        : `Image ${group + 1} (after scrolling or clicking):`,
                 );
             }
+            if (hasUnshown || input.imageCount > 1) currentGroup = group;
             const target =
-                mark.target && mark.shape !== 'arrow'
+                mark.target && mark.shape !== 'arrow' && mark.shape !== 'pick'
                     ? ` on ${mark.target.label}`
                     : '';
+            const tab =
+                spansTabs && mark.tabName ? `, on tab "${mark.tabName}"` : '';
             const speech =
                 entry.speech.length > 0 ? `: "${entry.speech.join(' ')}"` : '';
             lines.push(
-                `- ${markNumber(mark.number)} (${formatClock(mark.startMs)}) ${describeMark(mark)}${target}${speech}`,
+                `- ${markNumber(mark.number)} (${formatClock(mark.startMs)}) ${describeMark(mark)}${target}${tab}${speech}`,
             );
         }
     }
-    lines.push(LAST_LINE);
+    if (input.transcript.length > 0) lines.push(LAST_LINE);
     return lines.join('\n');
 };

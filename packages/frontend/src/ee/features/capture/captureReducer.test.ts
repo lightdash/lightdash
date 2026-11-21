@@ -1,10 +1,6 @@
+import { AI_THREAD_IMAGES_MAX_PER_PROMPT as CAP } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import {
-    captureReducer,
-    finishOutcome,
-    type CaptureState,
-} from './captureReducer';
-import { type CaptureMark } from './types';
+import { captureReducer, type CaptureState } from './captureReducer';
 
 type Recording = Extract<CaptureState, { status: 'recording' }>;
 
@@ -30,7 +26,12 @@ const hold = (
     atMs: number,
     isNewScreen: boolean,
 ): CaptureState => {
-    let s = captureReducer(state, { type: 'shiftDown', atMs, isNewScreen });
+    let s = captureReducer(state, {
+        type: 'shiftDown',
+        atMs,
+        isNewScreen,
+        tool: 'stylus',
+    });
     s = captureReducer(s, { type: 'strokeAdded', stroke });
     return captureReducer(s, {
         type: 'shiftUp',
@@ -39,6 +40,8 @@ const hold = (
         arrowTo: null,
         trail: [],
         covers: [],
+        tabName: null,
+        box: null,
     });
 };
 
@@ -98,18 +101,41 @@ describe('captureReducer', () => {
             type: 'shiftDown',
             atMs: 0,
             isNewScreen: true,
+            tool: 'stylus',
         });
         s = captureReducer(s, { type: 'strokeAdded', stroke });
         s = captureReducer(s, {
             type: 'shiftUp',
             atMs: 500,
-            target: { kind: 'tile', id: 'abc', label: 'Revenue tile' },
-            arrowTo: { kind: 'tile', id: 'def', label: 'Orders tile' },
+            target: {
+                kind: 'tile',
+                id: 'abc',
+                label: 'Revenue tile',
+                parentId: null,
+            },
+            arrowTo: {
+                kind: 'tile',
+                id: 'def',
+                label: 'Orders tile',
+                parentId: null,
+            },
             covers: [],
             trail: [
-                { kind: 'tile', id: 'abc', label: 'Revenue tile' },
-                { kind: 'tile', id: 'def', label: 'Orders tile' },
+                {
+                    kind: 'tile',
+                    id: 'abc',
+                    label: 'Revenue tile',
+                    parentId: null,
+                },
+                {
+                    kind: 'tile',
+                    id: 'def',
+                    label: 'Orders tile',
+                    parentId: null,
+                },
             ],
+            tabName: null,
+            box: null,
         });
         expect(s).toMatchObject({
             marks: [
@@ -127,6 +153,7 @@ describe('captureReducer', () => {
             type: 'shiftDown',
             atMs: 1000,
             isNewScreen: true,
+            tool: 'stylus',
         });
         s = captureReducer(s, {
             type: 'shiftUp',
@@ -135,28 +162,89 @@ describe('captureReducer', () => {
             arrowTo: null,
             trail: [],
             covers: [],
+            tabName: null,
+            box: null,
         });
         expect(s).toMatchObject({ marks: [], imageCount: 0, drawing: null });
     });
 
-    it('refuses a sixth screen', () => {
-        expect(
-            captureReducer(rec({ imageCount: 5 }), {
-                type: 'shiftDown',
-                atMs: 1,
-                isNewScreen: true,
-            }),
-        ).toMatchObject({ drawing: null, atImageLimit: true, imageCount: 5 });
+    it('a screen past the image cap is marked without a picture of its own', () => {
+        const full = rec({ imageCount: CAP });
+        const down = captureReducer(full, {
+            type: 'shiftDown',
+            atMs: 1,
+            isNewScreen: true,
+            tool: 'stylus',
+        });
+        expect(down).toMatchObject({
+            drawing: { imageIndex: CAP },
+            atImageLimit: true,
+            imageCount: CAP,
+        });
+        const s = hold(full, 1000, true);
+        expect(s).toMatchObject({
+            imageCount: CAP,
+            marks: [{ number: 1, imageIndex: CAP }],
+        });
+        // Back on the last pictured screen, marks join its image again.
+        expect(hold(s, 3000, false)).toMatchObject({
+            imageCount: CAP,
+            atImageLimit: false,
+            marks: [{ imageIndex: CAP }, { imageIndex: CAP - 1 }],
+        });
     });
 
     it('still allows marks on the current screen at the limit', () => {
         expect(
-            captureReducer(rec({ imageCount: 5 }), {
+            captureReducer(rec({ imageCount: CAP }), {
                 type: 'shiftDown',
                 atMs: 1,
                 isNewScreen: false,
+                tool: 'stylus',
             }),
-        ).toMatchObject({ drawing: { imageIndex: 4 }, atImageLimit: false });
+        ).toMatchObject({
+            drawing: { imageIndex: CAP - 1 },
+            atImageLimit: false,
+        });
+    });
+
+    it('a cursor pick becomes a mark with no strokes', () => {
+        const T = {
+            kind: 'tile',
+            id: 't1',
+            label: 'Revenue by month',
+            parentId: null,
+        };
+        const box = { x: 0.2, y: 0.2, width: 0.3, height: 0.3 };
+        let s = captureReducer(rec(), {
+            type: 'shiftDown',
+            atMs: 1000,
+            isNewScreen: true,
+            tool: 'cursor',
+        });
+        s = captureReducer(s, {
+            type: 'shiftUp',
+            atMs: 1200,
+            target: T,
+            arrowTo: null,
+            trail: [],
+            covers: [],
+            tabName: 'Marketing',
+            box,
+        });
+        expect(s).toMatchObject({
+            imageCount: 1,
+            marks: [
+                {
+                    shape: 'pick',
+                    tool: 'cursor',
+                    strokes: [],
+                    target: T,
+                    box,
+                    tabName: 'Marketing',
+                },
+            ],
+        });
     });
 
     it('ignores strokes and Shift-up when not drawing', () => {
@@ -170,6 +258,8 @@ describe('captureReducer', () => {
                 arrowTo: null,
                 trail: [],
                 covers: [],
+                tabName: null,
+                box: null,
             }),
         ).toEqual(s);
     });
@@ -178,24 +268,5 @@ describe('captureReducer', () => {
         expect(captureReducer(rec(), { type: 'reset' })).toEqual({
             status: 'idle',
         });
-    });
-});
-
-describe('finishOutcome', () => {
-    it('nothing drawn and nothing said is empty', () => {
-        expect(finishOutcome(rec(), [])).toBe('empty');
-    });
-
-    it('speech alone is sent', () => {
-        expect(finishOutcome(rec(), [{ atMs: 0, text: 'hi' }])).toBe('send');
-    });
-
-    it('marks are sent when the stream ends mid-recording with no speech', () => {
-        const s = rec({ marks: [{ number: 1 } as CaptureMark], imageCount: 1 });
-        expect(finishOutcome(s, [])).toBe('send');
-    });
-
-    it('idle is empty', () => {
-        expect(finishOutcome({ status: 'idle' }, [])).toBe('empty');
     });
 });

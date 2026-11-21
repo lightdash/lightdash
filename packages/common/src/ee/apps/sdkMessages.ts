@@ -39,3 +39,16 @@ export const APP_SDK_VIZ_RENDERED_MESSAGE = 'lightdash:sdk:viz-rendered';
 // inside the app, where the host page cannot see key presses. It is the only
 // key combination the SDK forwards, and it carries no payload.
 export const APP_SDK_CAPTURE_HOTKEY_MESSAGE = 'lightdash:sdk:capture-hotkey';
+
+// Iframe → host: a Design Mode hold key (Option/Alt or Control, on its own)
+// went down or came up inside the app. Carries only the tool and the phase.
+export const APP_SDK_CAPTURE_HOLD_MESSAGE = 'lightdash:sdk:capture-hold';
+
+// Iframe → host: how far the app has scrolled, in pixels, so Design Mode's
+// marks stay on what they were drawn on. Carries only the two offsets.
+export const APP_SDK_CAPTURE_SCROLL_MESSAGE = 'lightdash:sdk:capture-scroll';
+
+export type AppSdkCaptureHold = {
+    tool: 'stylus' | 'cursor';
+    phase: 'down' | 'up';
+};

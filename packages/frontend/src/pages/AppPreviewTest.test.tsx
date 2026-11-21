@@ -6,6 +6,16 @@ import { renderWithProviders } from '../testing/testUtils';
 
 type IframePreviewProps = {
     onQueryEvent?: (event: QueryEvent) => void;
+    onScreenshotAvailabilityChange?: (available: boolean) => void;
+    inspectorEnabled?: boolean;
+    onCaptureHotkey?: () => void;
+};
+
+type DesignModeProps = {
+    appName: string;
+    attachedAppUuid: string | null;
+    captureScreenshot: (() => Promise<Blob>) | null;
+    onStateChange: (on: boolean, picking: boolean) => void;
 };
 
 type HeaderActionsProps = {
@@ -26,9 +36,8 @@ const mocks = vi.hoisted(() => ({
     canEdit: false,
     captureFlagEnabled: true,
     canUseAgents: true,
-    captureHost: vi.fn(
-        (_props: { appName: string; attachedAppUuid: string | null }) => null,
-    ),
+    embedded: false,
+    designMode: vi.fn((_props: DesignModeProps) => null),
 }));
 
 vi.mock('react-router', () => ({
@@ -128,8 +137,17 @@ vi.mock(
     }),
 );
 
-vi.mock('../ee/features/appCapture/AppViewCapture', () => ({
-    default: mocks.captureHost,
+vi.mock('../ee/features/appCapture/AppViewDesignMode', async () => {
+    const { forwardRef } = await import('react');
+    return {
+        default: forwardRef((props: DesignModeProps, _ref) =>
+            mocks.designMode(props),
+        ),
+    };
+});
+
+vi.mock('../ee/providers/Embed/useIsEmbedded', () => ({
+    default: () => mocks.embedded,
 }));
 
 vi.mock('../features/apps/hooks/useAppBuildPoller', () => ({
@@ -213,37 +231,72 @@ describe('AppPreviewTest', () => {
         mocks.canEdit = false;
         mocks.captureFlagEnabled = true;
         mocks.canUseAgents = true;
-        mocks.captureHost.mockClear();
+        mocks.embedded = false;
+        mocks.designMode.mockClear();
     });
 
-    it('offers a capture to a viewer who can use the agents', () => {
+    it('offers Design Mode to a viewer who can use the agents', () => {
         renderWithProviders(<AppPreviewTest />);
         expect(latestHeaderActionsProps().previewTools).toBeTruthy();
-        expect(mocks.captureHost.mock.calls.at(-1)?.[0]).toMatchObject({
+        expect(mocks.designMode.mock.calls.at(-1)?.[0]).toMatchObject({
             appName: 'Sales app',
             attachedAppUuid: 'canonical-app-uuid',
         });
     });
 
-    it('offers a capture to an editor who can use the agents', () => {
+    it('Design Mode gets the app’s screenshot only once the app can take one', () => {
+        renderWithProviders(<AppPreviewTest />);
+        expect(
+            mocks.designMode.mock.calls.at(-1)?.[0].captureScreenshot,
+        ).toBeNull();
+
+        act(() => latestIframeProps().onScreenshotAvailabilityChange?.(true));
+        expect(
+            mocks.designMode.mock.calls.at(-1)?.[0].captureScreenshot,
+        ).not.toBeNull();
+    });
+
+    it('a Cursor hold turns the app’s element picker on', () => {
+        renderWithProviders(<AppPreviewTest />);
+        expect(latestIframeProps().inspectorEnabled).toBe(false);
+
+        act(() =>
+            mocks.designMode.mock.calls.at(-1)?.[0].onStateChange(true, true),
+        );
+        expect(latestIframeProps().inspectorEnabled).toBe(true);
+
+        act(() =>
+            mocks.designMode.mock.calls.at(-1)?.[0].onStateChange(true, false),
+        );
+        expect(latestIframeProps().inspectorEnabled).toBe(false);
+    });
+
+    it('offers no Design Mode in an embed', () => {
+        mocks.embedded = true;
+        renderWithProviders(<AppPreviewTest />);
+        expect(latestHeaderActionsProps().previewTools).toBeFalsy();
+        expect(mocks.designMode).not.toHaveBeenCalled();
+    });
+
+    it('offers Design Mode to an editor who can use the agents', () => {
         mocks.canEdit = true;
         renderWithProviders(<AppPreviewTest />);
         expect(latestHeaderActionsProps().previewTools).toBeTruthy();
     });
 
-    it('offers no capture to an editor who cannot use the agents', () => {
+    it('offers no Design Mode to an editor who cannot use the agents', () => {
         mocks.canEdit = true;
         mocks.canUseAgents = false;
         renderWithProviders(<AppPreviewTest />);
         expect(latestHeaderActionsProps().previewTools).toBeFalsy();
-        expect(mocks.captureHost).not.toHaveBeenCalled();
+        expect(mocks.designMode).not.toHaveBeenCalled();
     });
 
-    it('offers no capture when the capture flag is off', () => {
+    it('offers no Design Mode when the capture flag is off', () => {
         mocks.captureFlagEnabled = false;
         renderWithProviders(<AppPreviewTest />);
         expect(latestHeaderActionsProps().previewTools).toBeFalsy();
-        expect(mocks.captureHost).not.toHaveBeenCalled();
+        expect(mocks.designMode).not.toHaveBeenCalled();
     });
 
     it('records the resolved app UUID after a space app loads, but not personal apps', () => {

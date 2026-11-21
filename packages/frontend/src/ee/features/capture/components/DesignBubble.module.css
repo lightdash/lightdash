@@ -1,0 +1,41 @@
+.bubble {
+    position: fixed;
+    left: var(--bubble-left);
+    top: var(--bubble-top);
+    z-index: 10000;
+    min-width: 280px;
+    max-width: 420px;
+    transition: opacity 120ms ease;
+}
+
+/* While a hold is down the bubble is a faint outline the pointer goes through. */
+.bubble[data-passthrough='true'] {
+    background: transparent;
+    box-shadow: none;
+    pointer-events: none;
+}
+
+.bubble[data-passthrough='true'] > * {
+    opacity: 0.15;
+}
+
+.cornerClose {
+    position: absolute;
+    top: 12px;
+    right: 10px;
+    z-index: 1;
+}
+
+.listening {
+    animation: design-bubble-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes design-bubble-pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.35;
+    }
+}
