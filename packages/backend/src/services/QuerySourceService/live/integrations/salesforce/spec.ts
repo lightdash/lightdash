@@ -152,7 +152,6 @@ export const salesforceSpec: LiveIntegrationSpec = {
         {
             id: 'DB-05',
             name: 'Sales forecast',
-            source: 'https://blog.coupler.io/salesforce-dashboards/',
             charts: [
                 {
                     id: 'DB-05.1',
@@ -201,7 +200,6 @@ export const salesforceSpec: LiveIntegrationSpec = {
         {
             id: 'DB-06',
             name: 'Sales team performance',
-            source: 'https://blog.coupler.io/salesforce-dashboards/',
             charts: [
                 {
                     id: 'DB-06.1',
@@ -271,7 +269,6 @@ export const salesforceSpec: LiveIntegrationSpec = {
         {
             id: 'DB-07',
             name: 'Sales stage analysis',
-            source: 'https://blog.coupler.io/salesforce-dashboards/',
             charts: [
                 {
                     id: 'DB-07.1',
@@ -314,7 +311,6 @@ export const salesforceSpec: LiveIntegrationSpec = {
         {
             id: 'DB-08',
             name: 'Marketing executive (leads and campaigns)',
-            source: 'https://blog.coupler.io/salesforce-dashboards/',
             charts: [
                 {
                     id: 'DB-08.1',

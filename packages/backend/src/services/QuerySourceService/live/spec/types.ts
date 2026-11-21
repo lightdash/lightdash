@@ -54,8 +54,6 @@ export type LiveSpecChart = LiveSpecVerdict & { title: string; detail: string };
 export type LiveSpecDashboard = {
     id: string;
     name: string;
-    /** The template or report the dashboard comes from. */
-    source: string;
     charts: LiveSpecChart[];
 };
 

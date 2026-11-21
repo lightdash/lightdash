@@ -113,7 +113,6 @@ export const attioSpec: LiveIntegrationSpec = {
         {
             id: 'DB-09',
             name: 'Sales reporting dashboard',
-            source: 'https://attio.com/help/reference/managing-your-data/dashboard-and-reports/build-a-sales-reporting-dashboard',
             charts: [
                 {
                     id: 'DB-09.1',
@@ -158,7 +157,6 @@ export const attioSpec: LiveIntegrationSpec = {
         {
             id: 'DB-10',
             name: 'Revenue overview (ARR / MRR)',
-            source: 'https://attio.com/blog/reporting-2-0',
             charts: [
                 {
                     id: 'DB-10.1',
@@ -199,7 +197,6 @@ export const attioSpec: LiveIntegrationSpec = {
         {
             id: 'DB-11',
             name: 'Deal owner performance',
-            source: 'https://attio.com/help/reference/managing-your-data/dashboard-and-reports/reports',
             charts: [
                 {
                     id: 'DB-11.1',

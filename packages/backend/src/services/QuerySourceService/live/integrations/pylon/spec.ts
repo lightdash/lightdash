@@ -129,7 +129,6 @@ export const pylonSpec: LiveIntegrationSpec = {
         {
             id: 'DB-35',
             name: 'Support overview',
-            source: 'https://docs.usepylon.com/pylon-docs/reporting-and-analytics/default-dashboards',
             charts: [
                 {
                     id: 'DB-35.1',
@@ -203,7 +202,6 @@ export const pylonSpec: LiveIntegrationSpec = {
         {
             id: 'DB-36',
             name: 'SLA and response times',
-            source: 'https://docs.usepylon.com/pylon-docs/reporting-and-analytics/default-dashboards',
             charts: [
                 {
                     id: 'DB-36.1',
@@ -266,7 +264,6 @@ export const pylonSpec: LiveIntegrationSpec = {
         {
             id: 'DB-37',
             name: 'CSAT',
-            source: 'https://docs.usepylon.com/pylon-docs/reporting-and-analytics/default-dashboards',
             charts: [
                 {
                     id: 'DB-37.1',
@@ -339,7 +336,6 @@ export const pylonSpec: LiveIntegrationSpec = {
         {
             id: 'DB-38',
             name: 'Agent performance',
-            source: 'https://www.intercom.com/help/en/articles/8651875-teammate-performance-reporting',
             charts: [
                 {
                     id: 'DB-38.1',

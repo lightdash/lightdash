@@ -141,7 +141,6 @@ export const postHogSpec: LiveIntegrationSpec = {
         {
             id: 'DB-31',
             name: 'Product analytics',
-            source: 'https://raw.githubusercontent.com/PostHog/posthog/master/products/dashboards/backend/models/dashboard_templates.py',
             charts: [
                 {
                     id: 'DB-31.1',
@@ -211,7 +210,6 @@ export const postHogSpec: LiveIntegrationSpec = {
         {
             id: 'DB-32',
             name: 'Web analytics',
-            source: 'https://posthog.com/docs/web-analytics/dashboard',
             charts: [
                 {
                     id: 'DB-32.1',
@@ -280,7 +278,6 @@ export const postHogSpec: LiveIntegrationSpec = {
         {
             id: 'DB-33',
             name: 'Company (group) overview',
-            source: 'https://raw.githubusercontent.com/PostHog/posthog/master/posthog/helpers/dashboard_templates.py',
             charts: [
                 {
                     id: 'DB-33.1',
@@ -317,7 +314,6 @@ export const postHogSpec: LiveIntegrationSpec = {
         {
             id: 'DB-34',
             name: 'User research',
-            source: 'https://raw.githubusercontent.com/PostHog/templates-repository/main/dashboards/posthog-user-research.json',
             charts: [
                 {
                     id: 'DB-34.1',

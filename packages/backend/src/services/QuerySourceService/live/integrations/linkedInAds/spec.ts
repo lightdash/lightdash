@@ -125,7 +125,6 @@ export const linkedInAdsSpec: LiveIntegrationSpec = {
         {
             id: 'DB-18',
             name: 'LinkedIn Ads monthly performance',
-            source: 'https://blog.coupler.io/ppc-report-templates/',
             charts: [
                 {
                     id: 'DB-18.1',
@@ -188,7 +187,6 @@ export const linkedInAdsSpec: LiveIntegrationSpec = {
         {
             id: 'DB-19',
             name: 'LinkedIn Ads leads',
-            source: 'https://blog.coupler.io/ppc-report-templates/',
             charts: [
                 {
                     id: 'DB-19.1',
@@ -251,7 +249,6 @@ export const linkedInAdsSpec: LiveIntegrationSpec = {
         {
             id: 'DB-20',
             name: 'LinkedIn Ads creatives',
-            source: 'https://blog.coupler.io/ppc-report-templates/',
             charts: [
                 {
                     id: 'DB-20.1',

@@ -139,7 +139,6 @@ export const googleAdsSpec: LiveIntegrationSpec = {
         {
             id: 'DB-12',
             name: 'Google Ads network performance',
-            source: 'https://blog.coupler.io/ppc-report-templates/',
             charts: [
                 {
                     id: 'DB-12.1',
@@ -209,7 +208,6 @@ export const googleAdsSpec: LiveIntegrationSpec = {
         {
             id: 'DB-13',
             name: 'Google Ads quality score analytics',
-            source: 'https://blog.coupler.io/ppc-report-templates/',
             charts: [
                 {
                     id: 'DB-13.1',
@@ -272,7 +270,6 @@ export const googleAdsSpec: LiveIntegrationSpec = {
         {
             id: 'DB-14',
             name: 'Google Ads client report',
-            source: 'https://agencyanalytics.com/report-templates/google-ads',
             charts: [
                 {
                     id: 'DB-14.1',

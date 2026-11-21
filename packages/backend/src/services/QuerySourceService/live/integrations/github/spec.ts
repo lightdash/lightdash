@@ -125,7 +125,6 @@ export const githubSpec: LiveIntegrationSpec = {
         {
             id: 'DB-39',
             name: 'DORA metrics',
-            source: 'https://devlake.apache.org/docs/DORA',
             charts: [
                 {
                     id: 'DB-39.1',
@@ -162,7 +161,6 @@ export const githubSpec: LiveIntegrationSpec = {
         {
             id: 'DB-40',
             name: 'Pull request flow',
-            source: 'https://help.swarmia.com/guides/improve-pull-request-flow/pull-request-insights',
             charts: [
                 {
                     id: 'DB-40.1',
@@ -209,7 +207,6 @@ export const githubSpec: LiveIntegrationSpec = {
         {
             id: 'DB-41',
             name: 'Repository activity overview',
-            source: 'https://grafana.com/docs/plugins/grafana-github-datasource/latest/',
             charts: [
                 {
                     id: 'DB-41.1',
@@ -282,7 +279,6 @@ export const githubSpec: LiveIntegrationSpec = {
         {
             id: 'DB-42',
             name: 'CI health (GitHub Actions)',
-            source: 'https://grafana.com/grafana/dashboards/24157-github-actions-insights/',
             charts: [
                 {
                     id: 'DB-42.1',

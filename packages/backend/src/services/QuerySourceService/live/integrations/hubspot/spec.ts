@@ -155,7 +155,6 @@ export const hubspotSpec: LiveIntegrationSpec = {
         {
             id: 'DB-01',
             name: 'CRM / sales pipeline dashboard',
-            source: 'https://blog.coupler.io/hubspot-sales-dashboard/',
             charts: [
                 {
                     id: 'DB-01.1',
@@ -216,7 +215,6 @@ export const hubspotSpec: LiveIntegrationSpec = {
         {
             id: 'DB-02',
             name: 'Sales activity by rep (weekly)',
-            source: 'https://databox.com/dashboard-examples/weekly-sales-activity-sales-rep-view',
             charts: [
                 {
                     id: 'DB-02.1',
@@ -259,7 +257,6 @@ export const hubspotSpec: LiveIntegrationSpec = {
         {
             id: 'DB-03',
             name: 'Marketing and sales performance (lead funnel)',
-            source: 'https://blog.coupler.io/hubspot-sales-dashboard/',
             charts: [
                 {
                     id: 'DB-03.1',
@@ -310,7 +307,6 @@ export const hubspotSpec: LiveIntegrationSpec = {
         {
             id: 'DB-04',
             name: 'Help desk / service tickets',
-            source: 'https://knowledge.hubspot.com/help-desk/analyze-help-desk',
             charts: [
                 {
                     id: 'DB-04.1',

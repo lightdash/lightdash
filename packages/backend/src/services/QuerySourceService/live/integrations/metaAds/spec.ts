@@ -126,7 +126,6 @@ export const metaAdsSpec: LiveIntegrationSpec = {
         {
             id: 'DB-15',
             name: 'Meta Ads monthly performance',
-            source: 'https://blog.coupler.io/ppc-report-templates/',
             charts: [
                 {
                     id: 'DB-15.1',
@@ -181,7 +180,6 @@ export const metaAdsSpec: LiveIntegrationSpec = {
         {
             id: 'DB-16',
             name: 'Meta Ads creatives',
-            source: 'https://blog.coupler.io/ppc-report-templates/',
             charts: [
                 {
                     id: 'DB-16.1',
@@ -224,7 +222,6 @@ export const metaAdsSpec: LiveIntegrationSpec = {
         {
             id: 'DB-17',
             name: 'Facebook Ads campaign report',
-            source: 'https://databox.com/dashboard-examples/facebook-ads-ad-sets-overview',
             charts: [
                 {
                     id: 'DB-17.1',

@@ -122,7 +122,6 @@ export const ga4Spec: LiveIntegrationSpec = {
         {
             id: 'DB-21',
             name: 'Web analytics overview',
-            source: 'https://blog.coupler.io/ga4-report-templates/',
             charts: [
                 {
                     id: 'DB-21.1',
@@ -183,7 +182,6 @@ export const ga4Spec: LiveIntegrationSpec = {
         {
             id: 'DB-22',
             name: 'Acquisition overview',
-            source: 'https://databox.com/template/google-analytics-4-acquisition-overview-dashboard-template',
             charts: [
                 {
                     id: 'DB-22.1',
@@ -233,7 +231,6 @@ export const ga4Spec: LiveIntegrationSpec = {
         {
             id: 'DB-23',
             name: 'Ecommerce sales funnel',
-            source: 'https://blog.coupler.io/ga4-report-templates/',
             charts: [
                 {
                     id: 'DB-23.1',
@@ -284,7 +281,6 @@ export const ga4Spec: LiveIntegrationSpec = {
         {
             id: 'DB-24',
             name: 'Key event (conversion) insights',
-            source: 'https://blog.coupler.io/ga4-report-templates/',
             charts: [
                 {
                     id: 'DB-24.1',

@@ -109,7 +109,6 @@ export const youtubeAnalyticsSpec: LiveIntegrationSpec = {
         {
             id: 'DB-28',
             name: 'Channel performance',
-            source: 'https://databox.com/dashboard-examples/youtube-channel-performance-dashboard',
             charts: [
                 {
                     id: 'DB-28.1',
@@ -151,7 +150,6 @@ export const youtubeAnalyticsSpec: LiveIntegrationSpec = {
         {
             id: 'DB-29',
             name: 'Video performance',
-            source: 'https://windsor.ai/looker-studio-youtube-channel-dashboard-template/',
             charts: [
                 {
                     id: 'DB-29.1',
@@ -214,7 +212,6 @@ export const youtubeAnalyticsSpec: LiveIntegrationSpec = {
         {
             id: 'DB-30',
             name: 'Audience',
-            source: 'https://support.google.com/youtube/answer/9314416',
             charts: [
                 {
                     id: 'DB-30.1',

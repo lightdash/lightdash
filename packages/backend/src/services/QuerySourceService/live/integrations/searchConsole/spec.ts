@@ -113,7 +113,6 @@ export const searchConsoleSpec: LiveIntegrationSpec = {
         {
             id: 'DB-25',
             name: 'Search Console overview',
-            source: 'https://supermetrics.com/template-gallery/looker-studio-search-console-overview',
             charts: [
                 {
                     id: 'DB-25.1',
@@ -169,7 +168,6 @@ export const searchConsoleSpec: LiveIntegrationSpec = {
         {
             id: 'DB-26',
             name: 'Keyword ranking',
-            source: 'https://www.coupler.io/dashboard-examples/keyword-ranking-dashboard',
             charts: [
                 {
                     id: 'DB-26.1',
@@ -221,7 +219,6 @@ export const searchConsoleSpec: LiveIntegrationSpec = {
         {
             id: 'DB-27',
             name: 'Queries and pages overview',
-            source: 'https://databox.com/dashboard-examples/google-search-console-queries-page-overview',
             charts: [
                 {
                     id: 'DB-27.1',

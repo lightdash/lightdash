@@ -563,7 +563,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.META_ADS,
                 ApiConnectorType.LINKEDIN_ADS,
             ],
-            source: 'https://supermetrics.com/template-gallery/looker-studio-paid-channel-mix-overview',
             charts: [
                 {
                     id: 'DB-43.1',
@@ -624,7 +623,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.META_ADS,
                 ApiConnectorType.LINKEDIN_ADS,
             ],
-            source: 'https://blog.coupler.io/ppc-report-templates/',
             charts: [
                 {
                     id: 'DB-44.1',
@@ -699,7 +697,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.META_ADS,
                 ApiConnectorType.LINKEDIN_ADS,
             ],
-            source: 'https://agencyanalytics.com/report-templates/ppc',
             charts: [
                 {
                     id: 'DB-45.1',
@@ -762,7 +759,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.LINKEDIN_ADS,
                 ApiConnectorType.GA4,
             ],
-            source: 'https://www.coupler.io/marketing-dashboards/looker-studio-hubspot-customer-acquisition-dashboard',
             charts: [
                 {
                     id: 'DB-46.1',
@@ -832,7 +828,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.LINKEDIN_ADS,
                 ApiConnectorType.GA4,
             ],
-            source: 'https://docs.dreamdata.io/article/hnbzx423ho-return-on-ads-spend-ad-performance',
             charts: [
                 {
                     id: 'DB-47.1',
@@ -900,7 +895,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.LINKEDIN_ADS,
                 ApiConnectorType.GA4,
             ],
-            source: 'https://hockeystack.com/templates/justin-rowes-linkedin-ads-dashboard',
             charts: [
                 {
                     id: 'DB-48.1',
@@ -957,7 +951,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
             id: 'DB-49',
             name: 'SEO landing page performance',
             tools: [ApiConnectorType.GA4, ApiConnectorType.SEARCH_CONSOLE],
-            source: 'https://www.coupler.io/marketing-dashboards/google-sheets-landing-page-performance-dashboard',
             charts: [
                 {
                     id: 'DB-49.1',
@@ -998,7 +991,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.GOOGLE_ADS,
                 ApiConnectorType.SEARCH_CONSOLE,
             ],
-            source: 'https://support.google.com/google-ads/answer/3097241',
             charts: [
                 {
                     id: 'DB-50.1',
@@ -1054,7 +1046,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.LINKEDIN_ADS,
                 ApiConnectorType.GA4,
             ],
-            source: 'https://docs.dreamdata.io/article/7j4sc0w58z-acquisition',
             charts: [
                 {
                     id: 'DB-51.1',
@@ -1124,7 +1115,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.LINKEDIN_ADS,
                 'warehouse',
             ],
-            source: 'https://docs.dreamdata.io/article/xnkeapqcs1-cac-report',
             charts: [
                 {
                     id: 'DB-52.1',
@@ -1173,7 +1163,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.GA4,
                 'warehouse',
             ],
-            source: 'https://docs.snowplow.io/docs/modeling-your-data/modeling-your-data-with-dbt/dbt-models/dbt-attribution-data-model',
             charts: [
                 {
                     id: 'DB-53.1',
@@ -1227,7 +1216,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.POSTHOG,
                 'warehouse',
             ],
-            source: 'https://attio.com/help/reference/industry-guides/plg.md',
             charts: [
                 {
                     id: 'DB-54.1',
@@ -1282,7 +1270,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.PYLON,
                 'warehouse',
             ],
-            source: 'https://www.metabase.com/integrations/vitally',
             charts: [
                 {
                     id: 'DB-55.1',
@@ -1359,7 +1346,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.PYLON,
                 'warehouse',
             ],
-            source: 'https://www.klipfolio.com/resources/dashboard-examples/saas/saas-executive-dashboard',
             charts: [
                 {
                     id: 'DB-56.1',
@@ -1410,7 +1396,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
             id: 'DB-57',
             name: 'SaaS daily snapshot',
             tools: [ApiConnectorType.POSTHOG, 'warehouse'],
-            source: 'https://www.geckoboard.com/business-dashboards/saas-dashboards',
             charts: [
                 {
                     id: 'DB-57.1',
