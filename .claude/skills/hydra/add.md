@@ -1,16 +1,8 @@
----
-name: add-live-integration
-metadata:
-  internal: true
-description: Add a live data source integration (an external API queried live at question time, like GA4, PostHog or Meta Ads) to Lightdash. Use when asked to add, port or scaffold a live integration, or to change what every integration must provide.
-allowed-tools: Read, Edit, Write, Glob, Grep, Bash
----
-
-# Add a live integration
+# hydra add: a new live integration
 
 A live integration turns a metric query on a live data source explore into calls to one external API and its rows into a result. Nothing is synced or stored. One integration is one folder plus a few registry entries; the shared engine does the rest.
 
-Read one existing integration end to end before writing yours. Pick the closest:
+If there is no assess page for the tool yet, run `assess` first; its spec and explores are your starting point. Read one existing integration end to end before writing yours. Pick the closest:
 
 | Shape of the API | Copy |
 |---|---|
@@ -31,7 +23,8 @@ What you write, per folder `integrations/<name>/`:
 - `compile.ts`: `(explore, metricQuery, today) => { query, localSorts?, fieldIdsByColumn? }`. Return only the request. `compileLiveMetricQuery` adds `requestLimit`, `limit`, the default column map (API name → field id) and `periodColumns` (from `periodFormats`). Set `localSorts` when the API can't apply a sort; rows are then read up to `limits.maxRows`, and `getLiveRequestLimit` gives the row count to put in the request.
 - `run.ts`: `run({ settings, request, limit, calls })`. Use `calls.fetch(request, zodSchema)` or `calls.send(request)`; never hold credentials, the service attaches them. Return `{ columns, rows, hasMoreRows, bytesRead? }`. Cap or refuse `limit` the way the API needs (`assertMaxRows` when it can't cap).
 - `errors.ts` (when needed): `toError(response, settings)` turns a non-2xx response into an error that says what to change.
-- `index.ts`: the `defineLiveIntegration` call: `label` (used in error text), `settings` (zod, matching the common type), `origins`, `access` (path prefixes, methods, headers), `limits`, `capabilities`, `explores`, `plannedModelNames`, `validate`, `checkAuth`, `describeTarget` (for the AI agent), `parseRequest`, `compile`, `run`, `toError`, optional `scan` and `periodFormats`.
+- `useCases.ts`: `<name>UseCases: LiveUseCases`, the questions people ask and dashboards they build, each `possible: true/false` for today. Follow the use case rules in [SKILL.md](SKILL.md#use-cases); start from the assess page's cases when there is one.
+- `index.ts`: the `defineLiveIntegration` call: `label` (used in error text), `settings` (zod, matching the common type), `origins`, `access` (path prefixes, methods, headers), `limits`, `capabilities`, `explores`, `plannedModelNames`, `validate`, `checkAuth`, `describeTarget` (for the AI agent), `parseRequest`, `compile`, `run`, `toError`, optional `scan` and `periodFormats`. It also carries the spec from `spec/types.ts`: `level`, `auth` (token and OAuth kept apart), `paging`, `rateLimiting`, each with a short `description` of the vendor's facts, plus `useCases`. Write vendor facts only, checked against the vendor's docs.
 
 Don't refuse queries in `compile`: callers run the shared check (`getApiSourceQueryIssues` / `assertLiveQuery`) first, driven by `capabilities` and each field's filter rules.
 
@@ -41,7 +34,7 @@ Don't refuse queries in `compile`: callers run the shared check (`getApiSourceQu
 2. `packages/common/src/ee/externalConnections/types.ts`: add the settings type and put it in `ExternalConnectionApiSource`.
 3. `packages/common/src/utils/liveSourceIntegrations.ts`: add the `LIVE_INTEGRATION_CATALOG` entry (id, labels, description, setup kind, `settings` zod schema, `getTarget`, `agentQueryGuide`). The backend integration reads its settings schema from here. Typecheck fails until you do.
 4. `registry.ts`: add it to `LIVE_INTEGRATIONS` (typecheck fails until you do).
-5. `registry.test.ts`: add `SAMPLE_SETTINGS` for it. The conformance test then checks settings round-trip, early refusals, and that what it compiles runs and a failed call is explained.
+5. `registry.test.ts`: add `SAMPLE_SETTINGS` for it. `spec/spec.test.ts` picks it up too; update its auth score snapshot. The conformance test then checks settings round-trip, early refusals, and that what it compiles runs and a failed call is explained.
 6. Frontend `packages/frontend/src/features/externalConnections/liveSources/liveSourceCatalog.ts`: add the icon (`icons/<name>.svg`, square, brand color). A new setup kind also needs its connect dialog.
 7. Sign-in: Google sources reuse `integrations/google/signIn.ts`; OAuth scopes and token exchange live in `ee/services/ExternalConnectionService` (see `googleOAuth.ts`, `postHogOAuth.ts`, `linkedInAdsOAuth.ts`).
 
@@ -52,6 +45,8 @@ Don't refuse queries in `compile`: callers run the shared check (`getApiSourceQu
 - `capabilities.test.ts` and `explores/names.test.ts` snapshots: update them for the new connector and review the diff.
 
 Run `pnpm -F backend exec vitest run src/services/QuerySourceService/live`, `pnpm -F backend typecheck`, and `pnpm run linter --fix` in `packages/backend`.
+
+Then run `test` (in `SKILL.md`) on it and fix what it finds.
 
 ## Naming
 
