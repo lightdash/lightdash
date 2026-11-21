@@ -69,7 +69,7 @@ const sidesOf = (rect: DOMRect, size: Size): Position[] => [
  * Where a bubble's top left goes so it sits beside its own marks: where it is
  * while that is still beside them, else right, left, below or above all of
  * them, else beside the newest. A side that is off its marks and off `avoid`
- * wins; covering a little of `avoid` comes before covering its own marks.
+ * wins; with none free it goes past what is in the way, in view or not.
  */
 export const besideMarks = ({
     marks,
@@ -113,6 +113,34 @@ export const besideMarks = ({
         onOthers: covered(rectAt(at), avoid),
     }));
     const offMarks = places.filter((place) => place.onMarks === 0);
+    // Every side is taken: go past what is in the way, even out of view.
+    if (!places.some((p) => p.onMarks === 0 && p.onOthers === 0)) {
+        const past = places
+            .flatMap((place) =>
+                avoid
+                    .filter((other) => overlapArea(rectAt(place.at), other) > 0)
+                    .flatMap((other) => [
+                        { x: other.right + GAP_PX, y: place.at.y },
+                        { x: place.at.x, y: other.bottom + GAP_PX },
+                        { x: other.left - GAP_PX - size.width, y: place.at.y },
+                        { x: place.at.x, y: other.top - GAP_PX - size.height },
+                    ]),
+            )
+            .filter(
+                (at) =>
+                    at.x >= MARGIN_PX &&
+                    at.y >= MARGIN_PX &&
+                    covered(rectAt(at), marks) === 0 &&
+                    covered(rectAt(at), avoid) === 0,
+            );
+        if (past.length > 0) {
+            return past.reduce((best, at) =>
+                gapBetween(rectAt(at), all) < gapBetween(rectAt(best), all)
+                    ? at
+                    : best,
+            );
+        }
+    }
     // The first that covers least: of the others when one is off its marks.
     return (offMarks.length > 0 ? offMarks : places).reduce((best, place) =>
         (

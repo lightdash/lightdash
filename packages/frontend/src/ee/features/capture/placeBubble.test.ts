@@ -92,7 +92,7 @@ describe('besideMarks', () => {
         ).toEqual({ x: 188, y: 300 });
     });
 
-    it('lands on another bubble before it covers its own marks', () => {
+    it('boxed in on every side, it goes past the others, even out of view', () => {
         const others = [
             new DOMRect(0, 0, 800, 290),
             new DOMRect(0, 410, 800, 190),
@@ -101,10 +101,10 @@ describe('besideMarks', () => {
         ];
         expect(
             place([new DOMRect(400, 300, 100, 100)], { avoid: others }),
-        ).toEqual({ x: 512, y: 300 });
+        ).toEqual({ x: 400, y: 612 });
     });
 
-    it('with another bubble on every side, it takes the side that covers least of it', () => {
+    it('with another bubble on every side, it takes the nearest spot clear of them all', () => {
         const at = place([new DOMRect(400, 300, 100, 100)], {
             avoid: [
                 new DOMRect(500, 250, 300, 150),
@@ -112,7 +112,7 @@ describe('besideMarks', () => {
                 new DOMRect(380, 400, 40, 30),
             ],
         });
-        expect(at).toEqual({ x: 400, y: 412 });
+        expect(at).toEqual({ x: 512, y: 412 });
     });
 
     it('covers as little of its marks as it can when no side is clear', () => {
