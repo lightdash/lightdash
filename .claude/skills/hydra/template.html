@@ -163,7 +163,7 @@ const authValue = (auth) => {
     </div>`;
 };
 
-const caseStatus = (possible) => `<span class="status">${dot(possible ? 'green' : '')}${possible ? 'Possible' : 'Not possible'}</span>`;
+const caseStatus = (possible) => `<span class="status">${dot(possible ? 'green' : 'red')}${possible ? 'Possible' : 'Not possible'}</span>`;
 const resultCell = (result) => (result
   ? `<span><span class="status">${dot(OUTCOME_COLOR[result.outcome])}${esc(words(result.outcome))}</span>${result.note ? `<div class="note">${esc(result.note)}</div>` : ''}</span>`
   : '<span class="status t3">Not tried</span>');
