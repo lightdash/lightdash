@@ -29,21 +29,18 @@ export const metaAdsSpec: LiveIntegrationSpec = {
                 'How are spend, results and cost per result trending day by day for each Meta campaign?',
             expect: 'answer',
             tags: ['unverified', 'no_data', 'capped'],
-            source: 'https://databox.com/dashboard-examples/facebook-ads-ad-sets-overview',
         },
         {
             id: 'MET-02',
             question:
                 'Which ad sets that spent over $500 this month have the lowest cost per result?',
             expect: 'answer',
-            source: 'https://github.com/fivetran/dbt_facebook_ads',
         },
         {
             id: 'MET-03',
             question:
                 'How many unique people did we reach on Meta this month across all campaigns, and what was the average frequency?',
             expect: 'answer',
-            source: 'https://blog.coupler.io/ppc-report-templates/',
         },
         {
             id: 'MET-04',
@@ -51,91 +48,78 @@ export const metaAdsSpec: LiveIntegrationSpec = {
                 'How has our cumulative unique reach grown week by week since the campaign launched, and is new reach flattening out?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://databox.com/dashboard-examples/facebook-ads-ad-sets-overview',
         },
         {
             id: 'MET-05',
             question:
                 'For each ad, how did CTR and cost per result change in the weeks after launch as frequency built up, and which ads are now fatigued?',
             expect: 'needs_change',
-            source: 'https://databox.com/metric-library/metrics/facebook-ads/frequency',
         },
         {
             id: 'MET-06',
             question:
                 'How many people saw our ads once, twice, 3 to 5 times and 6 or more times this month?',
             expect: 'needs_change',
-            source: 'https://developers.facebook.com/docs/marketing-api/insights/breakdowns',
         },
         {
             id: 'MET-07',
             question:
                 'Which age and gender groups have the lowest cost per purchase on Meta, and where is spend going to groups that do not convert?',
             expect: 'answer',
-            source: 'https://github.com/fivetran/dbt_facebook_ads',
         },
         {
             id: 'MET-08',
             question:
                 'Which placements (Facebook Feed, Instagram Stories, Reels, Audience Network) give the lowest CPM and CPC, and how has spend shifted between them week to week?',
             expect: 'answer',
-            source: 'https://blog.coupler.io/ppc-report-templates/',
         },
         {
             id: 'MET-09',
             question:
                 'Which countries and regions get the most Meta spend, and what is the cost per result in each?',
             expect: 'needs_change',
-            source: 'https://github.com/fivetran/dbt_facebook_ads',
         },
         {
             id: 'MET-10',
             question:
                 "At what time of day, in the viewer's local time, do our Meta ads get the best click-through rate and cost per result?",
             expect: 'needs_change',
-            source: 'https://developers.facebook.com/docs/marketing-api/insights/breakdowns',
         },
         {
             id: 'MET-11',
             question:
                 'How many of the purchases Meta reports per campaign are 1-day view-through versus 1-day click versus 7-day click?',
             expect: 'needs_change',
-            source: 'https://www.jonloomer.com/compare-attribution-settings/',
         },
         {
             id: 'MET-12',
             question:
                 'Where do people drop off between link click, landing page view, add to cart, checkout and purchase for each campaign?',
             expect: 'answer',
-            source: 'https://developers.facebook.com/docs/marketing-api/insights/breakdowns',
         },
         {
             id: 'MET-13',
             question:
                 'Which video ads hold attention best: what share of viewers reach 25%, 50%, 75% and 100% of each video?',
             expect: 'needs_change',
-            source: 'https://blog.coupler.io/ppc-report-templates/',
         },
         {
             id: 'MET-14',
             question:
                 'Which headline, image or video and call-to-action variations get the most spend and the best cost per result in our dynamic creative ads?',
             expect: 'needs_change',
-            source: 'https://www.jonloomer.com/breakdowns-meta-ads-manager/',
         },
         {
             id: 'MET-15',
             question:
                 'Which landing page URLs and UTM campaign tags receive the most Meta spend and conversions?',
             expect: 'needs_change',
-            source: 'https://github.com/fivetran/dbt_facebook_ads',
         },
         {
             id: 'MET-16',
             question:
                 'Is Meta spend this month over or under where it was at the same point last month, by campaign?',
             expect: 'answer',
-            source: 'https://databox.com/dashboard-examples/facebook-ads-ad-sets-overview',
         },
     ],
     dashboards: [

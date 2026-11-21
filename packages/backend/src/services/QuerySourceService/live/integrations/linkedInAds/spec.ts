@@ -28,7 +28,6 @@ export const linkedInAdsSpec: LiveIntegrationSpec = {
                 'How have LinkedIn impressions, clicks, CPM, CPC and spend trended month by month over the last year?',
             expect: 'answer',
             tags: ['unverified'],
-            source: 'https://blog.coupler.io/ppc-report-templates/',
         },
         {
             id: 'LIN-02',
@@ -36,7 +35,6 @@ export const linkedInAdsSpec: LiveIntegrationSpec = {
                 'Which LinkedIn campaigns generate the most leads, and which have the lowest cost per lead?',
             expect: 'answer',
             tags: ['unverified'],
-            source: 'https://blog.coupler.io/ppc-report-templates/',
         },
         {
             id: 'LIN-03',
@@ -44,7 +42,6 @@ export const linkedInAdsSpec: LiveIntegrationSpec = {
                 'Where do we lose people in the LinkedIn lead gen form funnel: impressions to clicks to form opens to submitted leads, and what is the form completion rate per campaign?',
             expect: 'answer',
             tags: ['unverified'],
-            source: 'https://blog.coupler.io/ppc-report-templates/',
         },
         {
             id: 'LIN-04',
@@ -52,7 +49,6 @@ export const linkedInAdsSpec: LiveIntegrationSpec = {
                 'Which job titles are seeing and clicking our LinkedIn ads, and what share of impressions goes to titles outside our target persona?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/ads-reporting',
         },
         {
             id: 'LIN-05',
@@ -60,7 +56,6 @@ export const linkedInAdsSpec: LiveIntegrationSpec = {
                 'Which companies saw and engaged with our LinkedIn ads most last quarter, ranked by impressions, clicks and CTR?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://www.coupler.io/dashboard-examples/linkedin-ads-dashboard',
         },
         {
             id: 'LIN-06',
@@ -68,7 +63,6 @@ export const linkedInAdsSpec: LiveIntegrationSpec = {
                 'Which companies received LinkedIn ad impressions even though they are not on the target account list for that campaign?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/ads-reporting',
         },
         {
             id: 'LIN-07',
@@ -76,7 +70,6 @@ export const linkedInAdsSpec: LiveIntegrationSpec = {
                 'How do click-through rate and cost per click differ by seniority, job function, industry and company size?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/ads-reporting-schema',
         },
         {
             id: 'LIN-08',
@@ -84,7 +77,6 @@ export const linkedInAdsSpec: LiveIntegrationSpec = {
                 'Which LinkedIn ad creatives drive the most leads and conversions, and what does each cost per click and per lead?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://github.com/fivetran/dbt_linkedin',
         },
         {
             id: 'LIN-09',
@@ -92,7 +84,6 @@ export const linkedInAdsSpec: LiveIntegrationSpec = {
                 "Which countries and regions take most of each LinkedIn campaign's spend and clicks each month?",
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://github.com/fivetran/dbt_linkedin',
         },
         {
             id: 'LIN-10',
@@ -100,7 +91,6 @@ export const linkedInAdsSpec: LiveIntegrationSpec = {
                 'How many LinkedIn website conversions were post-click versus view-through for each campaign and conversion action?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/ads-reporting-schema',
         },
         {
             id: 'LIN-11',
@@ -108,7 +98,6 @@ export const linkedInAdsSpec: LiveIntegrationSpec = {
                 "What share of each campaign's target audience have we actually reached on LinkedIn, and at what average frequency?",
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/ads-reporting-schema',
         },
         {
             id: 'LIN-12',
@@ -116,7 +105,6 @@ export const linkedInAdsSpec: LiveIntegrationSpec = {
                 'LinkedIn cost per lead rose this month versus last month: is that from a higher CPM, a lower click-through rate or a lower lead form completion rate?',
             expect: 'answer',
             tags: ['unverified'],
-            source: 'https://blog.coupler.io/ppc-report-templates/',
         },
         {
             id: 'LIN-13',
@@ -124,7 +112,6 @@ export const linkedInAdsSpec: LiveIntegrationSpec = {
                 'What share of LinkedIn leads have a valid work email or were marked qualified, and what is the cost per qualified lead by campaign?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/ads-reporting-schema',
         },
         {
             id: 'LIN-14',
@@ -132,7 +119,6 @@ export const linkedInAdsSpec: LiveIntegrationSpec = {
                 'How much has the Q4 Enterprise ABM campaign group spent so far against its total budget?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://github.com/fivetran/dbt_linkedin',
         },
     ],
     dashboards: [

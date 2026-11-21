@@ -28,35 +28,30 @@ export const hubspotSpec: LiveIntegrationSpec = {
                 'What is our open pipeline value and deal count by deal stage right now?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://github.com/fivetran/dbt_hubspot',
         },
         {
             id: 'HUB-02',
             question:
                 'What did our open pipeline look like by stage on the first day of last quarter, compared with today?',
             expect: 'needs_change',
-            source: 'https://knowledge.hubspot.com/reports/create-sales-reports-in-the-sales-analytics-suite',
         },
         {
             id: 'HUB-03',
             question:
                 'Which deals had their close date pushed out of this quarter, and how much value moved with them?',
             expect: 'needs_change',
-            source: 'https://knowledge.hubspot.com/reports/create-sales-reports-in-the-sales-analytics-suite',
         },
         {
             id: 'HUB-04',
             question:
                 "How did this quarter's pipeline change since the quarter started: how much was created, pushed, pulled in, increased, decreased, won and lost?",
             expect: 'needs_change',
-            source: 'https://knowledge.hubspot.com/reports/create-sales-reports-in-the-sales-analytics-suite',
         },
         {
             id: 'HUB-05',
             question:
                 'What is the conversion rate from each deal stage to the next, and how many deals skip a stage?',
             expect: 'answer',
-            source: 'https://knowledge.hubspot.com/reports/create-sales-reports-in-the-sales-analytics-suite',
         },
         {
             id: 'HUB-06',
@@ -64,14 +59,12 @@ export const hubspotSpec: LiveIntegrationSpec = {
                 'How many days do deals spend in each stage on average, and which reps are slowest at each stage?',
             expect: 'answer',
             tags: ['unverified', 'no_data', 'capped'],
-            source: 'https://github.com/fivetran/dbt_hubspot',
         },
         {
             id: 'HUB-07',
             question: 'Which reps closed the most won deal revenue this month?',
             expect: 'needs_change',
             tags: ['unverified', 'no_data'],
-            source: 'https://databox.com/dashboard-examples/hubspot-crm-deals-performance-dashboard-template',
         },
         {
             id: 'HUB-08',
@@ -79,7 +72,6 @@ export const hubspotSpec: LiveIntegrationSpec = {
                 'What is the win rate and average deal size for each rep and each pipeline this quarter?',
             expect: 'needs_change',
             tags: ['unverified', 'no_data'],
-            source: 'https://www.coupler.io/dashboard-examples/hubspot-dashboard',
         },
         {
             id: 'HUB-09',
@@ -87,21 +79,18 @@ export const hubspotSpec: LiveIntegrationSpec = {
                 'How has the average number of days from deal creation to closed-won trended month by month over the past year?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://knowledge.hubspot.com/reports/create-sales-reports-in-the-sales-analytics-suite',
         },
         {
             id: 'HUB-10',
             question:
                 'How much revenue has each rep closed against their quota this quarter, and who is behind pace?',
             expect: 'needs_change',
-            source: 'https://knowledge.hubspot.com/reports/create-sales-reports-in-the-sales-analytics-suite',
         },
         {
             id: 'HUB-11',
             question:
                 'How many calls, emails and meetings did each rep log last week compared with the week before?',
             expect: 'needs_change',
-            source: 'https://databox.com/dashboard-examples/weekly-sales-activity-sales-rep-view',
         },
         {
             id: 'HUB-12',
@@ -109,7 +98,6 @@ export const hubspotSpec: LiveIntegrationSpec = {
                 'How long does it take each rep to make first contact after a new lead is assigned to them?',
             expect: 'needs_change',
             tags: ['unverified', 'no_data'],
-            source: 'https://knowledge.hubspot.com/reports/create-sales-reports-in-the-sales-analytics-suite',
         },
         {
             id: 'HUB-13',
@@ -117,14 +105,12 @@ export const hubspotSpec: LiveIntegrationSpec = {
                 'How much closed-won deal revenue came from each original traffic source this year?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://knowledge.hubspot.com/reports/create-sales-reports-in-the-sales-analytics-suite',
         },
         {
             id: 'HUB-14',
             question:
                 'What share of leads become MQLs, SQLs and then customers, and where is the biggest drop-off?',
             expect: 'answer',
-            source: 'https://knowledge.hubspot.com/reports/use-marketing-reports-in-the-marketing-analytics-suite',
         },
         {
             id: 'HUB-15',
@@ -132,35 +118,30 @@ export const hubspotSpec: LiveIntegrationSpec = {
                 'Of the contacts created in each month, what share reached customer stage within 90 days?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://knowledge.hubspot.com/reports/create-custom-funnel-reports',
         },
         {
             id: 'HUB-16',
             question:
                 'Which marketing emails had the highest open and click-through rates last quarter, and which had the worst bounce and unsubscribe rates?',
             expect: 'needs_change',
-            source: 'https://supermetrics.com/template-gallery/looker-studio-hubspot-email-marketing-performance-template',
         },
         {
             id: 'HUB-17',
             question:
                 'Each week, how many tickets were closed within SLA versus out of SLA?',
             expect: 'needs_change',
-            source: 'https://knowledge.hubspot.com/help-desk/analyze-help-desk',
         },
         {
             id: 'HUB-18',
             question:
                 'How many tickets were open at the end of each day over the past month, split by ticket pipeline stage?',
             expect: 'needs_change',
-            source: 'https://raw.githubusercontent.com/fivetran/dbt_hubspot/main/models/service/service.yml',
         },
         {
             id: 'HUB-19',
             question:
                 'When did we last have a call, meeting or email with anyone at a given company, and how many touches has it had in total?',
             expect: 'answer',
-            source: 'https://github.com/fivetran/dbt_hubspot',
         },
         {
             id: 'HUB-20',
@@ -168,7 +149,6 @@ export const hubspotSpec: LiveIntegrationSpec = {
                 'Which open deals have had no logged activity in the last 14 days, sorted by amount?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://www.coupler.io/dashboard-examples/crm-dashboard',
         },
     ],
     dashboards: [

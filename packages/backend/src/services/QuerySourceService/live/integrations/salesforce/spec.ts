@@ -27,35 +27,30 @@ export const salesforceSpec: LiveIntegrationSpec = {
             question:
                 'What is our open pipeline amount and expected revenue by opportunity stage?',
             expect: 'answer',
-            source: 'https://learn.microsoft.com/en-us/power-bi/connect-data/service-connect-to-salesforce',
         },
         {
             id: 'SFD-02',
             question:
                 'How has our open pipeline changed since the first day of the quarter: which opportunities had their amount, stage or close date changed?',
             expect: 'needs_change',
-            source: 'https://www.salesforceben.com/the-best-little-known-salesforce-feature-for-opportunities-historical-trending/',
         },
         {
             id: 'SFD-03',
             question:
                 'How many days do opportunities spend in each stage on average, and where do they move backwards to an earlier stage?',
             expect: 'needs_change',
-            source: 'https://www.salesforceben.com/salesforce-opportunity-history-vs-opportunity-field-history/',
         },
         {
             id: 'SFD-04',
             question:
                 'Which open opportunities have sat in their current stage longer than our allowed number of days, and how much amount is tied up per owner?',
             expect: 'answer',
-            source: 'https://trailhead.salesforce.com/content/learn/modules/sales-deal-acceleration/identify-stuck-sales-deals',
         },
         {
             id: 'SFD-05',
             question:
                 'From which stage do opportunities most often drop straight to closed-lost?',
             expect: 'needs_change',
-            source: 'https://www.salesforceben.com/5-salesforce-pipeline-reports-you-need-today/',
         },
         {
             id: 'SFD-06',
@@ -63,14 +58,12 @@ export const salesforceSpec: LiveIntegrationSpec = {
                 'Who are the top reps this quarter by won revenue, with their win rate, average deal size and days to close?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://www.coupler.io/dashboard-examples/sales-leaderboard',
         },
         {
             id: 'SFD-07',
             question:
                 "How do each sales manager's teams compare this quarter on bookings, pipeline created, losses and win rate?",
             expect: 'needs_change',
-            source: 'https://github.com/fivetran/dbt_salesforce',
         },
         {
             id: 'SFD-08',
@@ -78,42 +71,36 @@ export const salesforceSpec: LiveIntegrationSpec = {
                 'How has the average number of days from opportunity creation to close trended by quarter, for new business versus existing business?',
             expect: 'answer',
             tags: ['unverified', 'no_data', 'capped'],
-            source: 'https://raw.githubusercontent.com/fivetran/dbt_salesforce/main/models/salesforce/salesforce.yml',
         },
         {
             id: 'SFD-09',
             question:
                 'How is each rep tracking against quota this quarter, and what is their gap to quota after counting commit forecast?',
             expect: 'needs_change',
-            source: 'https://trailhead.salesforce.com/content/learn/modules/sales-forecasting/track-sales-forecast-performance',
         },
         {
             id: 'SFD-10',
             question:
                 'How has the committed forecast for this quarter moved week by week, and how does it compare with the same point last year?',
             expect: 'needs_change',
-            source: 'https://trailhead.salesforce.com/content/learn/modules/sales-forecasting/track-sales-forecast-performance',
         },
         {
             id: 'SFD-11',
             question:
                 'How do bookings this quarter compare with last quarter, in amount and in number of deals?',
             expect: 'answer',
-            source: 'https://raw.githubusercontent.com/fivetran/dbt_salesforce/main/models/salesforce/salesforce.yml',
         },
         {
             id: 'SFD-12',
             question:
                 'How many calls, emails and meetings did each account executive log last week, and how many meetings did they book?',
             expect: 'needs_change',
-            source: 'https://www.salesforce.com/blog/sales-management-dashboards/',
         },
         {
             id: 'SFD-13',
             question:
                 'How do leads created, leads converted, tasks completed and opportunities created trend day by day, and is there a day-of-week pattern?',
             expect: 'needs_change',
-            source: 'https://raw.githubusercontent.com/fivetran/dbt_salesforce/main/models/salesforce/salesforce.yml',
         },
         {
             id: 'SFD-14',
@@ -121,7 +108,6 @@ export const salesforceSpec: LiveIntegrationSpec = {
                 'How much closed-won revenue came from each lead source this year, and which sources convert best?',
             expect: 'answer',
             tags: ['unverified', 'no_data'],
-            source: 'https://www.coupler.io/dashboard-examples/win-loss-analysis-dashboard',
         },
         {
             id: 'SFD-15',
@@ -129,7 +115,6 @@ export const salesforceSpec: LiveIntegrationSpec = {
                 'Which campaigns delivered the highest ROI and the lowest cost per won opportunity?',
             expect: 'needs_change',
             tags: ['unverified', 'no_data'],
-            source: 'https://raw.githubusercontent.com/fivetran/dbt_salesforce/main/models/salesforce/salesforce.yml',
         },
         {
             id: 'SFD-16',
@@ -137,35 +122,30 @@ export const salesforceSpec: LiveIntegrationSpec = {
                 'What share of new leads get converted, broken down by lead source and lead owner?',
             expect: 'answer',
             tags: ['unverified', 'no_data'],
-            source: 'https://databox.com/salesforce-report-types',
         },
         {
             id: 'SFD-17',
             question:
                 'Of the opportunities created in each quarter, what share has been won, lost or is still open today?',
             expect: 'answer',
-            source: 'https://raw.githubusercontent.com/fivetran/dbt_salesforce/main/models/salesforce/salesforce.yml',
         },
         {
             id: 'SFD-18',
             question:
                 'Which products are most often sold together on the same won opportunity?',
             expect: 'needs_change',
-            source: 'https://github.com/fivetran/dbt_salesforce',
         },
         {
             id: 'SFD-19',
             question:
                 'What stage is a named opportunity in, what is its next step and close date, and who owns it?',
             expect: 'answer',
-            source: 'https://raw.githubusercontent.com/fivetran/dbt_salesforce/main/models/salesforce/salesforce.yml',
         },
         {
             id: 'SFD-20',
             question:
                 'What is our win rate by account industry, region and opportunity type over the last 12 months?',
             expect: 'answer',
-            source: 'https://www.coupler.io/dashboard-examples/win-loss-analysis-dashboard',
         },
     ],
     dashboards: [

@@ -27,7 +27,6 @@ export const youtubeAnalyticsSpec: LiveIntegrationSpec = {
                 'How have views, watch time and average view duration trended day by day across the channel this year?',
             expect: 'answer',
             tags: ['unverified'],
-            source: 'https://github.com/fivetran/dbt_youtube_analytics',
         },
         {
             id: 'YTB-02',
@@ -35,14 +34,12 @@ export const youtubeAnalyticsSpec: LiveIntegrationSpec = {
                 'How many subscribers did we gain and lose each day, and are we losing more than we gain?',
             expect: 'answer',
             tags: ['unverified'],
-            source: 'https://databox.com/dashboard-examples/youtube-channel-performance-dashboard',
         },
         {
             id: 'YTB-03',
             question: 'Which videos drove the most watch time this month?',
             expect: 'answer',
             tags: ['unverified'],
-            source: 'https://databox.com/dashboard-examples/youtube-channel-performance-dashboard',
         },
         {
             id: 'YTB-04',
@@ -50,7 +47,6 @@ export const youtubeAnalyticsSpec: LiveIntegrationSpec = {
                 'How has this one video performed since it was published: total views, watch time, likes, comments, shares and subscribers gained?',
             expect: 'answer',
             tags: ['unverified'],
-            source: 'https://github.com/fivetran/dbt_youtube_analytics',
         },
         {
             id: 'YTB-05',
@@ -58,7 +54,6 @@ export const youtubeAnalyticsSpec: LiveIntegrationSpec = {
                 'At what points in this video do viewers drop off or rewatch, and what share is still watching after the first 30 seconds?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://support.google.com/youtube/answer/9314415',
         },
         {
             id: 'YTB-06',
@@ -66,7 +61,6 @@ export const youtubeAnalyticsSpec: LiveIntegrationSpec = {
                 'How do viewers find our videos: YouTube search, suggested videos, browse, playlists or external sites?',
             expect: 'answer',
             tags: ['unverified'],
-            source: 'https://support.google.com/youtube/answer/9314355',
         },
         {
             id: 'YTB-07',
@@ -74,7 +68,6 @@ export const youtubeAnalyticsSpec: LiveIntegrationSpec = {
                 'How many thumbnail impressions turned into views and then watch time for each video, and which videos have the weakest click-through rate?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://support.google.com/youtube/answer/12220281',
         },
         {
             id: 'YTB-08',
@@ -82,7 +75,6 @@ export const youtubeAnalyticsSpec: LiveIntegrationSpec = {
                 'What is the age, gender and country mix of the people watching our videos?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://github.com/fivetran/dbt_youtube_analytics',
         },
         {
             id: 'YTB-09',
@@ -90,7 +82,6 @@ export const youtubeAnalyticsSpec: LiveIntegrationSpec = {
                 'How many new, casual and regular viewers did we reach each month, counting each viewer once?',
             expect: 'api_cant',
             tags: ['unverified'],
-            source: 'https://support.google.com/youtube/answer/9314416',
         },
         {
             id: 'YTB-10',
@@ -98,7 +89,6 @@ export const youtubeAnalyticsSpec: LiveIntegrationSpec = {
                 'How do estimated revenue, RPM and CPM this month compare with last month?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://support.google.com/youtube/answer/9314357',
         },
         {
             id: 'YTB-11',
@@ -106,7 +96,6 @@ export const youtubeAnalyticsSpec: LiveIntegrationSpec = {
                 'Which videos won us the most subscribers, and which ones cost us subscribers?',
             expect: 'answer',
             tags: ['unverified'],
-            source: 'https://coupler.io/marketing-dashboards/looker-studio-youtube-kpis-dashboard',
         },
         {
             id: 'YTB-12',
@@ -114,7 +103,6 @@ export const youtubeAnalyticsSpec: LiveIntegrationSpec = {
                 'How many views did each video get in its first 7 and 28 days after publishing, compared with our typical video?',
             expect: 'answer',
             tags: ['unverified', 'capped'],
-            source: 'https://support.google.com/youtube/answer/9314414',
         },
     ],
     dashboards: [

@@ -27,28 +27,24 @@ export const attioSpec: LiveIntegrationSpec = {
             question:
                 'How many deals are currently in each pipeline stage, split by deal owner?',
             expect: 'needs_change',
-            source: 'https://attio.com/help/reference/managing-your-data/dashboard-and-reports/build-a-sales-reporting-dashboard',
         },
         {
             id: 'ATT-02',
             question:
                 'For deals created this quarter, what is the conversion rate between each stage from Lead to Won?',
             expect: 'needs_change',
-            source: 'https://attio.com/help/reference/managing-your-data/dashboard-and-reports/build-a-sales-reporting-dashboard',
         },
         {
             id: 'ATT-03',
             question:
                 'What is our win rate for deals with enterprise-sized companies compared with all other deals?',
             expect: 'needs_change',
-            source: 'https://attio.com/help/reference/managing-your-data/dashboard-and-reports/build-a-sales-reporting-dashboard',
         },
         {
             id: 'ATT-04',
             question:
                 'How long do won deals spend in each stage on average, and which owner moves deals through fastest?',
             expect: 'needs_change',
-            source: 'https://attio.com/help/reference/managing-your-data/dashboard-and-reports/set-up-a-time-in-stage-report',
         },
         {
             id: 'ATT-05',
@@ -56,55 +52,47 @@ export const attioSpec: LiveIntegrationSpec = {
                 'How much deal value moved into Won this quarter compared with last quarter?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://attio.com/help/reference/managing-your-data/dashboard-and-reports/set-up-a-stage-changed-report',
         },
         {
             id: 'ATT-06',
             question:
                 'How many deals, and how much deal value, sat in each stage at the end of every month over the past year?',
             expect: 'needs_change',
-            source: 'https://attio.com/help/reference/managing-your-data/dashboard-and-reports/set-up-a-historical-values-report',
         },
         {
             id: 'ATT-07',
             question:
                 'How has total MRR grown month by month over the last year?',
             expect: 'needs_change',
-            source: 'https://attio.com/blog/reporting-2-0',
         },
         {
             id: 'ATT-08',
             question:
                 'Which deal owner moved the most deals into Won each month this year?',
             expect: 'needs_change',
-            source: 'https://attio.com/help/reference/managing-your-data/dashboard-and-reports/reports',
         },
         {
             id: 'ATT-09',
             question: 'From which stage are deals most often marked Lost?',
             expect: 'needs_change',
-            source: 'https://attio.com/help/reference/managing-your-data/dashboard-and-reports/set-up-a-funnel-report',
         },
         {
             id: 'ATT-10',
             question:
                 'Which open deals have been sitting in their current stage for more than 30 days?',
             expect: 'needs_change',
-            source: 'https://attio.com/help/reference/managing-your-data/dashboard-and-reports/set-up-a-time-in-stage-report',
         },
         {
             id: 'ATT-11',
             question:
                 'When did anyone on our team last email or meet with a given company, and who was involved?',
             expect: 'needs_change',
-            source: 'https://github.com/fivetran/dbt_hubspot',
         },
         {
             id: 'ATT-12',
             question:
                 'How many meetings and emails did each team member have with prospects per week this quarter?',
             expect: 'api_cant',
-            source: 'https://databox.com/dashboard-examples/weekly-sales-activity-sales-rep-view',
         },
         {
             id: 'ATT-13',
@@ -112,7 +100,6 @@ export const attioSpec: LiveIntegrationSpec = {
                 'Which lead sources produced the most won deal value this year?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://knowledge.hubspot.com/reports/create-sales-reports-in-the-sales-analytics-suite',
         },
         {
             id: 'ATT-14',
@@ -120,7 +107,6 @@ export const attioSpec: LiveIntegrationSpec = {
                 'Of the deals created in each month, what share was won within 60 days?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://raw.githubusercontent.com/fivetran/dbt_salesforce/main/models/salesforce/salesforce.yml',
         },
     ],
     dashboards: [

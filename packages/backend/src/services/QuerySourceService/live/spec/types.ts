@@ -46,11 +46,7 @@ type LiveSpecVerdict = {
 };
 
 /** A question people expect to ask, for agents to test the integration with. */
-export type LiveSpecQuestion = LiveSpecVerdict & {
-    question: string;
-    /** Where it comes from: a dbt package, a template or the tool's own report. */
-    source: string;
-};
+export type LiveSpecQuestion = LiveSpecVerdict & { question: string };
 
 /** A tile of a dashboard people expect to build. */
 export type LiveSpecChart = LiveSpecVerdict & { title: string; detail: string };

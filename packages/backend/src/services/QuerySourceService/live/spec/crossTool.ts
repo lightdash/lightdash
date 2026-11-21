@@ -16,7 +16,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.META_ADS,
                 ApiConnectorType.LINKEDIN_ADS,
             ],
-            source: 'https://supermetrics.com/template-gallery/looker-studio-paid-channel-mix-overview',
         },
         {
             id: 'X-02',
@@ -29,7 +28,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.META_ADS,
                 ApiConnectorType.LINKEDIN_ADS,
             ],
-            source: 'https://github.com/fivetran/dbt_ad_reporting',
         },
         {
             id: 'X-03',
@@ -42,7 +40,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.META_ADS,
                 ApiConnectorType.LINKEDIN_ADS,
             ],
-            source: 'https://github.com/fivetran/dbt_ad_reporting',
         },
         {
             id: 'X-04',
@@ -55,7 +52,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.META_ADS,
                 ApiConnectorType.LINKEDIN_ADS,
             ],
-            source: 'https://supermetrics.com/template-gallery/google-sheets-budget-pacing-channel-level',
         },
         {
             id: 'X-05',
@@ -68,7 +64,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.META_ADS,
                 ApiConnectorType.LINKEDIN_ADS,
             ],
-            source: 'https://supermetrics.com/template-gallery/google-sheets-budget-pacing-campaign-level',
         },
         {
             id: 'X-06',
@@ -81,7 +76,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.META_ADS,
                 ApiConnectorType.LINKEDIN_ADS,
             ],
-            source: 'https://www.coupler.io/marketing-dashboards/ppc-multichannel-dashboard',
         },
         {
             id: 'X-07',
@@ -94,7 +88,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.META_ADS,
                 ApiConnectorType.LINKEDIN_ADS,
             ],
-            source: 'https://www.coupler.io/marketing-dashboards/ppc-multichannel-dashboard',
         },
         {
             id: 'X-08',
@@ -107,7 +100,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.META_ADS,
                 ApiConnectorType.LINKEDIN_ADS,
             ],
-            source: 'https://github.com/fivetran/dbt_ad_reporting',
         },
         {
             id: 'X-09',
@@ -121,7 +113,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.META_ADS,
                 ApiConnectorType.LINKEDIN_ADS,
             ],
-            source: 'https://knowledge.hubspot.com/ads/analyze-ad-campaigns-in-hubspot',
         },
         {
             id: 'X-10',
@@ -130,7 +121,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
             expect: 'needs_change',
             tags: ['unverified', 'no_data'],
             tools: [ApiConnectorType.SALESFORCE, ApiConnectorType.LINKEDIN_ADS],
-            source: 'https://funnel.io/templates/linkedin-attribution-revenue',
         },
         {
             id: 'X-11',
@@ -139,7 +129,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
             expect: 'needs_change',
             tags: ['unverified', 'no_data'],
             tools: [ApiConnectorType.HUBSPOT, ApiConnectorType.LINKEDIN_ADS],
-            source: 'https://hockeystack.com/templates/justin-rowes-linkedin-ads-dashboard',
         },
         {
             id: 'X-12',
@@ -153,7 +142,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.META_ADS,
                 ApiConnectorType.LINKEDIN_ADS,
             ],
-            source: 'https://www.salesforceben.com/salesforce-campaign-influence-marketers-guide/',
         },
         {
             id: 'X-13',
@@ -162,7 +150,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
             expect: 'needs_change',
             tags: ['unverified', 'no_data'],
             tools: [ApiConnectorType.SALESFORCE, ApiConnectorType.GOOGLE_ADS],
-            source: 'https://support.google.com/google-ads/answer/2998031',
         },
         {
             id: 'X-14',
@@ -171,7 +158,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
             expect: 'answer',
             tags: ['unverified', 'no_data', 'capped'],
             tools: [ApiConnectorType.HUBSPOT, ApiConnectorType.LINKEDIN_ADS],
-            source: 'https://docs.dreamdata.io/article/7gbeltv84g-linkedin-ads-ads-performance',
         },
         {
             id: 'X-15',
@@ -186,7 +172,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.LINKEDIN_ADS,
                 ApiConnectorType.GA4,
             ],
-            source: 'https://www.coupler.io/marketing-dashboards/looker-studio-hubspot-customer-acquisition-dashboard',
         },
         {
             id: 'X-16',
@@ -200,7 +185,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.LINKEDIN_ADS,
                 ApiConnectorType.GA4,
             ],
-            source: 'https://www.coupler.io/dashboard-examples/marketing-funnel-dashboard',
         },
         {
             id: 'X-17',
@@ -214,7 +198,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.LINKEDIN_ADS,
                 ApiConnectorType.POSTHOG,
             ],
-            source: 'https://posthog.com/docs/web-analytics/marketing-analytics',
         },
         {
             id: 'X-18',
@@ -222,7 +205,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 'Which landing pages get a lot of organic search clicks but have a high bounce rate, short sessions or few key events once people arrive?',
             expect: 'answer',
             tools: [ApiConnectorType.GA4, ApiConnectorType.SEARCH_CONSOLE],
-            source: 'https://www.coupler.io/marketing-dashboards/google-sheets-landing-page-performance-dashboard',
         },
         {
             id: 'X-19',
@@ -234,7 +216,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.GOOGLE_ADS,
                 ApiConnectorType.SEARCH_CONSOLE,
             ],
-            source: 'https://support.google.com/google-ads/answer/3097241',
         },
         {
             id: 'X-20',
@@ -246,7 +227,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.GOOGLE_ADS,
                 ApiConnectorType.SEARCH_CONSOLE,
             ],
-            source: 'https://www.coupler.io/dashboard-examples/seo-dashboard',
         },
         {
             id: 'X-21',
@@ -258,7 +238,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.GA4,
                 ApiConnectorType.SEARCH_CONSOLE,
             ],
-            source: 'https://docs.dreamdata.io/article/43fyxlhoyh-google-search',
         },
         {
             id: 'X-22',
@@ -266,7 +245,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 'Which leads who are not yet customers were most active in the product in the last 30 days and have not been contacted by sales?',
             expect: 'needs_change',
             tools: [ApiConnectorType.HUBSPOT, ApiConnectorType.POSTHOG],
-            source: 'https://posthog.com/pocket-guides/context-warehouse/lead-scoring.md',
         },
         {
             id: 'X-23',
@@ -274,7 +252,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 'How does product usage differ between accounts at each open deal stage, and which open deals have gone quiet in the product over the last two weeks?',
             expect: 'needs_change',
             tools: [ApiConnectorType.HUBSPOT, ApiConnectorType.POSTHOG],
-            source: 'https://posthog.com/docs/cdp/sources/hubspot',
         },
         {
             id: 'X-24',
@@ -282,7 +259,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 'What share of new signups reach the activation milestone within 7 days, by signup week, and which un-activated workspaces belong to target companies?',
             expect: 'needs_change',
             tools: [ApiConnectorType.ATTIO, ApiConnectorType.POSTHOG],
-            source: 'https://attio.com/blog/monitoring-pls-metrics-that-matter',
         },
         {
             id: 'X-25',
@@ -291,7 +267,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
             expect: 'answer',
             tags: ['capped'],
             tools: [ApiConnectorType.SALESFORCE, ApiConnectorType.PYLON],
-            source: 'https://docs.usepylon.com/pylon-docs/integrations/crm/salesforce',
         },
         {
             id: 'X-26',
@@ -300,7 +275,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
             expect: 'answer',
             tags: ['capped'],
             tools: [ApiConnectorType.HUBSPOT, ApiConnectorType.PYLON],
-            source: 'https://docs.usepylon.com/pylon-docs/getting-started/pylonboarding/account-intelligence.md',
         },
         {
             id: 'X-27',
@@ -312,7 +286,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.POSTHOG,
                 ApiConnectorType.PYLON,
             ],
-            source: 'https://posthog.com/handbook/cs-and-onboarding/health-tracking',
         },
         {
             id: 'X-28',
@@ -320,7 +293,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 'For bugs reported by customers, how long does it take from the support ticket being opened to the linked GitHub issue being closed, by month?',
             expect: 'needs_change',
             tools: [ApiConnectorType.PYLON, ApiConnectorType.GITHUB],
-            source: 'https://docs.usepylon.com/pylon-docs/integrations/ticketing/github-issues',
         },
         {
             id: 'X-29',
@@ -329,7 +301,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
             expect: 'answer',
             tags: ['capped'],
             tools: [ApiConnectorType.PYLON, ApiConnectorType.GITHUB],
-            source: 'https://github.com/fivetran/dbt_github',
         },
         {
             id: 'X-30',
@@ -337,7 +308,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 'After each release, how quickly did usage of the shipped feature grow, and how many accounts adopted it within the first 30 days?',
             expect: 'needs_change',
             tools: [ApiConnectorType.POSTHOG, ApiConnectorType.GITHUB],
-            source: 'https://posthog.com/docs/data/annotations',
         },
         {
             id: 'X-31',
@@ -350,7 +320,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.SEARCH_CONSOLE,
                 ApiConnectorType.YOUTUBE_ANALYTICS,
             ],
-            source: 'https://www.coupler.io/dashboard-examples/seo-dashboard',
         },
         {
             id: 'X-32',
@@ -363,7 +332,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.GOOGLE_ADS,
                 ApiConnectorType.YOUTUBE_ANALYTICS,
             ],
-            source: 'https://docs.dreamdata.io/article/sgv0cyqg5b-you-tube-ads-performance',
         },
         {
             id: 'X-33',
@@ -371,7 +339,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 'Which blog posts and pages were viewed by the most leads who later became MQLs, relative to the traffic each page gets?',
             expect: 'needs_change',
             tools: [ApiConnectorType.HUBSPOT, ApiConnectorType.GA4],
-            source: 'https://docs.dreamdata.io/article/zbjoamyam2-which-content-generates-pipeline',
         },
         {
             id: 'WH-01',
@@ -386,7 +353,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.GA4,
                 'warehouse',
             ],
-            source: 'https://www.getdbt.com/blog/modeling-marketing-attribution',
         },
         {
             id: 'WH-02',
@@ -401,7 +367,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.GA4,
                 'warehouse',
             ],
-            source: 'https://docs.snowplow.io/docs/modeling-your-data/modeling-your-data-with-dbt/dbt-models/dbt-attribution-data-model',
         },
         {
             id: 'WH-03',
@@ -414,7 +379,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.META_ADS,
                 'warehouse',
             ],
-            source: 'https://www.rittmananalytics.com/blog/2020/9/19/ad-spend-and-campaign-roi-analytics-using-segment-looker-dbt-and-googlenbspbigquery',
         },
         {
             id: 'WH-04',
@@ -428,7 +392,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.LINKEDIN_ADS,
                 'warehouse',
             ],
-            source: 'https://chartmogul.com/saas-metrics/',
         },
         {
             id: 'WH-05',
@@ -436,7 +399,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 'How much MRR do we have from customers acquired through each marketing channel or lead source, and how has that mix changed over the last 12 months?',
             expect: 'needs_change',
             tools: [ApiConnectorType.HUBSPOT, 'warehouse'],
-            source: 'https://help.chartmogul.com/hc/en-us/articles/115003399569',
         },
         {
             id: 'WH-06',
@@ -445,7 +407,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
             expect: 'answer',
             tags: ['unverified', 'no_data', 'capped'],
             tools: [ApiConnectorType.SALESFORCE, 'warehouse'],
-            source: 'https://chartmogul.com/saas-metrics/',
         },
         {
             id: 'WH-07',
@@ -454,7 +415,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
             expect: 'answer',
             tags: ['capped'],
             tools: [ApiConnectorType.POSTHOG, 'warehouse'],
-            source: 'https://help.chartmogul.com/article/230-segmenting-churn-by-early-product-adoption',
         },
         {
             id: 'WH-08',
@@ -463,7 +423,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
             expect: 'answer',
             tags: ['capped'],
             tools: [ApiConnectorType.POSTHOG, 'warehouse'],
-            source: 'https://chartmogul.com/blog/tips-tricks-segment-saas-metrics-product-usage/',
         },
         {
             id: 'WH-09',
@@ -476,7 +435,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.POSTHOG,
                 'warehouse',
             ],
-            source: 'https://attio.com/blog/monitoring-pls-metrics-that-matter',
         },
         {
             id: 'WH-10',
@@ -489,7 +447,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.POSTHOG,
                 'warehouse',
             ],
-            source: 'https://attio.com/help/reference/industry-guides/plg.md',
         },
         {
             id: 'WH-11',
@@ -498,7 +455,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
             expect: 'answer',
             tags: ['capped'],
             tools: [ApiConnectorType.PYLON, 'warehouse'],
-            source: 'https://github.com/fivetran/dbt_customer360',
         },
         {
             id: 'WH-12',
@@ -511,7 +467,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.PYLON,
                 'warehouse',
             ],
-            source: 'https://www.planhat.com/editorial/what-is-a-customer-health-score-how-do-you-calculate-it',
         },
         {
             id: 'WH-13',
@@ -520,7 +475,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
             expect: 'answer',
             tags: ['unverified', 'no_data', 'capped'],
             tools: [ApiConnectorType.PYLON, 'warehouse'],
-            source: 'https://support.gainsight.com/gainsight_nxt/05Scorecards/01About/Scorecards_Overview',
         },
         {
             id: 'WH-14',
@@ -528,7 +482,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 'How do closed-won bookings in the CRM compare each month with the new and expansion MRR that actually started billing?',
             expect: 'answer',
             tools: [ApiConnectorType.SALESFORCE, 'warehouse'],
-            source: 'https://github.com/fivetran/dbt_stripe',
         },
         {
             id: 'WH-15',
@@ -536,7 +489,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 'How accurate was our forecast: what did open pipeline and forecast category look like on the first day of each quarter, and how much of it turned into invoiced revenue?',
             expect: 'needs_change',
             tools: [ApiConnectorType.HUBSPOT, 'warehouse'],
-            source: 'https://github.com/fivetran/dbt_hubspot',
         },
         {
             id: 'WH-16',
@@ -551,7 +503,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.LINKEDIN_ADS,
                 'warehouse',
             ],
-            source: 'https://docs.dreamdata.io/article/xnkeapqcs1-cac-report',
         },
         {
             id: 'WH-17',
@@ -564,7 +515,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.PYLON,
                 'warehouse',
             ],
-            source: 'https://github.com/fivetran/dbt_customer360',
         },
         {
             id: 'WH-18',
@@ -579,7 +529,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.POSTHOG,
                 'warehouse',
             ],
-            source: 'https://www.rudderstack.com/docs/profiles/data-apps/attribution/',
         },
         {
             id: 'WH-19',
@@ -592,7 +541,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.PYLON,
                 'warehouse',
             ],
-            source: 'https://www.planhat.com/editorial/what-is-a-customer-health-score-how-do-you-calculate-it',
         },
         {
             id: 'WH-20',
@@ -604,7 +552,6 @@ export const crossToolSpec: LiveCrossToolSpec = {
                 ApiConnectorType.GITHUB,
                 'warehouse',
             ],
-            source: 'https://docs.usepylon.com/pylon-docs/integrations/ticketing/github-issues',
         },
     ],
     dashboards: [

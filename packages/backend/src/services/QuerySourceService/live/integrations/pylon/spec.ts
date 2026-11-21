@@ -28,14 +28,12 @@ export const pylonSpec: LiveIntegrationSpec = {
                 'How many support issues were created versus closed each week over the last quarter?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://docs.usepylon.com/pylon-docs/reporting-and-analytics/default-dashboards',
         },
         {
             id: 'PYL-02',
             question:
                 'How has our open issue backlog changed week by week over the last 12 weeks, split by status?',
             expect: 'api_cant',
-            source: 'https://support.zendesk.com/hc/en-us/articles/4408835846810',
         },
         {
             id: 'PYL-03',
@@ -43,42 +41,36 @@ export const pylonSpec: LiveIntegrationSpec = {
                 'How many issues were open on the first day of last quarter, by assignee and channel?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://github.com/fivetran/dbt_zendesk',
         },
         {
             id: 'PYL-04',
             question:
                 'What percentage of issues breached their first response, next response and resolution SLAs last month?',
             expect: 'needs_change',
-            source: 'https://docs.usepylon.com/pylon-docs/reporting-and-analytics/default-dashboards',
         },
         {
             id: 'PYL-05',
             question:
                 'Which issues breached an SLA this week, and which accounts were they for?',
             expect: 'needs_change',
-            source: 'https://docs.usepylon.com/pylon-docs/reporting-and-analytics/default-dashboards',
         },
         {
             id: 'PYL-06',
             question:
                 'What were our median and 90th-percentile first response times each week, counted in business hours?',
             expect: 'needs_change',
-            source: 'https://www.metabase.com/integrations/pylon/',
         },
         {
             id: 'PYL-07',
             question:
                 'What are the median and 90th-percentile business-hours resolution times for issues closed this quarter, by priority?',
             expect: 'needs_change',
-            source: 'https://github.com/fivetran/dbt_zendesk',
         },
         {
             id: 'PYL-08',
             question:
                 'How many open and resolved issues does each support engineer have this month, and what are their median response time and SLA breach rate?',
             expect: 'needs_change',
-            source: 'https://docs.usepylon.com/pylon-docs/reporting-and-analytics/default-dashboards',
         },
         {
             id: 'PYL-09',
@@ -86,7 +78,6 @@ export const pylonSpec: LiveIntegrationSpec = {
                 'Which 10 accounts raised the most issues this quarter, and how long did theirs take to resolve on average?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://docs.usepylon.com/pylon-docs/reporting-and-analytics/default-dashboards',
         },
         {
             id: 'PYL-10',
@@ -94,14 +85,12 @@ export const pylonSpec: LiveIntegrationSpec = {
                 'Which accounts opened noticeably more issues in the last 30 days than in the 30 days before?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://www.metabase.com/integrations/pylon/',
         },
         {
             id: 'PYL-11',
             question:
                 'What share of the issues we closed last quarter were later reopened, by tag?',
             expect: 'needs_change',
-            source: 'https://github.com/fivetran/dbt_zendesk',
         },
         {
             id: 'PYL-12',
@@ -109,21 +98,18 @@ export const pylonSpec: LiveIntegrationSpec = {
                 'How have our average CSAT score and survey response rate changed month over month this year?',
             expect: 'api_cant',
             tags: ['unverified', 'no_data'],
-            source: 'https://docs.usepylon.com/pylon-docs/reporting-and-analytics/default-dashboards',
         },
         {
             id: 'PYL-13',
             question:
                 'Of the issues closed last month, how many were sent a CSAT survey, how many customers responded, and how many rated us good?',
             expect: 'api_cant',
-            source: 'https://docs.usepylon.com/pylon-docs/reporting-and-analytics/default-dashboards',
         },
         {
             id: 'PYL-14',
             question:
                 'How long do issues typically sit in each status (new, waiting on us, waiting on customer, on hold) before they are closed?',
             expect: 'api_cant',
-            source: 'https://docs.usepylon.com/pylon-docs/reporting-and-analytics/default-dashboards',
         },
         {
             id: 'PYL-15',
@@ -131,14 +117,12 @@ export const pylonSpec: LiveIntegrationSpec = {
                 'For the Acme account, how many issues have we closed, what is their average satisfaction rating and what is our median first response time?',
             expect: 'answer',
             tags: ['unverified', 'no_data', 'capped'],
-            source: 'https://github.com/fivetran/dbt_intercom',
         },
         {
             id: 'PYL-16',
             question: 'Which tags drove the most support issues this quarter?',
             expect: 'answer',
             tags: ['unverified', 'no_data', 'capped'],
-            source: 'https://docs.usepylon.com/pylon-docs/reporting-and-analytics/default-dashboards',
         },
     ],
     dashboards: [

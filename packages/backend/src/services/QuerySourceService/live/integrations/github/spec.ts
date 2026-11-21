@@ -28,42 +28,36 @@ export const githubSpec: LiveIntegrationSpec = {
                 'How many pull requests were opened, merged and closed without merging each week in each repository?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://github.com/fivetran/dbt_github',
         },
         {
             id: 'GHB-02',
             question:
                 'How long do our pull requests spend coding, waiting for a first review, in review and waiting to merge?',
             expect: 'needs_change',
-            source: 'https://linearb.helpdocs.io/article/1s38stsugw-glossary-metrics',
         },
         {
             id: 'GHB-03',
             question:
                 'Who were our top contributors by commits to the main branch in the last 30 days?',
             expect: 'answer',
-            source: 'https://docs.github.com/en/repositories/viewing-activity-and-data-for-your-repository/using-pulse-to-view-a-summary-of-repository-activity',
         },
         {
             id: 'GHB-04',
             question:
                 'How many pull requests did each engineer review last month, and how quickly did they respond to review requests?',
             expect: 'needs_change',
-            source: 'https://graphite.com/docs/insights',
         },
         {
             id: 'GHB-05',
             question:
                 'Which open pull requests have had no activity for more than a week or are still waiting for their first review?',
             expect: 'needs_change',
-            source: 'https://help.swarmia.com/use-cases/improve-pull-request-flow/managing-pull-requests-in-progress-with-the-pull-request-view',
         },
         {
             id: 'GHB-06',
             question:
                 'How has the number of open issues changed over the last six months compared with issues completed?',
             expect: 'needs_change',
-            source: 'https://docs.github.com/en/issues/planning-and-tracking-with-projects/viewing-insights-from-your-project/about-insights-for-projects',
         },
         {
             id: 'GHB-07',
@@ -71,70 +65,60 @@ export const githubSpec: LiveIntegrationSpec = {
                 'Of the people who first contributed in each quarter, how many are still contributing six months later and how many have gone inactive?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://chaoss.community/metric-inactive-contributors/',
         },
         {
             id: 'GHB-08',
             question:
                 'How many releases did we publish each month over the last year, split by major, minor and patch?',
             expect: 'needs_change',
-            source: 'https://chaoss.community/kb/metric-release-frequency/',
         },
         {
             id: 'GHB-09',
             question:
                 'What are the failure rate, average run time and average queue time of each GitHub Actions workflow over the last 30 days?',
             expect: 'needs_change',
-            source: 'https://docs.github.com/en/actions/concepts/metrics',
         },
         {
             id: 'GHB-10',
             question:
                 'Which CI jobs most often fail and then pass when re-run on the same commit?',
             expect: 'needs_change',
-            source: 'https://www.metabase.com/metrics/flaky-test-rate',
         },
         {
             id: 'GHB-11',
             question:
                 'What is the median number of lines changed per pull request for each team, and how many pull requests exceeded 500 lines?',
             expect: 'needs_change',
-            source: 'https://help.swarmia.com/features/metrics/code-metrics',
         },
         {
             id: 'GHB-12',
             question:
                 'How often did we deploy to production each week, and how long did a change take from first commit to running in production?',
             expect: 'needs_change',
-            source: 'https://devlake.apache.org/docs/DORA',
         },
         {
             id: 'GHB-13',
             question:
                 'What percentage of our deployments last quarter failed, and how long did it take to ship the fix each time?',
             expect: 'needs_change',
-            source: 'https://help.swarmia.com/definitions/dora-metrics.md',
         },
         {
             id: 'GHB-14',
             question:
                 "How long do issues stay labelled 'needs triage' or 'blocked' before the label is removed, and how often is it re-applied?",
             expect: 'needs_change',
-            source: 'https://github.com/fivetran/dbt_github',
         },
         {
             id: 'GHB-15',
             question:
                 'How do issues closed and average days to close this quarter compare with last quarter, per repository?',
             expect: 'needs_change',
-            source: 'https://fivetran.com/docs/transformations/data-models/github-data-model',
         },
         {
             id: 'GHB-16',
             question:
                 'How many GitHub Actions minutes did each repository and workflow use this month, by runner type and operating system?',
             expect: 'needs_change',
-            source: 'https://docs.github.com/en/actions/concepts/metrics',
         },
     ],
     dashboards: [

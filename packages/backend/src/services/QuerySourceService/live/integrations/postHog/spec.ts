@@ -25,7 +25,6 @@ export const postHogSpec: LiveIntegrationSpec = {
             question:
                 'How many daily and monthly active users do we have, and how is the ratio between the two trending?',
             expect: 'answer',
-            source: 'https://posthog.com/templates/b2b-dashboard',
         },
         {
             id: 'PHG-02',
@@ -33,7 +32,6 @@ export const postHogSpec: LiveIntegrationSpec = {
                 'How many unique users used the export feature between 3 March and 19 April, counting each person once?',
             expect: 'answer',
             tags: ['unverified', 'no_data'],
-            source: 'https://posthog.com/docs/product-analytics/trends/overview',
         },
         {
             id: 'PHG-03',
@@ -41,7 +39,6 @@ export const postHogSpec: LiveIntegrationSpec = {
                 'What share of users who signed up went on to finish onboarding and create their first project within 14 days, and which step loses the most people?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://posthog.com/docs/product-analytics/funnels',
         },
         {
             id: 'PHG-04',
@@ -49,7 +46,6 @@ export const postHogSpec: LiveIntegrationSpec = {
                 'Of the users who signed up each week, what percentage came back and did the key action in each of the following eight weeks?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://posthog.com/docs/product-analytics/retention',
         },
         {
             id: 'PHG-05',
@@ -57,7 +53,6 @@ export const postHogSpec: LiveIntegrationSpec = {
                 'What do users do right after signing up, and where do they get stuck before they reach the new feature?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://posthog.com/docs/product-analytics/paths',
         },
         {
             id: 'PHG-06',
@@ -65,7 +60,6 @@ export const postHogSpec: LiveIntegrationSpec = {
                 'On how many days per month do users use the dashboard feature, and how many use it on five or more days?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://posthog.com/docs/product-analytics/stickiness',
         },
         {
             id: 'PHG-07',
@@ -73,63 +67,54 @@ export const postHogSpec: LiveIntegrationSpec = {
                 'How many new, returning, resurrected and dormant users did we have each week?',
             expect: 'answer',
             tags: ['capped'],
-            source: 'https://posthog.com/docs/product-analytics/lifecycle',
         },
         {
             id: 'PHG-08',
             question:
                 'Which companies were most active this month, and how many active users does each one have?',
             expect: 'needs_change',
-            source: 'https://posthog.com/docs/product-analytics/group-analytics',
         },
         {
             id: 'PHG-09',
             question:
                 'Which companies that were active last month have had no activity at all in the past 14 days?',
             expect: 'needs_change',
-            source: 'https://posthog.com/docs/product-analytics/group-analytics',
         },
         {
             id: 'PHG-10',
             question:
                 'How is one named customer using the product: how many of its people are active, which features they use and when they were last seen?',
             expect: 'needs_change',
-            source: 'https://posthog.com/docs/product-analytics/group-analytics',
         },
         {
             id: 'PHG-11',
             question:
                 'Did the new checkout variant beat the control on conversion, by how much, and is the result statistically significant?',
             expect: 'needs_change',
-            source: 'https://posthog.com/docs/experiments/metrics',
         },
         {
             id: 'PHG-12',
             question:
                 'Which channels and UTM campaigns bring the most visitors, and which of them convert to sign-up best?',
             expect: 'answer',
-            source: 'https://posthog.com/docs/web-analytics/dashboard',
         },
         {
             id: 'PHG-13',
             question:
                 "Does crediting sign-ups to a user's first-touch source instead of their last-touch source change which channel looks best?",
             expect: 'answer',
-            source: 'https://posthog.com/docs/product-analytics/funnels',
         },
         {
             id: 'PHG-14',
             question:
                 'Which entry pages have the highest bounce rate and the lowest conversion to sign-up?',
             expect: 'needs_change',
-            source: 'https://posthog.com/docs/web-analytics/dashboard',
         },
         {
             id: 'PHG-15',
             question:
                 'What is the average session length and number of events per session, by device type?',
             expect: 'needs_change',
-            source: 'https://github.com/fivetran/dbt_mixpanel',
         },
         {
             id: 'PHG-16',
@@ -137,14 +122,12 @@ export const postHogSpec: LiveIntegrationSpec = {
                 'Which sessions in the last week had a rage click or an error from users on the Enterprise plan?',
             expect: 'answer',
             tags: ['unverified', 'no_data'],
-            source: 'https://posthog.com/docs/session-replay/surfaces/web-app',
         },
         {
             id: 'PHG-17',
             question:
                 'How did monthly recurring revenue move each month, split into new, expansion, contraction and churned revenue?',
             expect: 'needs_change',
-            source: 'https://posthog.com/docs/revenue-analytics/revenue-metrics',
         },
         {
             id: 'PHG-18',
@@ -152,7 +135,6 @@ export const postHogSpec: LiveIntegrationSpec = {
                 'How do visitors, page views, sessions, bounce rate and session duration this week compare with last week?',
             expect: 'answer',
             tags: ['unverified', 'no_data', 'capped'],
-            source: 'https://posthog.com/docs/web-analytics/dashboard',
         },
     ],
     dashboards: [

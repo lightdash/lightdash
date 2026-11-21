@@ -28,7 +28,6 @@ export const googleAdsSpec: LiveIntegrationSpec = {
                 'How have Google Ads spend, clicks, conversions and cost per conversion trended day by day over the last 90 days?',
             expect: 'answer',
             tags: ['unverified'],
-            source: 'https://github.com/fivetran/dbt_google_ads',
         },
         {
             id: 'GAD-02',
@@ -36,7 +35,6 @@ export const googleAdsSpec: LiveIntegrationSpec = {
                 'Which 10 Google Ads campaigns spent the most last month, and what did a conversion cost in each?',
             expect: 'answer',
             tags: ['unverified'],
-            source: 'https://www.coupler.io/dashboard-examples/google-ads-dashboard',
         },
         {
             id: 'GAD-03',
@@ -44,7 +42,6 @@ export const googleAdsSpec: LiveIntegrationSpec = {
                 'Which search terms got clicks but no conversions in the last 30 days and are not yet excluded as negative keywords?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://support.google.com/google-ads/answer/2472708?hl=en',
         },
         {
             id: 'GAD-04',
@@ -52,7 +49,6 @@ export const googleAdsSpec: LiveIntegrationSpec = {
                 'What is the current daily budget, bidding strategy and status of our Brand Search campaign?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://support.google.com/google-ads/table/13845063?hl=en',
         },
         {
             id: 'GAD-05',
@@ -60,7 +56,6 @@ export const googleAdsSpec: LiveIntegrationSpec = {
                 'Which high-spend keywords have a Quality Score below 5, and is it expected CTR, ad relevance or landing page experience that is holding each one back?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://blog.coupler.io/ppc-report-templates/',
         },
         {
             id: 'GAD-06',
@@ -68,7 +63,6 @@ export const googleAdsSpec: LiveIntegrationSpec = {
                 'How has the Quality Score of our top 50 keywords changed week by week over the last six months, and did it move after we rewrote the ads or landing pages?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://support.google.com/google-ads/answer/6167118?hl=en',
         },
         {
             id: 'GAD-07',
@@ -76,7 +70,6 @@ export const googleAdsSpec: LiveIntegrationSpec = {
                 'How much search impression share did each campaign lose to budget versus to ad rank last month?',
             expect: 'answer',
             tags: ['unverified'],
-            source: 'https://support.google.com/google-ads/answer/7103314?hl=en',
         },
         {
             id: 'GAD-08',
@@ -84,7 +77,6 @@ export const googleAdsSpec: LiveIntegrationSpec = {
                 'Which competitors show up against us most often in search auctions, and whose impression share and outranking share have grown over the last three months?',
             expect: 'api_cant',
             tags: ['unverified'],
-            source: 'https://support.google.com/google-ads/answer/2579754?hl=en',
         },
         {
             id: 'GAD-09',
@@ -92,7 +84,6 @@ export const googleAdsSpec: LiveIntegrationSpec = {
                 'Which hours of the day and days of the week give us the most conversions and the lowest cost per conversion on Google Ads?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://supermetrics.com/template-gallery/looker-studio-google-ads',
         },
         {
             id: 'GAD-10',
@@ -100,7 +91,6 @@ export const googleAdsSpec: LiveIntegrationSpec = {
                 'Do certain devices perform better in specific countries: clicks, CPC and conversion rate by device and country?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://supermetrics.com/template-gallery/looker-studio-google-ads',
         },
         {
             id: 'GAD-11',
@@ -108,7 +98,6 @@ export const googleAdsSpec: LiveIntegrationSpec = {
                 'Which landing pages and UTM campaigns receive the most Google Ads spend, and how do their conversion rates compare?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://github.com/fivetran/dbt_google_ads',
         },
         {
             id: 'GAD-12',
@@ -116,7 +105,6 @@ export const googleAdsSpec: LiveIntegrationSpec = {
                 'How many conversions and how much conversion value did each conversion action (form fill, call, purchase, app install) record per campaign this month?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://support.google.com/google-ads/table/13845063?hl=en',
         },
         {
             id: 'GAD-13',
@@ -124,7 +112,6 @@ export const googleAdsSpec: LiveIntegrationSpec = {
                 'For the clicks we bought in each week, what share of their eventual conversions arrived within 1, 7, 14 and 30 days of the click?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://support.google.com/google-ads/answer/1722023?hl=en',
         },
         {
             id: 'GAD-14',
@@ -132,7 +119,6 @@ export const googleAdsSpec: LiveIntegrationSpec = {
                 'Which campaigns assist many more conversions than they close as the last click, and how would their credit change under data-driven attribution instead of last click?',
             expect: 'api_cant',
             tags: ['unverified'],
-            source: 'https://support.google.com/google-ads/answer/1722023?hl=en',
         },
         {
             id: 'GAD-15',
@@ -140,7 +126,6 @@ export const googleAdsSpec: LiveIntegrationSpec = {
                 'Which campaigns are currently capped by their daily budget, and what share of budget did each use over the last 7 days?',
             expect: 'needs_change',
             tags: ['unverified'],
-            source: 'https://github.com/fivetran/dbt_google_ads',
         },
         {
             id: 'GAD-16',
@@ -148,7 +133,6 @@ export const googleAdsSpec: LiveIntegrationSpec = {
                 'Cost per conversion on Google Ads went up this week versus last week: was it higher CPC, a lower conversion rate, or spend shifting towards more expensive campaigns?',
             expect: 'answer',
             tags: ['unverified'],
-            source: 'https://blog.coupler.io/ppc-report-templates/',
         },
     ],
     dashboards: [
