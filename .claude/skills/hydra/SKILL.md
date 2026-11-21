@@ -29,8 +29,8 @@ Decide whether a tool we don't have yet is worth an integration, and how hard it
 2. Write the use cases a customer would expect, and mark each `possible` for the integration you'd build.
 3. Sketch the explores it would offer: for each, `name`, `label`, a one-line `description`, and the `dimensions` and `metrics` the API returns natively (`{ name, description? }`). Group fields the way the API groups its reports or objects; leave out anything we would have to compute.
 4. Write a page with one integration, `mode: "assess"`. The spec fields are as you'd write them, `name` is the would-be connector id, `explores` is the sketch from step 3, and `verdict` weighs value against effort:
-   - `value`: `high`, `medium` or `low`, with a one-line reason. Judge it by how many use cases are possible and how often customers ask for the tool.
-   - `effort`: `easy`, `medium` or `hard`, with a one-line reason, on the same scale as integration tickets: auth and review, how many explores, and limits that need caching.
+   - `value`: `high`, `medium` or `low`, with a reason of a few words. Judge it by how many use cases are possible and how often customers ask for the tool.
+   - `effort`: `easy`, `medium` or `hard`, with a reason of a few words, on the same scale as integration tickets: auth and review, how many explores, and limits that need caching.
    - `points`: two to four short sentences, one point each.
 
    The page derives the call from the two: build now (high value, easy or medium effort; or medium value, easy effort), plan it (high and hard, or medium and medium), later (medium and hard, or low and easy), skip (low value, medium or hard effort).
