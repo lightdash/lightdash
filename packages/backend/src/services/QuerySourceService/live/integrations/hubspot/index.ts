@@ -34,6 +34,7 @@ import {
     scanHubspotProperties,
 } from './run';
 import { summarizeHubspotTest } from './testSummary';
+import { hubspotUseCases } from './useCases';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.HUBSPOT];
 const LABEL = CATALOG.messageLabel;
@@ -86,6 +87,26 @@ export const hubspotIntegration = defineLiveIntegration({
     },
     explores: HUBSPOT_EXPLORES,
     plannedModelNames: [],
+    level: {
+        value: 2,
+        description: 'Search filters records but returns no totals.',
+    },
+    auth: {
+        description: 'No vendor review is needed.',
+        testWith: 'test_account',
+        needs: ['gmail', 'phone'],
+        token: true,
+        oauth: 'no_review',
+    },
+    paging: {
+        description:
+            'Search returns up to 200 records a page and stops at 10,000 results.',
+    },
+    rateLimiting: {
+        description:
+            'About 5 searches a second per account; private apps 100 to 190 calls per 10 seconds by plan.',
+    },
+    useCases: hubspotUseCases,
     validate: () => {},
     checkAuth: ({ type }) => {
         if (type !== 'bearer_token') {

@@ -29,6 +29,7 @@ import {
     withAttioAttributeFields,
 } from './explores';
 import { attioRequestSchema, runAttioQuery, scanAttioAttributes } from './run';
+import { attioUseCases } from './useCases';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.ATTIO];
 const LABEL = CATALOG.messageLabel;
@@ -84,6 +85,23 @@ export const attioIntegration = defineLiveIntegration({
     },
     explores: [ATTIO_RECORDS_EXPLORE],
     plannedModelNames: [],
+    level: {
+        value: 2,
+        description: 'Attio has no aggregates; it returns records only.',
+    },
+    auth: {
+        description: 'No vendor review is needed.',
+        testWith: 'test_account',
+        needs: ['gmail'],
+        token: true,
+        oauth: 'no_review',
+    },
+    paging: { description: 'Up to 500 records a page, with limit and offset.' },
+    rateLimiting: {
+        description:
+            '100 reads a second per workspace; list queries are scored by their filters and sorts over 10 seconds.',
+    },
+    useCases: attioUseCases,
     validate: ({ object }) => {
         if (!ATTIO_OBJECT.test(object)) {
             throw new ParameterError(

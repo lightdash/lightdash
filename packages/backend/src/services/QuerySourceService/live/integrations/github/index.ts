@@ -31,6 +31,7 @@ import {
     runGithubQuery,
 } from './run';
 import { summarizeGithubTest } from './testSummary';
+import { githubUseCases } from './useCases';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.GITHUB];
 const LABEL = CATALOG.messageLabel;
@@ -96,6 +97,27 @@ export const githubIntegration = defineLiveIntegration({
         GITHUB_CONTRIBUTORS_EXPLORE,
     ],
     plannedModelNames: ['workflow_runs', 'releases'],
+    level: {
+        value: 2,
+        description:
+            'Search returns a total count per filter; nothing else is totalled.',
+    },
+    auth: {
+        description: 'No vendor review is needed.',
+        testWith: 'test_account',
+        needs: ['gmail', 'phone'],
+        token: true,
+        oauth: 'no_review',
+    },
+    paging: {
+        description:
+            'Search returns 100 results a page and stops at 1,000 results.',
+    },
+    rateLimiting: {
+        description:
+            'Search: 30 calls a minute per token. REST: 5,000 calls an hour.',
+    },
+    useCases: githubUseCases,
     validate: ({ owner, repo }) => {
         if (!GITHUB_OWNER.test(owner)) {
             throw new ParameterError(

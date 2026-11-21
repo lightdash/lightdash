@@ -36,6 +36,7 @@ import {
 import { runSalesforceQuery, scanSalesforceDescribe } from './run';
 import { salesforceRequestSchema } from './soql';
 import { summarizeSalesforceTest } from './testSummary';
+import { salesforceUseCases } from './useCases';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.SALESFORCE];
 const LABEL = CATALOG.messageLabel;
@@ -98,6 +99,27 @@ export const salesforceIntegration = defineLiveIntegration({
     explores: SALESFORCE_EXPLORES,
     plannedModelNames: [],
     // The sign-in decides the org; the settings name only the connector
+    level: {
+        value: 4,
+        description:
+            'SOQL supports GROUP BY and aggregates (COUNT, SUM, AVG), so Salesforce totals itself.',
+    },
+    auth: {
+        description: 'No vendor review is needed.',
+        testWith: 'test_account',
+        needs: ['gmail'],
+        token: false,
+        oauth: 'no_review',
+    },
+    paging: {
+        description:
+            'Records come in batches of up to 2,000, followed by a next-records URL; aggregate queries return up to 2,000 groups.',
+    },
+    rateLimiting: {
+        description:
+            "API calls per 24 hours per org (15,000 on Developer Edition, 100,000 and up on paid), shared with the org's other apps.",
+    },
+    useCases: salesforceUseCases,
     validate: () => {},
     checkAuth: ({ type, oauthTokenUrl }) => {
         if (

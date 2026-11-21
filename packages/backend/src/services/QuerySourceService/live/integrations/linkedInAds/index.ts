@@ -29,6 +29,7 @@ import {
     runLinkedInAdsQuery,
     toLinkedInApiError,
 } from './run';
+import { linkedInAdsUseCases } from './useCases';
 
 const LINKEDIN_AD_ACCOUNT_ID = /^\d{1,20}$/;
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.LINKEDIN_ADS];
@@ -88,6 +89,27 @@ export const linkedInAdsIntegration = defineLiveIntegration({
         'conversions',
         'organic_shares',
     ],
+    level: {
+        value: 3,
+        description: 'adAnalytics returns totals per pivot and time grain.',
+    },
+    auth: {
+        description:
+            "Needs Advertising API approval: Development tier first, then Standard tier to read customers' ad accounts.",
+        testWith: 'paid_account',
+        needs: ['gmail', 'phone', 'card', 'real_person', 'vendor_approval'],
+        token: false,
+        oauth: 'needs_review',
+    },
+    paging: {
+        description:
+            'One adAnalytics call returns up to 15,000 rows, with no paging.',
+    },
+    rateLimiting: {
+        description:
+            "Daily per-app and per-member limits shown in LinkedIn's developer portal, not published as fixed numbers.",
+    },
+    useCases: linkedInAdsUseCases,
     validate: ({ adAccountId }) => {
         if (!LINKEDIN_AD_ACCOUNT_ID.test(adAccountId)) {
             throw new ParameterError(

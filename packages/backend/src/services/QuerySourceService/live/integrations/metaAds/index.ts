@@ -26,6 +26,7 @@ import {
     runMetaAdsQuery,
 } from './run';
 import { summarizeMetaAdsTest } from './testSummary';
+import { metaAdsUseCases } from './useCases';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.META_ADS];
 const LABEL = CATALOG.messageLabel;
@@ -73,6 +74,25 @@ export const metaAdsIntegration = defineLiveIntegration({
     },
     explores: [META_ADS_INSIGHTS_EXPLORE],
     plannedModelNames: ['demographics', 'placements', 'creatives'],
+    level: {
+        value: 3,
+        description:
+            'Insights returns totals per campaign, ad set, ad and date.',
+    },
+    auth: {
+        description:
+            'Needs Meta business verification and App Review for ads_read.',
+        testWith: 'paid_account',
+        needs: ['gmail', 'phone', 'card', 'real_person'],
+        token: true,
+        oauth: 'needs_review',
+    },
+    paging: { description: 'Insights pages results with cursors.' },
+    rateLimiting: {
+        description:
+            'Load is counted per app and ad account; Meta publishes no fixed number.',
+    },
+    useCases: metaAdsUseCases,
     validate: ({ adAccountId }) => {
         if (!META_ADS_ACCOUNT_ID.test(adAccountId)) {
             throw new ParameterError(
