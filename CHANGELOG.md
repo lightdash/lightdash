@@ -1,3 +1,16 @@
+# [3.362.0](https://github.com/lightdash/lightdash/compare/3.361.1...3.362.0) (2026-11-21)
+
+
+### Features
+
+* **live-sources:** add a spec and use cases to every live integration ([#33133](https://github.com/lightdash/lightdash/issues/33133)) ([69e4d55](https://github.com/lightdash/lightdash/commit/69e4d5533ec6e00b791b9b0650d8391edce7f798))
+* **live-sources:** add the hydra skill for live integrations ([#33142](https://github.com/lightdash/lightdash/issues/33142)) ([939bae7](https://github.com/lightdash/lightdash/commit/939bae735269da7349b33e3018ba96c6398c3b90))
+
+
+### Reverts
+
+* restore the request path on the fetch analytics event ([#33143](https://github.com/lightdash/lightdash/issues/33143)) ([c1911af](https://github.com/lightdash/lightdash/commit/c1911af042ef7879037130eeba707785787d2acb)), closes [#33135](https://github.com/lightdash/lightdash/issues/33135)
+
 ## [3.361.1](https://github.com/lightdash/lightdash/compare/3.361.0...3.361.1) (2026-11-21)
 
 
