@@ -30,6 +30,7 @@ import {
     runGa4Query,
     scanGa4Metadata,
 } from './run';
+import { ga4UseCases } from './useCases';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.GA4];
 const LABEL = CATALOG.messageLabel;
@@ -90,6 +91,24 @@ export const ga4Integration = defineLiveIntegration({
     },
     explores: [GA4_REPORT_EXPLORE],
     plannedModelNames: ['ecommerce'],
+    level: {
+        value: 3,
+        description: 'Yes. Reports return totals per dimension.',
+    },
+    auth: {
+        description:
+            'Offers OAuth sign-in. Needs Google verification of the scope (in review since 17 Nov). Until then: a warning screen and a 100-user cap.',
+        testWith: 'test_account',
+        needs: ['gmail'],
+        token: false,
+        oauth: 'needs_review',
+    },
+    paging: { description: 'One report call, up to 24,999 rows.' },
+    rateLimiting: {
+        description:
+            'Standard properties: 10 requests at once, plus hourly and daily tokens per property. Half the concurrent limit; Google reports token use back.',
+    },
+    useCases: ga4UseCases,
     validate: ({ propertyId }) => {
         if (!GA4_PROPERTY_ID.test(propertyId)) {
             throw new ParameterError('The GA4 property ID must be a number');

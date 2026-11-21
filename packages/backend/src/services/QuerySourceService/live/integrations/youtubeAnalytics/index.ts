@@ -26,6 +26,7 @@ import {
     YOUTUBE_ANALYTICS_REPORTS_PATH,
     youtubeAnalyticsRequestSchema,
 } from './run';
+import { youtubeAnalyticsUseCases } from './useCases';
 
 const YOUTUBE_CHANNEL_ID = /^UC[A-Za-z0-9_-]{22}$/;
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.YOUTUBE_ANALYTICS];
@@ -80,6 +81,24 @@ export const youtubeAnalyticsIntegration = defineLiveIntegration({
         'revenue',
         'audience_retention',
     ],
+    level: {
+        value: 3,
+        description: 'Yes. Reports return totals per dimension and day.',
+    },
+    auth: {
+        description:
+            'Offers OAuth sign-in. Needs Google verification of the scope (in review since 17 Nov). Until then: a warning screen and a 100-user cap.',
+        testWith: 'our_account',
+        needs: ['gmail', 'someone_adds_us'],
+        token: false,
+        oauth: 'needs_review',
+    },
+    paging: { description: 'One call, up to 9,999 rows.' },
+    rateLimiting: {
+        description:
+            'Google publishes no per-minute figure for YouTube Analytics. Matches GA4.',
+    },
+    useCases: youtubeAnalyticsUseCases,
     validate: ({ channelId }) => {
         if (!YOUTUBE_CHANNEL_ID.test(channelId)) {
             throw new ParameterError(

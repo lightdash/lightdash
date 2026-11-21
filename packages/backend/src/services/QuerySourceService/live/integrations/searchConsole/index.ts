@@ -25,6 +25,7 @@ import {
     SEARCH_CONSOLE_SITES_PATH,
     searchConsoleRequestSchema,
 } from './run';
+import { searchConsoleUseCases } from './useCases';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.SEARCH_CONSOLE];
 const LABEL = CATALOG.messageLabel;
@@ -75,6 +76,24 @@ export const searchConsoleIntegration = defineLiveIntegration({
     },
     explores: [SEARCH_CONSOLE_PERFORMANCE_EXPLORE],
     plannedModelNames: ['search_appearance'],
+    level: {
+        value: 3,
+        description: 'Yes. Reports return totals per dimension.',
+    },
+    auth: {
+        description:
+            'Offers OAuth sign-in. Needs Google verification of the scope (in review since 17 Nov). Until then: a warning screen and a 100-user cap.',
+        testWith: 'our_account',
+        needs: ['gmail', 'someone_adds_us'],
+        token: false,
+        oauth: 'needs_review',
+    },
+    paging: { description: 'One call, up to 24,999 rows.' },
+    rateLimiting: {
+        description:
+            'Search Analytics: 1,200 queries a minute per site and per user. Half the per-minute limit.',
+    },
+    useCases: searchConsoleUseCases,
     validate: ({ siteUrl }) => {
         if (!SITE_URL.test(siteUrl)) {
             throw new ParameterError(

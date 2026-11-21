@@ -16,16 +16,18 @@ import type {
     LiveExploreDefinition,
     LivePeriodFormat,
 } from './explores/definition';
+import type { LiveIntegrationSpec } from './spec/types';
 
 /**
  * One external API Lightdash queries live: a source's settings, what it may
- * call, its explores, and how a metric query becomes calls and rows. Write
+ * call, its explores, how a metric query becomes calls and rows, and what
+ * its code can't know about the tool (`LiveIntegrationSpec`). Write
  * one with `defineLiveIntegration` and list it in `registry.ts`.
  */
 export type LiveIntegration<
     C extends ApiConnectorType = ApiConnectorType,
     Request = unknown,
-> = {
+> = LiveIntegrationSpec & {
     connector: C;
     label: string;
     /** The shape stored on the connection. */

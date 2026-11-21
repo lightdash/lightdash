@@ -23,6 +23,7 @@ import {
     parseGoogleAdsRequest,
     runGoogleAdsQuery,
 } from './run';
+import { googleAdsUseCases } from './useCases';
 
 const GOOGLE_ADS_CUSTOMER_ID = /^\d{10}$/;
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.GOOGLE_ADS];
@@ -91,6 +92,25 @@ export const googleAdsIntegration = defineLiveIntegration({
         'conversions',
         'locations',
     ],
+    level: {
+        value: 3,
+        description:
+            'Yes. GAQL reports return totals by the segments you pick (date, campaign, ad group).',
+    },
+    auth: {
+        description:
+            'Offers OAuth sign-in. Needs Google verification plus a Google Ads access level: Explorer, then Basic or Standard for real customer volume.',
+        testWith: 'paid_account',
+        needs: ['gmail', 'card'],
+        token: false,
+        oauth: 'needs_review',
+    },
+    paging: { description: 'One call, up to 9,999 rows.' },
+    rateLimiting: {
+        description:
+            "Daily operations shared by every connection of the server's Google client (2,880 at Explorer access). So one source can't use up the shared daily operations.",
+    },
+    useCases: googleAdsUseCases,
     validate: ({ customerId, loginCustomerId }) => {
         if (
             !GOOGLE_ADS_CUSTOMER_ID.test(customerId) ||

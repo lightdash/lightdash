@@ -26,6 +26,7 @@ import {
     runMetaAdsQuery,
 } from './run';
 import { summarizeMetaAdsTest } from './testSummary';
+import { metaAdsUseCases } from './useCases';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.META_ADS];
 const LABEL = CATALOG.messageLabel;
@@ -73,6 +74,25 @@ export const metaAdsIntegration = defineLiveIntegration({
     },
     explores: [META_ADS_INSIGHTS_EXPLORE],
     plannedModelNames: ['demographics', 'placements', 'creatives'],
+    level: {
+        value: 3,
+        description:
+            'Yes. Insights returns totals per campaign, ad set, ad and date.',
+    },
+    auth: {
+        description:
+            'Offers a token and OAuth sign-in. Needs Meta business verification and App Review for ads_read.',
+        testWith: 'paid_account',
+        needs: ['gmail', 'phone', 'card', 'real_person'],
+        token: true,
+        oauth: 'needs_review',
+    },
+    paging: { description: '500 rows a page, up to 10 pages (5,000 rows).' },
+    rateLimiting: {
+        description:
+            "Load counted per app and ad account; Meta publishes no fixed number. Kept well below what Meta's best-practices page warns about.",
+    },
+    useCases: metaAdsUseCases,
     validate: ({ adAccountId }) => {
         if (!META_ADS_ACCOUNT_ID.test(adAccountId)) {
             throw new ParameterError(

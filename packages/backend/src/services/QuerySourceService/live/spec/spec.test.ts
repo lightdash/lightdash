@@ -1,14 +1,14 @@
-import {
-    crossToolUseCases,
-    getLiveAuthScore,
-    LIVE_SPECS,
-    LIVE_USE_CASES,
-} from '.';
+import { ApiConnectorType } from '@lightdash/common';
+import { getLiveIntegration } from '../registry';
+import { getLiveAuthScore } from './auth';
+import { crossToolUseCases } from './crossToolUseCases';
+
+const INTEGRATIONS = Object.values(ApiConnectorType).map(getLiveIntegration);
 
 describe('live integration specs', () => {
     test('use case ids are unique', () => {
         const ids = [
-            ...Object.values(LIVE_USE_CASES),
+            ...INTEGRATIONS.map(({ useCases }) => useCases),
             crossToolUseCases,
         ].flatMap(({ questions, dashboards }) => [
             ...questions.map(({ id }) => id),
@@ -25,9 +25,9 @@ describe('live integration specs', () => {
     test('auth scores', () => {
         expect(
             Object.fromEntries(
-                Object.entries(LIVE_SPECS).map(([connector, spec]) => [
-                    connector,
-                    getLiveAuthScore(spec),
+                INTEGRATIONS.map((integration) => [
+                    integration.connector,
+                    getLiveAuthScore(integration),
                 ]),
             ),
         ).toMatchInlineSnapshot(`

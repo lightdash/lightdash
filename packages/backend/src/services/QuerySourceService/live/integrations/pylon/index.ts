@@ -33,6 +33,7 @@ import {
     runPylonQuery,
 } from './run';
 import { summarizePylonTest } from './testSummary';
+import { pylonUseCases } from './useCases';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.PYLON];
 const LABEL = CATALOG.messageLabel;
@@ -93,6 +94,27 @@ export const pylonIntegration = defineLiveIntegration({
         PYLON_CONTACTS_EXPLORE,
     ],
     plannedModelNames: ['messages', 'users', 'teams'],
+    level: {
+        value: 2,
+        description:
+            'No. Filtered search returns records; totals are computed locally.',
+    },
+    auth: {
+        description: 'Offers a token. No vendor review is needed.',
+        testWith: 'our_account',
+        needs: ['gmail', 'someone_adds_us'],
+        token: true,
+        oauth: 'none',
+    },
+    paging: {
+        description:
+            '1,000 records a page, up to 10 pages, plus name lookups (up to 23 calls a query).',
+    },
+    rateLimiting: {
+        description:
+            '120 calls a minute per search endpoint, per workspace; no limit on calls at once. A query can make 23 calls, so 2 at a time keeps a busy dashboard under 120 a minute.',
+    },
+    useCases: pylonUseCases,
     validate: () => {},
     checkAuth: ({ type }) => {
         if (type !== 'bearer_token') {

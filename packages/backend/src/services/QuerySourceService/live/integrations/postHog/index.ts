@@ -29,6 +29,7 @@ import {
     toPostHogError,
 } from './run';
 import { summarizePostHogTest } from './testSummary';
+import { postHogUseCases } from './useCases';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.POSTHOG];
 const LABEL = CATALOG.messageLabel;
@@ -95,6 +96,27 @@ export const postHogIntegration = defineLiveIntegration({
     },
     explores: [POSTHOG_EVENTS_EXPLORE],
     plannedModelNames: ['persons', 'sessions'],
+    level: {
+        value: 5,
+        description: 'Yes. HogQL is SQL.',
+    },
+    auth: {
+        description:
+            'Offers a token and OAuth sign-in. No vendor review is needed.',
+        testWith: 'test_account',
+        needs: ['gmail'],
+        token: true,
+        oauth: 'no_review',
+    },
+    paging: {
+        description:
+            'One HogQL query, up to 49,999 rows; property scans page 500 at a time.',
+    },
+    rateLimiting: {
+        description:
+            "Query API per PostHog project: 3 at once, 240 a minute, 2,400 an hour. Matches PostHog's published limits exactly.",
+    },
+    useCases: postHogUseCases,
     validate: ({ projectId }) => {
         if (!POSTHOG_PROJECT_ID.test(projectId)) {
             throw new ParameterError('The PostHog project ID must be a number');

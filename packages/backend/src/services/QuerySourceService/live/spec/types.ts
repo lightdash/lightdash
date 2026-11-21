@@ -60,8 +60,8 @@ export type LiveCrossToolUseCases = {
 };
 
 /**
- * What an integration's code can't know about the tool it calls. Each
- * section's `description` explains the reasoning in plain words.
+ * What an integration's code can't know about the tool it calls, written
+ * into its definition. Each section's `description` explains the reasoning.
  */
 export type LiveIntegrationSpec = {
     /**
@@ -86,4 +86,6 @@ export type LiveIntegrationSpec = {
     paging: { description: string };
     /** The vendor's rate limits, and why the integration's own sit where they do. */
     rateLimiting: { description: string };
+    /** What people expect to ask it and build with it, and whether each is possible today. */
+    useCases: LiveUseCases;
 };
