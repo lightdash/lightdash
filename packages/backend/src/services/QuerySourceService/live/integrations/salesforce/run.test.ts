@@ -25,10 +25,7 @@ import {
 } from './salesforce.fixtures';
 import { summarizeSalesforceTest } from './testSummary';
 
-const SETTINGS = {
-    connector: ApiConnectorType.SALESFORCE,
-    object: 'Opportunity',
-} as const;
+const SETTINGS = { connector: ApiConnectorType.SALESFORCE } as const;
 
 const response = (body: unknown, status = 200): LiveHttpResponse => ({
     status,
@@ -52,6 +49,7 @@ const run = (
 ) => source.run({ query: JSON.stringify(request), limit });
 
 const AGGREGATE_REQUEST = {
+    object: 'Opportunity',
     kind: 'aggregate',
     columns: [
         { name: 'StageName', type: 'string' },
@@ -65,6 +63,7 @@ const AGGREGATE_REQUEST = {
 };
 
 const RECORDS_REQUEST = {
+    object: 'Opportunity',
     kind: 'records',
     columns: [
         { name: 'Id', type: 'string' },
@@ -305,32 +304,71 @@ describe('salesforceIntegration requests', () => {
 });
 
 describe('salesforceIntegration scan and setup test', () => {
-    it('reads the object describe', async () => {
-        const { source, send } = connect(response(OPPORTUNITY_DESCRIBE));
+    it('reads every object describe in one scan', async () => {
+        const { source, send } = connect(
+            response(OPPORTUNITY_DESCRIBE),
+            response({ name: 'Account', fields: [] }),
+            response({ name: 'Lead', fields: [] }),
+            response({ name: 'Contact', fields: [] }),
+        );
 
         const scan = await source.scan();
 
-        expect(send.mock.calls[0][0]).toMatchObject({
-            method: 'GET',
-            path: '/services/data/v62.0/sobjects/Opportunity/describe',
+        expect(send.mock.calls.map(([call]) => call.path)).toEqual([
+            '/services/data/v62.0/sobjects/Opportunity/describe',
+            '/services/data/v62.0/sobjects/Account/describe',
+            '/services/data/v62.0/sobjects/Lead/describe',
+            '/services/data/v62.0/sobjects/Contact/describe',
+        ]);
+        expect(scan.salesforceDescribe).toMatchObject({
+            Opportunity: OPPORTUNITY_DESCRIBE,
+            Contact: { name: 'Contact' },
         });
-        expect(scan.salesforceDescribe).toEqual(OPPORTUNITY_DESCRIBE);
+    });
+
+    it('skips objects the user cannot read, and fails only when none can be read', async () => {
+        const forbidden = response(
+            salesforceError('INSUFFICIENT_ACCESS', 'no access'),
+            403,
+        );
+        const partial = connect(
+            response(OPPORTUNITY_DESCRIBE),
+            forbidden,
+            forbidden,
+            forbidden,
+        );
+        expect(
+            Object.keys((await partial.source.scan()).salesforceDescribe ?? {}),
+        ).toEqual(['Opportunity']);
+
+        const none = connect(forbidden, forbidden, forbidden, forbidden);
+        await expect(none.source.scan()).rejects.toThrow('read access');
+    });
+
+    it('fails the scan when a describe is throttled, so the last good scan stays', async () => {
+        const { source } = connect(
+            response(OPPORTUNITY_DESCRIBE),
+            response(salesforceError('REQUEST_LIMIT_EXCEEDED', 'limit'), 403),
+            response({ name: 'Lead', fields: [] }),
+            response({ name: 'Contact', fields: [] }),
+        );
+        await expect(source.scan()).rejects.toBeInstanceOf(
+            TooManyRequestsError,
+        );
     });
 
     it('reports the API calls the org has left today', () => {
-        expect(summarizeSalesforceTest(LIMITS_RESPONSE, SETTINGS)).toEqual({
+        expect(summarizeSalesforceTest(LIMITS_RESPONSE)).toEqual({
             summary: 'Connected to your Salesforce org',
             facts: [
                 { label: 'API calls left today', value: '14,820 of 15,000' },
             ],
         });
-        expect(summarizeSalesforceTest(OPPORTUNITY_DESCRIBE, SETTINGS)).toEqual(
-            {
-                summary: 'Connected to Salesforce Opportunity',
-                facts: [{ label: 'Fields', value: '17' }],
-            },
-        );
-        expect(summarizeSalesforceTest('nope', SETTINGS)).toBeNull();
+        expect(summarizeSalesforceTest(OPPORTUNITY_DESCRIBE)).toEqual({
+            summary: 'Connected to your Salesforce org',
+            facts: [{ label: 'Fields', value: '17' }],
+        });
+        expect(summarizeSalesforceTest('nope')).toBeNull();
     });
 });
 
@@ -387,6 +425,9 @@ describe('salesforceIntegration access', () => {
             pathPrefixes: [
                 '/services/data/v62.0/query',
                 '/services/data/v62.0/sobjects/Opportunity/describe',
+                '/services/data/v62.0/sobjects/Account/describe',
+                '/services/data/v62.0/sobjects/Lead/describe',
+                '/services/data/v62.0/sobjects/Contact/describe',
                 '/services/data/v62.0/limits',
             ],
             methods: ['GET'],
@@ -396,10 +437,7 @@ describe('salesforceIntegration access', () => {
 
 describe('toSalesforceError', () => {
     const error = (status: number, code: string) =>
-        toSalesforceError(
-            response(salesforceError(code, 'detail'), status),
-            SETTINGS,
-        );
+        toSalesforceError(response(salesforceError(code, 'detail'), status));
 
     it('says what to change', () => {
         expect(error(403, 'REQUEST_LIMIT_EXCEEDED')).toBeInstanceOf(
@@ -409,7 +447,7 @@ describe('toSalesforceError', () => {
             WarehouseConnectionError,
         );
         expect(error(403, 'INSUFFICIENT_ACCESS').message).toContain(
-            'read access to Opportunity',
+            'read access',
         );
         expect(error(403, 'API_DISABLED_FOR_ORG').message).toContain(
             'API Enabled',

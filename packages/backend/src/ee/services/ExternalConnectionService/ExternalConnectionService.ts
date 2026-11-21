@@ -269,7 +269,6 @@ export type LinkedInAdsOAuthSession = {
 export type SalesforceOAuthSession = {
     projectUuid: string;
     name: string;
-    object: SalesforceObject;
     connectionUuid: string | null;
     clientId: string;
     redirectUri: string;
@@ -3129,20 +3128,14 @@ export class ExternalConnectionService extends BaseService {
         });
     }
 
-    /** Refuses a Salesforce reconnect that would read another object or org. */
+    /** Refuses a Salesforce reconnect of another kind of source or to another org. */
     private static assertSameSalesforceSource(
         existing: ExternalConnection,
-        granted: {
-            object: SalesforceObject;
-            origin: string | null;
-        },
+        granted: { origin: string | null },
     ) {
-        if (
-            existing.apiSource?.connector !== ApiConnectorType.SALESFORCE ||
-            existing.apiSource.object !== granted.object
-        ) {
+        if (existing.apiSource?.connector !== ApiConnectorType.SALESFORCE) {
             throw new ParameterError(
-                `Live data source "${existing.name}" reads a different Salesforce object`,
+                `Live data source "${existing.name}" isn't a Salesforce source`,
             );
         }
         if (granted.origin !== null && existing.origin !== granted.origin) {
@@ -3158,7 +3151,6 @@ export class ExternalConnectionService extends BaseService {
         projectUuid: string,
         request: {
             name: string;
-            object: string;
             connectionUuid: string | null;
         },
     ): Promise<{
@@ -3178,16 +3170,6 @@ export class ExternalConnectionService extends BaseService {
         if (!name) {
             throw new ParameterError('Name is required');
         }
-        const object = SALESFORCE_OBJECTS.find(
-            (candidate) => candidate === request.object,
-        );
-        if (!object) {
-            throw new ParameterError(
-                `The Salesforce object must be one of ${SALESFORCE_OBJECTS.join(
-                    ', ',
-                )}`,
-            );
-        }
         const { connectionUuid } = request;
         if (connectionUuid) {
             ExternalConnectionService.assertSameSalesforceSource(
@@ -3196,7 +3178,7 @@ export class ExternalConnectionService extends BaseService {
                     projectUuid,
                     connectionUuid,
                 ),
-                { object, origin: null },
+                { origin: null },
             );
         }
 
@@ -3218,7 +3200,6 @@ export class ExternalConnectionService extends BaseService {
             session: {
                 projectUuid,
                 name,
-                object,
                 connectionUuid,
                 clientId: oauthClientId,
                 redirectUri,
@@ -3227,12 +3208,12 @@ export class ExternalConnectionService extends BaseService {
         };
     }
 
-    /** Refuses a sign-in whose user can't read the object the admin picked. */
-    private async assertCanReadSalesforceObject(
+    /** Whether the signed-in user can read an object's describe. */
+    private async canReadSalesforceObject(
         instanceOrigin: string,
         object: SalesforceObject,
         accessToken: string,
-    ) {
+    ): Promise<boolean> {
         const response = await secureFetch(
             `${instanceOrigin}${getSalesforceDescribePath(object)}`,
             {
@@ -3246,10 +3227,32 @@ export class ExternalConnectionService extends BaseService {
         );
         if (response.status < 200 || response.status >= 300) {
             this.logger.warn(
-                `Salesforce object check returned ${response.status}`,
+                `Salesforce ${object} check returned ${response.status}`,
             );
+            return false;
+        }
+        return true;
+    }
+
+    /** Refuses a sign-in whose user can read none of the objects a source reads. */
+    private async assertCanReadSalesforceObjects(
+        instanceOrigin: string,
+        accessToken: string,
+    ) {
+        const readable = await Promise.all(
+            SALESFORCE_OBJECTS.map((object) =>
+                this.canReadSalesforceObject(
+                    instanceOrigin,
+                    object,
+                    accessToken,
+                ),
+            ),
+        );
+        if (!readable.some(Boolean)) {
             throw new WarehouseConnectionError(
-                `This Salesforce user can't read ${object}. Sign in with a user who has the "API Enabled" permission and read access to ${object}.`,
+                `This Salesforce user can't read ${SALESFORCE_OBJECTS.join(
+                    ', ',
+                )}. Sign in with a user who has the "API Enabled" permission and read access to them.`,
             );
         }
     }
@@ -3260,7 +3263,7 @@ export class ExternalConnectionService extends BaseService {
         session: SalesforceOAuthSession,
         code: string,
     ): Promise<ExternalConnection> {
-        const { projectUuid, object } = session;
+        const { projectUuid } = session;
         const organizationUuid =
             await this.externalConnectionModel.getProjectOrganizationUuid(
                 projectUuid,
@@ -3319,12 +3322,11 @@ export class ExternalConnectionService extends BaseService {
                     projectUuid,
                     session.connectionUuid,
                 ),
-                { object, origin },
+                { origin },
             );
         }
-        await this.assertCanReadSalesforceObject(
+        await this.assertCanReadSalesforceObjects(
             origin,
-            object,
             grant.tokens.accessToken,
         );
 
@@ -3333,10 +3335,7 @@ export class ExternalConnectionService extends BaseService {
             type: 'oauth_authorization_code',
             origin,
             secret: serializeStoredOAuthTokens(grant.tokens),
-            apiSource: {
-                connector: ApiConnectorType.SALESFORCE,
-                object,
-            },
+            apiSource: { connector: ApiConnectorType.SALESFORCE },
             oauthTokenUrl: client.tokenUrl,
             oauthClientId: client.clientId,
             oauthClientAuthMethod: null,

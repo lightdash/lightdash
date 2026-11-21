@@ -1,10 +1,5 @@
-import {
-    ApiConnectorType,
-    SALESFORCE_OBJECTS,
-    type ExternalConnection,
-    type SalesforceObject,
-} from '@lightdash/common';
-import { Button, Group, Select, Stack, Text, TextInput } from '@mantine/core';
+import { type ExternalConnection } from '@lightdash/common';
+import { Button, Group, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
@@ -18,31 +13,14 @@ type Props = {
     connection: ExternalConnection | null;
 };
 
-const OBJECT_LABELS: Record<SalesforceObject, string> = {
-    Opportunity: 'Opportunities',
-    Account: 'Accounts',
-    Lead: 'Leads',
-    Contact: 'Contacts',
-};
-
 export const SalesforceConnectionModal: FC<Props> = ({
     opened,
     onClose,
     projectUuid,
     connection,
 }) => {
-    const saved =
-        connection?.apiSource?.connector === ApiConnectorType.SALESFORCE
-            ? connection.apiSource
-            : null;
-    const form = useForm<{
-        name: string;
-        object: SalesforceObject;
-    }>({
-        initialValues: {
-            name: connection?.name ?? 'Salesforce',
-            object: saved?.object ?? 'Opportunity',
-        },
+    const form = useForm<{ name: string }>({
+        initialValues: { name: connection?.name ?? 'Salesforce' },
         validate: {
             name: (value) =>
                 value.trim().length === 0 ? 'Name is required' : null,
@@ -87,47 +65,36 @@ export const SalesforceConnectionModal: FC<Props> = ({
         >
             <Stack gap="sm">
                 <Text c="dimmed" fz="sm">
-                    AI agents read one Salesforce object live. Salesforce counts
-                    and totals the records itself, so most questions take one
-                    API call. Fields come from the object, including custom
-                    ones; pick which to use after connecting.
+                    AI agents read opportunities, accounts, leads and contacts
+                    live, one table each. Salesforce counts and totals the
+                    records itself, so most questions take one API call. Fields
+                    come from each object, including custom ones; pick which to
+                    use after connecting.
                 </Text>
                 <TextInput
                     required
                     label="Name"
+                    description={
+                        connection
+                            ? undefined
+                            : 'Sign in with a user who has the API Enabled permission and can read these objects.'
+                    }
                     data-autofocus
                     {...form.getInputProps('name')}
                 />
-                {saved ? (
-                    <Group justify="space-between" wrap="nowrap">
-                        <Text fz="sm" c="dimmed" truncate>
-                            Reads {OBJECT_LABELS[saved.object].toLowerCase()}
-                        </Text>
+                {connection ? (
+                    <Group justify="flex-end">
                         <Button
                             size="xs"
                             variant="default"
                             onClick={() =>
-                                signIn(
-                                    connection?.externalConnectionUuid ?? null,
-                                )
+                                signIn(connection.externalConnectionUuid)
                             }
                         >
                             Reconnect to Salesforce
                         </Button>
                     </Group>
-                ) : (
-                    <Select
-                        required
-                        label="Object"
-                        description="Sign in with a user who can read this object and has the API Enabled permission."
-                        data={SALESFORCE_OBJECTS.map((object) => ({
-                            value: object,
-                            label: OBJECT_LABELS[object],
-                        }))}
-                        allowDeselect={false}
-                        {...form.getInputProps('object')}
-                    />
-                )}
+                ) : null}
             </Stack>
         </MantineModal>
     );

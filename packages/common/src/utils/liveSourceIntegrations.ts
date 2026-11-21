@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import {
-    SALESFORCE_OBJECTS,
     type ApiSourceOf,
     type ExternalConnectionApiSource,
 } from '../ee/externalConnections/types';
@@ -192,13 +191,12 @@ export const LIVE_INTEGRATION_CATALOG: {
         messageLabel: 'Salesforce',
         agentLabel: 'Salesforce',
         description:
-            'Opportunities, accounts, leads or contacts, totalled by Salesforce with SOQL',
+            'Opportunities, accounts, leads and contacts, totalled by Salesforce with SOQL',
         setup: 'salesforce',
         settings: z.object({
             connector: z.literal(ApiConnectorType.SALESFORCE),
-            object: z.enum(SALESFORCE_OBJECTS),
         }),
-        getTarget: ({ object }) => object,
+        getTarget: () => 'Salesforce org',
     },
 };
 

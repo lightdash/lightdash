@@ -199,10 +199,7 @@ export const LiveSourceManager: FC<{
                                   window.location.assign(
                                       getSalesforceSignInUrl(
                                           projectUuid,
-                                          {
-                                              name: connection.name,
-                                              object: apiSource.object,
-                                          },
+                                          { name: connection.name },
                                           connection.externalConnectionUuid,
                                           'settings',
                                       ),

@@ -24,11 +24,11 @@ const readError = (body: unknown) => {
     };
 };
 
+/** The signed-in user can't read an object, which a scan skips. */
+export class SalesforceObjectAccessError extends WarehouseConnectionError {}
+
 /** Turns a Salesforce error response into an error that says what to change. */
-export const toSalesforceError = (
-    response: LiveHttpResponse,
-    { object }: { object: string },
-): Error => {
+export const toSalesforceError = (response: LiveHttpResponse): Error => {
     const { code, message } = readError(response.body);
     const detail = message ? `: ${message}` : '';
     if (code === 'REQUEST_LIMIT_EXCEEDED') {
@@ -54,8 +54,8 @@ export const toSalesforceError = (
         );
     }
     if (response.status === 403 || code === 'INSUFFICIENT_ACCESS') {
-        return new WarehouseConnectionError(
-            `The signed-in Salesforce user can't read ${object}${detail}. Give the user read access to ${object} and its fields, or reconnect with another user.`,
+        return new SalesforceObjectAccessError(
+            `The signed-in Salesforce user can't read this object or one of its fields${detail}. Give the user read access to it, or reconnect with another user.`,
         );
     }
     if (code === 'QUERY_TIMEOUT') {

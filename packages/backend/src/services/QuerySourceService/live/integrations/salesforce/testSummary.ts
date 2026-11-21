@@ -12,7 +12,6 @@ const describeSchema = z.object({ fields: z.array(z.unknown()) });
 
 export const summarizeSalesforceTest = (
     body: unknown,
-    { object }: { object: string },
 ): LiveTestSummary | null => {
     const limits = limitsSchema.safeParse(body);
     if (limits.success) {
@@ -32,7 +31,7 @@ export const summarizeSalesforceTest = (
     const describe = describeSchema.safeParse(body);
     if (describe.success) {
         return {
-            summary: `Connected to Salesforce ${object}`,
+            summary: 'Connected to your Salesforce org',
             facts: [
                 {
                     label: 'Fields',

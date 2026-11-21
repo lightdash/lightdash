@@ -3,6 +3,7 @@ import {
     DimensionType,
     getSalesforceDescribePath,
     ParameterError,
+    SALESFORCE_OBJECTS,
     SALESFORCE_QUERY_PATH,
     type SalesforceObject,
 } from '@lightdash/common';
@@ -15,6 +16,7 @@ import {
     type LiveRunResult,
     type LiveScanResult,
 } from '../../types';
+import { SalesforceObjectAccessError } from './errors';
 import {
     SALESFORCE_MAX_AGGREGATE_ROWS,
     SALESFORCE_MAX_CALLS,
@@ -271,9 +273,8 @@ const runRecords = async (
     };
 };
 
-/** Runs one SOQL query on the source's object. */
+/** Runs one SOQL query on the request's object. */
 export const runSalesforceQuery = async ({
-    settings: { object },
     request,
     limit,
     calls,
@@ -282,23 +283,47 @@ export const runSalesforceQuery = async ({
     SalesforceRequest
 >): Promise<LiveRunResult> =>
     request.kind === 'aggregate'
-        ? runAggregate(object, request, limit, calls)
-        : runRecords(object, request, limit, calls);
+        ? runAggregate(request.object, request, limit, calls)
+        : runRecords(request.object, request, limit, calls);
 
-/** Reads the object's describe, whose fields become the source's fields. */
+/**
+ * Reads each object's describe, whose fields become its explore's fields.
+ * An object the signed-in user can't read keeps its built-in fields; any
+ * other failed call, such as a throttled one, fails the scan so the last
+ * good scan stays.
+ */
 export const scanSalesforceDescribe = async ({
-    settings: { object },
     calls,
 }: {
-    settings: { object: SalesforceObject };
     calls: LiveCalls;
-}): Promise<LiveScanResult> => ({
-    salesforceDescribe: await calls.fetch(
-        {
-            method: 'GET',
-            path: getSalesforceDescribePath(object),
-            body: undefined,
-        },
-        z.unknown(),
-    ),
-});
+}): Promise<LiveScanResult> => {
+    const results = await Promise.allSettled(
+        SALESFORCE_OBJECTS.map((object) =>
+            calls.fetch(
+                {
+                    method: 'GET',
+                    path: getSalesforceDescribePath(object),
+                    body: undefined,
+                },
+                z.unknown(),
+            ),
+        ),
+    );
+    const failed = results.flatMap((result) =>
+        result.status === 'rejected' ? [result.reason as unknown] : [],
+    );
+    const [unexpected] = failed.filter(
+        (error) => !(error instanceof SalesforceObjectAccessError),
+    );
+    if (unexpected !== undefined) {
+        throw unexpected;
+    }
+    const read = SALESFORCE_OBJECTS.flatMap((object, index) => {
+        const result = results[index];
+        return result.status === 'fulfilled' ? [[object, result.value]] : [];
+    });
+    if (read.length === 0) {
+        throw failed[0];
+    }
+    return { salesforceDescribe: Object.fromEntries(read) };
+};

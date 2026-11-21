@@ -125,10 +125,7 @@ const SOURCES = [
         selectsDimension: false,
     },
     {
-        apiSource: {
-            connector: ApiConnectorType.SALESFORCE,
-            object: 'Opportunity',
-        },
+        apiSource: { connector: ApiConnectorType.SALESFORCE },
         // Built-in fields only: the object's fields come from a scan
         fields: {
             dimension: 'record_id',

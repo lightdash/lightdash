@@ -43,7 +43,6 @@ export class SalesforceOAuthController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Query() name: string,
-        @Query() object: string,
         @Query() connectionUuid?: string,
         @Query() returnTo?: string,
     ): Promise<void> {
@@ -54,7 +53,6 @@ export class SalesforceOAuthController extends BaseController {
                 projectUuid,
                 {
                     name,
-                    object,
                     connectionUuid: connectionUuid ?? null,
                 },
             );

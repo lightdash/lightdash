@@ -16,7 +16,7 @@ import { buildLiveExplore } from '../../explores/definition';
 import { compileSalesforceQuery } from './compile';
 import {
     isInternalSalesforceField,
-    SALESFORCE_RECORDS_EXPLORE,
+    SALESFORCE_EXPLORES,
     withSalesforceFields,
 } from './explores';
 import { OPPORTUNITY_DESCRIBE } from './salesforce.fixtures';
@@ -26,14 +26,15 @@ import {
     type SalesforceRequest,
 } from './soql';
 
+const [OPPORTUNITIES_DEFINITION] = SALESFORCE_EXPLORES;
 const DEFINITION = withSalesforceFields(
-    SALESFORCE_RECORDS_EXPLORE,
+    OPPORTUNITIES_DEFINITION,
     OPPORTUNITY_DESCRIBE,
 );
 
 const OPPORTUNITIES = buildLiveExplore({
     definition: DEFINITION,
-    exploreName: 'salesforce_records',
+    exploreName: 'salesforce_opportunities',
     label: 'Opportunities',
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.SALESFORCE,
@@ -44,7 +45,7 @@ const OPPORTUNITIES = buildLiveExplore({
     ),
 });
 
-const field = (name: string) => `salesforce_records_${name}`;
+const field = (name: string) => `salesforce_opportunities_${name}`;
 
 const rule = (
     name: string,
@@ -193,8 +194,8 @@ describe('Salesforce fields', () => {
     });
 
     it('keeps the built-in fields when the describe is unreadable', () => {
-        expect(withSalesforceFields(SALESFORCE_RECORDS_EXPLORE, {})).toBe(
-            SALESFORCE_RECORDS_EXPLORE,
+        expect(withSalesforceFields(OPPORTUNITIES_DEFINITION, {})).toBe(
+            OPPORTUNITIES_DEFINITION,
         );
     });
 });
@@ -445,6 +446,7 @@ describe('SOQL injection', () => {
 
     it('refuses numbers, dates and booleans that are not one', () => {
         const base = {
+            object: 'Opportunity',
             kind: 'records' as const,
             columns: [{ name: 'Name', type: 'string' as const }],
             having: null,
@@ -479,6 +481,7 @@ describe('SOQL injection', () => {
     it('accepts only field API names, never SOQL, where a name goes', () => {
         const parse = (overrides: Record<string, unknown>) =>
             salesforceRequestSchema.safeParse({
+                object: 'Opportunity',
                 kind: 'records',
                 columns: [{ name: 'Name', type: 'string' }],
                 where: null,

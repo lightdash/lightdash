@@ -158,11 +158,24 @@ const SOURCES: {
     },
     {
         name: 'Salesforce',
-        apiSource: {
-            connector: ApiConnectorType.SALESFORCE,
-            object: 'Opportunity',
+        apiSource: { connector: ApiConnectorType.SALESFORCE },
+        scan: {
+            salesforceDescribe: {
+                Opportunity: OPPORTUNITY_DESCRIBE,
+                Lead: {
+                    name: 'Lead',
+                    fields: [
+                        {
+                            name: 'Company',
+                            label: 'Company',
+                            type: 'string',
+                            groupable: true,
+                            filterable: true,
+                        },
+                    ],
+                },
+            },
         },
-        scan: { salesforceDescribe: OPPORTUNITY_DESCRIBE },
     },
 ];
 

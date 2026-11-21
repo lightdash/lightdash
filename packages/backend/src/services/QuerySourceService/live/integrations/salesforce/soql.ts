@@ -1,4 +1,4 @@
-import { ParameterError } from '@lightdash/common';
+import { ParameterError, SALESFORCE_OBJECTS } from '@lightdash/common';
 import { z } from 'zod';
 
 /**
@@ -209,6 +209,8 @@ const getRequestIssue = (request: {
 
 export const salesforceRequestSchema = z
     .object({
+        /** The object to read, by its API name. */
+        object: z.enum(SALESFORCE_OBJECTS),
         /** `aggregate` groups and totals on Salesforce; `records` lists records. */
         kind: z.enum(['aggregate', 'records']),
         columns: z
