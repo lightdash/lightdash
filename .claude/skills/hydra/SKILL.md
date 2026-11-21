@@ -25,8 +25,8 @@ Run `hydra.sh view`. That's all.
 
 Decide whether a tool we don't have yet is worth an integration, and how hard it would be.
 
-1. Read the vendor's API docs: what it answers by itself, how you get in, how it pages, and its rate limits. Read two or three existing specs for the bar.
-2. Write the use cases a customer would expect, and mark each `possible` for the integration you'd build.
+1. Write the use cases first, following [Use cases](#use-cases), before you read the API.
+2. Read the vendor's API docs: what it answers by itself, how you get in, how it pages, and its rate limits. Read two or three existing specs for the bar. Then mark each use case `possible` for the integration you'd build.
 3. Sketch the explores it would offer: for each, `name`, `label`, a one-line `description`, and the `dimensions` and `metrics` the API returns natively (`{ name, description? }`). Group fields the way the API groups its reports or objects; leave out anything we would have to compute.
 4. Write a page with one integration, `mode: "assess"`. The spec fields are as you'd write them, `name` is the would-be connector id, `explores` is the sketch from step 3, and `verdict` weighs value against effort:
    - `value`: `high`, `medium` or `low`, with a reason of a few words. Judge it by how many use cases are possible and how often customers ask for the tool.
@@ -54,6 +54,15 @@ Fix nothing in this mode, except to flip `possible`. Report regressions to the u
 ## add
 
 Add a new integration. Follow [add.md](add.md).
+
+## Use cases
+
+The same rules apply in `assess` and `add`.
+
+- Write them before reading the API, from the vendor's own report templates and the dashboards people typically build in the tool. Otherwise the list drifts towards what works.
+- Write about 20 to 30 questions and 3 to 5 dashboards of 3 to 5 charts each. Each dashboard's `purpose` says who opens it and why.
+- `possible` is true only when the API returns the numbers natively, allowing simple math across native results such as the ratio of two counts. Anything the integration would have to compute from raw rows is false.
+- Ids are stable and unique across all integrations, and are never renumbered, because test results are kept against them. New integrations use `<name>-q-N` for questions and `<name>-d-N-c-M` for charts.
 
 ## Rules
 
