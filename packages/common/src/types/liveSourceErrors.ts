@@ -21,6 +21,10 @@ export const LIVE_SOURCE_REFUSAL_CODES = [
     'live_source.refused.field_combination',
     'live_source.refused.too_many_fields',
     'live_source.refused.timezone',
+    /** The query has more rows than one query can read. */
+    'live_source.refused.row_limit',
+    /** The query needs more API calls than one query may make. */
+    'live_source.refused.call_limit',
 ] as const;
 
 /** Lightdash refused the query before calling the API: the source can't run it. */
@@ -41,6 +45,8 @@ export type LiveSourceUpstreamErrorCode =
 export const LIVE_SOURCE_INTERNAL_ERROR_CODES = [
     'live_source.internal.invalid_request',
     'live_source.internal.error',
+    /** Our own concurrency or call-rate limit for the live data source. */
+    'live_source.internal.limit',
 ] as const;
 
 /** Lightdash failed: our own validation rejected the request, or something broke. */
@@ -73,3 +79,22 @@ export type LiveSourceErrorData = {
     /** Every distinct code when one query was refused for several reasons. */
     liveSourceErrorCodes: LiveSourceErrorCode[];
 };
+
+const LIVE_SOURCE_ERROR_CODES: readonly string[] = [
+    ...LIVE_SOURCE_REFUSAL_CODES,
+    ...LIVE_SOURCE_UPSTREAM_ERROR_CODES,
+    ...LIVE_SOURCE_INTERNAL_ERROR_CODES,
+];
+
+export const isLiveSourceErrorCode = (
+    value: unknown,
+): value is LiveSourceErrorCode =>
+    typeof value === 'string' && LIVE_SOURCE_ERROR_CODES.includes(value);
+
+/** The error data for one live data source error code. */
+export const toLiveSourceErrorData = (
+    code: LiveSourceErrorCode,
+): LiveSourceErrorData => ({
+    liveSourceErrorCode: code,
+    liveSourceErrorCodes: [code],
+});

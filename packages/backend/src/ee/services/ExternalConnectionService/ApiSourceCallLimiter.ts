@@ -1,4 +1,4 @@
-import { TooManyRequestsError } from '@lightdash/common';
+import { toLiveSourceErrorData, TooManyRequestsError } from '@lightdash/common';
 import { randomUUID } from 'node:crypto';
 import { type LiveLimits } from '../../../services/QuerySourceService/live/types';
 import type { ExternalConnectionModel } from '../../models/ExternalConnectionModel';
@@ -27,6 +27,8 @@ const SLOT_POLL_MS = 250;
 // A crashed server's slot frees itself once the call could no longer be running.
 const LEASE_MARGIN_MS = 15_000;
 const BUSY_RETRY_AFTER_SECONDS = 5;
+// Our own limits, kept apart from the integration's rate limits in telemetry
+const LIMIT_ERROR_DATA = toLiveSourceErrorData('live_source.internal.limit');
 
 export const getWindowStart = (now: Date, windowSeconds: number) =>
     new Date(
@@ -107,8 +109,11 @@ export class ApiSourceCallLimiter {
             if (acquired) return;
             if (this.now().getTime() >= giveUpAt) {
                 throw new TooManyRequestsError(
-                    `Connection "${connection.name}" is already running ${limits.concurrentCalls} queries at once. Retry in ${BUSY_RETRY_AFTER_SECONDS} seconds.`,
-                    { retryAfterSeconds: BUSY_RETRY_AFTER_SECONDS },
+                    `Live data source "${connection.name}" is already running ${limits.concurrentCalls} queries at once. Retry in ${BUSY_RETRY_AFTER_SECONDS} seconds.`,
+                    {
+                        retryAfterSeconds: BUSY_RETRY_AFTER_SECONDS,
+                        ...LIMIT_ERROR_DATA,
+                    },
                 );
             }
             // eslint-disable-next-line no-await-in-loop
@@ -143,8 +148,8 @@ export class ApiSourceCallLimiter {
             ),
         );
         throw new TooManyRequestsError(
-            `Connection "${connection.name}" reached its limit of ${limit} calls per ${unit}. Retry after ${retryAfterSeconds} seconds.`,
-            { retryAfterSeconds },
+            `Live data source "${connection.name}" reached its limit of ${limit} calls per ${unit}. Retry after ${retryAfterSeconds} seconds.`,
+            { retryAfterSeconds, ...LIMIT_ERROR_DATA },
         );
     }
 }

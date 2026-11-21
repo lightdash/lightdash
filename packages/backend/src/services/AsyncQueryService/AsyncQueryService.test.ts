@@ -291,6 +291,7 @@ import {
     validExplore,
 } from '../ProjectService/ProjectService.mock';
 import { buildLiveExplores } from '../QuerySourceService/live/explores/build';
+import { tooManyRowsError } from '../QuerySourceService/live/query/rows';
 import { QuerySourceRegistry } from '../QuerySourceService/QuerySourceRegistry';
 import { QuerySourceService } from '../QuerySourceService/QuerySourceService';
 import { SemanticLayerQuerySource } from '../QuerySourceService/sources/SemanticLayerQuerySource';
@@ -2212,6 +2213,61 @@ describe('AsyncQueryService', () => {
                 }),
             ).rejects.toThrow(ParameterError);
             expect(onboarding.getByOrganizationUuid).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('live query refusals', () => {
+        test('logs rows refused after the run as a refusal, not a success or our failure', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                queryHistoryModel: {
+                    update: vi.fn(),
+                    updateStatusToError: vi.fn(),
+                } as unknown as QueryHistoryModel,
+            } as never);
+            // The run read every page it may, and rows were left
+            vi.spyOn(
+                service as AnyType,
+                'executeLiveRequest',
+            ).mockResolvedValue({
+                columns: [],
+                rows: [],
+                hasMoreRows: true,
+                bytesRead: null,
+            });
+            const logCall = vi.fn(async () => undefined);
+
+            await (service as AnyType).runLiveQuery({
+                account: sessionAccount,
+                queryUuid: 'api-uuid',
+                projectUuid,
+                organizationUuid: 'org-uuid',
+                source: {
+                    integration: { connector: 'github' },
+                    usage: () => ({
+                        apiCalls: 10,
+                        responseBytes: 0,
+                        providerStatus: 200,
+                    }),
+                    logCall,
+                },
+                payload: { kind: 'query', query: '{}' },
+                limit: 10,
+                cacheKey: 'cache-key',
+                context: QueryExecutionContext.EXPLORE,
+                queryCreatedAt: new Date(),
+                fields: null,
+                exploreName: 'github_pull_requests',
+                toResult: () => {
+                    throw tooManyRowsError({ label: 'GitHub', maxRows: 999 });
+                },
+            });
+
+            expect(logCall).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    outcome: 'refused',
+                    errorCode: 'live_source.refused.row_limit',
+                }),
+            );
         });
     });
 

@@ -366,6 +366,7 @@ describe('ExternalConnectionService api sources', () => {
             query: 'SELECT 1 AS a',
             rowLimit: 10,
             outcome: 'ok',
+            errorCode: null,
             errorMessage: null,
             durationMs: 120,
             rowCount: 1,
@@ -443,6 +444,7 @@ describe('ExternalConnectionService api sources', () => {
                 query: 'SELECT 1 AS a',
                 rowLimit: 10,
                 outcome: 'timeout',
+                errorCode: 'live_source.upstream.timeout',
                 errorMessage: 'timed out',
                 durationMs: 45_000,
                 rowCount: null,
@@ -453,7 +455,7 @@ describe('ExternalConnectionService api sources', () => {
         ).resolves.toBeUndefined();
     });
 
-    it('tells a failure of ours from the integration failing', async () => {
+    it('tells a refusal and a failure of ours from the integration failing', async () => {
         const { service, analytics } = buildService();
         const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
         const call = {
@@ -469,8 +471,26 @@ describe('ExternalConnectionService api sources', () => {
             cacheHit: false,
         };
 
-        await source.logCall({ ...call, outcome: 'timeout' });
-        await source.logCall({ ...call, outcome: 'invalid_request' });
+        await source.logCall({
+            ...call,
+            outcome: 'timeout',
+            errorCode: 'live_source.upstream.timeout',
+        });
+        await source.logCall({
+            ...call,
+            outcome: 'invalid_request',
+            errorCode: 'live_source.internal.invalid_request',
+        });
+        await source.logCall({
+            ...call,
+            outcome: 'refused',
+            errorCode: 'live_source.refused.row_limit',
+        });
+        await source.logCall({
+            ...call,
+            outcome: 'limited',
+            errorCode: 'live_source.internal.limit',
+        });
 
         const tracked = analytics.trackAccount.mock.calls.map(
             ([, event]) => event.properties,
@@ -483,6 +503,16 @@ describe('ExternalConnectionService api sources', () => {
             expect.objectContaining({
                 errorOrigin: 'internal',
                 errorCode: 'live_source.internal.invalid_request',
+            }),
+            expect.objectContaining({
+                outcome: 'refused',
+                errorOrigin: 'refused',
+                errorCode: 'live_source.refused.row_limit',
+            }),
+            expect.objectContaining({
+                outcome: 'limited',
+                errorOrigin: 'internal',
+                errorCode: 'live_source.internal.limit',
             }),
         ]);
     });
@@ -497,6 +527,7 @@ describe('ExternalConnectionService api sources', () => {
             query: 'SELECT 1 AS a',
             rowLimit: 10,
             outcome: 'ok',
+            errorCode: null,
             errorMessage: null,
             durationMs: 8,
             rowCount: 1,

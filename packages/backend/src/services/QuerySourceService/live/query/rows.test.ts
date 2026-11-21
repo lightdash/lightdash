@@ -1,4 +1,4 @@
-import { ParameterError } from '@lightdash/common';
+import { ParameterError, toLiveSourceErrorData } from '@lightdash/common';
 import { readRowsWithinCap } from './rows';
 
 const rowsOf = (count: number) =>
@@ -63,6 +63,7 @@ describe('readRowsWithinCap', () => {
         ).rejects.toThrow(
             new ParameterError(
                 'This Source query has more than 300 rows, the most one query can read, so its result would be incomplete. Narrow the date range, add a filter or remove a dimension.',
+                toLiveSourceErrorData('live_source.refused.row_limit'),
             ),
         );
     });
