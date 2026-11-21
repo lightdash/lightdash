@@ -1,12 +1,18 @@
 import {
     assertUnreachable,
     getLiveSourceErrorOrigin,
+    LightdashError,
+    LIVE_SOURCE_INTERNAL_ERROR_CODES,
+    LIVE_SOURCE_REFUSAL_CODES,
+    LIVE_SOURCE_UPSTREAM_ERROR_CODES,
     ParameterError,
     TimeoutError,
     TooManyRequestsError,
     UnexpectedServerError,
     WarehouseConnectionError,
     WarehouseQueryError,
+    type LiveSourceErrorCode,
+    type LiveSourceErrorData,
     type LiveSourceInternalErrorCode,
     type LiveSourceUpstreamErrorCode,
 } from '@lightdash/common';
@@ -63,14 +69,44 @@ export const getLiveSourceQueryErrorCode = (
     }
 };
 
+const LIVE_SOURCE_ERROR_CODES = new Set<string>([
+    ...LIVE_SOURCE_REFUSAL_CODES,
+    ...LIVE_SOURCE_INTERNAL_ERROR_CODES,
+    ...LIVE_SOURCE_UPSTREAM_ERROR_CODES,
+]);
+
+const isLiveSourceErrorCode = (code: unknown): code is LiveSourceErrorCode =>
+    typeof code === 'string' && LIVE_SOURCE_ERROR_CODES.has(code);
+
+/**
+ * How a live query failed: its outcome, and the code the error was thrown
+ * with (a refusal, or our own concurrency limit), else the outcome's code.
+ */
+export const getLiveQueryFailure = (
+    error: unknown,
+): { outcome: LiveQueryOutcome; errorCode: LiveSourceErrorCode | null } => {
+    const outcome = getLiveQueryOutcome(error);
+    const carried =
+        error instanceof LightdashError
+            ? (error.data as Partial<LiveSourceErrorData> | undefined)
+                  ?.liveSourceErrorCode
+            : undefined;
+    return {
+        outcome,
+        errorCode: isLiveSourceErrorCode(carried)
+            ? carried
+            : getLiveSourceQueryErrorCode(outcome),
+    };
+};
+
 /**
  * Codes worth a Sentry issue: every failure of ours, and the API rejecting a
  * request our compiler built or failing in a way we don't understand. Auth,
- * rate limits and timeouts are the source's state.
+ * rate limits, timeouts and our own concurrency limit are the source's state;
+ * refusals are the query's.
  */
-export const isLiveSourceErrorReportable = (
-    code: LiveSourceInternalErrorCode | LiveSourceUpstreamErrorCode,
-) =>
-    getLiveSourceErrorOrigin(code) === 'internal' ||
+export const isLiveSourceErrorReportable = (code: LiveSourceErrorCode) =>
+    (getLiveSourceErrorOrigin(code) === 'internal' &&
+        code !== 'live_source.internal.concurrency_limit') ||
     code === 'live_source.upstream.invalid_request' ||
     code === 'live_source.upstream.unknown';

@@ -17,6 +17,7 @@ import {
     type LiveCompiledRequest,
 } from '../../explores/definition';
 import { getLiveDateRange, toAbsoluteDateRange } from '../../query/dateRange';
+import { refuseLiveQuery } from '../../query/refuse';
 import {
     HUBSPOT_COUNT_REASON,
     HUBSPOT_MAX_FILTERS,
@@ -78,7 +79,8 @@ const getNextDateRange = (rule: FilterRule, today: string) => {
     } else if (months !== undefined) {
         date.setUTCMonth(date.getUTCMonth() + count * months);
     } else {
-        throw new ParameterError(
+        throw refuseLiveQuery(
+            'live_source.refused.date_grain',
             `HubSpot filters dates by day, so "in the next" can't use ${unit}.`,
         );
     }
@@ -327,7 +329,8 @@ export const compileHubspotQuery = ({
     }
 
     if (metricQuery.sorts.length > 1) {
-        throw new ParameterError(
+        throw refuseLiveQuery(
+            'live_source.refused.sort',
             'HubSpot sorts by one field at a time. Keep one sort.',
         );
     }

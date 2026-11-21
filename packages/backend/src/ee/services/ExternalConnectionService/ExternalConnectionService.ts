@@ -113,7 +113,7 @@ import {
     toFailedScan,
     toPostHogSchemaTable,
 } from '../../../services/QuerySourceService/live/integrations/postHog/scan';
-import { getLiveSourceQueryErrorCode } from '../../../services/QuerySourceService/live/query/outcome';
+import { refuseLiveQuery } from '../../../services/QuerySourceService/live/query/refuse';
 import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import { getLiveIntegration } from '../../../services/QuerySourceService/live/registry';
 import { getLiveSourceTestCheck } from '../../../services/QuerySourceService/live/testCheck';
@@ -2282,7 +2282,7 @@ export class ExternalConnectionService extends BaseService {
                     );
                 }
                 // The query text stays out of analytics; it can hold filter values.
-                const errorCode = getLiveSourceQueryErrorCode(call.outcome);
+                const { errorCode } = call;
                 this.analytics.trackAccount(account, {
                     event: 'live_source.query_finished',
                     properties: {
@@ -2509,7 +2509,8 @@ export class ExternalConnectionService extends BaseService {
         const send: LiveTransport = async (request) => {
             callsThisQuery += 1;
             if (isPerQuery && callsThisQuery > limits.callsPerQuery) {
-                throw new ParameterError(
+                throw refuseLiveQuery(
+                    'live_source.refused.call_budget',
                     `This query needs more than ${limits.callsPerQuery} ${label} API calls. Narrow it with filters or a shorter time range.`,
                 );
             }

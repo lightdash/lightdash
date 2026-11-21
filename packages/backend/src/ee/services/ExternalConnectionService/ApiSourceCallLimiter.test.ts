@@ -81,10 +81,22 @@ describe('ApiSourceCallLimiter', () => {
         const { limiter, model } = buildLimiter({ leases: [] });
 
         await expect(limiter.run(connection, limits, call)).rejects.toThrow(
-            'Connection "PostHog" is already running 3 queries at once. Retry in 5 seconds.',
+            'Live data source "PostHog" is already running 3 queries at once. Retry in 5 seconds.',
         );
         expect(call).not.toHaveBeenCalled();
         expect(model.releaseApiSourceCallLease).not.toHaveBeenCalled();
+    });
+
+    it('files a busy connection as our own limit, not the API rate limit', async () => {
+        const { limiter } = buildLimiter({ leases: [] });
+
+        await expect(
+            limiter.run(connection, limits, vi.fn()),
+        ).rejects.toMatchObject({
+            data: {
+                liveSourceErrorCode: 'live_source.internal.concurrency_limit',
+            },
+        });
     });
 
     it('refuses a call over the per-minute limit with the wait until the next window', async () => {
@@ -96,7 +108,7 @@ describe('ApiSourceCallLimiter', () => {
         const run = limiter.run(connection, limits, call);
         await expect(run).rejects.toBeInstanceOf(TooManyRequestsError);
         await expect(run).rejects.toThrow(
-            'Connection "PostHog" reached its limit of 240 calls per minute. Retry after 40 seconds.',
+            'Live data source "PostHog" reached its limit of 240 calls per minute. Retry after 40 seconds.',
         );
         expect(call).not.toHaveBeenCalled();
         expect(model.releaseApiSourceCallLease).toHaveBeenCalledOnce();
