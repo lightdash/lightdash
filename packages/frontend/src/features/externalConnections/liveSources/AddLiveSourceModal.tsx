@@ -86,7 +86,7 @@ export const AddLiveSourceModal: FC<Props> = ({
                     Add a live data source
                 </LiveSourceBetaTitle>
             }
-            subtitle="AI agents query it live, without loading data into your warehouse."
+            subtitle="Live data from the tools you use, queried on demand and joined with your warehouse."
             size="xl"
             cancelLabel={false}
         >
