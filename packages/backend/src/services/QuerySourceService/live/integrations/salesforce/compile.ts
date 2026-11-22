@@ -312,6 +312,20 @@ export const compileSalesforceQuery = ({
                 ),
             );
         }
+        const recordIds = metricQuery.dimensions.filter(
+            (fieldId) => apiName(fieldId) === 'Id',
+        );
+        if (recordIds.length > 0) {
+            // SOQL can't GROUP BY Id, and each record would be its own row
+            throw toLiveQueryError(
+                recordIds.map((fieldId) =>
+                    toFieldCombinationIssue(
+                        fieldId,
+                        'Each record is its own row, so totals by Record ID are always one record. Remove Record ID, or remove the totals to list records.',
+                    ),
+                ),
+            );
+        }
         if (
             metricQuery.dimensions.length === 0 &&
             hasActiveRule(metricQuery.filters.metrics)

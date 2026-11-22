@@ -355,6 +355,28 @@ describe('compileSalesforceQuery: totals computed by Salesforce in one query', (
         ).toThrow(/a date and time\. Use its day, month, quarter or year/);
     });
 
+    it.each(['count', 'amount__sum'])(
+        'refuses Record ID with %s before any call',
+        (metric) => {
+            expect(() =>
+                compileRequest(
+                    query({
+                        dimensions: [field('record_id')],
+                        metrics: [field(metric)],
+                    }),
+                ),
+            ).toThrow(
+                'Each record is its own row, so totals by Record ID are always one record. Remove Record ID, or remove the totals to list records.',
+            );
+        },
+    );
+
+    it('lists records by Record ID without totals', () => {
+        expect(
+            compileRequest(query({ dimensions: [field('record_id')] })),
+        ).toMatchObject({ kind: 'records', columns: [{ name: 'Id' }] });
+    });
+
     it('refuses a metric filter without a dimension before any call', () => {
         expect(() =>
             compileRequest(
