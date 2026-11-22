@@ -87,6 +87,7 @@ import {
     type Source,
 } from './model';
 import { CHANGE_KIND_LABELS } from './modelCode';
+import { usePageVirtualizer } from './pageScroll';
 import { SemanticLayerPreview } from './SemanticLayerPreview';
 import classes from './shared.module.css';
 import { startStudioChatRefDrag, useAddToStudioChat } from './studioChatRefs';
@@ -605,9 +606,8 @@ export const FieldList: FC<{
             ),
         [rows],
     );
-    const virtualizer = useVirtualizer({
+    const virtualizer = usePageVirtualizer(parentRef, {
         count: rows.length,
-        getScrollElement: () => parentRef.current,
         estimateSize: (index) =>
             rows[index].type === 'divider' ? DIVIDER_HEIGHT : FIELD_ROW_HEIGHT,
         overscan: 12,
@@ -762,7 +762,10 @@ export const FieldList: FC<{
                                     <Box
                                         key={`divider:${row.label}`}
                                         className={classes.fieldDivider}
-                                        top={item.start}
+                                        top={
+                                            item.start -
+                                            virtualizer.options.scrollMargin
+                                        }
                                         role="presentation"
                                     >
                                         <span>{row.label}</span>
@@ -782,7 +785,10 @@ export const FieldList: FC<{
                                     key={field.id}
                                     field={field}
                                     index={index}
-                                    top={item.start}
+                                    top={
+                                        item.start -
+                                        virtualizer.options.scrollMargin
+                                    }
                                     selected={field.id === activeFieldId}
                                     tabStop={index === tabStop}
                                     joined={field.table !== explore.name}
