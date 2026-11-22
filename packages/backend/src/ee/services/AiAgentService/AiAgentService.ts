@@ -55,6 +55,7 @@ import {
     AiWebAppPrompt,
     AiWritebackAttribution,
     AiWritebackRunResult,
+    ALL_AGENT_EXPLORES,
     AlreadyExistsError,
     AndFilterGroup,
     AnonymousAccount,
@@ -158,6 +159,7 @@ import {
     isGithubMcpServerUrl,
     isGitProjectType,
     isJwtUser,
+    isLiveSourceAvailableToAgent,
     isMetric,
     isSlackMessageTooLongError,
     isSlackPrompt,
@@ -200,7 +202,9 @@ import {
     UserAttributeValueMap,
     validateAgentSuggestion,
     validateAiAgentSkill,
+    type AgentExploreScope,
     type AgentIdentityClaim,
+    type AgentLiveSourceUuids,
     type AgentSuggestionsResponseSource,
     type AgentSuggestionsSource,
     type AgentSuggestionTool,
@@ -286,6 +290,7 @@ import { nanoid as nanoidGenerator } from 'nanoid';
 import pLimit from 'p-limit';
 import slackifyMarkdown from 'slackify-markdown';
 import { Readable } from 'stream';
+import { validate as isUuid } from 'uuid';
 import { z } from 'zod';
 import { getAiUsageChannel } from '../../../analytics/aiUsage';
 import {
@@ -2562,7 +2567,7 @@ export class AiAgentService extends BaseService {
                         this.getExplore(
                             user,
                             prompt.projectUuid,
-                            agent.tags,
+                            agent,
                             exploreName,
                         ),
                     ),
@@ -3948,16 +3953,22 @@ export class AiAgentService extends BaseService {
         return this.forEmbedViewer(agent);
     }
 
+    /**
+     * The explores an agent can use: its tags scope dbt explores and its
+     * integrations scope live data source explores. Pass `ALL_AGENT_EXPLORES`
+     * outside an agent's scope.
+     */
     async getAvailableExplores(
         user: SessionUser,
         projectUuid: string,
-        availableTags: string[] | null,
+        scope: AgentExploreScope,
         exploreNames?: string[],
     ) {
         return this.aiAgentToolsService.getAvailableExplores({
             user,
             projectUuid,
-            availableTags,
+            availableTags: scope.tags,
+            liveSourceUuids: scope.liveSourceUuids,
             exploreNames,
         });
     }
@@ -3965,13 +3976,14 @@ export class AiAgentService extends BaseService {
     private async getExplore(
         user: SessionUser,
         projectUuid: string,
-        availableTags: string[] | null,
+        scope: AgentExploreScope,
         exploreName: string,
     ) {
         return this.aiAgentToolsService.getExplore({
             user,
             projectUuid,
-            availableTags,
+            availableTags: scope.tags,
+            liveSourceUuids: scope.liveSourceUuids,
             exploreName,
         });
     }
@@ -3990,7 +4002,7 @@ export class AiAgentService extends BaseService {
         const availableExplores = await this.getAvailableExplores(
             user,
             projectUuid,
-            tags,
+            { tags, liveSourceUuids: null },
         );
 
         const exploreAccessSummary = availableExplores.map((explore) => ({
@@ -4180,7 +4192,7 @@ export class AiAgentService extends BaseService {
             availableExplores = await this.getAvailableExplores(
                 user,
                 projectUuid,
-                agent.tags,
+                agent,
             );
 
             explores = availableExplores.slice(0, 12).map((explore) => {
@@ -4842,7 +4854,7 @@ export class AiAgentService extends BaseService {
         const explore = await this.getExplore(
             user,
             projectUuid,
-            null,
+            ALL_AGENT_EXPLORES,
             metricQuery.exploreName,
         );
 
@@ -4928,7 +4940,7 @@ export class AiAgentService extends BaseService {
                             await this.getExplore(
                                 user,
                                 projectUuid,
-                                null,
+                                ALL_AGENT_EXPLORES,
                                 queryConfig.exploreName,
                             ),
                         ] as const,
@@ -6550,6 +6562,18 @@ export class AiAgentService extends BaseService {
         }
     }
 
+    /** The column is uuid[], so anything else is refused before it reaches it. */
+    private static parseLiveSourceUuids(
+        liveSourceUuids: string[] | null,
+    ): string[] | null {
+        if (liveSourceUuids === null) return null;
+        const invalid = liveSourceUuids.find((uuid) => !isUuid(uuid));
+        if (invalid !== undefined) {
+            throw new ParameterError(`"${invalid}" is not an integration uuid`);
+        }
+        return [...new Set(liveSourceUuids)];
+    }
+
     public async createAgent(
         user: SessionUser,
         body: ApiCreateAiAgent,
@@ -6631,6 +6655,9 @@ export class AiAgentService extends BaseService {
             providerCredentialUuid: body.providerCredentialUuid ?? null,
             version: body.version,
             threadRetentionHours: body.threadRetentionHours ?? null,
+            liveSourceUuids: AiAgentService.parseLiveSourceUuids(
+                body.liveSourceUuids ?? null,
+            ),
         });
 
         this.analytics.track<AiAgentCreatedEvent>({
@@ -8401,6 +8428,10 @@ export class AiAgentService extends BaseService {
             providerCredentialUuid: body.providerCredentialUuid,
             version: body.version,
             threadRetentionHours: body.threadRetentionHours,
+            liveSourceUuids:
+                body.liveSourceUuids === undefined
+                    ? undefined
+                    : AiAgentService.parseLiveSourceUuids(body.liveSourceUuids),
         });
 
         this.analytics.track<AiAgentUpdatedEvent>({
@@ -10502,7 +10533,7 @@ export class AiAgentService extends BaseService {
         const explores = await this.getAvailableExplores(
             user,
             agent.projectUuid,
-            agent.tags,
+            agent,
         );
 
         const copilotConfig =
@@ -12533,7 +12564,7 @@ export class AiAgentService extends BaseService {
         const availableExplores = await this.getAvailableExplores(
             user,
             agent.projectUuid,
-            agent.tags,
+            agent,
         );
         const exploreNames = availableExplores.map(
             (explore) => explore.label || explore.name,
@@ -12571,17 +12602,26 @@ export class AiAgentService extends BaseService {
     private async getAgentLiveSources(
         user: SessionUser,
         projectUuid: string,
+        liveSourceUuids: AgentLiveSourceUuids,
     ): Promise<AgentLiveSource[]> {
+        // "None" drops the section without reading any integration
+        if (liveSourceUuids?.length === 0) return [];
         const { enabled } = await this.featureFlagService.get({
             user,
             featureFlagId: FeatureFlags.ApiQuerySources,
         });
         if (!enabled) return [];
-        const connections =
+        const connections = (
             await this.externalConnectionService.listApiSourceConnections(
                 fromSession(user),
                 projectUuid,
-            );
+            )
+        ).filter(({ externalConnectionUuid }) =>
+            isLiveSourceAvailableToAgent(
+                liveSourceUuids,
+                externalConnectionUuid,
+            ),
+        );
         return connections.flatMap(
             ({
                 externalConnectionUuid,
@@ -15263,6 +15303,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             defaultQueryExecutionContext: QueryExecutionContext.AI,
             querySurface: querySurfaceFromPrompt(prompt),
             tags: runtimeAgentSettings.tags,
+            liveSourceUuids: runtimeAgentSettings.liveSourceUuids,
             spaceAccess:
                 options?.runtimeOptions?.spaceAccess ??
                 runtimeAgentSettings.spaceAccess,
@@ -16226,7 +16267,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             this.getExplore(
                 user,
                 prompt.projectUuid,
-                agent.tags,
+                agent,
                 chartConfig.config.queryConfig.exploreName,
             ).catch(() => null),
             this.searchAddableCatalogFields({
@@ -16353,14 +16394,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
     private async findExploreForAddedField({
         user,
         projectUuid,
-        availableTags,
+        scope,
         artifact,
         currentExplore,
         tableName,
     }: {
         user: SessionUser;
         projectUuid: string;
-        availableTags: string[] | null;
+        scope: AgentExploreScope;
         artifact: AiSemanticChartArtifactConfig;
         currentExplore: Explore;
         tableName: string;
@@ -16413,7 +16454,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         const available = await this.getAvailableExplores(
             user,
             projectUuid,
-            availableTags,
+            scope,
             exploreNames,
         );
         const compatible = available.filter((candidate) => {
@@ -16530,7 +16571,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 ? await this.findExploreForAddedField({
                       user,
                       projectUuid: prompt.projectUuid,
-                      availableTags: agent.tags,
+                      scope: agent,
                       artifact,
                       currentExplore: explore,
                       tableName,
@@ -17294,6 +17335,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             defaultQueryExecutionContext: QueryExecutionContext.AI,
             querySurface: querySurfaceFromPrompt(prompt),
             tags: agent.tags,
+            liveSourceUuids: agent.liveSourceUuids,
             spaceAccess: agent.spaceAccess,
             readOnlySpaceUuids: [],
             // Read-only runtime; the binding only limits writes.
@@ -18276,7 +18318,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     battleProfile,
                 });
                 const liveSources = hasTrustedPromptUserIdentity
-                    ? await this.getAgentLiveSources(user, prompt.projectUuid)
+                    ? await this.getAgentLiveSources(
+                          user,
+                          prompt.projectUuid,
+                          agentSettings.liveSourceUuids,
+                      )
                     : [];
                 const { enabled: filterExpressionsEnabled } =
                     await this.featureFlagService.get({
@@ -19943,7 +19989,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     this.getExplore(
                         user,
                         slackPrompt.projectUuid,
-                        agent?.tags ?? null,
+                        agent ?? ALL_AGENT_EXPLORES,
                         exploreName,
                     ),
                 ),
@@ -20031,7 +20077,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 this.getExplore(
                     user,
                     slackPrompt.projectUuid,
-                    null,
+                    ALL_AGENT_EXPLORES,
                     exploreName,
                 ),
             AiAgentService.isCardImageUrlReachable,

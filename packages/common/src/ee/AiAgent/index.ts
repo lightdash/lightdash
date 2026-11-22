@@ -73,6 +73,7 @@ export * from './documentTypes';
 export * from './skillTypes';
 export * from './threadFileTypes';
 export * from './skillValidation';
+export * from './agentLiveSources';
 export * from './filterExploreByTags';
 export * from './projectContext';
 export * from './requestTypes';
@@ -170,6 +171,8 @@ export const baseAgentSchema = z.object({
     imageUrlSource: z.enum(['upload', 'url']).nullable(),
 
     tags: z.array(z.string()).nullable(),
+    // Integrations the agent can use: null for all, [] for none, or these uuids.
+    liveSourceUuids: z.array(z.string()).nullable(),
 
     integrations: z.array(
         z.object({
@@ -231,6 +234,7 @@ export type AiAgent = Pick<
     | 'organizationUuid'
     | 'integrations'
     | 'tags'
+    | 'liveSourceUuids'
     | 'name'
     | 'description'
     | 'createdAt'
@@ -263,6 +267,7 @@ export type AiAgentSummary = Pick<
     | 'description'
     | 'integrations'
     | 'tags'
+    | 'liveSourceUuids'
     | 'projectUuid'
     | 'organizationUuid'
     | 'createdAt'
@@ -711,6 +716,7 @@ export type ApiCreateAiAgent = Pick<
     enableComposerQueries?: boolean;
     adminOnly?: boolean;
     mcpServerUuids?: string[];
+    liveSourceUuids?: string[] | null;
     modelConfig?: AiAgentModelConfig | null;
     providerCredentialUuid?: string | null;
     threadRetentionHours?: number | null;
@@ -743,6 +749,8 @@ export type ApiUpdateAiAgent = Partial<
     enableSqlAutoApproval?: boolean;
     enableComposerQueries?: boolean;
     mcpServerUuids?: string[];
+    // Omitted keeps the current setting; null makes every integration available.
+    liveSourceUuids?: string[] | null;
     // Omitted keeps the current pin; null clears it.
     providerCredentialUuid?: string | null;
     threadRetentionHours?: number | null;

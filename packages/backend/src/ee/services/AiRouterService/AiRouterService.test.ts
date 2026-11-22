@@ -118,6 +118,7 @@ const createCandidate = (
     imageUrl: null,
     imageUrlSource: null,
     tags: overrides.tags ?? null,
+    liveSourceUuids: null,
     integrations: [],
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),

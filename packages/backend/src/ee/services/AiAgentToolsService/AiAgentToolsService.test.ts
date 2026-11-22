@@ -320,6 +320,7 @@ function makeRuntimeContext(
         catalogSearchContext: CatalogSearchContext.AI_AGENT,
         defaultQueryExecutionContext: QueryExecutionContext.AI,
         tags: null,
+        liveSourceUuids: null,
         spaceAccess: null,
         readOnlySpaceUuids: [],
         threadBinding: null,
@@ -1844,6 +1845,7 @@ describe('AiAgentToolsService', () => {
                 user,
                 projectUuid,
                 availableTags: ['ai'],
+                liveSourceUuids: null,
             }),
         ).resolves.toEqual([expect.objectContaining({ name: 'public' })]);
 
@@ -1852,6 +1854,7 @@ describe('AiAgentToolsService', () => {
                 user,
                 projectUuid,
                 availableTags: ['ai'],
+                liveSourceUuids: null,
                 userAttributeOverrides: { access_level: ['2'] },
             }),
         ).resolves.toEqual([
@@ -1892,6 +1895,7 @@ describe('AiAgentToolsService', () => {
                         user: { ...defaultSessionUser, ...user },
                         projectUuid,
                         availableTags: null,
+                        liveSourceUuids: null,
                         exploreNames,
                     }),
             );
@@ -1931,6 +1935,7 @@ describe('AiAgentToolsService', () => {
             user,
             projectUuid,
             availableTags: ['ai'],
+            liveSourceUuids: null,
         });
 
         expect(Object.keys(explore.tables.orders.dimensions)).toEqual([
@@ -1939,6 +1944,65 @@ describe('AiAgentToolsService', () => {
         expect(Object.keys(explore.tables.orders.metrics)).toEqual([
             'visible_metric',
         ]);
+    });
+
+    describe("agent's integrations", () => {
+        const liveExplore = (name: string, connectionUuid: string) => ({
+            ...makeExplore({ name }),
+            type: ExploreType.API_SOURCE,
+            apiSource: { connectionUuid } as Explore['apiSource'],
+        });
+        const service = () =>
+            makeService({
+                explores: {
+                    orders: makeExplore({ name: 'orders' }),
+                    ga4_sessions: liveExplore('ga4_sessions', 'ga4-uuid'),
+                    hubspot_deals: liveExplore('hubspot_deals', 'hubspot-uuid'),
+                },
+            });
+        const listNames = async (liveSourceUuids: string[] | null) =>
+            (
+                await service().getAvailableExplores({
+                    user,
+                    projectUuid,
+                    availableTags: null,
+                    liveSourceUuids,
+                })
+            )
+                .map((explore) => explore.name)
+                .sort();
+
+        it('keeps every integration under "All"', async () => {
+            await expect(listNames(null)).resolves.toEqual([
+                'ga4_sessions',
+                'hubspot_deals',
+                'orders',
+            ]);
+        });
+
+        it('keeps no integration under "None"', async () => {
+            await expect(listNames([])).resolves.toEqual(['orders']);
+        });
+
+        it('keeps only the chosen integrations, ignoring deleted ones', async () => {
+            await expect(
+                listNames(['ga4-uuid', 'deleted-uuid']),
+            ).resolves.toEqual(['ga4_sessions', 'orders']);
+        });
+
+        it('refuses an excluded integration like a hidden explore', async () => {
+            await expect(
+                service().getExplore({
+                    user,
+                    projectUuid,
+                    availableTags: null,
+                    liveSourceUuids: ['ga4-uuid'],
+                    exploreName: 'hubspot_deals',
+                }),
+            ).rejects.toThrow(
+                /Explore "hubspot_deals" is not available\..*Do not retry this explore/,
+            );
+        });
     });
 
     describe('project Tables configuration', () => {
@@ -2003,12 +2067,14 @@ describe('AiAgentToolsService', () => {
         const listNames = async (
             service: AiAgentToolsService,
             availableTags: string[] | null = null,
+            liveSourceUuids: string[] | null = null,
         ) =>
             (
                 await service.getAvailableExplores({
                     user,
                     projectUuid,
                     availableTags,
+                    liveSourceUuids,
                 })
             )
                 .map((explore) => explore.name)
@@ -2047,6 +2113,7 @@ describe('AiAgentToolsService', () => {
                     user,
                     projectUuid,
                     availableTags: null,
+                    liveSourceUuids: null,
                     exploreName: 'orders',
                 }),
             ).resolves.toMatchObject({ name: 'orders' });
@@ -2055,6 +2122,7 @@ describe('AiAgentToolsService', () => {
                     user,
                     projectUuid,
                     availableTags: null,
+                    liveSourceUuids: null,
                     exploreName: 'customers',
                 }),
             ).rejects.toThrow(NotFoundError);
@@ -2071,6 +2139,7 @@ describe('AiAgentToolsService', () => {
                     user,
                     projectUuid,
                     availableTags: null,
+                    liveSourceUuids: null,
                     exploreName: 'customers',
                 }),
             ).rejects.toThrow(
@@ -2095,6 +2164,7 @@ describe('AiAgentToolsService', () => {
                     user,
                     projectUuid,
                     availableTags: null,
+                    liveSourceUuids: null,
                     exploreName: 'customers',
                 }),
             ).rejects.toThrow(NotFoundError);

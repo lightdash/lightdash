@@ -17,6 +17,7 @@ const visibleAgent: AiAgent = {
     organizationUuid: defaultSessionUser.organizationUuid!,
     integrations: [],
     tags: null,
+    liveSourceUuids: null,
     name: 'Agent',
     description: null,
     createdAt: new Date('2026-08-26T10:00:00.000Z'),
