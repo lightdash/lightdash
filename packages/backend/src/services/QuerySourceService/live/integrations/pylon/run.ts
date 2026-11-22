@@ -64,6 +64,19 @@ const COLUMNS = {
         'resolution_hours',
         'touches',
         'csat_score',
+        'first_response_due',
+        'first_response_breached',
+        'resolution_due',
+        'resolution_breached',
+        'next_reply_due',
+        'first_resolved_at',
+        'business_first_response_minutes',
+        'business_resolution_hours',
+        'created_time',
+        'priority',
+        'csat_comment',
+        'linked_issue_sources',
+        'linked_issue_links',
     ],
     accounts: [
         'id',
@@ -100,6 +113,20 @@ const NUMBER_COLUMNS = new Set([
     'resolution_hours',
     'touches',
     'csat_score',
+    'business_first_response_minutes',
+    'business_resolution_hours',
+]);
+
+const TIMESTAMP_COLUMNS = new Set([
+    'first_response_due',
+    'resolution_due',
+    'next_reply_due',
+    'created_time',
+]);
+
+const BOOLEAN_COLUMNS = new Set([
+    'first_response_breached',
+    'resolution_breached',
 ]);
 
 const DATE_COLUMNS = new Set([
@@ -112,6 +139,7 @@ const DATE_COLUMNS = new Set([
     'resolved_at',
     'resolved_at_week',
     'resolved_at_month',
+    'first_resolved_at',
     'last_customer_activity_at',
     'last_vendor_activity_at',
 ]);
@@ -271,7 +299,43 @@ const issueSchema = z.object({
     first_response_time: z.string().nullable().optional(),
     first_response_seconds: z.number().optional(),
     number_of_touches: z.number(),
-    csat_responses: z.array(z.object({ score: z.number() })).optional(),
+    csat_responses: z
+        .array(
+            z.object({
+                score: z.number(),
+                comment: z.string().nullable().optional(),
+            }),
+        )
+        .optional(),
+    // Issue-level SLAs only; per-team SLAs (team_slas) stay out
+    first_response_breach_time: z.string().nullable().optional(),
+    resolution_breach_time: z.string().nullable().optional(),
+    next_reply: z
+        .object({ breach_time: z.string().nullable().optional() })
+        .nullable()
+        .optional(),
+    first_resolution_time: z.string().nullable().optional(),
+    business_hours_first_response_seconds: z.number().nullable().optional(),
+    business_hours_resolution_seconds: z.number().nullable().optional(),
+    custom_fields: z
+        .record(
+            z.string(),
+            // Multi-select fields hold arrays; only text values are read
+            z.object({ value: z.unknown() }).passthrough(),
+        )
+        .nullable()
+        .optional(),
+    external_issues: z
+        .array(
+            z
+                .object({
+                    source: z.string().nullable().optional(),
+                    link: z.string().nullable().optional(),
+                })
+                .passthrough(),
+        )
+        .nullable()
+        .optional(),
 });
 type PylonIssue = z.infer<typeof issueSchema>;
 
@@ -340,8 +404,25 @@ const toMonth = (day: string | null) => (day ? `${day.slice(0, 7)}-01` : null);
 const round = (value: number, digits: number) =>
     Math.round(value * 10 ** digits) / 10 ** digits;
 
+const toText = (value: unknown) =>
+    typeof value === 'string' && value !== '' ? value : null;
+
 const joinTags = (tags: string[] | null | undefined) =>
     tags && tags.length > 0 ? tags.join(', ') : null;
+
+/**
+ * Whether an SLA was missed: answered after its deadline, or unanswered with
+ * the deadline passed. Empty without a deadline.
+ */
+const isBreached = (
+    deadline: string | null | undefined,
+    met: string | null | undefined,
+    now: number,
+) => {
+    if (!deadline) return null;
+    const due = Date.parse(deadline);
+    return met ? Date.parse(met) > due : now > due;
+};
 
 /** What issues and contacts hold only by ID, read for the columns asked for. */
 type Names = {
@@ -414,6 +495,50 @@ const readIssueColumn = (
             return issue.number_of_touches;
         case 'csat_score':
             return issue.csat_responses?.[0]?.score ?? null;
+        case 'csat_comment':
+            return issue.csat_responses?.[0]?.comment || null;
+        case 'first_response_due':
+            return issue.first_response_breach_time || null;
+        case 'first_response_breached':
+            return isBreached(
+                issue.first_response_breach_time,
+                issue.first_response_time,
+                Date.now(),
+            );
+        case 'resolution_due':
+            return issue.resolution_breach_time || null;
+        case 'resolution_breached':
+            return isBreached(
+                issue.resolution_breach_time,
+                issue.resolution_time,
+                Date.now(),
+            );
+        case 'next_reply_due':
+            return issue.next_reply?.breach_time || null;
+        case 'first_resolved_at':
+            return toDay(issue.first_resolution_time);
+        case 'business_first_response_minutes':
+            return issue.first_response_time &&
+                typeof issue.business_hours_first_response_seconds === 'number'
+                ? round(issue.business_hours_first_response_seconds / 60, 2)
+                : null;
+        case 'business_resolution_hours':
+            return issue.resolution_time &&
+                typeof issue.business_hours_resolution_seconds === 'number'
+                ? round(issue.business_hours_resolution_seconds / 3600, 2)
+                : null;
+        case 'created_time':
+            return issue.created_at;
+        case 'priority':
+            return toText(issue.custom_fields?.priority?.value);
+        case 'linked_issue_sources':
+            return joinTags(
+                issue.external_issues?.flatMap(({ source }) => source || []),
+            );
+        case 'linked_issue_links':
+            return joinTags(
+                issue.external_issues?.flatMap(({ link }) => link || []),
+            );
         default:
             return null;
     }
@@ -681,6 +806,12 @@ const toColumns = (names: string[]): LiveColumn[] =>
     names.map((name) => {
         if (DATE_COLUMNS.has(name)) {
             return { name, type: DimensionType.DATE };
+        }
+        if (TIMESTAMP_COLUMNS.has(name)) {
+            return { name, type: DimensionType.TIMESTAMP };
+        }
+        if (BOOLEAN_COLUMNS.has(name)) {
+            return { name, type: DimensionType.BOOLEAN };
         }
         return {
             name,
