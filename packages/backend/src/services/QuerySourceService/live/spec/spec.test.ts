@@ -22,6 +22,31 @@ describe('live integration specs', () => {
         );
     });
 
+    test('rate limits are whole positive numbers with unique bucket ids', () => {
+        const problems = INTEGRATIONS.flatMap(({ connector, rateLimits }) => {
+            const ids = rateLimits.buckets.map(({ id }) => id);
+            const counts = [
+                rateLimits.concurrentCalls,
+                ...(rateLimits.callsPerSecond === null
+                    ? []
+                    : [rateLimits.callsPerSecond]),
+                ...rateLimits.buckets.flatMap(({ windowMs, capacity }) => [
+                    windowMs,
+                    capacity,
+                ]),
+            ];
+            return [
+                ...(new Set(ids).size === ids.length
+                    ? []
+                    : [`${connector}: duplicate bucket id`]),
+                ...(counts.every((n) => Number.isInteger(n) && n > 0)
+                    ? []
+                    : [`${connector}: a limit is not a positive integer`]),
+            ];
+        });
+        expect(problems).toEqual([]);
+    });
+
     test('auth scores', () => {
         expect(
             Object.fromEntries(

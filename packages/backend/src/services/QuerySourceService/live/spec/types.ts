@@ -87,7 +87,8 @@ export type LiveRateLimits = {
 
 /**
  * What an integration's code can't know about the tool it calls, written
- * into its definition. Each section's `description` explains the reasoning.
+ * into its definition. Prose sections carry a `description`; rate limits
+ * are numbers, with a `note` only when the numbers can't say it.
  */
 export type LiveIntegrationSpec = {
     /**

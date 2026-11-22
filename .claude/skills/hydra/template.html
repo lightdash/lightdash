@@ -227,7 +227,7 @@ const overview = (integrations) => `
       <span class="mono t2">L${i.level.value}</span>
       <span>${authChip(i)}</span>
       ${coverage(i.useCases)}
-      ${limitTags(i.rateLimits)}
+      ${i.rateLimits ? limitTags(i.rateLimits) : '<span class="t3">Not set</span>'}
       <span class="clip">${esc(i.paging.description)}</span>
     </a>`).join('')}
   </div>`;
@@ -360,7 +360,7 @@ const detail = (i) => {
     <div class="prop"><div class="k">Level <span class="mono">${i.level.value}/5</span></div><div class="v">${esc(i.level.description)}</div></div>
     <div class="prop auth"><div class="k">Auth <span class="status">${dot(RATING_COLOR[i.authScore.rating])}${esc(i.authScore.rating)}</span></div>${authValue(i.auth)}</div>
     <div class="prop"><div class="k">Paging</div><div class="v">${esc(i.paging.description)}</div></div>
-    <div class="prop wide"><div class="k">Rate limits <span class="t3" style="font-weight:400">per connection</span></div>${rateLimitsValue(i.rateLimits)}</div>
+    <div class="prop wide"><div class="k">Rate limits <span class="t3" style="font-weight:400">per connection</span></div>${i.rateLimits ? rateLimitsValue(i.rateLimits) : '<div class="v"><span class="t3">Not set</span></div>'}</div>
   </div>
   ${i.explores?.length ? `<h2>Explores <span class="t3" style="font-weight:400">${i.explores.length}</span></h2>${explorer(i.explores)}` : ''}
   <h2>Use cases
