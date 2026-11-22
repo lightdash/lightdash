@@ -1,6 +1,7 @@
 import {
     ApiConnectorType,
     ATTIO_OBJECTS,
+    ATTIO_WORKSPACE_MEMBERS_PATH,
     DimensionType,
     getAttioAttributesPath,
     getAttioRecordsQueryPath,
@@ -37,6 +38,8 @@ const VALUE_PROPERTIES = [
     'target_record_id',
     'referenced_actor_id',
     'interacted_at',
+    'active_from',
+    'member_name',
 ] as const satisfies readonly AttioValueProperty[];
 
 const BUILT_IN_COLUMNS = ['record_id', 'web_url', 'created_at'] as const;
@@ -119,11 +122,19 @@ const ADDRESS_PARTS = [
     'country_code',
 ];
 
+/** Workspace member names by id, for owner name fields. */
+type MemberNames = ReadonlyMap<string, string>;
+
 const readValue = (
     value: Record<string, unknown>,
     property: AttioValueProperty | null,
+    memberNames: MemberNames,
 ): unknown => {
     switch (property) {
+        case 'member_name':
+            return typeof value.referenced_actor_id === 'string'
+                ? (memberNames.get(value.referenced_actor_id) ?? null)
+                : null;
         case null:
             return value.value;
         case 'option':
@@ -145,11 +156,15 @@ const readValue = (
 };
 
 /** An attribute's current values: text joined with commas, otherwise the first. */
-const readAttribute = (record: AttioRecord, column: string): unknown => {
+const readAttribute = (
+    record: AttioRecord,
+    column: string,
+    memberNames: MemberNames,
+): unknown => {
     const { slug, property } = parseAttioApiName(column);
     const values = (record.values[slug] ?? [])
         .filter(({ active_until: activeUntil }) => !activeUntil)
-        .map((value) => readValue(value, property))
+        .map((value) => readValue(value, property, memberNames))
         .filter((value) => value !== null && value !== undefined);
     if (values.length === 0) {
         return null;
@@ -159,10 +174,64 @@ const readAttribute = (record: AttioRecord, column: string): unknown => {
         : values[0];
 };
 
-const readColumn = (record: AttioRecord, column: string): unknown =>
+const readColumn = (
+    record: AttioRecord,
+    column: string,
+    memberNames: MemberNames,
+): unknown =>
     (BUILT_IN_COLUMNS as readonly string[]).includes(column)
         ? readBuiltIn(record, column as (typeof BUILT_IN_COLUMNS)[number])
-        : readAttribute(record, column);
+        : readAttribute(record, column, memberNames);
+
+const membersResponseSchema = z.object({
+    data: z.array(
+        z.object({
+            id: z.object({ workspace_member_id: z.string() }),
+            first_name: z.string().nullable().optional(),
+            last_name: z.string().nullable().optional(),
+        }),
+    ),
+});
+
+/**
+ * Names of the workspace's members, read once when an owner name is
+ * selected. A token without the user_management:read scope reads none, so
+ * names are empty and the query still runs.
+ */
+const readMemberNames = async (
+    columns: string[],
+    calls: LiveCalls,
+): Promise<MemberNames> => {
+    const needed = columns.some(
+        (column) => parseAttioApiName(column).property === 'member_name',
+    );
+    if (!needed) {
+        return new Map();
+    }
+    try {
+        const { data } = await calls.fetch(
+            {
+                method: 'GET',
+                path: ATTIO_WORKSPACE_MEMBERS_PATH,
+                body: undefined,
+            },
+            membersResponseSchema,
+        );
+        return new Map(
+            data.flatMap(({ id, first_name: first, last_name: last }) => {
+                const name = [first, last]
+                    .filter((part) => part?.trim())
+                    .join(' ');
+                return name ? [[id.workspace_member_id, name]] : [];
+            }),
+        );
+    } catch (error) {
+        if (error instanceof AttioObjectAccessError) {
+            return new Map();
+        }
+        throw error;
+    }
+};
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T/;
@@ -245,15 +314,22 @@ export const runAttioQuery = async ({
 >): Promise<LiveRunResult> => {
     assertMaxRows(limit, ATTIO_MAX_RECORDS);
     const { columns } = request;
-    const { records, hasMoreRows } = await readRecords({
-        object: request.object,
-        request,
-        requestedRows: limit,
-        calls,
-    });
+    // Neither call needs the other's result, so they run together
+    const [{ records, hasMoreRows }, memberNames] = await Promise.all([
+        readRecords({
+            object: request.object,
+            request,
+            requestedRows: limit,
+            calls,
+        }),
+        readMemberNames(columns, calls),
+    ]);
     const rows = records.map((record) =>
         Object.fromEntries(
-            columns.map((column) => [column, readColumn(record, column)]),
+            columns.map((column) => [
+                column,
+                readColumn(record, column, memberNames),
+            ]),
         ),
     );
     return {

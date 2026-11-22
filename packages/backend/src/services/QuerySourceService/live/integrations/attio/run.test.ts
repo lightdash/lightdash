@@ -32,6 +32,22 @@ const connect = (...responses: LiveHttpResponse[]) => {
     };
 };
 
+/** Answers records and members calls by path, whichever starts first. */
+const connectWithMembers = (
+    records: LiveHttpResponse,
+    members: LiveHttpResponse,
+) => {
+    const send = vi.fn((call: { path: string }) =>
+        Promise.resolve(
+            call.path === '/v2/workspace_members' ? members : records,
+        ),
+    );
+    return {
+        send,
+        source: connectLiveSource(attioIntegration, SETTINGS, send),
+    };
+};
+
 const run = (
     source: ReturnType<typeof connect>['source'],
     request: Record<string, unknown>,
@@ -71,6 +87,8 @@ describe('attioIntegration listing', () => {
             sorts: [{ attribute: 'name', direction: 'asc' }],
         });
 
+        // No owner name selected, so no members call
+        expect(send).toHaveBeenCalledTimes(1);
         expect(send).toHaveBeenCalledWith({
             method: 'POST',
             path: '/v2/objects/deals/records/query',
@@ -113,6 +131,72 @@ describe('attioIntegration listing', () => {
             close_date: 'date',
             name: 'string',
         });
+    });
+
+    it("reads when the stage was entered, and the owner's name with one members call", async () => {
+        const { source, send } = connectWithMembers(
+            page([attioDeal('d1'), attioDeal('d2')]),
+            response({
+                data: [
+                    {
+                        id: { workspace_member_id: 'member-1' },
+                        first_name: 'Grace',
+                        last_name: 'Hopper',
+                    },
+                ],
+            }),
+        );
+
+        const result = await run(source, {
+            columns: ['stage.active_from', 'owner.member_name'],
+        });
+
+        expect(send).toHaveBeenCalledTimes(2);
+        expect(send).toHaveBeenCalledWith({
+            method: 'GET',
+            path: '/v2/workspace_members',
+            body: undefined,
+        });
+        expect(result.rows).toEqual([
+            {
+                'stage.active_from': '2026-01-01T00:00:00.000000000Z',
+                'owner.member_name': 'Grace Hopper',
+            },
+            {
+                'stage.active_from': '2026-01-01T00:00:00.000000000Z',
+                'owner.member_name': 'Grace Hopper',
+            },
+        ]);
+        expect(result.columns).toContainEqual({
+            name: 'stage.active_from',
+            type: 'timestamp',
+        });
+    });
+
+    it('leaves owner names empty when the token cannot read members', async () => {
+        const { source } = connectWithMembers(
+            page([attioDeal('d1')]),
+            response({ message: 'Missing scope user_management:read' }, 403),
+        );
+
+        const result = await run(source, {
+            columns: ['name', 'owner.member_name'],
+        });
+
+        expect(result.rows).toEqual([
+            { name: 'Deal d1', 'owner.member_name': null },
+        ]);
+    });
+
+    it('still fails when the members call is throttled', async () => {
+        const { source } = connectWithMembers(
+            page([attioDeal('d1')]),
+            response({ message: 'Slow down' }, 429),
+        );
+
+        await expect(
+            run(source, { columns: ['owner.member_name'] }),
+        ).rejects.toBeInstanceOf(TooManyRequestsError);
     });
 
     it('pages with offsets and reports rows past the limit', async () => {

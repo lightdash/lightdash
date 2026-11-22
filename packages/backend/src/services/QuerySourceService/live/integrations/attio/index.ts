@@ -2,6 +2,7 @@ import {
     ApiConnectorType,
     ATTIO_OBJECTS,
     ATTIO_ORIGIN,
+    ATTIO_WORKSPACE_MEMBERS_PATH,
     getAttioAttributesPath,
     getAttioRecordsQueryPath,
     LIVE_INTEGRATION_CATALOG,
@@ -44,10 +45,13 @@ export const attioIntegration = defineLiveIntegration({
     settings: CATALOG.settings,
     origins: [ATTIO_ORIGIN],
     access: () => ({
-        pathPrefixes: ATTIO_OBJECTS.flatMap((object) => [
-            getAttioAttributesPath(object),
-            getAttioRecordsQueryPath(object),
-        ]),
+        pathPrefixes: [
+            ...ATTIO_OBJECTS.flatMap((object) => [
+                getAttioAttributesPath(object),
+                getAttioRecordsQueryPath(object),
+            ]),
+            ATTIO_WORKSPACE_MEMBERS_PATH,
+        ],
         // Records are read with POST, attributes with GET
         methods: ['GET', 'POST'],
     }),
@@ -57,7 +61,8 @@ export const attioIntegration = defineLiveIntegration({
         concurrentCalls: 3,
         callsPerMinute: 600,
         callsPerHour: 20_000,
-        callsPerQuery: ATTIO_MAX_PAGES,
+        // The record pages, plus one call for owner names when they're selected
+        callsPerQuery: ATTIO_MAX_PAGES + 1,
         timeoutMs: 30_000,
         maxRows: ATTIO_MAX_RECORDS,
     },

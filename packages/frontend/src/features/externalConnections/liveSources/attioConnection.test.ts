@@ -33,6 +33,7 @@ describe('attioConnection', () => {
                 '/v2/objects/users/records/query',
                 '/v2/objects/workspaces/attributes',
                 '/v2/objects/workspaces/records/query',
+                '/v2/workspace_members',
             ],
         });
     });
