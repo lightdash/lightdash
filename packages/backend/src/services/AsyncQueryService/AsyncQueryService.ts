@@ -13161,6 +13161,7 @@ export class AsyncQueryService extends ProjectService {
             account,
             projectUuid,
             apiSource.connectionUuid,
+            context,
         );
         const compiled = compileLiveMetricQuery({
             explore,

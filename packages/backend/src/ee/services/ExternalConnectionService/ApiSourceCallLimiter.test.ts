@@ -306,6 +306,48 @@ describe('ApiSourceCallLimiter', () => {
         expect(model.chargeApiSourceRateBuckets).not.toHaveBeenCalled();
     });
 
+    describe('deadlines per caller', () => {
+        const resetsIn = (ms: number) => [
+            (now: number): ApiSourceRateCharge => ({
+                charged: false,
+                now: new Date(now),
+                bucketId: 'hour',
+                used: 10_000,
+                resumesAt: new Date(now + ms),
+                isHeldByVendor: false,
+            }),
+        ];
+
+        it('refuses an agent call (30 s) that a dashboard call (60 s) waits for', async () => {
+            const agent = buildLimiter({ charges: resetsIn(45_000) });
+            await refusal(
+                agent.limiter.run(target(), async () => 'rows', {
+                    deadlineMs: 30_000,
+                }),
+            );
+
+            const dashboard = buildLimiter({ charges: resetsIn(45_000) });
+            await expect(
+                dashboard.limiter.run(target(), async () => 'rows', {
+                    deadlineMs: 60_000,
+                }),
+            ).resolves.toBe('rows');
+        });
+
+        it('lets a scheduled delivery (2 min) wait through a reset 90 s away', async () => {
+            const { limiter, sleep } = buildLimiter({
+                charges: resetsIn(90_000),
+            });
+
+            await expect(
+                limiter.run(target(), async () => 'rows', {
+                    deadlineMs: 120_000,
+                }),
+            ).resolves.toBe('rows');
+            expect(sleep).toHaveBeenCalledWith(90_000);
+        });
+    });
+
     describe('when the integration says to slow down', () => {
         const limitedFor = (seconds: number | null) => (result: string) =>
             result === 'limited'

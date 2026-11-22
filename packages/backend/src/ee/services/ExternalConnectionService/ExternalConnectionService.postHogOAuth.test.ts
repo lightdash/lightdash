@@ -171,7 +171,12 @@ const buildService = ({
 };
 
 const runQuery = async (service: ExternalConnectionService) => {
-    const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
+    const source = await service.getLiveSource(
+        account,
+        'proj-1',
+        'conn-1',
+        60_000,
+    );
     return runLiveRequest(source, { query: 'SELECT 1 AS a', limit: 10 });
 };
 
