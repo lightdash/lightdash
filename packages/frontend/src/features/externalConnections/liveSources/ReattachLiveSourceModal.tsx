@@ -54,7 +54,7 @@ export const ReattachLiveSourceModal: FC<Props> = ({
         <MantineModal
             opened
             onClose={onClose}
-            title="Reattach a deleted source?"
+            title="Bring back a deleted source?"
             icon={IconPlugConnected}
             cancelLabel="Not now"
             cancelDisabled={reattach.isLoading}
@@ -72,8 +72,8 @@ export const ReattachLiveSourceModal: FC<Props> = ({
                 <Select
                     allowDeselect={false}
                     label="Deleted source"
-                    description="This source takes its explore prefix, so its charts work again and its field edits come back."
-                    placeholder="Choose a deleted source"
+                    description="Its charts and field edits come back with it"
+                    placeholder="Pick a source"
                     value={selected?.externalConnectionUuid ?? null}
                     onChange={setPicked}
                     data={deletedSources.map((source) => ({
