@@ -61,6 +61,30 @@ export type LiveCrossToolUseCases = {
     dashboards: (LiveUseCaseDashboard & LiveUseCaseTools)[];
 };
 
+/** A budget of calls that refills when its window ends. */
+export type LiveRateLimitBucket = {
+    /** Stable: usage is kept against it. */
+    id: string;
+    /** Shown in refusals and on usage pages, e.g. "per hour". */
+    label: string;
+    windowMs: number;
+    capacity: number;
+};
+
+/**
+ * One connection's rate limits, as data. Not enforced yet: the limiter
+ * still reads `limits` on the integration definition.
+ */
+export type LiveRateLimits = {
+    /** Calls one connection may have in flight at once. */
+    concurrentCalls: number;
+    /** Even spacing between calls; null when the vendor has no per-second limit. */
+    callsPerSecond: number | null;
+    buckets: readonly LiveRateLimitBucket[];
+    /** Only for something a reader must know that the numbers can't say. */
+    note?: string;
+};
+
 /**
  * What an integration's code can't know about the tool it calls, written
  * into its definition. Each section's `description` explains the reasoning.
@@ -91,8 +115,8 @@ export type LiveIntegrationSpec = {
     };
     /** How the vendor's API pages results and where it stops. */
     paging: { description: string };
-    /** The vendor's rate limits. */
-    rateLimiting: { description: string };
+    /** The vendor's rate limits, as limits one connection stays under. */
+    rateLimits: LiveRateLimits;
     /** What people expect to ask it and build with it, and whether each is possible today. */
     useCases: LiveUseCases;
 };

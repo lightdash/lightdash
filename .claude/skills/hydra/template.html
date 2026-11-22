@@ -59,14 +59,24 @@ h2 { font-size: 12px; font-weight: 500; color: var(--text-3); margin: 28px 0 8px
 .row:first-child { border-top: 0; }
 a.row:hover, .row.case:hover { background: var(--hover); }
 .row.head { min-height: 32px; font-size: 11px; font-weight: 500; color: var(--text-3); background: var(--raised); }
-.overview .row { grid-template-columns: minmax(140px, 1.2fr) 56px 120px 130px minmax(0, 2fr); }
+.overview .row { grid-template-columns: minmax(140px, 1.2fr) 56px 120px 130px 296px minmax(0, 1fr); }
+.overview .tags { flex-wrap: nowrap; overflow: hidden; }
 .row .name { font-weight: 500; }
 .row .clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
 
 .props { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .prop { background: var(--surface); padding: 12px 14px; }
 .props > .prop { grid-column: 1; }
-.props > .prop.auth { grid-column: 2; grid-row: 1 / span 3; }
+.props > .prop.auth { grid-column: 2; grid-row: 1 / span 2; }
+.props > .prop.wide { grid-column: 1 / -1; }
+.limits { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; margin-top: 6px; }
+.limit { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
+.limit .kk { display: block; margin-bottom: 2px; }
+.limit .num { font: 500 16px/1.3 var(--mono); letter-spacing: -.01em; }
+.limit .num .unit { font: 400 12px var(--sans); color: var(--text-3); margin-left: 4px; }
+.limit.off .num { color: var(--text-3); font: 400 14px/1.55 var(--sans); }
+.limits-note { display: flex; gap: 8px; align-items: baseline; margin-top: 10px; font-size: 12.5px; color: var(--text-2); }
+.limits-note .dot { transform: translateY(-1px); }
 .prop .k { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 500; color: var(--text-3); margin-bottom: 4px; }
 .prop .v { color: var(--text); }
 .kv { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 7px 12px; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
@@ -152,6 +162,26 @@ const OUTCOME_COLOR = { pass: 'green', regression: 'red', flip: 'blue', blocked:
 const dot = (color) => `<span class="dot ${color ?? ''}"></span>`;
 const chip = (text, color) => `<span class="chip">${color ? dot(color) : ''}${esc(text)}</span>`;
 const words = (value) => value.replace(/_/g, ' ');
+const num = (n) => Number(n).toLocaleString('en-US');
+const compact = (n) => (n >= 1000 ? `${Number((n / 1000).toFixed(1))}k` : num(n));
+const WINDOW = { 1000: 's', 60000: 'min', 3600000: 'h', 86400000: 'day' };
+const per = (ms) => WINDOW[ms] ?? `${ms / 1000}s`;
+const limitTags = (r) => `<span class="tags">${[
+  `${r.concurrentCalls} at once`,
+  ...(r.callsPerSecond ? [`${compact(r.callsPerSecond)}/s`] : []),
+  ...r.buckets.map((b) => `${compact(b.capacity)}/${per(b.windowMs)}`),
+].map((text) => `<span class="tag mono">${esc(text)}</span>`).join('')}</span>`;
+const capital = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+const limitTile = (label, value, unit) => `<div class="limit ${value == null ? 'off' : ''}">
+  <span class="kk">${esc(label)}</span>
+  <div class="num">${value == null ? 'No limit' : `${num(value)}<span class="unit">${esc(unit)}</span>`}</div>
+</div>`;
+const rateLimitsValue = (r) => `<div class="limits">
+    ${limitTile('At once', r.concurrentCalls, 'calls')}
+    ${limitTile('Per second', r.callsPerSecond, 'calls')}
+    ${r.buckets.map((b) => limitTile(capital(b.label), b.capacity, 'calls')).join('')}
+  </div>
+  ${r.note ? `<div class="limits-note">${dot('amber')}<span>${esc(r.note)}</span></div>` : ''}`;
 
 const LOGO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
   <path d="M12 21v-6.5"/>
@@ -191,12 +221,13 @@ const overview = (integrations) => `
   <h1>${esc(data.title)}</h1>
   <div class="subtitle">${integrations.length} integrations</div>
   <div class="list overview">
-    <div class="row head"><span>Integration</span><span>Level</span><span>Auth</span><span>Possible</span><span>Paging</span></div>
+    <div class="row head"><span>Integration</span><span>Level</span><span>Auth</span><span>Possible</span><span>Rate limits</span><span>Paging</span></div>
     ${integrations.map((i) => `<a class="row" href="#${esc(i.name)}">
       <span class="name">${esc(i.label)}</span>
       <span class="mono t2">L${i.level.value}</span>
       <span>${authChip(i)}</span>
       ${coverage(i.useCases)}
+      ${limitTags(i.rateLimits)}
       <span class="clip">${esc(i.paging.description)}</span>
     </a>`).join('')}
   </div>`;
@@ -329,7 +360,7 @@ const detail = (i) => {
     <div class="prop"><div class="k">Level <span class="mono">${i.level.value}/5</span></div><div class="v">${esc(i.level.description)}</div></div>
     <div class="prop auth"><div class="k">Auth <span class="status">${dot(RATING_COLOR[i.authScore.rating])}${esc(i.authScore.rating)}</span></div>${authValue(i.auth)}</div>
     <div class="prop"><div class="k">Paging</div><div class="v">${esc(i.paging.description)}</div></div>
-    <div class="prop"><div class="k">Rate limiting</div><div class="v">${esc(i.rateLimiting.description)}</div></div>
+    <div class="prop wide"><div class="k">Rate limits <span class="t3" style="font-weight:400">per connection</span></div>${rateLimitsValue(i.rateLimits)}</div>
   </div>
   ${i.explores?.length ? `<h2>Explores <span class="t3" style="font-weight:400">${i.explores.length}</span></h2>${explorer(i.explores)}` : ''}
   <h2>Use cases

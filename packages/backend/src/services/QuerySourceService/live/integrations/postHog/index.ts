@@ -111,9 +111,23 @@ export const postHogIntegration = defineLiveIntegration({
         description:
             '100 rows by default; up to 50,000 rows per query with an explicit LIMIT.',
     },
-    rateLimiting: {
-        description:
-            'Query API per project: 3 at once, 240 a minute, 2,400 an hour.',
+    rateLimits: {
+        concurrentCalls: 3,
+        callsPerSecond: null,
+        buckets: [
+            {
+                id: 'minute',
+                label: 'per minute',
+                windowMs: 60_000,
+                capacity: 240,
+            },
+            {
+                id: 'hour',
+                label: 'per hour',
+                windowMs: 3_600_000,
+                capacity: 2_400,
+            },
+        ],
     },
     useCases: postHogUseCases,
     validate: ({ projectId }) => {
