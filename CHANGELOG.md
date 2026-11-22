@@ -1,3 +1,22 @@
+# [3.363.0](https://github.com/lightdash/lightdash/compare/3.362.0...3.363.0) (2026-11-22)
+
+
+### Bug Fixes
+
+* **live-sources:** let Salesforce sandbox orgs sign in at test.salesforce.com ([#33148](https://github.com/lightdash/lightdash/issues/33148)) ([db16777](https://github.com/lightdash/lightdash/commit/db167771c9bc80070cf848dd8e4ced4a59cbabbd))
+* **live-sources:** refuse Salesforce totals grouped by Record ID ([#33147](https://github.com/lightdash/lightdash/issues/33147)) ([2ba1f2c](https://github.com/lightdash/lightdash/commit/2ba1f2ca2784ef14db6350aed4754345547ac9f3))
+* **live-sources:** say why Search Console refuses a clicks sort grouped by date ([#33149](https://github.com/lightdash/lightdash/issues/33149)) ([7704a27](https://github.com/lightdash/lightdash/commit/7704a279464f8f35e9f2ce8c4643d325292486d0))
+
+
+### Features
+
+* **live-sources:** add Attio stage entered at and owner name fields ([#33161](https://github.com/lightdash/lightdash/issues/33161)) ([18b94d5](https://github.com/lightdash/lightdash/commit/18b94d54047071e770569a3b11b1d02ad5086221)), closes [#33125](https://github.com/lightdash/lightdash/issues/33125)
+* **live-sources:** add Pylon SLA, timing, priority, CSAT comment and linked issue fields ([#33152](https://github.com/lightdash/lightdash/issues/33152)) ([24c3c1f](https://github.com/lightdash/lightdash/commit/24c3c1f7da6f32f213484e10bafa259c7a913ed9))
+* **live-sources:** add Search Console search appearance and search type ([#33150](https://github.com/lightdash/lightdash/issues/33150)) ([4d637a4](https://github.com/lightdash/lightdash/commit/4d637a475e2b807b3eec3e1c262353a164c14270))
+* **live-sources:** add week and month grains to Pylon issue dates ([#33151](https://github.com/lightdash/lightdash/issues/33151)) ([cbe6f9c](https://github.com/lightdash/lightdash/commit/cbe6f9c14423282db26b4f80a5132140ceced544))
+* **live-sources:** delete live data source call log rows past the query history retention window ([#33154](https://github.com/lightdash/lightdash/issues/33154)) ([7b2d3df](https://github.com/lightdash/lightdash/commit/7b2d3dfa0e3444cbf4bdbf7f7229ee029b72dbfd))
+* **live-sources:** read five Attio standard objects from one source ([#33160](https://github.com/lightdash/lightdash/issues/33160)) ([a5f646d](https://github.com/lightdash/lightdash/commit/a5f646ded79e0a98e1b795e3e7eb564136375013)), closes [#33127](https://github.com/lightdash/lightdash/issues/33127)
+
 # [3.362.0](https://github.com/lightdash/lightdash/compare/3.361.1...3.362.0) (2026-11-21)
 
 
