@@ -1,6 +1,6 @@
 /**
  * Everything an admin does to a live data source, wherever on the Semantic
- * Layer page they start it: add, sign in again and remove. The dialogs
+ * Layer page they start it: add, edit, sign in again and remove. The dialogs
  * live here once, and sign-in callbacks (?connected=, ?signInError=,
  * ?pickGoogleSource=) and ?add=true land here, on whichever page they open.
  */
@@ -46,6 +46,7 @@ type Dialog =
     | { kind: 'closed' }
     | { kind: 'pick' }
     | { kind: 'create'; connector: ApiConnectorType }
+    | { kind: 'edit'; connection: LiveSourceConnection }
     | { kind: 'remove'; connection: LiveSourceConnection }
     | { kind: 'reattach'; connectionUuid: string };
 
@@ -123,6 +124,7 @@ export const LiveSourceManager: FC<{
     const actions = useMemo(
         (): LiveSourceActions => ({
             add: () => setDialog({ kind: 'pick' }),
+            edit: (connection) => setDialog({ kind: 'edit', connection }),
             remove: (connection) => setDialog({ kind: 'remove', connection }),
             getReconnect: (connection) => {
                 const { connector } = connection.apiSource;
@@ -156,7 +158,7 @@ export const LiveSourceManager: FC<{
                                       ),
                                   )
                             : null;
-                    // A token is edited from the source's own form
+                    // A token is replaced in the source's settings
                     case 'token':
                         return null;
                     case 'linkedin_ads': {
@@ -228,8 +230,6 @@ export const LiveSourceManager: FC<{
 };
 
 const LiveSourceConnectDialog: FC<{
-    /** Renders the form in place, in the source's settings. */
-    inline?: boolean;
     projectUuid: string;
     connector: ApiConnectorType;
     connection: LiveSourceConnection | null;
@@ -237,7 +237,6 @@ const LiveSourceConnectDialog: FC<{
     onClose: () => void;
     onCreated: (connectionUuid: string) => void;
 }> = ({
-    inline,
     projectUuid,
     connector,
     connection,
@@ -250,7 +249,6 @@ const LiveSourceConnectDialog: FC<{
         case 'google':
             return isGoogleConnector(connector) ? (
                 <GoogleConnectionModal
-                    inline={inline}
                     opened
                     onClose={onClose}
                     projectUuid={projectUuid}
@@ -261,7 +259,6 @@ const LiveSourceConnectDialog: FC<{
         case 'posthog':
             return (
                 <PostHogConnectionModal
-                    inline={inline}
                     opened
                     onClose={onClose}
                     projectUuid={projectUuid}
@@ -273,7 +270,6 @@ const LiveSourceConnectDialog: FC<{
         case 'token':
             return (
                 <TokenLiveSourceModal
-                    inline={inline}
                     form={setup.form}
                     opened
                     onClose={onClose}
@@ -285,7 +281,6 @@ const LiveSourceConnectDialog: FC<{
         case 'linkedin_ads':
             return (
                 <LinkedInAdsConnectionModal
-                    inline={inline}
                     opened
                     onClose={onClose}
                     projectUuid={projectUuid}
@@ -295,7 +290,6 @@ const LiveSourceConnectDialog: FC<{
         case 'salesforce':
             return (
                 <SalesforceConnectionModal
-                    inline={inline}
                     opened
                     onClose={onClose}
                     projectUuid={projectUuid}
@@ -371,6 +365,17 @@ const LiveSourceDialogs: FC<{
                     onCreated={openConnected}
                 />
             )}
+            {dialog.kind === 'edit' && (
+                <LiveSourceConnectDialog
+                    key={dialog.connection.externalConnectionUuid}
+                    projectUuid={projectUuid}
+                    connector={dialog.connection.apiSource.connector}
+                    connection={dialog.connection}
+                    canSignIn={canSignIn}
+                    onClose={close}
+                    onCreated={close}
+                />
+            )}
             {isPickingGoogleSource && (
                 <GoogleSourcePickerModal
                     projectUuid={projectUuid}
@@ -400,26 +405,5 @@ const LiveSourceDialogs: FC<{
                 />
             )}
         </>
-    );
-};
-
-/** A source's own form in place, on its settings: name, account, credentials. */
-export const LiveSourceDetailsForm: FC<{
-    projectUuid: string;
-    connection: LiveSourceConnection;
-}> = ({ projectUuid, connection }) => {
-    const { data: health } = useHealth();
-    return (
-        <LiveSourceConnectDialog
-            inline
-            key={connection.externalConnectionUuid}
-            projectUuid={projectUuid}
-            connector={connection.apiSource.connector}
-            connection={connection}
-            canSignIn={health?.hasPostHogOAuth ?? false}
-            // Saving keeps the settings open
-            onClose={() => undefined}
-            onCreated={() => undefined}
-        />
     );
 };

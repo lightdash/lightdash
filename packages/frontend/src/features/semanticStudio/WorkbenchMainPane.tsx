@@ -22,7 +22,6 @@ import {
 import { useManagedExternalSource } from './externalSources/useManagedExternalSource';
 import { JoinDiagram } from './JoinDiagram';
 import { useLiveSourceActions } from './liveSources/liveSourceActions';
-import { LiveSourceDetailsForm } from './liveSources/LiveSourceManager';
 import { LiveSourceSettings } from './liveSources/LiveSourceSettings';
 import {
     LiveSourceHeaderActions,
@@ -539,17 +538,13 @@ export const MainPane: FC<{
                 ) : null}
                 {liveConnection && isLiveSettingsOpen ? (
                     <LiveSourceSettings
+                        key={liveConnection.externalConnectionUuid}
                         projectUuid={view.project.id}
                         connection={liveConnection}
                         reconnect={
                             liveActions?.getReconnect(liveConnection) ?? null
                         }
-                        details={
-                            <LiveSourceDetailsForm
-                                projectUuid={view.project.id}
-                                connection={liveConnection}
-                            />
-                        }
+                        onEdit={() => liveActions?.edit(liveConnection)}
                         onDelete={() => liveActions?.remove(liveConnection)}
                     />
                 ) : isLiveSourcesPage ? (

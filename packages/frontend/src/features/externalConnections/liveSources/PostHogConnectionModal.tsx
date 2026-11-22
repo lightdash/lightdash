@@ -1,5 +1,6 @@
 import { ApiConnectorType, type ExternalConnection } from '@lightdash/common';
 import { type FC } from 'react';
+import MantineModal from '../../../components/common/MantineModal';
 import {
     LIVE_SOURCE_CREATE_MESSAGES,
     useCreateExternalConnection,
@@ -9,7 +10,6 @@ import {
     LIVE_SOURCE_UPDATE_MESSAGES,
     useUpdateExternalConnection,
 } from '../hooks/useUpdateExternalConnection';
-import { LiveSourceFormFrame } from './LiveSourceFormFrame';
 import {
     getPostHogSignInUrl,
     toPostHogCreatePayload,
@@ -20,8 +20,6 @@ import { PostHogConnectionStep } from './PostHogConnectionStep';
 import { SourceIdField } from './SourceIdField';
 
 type Props = {
-    /** Renders the form in place instead of in its own modal. */
-    inline?: boolean;
     opened: boolean;
     onClose: () => void;
     projectUuid: string;
@@ -31,7 +29,6 @@ type Props = {
 };
 
 export const PostHogConnectionModal: FC<Props> = ({
-    inline,
     opened,
     onClose,
     projectUuid,
@@ -90,8 +87,7 @@ export const PostHogConnectionModal: FC<Props> = ({
     });
 
     return (
-        <LiveSourceFormFrame
-            inline={inline}
+        <MantineModal
             opened={opened}
             onClose={onClose}
             title={connection ? 'Edit PostHog source' : 'Add PostHog source'}
@@ -125,6 +121,6 @@ export const PostHogConnectionModal: FC<Props> = ({
                     />
                 }
             />
-        </LiveSourceFormFrame>
+        </MantineModal>
     );
 };

@@ -2,6 +2,7 @@ import { type ExternalConnection } from '@lightdash/common';
 import { Button, Group, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
+import MantineModal from '../../../components/common/MantineModal';
 import { useNewSourceId } from '../hooks/useNewSourceId';
 import {
     LIVE_SOURCE_UPDATE_MESSAGES,
@@ -13,13 +14,10 @@ import {
     type GoogleConnector,
 } from './googleConnection';
 import { getApiSourceTarget } from './liveSourceCatalog';
-import { LiveSourceFormFrame } from './LiveSourceFormFrame';
 import { LiveSourceHintField } from './LiveSourceHintField';
 import { SourceIdField } from './SourceIdField';
 
 type Props = {
-    /** Renders the form in place instead of in its own modal. */
-    inline?: boolean;
     opened: boolean;
     onClose: () => void;
     projectUuid: string;
@@ -28,7 +26,6 @@ type Props = {
 };
 
 export const GoogleConnectionModal: FC<Props> = ({
-    inline,
     opened,
     onClose,
     projectUuid,
@@ -85,8 +82,7 @@ export const GoogleConnectionModal: FC<Props> = ({
     });
 
     return (
-        <LiveSourceFormFrame
-            inline={inline}
+        <MantineModal
             opened={opened}
             onClose={onClose}
             title={
@@ -134,6 +130,6 @@ export const GoogleConnectionModal: FC<Props> = ({
                     </Group>
                 )}
             </Stack>
-        </LiveSourceFormFrame>
+        </MantineModal>
     );
 };

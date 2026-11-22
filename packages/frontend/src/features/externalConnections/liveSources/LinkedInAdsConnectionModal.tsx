@@ -2,16 +2,14 @@ import { ApiConnectorType, type ExternalConnection } from '@lightdash/common';
 import { Button, Group, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
+import MantineModal from '../../../components/common/MantineModal';
 import { useUpdateExternalConnection } from '../hooks/useUpdateExternalConnection';
 import {
     getLinkedInAdsSignInUrl,
     LINKEDIN_AD_ACCOUNT_ID,
 } from './linkedInAdsConnection';
-import { LiveSourceFormFrame } from './LiveSourceFormFrame';
 
 type Props = {
-    /** Renders the form in place instead of in its own modal. */
-    inline?: boolean;
     opened: boolean;
     onClose: () => void;
     projectUuid: string;
@@ -19,7 +17,6 @@ type Props = {
 };
 
 export const LinkedInAdsConnectionModal: FC<Props> = ({
-    inline,
     opened,
     onClose,
     projectUuid,
@@ -71,8 +68,7 @@ export const LinkedInAdsConnectionModal: FC<Props> = ({
     });
 
     return (
-        <LiveSourceFormFrame
-            inline={inline}
+        <MantineModal
             opened={opened}
             onClose={onClose}
             title={connection ? 'Edit LinkedIn Ads source' : 'Add LinkedIn Ads'}
@@ -117,6 +113,6 @@ export const LinkedInAdsConnectionModal: FC<Props> = ({
                     />
                 )}
             </Stack>
-        </LiveSourceFormFrame>
+        </MantineModal>
     );
 };

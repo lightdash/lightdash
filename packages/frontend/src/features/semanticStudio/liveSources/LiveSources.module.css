@@ -131,3 +131,9 @@
     justify-content: flex-end;
     white-space: nowrap;
 }
+
+/* A source's settings: rows split by a hairline, as in a settings list. */
+.settingsRows > * + * {
+    border-top: 1px solid
+        light-dark(var(--mantine-color-ldGray-1), var(--mantine-color-dark-5));
+}

@@ -13,13 +13,11 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
+import MantineModal from '../../../components/common/MantineModal';
 import { useUpdateExternalConnection } from '../hooks/useUpdateExternalConnection';
-import { LiveSourceFormFrame } from './LiveSourceFormFrame';
 import { getSalesforceSignInUrl } from './salesforceConnection';
 
 type Props = {
-    /** Renders the form in place instead of in its own modal. */
-    inline?: boolean;
     opened: boolean;
     onClose: () => void;
     projectUuid: string;
@@ -27,7 +25,6 @@ type Props = {
 };
 
 export const SalesforceConnectionModal: FC<Props> = ({
-    inline,
     opened,
     onClose,
     projectUuid,
@@ -72,8 +69,7 @@ export const SalesforceConnectionModal: FC<Props> = ({
     });
 
     return (
-        <LiveSourceFormFrame
-            inline={inline}
+        <MantineModal
             opened={opened}
             onClose={onClose}
             title={connection ? 'Edit Salesforce source' : 'Add Salesforce'}
@@ -130,6 +126,6 @@ export const SalesforceConnectionModal: FC<Props> = ({
                     </Group>
                 ) : null}
             </Stack>
-        </LiveSourceFormFrame>
+        </MantineModal>
     );
 };
