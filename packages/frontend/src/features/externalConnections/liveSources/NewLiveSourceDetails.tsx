@@ -1,4 +1,4 @@
-import { TextInput } from '@mantine/core';
+import { Anchor, TextInput } from '@mantine/core';
 import { type GetInputPropsReturnType } from '@mantine/form';
 import { type FC } from 'react';
 import { type useNewSourceId } from '../hooks/useNewSourceId';
@@ -23,8 +23,29 @@ export const NewLiveSourceDetails: FC<{
         <SettingsRow
             label="Explore prefix"
             hint={
-                sourceId.error ??
-                "Added to the start of each explore name, can't be changed later"
+                sourceId.error ? (
+                    <>
+                        {sourceId.error}
+                        {sourceId.suggestion ? (
+                            <>
+                                , try{' '}
+                                <Anchor
+                                    component="button"
+                                    type="button"
+                                    fz="inherit"
+                                    onClick={() =>
+                                        sourceId.suggestion &&
+                                        sourceId.onChange(sourceId.suggestion)
+                                    }
+                                >
+                                    {sourceId.suggestion}
+                                </Anchor>
+                            </>
+                        ) : null}
+                    </>
+                ) : (
+                    "Added to the start of each explore name, can't be changed later"
+                )
             }
         >
             <TextInput
