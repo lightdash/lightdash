@@ -121,11 +121,12 @@ const SESSION: SalesforceOAuthSession = {
     clientId: 'client-1',
     redirectUri: `${SITE_URL}/api/v1/ee/salesforce/oauth/callback`,
     codeVerifier: 'verifier-1',
+    environment: 'production',
 };
 
 const start = (
     service: ExternalConnectionService,
-    overrides: { connectionUuid?: string | null } = {},
+    overrides: { connectionUuid?: string | null; environment?: string } = {},
 ) =>
     service.startSalesforceOAuth(account, 'proj-1', {
         name: ' Pipeline ',
@@ -160,6 +161,55 @@ describe('Salesforce sign-in', () => {
         expect(session).toMatchObject({ name: 'Pipeline' });
     });
 
+    it('signs a sandbox in at test.salesforce.com and saves its token URL', async () => {
+        const { service, externalConnectionModel, fetchToken } = buildService();
+        const { authorizeUrl, session } = await start(service, {
+            environment: 'sandbox',
+        });
+        const url = new URL(authorizeUrl);
+        expect(url.origin + url.pathname).toBe(
+            'https://test.salesforce.com/services/oauth2/authorize',
+        );
+        expect(session.environment).toBe('sandbox');
+
+        await service.completeSalesforceOAuth(account, session, 'the-code');
+        expect(fetchToken.mock.calls[0][0]).toBe(
+            'https://test.salesforce.com/services/oauth2/token',
+        );
+        const [, , , created] = externalConnectionModel.create.mock
+            .calls[0] as unknown as [
+            string,
+            string,
+            string,
+            { oauthTokenUrl: string },
+        ];
+        expect(created.oauthTokenUrl).toBe(
+            'https://test.salesforce.com/services/oauth2/token',
+        );
+    });
+
+    it('reconnects a sandbox source on its own login host', async () => {
+        const { service, externalConnectionModel } = buildService();
+        externalConnectionModel.findByUuid.mockResolvedValue({
+            ...existingConnection,
+            oauthTokenUrl: 'https://test.salesforce.com/services/oauth2/token',
+        });
+        const { authorizeUrl, session } = await start(service, {
+            connectionUuid: 'conn-1',
+            environment: 'production',
+        });
+        expect(new URL(authorizeUrl).origin).toBe(
+            'https://test.salesforce.com',
+        );
+        expect(session.environment).toBe('sandbox');
+    });
+
+    it('refuses an unknown environment', async () => {
+        await expect(
+            start(buildService().service, { environment: 'staging' }),
+        ).rejects.toThrow(ParameterError);
+    });
+
     it('refuses to start for a user who cannot manage live data sources', async () => {
         await expect(
             start(buildService({ canManage: false }).service),
@@ -186,6 +236,19 @@ describe('Salesforce sign-in', () => {
         await expect(
             start(service, { connectionUuid: 'conn-1' }),
         ).rejects.toThrow(ParameterError);
+    });
+
+    it('finishes a sign-in started before environments existed on production', async () => {
+        const { service, fetchToken } = buildService();
+        await service.completeSalesforceOAuth(
+            account,
+            { ...SESSION, environment: undefined },
+            'the-code',
+        );
+
+        expect(fetchToken.mock.calls[0][0]).toBe(
+            'https://login.salesforce.com/services/oauth2/token',
+        );
     });
 
     it("stores the sign-in on the org's own My Domain once the user can read the objects", async () => {

@@ -1,5 +1,16 @@
-import { type ExternalConnection } from '@lightdash/common';
-import { Button, Group, Stack, Text, TextInput } from '@mantine/core';
+import {
+    type ExternalConnection,
+    type SalesforceEnvironment,
+} from '@lightdash/common';
+import {
+    Button,
+    Group,
+    Input,
+    SegmentedControl,
+    Stack,
+    Text,
+    TextInput,
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
@@ -19,8 +30,11 @@ export const SalesforceConnectionModal: FC<Props> = ({
     projectUuid,
     connection,
 }) => {
-    const form = useForm<{ name: string }>({
-        initialValues: { name: connection?.name ?? 'Salesforce' },
+    const form = useForm<{ name: string; environment: SalesforceEnvironment }>({
+        initialValues: {
+            name: connection?.name ?? 'Salesforce',
+            environment: 'production',
+        },
         validate: {
             name: (value) =>
                 value.trim().length === 0 ? 'Name is required' : null,
@@ -33,7 +47,8 @@ export const SalesforceConnectionModal: FC<Props> = ({
         window.location.assign(
             getSalesforceSignInUrl(
                 projectUuid,
-                form.values,
+                // A reconnect keeps the source's own login host
+                connectionUuid ? { name: form.values.name } : form.values,
                 connectionUuid,
                 'settings',
             ),
@@ -82,6 +97,21 @@ export const SalesforceConnectionModal: FC<Props> = ({
                     data-autofocus
                     {...form.getInputProps('name')}
                 />
+                {connection ? null : (
+                    <Input.Wrapper
+                        label="Environment"
+                        description="Sandbox orgs sign in at test.salesforce.com."
+                    >
+                        <SegmentedControl
+                            mt={4}
+                            data={[
+                                { value: 'production', label: 'Production' },
+                                { value: 'sandbox', label: 'Sandbox' },
+                            ]}
+                            {...form.getInputProps('environment')}
+                        />
+                    </Input.Wrapper>
+                )}
                 {connection ? (
                     <Group justify="flex-end">
                         <Button

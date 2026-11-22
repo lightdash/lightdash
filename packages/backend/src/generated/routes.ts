@@ -93109,6 +93109,7 @@ export function RegisterRoutes(app: Router) {
             dataType: 'string',
         },
         returnTo: { in: 'query', name: 'returnTo', dataType: 'string' },
+        environment: { in: 'query', name: 'environment', dataType: 'string' },
     };
     app.get(
         '/api/v1/ee/projects/:projectUuid/live-sources/salesforce/oauth/start',

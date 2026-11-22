@@ -1,13 +1,13 @@
 import {
     ApiConnectorType,
     getSalesforceDescribePath,
+    getSalesforceEnvironment,
     isSalesforceInstanceOrigin,
     LIVE_INTEGRATION_CATALOG,
     ParameterError,
     SALESFORCE_LIMITS_PATH,
     SALESFORCE_OBJECTS,
     SALESFORCE_QUERY_PATH,
-    SALESFORCE_TOKEN_URL,
     TimeFrames,
 } from '@lightdash/common';
 import {
@@ -124,8 +124,7 @@ export const salesforceIntegration = defineLiveIntegration({
     checkAuth: ({ type, oauthTokenUrl }) => {
         if (
             type !== 'oauth_authorization_code' ||
-            !oauthTokenUrl ||
-            oauthTokenUrl !== SALESFORCE_TOKEN_URL
+            getSalesforceEnvironment(oauthTokenUrl ?? null) === null
         ) {
             throw new ParameterError(
                 'Salesforce live data sources sign in with Salesforce',

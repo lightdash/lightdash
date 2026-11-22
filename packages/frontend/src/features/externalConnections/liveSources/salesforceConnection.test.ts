@@ -19,4 +19,18 @@ describe('getSalesforceSignInUrl', () => {
             connectionUuid: 'connection-1',
         });
     });
+
+    it('sends the Sandbox choice for a new source', () => {
+        const url = new URL(
+            getSalesforceSignInUrl(
+                'project-1',
+                { name: 'Pipeline', environment: 'sandbox' },
+                null,
+                'settings',
+            ),
+            'https://lightdash.example.com',
+        );
+        expect(url.searchParams.get('environment')).toBe('sandbox');
+        expect(url.searchParams.has('connectionUuid')).toBe(false);
+    });
 });
