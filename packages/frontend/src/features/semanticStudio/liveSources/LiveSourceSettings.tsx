@@ -475,17 +475,6 @@ export const LiveSourceSettings: FC<{
                     title="Source"
                     onSubmit={submit(['name', 'aiHint'])}
                 >
-                    <SettingsRow
-                        label="Name"
-                        hint="Shown in explores and to agents"
-                    >
-                        <TextInput
-                            w={240}
-                            size="xs"
-                            aria-label="Name"
-                            {...form.getInputProps('name')}
-                        />
-                    </SettingsRow>
                     {connection.liveSourceName ? (
                         <SettingsRow
                             label="Explore prefix"
@@ -503,6 +492,17 @@ export const LiveSourceSettings: FC<{
                             />
                         </SettingsRow>
                     ) : null}
+                    <SettingsRow
+                        label="Name"
+                        hint="Shown in explores and to agents"
+                    >
+                        <TextInput
+                            w={240}
+                            size="xs"
+                            aria-label="Name"
+                            {...form.getInputProps('name')}
+                        />
+                    </SettingsRow>
                     <SettingsRow
                         label="AI hint"
                         hint="Helps agents pick this source"
