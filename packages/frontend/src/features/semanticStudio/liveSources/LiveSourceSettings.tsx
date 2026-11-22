@@ -1,7 +1,7 @@
 /**
  * One live data source's settings, below its summary on its own page. Rows
  * of a label on the left and its control on the right: what the source is
- * (name, what it's used for, account, access), then its data (fields and caching), then
+ * (name, AI hint, account, access), then its data (fields and caching), then
  * deleting it. Edits wait for one Save; refreshing and purging act at once.
  */
 import {
@@ -315,13 +315,13 @@ export const LiveSourceSettings: FC<{
                         />
                     </SettingsRow>
                     <SettingsRow
-                        label="Used for"
-                        hint="Helps AI agents pick this source"
+                        label="AI hint"
+                        hint="Helps agents pick this source"
                     >
                         <Textarea
                             w={240}
                             size="xs"
-                            aria-label="Used for"
+                            aria-label="AI hint"
                             placeholder="For example: EU storefront"
                             autosize
                             minRows={1}
