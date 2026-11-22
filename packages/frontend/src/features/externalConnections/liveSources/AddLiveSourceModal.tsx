@@ -102,8 +102,8 @@ export const AddLiveSourceModal: FC<Props> = ({
                             <CardHead entry={entry} />
                         </UnstyledButton>
                     ))}
+                    <CustomLiveSourceRequestCard onRequest={requestCustom} />
                 </SimpleGrid>
-                <CustomLiveSourceRequestCard onRequest={requestCustom} />
             </Stack>
         </MantineModal>
     );

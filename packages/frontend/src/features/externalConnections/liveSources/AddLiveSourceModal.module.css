@@ -30,3 +30,20 @@ button.card:focus-visible {
     height: 28px;
     flex-shrink: 0;
 }
+
+/* Asking for a source we don't have yet reads as a slot, not a source. */
+.card[data-request] {
+    border-style: dashed;
+}
+
+.requestIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border-radius: var(--mantine-radius-sm);
+    background: var(--mantine-color-default-hover);
+    color: var(--mantine-color-dimmed);
+}
