@@ -2,7 +2,7 @@
  * Adds a live data source that reads with an API token, laid out like its
  * settings: how it reaches the integration first, then what it is called.
  */
-import { Anchor, Button, PasswordInput, Stack, TextInput } from '@mantine/core';
+import { Button, PasswordInput, Stack, TextInput } from '@mantine/core';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import { useCreateExternalConnection } from '../hooks/useCreateExternalConnection';
@@ -14,6 +14,7 @@ import {
     SettingsRow,
     TestOutcome,
 } from './LiveSourceSettingsRows';
+import { LiveSourceSetupCard } from './LiveSourceSetupCard';
 import { NewLiveSourceDetails } from './NewLiveSourceDetails';
 import {
     normalizeAccountId,
@@ -40,12 +41,13 @@ export const TokenLiveSourceModal: FC<Props> = ({
     projectUuid,
     onCreated,
 }) => {
+    const { connector } = definition.toApiSource('');
     const form = useTokenLiveSourceForm(definition, null);
     const createMutation = useCreateExternalConnection();
     const testMutation = useTestConnectionConfig();
     const sourceId = useNewSourceId({
         projectUuid,
-        connector: definition.toApiSource('').connector,
+        connector,
         name: form.values.name,
         enabled: opened,
     });
@@ -75,36 +77,13 @@ export const TokenLiveSourceModal: FC<Props> = ({
         onCreated(created.externalConnectionUuid);
     });
 
-    const tokenHint = testMutation.data ? (
-        <TestOutcome response={testMutation.data} />
-    ) : (
-        <>
-            {definition.tokenHint}
-            {definition.tokenUrl ? (
-                <>
-                    {' '}
-                    <Anchor
-                        href={definition.tokenUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        fz="inherit"
-                    >
-                        Create one
-                    </Anchor>
-                </>
-            ) : null}
-        </>
-    );
-
     return (
         <MantineModal
             opened={opened}
             onClose={onClose}
             size="xl"
             title={
-                <LiveSourceTitle
-                    connector={definition.toApiSource('').connector}
-                >
+                <LiveSourceTitle connector={connector}>
                     Add {definition.label} source
                 </LiveSourceTitle>
             }
@@ -115,6 +94,7 @@ export const TokenLiveSourceModal: FC<Props> = ({
             cancelDisabled={isSaving}
         >
             <Stack gap="lg">
+                <LiveSourceSetupCard connector={connector} />
                 <SettingsCard title="Access">
                     {account ? (
                         <SettingsRow
@@ -131,7 +111,16 @@ export const TokenLiveSourceModal: FC<Props> = ({
                             />
                         </SettingsRow>
                     ) : null}
-                    <SettingsRow label={definition.tokenLabel} hint={tokenHint}>
+                    <SettingsRow
+                        label={definition.tokenLabel}
+                        hint={
+                            testMutation.data ? (
+                                <TestOutcome response={testMutation.data} />
+                            ) : (
+                                'Read access is enough'
+                            )
+                        }
+                    >
                         <PasswordInput
                             w={FIELD_WIDTH}
                             size="xs"

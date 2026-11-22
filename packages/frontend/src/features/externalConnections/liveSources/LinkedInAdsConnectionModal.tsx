@@ -1,37 +1,34 @@
-import { ApiConnectorType, type ExternalConnection } from '@lightdash/common';
-import { Button, Group, Stack, Text, TextInput } from '@mantine/core';
+import { ApiConnectorType } from '@lightdash/common';
+import { Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
-import { useUpdateExternalConnection } from '../hooks/useUpdateExternalConnection';
 import {
     getLinkedInAdsSignInUrl,
     LINKEDIN_AD_ACCOUNT_ID,
 } from './linkedInAdsConnection';
 import { LiveSourceTitle } from './LiveSourceIcon';
+import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
+import { LiveSourceSetupCard } from './LiveSourceSetupCard';
+import { NewLiveSourceDetails } from './NewLiveSourceDetails';
+
+/** Matches the fields of the Details card below. */
+const FIELD_WIDTH = 240;
 
 type Props = {
     opened: boolean;
     onClose: () => void;
     projectUuid: string;
-    connection: ExternalConnection | null;
 };
 
+/** Adds a LinkedIn Ads source, which signs in to LinkedIn to finish. */
 export const LinkedInAdsConnectionModal: FC<Props> = ({
     opened,
     onClose,
     projectUuid,
-    connection,
 }) => {
-    const savedAccountId =
-        connection?.apiSource?.connector === ApiConnectorType.LINKEDIN_ADS
-            ? connection.apiSource.adAccountId
-            : '';
     const form = useForm({
-        initialValues: {
-            name: connection?.name ?? 'LinkedIn Ads',
-            adAccountId: savedAccountId,
-        },
+        initialValues: { name: 'LinkedIn Ads', adAccountId: '' },
         validate: {
             name: (value) =>
                 value.trim().length === 0 ? 'Give it a name' : null,
@@ -41,79 +38,46 @@ export const LinkedInAdsConnectionModal: FC<Props> = ({
                     : 'Use the numbers only, as shown in Campaign Manager',
         },
     });
-    const updateMutation = useUpdateExternalConnection();
 
-    const signIn = (connectionUuid: string | null) => {
-        if (form.validate().hasErrors) return;
+    const handleSave = form.onSubmit((values) => {
         window.location.assign(
-            getLinkedInAdsSignInUrl(
-                projectUuid,
-                form.values,
-                connectionUuid,
-                'settings',
-            ),
+            getLinkedInAdsSignInUrl(projectUuid, values, null, 'settings'),
         );
-    };
-
-    const handleSave = form.onSubmit(async ({ name }) => {
-        if (!connection) {
-            signIn(null);
-            return;
-        }
-        await updateMutation.mutateAsync({
-            projectUuid,
-            connectionUuid: connection.externalConnectionUuid,
-            data: { name: name.trim() },
-        });
-        onClose();
     });
 
     return (
         <MantineModal
             opened={opened}
             onClose={onClose}
+            size="xl"
             title={
                 <LiveSourceTitle connector={ApiConnectorType.LINKEDIN_ADS}>
-                    {connection
-                        ? 'Edit LinkedIn Ads source'
-                        : 'Add LinkedIn Ads'}
+                    Add LinkedIn Ads source
                 </LiveSourceTitle>
             }
-            confirmLabel={connection ? 'Save' : 'Continue to LinkedIn'}
+            confirmLabel="Continue to LinkedIn"
             onConfirm={() => handleSave()}
-            confirmLoading={updateMutation.isLoading}
-            cancelDisabled={updateMutation.isLoading}
         >
-            <Stack gap="sm">
-                <TextInput
-                    required
-                    label="Name"
-                    data-autofocus
-                    {...form.getInputProps('name')}
+            <Stack gap="lg">
+                <LiveSourceSetupCard
+                    connector={ApiConnectorType.LINKEDIN_ADS}
                 />
-                {connection ? (
-                    <Group justify="space-between" wrap="nowrap">
-                        <Text fz="sm" c="dimmed" truncate>
-                            Reads ad account {savedAccountId}
-                        </Text>
-                        <Button
-                            size="xs"
-                            variant="default"
-                            onClick={() =>
-                                signIn(connection.externalConnectionUuid)
-                            }
-                        >
-                            Reconnect to LinkedIn
-                        </Button>
-                    </Group>
-                ) : (
-                    <TextInput
-                        required
+                <SettingsCard title="Access">
+                    <SettingsRow
                         label="Ad account ID"
-                        description="Shown at the top of the account in Campaign Manager"
-                        {...form.getInputProps('adAccountId')}
-                    />
-                )}
+                        hint="From Campaign Manager"
+                    >
+                        <TextInput
+                            w={FIELD_WIDTH}
+                            size="xs"
+                            aria-label="Ad account ID"
+                            placeholder="1234567890"
+                            data-autofocus
+                            {...form.getInputProps('adAccountId')}
+                        />
+                    </SettingsRow>
+                </SettingsCard>
+                <NewLiveSourceDetails nameProps={form.getInputProps('name')} />
             </Stack>
         </MantineModal>
     );

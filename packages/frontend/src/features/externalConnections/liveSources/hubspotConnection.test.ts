@@ -1,6 +1,7 @@
 import { ApiConnectorType } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { HUBSPOT_TOKEN_FORM } from './hubspotConnection';
+import { LIVE_SOURCE_SETUP } from './liveSourceSetup';
 import { toTokenLiveSourceCreatePayload } from './tokenLiveSource';
 
 describe('hubspotConnection', () => {
@@ -31,7 +32,7 @@ describe('hubspotConnection', () => {
     });
 
     it('names every scope the private app needs', () => {
-        expect(HUBSPOT_TOKEN_FORM.tokenHint).toContain(
+        expect(LIVE_SOURCE_SETUP[ApiConnectorType.HUBSPOT].scopes).toContain(
             'crm.objects.companies.read',
         );
     });

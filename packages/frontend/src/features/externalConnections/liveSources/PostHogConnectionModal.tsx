@@ -2,13 +2,8 @@
  * Adds a PostHog source, laid out like its settings: how it reaches PostHog
  * first, by signing in or with a personal API key, then what it is called.
  */
+import { ApiConnectorType, POSTHOG_TEST_QUERY } from '@lightdash/common';
 import {
-    ApiConnectorType,
-    POSTHOG_REGION_ORIGINS,
-    POSTHOG_TEST_QUERY,
-} from '@lightdash/common';
-import {
-    Anchor,
     Button,
     PasswordInput,
     SegmentedControl,
@@ -29,6 +24,7 @@ import {
     SettingsRow,
     TestOutcome,
 } from './LiveSourceSettingsRows';
+import { LiveSourceSetupCard } from './LiveSourceSetupCard';
 import { NewLiveSourceDetails } from './NewLiveSourceDetails';
 import {
     getPostHogQueryPath,
@@ -70,7 +66,6 @@ export const PostHogConnectionModal: FC<Props> = ({
     });
     const isSaving = createMutation.isLoading;
     const isSignIn = form.values.authMethod === 'signIn';
-    const origin = POSTHOG_REGION_ORIGINS[form.values.region];
 
     const handleTest = () => {
         if (form.validate().hasErrors) return;
@@ -121,15 +116,14 @@ export const PostHogConnectionModal: FC<Props> = ({
             cancelDisabled={isSaving}
         >
             <Stack gap="lg">
+                {isSignIn ? null : (
+                    <LiveSourceSetupCard connector={ApiConnectorType.POSTHOG} />
+                )}
                 <SettingsCard title="Access">
                     {canSignIn ? (
                         <SettingsRow
                             label="Connect with"
-                            hint={
-                                isSignIn
-                                    ? 'Pick a project after signing in'
-                                    : 'Paste a key from PostHog'
-                            }
+                            hint="Sign in or use a key"
                         >
                             <SegmentedControl
                                 size="xs"
@@ -148,10 +142,7 @@ export const PostHogConnectionModal: FC<Props> = ({
                             />
                         </SettingsRow>
                     ) : null}
-                    <SettingsRow
-                        label="Region"
-                        hint="Where you log in to PostHog"
-                    >
+                    <SettingsRow label="Region" hint="Where you log in">
                         <SegmentedControl
                             size="xs"
                             w={FIELD_WIDTH}
@@ -172,7 +163,7 @@ export const PostHogConnectionModal: FC<Props> = ({
                         <>
                             <SettingsRow
                                 label="Project ID"
-                                hint="In PostHog under Settings, Project"
+                                hint="From Project settings"
                             >
                                 <TextInput
                                     w={FIELD_WIDTH}
@@ -190,17 +181,7 @@ export const PostHogConnectionModal: FC<Props> = ({
                                             response={testMutation.data}
                                         />
                                     ) : (
-                                        <>
-                                            Needs the Query Read scope{' '}
-                                            <Anchor
-                                                href={`${origin}/settings/user-api-keys`}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                fz="inherit"
-                                            >
-                                                Create one
-                                            </Anchor>
-                                        </>
+                                        'Read access is enough'
                                     )
                                 }
                             >

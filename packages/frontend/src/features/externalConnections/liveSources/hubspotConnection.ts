@@ -7,11 +7,6 @@ import {
 } from '@lightdash/common';
 import { type TokenLiveSourceForm } from './tokenLiveSource';
 
-const SCOPES = HUBSPOT_OBJECTS.flatMap((object) => [
-    `crm.objects.${object}.read`,
-    `crm.schemas.${object}.read`,
-]).join(', ');
-
 export const HUBSPOT_TOKEN_FORM = {
     label: 'HubSpot',
     defaultName: 'HubSpot',
@@ -19,7 +14,6 @@ export const HUBSPOT_TOKEN_FORM = {
     // The token belongs to one HubSpot account, so there is nothing else to pick
     account: null,
     tokenLabel: 'Access token',
-    tokenHint: `From a HubSpot private app with the ${SCOPES} scopes`,
     toApiSource: () => ({ connector: ApiConnectorType.HUBSPOT }),
     getAccountId: () => '',
     getAccess: () => ({

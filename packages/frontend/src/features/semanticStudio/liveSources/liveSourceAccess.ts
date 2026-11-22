@@ -71,7 +71,7 @@ export const getAccountField = (
         case 'posthogKey':
             return {
                 label: 'Project ID',
-                description: 'The number after /project/ in your PostHog URL',
+                description: 'From Project settings',
                 placeholder: '12345',
                 validate: (value) =>
                     POSTHOG_PROJECT_ID.test(value.trim())

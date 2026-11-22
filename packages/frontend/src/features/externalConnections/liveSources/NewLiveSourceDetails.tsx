@@ -9,10 +9,11 @@ const NEW_LIVE_SOURCE_FIELD_WIDTH = 240;
 /** What a new source is called, the same rows as its settings. */
 export const NewLiveSourceDetails: FC<{
     nameProps: GetInputPropsReturnType;
-    sourceId: ReturnType<typeof useNewSourceId>;
+    /** Absent where the sign-in names the explores itself. */
+    sourceId?: ReturnType<typeof useNewSourceId>;
 }> = ({ nameProps, sourceId }) => (
     <SettingsCard title="Details">
-        <SettingsRow label="Name" hint="Shown in explores and to agents">
+        <SettingsRow label="Name" hint="Shown in explores">
             <TextInput
                 w={NEW_LIVE_SOURCE_FIELD_WIDTH}
                 size="xs"
@@ -20,23 +21,25 @@ export const NewLiveSourceDetails: FC<{
                 {...nameProps}
             />
         </SettingsRow>
-        <SettingsRow
-            label="Explore prefix"
-            hint={
-                sourceId.error ??
-                "Added to the start of each explore name, can't be changed later"
-            }
-        >
-            <TextInput
-                w={NEW_LIVE_SOURCE_FIELD_WIDTH}
-                size="xs"
-                aria-label="Explore prefix"
-                value={sourceId.value}
-                error={sourceId.error !== null}
-                onChange={(event) =>
-                    sourceId.onChange(event.currentTarget.value)
+        {sourceId ? (
+            <SettingsRow
+                label="Explore prefix"
+                hint={
+                    sourceId.error ??
+                    "Added to the start of each explore name, can't be changed later"
                 }
-            />
-        </SettingsRow>
+            >
+                <TextInput
+                    w={NEW_LIVE_SOURCE_FIELD_WIDTH}
+                    size="xs"
+                    aria-label="Explore prefix"
+                    value={sourceId.value}
+                    error={sourceId.error !== null}
+                    onChange={(event) =>
+                        sourceId.onChange(event.currentTarget.value)
+                    }
+                />
+            </SettingsRow>
+        ) : null}
     </SettingsCard>
 );

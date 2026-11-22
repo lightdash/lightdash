@@ -15,8 +15,6 @@ export const ATTIO_TOKEN_FORM = {
     // The token belongs to one workspace, and the source reads every standard object
     account: null,
     tokenLabel: 'Access token',
-    tokenHint:
-        'Created in Attio under Settings, Developers with read access to records, objects and users',
     toApiSource: () => ({ connector: ApiConnectorType.ATTIO }),
     getAccountId: () => '',
     getAccess: () => ({

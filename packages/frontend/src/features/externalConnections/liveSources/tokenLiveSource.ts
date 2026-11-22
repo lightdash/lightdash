@@ -25,10 +25,6 @@ export type TokenLiveSourceForm = {
         isValid: (normalizedValue: string) => boolean;
     } | null;
     tokenLabel: string;
-    /** Where the token comes from and what it needs, in a few words. */
-    tokenHint: string;
-    /** The provider's page for creating one, when it has a stable address. */
-    tokenUrl?: string;
     toApiSource: (accountId: string) => ExternalConnectionApiSource;
     /** The account id of a saved source, or blank for another integration's. */
     getAccountId: (connection: ExternalConnection) => string;
