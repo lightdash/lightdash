@@ -90,7 +90,7 @@ export const SalesforceConnectionModal: FC<Props> = ({
                 />
                 {connection ? null : (
                     <Checkbox
-                        label="Sign in to a sandbox org"
+                        label="Use a sandbox"
                         checked={form.values.environment === 'sandbox'}
                         onChange={(event) =>
                             form.setFieldValue(
