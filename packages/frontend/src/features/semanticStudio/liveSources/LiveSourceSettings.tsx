@@ -259,11 +259,9 @@ export const LiveSourceSettings: FC<{
         ? WINDOW_SECONDS
         : [...WINDOW_SECONDS, savedTtl].sort((a, b) => a - b);
 
-    // Every explore whose fields can be curated, not only the first
-    const allFields = fields?.explores.flatMap((explore) => explore.fields);
-    const fieldsHint = allFields
-        ? `${allFields.filter((field) => field.inUse).length} of ${allFields.length} in use`
-        : null;
+    const fieldsHint = fields?.scannedAt
+        ? `Last refreshed ${formatDate(fields.scannedAt)}`
+        : 'Never refreshed';
 
     const keepToken = () => {
         form.setFieldValue('token', '');
