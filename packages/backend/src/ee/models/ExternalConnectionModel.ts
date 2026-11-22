@@ -195,12 +195,6 @@ type DbApp = {
     organization_uuid: string;
 };
 
-/**
- * Owns all DB access for external connections, their secrets (kept in a
- * separate table and never returned in the read shape), app↔connection
- * links, the per-minute rate counters consumed by the M2 proxy, and the
- * named samples collection used by the generate pipeline.
- */
 // Whole milliseconds, so a refund can match the window it read back exactly.
 const WINDOW_START = `date_trunc('milliseconds', now())`;
 // Whether a bucket's window has closed, in the bucket upsert's terms.
@@ -239,6 +233,12 @@ class BucketFull extends Error {
     }
 }
 
+/**
+ * Owns all DB access for external connections, their secrets (kept in a
+ * separate table and never returned in the read shape), app↔connection
+ * links, the per-minute rate counters consumed by the M2 proxy, and the
+ * named samples collection used by the generate pipeline.
+ */
 export class ExternalConnectionModel {
     private readonly database: Knex;
 
