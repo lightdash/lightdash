@@ -158,6 +158,7 @@ import {
     getConnectionKind,
     getConnectionSubject,
     getExternalConnectionSubject,
+    getRequestedConnectionKind,
 } from './externalConnectionAuthz';
 import {
     validateExternalConnectionConfig,
@@ -577,11 +578,11 @@ export class ExternalConnectionService extends BaseService {
             account,
             projectUuid,
             organizationUuid,
-            getConnectionKind(data),
+            getRequestedConnectionKind(data),
         );
         if (data.apiSource) await this.assertLiveSourcesEnabled(account);
         ExternalConnectionService.assertNoDataAppLinking(
-            getConnectionKind(data),
+            getRequestedConnectionKind(data),
             data.allowDataAppBuilderLinking,
         );
         ExternalConnectionService.assertNotSignInType(data.type);
@@ -4745,7 +4746,7 @@ export class ExternalConnectionService extends BaseService {
             account,
             projectUuid,
             organizationUuid,
-            getConnectionKind(requested),
+            getRequestedConnectionKind(requested),
         );
         if (requested.apiSource) await this.assertLiveSourcesEnabled(account);
         ExternalConnectionService.assertNotSignInType(requested.type);

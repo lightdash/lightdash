@@ -29,6 +29,14 @@ export const getConnectionKind = (connection: {
     connection.kind ?? (connection.apiSource ? 'live_source' : 'data_app');
 
 /**
+ * The kind a create or test request asks for. Only its API source decides it:
+ * a `kind` in the body is never trusted, since it picks the permission check.
+ */
+export const getRequestedConnectionKind = (request: {
+    apiSource?: ExternalConnectionApiSource | null;
+}): ExternalConnectionKind => (request.apiSource ? 'live_source' : 'data_app');
+
+/**
  * The subject a connection's permission checks use, chosen by its kind. Live
  * data sources check `LiveSource`, which ignores data app linking; data app
  * connections check `ExternalConnection` as before.

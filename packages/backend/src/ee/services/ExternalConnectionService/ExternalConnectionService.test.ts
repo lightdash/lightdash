@@ -1613,6 +1613,31 @@ describe('live data source permission', () => {
         },
     );
 
+    it.each([
+        [['ExternalConnection'], 'data_app', { connector: 'posthog' }],
+        [['LiveSource'], 'live_source', undefined],
+    ] as const)(
+        'holding %j cannot pick its own check by sending kind %s',
+        async (held, kind, apiSource) => {
+            const { service } = buildService({});
+            withAbility(service, [...held]);
+            await expect(
+                service.create(adminAccount, projectUuid, {
+                    name: 'API',
+                    type: 'none',
+                    origin: 'https://api.example.com',
+                    allowedPathPrefixes: ['/'],
+                    allowedMethods: ['GET'],
+                    allowedContentTypes: ['application/json'],
+                    responseMaxBytes: 1000,
+                    secret: null,
+                    apiSource,
+                    kind,
+                } as never),
+            ).rejects.toThrow(ForbiddenError);
+        },
+    );
+
     it('refuses the list to someone holding neither', async () => {
         const { service } = buildService({
             connections: [dataAppConnection, liveSource],
