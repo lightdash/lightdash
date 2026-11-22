@@ -3894,16 +3894,42 @@ describe('AiAgentToolsService', () => {
         });
 
         it.each([
-            ['runs one on a chosen integration', 'ga4_sessions'],
-            ['refuses one on an excluded integration', 'hubspot_deals'],
+            [
+                'runs one on a chosen integration',
+                'ga4_sessions',
+                'ga4_sessions_date',
+                true,
+            ],
+            [
+                'refuses one selecting a field its explore hides',
+                'ga4_sessions',
+                'ga4_sessions_margin',
+                false,
+            ],
+            [
+                'refuses one on an excluded integration',
+                'hubspot_deals',
+                'hubspot_deals_date',
+                false,
+            ],
         ])(
             '%s for an agent limited to some integrations',
-            async (_case, exploreName) => {
+            async (_case, exploreName, fieldId, runs) => {
                 const run = vi.fn().mockResolvedValue({
                     queries: [{ nodeId: 'joined', queryUuid: 'joined-query' }],
                 });
                 const liveExplore = (name: string, connectionUuid: string) => ({
-                    ...makeExplore({ name }),
+                    ...makeExplore({
+                        name,
+                        dimensions: {
+                            date: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.STRING,
+                                name: 'date',
+                                table: name,
+                            },
+                        },
+                    }),
                     type: ExploreType.API_SOURCE,
                     apiSource: { connectionUuid } as Explore['apiSource'],
                 });
@@ -3931,6 +3957,8 @@ describe('AiAgentToolsService', () => {
                                         sourceType:
                                             QuerySourceType.SEMANTIC_LAYER,
                                         exploreName,
+                                        dimensions: [fieldId],
+                                        metrics: [],
                                     },
                                 ],
                             },
@@ -3955,7 +3983,7 @@ describe('AiAgentToolsService', () => {
                     dashboardSlug: 'sales',
                 });
 
-                if (exploreName === 'ga4_sessions') {
+                if (runs) {
                     await expect(query).resolves.toMatchObject({ rows: [] });
                     expect(run).toHaveBeenCalledOnce();
                 } else {

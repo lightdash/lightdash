@@ -5480,24 +5480,26 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    /** A scoped agent may only open a composer chart whose explores its tags and integrations expose. */
+    /** A scoped agent may only open a composer chart whose explores and fields its tags and integrations expose. */
     private async assertComposerChartExploresInScope(
         context: AiAgentToolsRuntimeContext,
         pipeline: ComposerChartPipeline,
     ) {
         const hasTags = !!context.tags && context.tags.length > 0;
         if (!hasTags && context.liveSourceUuids === null) return;
-        const exploreNames = new Set(
-            pipeline.nodes.flatMap((node) =>
-                node.sourceType === QuerySourceType.SEMANTIC_LAYER
-                    ? [node.exploreName]
-                    : [],
-            ),
-        );
         await Promise.all(
-            [...exploreNames].map((table) =>
-                this.getExploreForRuntime(context, { table }),
-            ),
+            pipeline.nodes.map(async (node) => {
+                if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER) return;
+                const explore = await this.getExploreForRuntime(context, {
+                    table: node.exploreName,
+                });
+                AiAgentToolsService.assertSelectedFieldsExist(
+                    explore,
+                    [...node.dimensions, ...node.metrics],
+                    node.additionalMetrics ?? [],
+                    node.customDimensions ?? [],
+                );
+            }),
         );
     }
 
