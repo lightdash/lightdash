@@ -27,6 +27,7 @@ exports[`live data source names > Attio explore names and field ids never change
         "attio_deals_name",
         "attio_deals_record_id",
         "attio_deals_stage",
+        "attio_deals_stage__entered_at",
         "attio_deals_value",
         "attio_deals_web_url",
       ],

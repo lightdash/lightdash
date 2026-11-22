@@ -99,18 +99,41 @@ describe('Attio scanned fields', () => {
             'created_at created_at',
             'name name',
             'stage stage.status',
+            'stage__entered_at stage.active_from',
             'value value.currency_value',
             'probability probability',
             'close_date close_date',
             'is_won is_won',
             'categories categories.option',
             'owner owner.referenced_actor_id',
+            'owner__name owner.member_name',
             'associated_company associated_company.target_record_id',
             'point_of_contact point_of_contact.full_name',
             'contact_email contact_email.email_address',
             // A slug an old built-in field used keeps a prefix
             'attribute_count count',
+            // So does one that could collide with a derived field
+            'attribute_stage__entered_at stage__entered_at',
         ]);
+    });
+
+    it('labels derived fields after their attribute', () => {
+        const byName = new Map(
+            DEFINITION.dimensions.map((dimension) => [
+                dimension.name,
+                dimension,
+            ]),
+        );
+        expect(byName.get('stage__entered_at')).toMatchObject({
+            label: 'Deal stage entered at',
+            type: 'timestamp',
+            filterOperators: [],
+        });
+        expect(byName.get('owner__name')).toMatchObject({
+            label: 'Deal owner name',
+            type: 'string',
+            filterOperators: [],
+        });
     });
 
     it('adds no metrics', () => {
@@ -123,6 +146,7 @@ describe('Attio scanned fields', () => {
             isInternalAttioField('associated_company.target_record_id'),
         ).toBe(true);
         expect(isInternalAttioField('stage.status')).toBe(false);
+        expect(isInternalAttioField('owner.member_name')).toBe(false);
     });
 
     it('adds nothing from an attribute list it cannot read', () => {

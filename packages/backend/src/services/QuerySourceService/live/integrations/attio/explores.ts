@@ -13,6 +13,7 @@ import type {
 import {
     ATTIO_ATTRIBUTE_RULES,
     ATTIO_DATE_FILTERS,
+    ATTIO_DERIVED_FIELDS,
     toAttioApiName,
 } from './attributes';
 
@@ -132,10 +133,11 @@ const RESERVED_NAMES = new Set([
 
 /**
  * The field name of an attribute. It depends on the slug alone, so it never
- * changes as attributes come and go.
+ * changes as attributes come and go. Slugs with `__` are prefixed, since
+ * derived fields end in `__<suffix>`.
  */
 const toDimensionName = (slug: string) =>
-    RESERVED_NAMES.has(slug) || slug.startsWith('total_')
+    RESERVED_NAMES.has(slug) || slug.startsWith('total_') || slug.includes('__')
         ? `attribute_${slug}`
         : slug;
 
@@ -173,30 +175,45 @@ export const withAttioAttributeFields = (
                 Object.hasOwn(ATTIO_ATTRIBUTE_RULES, type),
         )
         .slice(0, MAX_SCANNED_ATTRIBUTES);
-    const dimensions = scanned.map(
+    const dimensions = scanned.flatMap(
         ({
             api_slug: slug,
             title,
             description,
             type,
             is_multiselect: isMultiselect,
-        }): LiveDimensionDefinition => {
+        }): LiveDimensionDefinition[] => {
             const rule = ATTIO_ATTRIBUTE_RULES[type];
-            return {
-                name: toDimensionName(slug),
-                apiName: toAttioApiName(slug, rule.property),
-                label: title,
-                description: [
-                    description?.trim() || `The ${title} attribute in Attio.`,
-                    isMultiselect
-                        ? 'Several values are joined with commas.'
-                        : '',
-                ]
-                    .filter(Boolean)
-                    .join(' '),
-                type: rule.type,
-                filterOperators: rule.filterOperators,
-            };
+            const name = toDimensionName(slug);
+            const derived = (ATTIO_DERIVED_FIELDS[type] ?? []).map(
+                (field): LiveDimensionDefinition => ({
+                    name: `${name}__${field.suffix}`,
+                    apiName: toAttioApiName(slug, field.property),
+                    label: field.label(title),
+                    description: field.description(title),
+                    type: field.type,
+                    filterOperators: [],
+                }),
+            );
+            return [
+                {
+                    name,
+                    apiName: toAttioApiName(slug, rule.property),
+                    label: title,
+                    description: [
+                        description?.trim() ||
+                            `The ${title} attribute in Attio.`,
+                        isMultiselect
+                            ? 'Several values are joined with commas.'
+                            : '',
+                    ]
+                        .filter(Boolean)
+                        .join(' '),
+                    type: rule.type,
+                    filterOperators: rule.filterOperators,
+                },
+                ...derived,
+            ];
         },
     );
     return {

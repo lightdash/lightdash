@@ -174,6 +174,8 @@ export const PYLON_CONTACTS_SEARCH_PATH = '/contacts/search';
 export const PYLON_USERS_PATH = '/users';
 
 export const ATTIO_ORIGIN = 'https://api.attio.com';
+/** Owner names; reading them needs the user_management:read scope. */
+export const ATTIO_WORKSPACE_MEMBERS_PATH = '/v2/workspace_members';
 
 export const getAttioAttributesPath = (object: string) =>
     `/v2/objects/${object}/attributes`;
