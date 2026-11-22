@@ -127,7 +127,7 @@ export class ExternalConnectionController extends BaseController {
     }
 
     /**
-     * API calls and response bytes each live source has used, across every logged query
+     * API calls and response bytes each live source has used over the query history retention window (`windowDays` on each row)
      * @summary Get live source usage
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

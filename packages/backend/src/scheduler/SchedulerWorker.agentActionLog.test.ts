@@ -18,6 +18,9 @@ const setup = (enabled: boolean) => {
         .fn()
         .mockResolvedValue({ totalDeleted: 3, batchCount: 1, completed: true });
     const countOlderThan = vi.fn().mockResolvedValue(0);
+    const cleanupApiSourceCalls = vi
+        .fn()
+        .mockResolvedValue({ totalDeleted: 4, batchCount: 1, completed: true });
     const worker = new TestableSchedulerWorker({
         lightdashConfig: {
             scheduler: {
@@ -34,6 +37,7 @@ const setup = (enabled: boolean) => {
             },
         },
         agentActionLogModel: { cleanupBatch },
+        apiSourceCallLog: { cleanupApiSourceCalls },
         asyncQueryService: {
             queryHistoryModel: {
                 cleanupBatch: queryCleanup,
@@ -46,6 +50,7 @@ const setup = (enabled: boolean) => {
         cleanupBatch,
         queryCleanup,
         countOlderThan,
+        cleanupApiSourceCalls,
         run: () =>
             worker.task()(
                 {
@@ -67,11 +72,21 @@ test('cleans agent actions with the query history retention settings', async () 
     );
 });
 
-test('disabled query history cleanup also disables agent action cleanup', async () => {
-    const { cleanupBatch, queryCleanup, run } = setup(false);
+test('cleans the live data source call log with the same retention settings', async () => {
+    const { cleanupApiSourceCalls, queryCleanup, run } = setup(true);
+    await run();
+    expect(cleanupApiSourceCalls).toHaveBeenCalledExactlyOnceWith(
+        ...queryCleanup.mock.calls[0],
+    );
+});
+
+test('disabled query history cleanup also disables agent action and call log cleanup', async () => {
+    const { cleanupBatch, cleanupApiSourceCalls, queryCleanup, run } =
+        setup(false);
     await run();
     expect(queryCleanup).not.toHaveBeenCalled();
     expect(cleanupBatch).not.toHaveBeenCalled();
+    expect(cleanupApiSourceCalls).not.toHaveBeenCalled();
 });
 
 test('propagates ledger cleanup failures for retry', async () => {

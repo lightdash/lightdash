@@ -231,7 +231,10 @@ type ExternalConnectionServiceArguments = {
         | 'getApiSourceFieldIds'
     >;
     encryptionUtil: Pick<EncryptionUtil, 'encrypt' | 'decrypt'>;
-    lightdashConfig: Pick<LightdashConfig, 'siteUrl' | 'liveSources' | 'auth'>;
+    lightdashConfig: Pick<
+        LightdashConfig,
+        'siteUrl' | 'liveSources' | 'auth' | 'scheduler'
+    >;
 };
 
 export type PostHogRegion = keyof typeof POSTHOG_REGION_ORIGINS;
@@ -336,7 +339,7 @@ export class ExternalConnectionService extends BaseService {
 
     private readonly lightdashConfig: Pick<
         LightdashConfig,
-        'siteUrl' | 'liveSources' | 'auth'
+        'siteUrl' | 'liveSources' | 'auth' | 'scheduler'
     >;
 
     private readonly encryptionUtil: Pick<
@@ -1244,7 +1247,10 @@ export class ExternalConnectionService extends BaseService {
         );
     }
 
-    /** What each live source in the project has sent its integration. */
+    /**
+     * What each live source in the project has sent its integration, over the
+     * query history retention window that the call log is cleaned to.
+     */
     async getApiSourceUsage(
         account: RegisteredAccount,
         projectUuid: string,
@@ -1257,7 +1263,14 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
-        return this.externalConnectionModel.getApiSourceUsage(projectUuid);
+        const windowDays =
+            this.lightdashConfig.scheduler.queryHistory.cleanup.retentionDays;
+        const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
+        const usage = await this.externalConnectionModel.getApiSourceUsage(
+            projectUuid,
+            since,
+        );
+        return usage.map((row) => ({ ...row, windowDays }));
     }
 
     /**
