@@ -6,7 +6,6 @@
 import { LIVE_SOURCE_CACHE_TTL_MAX_SECONDS } from '@lightdash/common';
 import { Button, Divider, Group, Select, Stack, Text } from '@mantine/core';
 import {
-    IconPencil,
     IconRefresh,
     IconRefreshDot,
     IconReload,
@@ -42,8 +41,10 @@ const WINDOW_SECONDS = [
 const SettingRow: FC<{
     label: string;
     description: string;
+    /** A line under the description, such as a warning. */
+    note?: ReactNode;
     children: ReactNode;
-}> = ({ label, description, children }) => (
+}> = ({ label, description, note, children }) => (
     <Group justify="space-between" wrap="nowrap" gap="md">
         <Stack gap={2} miw={0}>
             <Text fz="sm" fw={500}>
@@ -52,6 +53,7 @@ const SettingRow: FC<{
             <Text fz="xs" c="dimmed">
                 {description}
             </Text>
+            {note}
         </Stack>
         {children}
     </Group>
@@ -62,10 +64,11 @@ export const LiveSourceSettingsModal: FC<{
     connection: LiveSourceConnection;
     /** Null when this instance has no sign-in for the integration. */
     reconnect: (() => void) | null;
-    onEdit: () => void;
+    /** The source's own form: its name, account and credentials. */
+    details: ReactNode;
     onDelete: () => void;
     onClose: () => void;
-}> = ({ projectUuid, connection, reconnect, onEdit, onDelete, onClose }) => {
+}> = ({ projectUuid, connection, reconnect, details, onDelete, onClose }) => {
     const params = {
         projectUuid,
         connectionUuid: connection.externalConnectionUuid,
@@ -88,19 +91,8 @@ export const LiveSourceSettingsModal: FC<{
             cancelLabel="Close"
         >
             <Stack gap="md">
-                <SettingRow
-                    label="Details"
-                    description={`The name and account "${connection.name}" reads from.`}
-                >
-                    <Button
-                        size="xs"
-                        variant="default"
-                        leftSection={<MantineIcon icon={IconPencil} />}
-                        onClick={onEdit}
-                    >
-                        Edit
-                    </Button>
-                </SettingRow>
+                {details}
+                <Divider />
                 {reconnect ? (
                     <SettingRow
                         label="Sign-in"
@@ -131,10 +123,10 @@ export const LiveSourceSettingsModal: FC<{
                     </Button>
                 </SettingRow>
                 <Divider />
-                <ProjectCacheOffAlert projectUuid={projectUuid} />
                 <SettingRow
                     label="Reuse results for"
                     description="How long everyone reuses a result, up to the project's cache duration."
+                    note={<ProjectCacheOffAlert projectUuid={projectUuid} />}
                 >
                     <Select
                         size="xs"

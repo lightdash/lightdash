@@ -47,7 +47,6 @@ type Dialog =
     | { kind: 'closed' }
     | { kind: 'pick' }
     | { kind: 'create'; connector: ApiConnectorType }
-    | { kind: 'edit'; connection: LiveSourceConnection }
     | { kind: 'remove'; connection: LiveSourceConnection }
     | { kind: 'settings'; connection: LiveSourceConnection }
     | { kind: 'reattach'; connectionUuid: string };
@@ -126,7 +125,6 @@ export const LiveSourceManager: FC<{
     const actions = useMemo(
         (): LiveSourceActions => ({
             add: () => setDialog({ kind: 'pick' }),
-            edit: (connection) => setDialog({ kind: 'edit', connection }),
             remove: (connection) => setDialog({ kind: 'remove', connection }),
             settings: (connection) =>
                 setDialog({ kind: 'settings', connection }),
@@ -235,6 +233,8 @@ export const LiveSourceManager: FC<{
 };
 
 const LiveSourceConnectDialog: FC<{
+    /** Renders the form in place, in the source's settings. */
+    inline?: boolean;
     projectUuid: string;
     connector: ApiConnectorType;
     connection: LiveSourceConnection | null;
@@ -242,6 +242,7 @@ const LiveSourceConnectDialog: FC<{
     onClose: () => void;
     onCreated: (connectionUuid: string) => void;
 }> = ({
+    inline,
     projectUuid,
     connector,
     connection,
@@ -254,6 +255,7 @@ const LiveSourceConnectDialog: FC<{
         case 'google':
             return isGoogleConnector(connector) ? (
                 <GoogleConnectionModal
+                    inline={inline}
                     opened
                     onClose={onClose}
                     projectUuid={projectUuid}
@@ -264,6 +266,7 @@ const LiveSourceConnectDialog: FC<{
         case 'posthog':
             return (
                 <PostHogConnectionModal
+                    inline={inline}
                     opened
                     onClose={onClose}
                     projectUuid={projectUuid}
@@ -275,6 +278,7 @@ const LiveSourceConnectDialog: FC<{
         case 'token':
             return (
                 <TokenLiveSourceModal
+                    inline={inline}
                     form={setup.form}
                     opened
                     onClose={onClose}
@@ -286,6 +290,7 @@ const LiveSourceConnectDialog: FC<{
         case 'linkedin_ads':
             return (
                 <LinkedInAdsConnectionModal
+                    inline={inline}
                     opened
                     onClose={onClose}
                     projectUuid={projectUuid}
@@ -295,6 +300,7 @@ const LiveSourceConnectDialog: FC<{
         case 'salesforce':
             return (
                 <SalesforceConnectionModal
+                    inline={inline}
                     opened
                     onClose={onClose}
                     projectUuid={projectUuid}
@@ -346,15 +352,7 @@ const LiveSourceDialogs: FC<{
         setSearchParams(searchParams, { replace: true });
     }, [searchParams, setSearchParams, setDialog]);
 
-    const connector =
-        dialog.kind === 'create'
-            ? dialog.connector
-            : dialog.kind === 'edit'
-              ? dialog.connection.apiSource.connector
-              : null;
-    const connection = dialog.kind === 'edit' ? dialog.connection : null;
-    // A fresh form per source, so editing one after another never mixes them.
-    const formKey = connection?.externalConnectionUuid ?? connector ?? '';
+    const connector = dialog.kind === 'create' ? dialog.connector : null;
 
     return (
         <>
@@ -371,10 +369,10 @@ const LiveSourceDialogs: FC<{
             />
             {connector !== null && (
                 <LiveSourceConnectDialog
-                    key={formKey}
+                    key={connector}
                     projectUuid={projectUuid}
                     connector={connector}
-                    connection={connection}
+                    connection={null}
                     canSignIn={canSignIn}
                     onClose={close}
                     onCreated={openConnected}
@@ -402,11 +400,18 @@ const LiveSourceDialogs: FC<{
                     projectUuid={projectUuid}
                     connection={dialog.connection}
                     reconnect={getReconnect(dialog.connection)}
-                    onEdit={() =>
-                        setDialog({
-                            kind: 'edit',
-                            connection: dialog.connection,
-                        })
+                    details={
+                        <LiveSourceConnectDialog
+                            inline
+                            key={dialog.connection.externalConnectionUuid}
+                            projectUuid={projectUuid}
+                            connector={dialog.connection.apiSource.connector}
+                            connection={dialog.connection}
+                            canSignIn={canSignIn}
+                            // Saving keeps the settings open
+                            onClose={() => undefined}
+                            onCreated={() => undefined}
+                        />
                     }
                     onDelete={() =>
                         setDialog({

@@ -8,12 +8,12 @@ import {
     TextInput,
 } from '@mantine/core';
 import { type FC } from 'react';
-import MantineModal from '../../../components/common/MantineModal';
 import { ConnectionTestResult } from '../components/ConnectionTestResult';
 import { useCreateExternalConnection } from '../hooks/useCreateExternalConnection';
 import { useTestConnection } from '../hooks/useTestConnection';
 import { useTestConnectionConfig } from '../hooks/useTestConnectionConfig';
 import { useUpdateExternalConnection } from '../hooks/useUpdateExternalConnection';
+import { LiveSourceFormFrame } from './LiveSourceFormFrame';
 import {
     normalizeAccountId,
     toTokenLiveSourceCreatePayload,
@@ -23,6 +23,8 @@ import {
 } from './tokenLiveSource';
 
 type Props = {
+    /** Renders the form in place instead of in its own modal. */
+    inline?: boolean;
     form: TokenLiveSourceForm;
     opened: boolean;
     onClose: () => void;
@@ -32,6 +34,7 @@ type Props = {
 };
 
 export const TokenLiveSourceModal: FC<Props> = ({
+    inline,
     form: definition,
     opened,
     onClose,
@@ -91,7 +94,8 @@ export const TokenLiveSourceModal: FC<Props> = ({
     });
 
     return (
-        <MantineModal
+        <LiveSourceFormFrame
+            inline={inline}
             opened={opened}
             onClose={onClose}
             title={`${isEditing ? 'Edit' : 'Add'} ${definition.label} source`}
@@ -143,6 +147,6 @@ export const TokenLiveSourceModal: FC<Props> = ({
                     <ConnectionTestResult response={testMutation.data} />
                 )}
             </Stack>
-        </MantineModal>
+        </LiveSourceFormFrame>
     );
 };
