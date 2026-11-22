@@ -92,6 +92,7 @@ describe('searchConsoleIntegration run', () => {
         expect(result.columns).toEqual([
             { name: 'date', type: DimensionType.DATE },
             { name: 'query', type: DimensionType.STRING },
+            { name: 'search_type', type: DimensionType.STRING },
             { name: 'clicks', type: DimensionType.NUMBER },
             { name: 'impressions', type: DimensionType.NUMBER },
             { name: 'ctr', type: DimensionType.NUMBER },
@@ -101,6 +102,7 @@ describe('searchConsoleIntegration run', () => {
             {
                 date: '2026-10-01',
                 query: 'bi tool',
+                search_type: 'web',
                 clicks: 12,
                 impressions: 300,
                 ctr: 0.04,
@@ -109,6 +111,7 @@ describe('searchConsoleIntegration run', () => {
             {
                 date: '2026-10-01',
                 query: 'dbt bi',
+                search_type: 'web',
                 clicks: 8,
                 impressions: 90,
                 ctr: 0.088,
@@ -189,9 +192,55 @@ describe('searchConsoleIntegration run', () => {
         );
 
         expect(result.rows).toEqual([
-            { clicks: 25, impressions: 590, ctr: 0.042, position: 3 },
+            {
+                search_type: 'web',
+                clicks: 25,
+                impressions: 590,
+                ctr: 0.042,
+                position: 3,
+            },
         ]);
         expect(result.hasMoreRows).toBe(false);
+    });
+
+    it('echoes the search type it read, and splits by search appearance', async () => {
+        const { source, send } = connect(
+            jsonResponse({
+                rows: [
+                    {
+                        keys: ['VIDEO'],
+                        clicks: 4,
+                        impressions: 40,
+                        ctr: 0.1,
+                        position: 2,
+                    },
+                ],
+            }),
+        );
+
+        const result = await source.run(
+            query({
+                startDate: '2026-10-01',
+                endDate: '2026-10-28',
+                dimensions: ['searchAppearance'],
+                type: 'image',
+            }),
+        );
+
+        expect(send.mock.calls[0][0].body).toMatchObject({
+            dimensions: ['searchAppearance'],
+            type: 'image',
+        });
+        expect(result.rows).toEqual([
+            {
+                searchAppearance: 'VIDEO',
+                search_type: 'image',
+                clicks: 4,
+                impressions: 40,
+                ctr: 0.1,
+                position: 2,
+            },
+        ]);
     });
 
     it('returns no rows when the site has no data for the range', async () => {

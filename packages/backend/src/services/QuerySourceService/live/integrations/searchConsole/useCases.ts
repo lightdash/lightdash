@@ -62,7 +62,7 @@ export const searchConsoleUseCases: LiveUseCases = {
             id: 'GSC-10',
             question:
                 'How many clicks do we get from rich results such as job listings or top stories compared with plain search results?',
-            possible: false,
+            possible: true,
         },
         {
             id: 'GSC-11',

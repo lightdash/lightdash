@@ -520,6 +520,8 @@ exports[`live data source names > Search Console explore names and field ids nev
         "search_console_performance_page",
         "search_console_performance_position",
         "search_console_performance_query",
+        "search_console_performance_search_appearance",
+        "search_console_performance_search_type",
       ],
       "name": "search_console_performance",
     },

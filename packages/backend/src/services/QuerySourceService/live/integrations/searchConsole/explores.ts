@@ -98,6 +98,23 @@ export const SEARCH_CONSOLE_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
         ),
         dimension('country', 'Country', 'Three-letter country code.'),
         dimension('device', 'Device', 'DESKTOP, MOBILE or TABLET.'),
+        {
+            ...dimension(
+                'search_appearance',
+                'Search appearance',
+                'The result feature the site appeared with, such as PRODUCT_SNIPPETS, VIDEO or AMP_BLUE_LINK. Google splits by it only on its own, with no other dimension.',
+            ),
+            apiName: 'searchAppearance',
+        },
+        {
+            name: 'search_type',
+            apiName: 'search_type',
+            label: 'Search type',
+            description:
+                'Which Google results the numbers come from: web, image, video or news. Filter it to one type; without a filter it reads web.',
+            type: DimensionType.STRING,
+            filterOperators: [FilterOperator.EQUALS],
+        },
     ],
     metrics: [
         metric(
@@ -138,5 +155,12 @@ export const SEARCH_CONSOLE_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
     maxDimensions: null,
     maxMetrics: null,
     dateRange: { dimension: 'date', defaultDays: 28 },
-    incompatible: [],
+    incompatible: [
+        {
+            fields: ['search_appearance'],
+            with: ['date', 'query', 'page', 'country', 'device'],
+            reason: 'Search Console splits by search appearance only on its own, with no other dimension.',
+            selectedOnly: true,
+        },
+    ],
 };
