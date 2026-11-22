@@ -1,5 +1,6 @@
 import {
     ApiConnectorType,
+    DimensionType,
     ParameterError,
     TooManyRequestsError,
     UnexpectedServerError,
@@ -391,6 +392,212 @@ describe('pylonIntegration date grains', () => {
                 resolved_at_week: null,
                 resolved_at_month: null,
             }),
+        ]);
+    });
+});
+
+describe('pylonIntegration issue fields', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('reads SLA, business-hours, priority, CSAT and linked issue fields', async () => {
+        const { source } = connect(
+            page([
+                issue(1, {
+                    first_response_breach_time: '2026-11-01T12:00:00Z',
+                    resolution_time: '2026-11-03T08:00:00Z',
+                    resolution_breach_time: '2026-11-04T09:30:00Z',
+                    next_reply: { breach_time: '2026-11-02T09:00:00Z' },
+                    first_resolution_time: '2026-11-02T22:00:00Z',
+                    business_hours_first_response_seconds: 900,
+                    business_hours_resolution_seconds: 18_000,
+                    custom_fields: {
+                        priority: { value: 'high' },
+                        product_area: { value: '', values: ['api'] },
+                    },
+                    csat_responses: [{ score: 4, comment: 'Quick fix' }],
+                    external_issues: [
+                        {
+                            external_id: 'a',
+                            source: 'linear',
+                            link: 'https://linear.app/x/issue/A-1',
+                        },
+                        {
+                            external_id: 'b',
+                            source: 'github',
+                            link: 'https://github.com/x/y/issues/2',
+                        },
+                    ],
+                }),
+            ]),
+        );
+
+        const { rows, columns } = await run(source, {
+            kind: 'issues',
+            filters: [LAST_30_DAYS],
+            columns: [
+                'first_response_due',
+                'first_response_breached',
+                'resolution_due',
+                'resolution_breached',
+                'next_reply_due',
+                'first_resolved_at',
+                'business_first_response_minutes',
+                'business_resolution_hours',
+                'created_time',
+                'priority',
+                'csat_comment',
+                'linked_issue_sources',
+                'linked_issue_links',
+            ],
+        });
+
+        expect(rows).toEqual([
+            {
+                first_response_due: '2026-11-01T12:00:00Z',
+                first_response_breached: false,
+                resolution_due: '2026-11-04T09:30:00Z',
+                resolution_breached: false,
+                next_reply_due: '2026-11-02T09:00:00Z',
+                first_resolved_at: '2026-11-02',
+                business_first_response_minutes: 15,
+                business_resolution_hours: 5,
+                created_time: '2026-11-01T09:30:00Z',
+                priority: 'high',
+                csat_comment: 'Quick fix',
+                linked_issue_sources: 'linear, github',
+                linked_issue_links:
+                    'https://linear.app/x/issue/A-1, https://github.com/x/y/issues/2',
+            },
+        ]);
+        expect(columns).toEqual(
+            expect.arrayContaining([
+                { name: 'first_response_due', type: DimensionType.TIMESTAMP },
+                {
+                    name: 'first_response_breached',
+                    type: DimensionType.BOOLEAN,
+                },
+                { name: 'first_resolved_at', type: DimensionType.DATE },
+                {
+                    name: 'business_first_response_minutes',
+                    type: DimensionType.NUMBER,
+                },
+            ]),
+        );
+    });
+
+    it('flags a met, a missed and a pending deadline', async () => {
+        vi.useFakeTimers({ now: new Date('2026-11-05T00:00:00Z') });
+        const { source } = connect(
+            page([
+                // Met: replied before the deadline
+                issue(1, {
+                    first_response_breach_time: '2026-11-01T12:00:00Z',
+                }),
+                // Missed: replied after the deadline
+                issue(2, {
+                    first_response_time: '2026-11-01T13:00:00Z',
+                    first_response_breach_time: '2026-11-01T12:00:00Z',
+                }),
+                // Missed: no reply and the deadline passed
+                issue(3, {
+                    first_response_time: null,
+                    first_response_breach_time: '2026-11-04T12:00:00Z',
+                }),
+                // Pending: no reply and the deadline is still ahead
+                issue(4, {
+                    first_response_time: null,
+                    first_response_breach_time: '2026-11-06T12:00:00Z',
+                }),
+                // No SLA
+                issue(5),
+            ]),
+        );
+
+        const { rows } = await run(source, {
+            kind: 'issues',
+            filters: [LAST_30_DAYS],
+            columns: ['first_response_breached', 'resolution_breached'],
+        });
+
+        expect(rows.map((row) => row.first_response_breached)).toEqual([
+            false,
+            true,
+            true,
+            false,
+            null,
+        ]);
+        expect(rows.map((row) => row.resolution_breached)).toEqual([
+            null,
+            null,
+            null,
+            null,
+            null,
+        ]);
+    });
+
+    it('leaves the priority and CSAT comment empty when there are none', async () => {
+        const { source } = connect(
+            page([
+                issue(1, {
+                    custom_fields: { product_area: { value: 'api' } },
+                    csat_responses: [{ score: 5, comment: null }],
+                }),
+            ]),
+        );
+
+        const { rows } = await run(source, {
+            kind: 'issues',
+            filters: [LAST_30_DAYS],
+            columns: ['priority', 'csat_comment', 'linked_issue_sources'],
+        });
+
+        expect(rows).toEqual([
+            { priority: null, csat_comment: null, linked_issue_sources: null },
+        ]);
+    });
+
+    it('reads odd field values as empty instead of failing the query', async () => {
+        vi.useFakeTimers({ now: new Date('2026-11-05T00:00:00Z') });
+        const { source } = connect(
+            page([
+                issue(1, {
+                    first_response_breach_time: '',
+                    resolution_time: '2026-11-03T08:00:00Z',
+                    resolution_breach_time: '2026-11-02T08:00:00Z',
+                    next_reply: { breach_time: '' },
+                    custom_fields: { priority: { value: ['high', 'urgent'] } },
+                    external_issues: [
+                        { external_id: 'a', source: 'linear', link: null },
+                    ],
+                }),
+            ]),
+        );
+
+        const { rows } = await run(source, {
+            kind: 'issues',
+            filters: [LAST_30_DAYS],
+            columns: [
+                'first_response_due',
+                'next_reply_due',
+                'resolution_breached',
+                'priority',
+                'linked_issue_sources',
+                'linked_issue_links',
+            ],
+        });
+
+        expect(rows).toEqual([
+            {
+                first_response_due: null,
+                next_reply_due: null,
+                // Resolved a day after its deadline
+                resolution_breached: true,
+                priority: null,
+                linked_issue_sources: 'linear',
+                linked_issue_links: null,
+            },
         ]);
     });
 });
