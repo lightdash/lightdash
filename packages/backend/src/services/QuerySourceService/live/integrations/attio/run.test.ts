@@ -21,10 +21,7 @@ const response = (
 
 const page = (records: unknown[]) => response({ data: records });
 
-const SETTINGS = {
-    connector: ApiConnectorType.ATTIO,
-    object: 'deals',
-} as const;
+const SETTINGS = { connector: ApiConnectorType.ATTIO } as const;
 
 const connect = (...responses: LiveHttpResponse[]) => {
     const send = vi.fn();
@@ -39,7 +36,11 @@ const run = (
     source: ReturnType<typeof connect>['source'],
     request: Record<string, unknown>,
     limit = 10,
-) => source.run({ query: JSON.stringify(request), limit });
+) =>
+    source.run({
+        query: JSON.stringify({ object: 'deals', ...request }),
+        limit,
+    });
 
 const deals = (count: number, from = 0) =>
     Array.from({ length: count }, (_, index) => attioDeal(`d${from + index}`));
@@ -154,17 +155,81 @@ describe('attioIntegration listing', () => {
 });
 
 describe('attioIntegration scan', () => {
-    it('reads the attributes of the source object', async () => {
-        const { source, send } = connect(response(ATTIO_DEAL_ATTRIBUTES));
+    const ATTRIBUTES_PATHS = [
+        '/v2/objects/companies/attributes',
+        '/v2/objects/people/attributes',
+        '/v2/objects/deals/attributes',
+        '/v2/objects/users/attributes',
+        '/v2/objects/workspaces/attributes',
+    ];
+
+    it("reads every standard object's attributes", async () => {
+        const { source, send } = connect(
+            ...ATTRIBUTES_PATHS.map(() => response(ATTIO_DEAL_ATTRIBUTES)),
+        );
 
         const scan = await source.scan();
 
-        expect(send).toHaveBeenCalledWith({
-            method: 'GET',
-            path: '/v2/objects/deals/attributes',
-            body: undefined,
+        expect(send.mock.calls.map(([call]) => call.path)).toEqual(
+            ATTRIBUTES_PATHS,
+        );
+        expect(scan).toEqual({
+            attioAttributes: {
+                companies: ATTIO_DEAL_ATTRIBUTES,
+                people: ATTIO_DEAL_ATTRIBUTES,
+                deals: ATTIO_DEAL_ATTRIBUTES,
+                users: ATTIO_DEAL_ATTRIBUTES,
+                workspaces: ATTIO_DEAL_ATTRIBUTES,
+            },
         });
-        expect(scan).toEqual({ attioAttributes: ATTIO_DEAL_ATTRIBUTES });
+    });
+
+    it("skips objects the workspace lacks or the token can't read", async () => {
+        const { source } = connect(
+            response(ATTIO_DEAL_ATTRIBUTES),
+            response(ATTIO_DEAL_ATTRIBUTES),
+            response(ATTIO_DEAL_ATTRIBUTES),
+            response(
+                {
+                    code: 'standard_object_disabled',
+                    message: 'Must be enabled by a Workspace admin',
+                },
+                400,
+            ),
+            response({ message: 'Forbidden' }, 403),
+        );
+
+        const scan = await source.scan();
+
+        expect(Object.keys(scan.attioAttributes as object)).toEqual([
+            'companies',
+            'people',
+            'deals',
+        ]);
+    });
+
+    it('fails on a throttled call, so the last good scan stays', async () => {
+        const { source } = connect(
+            response(ATTIO_DEAL_ATTRIBUTES),
+            response({ message: 'Slow down' }, 429),
+            response(ATTIO_DEAL_ATTRIBUTES),
+            response(ATTIO_DEAL_ATTRIBUTES),
+            response(ATTIO_DEAL_ATTRIBUTES),
+        );
+
+        await expect(source.scan()).rejects.toBeInstanceOf(
+            TooManyRequestsError,
+        );
+    });
+
+    it('fails when it can read no object', async () => {
+        const { source } = connect(
+            ...ATTRIBUTES_PATHS.map(() =>
+                response({ message: 'Forbidden' }, 403),
+            ),
+        );
+
+        await expect(source.scan()).rejects.toThrow('record_permission:read');
     });
 });
 
@@ -176,7 +241,6 @@ describe('toAttioError', () => {
                 status,
                 headers,
             ),
-            SETTINGS,
             new Date('2026-11-17T12:00:00Z'),
         );
 
@@ -192,7 +256,9 @@ describe('toAttioError', () => {
         expect(error(401)).toBeInstanceOf(WarehouseConnectionError);
         expect(error(401).message).toContain('Create a new token');
         expect(error(403).message).toContain('record_permission:read');
-        expect(error(404).message).toContain('Attio has no object "deals"');
+        expect(error(404).message).toContain(
+            "This Attio workspace doesn't have this object turned on",
+        );
     });
 
     it('explains a rejected query and an Attio outage', () => {

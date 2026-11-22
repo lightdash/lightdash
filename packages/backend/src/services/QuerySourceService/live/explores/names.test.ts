@@ -115,15 +115,26 @@ const SOURCES: {
     },
     {
         name: 'Attio',
-        apiSource: { connector: ApiConnectorType.ATTIO, object: 'deals' },
+        apiSource: { connector: ApiConnectorType.ATTIO },
         scan: {
             attioAttributes: {
-                data: [
-                    { api_slug: 'name', title: 'Deal name', type: 'text' },
-                    { api_slug: 'stage', title: 'Stage', type: 'status' },
-                    { api_slug: 'value', title: 'Value', type: 'currency' },
-                    { api_slug: 'count', title: 'Count', type: 'number' },
-                ],
+                deals: {
+                    data: [
+                        { api_slug: 'name', title: 'Deal name', type: 'text' },
+                        { api_slug: 'stage', title: 'Stage', type: 'status' },
+                        { api_slug: 'value', title: 'Value', type: 'currency' },
+                        { api_slug: 'count', title: 'Count', type: 'number' },
+                    ],
+                },
+                people: {
+                    data: [
+                        {
+                            api_slug: 'email_addresses',
+                            title: 'Email addresses',
+                            type: 'email-address',
+                        },
+                    ],
+                },
             },
         },
     },

@@ -1,5 +1,6 @@
 import {
     ApiConnectorType,
+    ATTIO_OBJECTS,
     ATTIO_ORIGIN,
     getAttioAttributesPath,
     getAttioRecordsQueryPath,
@@ -23,9 +24,12 @@ import {
 import { compileAttioQuery } from './compile';
 import { toAttioError } from './errors';
 import {
+    ATTIO_EXPLORES,
     ATTIO_MAX_PAGES,
     ATTIO_MAX_RECORDS,
-    ATTIO_RECORDS_EXPLORE,
+    ATTIO_SCANNED_MODELS,
+    readAttioAttributes,
+    toAttioObject,
     withAttioAttributeFields,
 } from './explores';
 import { attioRequestSchema, runAttioQuery, scanAttioAttributes } from './run';
@@ -33,20 +37,17 @@ import { attioUseCases } from './useCases';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.ATTIO];
 const LABEL = CATALOG.messageLabel;
-// A slug like companies or deals, or the object's id
-const ATTIO_OBJECT =
-    /^(?:[a-z0-9_]{1,64}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 
 export const attioIntegration = defineLiveIntegration({
     connector: ApiConnectorType.ATTIO,
     label: LABEL,
     settings: CATALOG.settings,
     origins: [ATTIO_ORIGIN],
-    access: ({ object }) => ({
-        pathPrefixes: [
+    access: () => ({
+        pathPrefixes: ATTIO_OBJECTS.flatMap((object) => [
             getAttioAttributesPath(object),
             getAttioRecordsQueryPath(object),
-        ],
+        ]),
         // Records are read with POST, attributes with GET
         methods: ['GET', 'POST'],
     }),
@@ -83,7 +84,7 @@ export const attioIntegration = defineLiveIntegration({
         },
         pushdown: ALL_PUSHDOWN_REFUSED,
     },
-    explores: [ATTIO_RECORDS_EXPLORE],
+    explores: ATTIO_EXPLORES,
     plannedModelNames: [],
     level: {
         value: 2,
@@ -102,13 +103,7 @@ export const attioIntegration = defineLiveIntegration({
             '100 reads a second per workspace; list queries are scored by their filters and sorts over 10 seconds.',
     },
     useCases: attioUseCases,
-    validate: ({ object }) => {
-        if (!ATTIO_OBJECT.test(object)) {
-            throw new ParameterError(
-                "The Attio object must be its slug, like companies or deals, as shown in Attio's workspace settings under Objects",
-            );
-        }
-    },
+    validate: () => {},
     checkAuth: ({ type }) => {
         if (type !== 'bearer_token') {
             throw new ParameterError(
@@ -116,7 +111,8 @@ export const attioIntegration = defineLiveIntegration({
             );
         }
     },
-    describeTarget: ({ settings: { object } }) => `Attio object ${object}`,
+    describeTarget: () =>
+        'Attio workspace: companies, people, deals, users and workspaces',
     parseRequest: jsonRequest(LABEL, attioRequestSchema),
     compile: ({ explore, metricQuery, now }) =>
         compileAttioQuery({
@@ -125,13 +121,19 @@ export const attioIntegration = defineLiveIntegration({
             today: getIsoDateInTimeZone(now, 'UTC'),
         }),
     run: runAttioQuery,
-    toError: (response, settings) => toAttioError(response, settings),
+    toError: (response) => toAttioError(response),
     scan: {
         read: scanAttioAttributes,
         withScannedFields: (definition, scan) =>
-            scan.attioAttributes
-                ? withAttioAttributeFields(definition, scan.attioAttributes)
-                : definition,
+            withAttioAttributeFields(
+                definition,
+                readAttioAttributes(
+                    scan.attioAttributes,
+                    toAttioObject(definition.name),
+                ),
+            ),
         isInternalField: isInternalAttioField,
+        // Companies is the first explore; the other objects are scanned too
+        models: ATTIO_SCANNED_MODELS,
     },
 });

@@ -16389,7 +16389,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                object: { dataType: 'string', required: true },
                 connector: { ref: 'ApiConnectorType.ATTIO', required: true },
             },
             validators: {},

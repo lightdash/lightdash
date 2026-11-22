@@ -57,10 +57,7 @@ const SAMPLE_SETTINGS: {
     [ApiConnectorType.PYLON]: {
         connector: ApiConnectorType.PYLON,
     },
-    [ApiConnectorType.ATTIO]: {
-        connector: ApiConnectorType.ATTIO,
-        object: 'companies',
-    },
+    [ApiConnectorType.ATTIO]: { connector: ApiConnectorType.ATTIO },
     [ApiConnectorType.HUBSPOT]: { connector: ApiConnectorType.HUBSPOT },
     [ApiConnectorType.SALESFORCE]: { connector: ApiConnectorType.SALESFORCE },
 };

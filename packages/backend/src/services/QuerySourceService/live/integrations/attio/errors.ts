@@ -31,15 +31,19 @@ const getRetryAfterSeconds = (
         : Math.max(1, Math.ceil((resetAt - now.getTime()) / 1000));
 };
 
+/** The access token can't read an object, or the workspace lacks it; a scan skips it. */
+export class AttioObjectAccessError extends WarehouseConnectionError {}
+
 /** Turns an Attio error response into an error that says what to change. */
 export const toAttioError = (
     response: LiveHttpResponse,
-    { object }: { object: string },
     now = new Date(),
 ): Error => {
     const parsed = errorSchema.safeParse(response.body);
     const message = parsed.success ? (parsed.data.message ?? '') : '';
-    const detail = message ? `: ${message}` : '';
+    const code = parsed.success ? (parsed.data.code ?? '') : '';
+    // Attio's messages end in a full stop; ours add the next sentence
+    const detail = message ? `: ${message.replace(/\.+$/, '')}` : '';
     if (response.status === 429) {
         const retryAfterSeconds = getRetryAfterSeconds(response.headers, now);
         return new TooManyRequestsError(
@@ -57,13 +61,13 @@ export const toAttioError = (
         );
     }
     if (response.status === 403) {
-        return new WarehouseConnectionError(
-            `The Attio access token can't read ${object}${detail}. Give it the record_permission:read and object_configuration:read scopes.`,
+        return new AttioObjectAccessError(
+            `The Attio access token can't read this object${detail}. Give it the record_permission:read and object_configuration:read scopes.`,
         );
     }
-    if (response.status === 404) {
-        return new WarehouseConnectionError(
-            `Attio has no object "${object}"${detail}. Check the object's slug in Attio's workspace settings, under Objects.`,
+    if (response.status === 404 || code === 'standard_object_disabled') {
+        return new AttioObjectAccessError(
+            `This Attio workspace doesn't have this object turned on${detail}. A workspace admin turns it on in Attio's workspace settings, under Objects.`,
         );
     }
     if (response.status >= 400 && response.status < 500) {

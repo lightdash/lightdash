@@ -205,7 +205,7 @@ export type LiveConnectionCheck = {
 export type LiveScanResult = {
     ga4Metadata?: unknown;
     posthogProperties?: Record<'event' | 'person', unknown>;
-    /** Attio's attribute list for the source's object, as it returns it. */
+    /** Each standard object's attribute list, by slug, as Attio returns it. */
     attioAttributes?: unknown;
     /** HubSpot's property list for the source's object, as it returns it. */
     hubspotProperties?: unknown;
