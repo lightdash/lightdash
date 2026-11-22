@@ -100,11 +100,6 @@ export const GoogleConnectionModal: FC<Props> = ({
             cancelDisabled={updateMutation.isLoading}
         >
             <Stack gap="sm">
-                <Text c="dimmed" fz="sm">
-                    {connection
-                        ? 'Sign in again with a Google account that can read it'
-                        : 'Sign in with Google for read-only access, then pick what to read'}
-                </Text>
                 <TextInput
                     required
                     label="Name"

@@ -9,7 +9,6 @@ import {
     Input,
     SegmentedControl,
     Stack,
-    Text,
     TextInput,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -85,10 +84,6 @@ export const SalesforceConnectionModal: FC<Props> = ({
             cancelDisabled={updateMutation.isLoading}
         >
             <Stack gap="sm">
-                <Text c="dimmed" fz="sm">
-                    Reads opportunities, accounts, leads and contacts, and you
-                    pick their fields after connecting
-                </Text>
                 <TextInput
                     required
                     label="Name"

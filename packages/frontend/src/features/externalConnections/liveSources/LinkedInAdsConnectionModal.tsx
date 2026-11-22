@@ -85,10 +85,6 @@ export const LinkedInAdsConnectionModal: FC<Props> = ({
             cancelDisabled={updateMutation.isLoading}
         >
             <Stack gap="sm">
-                <Text c="dimmed" fz="sm">
-                    Reads one Campaign Manager ad account, not organic Page
-                    analytics
-                </Text>
                 <TextInput
                     required
                     label="Name"
