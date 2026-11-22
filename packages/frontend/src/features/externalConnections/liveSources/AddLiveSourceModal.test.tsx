@@ -148,7 +148,9 @@ describe('AddLiveSourceModal', () => {
 
         await userEvent.type(customInput(), 'Hubspot{Enter}');
 
-        expect(screen.getByText('Requested Hubspot')).toBeInTheDocument();
+        expect(screen.getAllByText('Requested Hubspot').length).toBeGreaterThan(
+            0,
+        );
         await openRequest();
         expect(customInput()).toHaveValue('');
     });

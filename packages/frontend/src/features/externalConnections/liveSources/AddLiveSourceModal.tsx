@@ -3,6 +3,7 @@ import { Group, SimpleGrid, Stack, Text, UnstyledButton } from '@mantine/core';
 import clsx from 'clsx';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
+import useToaster from '../../../hooks/toaster/useToaster';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -59,6 +60,7 @@ export const AddLiveSourceModal: FC<Props> = ({
 }) => {
     const { user } = useApp();
     const { track } = useTracking();
+    const { showToastSuccess } = useToaster();
     // Only what this instance can connect: Google sources need its Google
     // sign-in, LinkedIn Ads and Salesforce an app most servers won't have.
     const isConnectable = (connector: ApiConnectorType) => {
@@ -81,6 +83,10 @@ export const AddLiveSourceModal: FC<Props> = ({
                 integration: CUSTOM_LIVE_SOURCE_ID,
                 customIntegrationName,
             },
+        });
+        showToastSuccess({
+            title: `Requested ${customIntegrationName}`,
+            subtitle: 'Thanks, it helps us choose what to add next',
         });
     };
     return (
