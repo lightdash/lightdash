@@ -66,10 +66,9 @@ a.row:hover, .row.case:hover { background: var(--hover); }
 
 .props { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .prop { background: var(--surface); padding: 12px 14px; }
-.props > .prop { grid-column: 1; }
-.props > .prop.auth { grid-column: 2; grid-row: 1 / span 2; }
-.panel { padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
-.limits { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; }
+.props > .prop.wide { grid-column: 1 / -1; }
+.prop .kv { margin-top: 2px; padding-top: 0; border-top: 0; }
+.limits { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; margin-top: 6px; }
 .limit { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
 .limit .kk { display: block; margin-bottom: 2px; }
 .limit .num { font: 500 16px/1.3 var(--mono); letter-spacing: -.01em; }
@@ -138,7 +137,7 @@ pre { margin: 0 0 8px; padding: 14px; border: 1px solid var(--line); border-radi
   nav { display: none; }
   main { padding: 20px 16px 64px; }
   .props { grid-template-columns: minmax(0, 1fr); }
-  .props > .prop, .props > .prop.auth { grid-column: 1; grid-row: auto; }
+  .props > .prop.wide { grid-column: 1; }
   .overview .row { grid-template-columns: minmax(0, 1fr) 48px 96px; }
   .overview .row > :nth-child(n+4) { display: none; }
   .explorer { grid-template-columns: minmax(0, 1fr); }
@@ -239,12 +238,11 @@ const OAUTH = {
   needs_review: { color: 'amber', text: 'Vendor review required' },
 };
 const TEST_WITH = { test_account: ['green', 'Free test account'], real_account: ['amber', 'A real account'], paid_account: ['amber', 'A paid account'], unknown: ['red', 'No known way'] };
-const authValue = (auth) => {
+const authAccess = (auth) => {
   const oauth = OAUTH[auth.oauth];
   const [testColor, testText] = TEST_WITH[auth.testWith];
   const tag = (need) => `<span class="tag ${BLOCKING_NEEDS.includes(need) ? 'warn' : ''}">${esc(words(need))}</span>`;
-  return `<div class="v">${esc(auth.description)}</div>
-    <div class="kv">
+  return `<div class="kv">
       <span class="kk">Tester needs</span><span class="tags">${auth.needs.map(tag).join('')}</span>
       <span class="kk">Token</span><span class="status">${dot(auth.token ? 'green' : '')}${auth.token ? 'Customer pastes a key' : 'Not offered'}</span>
       <span class="kk">OAuth</span><span class="status">${dot(oauth.color)}${oauth.text}</span>
@@ -358,11 +356,11 @@ const detail = (i) => {
   ${i.verdict ? verdictBlock(i.verdict) : ''}
   <div class="props">
     <div class="prop"><div class="k">Level <span class="mono">${i.level.value}/5</span></div><div class="v">${esc(i.level.description)}</div></div>
-    <div class="prop auth"><div class="k">Auth <span class="status">${dot(RATING_COLOR[i.authScore.rating])}${esc(i.authScore.rating)}</span></div>${authValue(i.auth)}</div>
+    <div class="prop"><div class="k">Auth <span class="status">${dot(RATING_COLOR[i.authScore.rating])}${esc(i.authScore.rating)}</span></div><div class="v">${esc(i.auth.description)}</div></div>
     <div class="prop"><div class="k">Paging</div><div class="v">${esc(i.paging.description)}</div></div>
+    <div class="prop"><div class="k">Access</div>${authAccess(i.auth)}</div>
+    <div class="prop wide"><div class="k">Rate limits</div>${i.rateLimits ? rateLimitsValue(i.rateLimits) : '<div class="v"><span class="t3">Not set</span></div>'}</div>
   </div>
-  <h2>Rate limits</h2>
-  <div class="panel">${i.rateLimits ? rateLimitsValue(i.rateLimits) : '<span class="t3">Not set</span>'}</div>
   ${i.explores?.length ? `<h2>Explores <span class="t3" style="font-weight:400">${i.explores.length}</span></h2>${explorer(i.explores)}` : ''}
   <h2>Use cases
     <span class="tabs">${FILTERS(i).map(([key, label]) => `<button data-filter="${key}" class="${state.filter === key ? 'on' : ''}">${label}</button>`).join('')}</span>
