@@ -10,7 +10,6 @@ import {
     LIVE_SOURCE_CACHE_TTL_MAX_SECONDS,
 } from '@lightdash/common';
 import {
-    Anchor,
     Button,
     Code,
     Group,
@@ -25,7 +24,6 @@ import {
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import { IconTrash } from '@tabler/icons-react';
 import { useState, type FC, type FormEvent } from 'react';
-import { Link } from 'react-router';
 import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -51,6 +49,7 @@ import {
     TestOutcome,
 } from '../../externalConnections/liveSources/LiveSourceSettingsRows';
 import rowClasses from '../../externalConnections/liveSources/LiveSourceSettingsRows.module.css';
+import { ProjectCacheOffAlert } from '../../externalConnections/liveSources/ProjectCacheOffAlert';
 import {
     normalizeAccountId,
     toTokenLiveSourceCreatePayload,
@@ -510,16 +509,10 @@ export const LiveSourceSettings: FC<{
                         label="Cache"
                         hint={
                             isProjectCacheOff ? (
-                                <>
-                                    Caching is disabled{' '}
-                                    <Anchor
-                                        component={Link}
-                                        to={`/generalSettings/projectManagement/${projectUuid}/caching`}
-                                        fz="inherit"
-                                    >
-                                        Turn on
-                                    </Anchor>
-                                </>
+                                <ProjectCacheOffAlert
+                                    projectUuid={projectUuid}
+                                    message="Caching is disabled"
+                                />
                             ) : (
                                 formatPurgedAt(connection.cachePurgedAt)
                             )
