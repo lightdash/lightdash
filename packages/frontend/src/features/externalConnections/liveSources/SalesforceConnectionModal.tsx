@@ -3,14 +3,7 @@ import {
     type ExternalConnection,
     type SalesforceEnvironment,
 } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    Input,
-    SegmentedControl,
-    Stack,
-    TextInput,
-} from '@mantine/core';
+import { Button, Checkbox, Group, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
@@ -96,19 +89,18 @@ export const SalesforceConnectionModal: FC<Props> = ({
                     {...form.getInputProps('name')}
                 />
                 {connection ? null : (
-                    <Input.Wrapper
-                        label="Environment"
-                        description="Pick Sandbox if you sign in at test.salesforce.com"
-                    >
-                        <SegmentedControl
-                            mt={4}
-                            data={[
-                                { value: 'production', label: 'Production' },
-                                { value: 'sandbox', label: 'Sandbox' },
-                            ]}
-                            {...form.getInputProps('environment')}
-                        />
-                    </Input.Wrapper>
+                    <Checkbox
+                        label="Sign in to a sandbox org"
+                        checked={form.values.environment === 'sandbox'}
+                        onChange={(event) =>
+                            form.setFieldValue(
+                                'environment',
+                                event.currentTarget.checked
+                                    ? 'sandbox'
+                                    : 'production',
+                            )
+                        }
+                    />
                 )}
                 {connection ? (
                     <Group justify="flex-end">
