@@ -17,7 +17,10 @@ import {
     getLiveSourceCacheTtlSeconds,
     getLiveSourceErrorOrigin,
     getSalesforceDescribePath,
+    getSalesforceEnvironment,
+    getSalesforceTokenUrl,
     isJwtUser,
+    isSalesforceEnvironment,
     isSalesforceInstanceOrigin,
     isValidLiveSourceCacheTtlSeconds,
     LIVE_SOURCE_AI_HINT_MAX_LENGTH,
@@ -28,7 +31,6 @@ import {
     ParameterError,
     POSTHOG_REGION_ORIGINS,
     SALESFORCE_OBJECTS,
-    SALESFORCE_TOKEN_URL,
     TimeoutError,
     TooManyRequestsError,
     UnexpectedServerError,
@@ -60,6 +62,7 @@ import {
     type QuerySourceSchemaTable,
     type ReattachableLiveSource,
     type RegisteredAccount,
+    type SalesforceEnvironment,
     type SalesforceObject,
     type UpdateExternalConnection,
 } from '@lightdash/common';
@@ -273,6 +276,11 @@ export type SalesforceOAuthSession = {
     clientId: string;
     redirectUri: string;
     codeVerifier: string;
+    /**
+     * Which login host the sign-in started on; the code is exchanged there too.
+     * Missing on sessions started before a deploy that added it.
+     */
+    environment?: SalesforceEnvironment;
 };
 
 /** What the Google sign-in callback needs from the request that started it. */
@@ -3153,6 +3161,8 @@ export class ExternalConnectionService extends BaseService {
         request: {
             name: string;
             connectionUuid: string | null;
+            /** Ignored on reconnect, which keeps the source's own login host. */
+            environment?: string;
         },
     ): Promise<{
         authorizeUrl: string;
@@ -3172,14 +3182,26 @@ export class ExternalConnectionService extends BaseService {
             throw new ParameterError('Name is required');
         }
         const { connectionUuid } = request;
+        let environment: SalesforceEnvironment;
         if (connectionUuid) {
-            ExternalConnectionService.assertSameSalesforceSource(
-                await this.getOwnedConnection(
-                    account,
-                    projectUuid,
-                    connectionUuid,
-                ),
-                { origin: null },
+            const existing = await this.getOwnedConnection(
+                account,
+                projectUuid,
+                connectionUuid,
+            );
+            ExternalConnectionService.assertSameSalesforceSource(existing, {
+                origin: null,
+            });
+            environment =
+                getSalesforceEnvironment(existing.oauthTokenUrl ?? null) ??
+                'production';
+        } else if (request.environment === undefined) {
+            environment = 'production';
+        } else if (isSalesforceEnvironment(request.environment)) {
+            environment = request.environment;
+        } else {
+            throw new ParameterError(
+                'Salesforce environment must be production or sandbox',
             );
         }
 
@@ -3196,6 +3218,7 @@ export class ExternalConnectionService extends BaseService {
                 codeChallenge: createHash('sha256')
                     .update(codeVerifier)
                     .digest('base64url'),
+                environment,
             }),
             state,
             session: {
@@ -3205,6 +3228,7 @@ export class ExternalConnectionService extends BaseService {
                 clientId: oauthClientId,
                 redirectUri,
                 codeVerifier,
+                environment,
             },
         };
     }
@@ -3276,7 +3300,10 @@ export class ExternalConnectionService extends BaseService {
         await this.assertLiveSourcesEnabled(account);
 
         const client: OAuthAuthorizationCodeClientConfig = {
-            tokenUrl: SALESFORCE_TOKEN_URL,
+            // Sessions started before this field existed have none: production
+            tokenUrl: getSalesforceTokenUrl(
+                session.environment ?? 'production',
+            ),
             clientId: session.clientId,
             clientSecret: this.getOAuthClientSecret(session.clientId),
         };

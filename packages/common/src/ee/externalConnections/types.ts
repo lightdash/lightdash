@@ -182,9 +182,31 @@ export const getHubspotSearchPath = (object: string) =>
 /** Every Salesforce call goes to this REST API version, so responses keep one shape. */
 export const SALESFORCE_API_VERSION = 'v62.0';
 
-/** Where people sign in to a Salesforce org (sandboxes aren't supported). */
-export const SALESFORCE_LOGIN_ORIGIN = 'https://login.salesforce.com';
-export const SALESFORCE_TOKEN_URL = `${SALESFORCE_LOGIN_ORIGIN}/services/oauth2/token`;
+/** Production orgs sign in at login.salesforce.com, sandboxes at test.salesforce.com. */
+export const SALESFORCE_ENVIRONMENTS = ['production', 'sandbox'] as const;
+export type SalesforceEnvironment = (typeof SALESFORCE_ENVIRONMENTS)[number];
+
+export const isSalesforceEnvironment = (
+    value: unknown,
+): value is SalesforceEnvironment =>
+    SALESFORCE_ENVIRONMENTS.includes(value as SalesforceEnvironment);
+
+/** Where people sign in to a Salesforce org. */
+export const SALESFORCE_LOGIN_ORIGINS: Record<SalesforceEnvironment, string> = {
+    production: 'https://login.salesforce.com',
+    sandbox: 'https://test.salesforce.com',
+};
+
+export const getSalesforceTokenUrl = (environment: SalesforceEnvironment) =>
+    `${SALESFORCE_LOGIN_ORIGINS[environment]}/services/oauth2/token`;
+
+/** The environment a saved source signed in to, from its token URL; null for any other URL. */
+export const getSalesforceEnvironment = (
+    tokenUrl: string | null,
+): SalesforceEnvironment | null =>
+    SALESFORCE_ENVIRONMENTS.find(
+        (environment) => getSalesforceTokenUrl(environment) === tokenUrl,
+    ) ?? null;
 
 export const SALESFORCE_QUERY_PATH = `/services/data/${SALESFORCE_API_VERSION}/query`;
 export const SALESFORCE_LIMITS_PATH = `/services/data/${SALESFORCE_API_VERSION}/limits`;
@@ -193,10 +215,7 @@ export const getSalesforceDescribePath = (object: string) =>
     `/services/data/${SALESFORCE_API_VERSION}/sobjects/${object}/describe`;
 
 /** Salesforce's shared login hosts, which never serve an org's API. */
-const SALESFORCE_SHARED_LOGIN_ORIGINS = [
-    SALESFORCE_LOGIN_ORIGIN,
-    'https://test.salesforce.com',
-];
+const SALESFORCE_SHARED_LOGIN_ORIGINS = Object.values(SALESFORCE_LOGIN_ORIGINS);
 
 /** An org's own API host, as its sign-in returns it: a My Domain such as https://acme.my.salesforce.com. */
 const SALESFORCE_INSTANCE_ORIGIN =

@@ -403,6 +403,14 @@ describe('salesforceIntegration access', () => {
         expect(() =>
             validateLiveConnection(salesforceIntegration, {
                 ...connection,
+                origin: 'https://acme--uat.sandbox.my.salesforce.com',
+                oauthTokenUrl:
+                    'https://test.salesforce.com/services/oauth2/token',
+            }),
+        ).not.toThrow();
+        expect(() =>
+            validateLiveConnection(salesforceIntegration, {
+                ...connection,
                 origin: 'https://example.com',
             }),
         ).toThrow(ParameterError);
