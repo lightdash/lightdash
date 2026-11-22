@@ -1,8 +1,8 @@
 /**
  * One live data source's settings, below its summary on its own page. Rows
  * of a label on the left and its control on the right: what the source is
- * (name, AI hint, account, access), then its data (fields and caching), then
- * deleting it. Edits wait for one Save; refreshing and purging act at once.
+ * (account, access, name, AI hint), then its data (fields and caching), then
+ * deleting it. Each setting saves on its own, as soon as it changes.
  */
 import {
     LIVE_SOURCE_AI_HINT_MAX_LENGTH,
@@ -15,13 +15,12 @@ import {
     PasswordInput,
     Select,
     Stack,
-    Text,
     Textarea,
     TextInput,
 } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import { IconTrash } from '@tabler/icons-react';
-import { useState, type FC, type ReactNode } from 'react';
+import { useState, type FC, type KeyboardEvent, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { ConnectionTestResult } from '../../externalConnections/components/ConnectionTestResult';
@@ -124,8 +123,10 @@ const TokenRow: FC<{
     tokenForm: TokenLiveSourceForm | null;
     form: UseFormReturnType<Values>;
     isReplacing: boolean;
+    isSaving: boolean;
     onReplace: () => void;
     onKeep: () => void;
+    onSave: () => void;
 }> = ({
     projectUuid,
     connection,
@@ -133,8 +134,10 @@ const TokenRow: FC<{
     tokenForm,
     form,
     isReplacing,
+    isSaving,
     onReplace,
     onKeep,
+    onSave,
 }) => {
     const testSaved = useTestConnection();
     const testNew = useTestConnectionConfig();
@@ -166,7 +169,7 @@ const TokenRow: FC<{
                 label={label}
                 hint={
                     isReplacing
-                        ? 'Replaces the saved one when you save'
+                        ? 'Replaces the saved one'
                         : 'Saved and encrypted, never shown again'
                 }
             >
@@ -177,16 +180,29 @@ const TokenRow: FC<{
                             size="xs"
                             placeholder="New token"
                             aria-label={`New ${label}`}
-                            data-autofocus
+                            autoFocus
                             {...form.getInputProps('token')}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter') onSave();
+                                if (event.key === 'Escape') onKeep();
+                            }}
                         />
                         <Button
                             size="xs"
                             variant="subtle"
                             color="gray"
+                            disabled={isSaving}
                             onClick={onKeep}
                         >
                             Cancel
+                        </Button>
+                        <Button
+                            size="xs"
+                            disabled={values.token.trim() === ''}
+                            loading={isSaving}
+                            onClick={onSave}
+                        >
+                            Save
                         </Button>
                     </>
                 ) : (
@@ -249,7 +265,6 @@ export const LiveSourceSettings: FC<{
             accountId: (value) => accountField?.validate(value) ?? null,
         },
     });
-    const isSaving = updateSource.isLoading || updateCache.isLoading;
 
     // A window set through the API may not be one of the presets.
     const savedTtl = Number(form.getInitialValues().ttl);
@@ -266,70 +281,62 @@ export const LiveSourceSettings: FC<{
         setIsReplacingToken(false);
     };
 
-    const handleSave = form.onSubmit(async (values) => {
-        const initial = form.getInitialValues();
-        const sourceChanged =
-            values.name !== initial.name ||
-            values.aiHint !== initial.aiHint ||
-            values.accountId !== initial.accountId ||
-            values.token.trim() !== '';
-        await Promise.all([
-            sourceChanged
-                ? updateSource.mutateAsync({
-                      ...params,
-                      data: toLiveSourceAccessUpdate(
-                          connection,
-                          access,
-                          values,
-                      ),
-                  })
-                : null,
-            values.ttl !== initial.ttl
-                ? updateCache.mutateAsync({ ttlSeconds: Number(values.ttl) })
-                : null,
-        ]);
-        const saved = {
-            ...values,
-            name: values.name.trim(),
-            aiHint: values.aiHint.trim(),
-            token: '',
-        };
-        form.setInitialValues(saved);
-        form.setValues(saved);
+    /** Saves the given settings over the saved ones, if they changed and are valid. */
+    const saveSource = async (keys: (keyof LiveSourceAccessValues)[]) => {
+        const saved = form.getInitialValues();
+        const { values } = form;
+        if (keys.every((key) => values[key].trim() === saved[key].trim()))
+            return;
+        if (keys.some((key) => form.validateField(key).hasError)) return;
+        const changed = Object.fromEntries(
+            keys.map((key) => [key, values[key].trim()]),
+        );
+        const next = { ...saved, ...changed };
+        try {
+            await updateSource.mutateAsync({
+                ...params,
+                data: toLiveSourceAccessUpdate(connection, access, next),
+            });
+        } catch {
+            // The hook already says why; the field keeps what was typed.
+            return;
+        }
+        form.setInitialValues({ ...next, token: '' });
+        form.setValues({ ...changed, token: '' });
         setIsReplacingToken(false);
-    });
+    };
+
+    const saveOnEnter =
+        (key: keyof LiveSourceAccessValues) =>
+        (event: KeyboardEvent<HTMLInputElement>) => {
+            if (event.key === 'Enter') event.currentTarget.blur();
+            if (event.key === 'Escape') {
+                form.setFieldValue(key, form.getInitialValues()[key]);
+                form.clearFieldError(key);
+            }
+        };
+
+    const saveTtl = (value: string | null) => {
+        if (!value || value === form.getInitialValues().ttl) return;
+        const previous = form.getInitialValues().ttl;
+        form.setFieldValue('ttl', value);
+        updateCache.mutate(
+            { ttlSeconds: Number(value) },
+            {
+                onSuccess: () =>
+                    form.setInitialValues({
+                        ...form.getInitialValues(),
+                        ttl: value,
+                    }),
+                onError: () => form.setFieldValue('ttl', previous),
+            },
+        );
+    };
 
     return (
-        <form onSubmit={handleSave}>
+        <>
             <Stack gap="lg">
                 <SettingsCard title="Source">
-                    <SettingsRow
-                        label="Name"
-                        hint="Shown in explores and to agents"
-                    >
-                        <TextInput
-                            w={240}
-                            size="xs"
-                            aria-label="Name"
-                            {...form.getInputProps('name')}
-                        />
-                    </SettingsRow>
-                    <SettingsRow
-                        label="AI hint"
-                        hint="Helps agents pick this source"
-                    >
-                        <Textarea
-                            w={240}
-                            size="xs"
-                            aria-label="AI hint"
-                            placeholder="For example: EU storefront"
-                            autosize
-                            minRows={1}
-                            maxRows={4}
-                            maxLength={LIVE_SOURCE_AI_HINT_MAX_LENGTH}
-                            {...form.getInputProps('aiHint')}
-                        />
-                    </SettingsRow>
                     {accountField ? (
                         <SettingsRow
                             label={accountField.label}
@@ -341,6 +348,8 @@ export const LiveSourceSettings: FC<{
                                 aria-label={accountField.label}
                                 placeholder={accountField.placeholder}
                                 {...form.getInputProps('accountId')}
+                                onBlur={() => void saveSource(['accountId'])}
+                                onKeyDown={saveOnEnter('accountId')}
                             />
                         </SettingsRow>
                     ) : null}
@@ -354,8 +363,10 @@ export const LiveSourceSettings: FC<{
                             }
                             form={form}
                             isReplacing={isReplacingToken}
+                            isSaving={updateSource.isLoading}
                             onReplace={() => setIsReplacingToken(true)}
                             onKeep={keepToken}
+                            onSave={() => void saveSource(['token'])}
                         />
                     ) : (
                         <SettingsRow
@@ -373,6 +384,36 @@ export const LiveSourceSettings: FC<{
                             ) : null}
                         </SettingsRow>
                     )}
+                    <SettingsRow
+                        label="Name"
+                        hint="Shown in explores and to agents"
+                    >
+                        <TextInput
+                            w={240}
+                            size="xs"
+                            aria-label="Name"
+                            {...form.getInputProps('name')}
+                            onBlur={() => void saveSource(['name'])}
+                            onKeyDown={saveOnEnter('name')}
+                        />
+                    </SettingsRow>
+                    <SettingsRow
+                        label="AI hint"
+                        hint="Helps agents pick this source"
+                    >
+                        <Textarea
+                            w={240}
+                            size="xs"
+                            aria-label="AI hint"
+                            placeholder="For example: EU storefront"
+                            autosize
+                            minRows={1}
+                            maxRows={4}
+                            maxLength={LIVE_SOURCE_AI_HINT_MAX_LENGTH}
+                            {...form.getInputProps('aiHint')}
+                            onBlur={() => void saveSource(['aiHint'])}
+                        />
+                    </SettingsRow>
                 </SettingsCard>
 
                 <SettingsCard title="Data">
@@ -407,7 +448,9 @@ export const LiveSourceSettings: FC<{
                                 value: String(option),
                                 label: formatFreshness(option),
                             }))}
-                            {...form.getInputProps('ttl')}
+                            value={form.values.ttl}
+                            disabled={updateCache.isLoading}
+                            onChange={saveTtl}
                         />
                     </SettingsRow>
                     <SettingsRow
@@ -441,28 +484,6 @@ export const LiveSourceSettings: FC<{
                         </Button>
                     </SettingsRow>
                 </SettingsCard>
-
-                {form.isDirty() ? (
-                    <Group justify="flex-end" gap="sm">
-                        <Text fz={13} c="dimmed">
-                            Unsaved changes
-                        </Text>
-                        <Button
-                            variant="subtle"
-                            color="gray"
-                            disabled={isSaving}
-                            onClick={() => {
-                                form.reset();
-                                setIsReplacingToken(false);
-                            }}
-                        >
-                            Discard
-                        </Button>
-                        <Button type="submit" loading={isSaving}>
-                            Save changes
-                        </Button>
-                    </Group>
-                ) : null}
             </Stack>
 
             <MantineModal
@@ -479,6 +500,6 @@ export const LiveSourceSettings: FC<{
                     })
                 }
             />
-        </form>
+        </>
     );
 };

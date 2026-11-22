@@ -10,7 +10,7 @@ import {
 } from '@mantine/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useContext, useEffect, useMemo, useRef, type FC } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import { LiveSourceBetaBadge } from '../externalConnections/liveSources/LiveSourceBetaBadge';
 import { DraftMarksContext } from './draftMarks';
 import { useExternalSourceActions } from './externalSources/externalSourceActions';
@@ -24,7 +24,6 @@ import { JoinDiagram } from './JoinDiagram';
 import { useLiveSourceActions } from './liveSources/liveSourceActions';
 import { LiveSourceSettings } from './liveSources/LiveSourceSettings';
 import {
-    LiveSourceHeaderActions,
     LiveSourceSummary,
     LiveSourcesTable,
 } from './liveSources/LiveSourcesView';
@@ -49,7 +48,7 @@ import {
     VIEW_PARAM,
 } from './modelCode';
 import { ModelMark } from './ModelMark';
-import { ModelTabs } from './ModelTabs';
+import { ModelTabs, SourceTabs } from './ModelTabs';
 import {
     FieldDetailModal,
     FieldList,
@@ -427,14 +426,16 @@ export const MainPane: FC<{
             ? source.connectionUuid
             : undefined,
     );
-    // A source's settings replace its fields below the summary
-    const [searchParams, setSearchParams] = useSearchParams();
-    const isLiveSettingsOpen =
-        !!liveConnection && searchParams.get(VIEW_PARAM) === SETTINGS_VIEW;
-    const toggleLiveSettings = () =>
-        setSearchParams(
-            isLiveSettingsOpen ? {} : { [VIEW_PARAM]: SETTINGS_VIEW },
-        );
+    // A source's settings sit in a tab beside its fields or explores
+    const liveSettings = liveConnection ? (
+        <LiveSourceSettings
+            key={liveConnection.externalConnectionUuid}
+            projectUuid={view.project.id}
+            connection={liveConnection}
+            reconnect={liveActions?.getReconnect(liveConnection) ?? null}
+            onDelete={() => liveActions?.remove(liveConnection)}
+        />
+    ) : null;
     // External sources likewise: the list on their kind's page, and each
     // file's or sheet's state and controls above its fields.
     const externalActions = useExternalSourceActions();
@@ -500,12 +501,6 @@ export const MainPane: FC<{
                         {isLiveSourcesPage ? <LiveSourceBetaBadge /> : null}
                     </Group>
                     <Group gap={4} wrap="nowrap" flex="none">
-                        {liveConnection ? (
-                            <LiveSourceHeaderActions
-                                isSettingsOpen={isLiveSettingsOpen}
-                                onToggleSettings={toggleLiveSettings}
-                            />
-                        ) : null}
                         {externalSource ? (
                             <ExternalSourceHeaderActions
                                 projectUuid={view.project.id}
@@ -536,17 +531,7 @@ export const MainPane: FC<{
                 {externalSource ? (
                     <ExternalSourceSummary source={externalSource} />
                 ) : null}
-                {liveConnection && isLiveSettingsOpen ? (
-                    <LiveSourceSettings
-                        key={liveConnection.externalConnectionUuid}
-                        projectUuid={view.project.id}
-                        connection={liveConnection}
-                        reconnect={
-                            liveActions?.getReconnect(liveConnection) ?? null
-                        }
-                        onDelete={() => liveActions?.remove(liveConnection)}
-                    />
-                ) : isLiveSourcesPage ? (
+                {isLiveSourcesPage ? (
                     <LiveSourcesTable
                         projectUuid={view.project.id}
                         onOpen={(connectionUuid) =>
@@ -575,6 +560,7 @@ export const MainPane: FC<{
                         modelName={explore.id}
                         exploreName={explore.name}
                         isModelled={source?.kind === 'modelled'}
+                        settings={liveSettings}
                         lineage={
                             source?.kind === 'modelled' && !isAdded ? (
                                 <JoinDiagram
@@ -592,13 +578,26 @@ export const MainPane: FC<{
                             />
                         }
                     />
+                ) : nodes.length > 0 && liveSettings ? (
+                    <SourceTabs
+                        explores={
+                            <ChildrenList
+                                view={view}
+                                nodes={nodes}
+                                onOpen={onOpenNode}
+                            />
+                        }
+                        settings={liveSettings}
+                    />
                 ) : nodes.length > 0 ? (
                     <ChildrenList
                         view={view}
                         nodes={nodes}
                         onOpen={onOpenNode}
                     />
-                ) : null}
+                ) : (
+                    liveSettings
+                )}
             </Box>
         </Box>
     );

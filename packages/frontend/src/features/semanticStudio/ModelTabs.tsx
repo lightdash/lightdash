@@ -533,6 +533,8 @@ export const ModelTabs: FC<{
     lineage?: ReactNode;
     /** Only modelled (dbt) explores have pre-aggregates; live and external sources do not. */
     isModelled: boolean;
+    /** The source's own settings, for a live data source with this one explore. */
+    settings?: ReactNode;
 }> = ({
     projectUuid,
     modelName,
@@ -540,6 +542,7 @@ export const ModelTabs: FC<{
     fields,
     lineage = null,
     isModelled,
+    settings = null,
 }) => {
     const { data: model } = useSemanticLayerModel(projectUuid, modelName);
     // A repository keeps its own history.
@@ -549,6 +552,7 @@ export const ModelTabs: FC<{
     const preAggregatesEnabled =
         useHealth().data?.preAggregates.enabled === true;
     const hasPreAggregates = isModelled && preAggregatesEnabled;
+    const hasSettings = settings !== null;
     const [searchParams, setSearchParams] = useSearchParams();
     const requested = searchParams.get(VIEW_PARAM);
     const view =
@@ -558,7 +562,9 @@ export const ModelTabs: FC<{
               ? 'lineage'
               : hasPreAggregates && requested === 'pre-aggregates'
                 ? 'pre-aggregates'
-                : 'fields';
+                : hasSettings && requested === 'settings'
+                  ? 'settings'
+                  : 'fields';
     return (
         <Tabs
             className={classes.root}
@@ -567,14 +573,15 @@ export const ModelTabs: FC<{
                 setSearchParams(
                     next === 'history' ||
                         next === 'lineage' ||
-                        next === 'pre-aggregates'
+                        next === 'pre-aggregates' ||
+                        next === 'settings'
                         ? { [VIEW_PARAM]: next }
                         : {},
                     { replace: true },
                 )
             }
         >
-            {hasHistory || hasLineage || hasPreAggregates ? (
+            {hasHistory || hasLineage || hasPreAggregates || hasSettings ? (
                 <Tabs.List mb="md">
                     <Tabs.Tab value="fields">Fields</Tabs.Tab>
                     {hasLineage ? (
@@ -587,6 +594,9 @@ export const ModelTabs: FC<{
                     ) : null}
                     {hasHistory ? (
                         <Tabs.Tab value="history">History</Tabs.Tab>
+                    ) : null}
+                    {hasSettings ? (
+                        <Tabs.Tab value="settings">Settings</Tabs.Tab>
                     ) : null}
                 </Tabs.List>
             ) : null}
@@ -613,6 +623,46 @@ export const ModelTabs: FC<{
                         modelName={model.name}
                         history={model.history}
                     />
+                </Tabs.Panel>
+            ) : null}
+            {view === 'settings' ? (
+                <Tabs.Panel value="settings" className={classes.panel}>
+                    {settings}
+                </Tabs.Panel>
+            ) : null}
+        </Tabs>
+    );
+};
+
+/** A live data source with several explores: the explores, then its settings. */
+export const SourceTabs: FC<{
+    explores: ReactNode;
+    settings: ReactNode;
+}> = ({ explores, settings }) => {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const view =
+        searchParams.get(VIEW_PARAM) === 'settings' ? 'settings' : 'explores';
+    return (
+        <Tabs
+            className={classes.root}
+            value={view}
+            onChange={(next) =>
+                setSearchParams(
+                    next === 'settings' ? { [VIEW_PARAM]: next } : {},
+                    { replace: true },
+                )
+            }
+        >
+            <Tabs.List mb="md">
+                <Tabs.Tab value="explores">Explores</Tabs.Tab>
+                <Tabs.Tab value="settings">Settings</Tabs.Tab>
+            </Tabs.List>
+            <Tabs.Panel value="explores" className={classes.panel}>
+                {explores}
+            </Tabs.Panel>
+            {view === 'settings' ? (
+                <Tabs.Panel value="settings" className={classes.panel}>
+                    {settings}
                 </Tabs.Panel>
             ) : null}
         </Tabs>

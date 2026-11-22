@@ -61,23 +61,6 @@ const LiveSourceSettingsIcon: FC<{
     </Tooltip>
 );
 
-/** The page header's controls for one source: its settings, below the summary. */
-export const LiveSourceHeaderActions: FC<{
-    isSettingsOpen: boolean;
-    onToggleSettings: () => void;
-}> = ({ isSettingsOpen, onToggleSettings }) => (
-    <Button
-        size="xs"
-        variant={isSettingsOpen ? 'light' : 'subtle'}
-        color="gray"
-        leftSection={<MantineIcon icon={IconSettings} size={14} />}
-        aria-pressed={isSettingsOpen}
-        onClick={onToggleSettings}
-    >
-        Settings
-    </Button>
-);
-
 const EmptyLiveSources: FC = () => {
     const actions = useLiveSourceActions();
     return (

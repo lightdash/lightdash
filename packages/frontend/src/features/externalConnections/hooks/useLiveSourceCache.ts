@@ -33,11 +33,11 @@ export const useUpdateLiveSourceCache = (params: LiveSourceParams) => {
             await queryClient.invalidateQueries({
                 queryKey: ['external-connections', params.projectUuid],
             });
-            showToastSuccess({ title: 'Freshness updated' });
+            showToastSuccess({ title: 'Cache updated' });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update freshness',
+                title: 'Failed to update cache',
                 apiError: error,
             });
         },
