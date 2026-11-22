@@ -413,7 +413,7 @@ export const LiveSourceSettings: FC<{
                 <SettingsCard title="Danger zone">
                     <SettingsRow
                         label="Delete live data source"
-                        hint="Removes its explores; charts on it stop working"
+                        hint="Removes its explores. Charts on it stop working"
                     >
                         <Button
                             size="xs"
