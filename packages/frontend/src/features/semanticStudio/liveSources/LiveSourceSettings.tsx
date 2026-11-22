@@ -19,7 +19,6 @@ import {
     Popover,
     Select,
     Stack,
-    Text,
     Textarea,
     TextInput,
     Tooltip,
@@ -86,22 +85,16 @@ const WINDOW_SECONDS = [
 const SettingsRow: FC<{
     label: string;
     hint?: ReactNode;
-    /** The control goes under the label, full width, for longer text. */
-    stacked?: boolean;
     children: ReactNode;
-}> = ({ label, hint, stacked, children }) => (
-    <Box className={classes.settingsRow} data-stacked={stacked || undefined}>
+}> = ({ label, hint, children }) => (
+    <Box className={classes.settingsRow}>
         <Box miw={0}>
             <span className={classes.settingsLabel}>{label}</span>
             {hint ? <Box className={classes.settingsHint}>{hint}</Box> : null}
         </Box>
-        {stacked ? (
-            children
-        ) : (
-            <Group gap="xs" wrap="nowrap" justify="flex-end" flex="none">
-                {children}
-            </Group>
-        )}
+        <Group gap="xs" wrap="nowrap" justify="flex-end" flex="none">
+            {children}
+        </Group>
     </Box>
 );
 
@@ -513,27 +506,18 @@ export const LiveSourceSettings: FC<{
                     <SettingsRow
                         label="AI hint"
                         hint="Helps agents pick this source"
-                        stacked
                     >
-                        <Stack gap={4}>
-                            <Textarea
-                                size="xs"
-                                aria-label="AI hint"
-                                placeholder="For example: EU storefront, orders since 2023"
-                                autosize
-                                minRows={2}
-                                maxRows={8}
-                                maxLength={LIVE_SOURCE_AI_HINT_MAX_LENGTH}
-                                {...form.getInputProps('aiHint')}
-                            />
-                            {form.values.aiHint.length >
-                            LIVE_SOURCE_AI_HINT_MAX_LENGTH * 0.8 ? (
-                                <Text fz="xs" c="dimmed" ta="right">
-                                    {form.values.aiHint.length}/
-                                    {LIVE_SOURCE_AI_HINT_MAX_LENGTH}
-                                </Text>
-                            ) : null}
-                        </Stack>
+                        <Textarea
+                            w={240}
+                            size="xs"
+                            aria-label="AI hint"
+                            placeholder="For example: EU storefront"
+                            autosize
+                            minRows={1}
+                            maxRows={4}
+                            maxLength={LIVE_SOURCE_AI_HINT_MAX_LENGTH}
+                            {...form.getInputProps('aiHint')}
+                        />
                     </SettingsRow>
                     {saveFooter(['name', 'aiHint'])}
                 </SettingsCard>
