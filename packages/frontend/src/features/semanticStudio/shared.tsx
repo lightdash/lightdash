@@ -40,6 +40,7 @@ import {
     type Icon,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import clsx from 'clsx';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import {
@@ -63,7 +64,10 @@ import dbtLogo from '../../components/ProjectConnection/ProjectConnectFlow/Asset
 import { WarehouseTypeLabels } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
 import { WarehouseLogoStack } from '../../components/ProjectConnection/ProjectConnectFlow/WarehouseLogoStack';
 import { useDefaultAiAgent } from '../../ee/features/aiCopilot/components/Launcher/useDefaultAiAgent';
-import { getLiveSource } from '../../features/externalConnections/liveSources/liveSourceCatalog';
+import {
+    getLiveSource,
+    getLiveSourceIconClass,
+} from '../../features/externalConnections/liveSources/liveSourceCatalog';
 import useHealth from '../../hooks/health/useHealth';
 import { useProject } from '../../hooks/useProject';
 import googleSheetsLogo from '../../svgs/google-sheets.svg';
@@ -88,6 +92,7 @@ import {
     type Source,
 } from './model';
 import { CHANGE_KIND_LABELS } from './modelCode';
+import { usePageVirtualizer } from './pageScroll';
 import { SemanticLayerPreview } from './SemanticLayerPreview';
 import classes from './shared.module.css';
 import { startStudioChatRefDrag, useAddToStudioChat } from './studioChatRefs';
@@ -106,7 +111,13 @@ dayjs.extend(relativeTime);
 // Icons
 
 const Logo: FC<{ src: string; size: number }> = ({ src, size }) => (
-    <Image src={src} alt="" w={size} h={size} className={classes.logo} />
+    <Image
+        src={src}
+        alt=""
+        w={size}
+        h={size}
+        className={clsx(classes.logo, getLiveSourceIconClass(src))}
+    />
 );
 
 const WarehouseLogo: FC<{ type: string; size: number }> = ({ type, size }) => {
@@ -611,9 +622,8 @@ export const FieldList: FC<{
             ),
         [rows],
     );
-    const virtualizer = useVirtualizer({
+    const virtualizer = usePageVirtualizer(parentRef, {
         count: rows.length,
-        getScrollElement: () => parentRef.current,
         estimateSize: (index) =>
             rows[index].type === 'divider' ? DIVIDER_HEIGHT : FIELD_ROW_HEIGHT,
         overscan: 12,
@@ -768,7 +778,10 @@ export const FieldList: FC<{
                                     <Box
                                         key={`divider:${row.label}`}
                                         className={classes.fieldDivider}
-                                        top={item.start}
+                                        top={
+                                            item.start -
+                                            virtualizer.options.scrollMargin
+                                        }
                                         role="presentation"
                                     >
                                         <span>{row.label}</span>
@@ -788,7 +801,10 @@ export const FieldList: FC<{
                                     key={field.id}
                                     field={field}
                                     index={index}
-                                    top={item.start}
+                                    top={
+                                        item.start -
+                                        virtualizer.options.scrollMargin
+                                    }
                                     selected={field.id === activeFieldId}
                                     tabStop={index === tabStop}
                                     joined={field.table !== explore.name}

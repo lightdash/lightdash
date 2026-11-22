@@ -130,7 +130,11 @@ const SESSION: SalesforceOAuthSession = {
 
 const start = (
     service: ExternalConnectionService,
-    overrides: { connectionUuid?: string | null; environment?: string } = {},
+    overrides: {
+        connectionUuid?: string | null;
+        environment?: string;
+        explorePrefix?: string;
+    } = {},
 ) =>
     service.startSalesforceOAuth(account, 'proj-1', {
         name: ' Pipeline ',
@@ -367,4 +371,22 @@ describe('Salesforce sign-in', () => {
             expect(externalConnectionModel.create).not.toHaveBeenCalled();
         },
     );
+});
+
+describe('Salesforce sign-in explore prefix', () => {
+    it('keeps the explore prefix the admin typed through sign-in', async () => {
+        const { service, externalConnectionModel } = buildService();
+        const { session } = await start(service, { explorePrefix: 'crm' });
+        expect(session.explorePrefix).toBe('crm');
+
+        await service.completeSalesforceOAuth(
+            account,
+            { ...SESSION, explorePrefix: 'crm' },
+            'the-code',
+        );
+
+        expect(
+            externalConnectionModel.claimLiveSourceName.mock.calls[0][2],
+        ).toEqual(['crm']);
+    });
 });

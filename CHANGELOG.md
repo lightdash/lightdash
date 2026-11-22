@@ -1,3 +1,12 @@
+# [3.365.0](https://github.com/lightdash/lightdash/compare/3.364.0...3.365.0) (2026-11-22)
+
+
+### Features
+
+* **live-sources:** add a source with the same rows as its settings, plainer copy ([#33171](https://github.com/lightdash/lightdash/issues/33171)) ([0fbde3b](https://github.com/lightdash/lightdash/commit/0fbde3b52a3bc47a27fcb8d1cb599f03a59c5b89))
+* **live-sources:** explore prefix for LinkedIn Ads and Salesforce sign-in ([#33174](https://github.com/lightdash/lightdash/issues/33174)) ([c81c979](https://github.com/lightdash/lightdash/commit/c81c979cc48956f6b0dc08eca683fdb0ec6991b8))
+* **semantic-studio:** live data source settings in their own tab, one-page scroll ([#33169](https://github.com/lightdash/lightdash/issues/33169)) ([2e72090](https://github.com/lightdash/lightdash/commit/2e72090659fddb27a5f40320b2b2fbfae9812e2e)), closes [#33168](https://github.com/lightdash/lightdash/issues/33168)
+
 # [3.364.0](https://github.com/lightdash/lightdash/compare/3.363.0...3.364.0) (2026-11-22)
 
 

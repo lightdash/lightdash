@@ -33,4 +33,17 @@ describe('getSalesforceSignInUrl', () => {
         expect(url.searchParams.get('environment')).toBe('sandbox');
         expect(url.searchParams.has('connectionUuid')).toBe(false);
     });
+
+    it('sends the explore prefix the admin typed', () => {
+        const url = new URL(
+            getSalesforceSignInUrl(
+                'project-1',
+                { name: 'Pipeline', explorePrefix: 'crm' },
+                null,
+                'settings',
+            ),
+            'http://localhost',
+        );
+        expect(url.searchParams.get('explorePrefix')).toBe('crm');
+    });
 });

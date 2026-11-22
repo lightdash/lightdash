@@ -189,7 +189,7 @@ const AccessForm: FC<{
         <MantineModal
             opened
             onClose={onClose}
-            title="Access"
+            title="Who can query"
             icon={IconLock}
             size="lg"
             confirmLabel="Save"
@@ -239,7 +239,7 @@ const AccessForm: FC<{
     );
 };
 
-export const LiveSourceAccessModal: FC<{
+export const LiveSourceAccessRuleModal: FC<{
     projectUuid: string;
     connection: LiveSourceConnection;
     onClose: () => void;
@@ -253,7 +253,7 @@ export const LiveSourceAccessModal: FC<{
             <MantineModal
                 opened
                 onClose={onClose}
-                title="Access"
+                title="Who can query"
                 icon={IconLock}
             >
                 <Group justify="center" p="md">
