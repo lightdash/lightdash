@@ -568,6 +568,8 @@ export const ModelTabs: FC<{
     return (
         <Tabs
             className={classes.root}
+            // Settings are as tall as they are; the page scrolls them
+            data-fit-content={view === 'settings' || undefined}
             value={view}
             onChange={(next) =>
                 setSearchParams(
@@ -645,6 +647,7 @@ export const SourceTabs: FC<{
     return (
         <Tabs
             className={classes.root}
+            data-fit-content
             value={view}
             onChange={(next) =>
                 setSearchParams(

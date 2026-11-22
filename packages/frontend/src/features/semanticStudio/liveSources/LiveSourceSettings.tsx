@@ -172,9 +172,7 @@ const TokenRow: FC<{
                 hint={
                     isReplacing
                         ? 'Replaces the saved one'
-                        : connection.secretSetAt
-                          ? `Set ${formatDate(connection.secretSetAt)}`
-                          : 'Saved and encrypted'
+                        : 'Saved and encrypted, never shown again'
                 }
             >
                 {isReplacing ? (
@@ -374,12 +372,8 @@ export const LiveSourceSettings: FC<{
                         />
                     ) : (
                         <SettingsRow
-                            label={getApiSourceTarget(connection.apiSource)}
-                            hint={
-                                connection.secretSetAt
-                                    ? `Signed in ${formatDate(connection.secretSetAt)}`
-                                    : 'Signed in'
-                            }
+                            label="Account"
+                            hint={`Reads ${getApiSourceTarget(connection.apiSource)}`}
                         >
                             {reconnect ? (
                                 <Button
@@ -408,24 +402,23 @@ export const LiveSourceSettings: FC<{
                             onKeyDown={saveOnEnter('name')}
                         />
                     </SettingsRow>
-                    {(fields?.explores ?? []).map((explore, index, all) => (
+                    {connection.liveSourceName ? (
                         <SettingsRow
-                            key={explore.exploreName}
-                            label={all.length > 1 ? explore.label : 'Explore'}
-                            hint="Set when the source was added"
+                            label="Explore prefix"
+                            hint="Names this source's explores. Can't be changed"
                         >
                             <Code className={classes.settingsCode}>
-                                {explore.exploreName}
+                                {connection.liveSourceName}
                             </Code>
                             <CopyActionIcon
-                                value={explore.exploreName}
-                                copyLabel="Copy explore name"
+                                value={connection.liveSourceName}
+                                copyLabel="Copy explore prefix"
                                 variant="subtle"
                                 color="gray"
                                 size="sm"
                             />
                         </SettingsRow>
-                    ))}
+                    ) : null}
                     <SettingsRow
                         label="AI hint"
                         hint="Helps agents pick this source"
@@ -460,7 +453,7 @@ export const LiveSourceSettings: FC<{
                         label="Cache results for"
                         hint={
                             <>
-                                After this, queries fetch fresh data
+                                {formatPurgedAt(connection.cachePurgedAt)}
                                 <ProjectCacheOffAlert
                                     projectUuid={projectUuid}
                                 />
@@ -481,18 +474,13 @@ export const LiveSourceSettings: FC<{
                             disabled={updateCache.isLoading}
                             onChange={saveTtl}
                         />
-                    </SettingsRow>
-                    <SettingsRow
-                        label="Clear cache"
-                        hint={formatPurgedAt(connection.cachePurgedAt)}
-                    >
                         <Button
                             size="xs"
                             variant="default"
                             loading={purge.isLoading}
                             onClick={() => setIsPurgeOpen(true)}
                         >
-                            Clear
+                            Clear cache
                         </Button>
                     </SettingsRow>
                 </SettingsCard>
