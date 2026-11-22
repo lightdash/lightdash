@@ -68,6 +68,8 @@ a.row:hover, .row.case:hover { background: var(--hover); }
 .prop { background: var(--surface); padding: 12px 14px; }
 .props > .prop.wide { grid-column: 1 / -1; }
 .prop .kv { margin-top: 2px; padding-top: 0; border-top: 0; }
+.status.test-with { flex-wrap: wrap; }
+.status.test-with .tags { margin-left: 4px; }
 .limits { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; margin-top: 6px; }
 .limit { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
 .limit .kk { display: block; margin-bottom: 2px; }
@@ -243,10 +245,9 @@ const authAccess = (auth) => {
   const [testColor, testText] = TEST_WITH[auth.testWith];
   const tag = (need) => `<span class="tag ${BLOCKING_NEEDS.includes(need) ? 'warn' : ''}">${esc(words(need))}</span>`;
   return `<div class="kv">
-      <span class="kk">Tester needs</span><span class="tags">${auth.needs.map(tag).join('')}</span>
       <span class="kk">Token</span><span class="status">${dot(auth.token ? 'green' : '')}${auth.token ? 'Customer pastes a key' : 'Not offered'}</span>
       <span class="kk">OAuth</span><span class="status">${dot(oauth.color)}${oauth.text}</span>
-      <span class="kk">Test with</span><span class="status">${dot(testColor)}${testText}</span>
+      <span class="kk">Test with</span><span class="status test-with">${dot(testColor)}${testText}<span class="tags">${auth.needs.map(tag).join('')}</span></span>
     </div>`;
 };
 
