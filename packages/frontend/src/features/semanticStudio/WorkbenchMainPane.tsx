@@ -544,7 +544,6 @@ export const MainPane: FC<{
                         reconnect={
                             liveActions?.getReconnect(liveConnection) ?? null
                         }
-                        onEdit={() => liveActions?.edit(liveConnection)}
                         onDelete={() => liveActions?.remove(liveConnection)}
                     />
                 ) : isLiveSourcesPage ? (

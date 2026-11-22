@@ -1,6 +1,6 @@
 /**
  * Everything an admin does to a live data source, wherever on the Semantic
- * Layer page they start it: add, edit, sign in again and remove. The dialogs
+ * Layer page they start it: add, sign in again and remove. The dialogs
  * live here once, and sign-in callbacks (?connected=, ?signInError=,
  * ?pickGoogleSource=) and ?add=true land here, on whichever page they open.
  */
@@ -46,7 +46,6 @@ type Dialog =
     | { kind: 'closed' }
     | { kind: 'pick' }
     | { kind: 'create'; connector: ApiConnectorType }
-    | { kind: 'edit'; connection: LiveSourceConnection }
     | { kind: 'remove'; connection: LiveSourceConnection }
     | { kind: 'reattach'; connectionUuid: string };
 
@@ -124,7 +123,6 @@ export const LiveSourceManager: FC<{
     const actions = useMemo(
         (): LiveSourceActions => ({
             add: () => setDialog({ kind: 'pick' }),
-            edit: (connection) => setDialog({ kind: 'edit', connection }),
             remove: (connection) => setDialog({ kind: 'remove', connection }),
             getReconnect: (connection) => {
                 const { connector } = connection.apiSource;
@@ -363,17 +361,6 @@ const LiveSourceDialogs: FC<{
                     canSignIn={canSignIn}
                     onClose={close}
                     onCreated={openConnected}
-                />
-            )}
-            {dialog.kind === 'edit' && (
-                <LiveSourceConnectDialog
-                    key={dialog.connection.externalConnectionUuid}
-                    projectUuid={projectUuid}
-                    connector={dialog.connection.apiSource.connector}
-                    connection={dialog.connection}
-                    canSignIn={canSignIn}
-                    onClose={close}
-                    onCreated={close}
                 />
             )}
             {isPickingGoogleSource && (

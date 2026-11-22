@@ -1,12 +1,12 @@
 /**
  * One live data source's settings, below its summary on its own page. Rows
  * of a label on the left and its control on the right: what the source is
- * (name, account, access), then its data (fields and caching), then
+ * (name, what it's used for, account, access), then its data (fields and caching), then
  * deleting it. Edits wait for one Save; refreshing and purging act at once.
  */
 import {
+    LIVE_SOURCE_AI_HINT_MAX_LENGTH,
     LIVE_SOURCE_CACHE_TTL_MAX_SECONDS,
-    type UpdateExternalConnection,
 } from '@lightdash/common';
 import {
     Box,
@@ -16,6 +16,7 @@ import {
     Select,
     Stack,
     Text,
+    Textarea,
     TextInput,
 } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
@@ -38,7 +39,7 @@ import {
     LIVE_SOURCE_UPDATE_MESSAGES,
     useUpdateExternalConnection,
 } from '../../externalConnections/hooks/useUpdateExternalConnection';
-import { getLiveSource } from '../../externalConnections/liveSources/liveSourceCatalog';
+import { getApiSourceTarget } from '../../externalConnections/liveSources/liveSourceCatalog';
 import { ProjectCacheOffAlert } from '../../externalConnections/liveSources/ProjectCacheOffAlert';
 import {
     normalizeAccountId,
@@ -46,6 +47,14 @@ import {
     toTokenLiveSourceUpdatePayload,
     type TokenLiveSourceForm,
 } from '../../externalConnections/liveSources/tokenLiveSource';
+import {
+    getAccountField,
+    getLiveSourceAccess,
+    getTokenLabel,
+    toLiveSourceAccessUpdate,
+    toLiveSourceAccessValues,
+    type LiveSourceAccessValues,
+} from './liveSourceAccess';
 import {
     formatFreshness,
     getLiveSourceFreshness,
@@ -101,30 +110,18 @@ const formatDate = (date: Date | string) =>
 const formatPurgedAt = (purgedAt: Date | null | undefined) =>
     purgedAt ? `Last cleared ${formatDate(purgedAt)}` : 'Never cleared';
 
-type Values = {
-    name: string;
-    accountId: string;
-    /** Blank keeps the saved token. */
-    token: string;
+type Values = LiveSourceAccessValues & {
     /** Seconds, as the select holds it. */
     ttl: string;
 };
-
-const toValues = (
-    connection: LiveSourceConnection,
-    tokenForm: TokenLiveSourceForm | null,
-): Values => ({
-    name: connection.name,
-    accountId: tokenForm ? tokenForm.getAccountId(connection) : '',
-    token: '',
-    ttl: String(getLiveSourceFreshness(connection).seconds),
-});
 
 /** The saved token, or a new one in its place, and a check that it works. */
 const TokenRow: FC<{
     projectUuid: string;
     connection: LiveSourceConnection;
-    tokenForm: TokenLiveSourceForm;
+    label: string;
+    /** Only token integrations know a small read to test with. */
+    tokenForm: TokenLiveSourceForm | null;
     form: UseFormReturnType<Values>;
     isReplacing: boolean;
     onReplace: () => void;
@@ -132,6 +129,7 @@ const TokenRow: FC<{
 }> = ({
     projectUuid,
     connection,
+    label,
     tokenForm,
     form,
     isReplacing,
@@ -143,32 +141,32 @@ const TokenRow: FC<{
     const { values } = form;
     const usesSavedToken = values.token.trim() === '';
     const test = usesSavedToken ? testSaved : testNew;
-    const handleTest = () => {
-        const request = tokenForm.getTestRequest(
-            normalizeAccountId(tokenForm, values.accountId),
+    const handleTest = (definition: TokenLiveSourceForm) => {
+        const request = definition.getTestRequest(
+            normalizeAccountId(definition, values.accountId),
         );
         if (usesSavedToken) {
             testSaved.mutate({
                 projectUuid,
                 connectionUuid: connection.externalConnectionUuid,
-                config: toTokenLiveSourceUpdatePayload(tokenForm, values),
+                config: toTokenLiveSourceUpdatePayload(definition, values),
                 ...request,
             });
             return;
         }
         testNew.mutate({
             projectUuid,
-            config: toTokenLiveSourceCreatePayload(tokenForm, values),
+            config: toTokenLiveSourceCreatePayload(definition, values),
             ...request,
         });
     };
     return (
         <>
             <SettingsRow
-                label={tokenForm.tokenLabel}
+                label={label}
                 hint={
                     isReplacing
-                        ? 'The new token replaces the saved one when you save'
+                        ? 'Replaces the saved one when you save'
                         : 'Saved and encrypted, never shown again'
                 }
             >
@@ -178,7 +176,7 @@ const TokenRow: FC<{
                             w={240}
                             size="xs"
                             placeholder="New token"
-                            aria-label={`New ${tokenForm.tokenLabel}`}
+                            aria-label={`New ${label}`}
                             data-autofocus
                             {...form.getInputProps('token')}
                         />
@@ -196,14 +194,16 @@ const TokenRow: FC<{
                         Replace
                     </Button>
                 )}
-                <Button
-                    size="xs"
-                    variant="default"
-                    loading={test.isLoading}
-                    onClick={handleTest}
-                >
-                    Test
-                </Button>
+                {tokenForm ? (
+                    <Button
+                        size="xs"
+                        variant="default"
+                        loading={test.isLoading}
+                        onClick={() => handleTest(tokenForm)}
+                    >
+                        Test
+                    </Button>
+                ) : null}
             </SettingsRow>
             {test.data ? (
                 <Box px="md" pb="sm">
@@ -219,16 +219,15 @@ export const LiveSourceSettings: FC<{
     connection: LiveSourceConnection;
     /** Null when this instance has no sign-in for the integration. */
     reconnect: (() => void) | null;
-    /** Opens the integration's own form, for sources signed in with it. */
-    onEdit: () => void;
     onDelete: () => void;
-}> = ({ projectUuid, connection, reconnect, onEdit, onDelete }) => {
+}> = ({ projectUuid, connection, reconnect, onDelete }) => {
     const params = {
         projectUuid,
         connectionUuid: connection.externalConnectionUuid,
     };
-    const { setup } = getLiveSource(connection.apiSource.connector);
-    const tokenForm = setup.kind === 'token' ? setup.form : null;
+    const access = getLiveSourceAccess(connection);
+    const accountField = getAccountField(access);
+    const tokenLabel = getTokenLabel(access);
     const { data: fields } = useLiveSourceFields(params);
     const refreshFields = useRefreshLiveSourceFields(params);
     const purge = usePurgeLiveSourceCache(params);
@@ -240,15 +239,14 @@ export const LiveSourceSettings: FC<{
     const [isReplacingToken, setIsReplacingToken] = useState(false);
 
     const form = useForm<Values>({
-        initialValues: toValues(connection, tokenForm),
+        initialValues: {
+            ...toLiveSourceAccessValues(connection, access),
+            ttl: String(getLiveSourceFreshness(connection).seconds),
+        },
         validate: {
             name: (value) =>
                 value.trim().length === 0 ? 'Name is required' : null,
-            accountId: (value) =>
-                !tokenForm?.account ||
-                tokenForm.account.isValid(tokenForm.account.normalize(value))
-                    ? null
-                    : tokenForm.account.invalidMessage,
+            accountId: (value) => accountField?.validate(value) ?? null,
         },
     });
     const isSaving = updateSource.isLoading || updateCache.isLoading;
@@ -272,23 +270,30 @@ export const LiveSourceSettings: FC<{
         const initial = form.getInitialValues();
         const sourceChanged =
             values.name !== initial.name ||
+            values.aiHint !== initial.aiHint ||
             values.accountId !== initial.accountId ||
             values.token.trim() !== '';
-        const sourceUpdate: UpdateExternalConnection = tokenForm
-            ? toTokenLiveSourceUpdatePayload(tokenForm, values)
-            : { name: values.name.trim() };
         await Promise.all([
             sourceChanged
                 ? updateSource.mutateAsync({
                       ...params,
-                      data: sourceUpdate,
+                      data: toLiveSourceAccessUpdate(
+                          connection,
+                          access,
+                          values,
+                      ),
                   })
                 : null,
             values.ttl !== initial.ttl
                 ? updateCache.mutateAsync({ ttlSeconds: Number(values.ttl) })
                 : null,
         ]);
-        const saved = { ...values, name: values.name.trim(), token: '' };
+        const saved = {
+            ...values,
+            name: values.name.trim(),
+            aiHint: values.aiHint.trim(),
+            token: '',
+        };
         form.setInitialValues(saved);
         form.setValues(saved);
         setIsReplacingToken(false);
@@ -309,25 +314,44 @@ export const LiveSourceSettings: FC<{
                             {...form.getInputProps('name')}
                         />
                     </SettingsRow>
-                    {tokenForm?.account ? (
+                    <SettingsRow
+                        label="Used for"
+                        hint="Helps AI agents pick this source"
+                    >
+                        <Textarea
+                            w={240}
+                            size="xs"
+                            aria-label="Used for"
+                            placeholder="For example: EU storefront"
+                            autosize
+                            minRows={1}
+                            maxRows={4}
+                            maxLength={LIVE_SOURCE_AI_HINT_MAX_LENGTH}
+                            {...form.getInputProps('aiHint')}
+                        />
+                    </SettingsRow>
+                    {accountField ? (
                         <SettingsRow
-                            label={tokenForm.account.label}
-                            hint={tokenForm.account.description}
+                            label={accountField.label}
+                            hint={accountField.description}
                         >
                             <TextInput
                                 w={240}
                                 size="xs"
-                                aria-label={tokenForm.account.label}
-                                placeholder={tokenForm.account.placeholder}
+                                aria-label={accountField.label}
+                                placeholder={accountField.placeholder}
                                 {...form.getInputProps('accountId')}
                             />
                         </SettingsRow>
                     ) : null}
-                    {tokenForm ? (
+                    {tokenLabel ? (
                         <TokenRow
                             projectUuid={projectUuid}
                             connection={connection}
-                            tokenForm={tokenForm}
+                            label={tokenLabel}
+                            tokenForm={
+                                access.kind === 'token' ? access.form : null
+                            }
                             form={form}
                             isReplacing={isReplacingToken}
                             onReplace={() => setIsReplacingToken(true)}
@@ -336,15 +360,8 @@ export const LiveSourceSettings: FC<{
                     ) : (
                         <SettingsRow
                             label="Account"
-                            hint="Signed in to the integration"
+                            hint={`Reads ${getApiSourceTarget(connection.apiSource)}`}
                         >
-                            <Button
-                                size="xs"
-                                variant="default"
-                                onClick={onEdit}
-                            >
-                                Edit
-                            </Button>
                             {reconnect ? (
                                 <Button
                                     size="xs"

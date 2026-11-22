@@ -4,8 +4,6 @@ import { type LiveSourceConnection } from './liveSourceRows';
 /** What an admin can do to live data sources; LiveSourceManager provides it. */
 export type LiveSourceActions = {
     add: () => void;
-    /** Opens the source's own form, for what settings can't change in place. */
-    edit: (connection: LiveSourceConnection) => void;
     /** Null when this instance has no sign-in for the integration. */
     getReconnect: (connection: LiveSourceConnection) => (() => void) | null;
     remove: (connection: LiveSourceConnection) => void;
