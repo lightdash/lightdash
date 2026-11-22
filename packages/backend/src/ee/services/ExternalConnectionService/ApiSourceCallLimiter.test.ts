@@ -1,138 +1,294 @@
 import { TooManyRequestsError } from '@lightdash/common';
-import { ApiSourceCallLimiter, getWindowStart } from './ApiSourceCallLimiter';
+import type {
+    ApiSourceRateCharge,
+    ApiSourceRateTurn,
+} from '../../models/ExternalConnectionModel';
+import {
+    ApiSourceCallLimiter,
+    type RateLimitTarget,
+} from './ApiSourceCallLimiter';
 
-const NOW = Date.parse('2026-10-28T12:00:20Z');
-const limits = {
-    concurrentCalls: 3,
-    callsPerMinute: 240,
-    callsPerHour: 2_400,
-    callsPerQuery: 1,
-};
-const connection = {
-    externalConnectionUuid: 'connection-1',
-    name: 'PostHog',
+const NOW = Date.parse('2026-11-22T14:00:00Z');
+const WINDOW = new Date(NOW);
+
+const target = (
+    rateLimits: Partial<RateLimitTarget['rateLimits']> = {},
+): RateLimitTarget => ({
+    limitKey: 'connection-1',
+    integration: 'hubspot',
+    label: 'HubSpot',
     timeoutMs: 30_000,
-};
+    rateLimits: {
+        concurrentCalls: 2,
+        callsPerSecond: null,
+        buckets: [
+            {
+                id: 'hour',
+                label: 'per hour',
+                windowMs: 3_600_000,
+                capacity: 10_000,
+            },
+        ],
+        ...rateLimits,
+    },
+});
+
+const charged = (now: number): ApiSourceRateCharge => ({
+    charged: true,
+    now: new Date(now),
+    windows: [{ bucketId: 'hour', windowStartedAt: WINDOW }],
+});
 
 const buildLimiter = ({
-    leases = [true],
-    counted = { 60: true, 3600: true } as Record<number, boolean>,
+    charges = [] as ((now: number) => ApiSourceRateCharge)[],
+    turns = [] as ((now: number) => ApiSourceRateTurn)[],
+    slots = 2,
 } = {}) => {
     let clock = NOW;
+    const held = new Set<string>();
     const model = {
-        tryAcquireApiSourceCallLease: vi.fn(
-            async (
-                _uuid: string,
-                _slots: number,
-                _leaseUuid: string,
-                _expiresAt: Date,
-            ) => leases.shift() ?? false,
+        chargeApiSourceRateBuckets: vi.fn(
+            async (): Promise<ApiSourceRateCharge> =>
+                (charges.shift() ?? charged)(clock),
         ),
-        tryCountApiSourceCall: vi.fn(
-            async (_uuid: string, windowSeconds: number) =>
-                counted[windowSeconds],
+        refundApiSourceRateBuckets: vi.fn().mockResolvedValue(undefined),
+        bookApiSourceRateTurn: vi.fn(
+            async (): Promise<ApiSourceRateTurn> =>
+                (
+                    turns.shift() ??
+                    ((now) => ({
+                        booked: true,
+                        turnAt: new Date(now),
+                        now: new Date(now),
+                    }))
+                )(clock),
         ),
-        releaseApiSourceCallLease: vi.fn().mockResolvedValue(undefined),
+        tryTakeApiSourceRateSlot: vi.fn(
+            async (_key: string, _slots: number, leaseUuid: string) => {
+                if (held.size >= slots) return false;
+                held.add(leaseUuid);
+                return true;
+            },
+        ),
+        releaseApiSourceRateSlot: vi.fn(
+            async (_key: string, leaseUuid: string) => {
+                held.delete(leaseUuid);
+            },
+        ),
     };
     const sleep = vi.fn(async (ms: number) => {
         clock += ms;
+        // Let other waiting calls run, as a real timer would
+        await new Promise((resolve) => {
+            setImmediate(resolve);
+        });
     });
+    const metrics = {
+        observeLiveSourceRateWait: vi.fn(),
+        incrementLiveSourceRateRefusal: vi.fn(),
+    };
     const limiter = new ApiSourceCallLimiter({
         model,
+        metrics,
         now: () => new Date(clock),
         sleep,
     });
-    return { limiter, model, sleep };
+    return { limiter, model, sleep, metrics, held };
+};
+
+const refusal = async (promise: Promise<unknown>) => {
+    const error = await promise.then(
+        () => null,
+        (e: unknown) => e,
+    );
+    expect(error).toBeInstanceOf(TooManyRequestsError);
+    return error as TooManyRequestsError;
 };
 
 describe('ApiSourceCallLimiter', () => {
-    it('counts the call in both windows and frees its slot afterwards', async () => {
-        const { limiter, model } = buildLimiter();
+    it('charges the buckets, takes a slot, and frees it afterwards', async () => {
+        const { limiter, model, held, metrics } = buildLimiter();
 
         await expect(
-            limiter.run(connection, limits, async () => 'rows'),
-        ).resolves.toBe('rows');
+            limiter.run(target(), async (turn) => turn),
+        ).resolves.toEqual({
+            limitKey: 'connection-1',
+            buckets: ['hour'],
+            waitedMs: 0,
+        });
 
-        const [, slots, leaseUuid, expiresAt] =
-            model.tryAcquireApiSourceCallLease.mock.calls[0];
-        expect(slots).toBe(3);
-        expect(expiresAt).toEqual(new Date(NOW + 45_000));
-        expect(model.tryCountApiSourceCall.mock.calls).toEqual([
-            ['connection-1', 60, new Date('2026-10-28T12:00:00Z'), 240],
-            ['connection-1', 3_600, new Date('2026-10-28T12:00:00Z'), 2_400],
-        ]);
-        expect(model.releaseApiSourceCallLease).toHaveBeenCalledWith(
+        expect(model.chargeApiSourceRateBuckets).toHaveBeenCalledWith(
             'connection-1',
-            leaseUuid,
+            target().rateLimits.buckets,
         );
-    });
-
-    it('waits for a busy connection to free a slot', async () => {
-        const { limiter, sleep } = buildLimiter({ leases: [false, true] });
-
-        await expect(
-            limiter.run(connection, limits, async () => 'rows'),
-        ).resolves.toBe('rows');
-        expect(sleep).toHaveBeenCalledOnce();
-    });
-
-    it('gives up on a connection that stays busy', async () => {
-        const call = vi.fn();
-        const { limiter, model } = buildLimiter({ leases: [] });
-
-        await expect(limiter.run(connection, limits, call)).rejects.toThrow(
-            'Live data source "PostHog" is already running 3 queries at once. Retry in 5 seconds.',
+        // No per-second limit: no paced turn
+        expect(model.bookApiSourceRateTurn).not.toHaveBeenCalled();
+        expect(model.tryTakeApiSourceRateSlot).toHaveBeenCalledWith(
+            'connection-1',
+            2,
+            expect.any(String),
+            45_000,
         );
-        expect(call).not.toHaveBeenCalled();
-        expect(model.releaseApiSourceCallLease).not.toHaveBeenCalled();
-    });
-
-    it('files a busy connection as our own limit, not the API rate limit', async () => {
-        const { limiter } = buildLimiter({ leases: [] });
-
-        await expect(
-            limiter.run(connection, limits, vi.fn()),
-        ).rejects.toMatchObject({
-            data: {
-                liveSourceErrorCode: 'live_source.internal.concurrency_limit',
-            },
-        });
-    });
-
-    it('refuses a call over the per-minute limit with the wait until the next window', async () => {
-        const call = vi.fn();
-        const { limiter, model } = buildLimiter({
-            counted: { 60: false, 3600: true },
-        });
-
-        const run = limiter.run(connection, limits, call);
-        await expect(run).rejects.toBeInstanceOf(TooManyRequestsError);
-        await expect(run).rejects.toThrow(
-            'Live data source "PostHog" reached its limit of 240 calls per minute. Retry after 40 seconds.',
+        expect(held.size).toBe(0);
+        expect(metrics.observeLiveSourceRateWait).toHaveBeenCalledWith(
+            'hubspot',
+            0,
         );
-        expect(call).not.toHaveBeenCalled();
-        expect(model.releaseApiSourceCallLease).toHaveBeenCalledOnce();
     });
 
     it('frees the slot when the call fails', async () => {
-        const { limiter, model } = buildLimiter();
+        const { limiter, held, model } = buildLimiter();
 
         await expect(
-            limiter.run(connection, limits, async () => {
-                throw new Error('PostHog is down');
+            limiter.run(target(), async () => {
+                throw new Error('boom');
             }),
-        ).rejects.toThrow('PostHog is down');
-        expect(model.releaseApiSourceCallLease).toHaveBeenCalledOnce();
+        ).rejects.toThrow('boom');
+        expect(held.size).toBe(0);
+        // A sent call stays charged
+        expect(model.refundApiSourceRateBuckets).not.toHaveBeenCalled();
     });
-});
 
-describe('getWindowStart', () => {
-    it('aligns to the start of the window', () => {
-        expect(getWindowStart(new Date(NOW), 3_600)).toEqual(
-            new Date('2026-10-28T12:00:00Z'),
+    it('runs 6 calls through 2 slots, all of them, in arrival order', async () => {
+        const { limiter, sleep } = buildLimiter();
+        const started: number[] = [];
+
+        await Promise.all(
+            [0, 1, 2, 3, 4, 5].map((i) =>
+                limiter.run(target(), async () => {
+                    started.push(i);
+                    await sleep(1_000);
+                }),
+            ),
         );
-        expect(getWindowStart(new Date('2026-10-28T12:59:59Z'), 60)).toEqual(
-            new Date('2026-10-28T12:59:00Z'),
+
+        expect(started).toEqual([0, 1, 2, 3, 4, 5]);
+    });
+
+    it('waits for a full bucket to reset when that comes before the deadline', async () => {
+        const { limiter, model, sleep } = buildLimiter({
+            charges: [
+                (now) => ({
+                    charged: false,
+                    now: new Date(now),
+                    bucketId: 'hour',
+                    used: 10_000,
+                    resumesAt: new Date(now + 2_000),
+                }),
+            ],
+        });
+
+        await expect(limiter.run(target(), async () => 'rows')).resolves.toBe(
+            'rows',
         );
+        expect(sleep).toHaveBeenCalledWith(2_000);
+        expect(model.chargeApiSourceRateBuckets).toHaveBeenCalledTimes(2);
+    });
+
+    it('refuses a full bucket that resets past the deadline, saying when', async () => {
+        const call = vi.fn();
+        const { limiter, model, metrics } = buildLimiter({
+            charges: [
+                (now) => ({
+                    charged: false,
+                    now: new Date(now),
+                    bucketId: 'hour',
+                    used: 10_000,
+                    resumesAt: new Date(now + 20 * 60_000),
+                }),
+            ],
+        });
+
+        const error = await refusal(limiter.run(target(), call));
+
+        expect(error.message).toBe(
+            'HubSpot limit reached (10,000/10,000 calls per hour). Resumes at 14:20 UTC.',
+        );
+        expect(error.data).toEqual({
+            retryAfterSeconds: 1_200,
+            resumesAt: '2026-11-22T14:20:00.000Z',
+            bucket: { id: 'hour', label: 'per hour' },
+            used: 10_000,
+            limit: 10_000,
+            liveSourceErrorCode: 'live_source.upstream.rate_limited',
+            liveSourceErrorCodes: ['live_source.upstream.rate_limited'],
+        });
+        expect(call).not.toHaveBeenCalled();
+        expect(model.tryTakeApiSourceRateSlot).not.toHaveBeenCalled();
+        expect(metrics.incrementLiveSourceRateRefusal).toHaveBeenCalledWith(
+            'hubspot',
+            'live_source.upstream.rate_limited',
+        );
+    });
+
+    it('waits for its paced turn', async () => {
+        const { limiter, model, sleep } = buildLimiter({
+            turns: [
+                (now) => ({
+                    booked: true,
+                    turnAt: new Date(now + 750),
+                    now: new Date(now),
+                }),
+            ],
+        });
+
+        await limiter.run(target({ callsPerSecond: 4 }), async () => 'rows');
+
+        expect(model.bookApiSourceRateTurn).toHaveBeenCalledWith(
+            'connection-1',
+            250,
+            60_000,
+        );
+        expect(sleep).toHaveBeenCalledWith(750);
+    });
+
+    it('gives the charge back when no paced turn comes before the deadline', async () => {
+        const call = vi.fn();
+        const { limiter, model } = buildLimiter({
+            turns: [
+                (now) => ({
+                    booked: false,
+                    turnAt: new Date(now + 90_000),
+                    now: new Date(now),
+                }),
+            ],
+        });
+
+        const error = await refusal(
+            limiter.run(target({ callsPerSecond: 4 }), call),
+        );
+
+        expect(error.data.resumesAt).toBe('2026-11-22T14:01:30.000Z');
+        expect(model.refundApiSourceRateBuckets).toHaveBeenCalledWith(
+            'connection-1',
+            [{ bucketId: 'hour', windowStartedAt: WINDOW }],
+        );
+        expect(call).not.toHaveBeenCalled();
+    });
+
+    it('gives the charge back when no slot frees up before the deadline', async () => {
+        const call = vi.fn();
+        const { limiter, model } = buildLimiter({ slots: 0 });
+
+        const error = await refusal(
+            limiter.run(target(), call, { deadlineMs: 1_000 }),
+        );
+
+        expect(error.data.liveSourceErrorCode).toBe(
+            'live_source.internal.concurrency_limit',
+        );
+        expect(error.message).toBe(
+            'HubSpot is already running 2 calls at once. Retry in 5 seconds.',
+        );
+        expect(model.refundApiSourceRateBuckets).toHaveBeenCalledOnce();
+        expect(call).not.toHaveBeenCalled();
+    });
+
+    it('charges nothing for an integration without buckets', async () => {
+        const { limiter, model } = buildLimiter();
+
+        await limiter.run(target({ buckets: [] }), async () => 'rows');
+
+        expect(model.chargeApiSourceRateBuckets).not.toHaveBeenCalled();
     });
 });

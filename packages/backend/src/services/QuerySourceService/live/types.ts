@@ -110,11 +110,8 @@ export type LiveIntegration<
     warehouseSqlBuilder?: WarehouseSqlBuilder;
 };
 
-/** How hard Lightdash may call the API through one connection, and how much one query may read. */
+/** How much one query may read, and how long one call may run. Rate limits are in the spec's `rateLimits`. */
 export type LiveLimits = {
-    concurrentCalls: number;
-    callsPerMinute: number;
-    callsPerHour: number;
     /** Calls one query may make; APIs that page need several. */
     callsPerQuery: number;
     /** How long the API lets one call run before failing it. */
