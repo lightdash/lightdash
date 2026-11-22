@@ -1,3 +1,10 @@
+# [3.366.0](https://github.com/lightdash/lightdash/compare/3.365.0...3.366.0) (2026-11-22)
+
+
+### Features
+
+* **live-sources:** describe integration rate limits as data ([#33197](https://github.com/lightdash/lightdash/issues/33197)) ([2874692](https://github.com/lightdash/lightdash/commit/28746921924adb573208c340228e59f9f4f194d7))
+
 # [3.365.0](https://github.com/lightdash/lightdash/compare/3.364.0...3.365.0) (2026-11-22)
 
 
