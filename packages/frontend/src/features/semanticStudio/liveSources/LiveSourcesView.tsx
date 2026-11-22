@@ -163,9 +163,6 @@ export const LiveSourcesTable: FC<{
                 <span role="columnheader" className={classes.number}>
                     API calls
                 </span>
-                <span role="columnheader" className={classes.number}>
-                    Median latency
-                </span>
                 <span />
             </Box>
             {rows.map(({ connection, integration, target, usage: used }) => (
@@ -197,18 +194,23 @@ export const LiveSourcesTable: FC<{
                     <span role="cell" className={classes.number}>
                         {used.dataRead}
                     </span>
-                    <span role="cell" className={classes.number}>
-                        {used.apiCalls}
-                    </span>
-                    <Text
-                        span
+                    <span
                         role="cell"
-                        fz={13}
                         className={classes.number}
-                        c={used.medianLatency ? undefined : 'dimmed'}
+                        title={
+                            used.medianLatency
+                                ? `${used.apiCalls} calls, median latency ${used.medianLatency}`
+                                : undefined
+                        }
                     >
-                        {used.medianLatency ?? '—'}
-                    </Text>
+                        {used.apiCalls}
+                        {used.medianLatency ? (
+                            <span className={classes.statDetail}>
+                                {' '}
+                                ({used.medianLatency})
+                            </span>
+                        ) : null}
+                    </span>
                     <Box role="cell">
                         {canManage ? (
                             <LiveSourceSettingsIcon

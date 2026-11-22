@@ -12,7 +12,6 @@ import {
     Box,
     Button,
     Group,
-    Paper,
     PasswordInput,
     Select,
     Stack,
@@ -71,53 +70,36 @@ const SettingsRow: FC<{
     hint?: ReactNode;
     children: ReactNode;
 }> = ({ label, hint, children }) => (
-    <Group
-        justify="space-between"
-        align="center"
-        wrap="nowrap"
-        gap="xl"
-        px="md"
-        py="sm"
-    >
+    <Box className={classes.settingsRow}>
         <Box miw={0}>
-            <Text fz="sm" fw={500}>
-                {label}
-            </Text>
-            {hint ? (
-                <Box fz="xs" c="dimmed">
-                    {hint}
-                </Box>
-            ) : null}
+            <span className={classes.settingsLabel}>{label}</span>
+            {hint ? <Box className={classes.settingsHint}>{hint}</Box> : null}
         </Box>
         <Group gap="xs" wrap="nowrap" justify="flex-end" flex="none">
             {children}
         </Group>
-    </Group>
+    </Box>
 );
 
+/** The same raised card as the summary above, one row per setting. */
 const SettingsCard: FC<{ title?: string; children: ReactNode }> = ({
     title,
     children,
 }) => (
-    <Stack gap="xs">
-        {title ? (
-            <Text fz="xs" fw={500} c="dimmed" tt="uppercase">
-                {title}
-            </Text>
-        ) : null}
-        <Paper withBorder radius="md">
-            <Box className={classes.settingsRows}>{children}</Box>
-        </Paper>
+    <Stack gap={6}>
+        {title ? <span className={classes.settingsTitle}>{title}</span> : null}
+        <Box className={classes.settings}>{children}</Box>
     </Stack>
 );
 
+const formatDate = (date: Date | string) =>
+    new Date(date).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    });
+
 const formatPurgedAt = (purgedAt: Date | null | undefined) =>
-    purgedAt
-        ? `Last purged ${new Date(purgedAt).toLocaleString(undefined, {
-              dateStyle: 'medium',
-              timeStyle: 'short',
-          })}`
-        : 'Never purged';
+    purgedAt ? `Last purged ${formatDate(purgedAt)}` : 'Never purged';
 
 type Values = {
     name: string;
@@ -184,7 +166,11 @@ const TokenRow: FC<{
         <>
             <SettingsRow
                 label={tokenForm.tokenLabel}
-                hint="Stored encrypted, never shown again"
+                hint={
+                    isReplacing
+                        ? 'The new token replaces the saved one when you save'
+                        : 'Saved and encrypted, never shown again'
+                }
             >
                 {isReplacing ? (
                     <>
@@ -206,14 +192,9 @@ const TokenRow: FC<{
                         </Button>
                     </>
                 ) : (
-                    <>
-                        <Text fz="sm" c="dimmed">
-                            Saved
-                        </Text>
-                        <Button size="xs" variant="default" onClick={onReplace}>
-                            Replace
-                        </Button>
-                    </>
+                    <Button size="xs" variant="default" onClick={onReplace}>
+                        Replace
+                    </Button>
                 )}
                 <Button
                     size="xs"
@@ -278,8 +259,11 @@ export const LiveSourceSettings: FC<{
         ? WINDOW_SECONDS
         : [...WINDOW_SECONDS, savedTtl].sort((a, b) => a - b);
 
+    // Every explore whose fields can be curated, not only the first
     const allFields = fields?.explores.flatMap((explore) => explore.fields);
-    const inUse = allFields?.filter((field) => field.inUse).length;
+    const fieldsHint = allFields
+        ? `${allFields.filter((field) => field.inUse).length} of ${allFields.length} in use`
+        : null;
 
     const keepToken = () => {
         form.setFieldValue('token', '');
@@ -377,15 +361,7 @@ export const LiveSourceSettings: FC<{
                 </SettingsCard>
 
                 <SettingsCard title="Data">
-                    <SettingsRow
-                        label="Fields"
-                        hint="Read them again after the integration adds some"
-                    >
-                        <Text fz="sm" c="dimmed">
-                            {allFields && inUse !== undefined
-                                ? `${inUse} of ${allFields.length} in use`
-                                : '—'}
-                        </Text>
+                    <SettingsRow label="Fields" hint={fieldsHint}>
                         <Button
                             size="xs"
                             variant="default"
@@ -398,11 +374,16 @@ export const LiveSourceSettings: FC<{
                     <SettingsRow
                         label="Reuse results for"
                         hint={
-                            <ProjectCacheOffAlert projectUuid={projectUuid} />
+                            <>
+                                Everyone gets the same result until it expires
+                                <ProjectCacheOffAlert
+                                    projectUuid={projectUuid}
+                                />
+                            </>
                         }
                     >
                         <Select
-                            w={160}
+                            w={116}
                             size="xs"
                             aria-label="Reuse results for"
                             allowDeselect={false}
@@ -429,15 +410,15 @@ export const LiveSourceSettings: FC<{
                     </SettingsRow>
                 </SettingsCard>
 
-                <SettingsCard>
+                <SettingsCard title="Danger zone">
                     <SettingsRow
                         label="Delete live data source"
                         hint="Removes its explores; charts on it stop working"
                     >
                         <Button
                             size="xs"
-                            variant="outline"
-                            color="red"
+                            variant="default"
+                            c="red"
                             leftSection={<MantineIcon icon={IconTrash} />}
                             onClick={onDelete}
                         >
@@ -448,7 +429,7 @@ export const LiveSourceSettings: FC<{
 
                 {form.isDirty() ? (
                     <Group justify="flex-end" gap="sm">
-                        <Text fz="sm" c="dimmed">
+                        <Text fz={13} c="dimmed">
                             Unsaved changes
                         </Text>
                         <Button
