@@ -1,4 +1,5 @@
 import {
+    ApiConnectorType,
     type ExternalConnection,
     type SalesforceEnvironment,
 } from '@lightdash/common';
@@ -15,6 +16,7 @@ import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import { useUpdateExternalConnection } from '../hooks/useUpdateExternalConnection';
+import { LiveSourceTitle } from './LiveSourceIcon';
 import { getSalesforceSignInUrl } from './salesforceConnection';
 
 type Props = {
@@ -72,7 +74,11 @@ export const SalesforceConnectionModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title={connection ? 'Edit Salesforce source' : 'Add Salesforce'}
+            title={
+                <LiveSourceTitle connector={ApiConnectorType.SALESFORCE}>
+                    {connection ? 'Edit Salesforce source' : 'Add Salesforce'}
+                </LiveSourceTitle>
+            }
             confirmLabel={connection ? 'Save' : 'Continue to Salesforce'}
             onConfirm={() => handleSave()}
             confirmLoading={updateMutation.isLoading}

@@ -2,26 +2,20 @@
  * Adds a live data source that reads with an API token, laid out like its
  * settings: how it reaches the integration first, then what it is called.
  */
-import { LIVE_SOURCE_AI_HINT_MAX_LENGTH } from '@lightdash/common';
-import {
-    Anchor,
-    Button,
-    PasswordInput,
-    Stack,
-    Textarea,
-    TextInput,
-} from '@mantine/core';
+import { Anchor, Button, PasswordInput, Stack, TextInput } from '@mantine/core';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import { useCreateExternalConnection } from '../hooks/useCreateExternalConnection';
 import { useNewSourceId } from '../hooks/useNewSourceId';
 import { useTestConnectionConfig } from '../hooks/useTestConnectionConfig';
 import { useUpdateExternalConnection } from '../hooks/useUpdateExternalConnection';
+import { LiveSourceTitle } from './LiveSourceIcon';
 import {
     SettingsCard,
     SettingsRow,
     TestOutcome,
 } from './LiveSourceSettingsRows';
+import { NewLiveSourceDetails } from './NewLiveSourceDetails';
 import {
     normalizeAccountId,
     toTokenLiveSourceCreatePayload,
@@ -29,6 +23,7 @@ import {
     type TokenLiveSourceForm,
 } from './tokenLiveSource';
 
+/** Matches the fields of the Details card below. */
 const FIELD_WIDTH = 240;
 
 type Props = {
@@ -119,7 +114,13 @@ export const TokenLiveSourceModal: FC<Props> = ({
             opened={opened}
             onClose={onClose}
             size="xl"
-            title={`Add ${definition.label} source`}
+            title={
+                <LiveSourceTitle
+                    connector={definition.toApiSource('').connector}
+                >
+                    Add {definition.label} source
+                </LiveSourceTitle>
+            }
             confirmLabel="Add source"
             onConfirm={() => handleSave()}
             confirmLoading={isSaving}
@@ -162,53 +163,11 @@ export const TokenLiveSourceModal: FC<Props> = ({
                     </SettingsRow>
                 </SettingsCard>
 
-                <SettingsCard title="Details">
-                    <SettingsRow
-                        label="Name"
-                        hint="Shown in explores and to agents"
-                    >
-                        <TextInput
-                            w={FIELD_WIDTH}
-                            size="xs"
-                            aria-label="Name"
-                            {...form.getInputProps('name')}
-                        />
-                    </SettingsRow>
-                    <SettingsRow
-                        label="Explore prefix"
-                        hint={
-                            sourceId.error ??
-                            "Added to the start of each explore name, can't be changed later"
-                        }
-                    >
-                        <TextInput
-                            w={FIELD_WIDTH}
-                            size="xs"
-                            aria-label="Explore prefix"
-                            value={sourceId.value}
-                            error={sourceId.error !== null}
-                            onChange={(event) =>
-                                sourceId.onChange(event.currentTarget.value)
-                            }
-                        />
-                    </SettingsRow>
-                    <SettingsRow
-                        label="AI hint"
-                        hint="Helps agents pick this source"
-                    >
-                        <Textarea
-                            w={FIELD_WIDTH}
-                            size="xs"
-                            aria-label="AI hint"
-                            placeholder="For example: EU storefront"
-                            autosize
-                            minRows={1}
-                            maxRows={4}
-                            maxLength={LIVE_SOURCE_AI_HINT_MAX_LENGTH}
-                            {...form.getInputProps('aiHint')}
-                        />
-                    </SettingsRow>
-                </SettingsCard>
+                <NewLiveSourceDetails
+                    nameProps={form.getInputProps('name')}
+                    sourceId={sourceId}
+                    aiHintProps={form.getInputProps('aiHint')}
+                />
             </Stack>
         </MantineModal>
     );

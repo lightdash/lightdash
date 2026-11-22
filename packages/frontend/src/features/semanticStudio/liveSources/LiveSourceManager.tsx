@@ -260,7 +260,6 @@ const LiveSourceConnectDialog: FC<{
                     opened
                     onClose={onClose}
                     projectUuid={projectUuid}
-                    connection={connection}
                     canSignIn={canSignIn}
                     onCreated={onCreated}
                 />

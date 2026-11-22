@@ -15,6 +15,7 @@ import {
 } from './googleConnection';
 import { getApiSourceTarget } from './liveSourceCatalog';
 import { LiveSourceHintField } from './LiveSourceHintField';
+import { LiveSourceTitle } from './LiveSourceIcon';
 import { SourceIdField } from './SourceIdField';
 
 type Props = {
@@ -86,9 +87,11 @@ export const GoogleConnectionModal: FC<Props> = ({
             opened={opened}
             onClose={onClose}
             title={
-                connection
-                    ? `Edit ${source.label} source`
-                    : `Add ${source.label}`
+                <LiveSourceTitle connector={connector}>
+                    {connection
+                        ? `Edit ${source.label} source`
+                        : `Add ${source.label}`}
+                </LiveSourceTitle>
             }
             confirmLabel={connection ? 'Save' : 'Continue to Google'}
             onConfirm={() => handleSave()}

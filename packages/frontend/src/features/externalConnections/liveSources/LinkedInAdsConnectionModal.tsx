@@ -8,6 +8,7 @@ import {
     getLinkedInAdsSignInUrl,
     LINKEDIN_AD_ACCOUNT_ID,
 } from './linkedInAdsConnection';
+import { LiveSourceTitle } from './LiveSourceIcon';
 
 type Props = {
     opened: boolean;
@@ -71,7 +72,13 @@ export const LinkedInAdsConnectionModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title={connection ? 'Edit LinkedIn Ads source' : 'Add LinkedIn Ads'}
+            title={
+                <LiveSourceTitle connector={ApiConnectorType.LINKEDIN_ADS}>
+                    {connection
+                        ? 'Edit LinkedIn Ads source'
+                        : 'Add LinkedIn Ads'}
+                </LiveSourceTitle>
+            }
             confirmLabel={connection ? 'Save' : 'Continue to LinkedIn'}
             onConfirm={() => handleSave()}
             confirmLoading={updateMutation.isLoading}
