@@ -24,6 +24,7 @@ import salesforceIcon from './icons/salesforce.svg';
 import shopifyIcon from './icons/shopify.svg';
 import stripeIcon from './icons/stripe.svg';
 import youtubeAnalyticsIcon from './icons/youtube-analytics.svg';
+import iconClasses from './LiveSourceIcon.module.css';
 import { META_ADS_TOKEN_FORM } from './metaAdsConnection';
 import { PYLON_TOKEN_FORM } from './pylonConnection';
 import { type TokenLiveSourceForm } from './tokenLiveSource';
@@ -74,6 +75,12 @@ const ICONS: Record<string, string> = {
     mixpanel: mixpanelIcon,
     jira: jiraIcon,
 };
+
+/** One-colour marks, such as GitHub's, drawn dark and lightened in dark mode. */
+const MONO_ICONS = new Set([githubIcon]);
+
+export const getLiveSourceIconClass = (icon: string) =>
+    MONO_ICONS.has(icon) ? iconClasses.mono : undefined;
 
 /** The order sources are offered in; every connector appears once. */
 const DISPLAY_ORDER = [

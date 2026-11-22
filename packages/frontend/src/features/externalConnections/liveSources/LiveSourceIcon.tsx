@@ -3,7 +3,7 @@ import { Image } from '@mantine/core';
 import { IconApi } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { getLiveSource } from './liveSourceCatalog';
+import { getLiveSource, getLiveSourceIconClass } from './liveSourceCatalog';
 import { useLiveSourceConnection } from './useLiveSourceConnection';
 
 type Props = {
@@ -17,6 +17,7 @@ export const LiveSourceIcon: FC<Props> = ({ connector, size = 16 }) =>
         <Image
             src={getLiveSource(connector).icon}
             alt=""
+            className={getLiveSourceIconClass(getLiveSource(connector).icon)}
             w={size}
             h={size}
             fit="contain"

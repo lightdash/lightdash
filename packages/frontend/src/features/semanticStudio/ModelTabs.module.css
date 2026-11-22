@@ -5,6 +5,11 @@
     flex-direction: column;
 }
 
+/* Content that sets its own height, so the page scrolls it with room below. */
+.root[data-fit-content] {
+    flex: none;
+}
+
 .panel {
     flex: 1;
     min-height: 0;
