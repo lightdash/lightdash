@@ -1,8 +1,8 @@
 /**
  * One live data source's settings, below its summary on its own page. Rows
- * of a label on the left and its control on the right: what the source is
- * (account, access, name, AI hint), then its data (fields and caching), then
- * deleting it. Each setting saves on its own, as soon as it changes.
+ * of a label on the left and its control on the right: how it signs in
+ * (account, access), what it is (name, AI hint), its data (fields and
+ * caching), then deleting it. Each setting saves on its own, as soon as it changes.
  */
 import {
     LIVE_SOURCE_AI_HINT_MAX_LENGTH,
@@ -336,7 +336,7 @@ export const LiveSourceSettings: FC<{
     return (
         <>
             <Stack gap="lg">
-                <SettingsCard title="Source">
+                <SettingsCard title="Auth">
                     {accountField ? (
                         <SettingsRow
                             label={accountField.label}
@@ -384,6 +384,9 @@ export const LiveSourceSettings: FC<{
                             ) : null}
                         </SettingsRow>
                     )}
+                </SettingsCard>
+
+                <SettingsCard title="Source">
                     <SettingsRow
                         label="Name"
                         hint="Shown in explores and to agents"
