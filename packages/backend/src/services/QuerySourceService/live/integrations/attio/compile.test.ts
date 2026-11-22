@@ -152,8 +152,9 @@ describe('Attio explores', () => {
 
     it('reads each object from its explore name', () => {
         expect(toAttioObject('people')).toBe('people');
+        // The explore of a source not refreshed since it read one object
         expect(() => toAttioObject('records')).toThrow(
-            '"records" isn\'t an Attio object',
+            "Refresh the source's fields",
         );
     });
 

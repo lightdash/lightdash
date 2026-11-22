@@ -2,6 +2,7 @@ import {
     ATTIO_OBJECTS,
     DimensionType,
     FilterOperator,
+    ParameterError,
     type AttioObject,
 } from '@lightdash/common';
 import { z } from 'zod';
@@ -97,7 +98,10 @@ export const toAttioObject = (definitionName: string): AttioObject => {
         (candidate) => candidate === definitionName,
     );
     if (!object) {
-        throw new Error(`"${definitionName}" isn't an Attio object`);
+        // A source last built when it read one object, before a refresh
+        throw new ParameterError(
+            "This Attio table is from before one source read every object. Refresh the source's fields in Live data sources, then use its Companies, People, Deals, Users or Workspaces table.",
+        );
     }
     return object;
 };
