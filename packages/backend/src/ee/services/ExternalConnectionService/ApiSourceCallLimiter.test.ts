@@ -356,6 +356,47 @@ describe('ApiSourceCallLimiter', () => {
             );
         });
 
+        it('holds only the shortest bucket when the integration says no time', async () => {
+            const minute = {
+                id: 'minute',
+                label: 'per minute',
+                windowMs: 60_000,
+                capacity: 60,
+            };
+            const day = {
+                id: 'day',
+                label: 'per day',
+                windowMs: 86_400_000,
+                capacity: 1_000,
+            };
+            const { limiter, model } = buildLimiter({
+                charges: [
+                    (now) => ({
+                        charged: true,
+                        now: new Date(now),
+                        windows: [
+                            { bucketId: 'minute', windowStartedAt: WINDOW },
+                            { bucketId: 'day', windowStartedAt: WINDOW },
+                        ],
+                    }),
+                ],
+            });
+            const call = vi
+                .fn()
+                .mockResolvedValueOnce('limited')
+                .mockResolvedValueOnce('rows');
+
+            await limiter.run(target({ buckets: [minute, day] }), call, {
+                readRateLimit: limitedFor(null),
+            });
+
+            expect(model.holdApiSourceRateBuckets).toHaveBeenCalledWith(
+                'connection-1',
+                [minute],
+                null,
+            );
+        });
+
         it('refuses at once when the hold lasts past the deadline', async () => {
             const call = vi.fn().mockResolvedValue('limited');
             const { limiter } = buildLimiter({

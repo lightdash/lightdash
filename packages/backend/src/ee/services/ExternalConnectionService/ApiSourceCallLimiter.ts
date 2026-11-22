@@ -103,6 +103,27 @@ const refuse = ({
     });
 
 /**
+ * The buckets a "slow down" holds. With a resume time, every bucket the call
+ * charged waits for it. Without one, only the shortest waits to the end of
+ * its window: holding an hourly or daily bucket to its end would stop the
+ * integration for hours over one throttled call.
+ */
+const getBucketsToHold = (
+    target: RateLimitTarget,
+    turn: RateLimitTurn,
+    limited: VendorRateLimit,
+): LiveRateLimitBucket[] => {
+    const charged = target.rateLimits.buckets.filter(({ id }) =>
+        turn.buckets.includes(id),
+    );
+    if (limited.resumesAt || charged.length === 0) return charged;
+    const shortest = charged.reduce((a, b) =>
+        b.windowMs < a.windowMs ? b : a,
+    );
+    return [shortest];
+};
+
+/**
  * Keeps calls to an integration inside its rate limits, across every backend
  * server. A call charges the buckets, then takes its paced turn, then a slot,
  * waiting for each while that comes before its deadline. A call refused
@@ -139,7 +160,7 @@ export class ApiSourceCallLimiter {
 
     /**
      * Runs one call in its turn. When `readRateLimit` says the integration
-     * answered "slow down", the charged buckets are held until it said, and
+     * answered "slow down", the charged buckets are held (`getBucketsToHold`), and
      * the call is retried in a new turn, up to twice within the deadline.
      * Other calls on those buckets wait for the hold instead of calling.
      */
@@ -171,9 +192,7 @@ export class ApiSourceCallLimiter {
             // eslint-disable-next-line no-await-in-loop
             await this.model.holdApiSourceRateBuckets(
                 target.limitKey,
-                target.rateLimits.buckets.filter(({ id }) =>
-                    turn.buckets.includes(id),
-                ),
+                getBucketsToHold(target, turn, limited),
                 limited.resumesAt,
             );
             if (attempt >= MAX_VENDOR_RETRIES) return result;
