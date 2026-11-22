@@ -5,6 +5,8 @@ describeContentAsCodeSchemaContract({
     modelSchema: 'ExternalConnection',
     documentSchema: 'ExternalConnectionAsCode',
     skippedModelFields: [
+        // Who can query a live API source, set in the app by those who manage it.
+        'accessRule',
         // Live API sources are configured in the app, not as code.
         'aiHint',
         'apiSource',
