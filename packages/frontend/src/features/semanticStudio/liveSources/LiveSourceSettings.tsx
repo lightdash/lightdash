@@ -420,7 +420,7 @@ export const LiveSourceSettings: FC<{
         <>
             <Stack gap="lg">
                 <SettingsCard
-                    title="Auth"
+                    title="Access"
                     onSubmit={accountField ? submit(['accountId']) : undefined}
                 >
                     {accountField ? (
@@ -472,7 +472,7 @@ export const LiveSourceSettings: FC<{
                 </SettingsCard>
 
                 <SettingsCard
-                    title="Source"
+                    title="Details"
                     onSubmit={submit(['name', 'aiHint'])}
                 >
                     {connection.liveSourceName ? (
