@@ -41,7 +41,7 @@ export const GoogleConnectionModal: FC<Props> = ({
         },
         validate: {
             name: (value) =>
-                value.trim().length === 0 ? 'Name is required' : null,
+                value.trim().length === 0 ? 'Give it a name' : null,
         },
     });
     const updateMutation = useUpdateExternalConnection(
@@ -101,10 +101,9 @@ export const GoogleConnectionModal: FC<Props> = ({
         >
             <Stack gap="sm">
                 <Text c="dimmed" fz="sm">
-                    {source.description}{' '}
                     {connection
-                        ? 'Reconnect to sign in again with a Google account that can read it.'
-                        : 'Sign in with Google to allow read-only access, then pick what the source reads.'}
+                        ? 'Sign in again with a Google account that can read it'
+                        : 'Sign in with Google for read-only access, then pick what to read'}
                 </Text>
                 <TextInput
                     required

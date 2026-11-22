@@ -71,7 +71,7 @@ export const useTokenLiveSourceForm = (
             : { name: form.defaultName, accountId: '', token: '', aiHint: '' },
         validate: {
             name: (value) =>
-                value.trim().length === 0 ? 'Name is required' : null,
+                value.trim().length === 0 ? 'Give it a name' : null,
             accountId: (value) =>
                 !form.account ||
                 form.account.isValid(form.account.normalize(value))
@@ -79,7 +79,7 @@ export const useTokenLiveSourceForm = (
                     : form.account.invalidMessage,
             token: (value) =>
                 !connection && value.trim().length === 0
-                    ? `${form.tokenLabel} is required`
+                    ? `Paste the ${form.tokenLabel.toLowerCase()}`
                     : null,
         },
     });

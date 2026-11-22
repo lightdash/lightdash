@@ -67,7 +67,9 @@ describe('AddLiveSourceModal', () => {
         resultsCacheStatus.mockReturnValue({ data: { enabled: false } });
         renderModal();
 
-        expect(screen.getByText(/Project caching is off/)).toBeInTheDocument();
+        expect(
+            screen.getByText(/Caching is off for this project/),
+        ).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Turn on' })).toHaveAttribute(
             'href',
             '/generalSettings/projectManagement/project-1/caching',
@@ -77,13 +79,13 @@ describe('AddLiveSourceModal', () => {
     it('shows no warning while the project caches results or is loading', () => {
         renderModal();
         expect(
-            screen.queryByText(/Project caching is off/),
+            screen.queryByText(/Caching is off for this project/),
         ).not.toBeInTheDocument();
 
         resultsCacheStatus.mockReturnValue({ data: undefined });
         renderModal();
         expect(
-            screen.queryByText(/Project caching is off/),
+            screen.queryByText(/Caching is off for this project/),
         ).not.toBeInTheDocument();
     });
 

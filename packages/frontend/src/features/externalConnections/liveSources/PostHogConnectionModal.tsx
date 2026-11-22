@@ -140,8 +140,8 @@ export const PostHogConnectionModal: FC<Props> = ({
                             label="Connect with"
                             hint={
                                 isSignIn
-                                    ? 'Sign in and pick a project on PostHog'
-                                    : 'A key you create in PostHog'
+                                    ? 'Pick a project after signing in'
+                                    : 'Paste a key from PostHog'
                             }
                         >
                             <SegmentedControl
@@ -163,7 +163,7 @@ export const PostHogConnectionModal: FC<Props> = ({
                     ) : null}
                     <SettingsRow
                         label="Region"
-                        hint="Where your PostHog account lives"
+                        hint="Where you log in to PostHog"
                     >
                         <SegmentedControl
                             size="xs"
@@ -185,7 +185,7 @@ export const PostHogConnectionModal: FC<Props> = ({
                         <>
                             <SettingsRow
                                 label="Project ID"
-                                hint="In PostHog, under Settings, Project"
+                                hint="In PostHog under Settings, Project"
                             >
                                 <TextInput
                                     w={FIELD_WIDTH}
@@ -204,7 +204,7 @@ export const PostHogConnectionModal: FC<Props> = ({
                                         />
                                     ) : (
                                         <>
-                                            With the Query Read scope{' '}
+                                            Needs the Query Read scope{' '}
                                             <Anchor
                                                 href={`${origin}/settings/user-api-keys`}
                                                 target="_blank"

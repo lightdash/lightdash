@@ -50,14 +50,13 @@ export const GoogleSourcePickerModal: FC<Props> = ({
                     icon={<MantineIcon icon={IconAlertCircle} />}
                 >
                     {error?.error.message ??
-                        'No Google sign-in is waiting. Add the source again.'}
+                        "We couldn't find your Google sign-in, add the source again"}
                 </Alert>
             ) : (
                 <Stack gap="sm">
                     <Text c="dimmed" fz="sm">
-                        The Google account you signed in with can read more than
-                        one. Pick one for this source; add another source for
-                        the rest.
+                        Your Google account can read more than one, so pick one
+                        for this source
                     </Text>
                     <Radio.Group value={choice} onChange={setChoice}>
                         <Stack gap="xs">

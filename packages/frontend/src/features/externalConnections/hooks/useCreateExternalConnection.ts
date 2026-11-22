@@ -33,7 +33,7 @@ const CONNECTION_MESSAGES: CreateMessages = {
 
 export const LIVE_SOURCE_CREATE_MESSAGES: CreateMessages = {
     created: 'Live data source added',
-    failed: 'Failed to add live data source',
+    failed: "Couldn't add the live data source",
 };
 
 export const useCreateExternalConnection = (

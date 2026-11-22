@@ -14,35 +14,26 @@ const GOOGLE_SOURCES: {
     connector: GoogleConnector;
     label: string;
     defaultName: string;
-    description: string;
 }[] = [
     {
         connector: ApiConnectorType.SEARCH_CONSOLE,
         label: 'Google Search Console',
         defaultName: 'Search Console',
-        description:
-            'AI agents read search clicks, impressions, CTR and position for one Search Console site.',
     },
     {
         connector: ApiConnectorType.GA4,
         label: 'Google Analytics 4',
         defaultName: 'Google Analytics',
-        description:
-            'AI agents run reports on users, sessions, events and revenue for one GA4 property.',
     },
     {
         connector: ApiConnectorType.GOOGLE_ADS,
         label: 'Google Ads',
         defaultName: 'Google Ads',
-        description:
-            'AI agents read cost, clicks, impressions and conversions for one Google Ads account.',
     },
     {
         connector: ApiConnectorType.YOUTUBE_ANALYTICS,
         label: 'YouTube Analytics',
         defaultName: 'YouTube Analytics',
-        description:
-            'AI agents read views, watch time and subscribers for one YouTube channel.',
     },
 ];
 

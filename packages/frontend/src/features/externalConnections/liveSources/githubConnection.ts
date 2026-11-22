@@ -21,9 +21,9 @@ export const GITHUB_TOKEN_FORM = {
     origin: GITHUB_ORIGIN,
     account: {
         label: 'Repository',
-        description: 'The owner and name, as in github.com/owner/name',
+        description: 'As in github.com/owner/name',
         placeholder: 'lightdash/lightdash',
-        invalidMessage: 'Enter the repository as owner/name',
+        invalidMessage: 'Use the owner/name format',
         // Accept a pasted repository URL
         normalize: (value) =>
             value
@@ -35,7 +35,7 @@ export const GITHUB_TOKEN_FORM = {
     },
     tokenLabel: 'Personal access token',
     tokenHint:
-        'A fine-grained token with read access to Metadata, Issues and Pull requests',
+        'Fine-grained, with read access to Metadata, Issues and Pull requests',
     tokenUrl: 'https://github.com/settings/personal-access-tokens/new',
     toApiSource: (repository) => ({
         connector: ApiConnectorType.GITHUB,

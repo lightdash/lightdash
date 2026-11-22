@@ -39,7 +39,7 @@ export const SalesforceConnectionModal: FC<Props> = ({
         },
         validate: {
             name: (value) =>
-                value.trim().length === 0 ? 'Name is required' : null,
+                value.trim().length === 0 ? 'Give it a name' : null,
         },
     });
     const updateMutation = useUpdateExternalConnection();
@@ -86,11 +86,8 @@ export const SalesforceConnectionModal: FC<Props> = ({
         >
             <Stack gap="sm">
                 <Text c="dimmed" fz="sm">
-                    AI agents read opportunities, accounts, leads and contacts
-                    live, one table each. Salesforce counts and totals the
-                    records itself, so most questions take one API call. Fields
-                    come from each object, including custom ones; pick which to
-                    use after connecting.
+                    Reads opportunities, accounts, leads and contacts, and you
+                    pick their fields after connecting
                 </Text>
                 <TextInput
                     required
@@ -98,7 +95,7 @@ export const SalesforceConnectionModal: FC<Props> = ({
                     description={
                         connection
                             ? undefined
-                            : 'Sign in with a user who has the API Enabled permission and can read these objects.'
+                            : 'Sign in as a user with API Enabled who can read these objects'
                     }
                     data-autofocus
                     {...form.getInputProps('name')}
@@ -106,7 +103,7 @@ export const SalesforceConnectionModal: FC<Props> = ({
                 {connection ? null : (
                     <Input.Wrapper
                         label="Environment"
-                        description="Sandbox orgs sign in at test.salesforce.com."
+                        description="Pick Sandbox if you sign in at test.salesforce.com"
                     >
                         <SegmentedControl
                             mt={4}

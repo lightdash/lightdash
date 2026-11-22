@@ -67,16 +67,16 @@ export const usePostHogConnectionForm = (
         initialValues: toPostHogFormValues(connection, canSignIn),
         validate: {
             name: (value) =>
-                value.trim().length === 0 ? 'Name is required' : null,
+                value.trim().length === 0 ? 'Give it a name' : null,
             projectId: (value, values) =>
                 values.authMethod === 'signIn' || PROJECT_ID.test(value.trim())
                     ? null
-                    : 'Enter the numeric project ID from your PostHog URL',
+                    : 'Use the numbers only, as shown in Project settings',
             apiKey: (value, values) =>
                 values.authMethod === 'apiKey' &&
                 connection?.type !== 'bearer_token' &&
                 value.trim().length === 0
-                    ? 'API key is required'
+                    ? 'Paste a personal API key'
                     : null,
         },
     });

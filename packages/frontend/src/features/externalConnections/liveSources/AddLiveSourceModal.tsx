@@ -86,7 +86,7 @@ export const AddLiveSourceModal: FC<Props> = ({
         });
         showToastSuccess({
             title: `Requested ${customIntegrationName}`,
-            subtitle: 'Thanks, it helps us choose what to add next',
+            subtitle: 'Thanks, it helps us decide what to build next',
         });
     };
     return (
@@ -98,7 +98,7 @@ export const AddLiveSourceModal: FC<Props> = ({
                     Add a live data source
                 </LiveSourceBetaTitle>
             }
-            subtitle="Live data from the tools you use, queried on demand and joined with your warehouse."
+            subtitle="Query the tools you use live, right alongside your warehouse"
             size="xl"
             cancelLabel={false}
         >

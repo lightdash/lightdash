@@ -34,11 +34,11 @@ export const LinkedInAdsConnectionModal: FC<Props> = ({
         },
         validate: {
             name: (value) =>
-                value.trim().length === 0 ? 'Name is required' : null,
+                value.trim().length === 0 ? 'Give it a name' : null,
             adAccountId: (value) =>
                 LINKEDIN_AD_ACCOUNT_ID.test(value.trim())
                     ? null
-                    : 'Enter the numeric account ID from Campaign Manager',
+                    : 'Use the numbers only, as shown in Campaign Manager',
         },
     });
     const updateMutation = useUpdateExternalConnection();
@@ -86,9 +86,8 @@ export const LinkedInAdsConnectionModal: FC<Props> = ({
         >
             <Stack gap="sm">
                 <Text c="dimmed" fz="sm">
-                    AI agents read spend, clicks, leads and conversions for one
-                    Campaign Manager ad account. This doesn't include organic
-                    Company Page analytics.
+                    Reads one Campaign Manager ad account, not organic Page
+                    analytics
                 </Text>
                 <TextInput
                     required
@@ -115,7 +114,7 @@ export const LinkedInAdsConnectionModal: FC<Props> = ({
                     <TextInput
                         required
                         label="Ad account ID"
-                        description="The number at the top of the account in Campaign Manager. Sign in with a member who has a role on it."
+                        description="Shown at the top of the account in Campaign Manager"
                         {...form.getInputProps('adAccountId')}
                     />
                 )}

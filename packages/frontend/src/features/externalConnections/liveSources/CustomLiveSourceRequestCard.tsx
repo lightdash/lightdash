@@ -59,7 +59,7 @@ export const CustomLiveSourceRequestCard: FC<Props> = ({ onRequest }) => {
                             </Text>
                             <Text fz="xs" c="dimmed" lineClamp={2}>
                                 {lastRequested === null
-                                    ? "Tell us which one you'd connect next"
+                                    ? 'Tell us what to add next'
                                     : `Requested ${lastRequested}`}
                             </Text>
                         </Stack>
@@ -73,7 +73,7 @@ export const CustomLiveSourceRequestCard: FC<Props> = ({ onRequest }) => {
                             size="xs"
                             w={200}
                             aria-label="Source name"
-                            placeholder="Source name"
+                            placeholder="Which tool?"
                             maxLength={MAX_SOURCE_NAME_LENGTH}
                             value={sourceName}
                             onChange={(event) =>

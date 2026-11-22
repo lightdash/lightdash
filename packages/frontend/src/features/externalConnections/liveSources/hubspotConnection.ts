@@ -19,7 +19,7 @@ export const HUBSPOT_TOKEN_FORM = {
     // The token belongs to one HubSpot account, so there is nothing else to pick
     account: null,
     tokenLabel: 'Access token',
-    tokenHint: `From a private app in HubSpot with the ${SCOPES} scopes`,
+    tokenHint: `From a HubSpot private app with the ${SCOPES} scopes`,
     toApiSource: () => ({ connector: ApiConnectorType.HUBSPOT }),
     getAccountId: () => '',
     getAccess: () => ({

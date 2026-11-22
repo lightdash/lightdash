@@ -15,7 +15,7 @@ export const PYLON_TOKEN_FORM = {
     // The token belongs to one workspace, so there is nothing else to pick
     account: null,
     tokenLabel: 'API token',
-    tokenHint: 'A Pylon admin creates it in Settings, API Tokens',
+    tokenHint: 'Created by a Pylon admin in Settings, API Tokens',
     toApiSource: () => ({ connector: ApiConnectorType.PYLON }),
     getAccountId: () => '',
     getAccess: () => ({

@@ -44,7 +44,7 @@ export const LIVE_INTEGRATION_CATALOG: {
         label: 'PostHog',
         messageLabel: 'PostHog',
         agentLabel: 'PostHog',
-        description: 'Product events, persons and sessions with HogQL',
+        description: 'Events, persons and sessions',
         setup: 'posthog',
         settings: z.object({
             connector: z.literal(ApiConnectorType.POSTHOG),
@@ -72,7 +72,7 @@ export const LIVE_INTEGRATION_CATALOG: {
         label: 'Google Analytics 4',
         messageLabel: 'Google Analytics',
         agentLabel: 'Google Analytics 4',
-        description: 'Users, sessions, events and revenue for a property',
+        description: 'Users, sessions, events and revenue',
         setup: 'google',
         settings: z.object({
             connector: z.literal(ApiConnectorType.GA4),
@@ -139,7 +139,7 @@ export const LIVE_INTEGRATION_CATALOG: {
         label: 'GitHub',
         messageLabel: 'GitHub',
         agentLabel: 'GitHub',
-        description: 'Pull requests, issues and contributors of a repository',
+        description: 'Pull requests, issues and contributors',
         setup: 'token',
         settings: z.object({
             connector: z.literal(ApiConnectorType.GITHUB),
@@ -165,8 +165,7 @@ export const LIVE_INTEGRATION_CATALOG: {
         label: 'Attio',
         messageLabel: 'Attio',
         agentLabel: 'Attio',
-        description:
-            'Companies, people, deals, users and workspaces, read as records',
+        description: 'Companies, people, deals and workspaces',
         setup: 'token',
         settings: z.object({
             connector: z.literal(ApiConnectorType.ATTIO),
@@ -190,8 +189,7 @@ export const LIVE_INTEGRATION_CATALOG: {
         label: 'Salesforce',
         messageLabel: 'Salesforce',
         agentLabel: 'Salesforce',
-        description:
-            'Opportunities, accounts, leads and contacts, totalled by Salesforce with SOQL',
+        description: 'Opportunities, accounts, leads and contacts',
         setup: 'salesforce',
         settings: z.object({
             connector: z.literal(ApiConnectorType.SALESFORCE),
@@ -233,7 +231,7 @@ export const REQUESTABLE_LIVE_INTEGRATIONS = [
     {
         id: 'shopify',
         label: 'Shopify',
-        description: 'Orders, products and sales with ShopifyQL',
+        description: 'Orders, products and sales',
     },
     {
         id: 'stripe',
@@ -248,6 +246,6 @@ export const REQUESTABLE_LIVE_INTEGRATIONS = [
     {
         id: 'jira',
         label: 'Jira',
-        description: 'Issues, sprints and cycle time with JQL',
+        description: 'Issues, sprints and cycle time',
     },
 ] as const;

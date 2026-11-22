@@ -16,7 +16,7 @@ export const ATTIO_TOKEN_FORM = {
     account: null,
     tokenLabel: 'Access token',
     tokenHint:
-        'From Settings, Developers in Attio, with read access to records, objects and users',
+        'Created in Attio under Settings, Developers with read access to records, objects and users',
     toApiSource: () => ({ connector: ApiConnectorType.ATTIO }),
     getAccountId: () => '',
     getAccess: () => ({

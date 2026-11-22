@@ -13,15 +13,15 @@ export const META_ADS_TOKEN_FORM = {
     origin: META_ADS_ORIGIN,
     account: {
         label: 'Ad account ID',
-        description: 'The number after act= in your Ads Manager URL',
+        description: 'Shown under the account name in Ads Manager',
         placeholder: '1234567890',
-        invalidMessage: 'Enter the number from act= in your Ads Manager URL',
+        invalidMessage: 'Use the numbers only, as shown in Ads Manager',
         // Ads Manager shows the account with an act_ prefix; the API path adds its own
         normalize: (value) => value.trim().replace(/^act_/i, ''),
         isValid: (value) => AD_ACCOUNT_ID.test(value),
     },
     tokenLabel: 'Access token',
-    tokenHint: 'A system user token with only the ads_read permission',
+    tokenHint: 'A system user token with just the ads_read permission',
     tokenUrl: 'https://business.facebook.com/settings/system-users',
     toApiSource: (adAccountId) => ({
         connector: ApiConnectorType.META_ADS,
