@@ -10,6 +10,7 @@ import {
     LIVE_SOURCE_CACHE_TTL_MAX_SECONDS,
 } from '@lightdash/common';
 import {
+    Anchor,
     Button,
     Code,
     Group,
@@ -24,9 +25,11 @@ import {
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import { IconTrash } from '@tabler/icons-react';
 import { useState, type FC, type FormEvent } from 'react';
+import { Link } from 'react-router';
 import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
+import { useResultsCacheStatus } from '../../../hooks/useProjectResultsCacheSettings';
 import {
     usePurgeLiveSourceCache,
     useUpdateLiveSourceCache,
@@ -48,7 +51,6 @@ import {
     TestOutcome,
 } from '../../externalConnections/liveSources/LiveSourceSettingsRows';
 import rowClasses from '../../externalConnections/liveSources/LiveSourceSettingsRows.module.css';
-import { ProjectCacheOffAlert } from '../../externalConnections/liveSources/ProjectCacheOffAlert';
 import {
     normalizeAccountId,
     toTokenLiveSourceCreatePayload,
@@ -239,6 +241,9 @@ export const LiveSourceSettings: FC<{
         LIVE_SOURCE_UPDATE_MESSAGES,
     );
     const [isPurgeOpen, setIsPurgeOpen] = useState(false);
+    const { data: projectCache } = useResultsCacheStatus(projectUuid);
+    /** The project doesn't cache results, so the source has nothing to tune or clear. */
+    const isProjectCacheOff = projectCache?.enabled === false;
     const [isReplacingToken, setIsReplacingToken] = useState(false);
 
     const form = useForm<Values>({
@@ -504,36 +509,48 @@ export const LiveSourceSettings: FC<{
                     <SettingsRow
                         label="Cache"
                         hint={
-                            <>
-                                {formatPurgedAt(connection.cachePurgedAt)}
-                                <ProjectCacheOffAlert
-                                    projectUuid={projectUuid}
-                                />
-                            </>
+                            isProjectCacheOff ? (
+                                <>
+                                    Caching is disabled{' '}
+                                    <Anchor
+                                        component={Link}
+                                        to={`/generalSettings/projectManagement/${projectUuid}/caching`}
+                                        fz="inherit"
+                                    >
+                                        Turn on
+                                    </Anchor>
+                                </>
+                            ) : (
+                                formatPurgedAt(connection.cachePurgedAt)
+                            )
                         }
                     >
-                        <Select
-                            w={116}
-                            size="xs"
-                            aria-label="Cache"
-                            allowDeselect={false}
-                            comboboxProps={{ withinPortal: true }}
-                            data={ttlOptions.map((option) => ({
-                                value: String(option),
-                                label: formatFreshness(option),
-                            }))}
-                            value={form.values.ttl}
-                            disabled={updateCache.isLoading}
-                            onChange={saveTtl}
-                        />
-                        <Button
-                            size="xs"
-                            variant="default"
-                            loading={purge.isLoading}
-                            onClick={() => setIsPurgeOpen(true)}
-                        >
-                            Clear cache
-                        </Button>
+                        {isProjectCacheOff ? null : (
+                            <>
+                                <Select
+                                    w={116}
+                                    size="xs"
+                                    aria-label="Cache"
+                                    allowDeselect={false}
+                                    comboboxProps={{ withinPortal: true }}
+                                    data={ttlOptions.map((option) => ({
+                                        value: String(option),
+                                        label: formatFreshness(option),
+                                    }))}
+                                    value={form.values.ttl}
+                                    disabled={updateCache.isLoading}
+                                    onChange={saveTtl}
+                                />
+                                <Button
+                                    size="xs"
+                                    variant="default"
+                                    loading={purge.isLoading}
+                                    onClick={() => setIsPurgeOpen(true)}
+                                >
+                                    Clear cache
+                                </Button>
+                            </>
+                        )}
                     </SettingsRow>
                 </SettingsCard>
 
