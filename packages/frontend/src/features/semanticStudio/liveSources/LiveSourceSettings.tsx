@@ -2,8 +2,8 @@
  * One live data source's settings, below its summary on its own page. Rows
  * of a label on the left and its control on the right: how it signs in
  * (account, access), what it is (name, AI hint), its data (fields and
- * caching), then deleting it. Each setting saves on its own: a field with its Save or Enter,
- * a choice as soon as it changes.
+ * caching), then deleting it. A card of fields saves with its Save changes,
+ * a choice or button as soon as it is used.
  */
 import {
     LIVE_SOURCE_AI_HINT_MAX_LENGTH,
@@ -11,7 +11,6 @@ import {
     type ExternalConnectionTestResponse,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Box,
     Button,
     Code,
@@ -27,11 +26,10 @@ import {
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import {
     IconAlertCircleFilled,
-    IconCheck,
     IconCircleCheckFilled,
     IconTrash,
 } from '@tabler/icons-react';
-import { useState, type FC, type KeyboardEvent, type ReactNode } from 'react';
+import { useState, type FC, type FormEvent, type ReactNode } from 'react';
 import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -101,13 +99,21 @@ const SettingsRow: FC<{
 );
 
 /** The same raised card as the summary above, one row per setting. */
-const SettingsCard: FC<{ title?: string; children: ReactNode }> = ({
-    title,
-    children,
-}) => (
+const SettingsCard: FC<{
+    title?: string;
+    /** Makes the card a form whose rows save together. */
+    onSubmit?: (event: FormEvent) => void;
+    children: ReactNode;
+}> = ({ title, onSubmit, children }) => (
     <Stack gap={6}>
         {title ? <span className={classes.settingsTitle}>{title}</span> : null}
-        <Box className={classes.settings}>{children}</Box>
+        {onSubmit ? (
+            <form className={classes.settings} onSubmit={onSubmit} noValidate>
+                {children}
+            </form>
+        ) : (
+            <Box className={classes.settings}>{children}</Box>
+        )}
     </Stack>
 );
 
@@ -346,35 +352,52 @@ export const LiveSourceSettings: FC<{
         setIsReplacingToken(false);
     };
 
-    /** Enter saves, Escape puts back the saved value. */
-    const saveOnEnter =
-        (key: keyof LiveSourceAccessValues) =>
-        (event: KeyboardEvent<HTMLElement>) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                void saveSource([key]);
-            }
-            if (event.key === 'Escape') {
-                form.setFieldValue(key, form.getInitialValues()[key]);
-                form.clearFieldError(key);
-            }
-        };
+    const isChanged = (keys: (keyof LiveSourceAccessValues)[]) =>
+        keys.some(
+            (key) =>
+                form.values[key].trim() !== form.getInitialValues()[key].trim(),
+        );
 
-    /** A small Save inside a field, shown while it holds an unsaved change. */
-    const saveButton = (key: keyof LiveSourceAccessValues) =>
-        form.values[key].trim() !== form.getInitialValues()[key].trim() ? (
-            <Tooltip label="Save" withinPortal>
-                <ActionIcon
-                    size="sm"
-                    variant="filled"
-                    aria-label="Save"
-                    loading={updateSource.isLoading}
-                    onClick={() => void saveSource([key])}
+    const revert = (keys: (keyof LiveSourceAccessValues)[]) =>
+        keys.forEach((key) => {
+            form.setFieldValue(key, form.getInitialValues()[key]);
+            form.clearFieldError(key);
+        });
+
+    /** Cancel and Save changes under a card's editable rows. */
+    const saveFooter = (keys: (keyof LiveSourceAccessValues)[]) => {
+        const changed = isChanged(keys);
+        return (
+            <Group
+                justify="flex-end"
+                gap="xs"
+                className={classes.settingsFooter}
+            >
+                <Button
+                    size="xs"
+                    variant="default"
+                    disabled={!changed || updateSource.isLoading}
+                    onClick={() => revert(keys)}
                 >
-                    <MantineIcon icon={IconCheck} size={14} />
-                </ActionIcon>
-            </Tooltip>
-        ) : null;
+                    Cancel
+                </Button>
+                <Button
+                    type="submit"
+                    size="xs"
+                    disabled={!changed}
+                    loading={updateSource.isLoading}
+                >
+                    Save changes
+                </Button>
+            </Group>
+        );
+    };
+
+    const submit =
+        (keys: (keyof LiveSourceAccessValues)[]) => (event: FormEvent) => {
+            event.preventDefault();
+            void saveSource(keys);
+        };
 
     const saveTtl = (value: string | null) => {
         if (!value || value === form.getInitialValues().ttl) return;
@@ -396,7 +419,10 @@ export const LiveSourceSettings: FC<{
     return (
         <>
             <Stack gap="lg">
-                <SettingsCard title="Auth">
+                <SettingsCard
+                    title="Auth"
+                    onSubmit={accountField ? submit(['accountId']) : undefined}
+                >
                     {accountField ? (
                         <SettingsRow
                             label={accountField.label}
@@ -408,8 +434,6 @@ export const LiveSourceSettings: FC<{
                                 aria-label={accountField.label}
                                 placeholder={accountField.placeholder}
                                 {...form.getInputProps('accountId')}
-                                onKeyDown={saveOnEnter('accountId')}
-                                rightSection={saveButton('accountId')}
                             />
                         </SettingsRow>
                     ) : null}
@@ -444,9 +468,13 @@ export const LiveSourceSettings: FC<{
                             ) : null}
                         </SettingsRow>
                     )}
+                    {accountField ? saveFooter(['accountId']) : null}
                 </SettingsCard>
 
-                <SettingsCard title="Source">
+                <SettingsCard
+                    title="Source"
+                    onSubmit={submit(['name', 'aiHint'])}
+                >
                     <SettingsRow
                         label="Name"
                         hint="Shown in explores and to agents"
@@ -456,8 +484,6 @@ export const LiveSourceSettings: FC<{
                             size="xs"
                             aria-label="Name"
                             {...form.getInputProps('name')}
-                            onKeyDown={saveOnEnter('name')}
-                            rightSection={saveButton('name')}
                         />
                     </SettingsRow>
                     {connection.liveSourceName ? (
@@ -491,10 +517,9 @@ export const LiveSourceSettings: FC<{
                             maxRows={4}
                             maxLength={LIVE_SOURCE_AI_HINT_MAX_LENGTH}
                             {...form.getInputProps('aiHint')}
-                            onKeyDown={saveOnEnter('aiHint')}
-                            rightSection={saveButton('aiHint')}
                         />
                     </SettingsRow>
+                    {saveFooter(['name', 'aiHint'])}
                 </SettingsCard>
 
                 <SettingsCard title="Data">
