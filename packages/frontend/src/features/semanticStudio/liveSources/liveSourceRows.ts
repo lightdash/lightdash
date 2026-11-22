@@ -5,7 +5,6 @@
 import {
     formatEstimatedBytes,
     getLiveSourceCacheTtlSeconds,
-    LIVE_SOURCE_DEFAULT_CACHE_TTL_SECONDS,
     type ExternalConnection,
     type ExternalConnectionApiSource,
     type ExternalConnectionApiUsage,
@@ -105,20 +104,10 @@ export const formatFreshness = (seconds: number): string => {
     return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
 };
 
-/** How long a source's results answer the same query, and whether an admin set it. */
-export const getLiveSourceFreshness = (connection: LiveSourceConnection) => {
-    const { connector } = connection.apiSource;
-    const seconds = getLiveSourceCacheTtlSeconds(
-        connector,
+/** How long a source's results answer the same query. */
+export const getLiveSourceFreshness = (connection: LiveSourceConnection) => ({
+    seconds: getLiveSourceCacheTtlSeconds(
+        connection.apiSource.connector,
         connection.cacheTtlSeconds,
-    );
-    const isDefault =
-        connection.cacheTtlSeconds === null ||
-        connection.cacheTtlSeconds === undefined;
-    return {
-        seconds,
-        isDefault,
-        defaultSeconds: LIVE_SOURCE_DEFAULT_CACHE_TTL_SECONDS[connector],
-        label: `${formatFreshness(seconds)}${isDefault ? ' (default)' : ''}`,
-    };
-};
+    ),
+});

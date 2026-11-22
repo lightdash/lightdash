@@ -8,16 +8,12 @@ import { type TokenLiveSourceForm } from './tokenLiveSource';
 const AD_ACCOUNT_ID = /^\d{1,20}$/;
 
 export const META_ADS_TOKEN_FORM = {
-    label: 'Meta Ads',
-    defaultName: 'Meta Ads',
-    description:
-        'AI agents read campaign, ad set and ad performance from one ad account live. Use a system user access token with only the ads_read permission.',
     origin: META_ADS_ORIGIN,
     account: {
         label: 'Ad account ID',
-        description: 'The number after act= in your Ads Manager URL',
+        description: 'From Ads Manager',
         placeholder: '1234567890',
-        invalidMessage: 'Enter the number from act= in your Ads Manager URL',
+        invalidMessage: 'Use the numbers only, as shown in Ads Manager',
         // Ads Manager shows the account with an act_ prefix; the API path adds its own
         normalize: (value) => value.trim().replace(/^act_/i, ''),
         isValid: (value) => AD_ACCOUNT_ID.test(value),

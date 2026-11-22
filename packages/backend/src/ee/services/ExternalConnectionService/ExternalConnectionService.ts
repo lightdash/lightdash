@@ -272,6 +272,7 @@ export type PostHogOAuthSession = {
 export type LinkedInAdsOAuthSession = {
     projectUuid: string;
     name: string;
+    explorePrefix?: string;
     adAccountId: string;
     connectionUuid: string | null;
     clientId: string;
@@ -282,6 +283,7 @@ export type LinkedInAdsOAuthSession = {
 export type SalesforceOAuthSession = {
     projectUuid: string;
     name: string;
+    explorePrefix?: string;
     connectionUuid: string | null;
     clientId: string;
     redirectUri: string;
@@ -3116,6 +3118,7 @@ export class ExternalConnectionService extends BaseService {
         projectUuid: string,
         request: {
             name: string;
+            explorePrefix?: string;
             adAccountId: string;
             connectionUuid: string | null;
         },
@@ -3181,6 +3184,7 @@ export class ExternalConnectionService extends BaseService {
             session: {
                 projectUuid,
                 name,
+                explorePrefix: request.explorePrefix,
                 adAccountId,
                 connectionUuid,
                 clientId: oauthClientId,
@@ -3268,6 +3272,9 @@ export class ExternalConnectionService extends BaseService {
 
         const config = withApiSourceAccessRules<CreateExternalConnection>({
             name: session.name,
+            ...(session.explorePrefix
+                ? { explorePrefix: session.explorePrefix }
+                : {}),
             type: 'oauth_authorization_code',
             origin: LINKEDIN_ADS_ORIGIN,
             secret: serializeStoredOAuthTokens(grant.tokens),
@@ -3320,6 +3327,7 @@ export class ExternalConnectionService extends BaseService {
         projectUuid: string,
         request: {
             name: string;
+            explorePrefix?: string;
             connectionUuid: string | null;
             /** Ignored on reconnect, which keeps the source's own login host. */
             environment?: string;
@@ -3384,6 +3392,7 @@ export class ExternalConnectionService extends BaseService {
             session: {
                 projectUuid,
                 name,
+                explorePrefix: request.explorePrefix,
                 connectionUuid,
                 clientId: oauthClientId,
                 redirectUri,
@@ -3525,6 +3534,9 @@ export class ExternalConnectionService extends BaseService {
 
         const config = withApiSourceAccessRules<CreateExternalConnection>({
             name: session.name,
+            ...(session.explorePrefix
+                ? { explorePrefix: session.explorePrefix }
+                : {}),
             type: 'oauth_authorization_code',
             origin,
             secret: serializeStoredOAuthTokens(grant.tokens),
