@@ -115,7 +115,11 @@ const SESSION: LinkedInAdsOAuthSession = {
 
 const start = (
     service: ExternalConnectionService,
-    overrides: { adAccountId?: string; connectionUuid?: string | null } = {},
+    overrides: {
+        adAccountId?: string;
+        connectionUuid?: string | null;
+        explorePrefix?: string;
+    } = {},
 ) =>
     service.startLinkedInAdsOAuth(account, 'proj-1', {
         name: ' LinkedIn Ads ',
@@ -221,4 +225,22 @@ describe('LinkedIn Ads sign-in', () => {
             expect(externalConnectionModel.create).not.toHaveBeenCalled();
         },
     );
+});
+
+describe('LinkedIn Ads sign-in explore prefix', () => {
+    it('keeps the explore prefix the admin typed through sign-in', async () => {
+        const { service, externalConnectionModel } = buildService();
+        const { session } = await start(service, { explorePrefix: 'li_ads' });
+        expect(session.explorePrefix).toBe('li_ads');
+
+        await service.completeLinkedInAdsOAuth(
+            account,
+            { ...SESSION, explorePrefix: 'li_ads' },
+            'the-code',
+        );
+
+        expect(
+            externalConnectionModel.claimLiveSourceName.mock.calls[0][2],
+        ).toEqual(['li_ads']);
+    });
 });

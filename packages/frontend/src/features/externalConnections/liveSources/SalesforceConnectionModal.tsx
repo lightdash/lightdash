@@ -7,6 +7,7 @@ import { Stack, Switch } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
+import { useNewSourceId } from '../hooks/useNewSourceId';
 import { LiveSourceTitle } from './LiveSourceIcon';
 import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
 import { NewLiveSourceDetails } from './NewLiveSourceDetails';
@@ -36,9 +37,22 @@ export const SalesforceConnectionModal: FC<Props> = ({
         },
     });
 
+    const sourceId = useNewSourceId({
+        projectUuid,
+        connector: ApiConnectorType.SALESFORCE,
+        name: form.values.name,
+        enabled: opened,
+    });
+
     const handleSave = form.onSubmit((values) => {
+        if (sourceId.isBlocked) return;
         window.location.assign(
-            getSalesforceSignInUrl(projectUuid, values, null, 'settings'),
+            getSalesforceSignInUrl(
+                projectUuid,
+                { ...values, explorePrefix: sourceId.value },
+                null,
+                'settings',
+            ),
         );
     });
 
@@ -54,6 +68,7 @@ export const SalesforceConnectionModal: FC<Props> = ({
             }
             confirmLabel="Continue to Salesforce"
             onConfirm={() => handleSave()}
+            confirmDisabled={sourceId.isBlocked}
         >
             <Stack gap="lg">
                 <SettingsCard title="Access">
@@ -76,7 +91,10 @@ export const SalesforceConnectionModal: FC<Props> = ({
                         />
                     </SettingsRow>
                 </SettingsCard>
-                <NewLiveSourceDetails nameProps={form.getInputProps('name')} />
+                <NewLiveSourceDetails
+                    nameProps={form.getInputProps('name')}
+                    sourceId={sourceId}
+                />
             </Stack>
         </MantineModal>
     );

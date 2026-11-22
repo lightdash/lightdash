@@ -46,6 +46,7 @@ export class SalesforceOAuthController extends BaseController {
         @Query() connectionUuid?: string,
         @Query() returnTo?: string,
         @Query() environment?: string,
+        @Query() explorePrefix?: string,
     ): Promise<void> {
         assertRegisteredAccount(req.account);
         const { authorizeUrl, state, session } =
@@ -56,6 +57,7 @@ export class SalesforceOAuthController extends BaseController {
                     name,
                     connectionUuid: connectionUuid ?? null,
                     environment,
+                    explorePrefix,
                 },
             );
         req.session.oauth = {

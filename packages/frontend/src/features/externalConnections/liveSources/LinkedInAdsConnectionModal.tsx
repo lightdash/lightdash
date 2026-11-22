@@ -3,6 +3,7 @@ import { Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
+import { useNewSourceId } from '../hooks/useNewSourceId';
 import {
     getLinkedInAdsSignInUrl,
     LINKEDIN_AD_ACCOUNT_FIELD,
@@ -43,9 +44,22 @@ export const LinkedInAdsConnectionModal: FC<Props> = ({
         },
     });
 
+    const sourceId = useNewSourceId({
+        projectUuid,
+        connector: ApiConnectorType.LINKEDIN_ADS,
+        name: form.values.name,
+        enabled: opened,
+    });
+
     const handleSave = form.onSubmit((values) => {
+        if (sourceId.isBlocked) return;
         window.location.assign(
-            getLinkedInAdsSignInUrl(projectUuid, values, null, 'settings'),
+            getLinkedInAdsSignInUrl(
+                projectUuid,
+                { ...values, explorePrefix: sourceId.value },
+                null,
+                'settings',
+            ),
         );
     });
 
@@ -61,6 +75,7 @@ export const LinkedInAdsConnectionModal: FC<Props> = ({
             }
             confirmLabel="Continue to LinkedIn"
             onConfirm={() => handleSave()}
+            confirmDisabled={sourceId.isBlocked}
         >
             <Stack gap="lg">
                 <SettingsCard title="Access">
@@ -78,7 +93,10 @@ export const LinkedInAdsConnectionModal: FC<Props> = ({
                         />
                     </SettingsRow>
                 </SettingsCard>
-                <NewLiveSourceDetails nameProps={form.getInputProps('name')} />
+                <NewLiveSourceDetails
+                    nameProps={form.getInputProps('name')}
+                    sourceId={sourceId}
+                />
             </Stack>
         </MantineModal>
     );

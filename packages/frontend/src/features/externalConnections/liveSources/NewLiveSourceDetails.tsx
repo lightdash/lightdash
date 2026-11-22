@@ -9,8 +9,7 @@ const NEW_LIVE_SOURCE_FIELD_WIDTH = 240;
 /** What a new source is called, the same rows as its settings. */
 export const NewLiveSourceDetails: FC<{
     nameProps: GetInputPropsReturnType;
-    /** Absent where the sign-in names the explores itself. */
-    sourceId?: ReturnType<typeof useNewSourceId>;
+    sourceId: ReturnType<typeof useNewSourceId>;
 }> = ({ nameProps, sourceId }) => (
     <SettingsCard title="Details">
         <SettingsRow label="Name" hint="Shown in explores">
@@ -21,48 +20,44 @@ export const NewLiveSourceDetails: FC<{
                 {...nameProps}
             />
         </SettingsRow>
-        {sourceId ? (
-            <SettingsRow
-                label="Explore prefix"
-                hint={
-                    sourceId.error ? (
-                        <>
-                            {sourceId.error}
-                            {sourceId.suggestion ? (
-                                <>
-                                    , try{' '}
-                                    <Anchor
-                                        component="button"
-                                        type="button"
-                                        fz="inherit"
-                                        onClick={() =>
-                                            sourceId.suggestion &&
-                                            sourceId.onChange(
-                                                sourceId.suggestion,
-                                            )
-                                        }
-                                    >
-                                        {sourceId.suggestion}
-                                    </Anchor>
-                                </>
-                            ) : null}
-                        </>
-                    ) : (
-                        "Added to the start of each explore name, can't be changed later"
-                    )
+        <SettingsRow
+            label="Explore prefix"
+            hint={
+                sourceId.error ? (
+                    <>
+                        {sourceId.error}
+                        {sourceId.suggestion ? (
+                            <>
+                                , try{' '}
+                                <Anchor
+                                    component="button"
+                                    type="button"
+                                    fz="inherit"
+                                    onClick={() =>
+                                        sourceId.suggestion &&
+                                        sourceId.onChange(sourceId.suggestion)
+                                    }
+                                >
+                                    {sourceId.suggestion}
+                                </Anchor>
+                            </>
+                        ) : null}
+                    </>
+                ) : (
+                    "Added to the start of each explore name, can't be changed later"
+                )
+            }
+        >
+            <TextInput
+                w={NEW_LIVE_SOURCE_FIELD_WIDTH}
+                size="xs"
+                aria-label="Explore prefix"
+                value={sourceId.value}
+                error={sourceId.error !== null}
+                onChange={(event) =>
+                    sourceId.onChange(event.currentTarget.value)
                 }
-            >
-                <TextInput
-                    w={NEW_LIVE_SOURCE_FIELD_WIDTH}
-                    size="xs"
-                    aria-label="Explore prefix"
-                    value={sourceId.value}
-                    error={sourceId.error !== null}
-                    onChange={(event) =>
-                        sourceId.onChange(event.currentTarget.value)
-                    }
-                />
-            </SettingsRow>
-        ) : null}
+            />
+        </SettingsRow>
     </SettingsCard>
 );
