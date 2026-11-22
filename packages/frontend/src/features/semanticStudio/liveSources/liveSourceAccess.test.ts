@@ -52,6 +52,7 @@ describe('liveSourceAccess', () => {
             aiHint: 'Product analytics',
             accountId: '42',
             token: '',
+            region: 'eu',
         });
         expect(
             toLiveSourceAccessUpdate(connection, access, {
@@ -65,5 +66,11 @@ describe('liveSourceAccess', () => {
             secret: 'phx_new',
             aiHint: 'Product analytics',
         });
+        expect(
+            toLiveSourceAccessUpdate(connection, access, {
+                ...values,
+                region: 'us',
+            }),
+        ).toMatchObject({ origin: POSTHOG_REGION_ORIGINS.us });
     });
 });

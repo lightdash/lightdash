@@ -11,6 +11,7 @@ import { getLiveSource } from '../../externalConnections/liveSources/liveSourceC
 import {
     toPostHogFormValues,
     toPostHogUpdatePayload,
+    type PostHogRegion,
 } from '../../externalConnections/liveSources/postHogConnection';
 import {
     toTokenLiveSourceUpdatePayload,
@@ -29,6 +30,8 @@ export type LiveSourceAccessValues = {
     accountId: string;
     /** Blank keeps the saved token. */
     token: string;
+    /** Where a PostHog key reaches; other sources ignore it. */
+    region: PostHogRegion;
 };
 
 type AccountField = {
@@ -115,6 +118,10 @@ export const toLiveSourceAccessValues = (
         aiHint: connection.aiHint ?? '',
         accountId,
         token: '',
+        region:
+            access.kind === 'posthogKey'
+                ? toPostHogFormValues(connection, false).region
+                : 'us',
     };
 };
 
@@ -134,6 +141,7 @@ export const toLiveSourceAccessUpdate = (
             return toPostHogUpdatePayload({
                 ...toPostHogFormValues(connection, false),
                 name: values.name,
+                region: values.region,
                 projectId: values.accountId,
                 apiKey: values.token,
                 aiHint,
