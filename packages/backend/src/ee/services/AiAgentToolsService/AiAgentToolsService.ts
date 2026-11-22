@@ -5465,6 +5465,10 @@ export class AiAgentToolsService extends BaseService {
                     context.projectUuid,
                     composerChartUuid,
                 );
+                await this.assertComposerChartExploresInScope(
+                    context,
+                    chart.pipeline,
+                );
                 const summary: ComposerChartSummary = {
                     uuid: chart.uuid,
                     slug: chart.slug,
@@ -5473,6 +5477,27 @@ export class AiAgentToolsService extends BaseService {
                 };
                 return { summary, dashboard, tileUuid: tile.uuid };
             },
+        );
+    }
+
+    /** A scoped agent may only open a composer chart whose explores its tags and integrations expose. */
+    private async assertComposerChartExploresInScope(
+        context: AiAgentToolsRuntimeContext,
+        pipeline: ComposerChartPipeline,
+    ) {
+        const hasTags = !!context.tags && context.tags.length > 0;
+        if (!hasTags && context.liveSourceUuids === null) return;
+        const exploreNames = new Set(
+            pipeline.nodes.flatMap((node) =>
+                node.sourceType === QuerySourceType.SEMANTIC_LAYER
+                    ? [node.exploreName]
+                    : [],
+            ),
+        );
+        await Promise.all(
+            [...exploreNames].map((table) =>
+                this.getExploreForRuntime(context, { table }),
+            ),
         );
     }
 

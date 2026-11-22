@@ -3893,6 +3893,78 @@ describe('AiAgentToolsService', () => {
             expect(run).not.toHaveBeenCalled();
         });
 
+        it.each([
+            ['runs one on a chosen integration', 'ga4_sessions'],
+            ['refuses one on an excluded integration', 'hubspot_deals'],
+        ])(
+            '%s for an agent limited to some integrations',
+            async (_case, exploreName) => {
+                const run = vi.fn().mockResolvedValue({
+                    queries: [{ nodeId: 'joined', queryUuid: 'joined-query' }],
+                });
+                const liveExplore = (name: string, connectionUuid: string) => ({
+                    ...makeExplore({ name }),
+                    type: ExploreType.API_SOURCE,
+                    apiSource: { connectionUuid } as Explore['apiSource'],
+                });
+                const runtime = makeService({
+                    explores: {
+                        ga4_sessions: liveExplore('ga4_sessions', 'ga4-uuid'),
+                        hubspot_deals: liveExplore(
+                            'hubspot_deals',
+                            'hubspot-uuid',
+                        ),
+                    },
+                    dashboardService: {
+                        getByIdOrSlug: vi
+                            .fn()
+                            .mockResolvedValue(salesDashboard),
+                    },
+                    composerChartService: {
+                        get: vi.fn().mockResolvedValue({
+                            ...storedComposerChart,
+                            pipeline: {
+                                terminalNodeId: 'joined',
+                                nodes: [
+                                    {
+                                        nodeId: 'joined',
+                                        sourceType:
+                                            QuerySourceType.SEMANTIC_LAYER,
+                                        exploreName,
+                                    },
+                                ],
+                            },
+                        }),
+                        isEnabled: vi.fn().mockResolvedValue(true),
+                        runWithSavedDashboardState: run,
+                    },
+                    asyncQueryService: {
+                        getAsyncQueryResults: vi.fn().mockResolvedValue({
+                            status: QueryHistoryStatus.READY,
+                            columns: {},
+                            rows: [],
+                        }),
+                        getQueryExecutionStats: vi.fn().mockResolvedValue(null),
+                    },
+                }).createRuntime(
+                    makeRuntimeContext({ liveSourceUuids: ['ga4-uuid'] }),
+                );
+
+                const query = runtime.runComposerChartQuery({
+                    chartSlug: 'revenue-vs-target',
+                    dashboardSlug: 'sales',
+                });
+
+                if (exploreName === 'ga4_sessions') {
+                    await expect(query).resolves.toMatchObject({ rows: [] });
+                    expect(run).toHaveBeenCalledOnce();
+                } else {
+                    await expect(query).rejects.toThrow(NotFoundError);
+                    expect(run).not.toHaveBeenCalled();
+                }
+            },
+        );
+
         it('refuses to run a composer chart on a dashboard outside the agent spaces', async () => {
             const { service, run } = makeComposerService();
 
