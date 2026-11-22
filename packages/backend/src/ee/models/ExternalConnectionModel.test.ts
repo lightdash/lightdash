@@ -420,7 +420,13 @@ describe('ExternalConnectionModel', () => {
                 },
             ]);
 
-            const usage = await model.getApiSourceUsage(PROJECT_UUID);
+            const since = new Date('2026-10-21T00:00:00Z');
+            const usage = await model.getApiSourceUsage(PROJECT_UUID, since);
+
+            expect(tracker.history.select[0].sql).toContain(
+                '"created_at" >= $2',
+            );
+            expect(tracker.history.select[0].bindings).toContain(since);
 
             expect(tracker.history.select[0].sql).toContain(
                 'percentile_cont(0.5) within group (order by duration_ms) filter (where api_calls > 0)',
@@ -444,6 +450,97 @@ describe('ExternalConnectionModel', () => {
                     medianDurationMs: null,
                 },
             ]);
+        });
+    });
+
+    describe('cleanupApiSourceCalls', () => {
+        const cutoff = new Date('2026-10-21T00:00:00Z');
+        const OTHER_CONNECTION_UUID = 'conn-2';
+        const day = (iso: string) => new Date(`${iso}T12:00:00Z`);
+
+        /** A call log the mocked deletes act on, as Postgres would. */
+        const seedCallLog = () => {
+            const rows = [
+                ...['2026-10-01', '2026-10-02', '2026-10-03'].map((d) => ({
+                    connection: CONNECTION_UUID,
+                    createdAt: day(d),
+                })),
+                { connection: CONNECTION_UUID, createdAt: day('2026-11-01') },
+                {
+                    connection: OTHER_CONNECTION_UUID,
+                    createdAt: day('2026-10-05'),
+                },
+                {
+                    connection: OTHER_CONNECTION_UUID,
+                    createdAt: day('2026-11-02'),
+                },
+            ];
+            tracker.on
+                .select(ExternalConnectionsTableName)
+                .responseOnce([
+                    { external_connection_uuid: CONNECTION_UUID },
+                    { external_connection_uuid: OTHER_CONNECTION_UUID },
+                ]);
+            tracker.on.delete(ApiSourceCallsTableName).response((query) => {
+                const [connection, before, limit] = query.bindings as [
+                    string,
+                    Date,
+                    number,
+                ];
+                const expired = rows
+                    .filter(
+                        (row) =>
+                            row.connection === connection &&
+                            row.createdAt < before,
+                    )
+                    .slice(0, limit);
+                expired.forEach((row) => rows.splice(rows.indexOf(row), 1));
+                return expired.length;
+            });
+            return rows;
+        };
+
+        it('deletes rows older than the cutoff per source, in batches, and keeps newer ones', async () => {
+            const rows = seedCallLog();
+
+            const result = await model.cleanupApiSourceCalls(cutoff, {
+                batchSize: 2,
+                delayMs: 0,
+                maxBatches: 10,
+            });
+
+            expect(result).toEqual({
+                totalDeleted: 4,
+                batchCount: 3,
+                completed: true,
+            });
+            expect(rows).toEqual([
+                { connection: CONNECTION_UUID, createdAt: day('2026-11-01') },
+                {
+                    connection: OTHER_CONNECTION_UUID,
+                    createdAt: day('2026-11-02'),
+                },
+            ]);
+            expect(tracker.history.delete[0].sql).toContain(
+                '"external_connection_uuid" = $1 and "created_at" < $2',
+            );
+        });
+
+        it('stops at the batch cap with expired rows left', async () => {
+            const rows = seedCallLog();
+
+            const result = await model.cleanupApiSourceCalls(cutoff, {
+                batchSize: 2,
+                delayMs: 0,
+                maxBatches: 1,
+            });
+
+            expect(result).toEqual({
+                totalDeleted: 2,
+                batchCount: 1,
+                completed: false,
+            });
+            expect(rows).toHaveLength(4);
         });
     });
 

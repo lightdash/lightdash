@@ -17626,6 +17626,11 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "windowDays": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "How many days back the usage goes: the query history retention window."
+                    },
                     "externalConnectionUuid": {
                         "type": "string"
                     }
@@ -17635,10 +17640,11 @@
                     "responseBytes",
                     "cacheHits",
                     "apiCalls",
+                    "windowDays",
                     "externalConnectionUuid"
                 ],
                 "type": "object",
-                "description": "What a live source has sent its integration across every logged query."
+                "description": "What a live source has sent its integration across the logged queries in the usage window."
             },
             "ApiExternalConnectionApiUsageResponse": {
                 "properties": {

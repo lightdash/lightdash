@@ -13,10 +13,12 @@ import {
     Stack,
     Text,
     Title,
+    Tooltip,
 } from '@mantine/core';
 import {
     IconClockHour4,
     IconDots,
+    IconInfoCircle,
     IconPencil,
     IconPlus,
     IconRefresh,
@@ -24,7 +26,12 @@ import {
     IconReload,
     IconTrash,
 } from '@tabler/icons-react';
-import { type FC, type KeyboardEvent, type MouseEvent } from 'react';
+import {
+    type FC,
+    type KeyboardEvent,
+    type MouseEvent,
+    type ReactNode,
+} from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useResultsCacheStatus } from '../../../hooks/useProjectResultsCacheSettings';
 import { useExternalConnectionApiUsage } from '../../externalConnections/hooks/useExternalConnectionApiUsage';
@@ -180,6 +187,30 @@ const EmptyLiveSources: FC = () => {
     );
 };
 
+/**
+ * Says how far back usage goes: the query history retention window, which
+ * each usage row carries. With no usage yet, it names the window instead.
+ */
+const UsageWindowInfo: FC<{ windowDays: number | undefined }> = ({
+    windowDays,
+}) => {
+    const label =
+        windowDays === undefined
+            ? 'Usage over the query history retention window'
+            : `Usage over the last ${windowDays} days`;
+    return (
+        <Tooltip label={label} withinPortal>
+            <MantineIcon
+                icon={IconInfoCircle}
+                size={12}
+                color="dimmed"
+                className={classes.usageInfo}
+                aria-label={label}
+            />
+        </Tooltip>
+    );
+};
+
 /** Every live data source, with how much it was used; a row opens it. */
 export const LiveSourcesTable: FC<{
     projectUuid: string;
@@ -203,8 +234,12 @@ export const LiveSourcesTable: FC<{
             <Box className={classes.row} data-head role="row">
                 <span role="columnheader">Integration</span>
                 <span role="columnheader">Name</span>
-                <span role="columnheader" className={classes.number}>
+                <span
+                    role="columnheader"
+                    className={`${classes.number} ${classes.headWithInfo}`}
+                >
                     Data read
+                    <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
                 </span>
                 <span role="columnheader" className={classes.number}>
                     API calls
@@ -273,9 +308,14 @@ const Stat: FC<{
     value: string;
     detail?: string | null;
     title?: string;
-}> = ({ label, value, detail, title }) => (
+    /** Shown after the label, such as an info icon. */
+    labelExtra?: ReactNode;
+}> = ({ label, value, detail, title, labelExtra }) => (
     <Box className={classes.stat}>
-        <span className={classes.statLabel}>{label}</span>
+        <span className={classes.statLabel}>
+            {label}
+            {labelExtra}
+        </span>
         <span
             className={classes.statValue}
             title={title ?? (detail ? `${value} (${detail})` : value)}
@@ -329,7 +369,13 @@ export const LiveSourceSummary: FC<{
                 label="Used by"
                 value={fields ? formatChartCount(fields.usedByChartCount) : '—'}
             />
-            <Stat label="Data read" value={row.usage.dataRead} />
+            <Stat
+                label="Data read"
+                value={row.usage.dataRead}
+                labelExtra={
+                    <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
+                }
+            />
             <Stat
                 label="API calls"
                 value={row.usage.apiCalls}

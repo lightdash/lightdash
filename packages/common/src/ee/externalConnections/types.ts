@@ -645,9 +645,11 @@ export type ApiListExternalConnectionSamplesResponse = {
     results: ExternalConnectionSample[];
 };
 
-/** What a live source has sent its integration across every logged query. */
+/** What a live source has sent its integration across the logged queries in the usage window. */
 export type ExternalConnectionApiUsage = {
     externalConnectionUuid: string;
+    /** How many days back the usage goes: the query history retention window. */
+    windowDays: number;
     apiCalls: number;
     /** Queries a stored result answered without calling the integration. */
     cacheHits: number;

@@ -114,3 +114,16 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
+
+.usageInfo {
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+/* A right-aligned header that keeps its info icon on the same line */
+.headWithInfo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    white-space: nowrap;
+}

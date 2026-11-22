@@ -28,6 +28,7 @@ const usage = (
     overrides: Partial<ExternalConnectionApiUsage> = {},
 ): ExternalConnectionApiUsage => ({
     externalConnectionUuid,
+    windowDays: 32,
     apiCalls: 1234,
     cacheHits: 56,
     responseBytes: 361_113,

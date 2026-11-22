@@ -1937,6 +1937,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
         ],
         schedulerWorkerFactory: (context) =>
             new CommercialSchedulerWorker({
+                apiSourceCallLog:
+                    context.models.getExternalConnectionModel<ExternalConnectionModel>(),
                 analyticsProjectService:
                     context.serviceRepository.getAnalyticsProjectService<AnalyticsProjectService>(),
                 getAgentConnectionGrantService: () =>
