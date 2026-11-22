@@ -149,6 +149,17 @@ describe('ApiSourceCallLimiter', () => {
         expect(model.refundApiSourceRateBuckets).not.toHaveBeenCalled();
     });
 
+    it('keeps the result of the call when freeing its slot fails', async () => {
+        const { limiter, model } = buildLimiter();
+        model.releaseApiSourceRateSlot.mockRejectedValueOnce(
+            new Error('connection reset'),
+        );
+
+        await expect(limiter.run(target(), async () => 'rows')).resolves.toBe(
+            'rows',
+        );
+    });
+
     it('runs 6 calls through 2 slots, all of them, in arrival order', async () => {
         const { limiter, sleep } = buildLimiter();
         const started: number[] = [];

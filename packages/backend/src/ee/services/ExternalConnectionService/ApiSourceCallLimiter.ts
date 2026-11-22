@@ -156,10 +156,10 @@ export class ApiSourceCallLimiter {
                 await this.takePacedTurn(target, giveUpAt);
                 leaseUuid = await this.takeSlot(target, giveUpAt);
             } catch (error) {
-                await this.model.refundApiSourceRateBuckets(
-                    target.limitKey,
-                    windows,
-                );
+                // Best effort: a charge left in place only makes the limit stricter
+                await this.model
+                    .refundApiSourceRateBuckets(target.limitKey, windows)
+                    .catch(() => undefined);
                 throw error;
             }
             const waitedMs = this.now().getTime() - startedAt;
@@ -173,11 +173,11 @@ export class ApiSourceCallLimiter {
                     buckets: windows.map(({ bucketId }) => bucketId),
                     waitedMs,
                 },
+                // Best effort: a slot left held frees itself when its lease expires
                 release: () =>
-                    this.model.releaseApiSourceRateSlot(
-                        target.limitKey,
-                        leaseUuid,
-                    ),
+                    this.model
+                        .releaseApiSourceRateSlot(target.limitKey, leaseUuid)
+                        .catch(() => undefined),
             };
         } catch (error) {
             if (error instanceof TooManyRequestsError) {
