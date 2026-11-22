@@ -18,8 +18,6 @@ const splitRepository = (repository: string) => {
 export const GITHUB_TOKEN_FORM = {
     label: 'GitHub',
     defaultName: 'GitHub',
-    description:
-        'AI agents read pull requests, issues and contributors of one repository live. Use a fine-grained personal access token with read access to Metadata, Issues and Pull requests for that repository.',
     origin: GITHUB_ORIGIN,
     account: {
         label: 'Repository',
@@ -36,6 +34,9 @@ export const GITHUB_TOKEN_FORM = {
         isValid: (value) => REPOSITORY.test(value),
     },
     tokenLabel: 'Personal access token',
+    tokenHint:
+        'A fine-grained token with read access to Metadata, Issues and Pull requests',
+    tokenUrl: 'https://github.com/settings/personal-access-tokens/new',
     toApiSource: (repository) => ({
         connector: ApiConnectorType.GITHUB,
         ...splitRepository(repository),

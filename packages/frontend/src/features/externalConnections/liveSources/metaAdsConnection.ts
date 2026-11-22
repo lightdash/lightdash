@@ -10,8 +10,6 @@ const AD_ACCOUNT_ID = /^\d{1,20}$/;
 export const META_ADS_TOKEN_FORM = {
     label: 'Meta Ads',
     defaultName: 'Meta Ads',
-    description:
-        'AI agents read campaign, ad set and ad performance from one ad account live. Use a system user access token with only the ads_read permission.',
     origin: META_ADS_ORIGIN,
     account: {
         label: 'Ad account ID',
@@ -23,6 +21,8 @@ export const META_ADS_TOKEN_FORM = {
         isValid: (value) => AD_ACCOUNT_ID.test(value),
     },
     tokenLabel: 'Access token',
+    tokenHint: 'A system user token with only the ads_read permission',
+    tokenUrl: 'https://business.facebook.com/settings/system-users',
     toApiSource: (adAccountId) => ({
         connector: ApiConnectorType.META_ADS,
         adAccountId,

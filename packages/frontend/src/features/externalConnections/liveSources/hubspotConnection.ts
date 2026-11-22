@@ -15,11 +15,11 @@ const SCOPES = HUBSPOT_OBJECTS.flatMap((object) => [
 export const HUBSPOT_TOKEN_FORM = {
     label: 'HubSpot',
     defaultName: 'HubSpot',
-    description: `AI agents read your HubSpot deals, contacts and companies live. In HubSpot, create a private app under Settings, Integrations, Private Apps, give it the ${SCOPES} scopes, and copy its access token.`,
     origin: HUBSPOT_ORIGIN,
     // The token belongs to one HubSpot account, so there is nothing else to pick
     account: null,
     tokenLabel: 'Access token',
+    tokenHint: `From a private app in HubSpot with the ${SCOPES} scopes`,
     toApiSource: () => ({ connector: ApiConnectorType.HUBSPOT }),
     getAccountId: () => '',
     getAccess: () => ({

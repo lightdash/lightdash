@@ -11,12 +11,11 @@ import { type TokenLiveSourceForm } from './tokenLiveSource';
 export const PYLON_TOKEN_FORM = {
     label: 'Pylon',
     defaultName: 'Pylon',
-    description:
-        'AI agents read support issues, customer accounts and contacts of your Pylon workspace live. A Pylon admin creates the API token in Settings, API Tokens.',
     origin: PYLON_ORIGIN,
     // The token belongs to one workspace, so there is nothing else to pick
     account: null,
     tokenLabel: 'API token',
+    tokenHint: 'A Pylon admin creates it in Settings, API Tokens',
     toApiSource: () => ({ connector: ApiConnectorType.PYLON }),
     getAccountId: () => '',
     getAccess: () => ({

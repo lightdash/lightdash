@@ -31,7 +31,7 @@ describe('hubspotConnection', () => {
     });
 
     it('names every scope the private app needs', () => {
-        expect(HUBSPOT_TOKEN_FORM.description).toContain(
+        expect(HUBSPOT_TOKEN_FORM.tokenHint).toContain(
             'crm.objects.companies.read',
         );
     });

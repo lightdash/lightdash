@@ -13,7 +13,6 @@ import { useForm } from '@mantine/form';
 export type TokenLiveSourceForm = {
     label: string;
     defaultName: string;
-    description: string;
     origin: string;
     /** Null when the token alone decides what the source reads. */
     account: {
@@ -26,6 +25,10 @@ export type TokenLiveSourceForm = {
         isValid: (normalizedValue: string) => boolean;
     } | null;
     tokenLabel: string;
+    /** Where the token comes from and what it needs, in a few words. */
+    tokenHint: string;
+    /** The provider's page for creating one, when it has a stable address. */
+    tokenUrl?: string;
     toApiSource: (accountId: string) => ExternalConnectionApiSource;
     /** The account id of a saved source, or blank for another integration's. */
     getAccountId: (connection: ExternalConnection) => string;
@@ -48,6 +51,8 @@ export type TokenLiveSourceValues = {
     name: string;
     accountId: string;
     token: string;
+    /** Only asked for when adding a source. */
+    aiHint?: string;
 };
 
 /** A saved token stays when the field is blank. */
@@ -61,8 +66,9 @@ export const useTokenLiveSourceForm = (
                   name: connection.name,
                   accountId: form.getAccountId(connection),
                   token: '',
+                  aiHint: connection.aiHint ?? '',
               }
-            : { name: form.defaultName, accountId: '', token: '' },
+            : { name: form.defaultName, accountId: '', token: '', aiHint: '' },
         validate: {
             name: (value) =>
                 value.trim().length === 0 ? 'Name is required' : null,
