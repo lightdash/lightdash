@@ -23,7 +23,6 @@ import {
 } from '../hooks/useCreateExternalConnection';
 import { useNewSourceId } from '../hooks/useNewSourceId';
 import { useTestConnectionConfig } from '../hooks/useTestConnectionConfig';
-import { useUpdateExternalConnection } from '../hooks/useUpdateExternalConnection';
 import { LiveSourceTitle } from './LiveSourceIcon';
 import {
     SettingsCard,
@@ -62,7 +61,6 @@ export const PostHogConnectionModal: FC<Props> = ({
     const createMutation = useCreateExternalConnection(
         LIVE_SOURCE_CREATE_MESSAGES,
     );
-    const updateMutation = useUpdateExternalConnection();
     const testMutation = useTestConnectionConfig();
     const sourceId = useNewSourceId({
         projectUuid,
@@ -70,7 +68,7 @@ export const PostHogConnectionModal: FC<Props> = ({
         name: form.values.name,
         enabled: opened,
     });
-    const isSaving = createMutation.isLoading || updateMutation.isLoading;
+    const isSaving = createMutation.isLoading;
     const isSignIn = form.values.authMethod === 'signIn';
     const origin = POSTHOG_REGION_ORIGINS[form.values.region];
 
@@ -103,17 +101,6 @@ export const PostHogConnectionModal: FC<Props> = ({
             projectUuid,
             data: toPostHogCreatePayload(values, sourceId.value),
         });
-        const aiHint = values.aiHint.trim();
-        // Creating doesn't take a hint, so it's saved straight after.
-        if (aiHint) {
-            await updateMutation
-                .mutateAsync({
-                    projectUuid,
-                    connectionUuid: created.externalConnectionUuid,
-                    data: { aiHint },
-                })
-                .catch(() => undefined);
-        }
         onCreated(created.externalConnectionUuid);
     });
 
@@ -240,9 +227,6 @@ export const PostHogConnectionModal: FC<Props> = ({
                 <NewLiveSourceDetails
                     nameProps={form.getInputProps('name')}
                     sourceId={sourceId}
-                    aiHintProps={
-                        isSignIn ? undefined : form.getInputProps('aiHint')
-                    }
                 />
             </Stack>
         </MantineModal>

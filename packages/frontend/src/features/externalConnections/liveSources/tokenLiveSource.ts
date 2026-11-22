@@ -51,8 +51,6 @@ export type TokenLiveSourceValues = {
     name: string;
     accountId: string;
     token: string;
-    /** Only asked for when adding a source. */
-    aiHint?: string;
 };
 
 /** A saved token stays when the field is blank. */
@@ -66,9 +64,8 @@ export const useTokenLiveSourceForm = (
                   name: connection.name,
                   accountId: form.getAccountId(connection),
                   token: '',
-                  aiHint: connection.aiHint ?? '',
               }
-            : { name: form.defaultName, accountId: '', token: '', aiHint: '' },
+            : { name: form.defaultName, accountId: '', token: '' },
         validate: {
             name: (value) =>
                 value.trim().length === 0 ? 'Give it a name' : null,

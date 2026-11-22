@@ -8,7 +8,6 @@ import MantineModal from '../../../components/common/MantineModal';
 import { useCreateExternalConnection } from '../hooks/useCreateExternalConnection';
 import { useNewSourceId } from '../hooks/useNewSourceId';
 import { useTestConnectionConfig } from '../hooks/useTestConnectionConfig';
-import { useUpdateExternalConnection } from '../hooks/useUpdateExternalConnection';
 import { LiveSourceTitle } from './LiveSourceIcon';
 import {
     SettingsCard,
@@ -43,7 +42,6 @@ export const TokenLiveSourceModal: FC<Props> = ({
 }) => {
     const form = useTokenLiveSourceForm(definition, null);
     const createMutation = useCreateExternalConnection();
-    const updateMutation = useUpdateExternalConnection();
     const testMutation = useTestConnectionConfig();
     const sourceId = useNewSourceId({
         projectUuid,
@@ -51,7 +49,7 @@ export const TokenLiveSourceModal: FC<Props> = ({
         name: form.values.name,
         enabled: opened,
     });
-    const isSaving = createMutation.isLoading || updateMutation.isLoading;
+    const isSaving = createMutation.isLoading;
     const { account } = definition;
 
     const handleTest = () => {
@@ -74,17 +72,6 @@ export const TokenLiveSourceModal: FC<Props> = ({
                 explorePrefix: sourceId.value,
             },
         });
-        const aiHint = values.aiHint?.trim() ?? '';
-        // Creating doesn't take a hint, so it's saved straight after.
-        if (aiHint) {
-            await updateMutation
-                .mutateAsync({
-                    projectUuid,
-                    connectionUuid: created.externalConnectionUuid,
-                    data: { aiHint },
-                })
-                .catch(() => undefined);
-        }
         onCreated(created.externalConnectionUuid);
     });
 
@@ -166,7 +153,6 @@ export const TokenLiveSourceModal: FC<Props> = ({
                 <NewLiveSourceDetails
                     nameProps={form.getInputProps('name')}
                     sourceId={sourceId}
-                    aiHintProps={form.getInputProps('aiHint')}
                 />
             </Stack>
         </MantineModal>
