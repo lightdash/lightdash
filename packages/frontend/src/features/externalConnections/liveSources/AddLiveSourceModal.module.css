@@ -25,25 +25,17 @@ button.card:focus-visible {
     outline-offset: 2px;
 }
 
+.card[data-requestable] {
+    background: var(--mantine-color-default-hover);
+}
+
+.card[data-requestable] .icon {
+    filter: grayscale(1);
+    opacity: 0.55;
+}
+
 .icon {
     width: 28px;
     height: 28px;
     flex-shrink: 0;
-}
-
-/* Asking for a source we don't have yet reads as a slot, not a source. */
-.card[data-request] {
-    border-style: dashed;
-}
-
-.requestIcon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    flex-shrink: 0;
-    border-radius: var(--mantine-radius-sm);
-    background: var(--mantine-color-default-hover);
-    color: var(--mantine-color-dimmed);
 }

@@ -1,9 +1,17 @@
 import { ApiConnectorType } from '@lightdash/common';
-import { Group, SimpleGrid, Stack, Text, UnstyledButton } from '@mantine/core';
-import clsx from 'clsx';
-import { type FC } from 'react';
+import {
+    Badge,
+    Button,
+    Group,
+    SimpleGrid,
+    Stack,
+    Text,
+    UnstyledButton,
+} from '@mantine/core';
+import { IconCheck } from '@tabler/icons-react';
+import { useState, type FC } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
-import useToaster from '../../../hooks/toaster/useToaster';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -14,8 +22,7 @@ import { LiveSourceBetaTitle } from './LiveSourceBetaBadge';
 import {
     isAvailableLiveSource,
     LIVE_SOURCE_CATALOG,
-    type AvailableLiveSource,
-    getLiveSourceIconClass,
+    type LiveSourceCatalogEntry,
 } from './liveSourceCatalog';
 import { ProjectCacheOffAlert } from './ProjectCacheOffAlert';
 
@@ -31,13 +38,23 @@ type Props = {
     onPick: (connector: ApiConnectorType) => void;
 };
 
-const CardHead: FC<{ entry: AvailableLiveSource }> = ({ entry }) => (
+const toRequestableUnlessConnectable = (
+    entry: LiveSourceCatalogEntry,
+    unconnectable: ReadonlySet<ApiConnectorType>,
+): LiveSourceCatalogEntry =>
+    isAvailableLiveSource(entry) && unconnectable.has(entry.connector)
+        ? {
+              id: entry.id,
+              status: 'requestable',
+              label: entry.label,
+              description: entry.description,
+              icon: entry.icon,
+          }
+        : entry;
+
+const CardHead: FC<{ entry: LiveSourceCatalogEntry }> = ({ entry }) => (
     <Group gap="sm" wrap="nowrap" align="flex-start">
-        <img
-            src={entry.icon}
-            alt=""
-            className={clsx(styles.icon, getLiveSourceIconClass(entry.icon))}
-        />
+        <img src={entry.icon} alt="" className={styles.icon} />
         <Stack gap={2} miw={0}>
             <Text fw={600} fz="sm" truncate>
                 {entry.label}
@@ -60,35 +77,52 @@ export const AddLiveSourceModal: FC<Props> = ({
 }) => {
     const { user } = useApp();
     const { track } = useTracking();
-    const { showToastSuccess } = useToaster();
-    // Only what this instance can connect: Google sources need its Google
-    // sign-in, LinkedIn Ads and Salesforce an app most servers won't have.
-    const isConnectable = (connector: ApiConnectorType) => {
-        if (isGoogleConnector(connector)) return canUseGoogle;
-        if (connector === ApiConnectorType.LINKEDIN_ADS)
-            return canUseLinkedInAds;
-        if (connector === ApiConnectorType.SALESFORCE) return canUseSalesforce;
-        return true;
-    };
-    const entries = LIVE_SOURCE_CATALOG.filter(isAvailableLiveSource).filter(
-        (entry) => isConnectable(entry.connector),
+    const [requested, setRequested] = useState<ReadonlySet<string>>(new Set());
+    // Google sources need the instance's Google sign-in configured.
+    const entries = LIVE_SOURCE_CATALOG.filter(
+        (entry) =>
+            !isAvailableLiveSource(entry) ||
+            canUseGoogle ||
+            !isGoogleConnector(entry.connector),
     );
+    // LinkedIn and Salesforce need an app most servers won't have, so they
+    // stay requestable until the server has one
+    const unconnectable = new Set<ApiConnectorType>([
+        ...(canUseLinkedInAds ? [] : [ApiConnectorType.LINKEDIN_ADS]),
+        ...(canUseSalesforce ? [] : [ApiConnectorType.SALESFORCE]),
+    ]);
+    const shownEntries = entries.map((entry) =>
+        toRequestableUnlessConnectable(entry, unconnectable),
+    );
+    const orderedEntries = [
+        ...shownEntries.filter(isAvailableLiveSource),
+        ...shownEntries.filter((entry) => !isAvailableLiveSource(entry)),
+    ];
+
+    const requestProperties = {
+        organizationId: user.data?.organizationUuid ?? null,
+        projectId: projectUuid,
+    };
+
+    const request = (entry: LiveSourceCatalogEntry) => {
+        track({
+            name: EventName.LIVE_DATA_SOURCE_REQUESTED,
+            properties: { ...requestProperties, integration: entry.id },
+        });
+        setRequested((current) => new Set(current).add(entry.id));
+    };
 
     const requestCustom = (customIntegrationName: string) => {
         track({
             name: EventName.LIVE_DATA_SOURCE_REQUESTED,
             properties: {
-                organizationId: user.data?.organizationUuid ?? null,
-                projectId: projectUuid,
+                ...requestProperties,
                 integration: CUSTOM_LIVE_SOURCE_ID,
                 customIntegrationName,
             },
         });
-        showToastSuccess({
-            title: `Requested ${customIntegrationName}`,
-            subtitle: 'Thanks, it helps us choose what to add next',
-        });
     };
+
     return (
         <MantineModal
             opened={opened}
@@ -98,24 +132,66 @@ export const AddLiveSourceModal: FC<Props> = ({
                     Add a live data source
                 </LiveSourceBetaTitle>
             }
-            subtitle="Live data from the tools you use, queried on demand and joined with your warehouse."
+            subtitle="AI agents query it live, without loading data into your warehouse."
             size="xl"
             cancelLabel={false}
         >
             <Stack gap="sm">
                 <ProjectCacheOffAlert projectUuid={projectUuid} />
                 <SimpleGrid cols={{ base: 1, xs: 2, sm: 3 }} spacing="sm">
-                    {entries.map((entry) => (
-                        <UnstyledButton
-                            key={entry.id}
-                            className={styles.card}
-                            onClick={() => onPick(entry.connector)}
-                        >
-                            <CardHead entry={entry} />
-                        </UnstyledButton>
-                    ))}
-                    <CustomLiveSourceRequestCard onRequest={requestCustom} />
+                    {orderedEntries.map((entry) =>
+                        isAvailableLiveSource(entry) ? (
+                            <UnstyledButton
+                                key={entry.id}
+                                className={styles.card}
+                                onClick={() => onPick(entry.connector)}
+                            >
+                                <CardHead entry={entry} />
+                            </UnstyledButton>
+                        ) : (
+                            <Stack
+                                key={entry.id}
+                                className={styles.card}
+                                data-requestable
+                                justify="space-between"
+                                gap="sm"
+                            >
+                                <CardHead entry={entry} />
+                                <Group justify="space-between" wrap="nowrap">
+                                    <Badge
+                                        variant="light"
+                                        color="gray"
+                                        size="sm"
+                                        radius="sm"
+                                    >
+                                        Coming soon
+                                    </Badge>
+                                    {requested.has(entry.id) ? (
+                                        <Group gap={4} wrap="nowrap">
+                                            <MantineIcon
+                                                icon={IconCheck}
+                                                size={14}
+                                                color="green"
+                                            />
+                                            <Text fz="xs" c="dimmed">
+                                                Requested
+                                            </Text>
+                                        </Group>
+                                    ) : (
+                                        <Button
+                                            size="compact-xs"
+                                            variant="default"
+                                            onClick={() => request(entry)}
+                                        >
+                                            Request
+                                        </Button>
+                                    )}
+                                </Group>
+                            </Stack>
+                        ),
+                    )}
                 </SimpleGrid>
+                <CustomLiveSourceRequestCard onRequest={requestCustom} />
             </Stack>
         </MantineModal>
     );
