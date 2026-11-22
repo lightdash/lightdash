@@ -32,6 +32,22 @@ const connect = (...responses: LiveHttpResponse[]) => {
     };
 };
 
+/** Answers records and members calls by path, whichever starts first. */
+const connectWithMembers = (
+    records: LiveHttpResponse,
+    members: LiveHttpResponse,
+) => {
+    const send = vi.fn((call: { path: string }) =>
+        Promise.resolve(
+            call.path === '/v2/workspace_members' ? members : records,
+        ),
+    );
+    return {
+        send,
+        source: connectLiveSource(attioIntegration, SETTINGS, send),
+    };
+};
+
 const run = (
     source: ReturnType<typeof connect>['source'],
     request: Record<string, unknown>,
@@ -118,7 +134,7 @@ describe('attioIntegration listing', () => {
     });
 
     it("reads when the stage was entered, and the owner's name with one members call", async () => {
-        const { source, send } = connect(
+        const { source, send } = connectWithMembers(
             page([attioDeal('d1'), attioDeal('d2')]),
             response({
                 data: [
@@ -136,7 +152,7 @@ describe('attioIntegration listing', () => {
         });
 
         expect(send).toHaveBeenCalledTimes(2);
-        expect(send).toHaveBeenLastCalledWith({
+        expect(send).toHaveBeenCalledWith({
             method: 'GET',
             path: '/v2/workspace_members',
             body: undefined,
@@ -158,7 +174,7 @@ describe('attioIntegration listing', () => {
     });
 
     it('leaves owner names empty when the token cannot read members', async () => {
-        const { source } = connect(
+        const { source } = connectWithMembers(
             page([attioDeal('d1')]),
             response({ message: 'Missing scope user_management:read' }, 403),
         );
@@ -173,7 +189,7 @@ describe('attioIntegration listing', () => {
     });
 
     it('still fails when the members call is throttled', async () => {
-        const { source } = connect(
+        const { source } = connectWithMembers(
             page([attioDeal('d1')]),
             response({ message: 'Slow down' }, 429),
         );

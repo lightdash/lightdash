@@ -314,13 +314,16 @@ export const runAttioQuery = async ({
 >): Promise<LiveRunResult> => {
     assertMaxRows(limit, ATTIO_MAX_RECORDS);
     const { columns } = request;
-    const { records, hasMoreRows } = await readRecords({
-        object: request.object,
-        request,
-        requestedRows: limit,
-        calls,
-    });
-    const memberNames = await readMemberNames(columns, calls);
+    // Neither call needs the other's result, so they run together
+    const [{ records, hasMoreRows }, memberNames] = await Promise.all([
+        readRecords({
+            object: request.object,
+            request,
+            requestedRows: limit,
+            calls,
+        }),
+        readMemberNames(columns, calls),
+    ]);
     const rows = records.map((record) =>
         Object.fromEntries(
             columns.map((column) => [

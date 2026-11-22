@@ -49,6 +49,7 @@ export const ATTIO_DEAL_ATTRIBUTES = {
         attribute('contact_email', 'Contact email', 'email-address'),
         attribute('count', 'Count', 'number'),
         attribute('stage__entered_at', 'Old stage date', 'text'),
+        attribute('arr__usd', 'ARR (USD)', 'number'),
         attribute('old_field', 'Old field', 'text', { is_archived: true }),
         attribute('mystery', 'Mystery', 'some-new-type'),
     ],

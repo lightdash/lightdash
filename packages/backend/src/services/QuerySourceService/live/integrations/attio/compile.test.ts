@@ -114,6 +114,8 @@ describe('Attio scanned fields', () => {
             'attribute_count count',
             // So does one that could collide with a derived field
             'attribute_stage__entered_at stage__entered_at',
+            // Other double underscores keep their name
+            'arr__usd arr__usd',
         ]);
     });
 

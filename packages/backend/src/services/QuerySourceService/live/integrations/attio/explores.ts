@@ -131,13 +131,20 @@ const RESERVED_NAMES = new Set([
     'count',
 ]);
 
+/** Name endings derived fields use, which attribute fields can't take. */
+const DERIVED_SUFFIXES = Object.values(ATTIO_DERIVED_FIELDS).flatMap((fields) =>
+    fields.map(({ suffix }) => `__${suffix}`),
+);
+
 /**
  * The field name of an attribute. It depends on the slug alone, so it never
- * changes as attributes come and go. Slugs with `__` are prefixed, since
- * derived fields end in `__<suffix>`.
+ * changes as attributes come and go. A slug ending like a derived field
+ * (`stage__entered_at`) is prefixed so the two can't collide.
  */
 const toDimensionName = (slug: string) =>
-    RESERVED_NAMES.has(slug) || slug.startsWith('total_') || slug.includes('__')
+    RESERVED_NAMES.has(slug) ||
+    slug.startsWith('total_') ||
+    DERIVED_SUFFIXES.some((suffix) => slug.endsWith(suffix))
         ? `attribute_${slug}`
         : slug;
 
@@ -190,7 +197,14 @@ export const withAttioAttributeFields = (
                     name: `${name}__${field.suffix}`,
                     apiName: toAttioApiName(slug, field.property),
                     label: field.label(title),
-                    description: field.description(title),
+                    description: [
+                        field.description(title),
+                        isMultiselect
+                            ? 'Several values are joined with commas.'
+                            : '',
+                    ]
+                        .filter(Boolean)
+                        .join(' '),
                     type: field.type,
                     filterOperators: [],
                 }),
