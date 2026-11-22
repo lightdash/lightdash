@@ -310,7 +310,7 @@ export const LiveSourceSummary: FC<{
                 }
             />
             <Stat
-                label="Caching"
+                label="Cache"
                 value={
                     isProjectCacheOff
                         ? 'Not cached'
