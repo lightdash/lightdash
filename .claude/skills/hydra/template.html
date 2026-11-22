@@ -68,8 +68,8 @@ a.row:hover, .row.case:hover { background: var(--hover); }
 .prop { background: var(--surface); padding: 12px 14px; }
 .props > .prop { grid-column: 1; }
 .props > .prop.auth { grid-column: 2; grid-row: 1 / span 2; }
-.props > .prop.wide { grid-column: 1 / -1; }
-.limits { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; margin-top: 6px; }
+.panel { padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.limits { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; }
 .limit { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
 .limit .kk { display: block; margin-bottom: 2px; }
 .limit .num { font: 500 16px/1.3 var(--mono); letter-spacing: -.01em; }
@@ -245,10 +245,10 @@ const authValue = (auth) => {
   const tag = (need) => `<span class="tag ${BLOCKING_NEEDS.includes(need) ? 'warn' : ''}">${esc(words(need))}</span>`;
   return `<div class="v">${esc(auth.description)}</div>
     <div class="kv">
+      <span class="kk">Tester needs</span><span class="tags">${auth.needs.map(tag).join('')}</span>
       <span class="kk">Token</span><span class="status">${dot(auth.token ? 'green' : '')}${auth.token ? 'Customer pastes a key' : 'Not offered'}</span>
       <span class="kk">OAuth</span><span class="status">${dot(oauth.color)}${oauth.text}</span>
       <span class="kk">Test with</span><span class="status">${dot(testColor)}${testText}</span>
-      <span class="kk">Tester needs</span><span class="tags">${auth.needs.map(tag).join('')}</span>
     </div>`;
 };
 
@@ -360,8 +360,9 @@ const detail = (i) => {
     <div class="prop"><div class="k">Level <span class="mono">${i.level.value}/5</span></div><div class="v">${esc(i.level.description)}</div></div>
     <div class="prop auth"><div class="k">Auth <span class="status">${dot(RATING_COLOR[i.authScore.rating])}${esc(i.authScore.rating)}</span></div>${authValue(i.auth)}</div>
     <div class="prop"><div class="k">Paging</div><div class="v">${esc(i.paging.description)}</div></div>
-    <div class="prop wide"><div class="k">Rate limits <span class="t3" style="font-weight:400">per connection</span></div>${i.rateLimits ? rateLimitsValue(i.rateLimits) : '<div class="v"><span class="t3">Not set</span></div>'}</div>
   </div>
+  <h2>Rate limits</h2>
+  <div class="panel">${i.rateLimits ? rateLimitsValue(i.rateLimits) : '<span class="t3">Not set</span>'}</div>
   ${i.explores?.length ? `<h2>Explores <span class="t3" style="font-weight:400">${i.explores.length}</span></h2>${explorer(i.explores)}` : ''}
   <h2>Use cases
     <span class="tabs">${FILTERS(i).map(([key, label]) => `<button data-filter="${key}" class="${state.filter === key ? 'on' : ''}">${label}</button>`).join('')}</span>
