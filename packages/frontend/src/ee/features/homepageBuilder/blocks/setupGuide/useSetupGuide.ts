@@ -114,7 +114,7 @@ export const useSetupGuide = (
             liveSourcesFlag.data?.enabled === true &&
             !!user.data?.ability.can(
                 'manage',
-                subject('ExternalConnection', {
+                subject('LiveSource', {
                     organizationUuid: user.data.organizationUuid,
                     projectUuid,
                 }),

@@ -1,3 +1,4 @@
+import { Ability } from '@casl/ability';
 import {
     AlreadyExistsError,
     ApiConnectorType,
@@ -9,6 +10,7 @@ import {
     TimeoutError,
     type CreateExternalConnection,
     type ExternalConnection,
+    type PossibleAbilities,
 } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
 import { getLiveDefinitionHashes } from '../../../services/QuerySourceService/live/explores/build';
@@ -229,6 +231,7 @@ const buildService = ({
                     names.filter((name) => takenExploreNames.includes(name)),
             ),
         hasApiSourceExplores: vi.fn().mockResolvedValue(hasExplores),
+        getApiSourceExploreNames: vi.fn().mockResolvedValue(['posthog_events']),
         listApiSourceExploreHashes: vi.fn().mockResolvedValue([]),
         getApiSourceFieldIds: vi.fn().mockResolvedValue([]),
     };
@@ -336,12 +339,48 @@ describe('ExternalConnectionService api sources', () => {
         ).rejects.toThrow(ParameterError);
     });
 
-    it('refuses an account that cannot view the connection', async () => {
+    it('refuses an account that cannot query the source explores', async () => {
         const { service } = buildService({ canView: false });
         await expect(
             service.getLiveSource(account, 'proj-1', 'conn-1'),
         ).rejects.toThrow(ForbiddenError);
     });
+
+    it.each([
+        ['an interactive viewer of its explores', 'Explore', true],
+        [
+            'a data app builder the source was linked for',
+            'ExternalConnection',
+            false,
+        ],
+    ] as const)(
+        'lets %s query the source directly: %s',
+        async (_who, subject, allowed) => {
+            const { service } = buildService({
+                connections: [
+                    posthogConnection({ allowDataAppBuilderLinking: true }),
+                ],
+            });
+            vi.spyOn(
+                service as unknown as { createAuditedAbility: () => unknown },
+                'createAuditedAbility',
+            ).mockReturnValue(
+                new Ability<PossibleAbilities>([
+                    {
+                        action: 'view',
+                        subject,
+                        conditions: { projectUuid: 'proj-1' },
+                    },
+                ]),
+            );
+            const query = service.getLiveSource(account, 'proj-1', 'conn-1');
+            if (allowed) {
+                await expect(query).resolves.toBeDefined();
+            } else {
+                await expect(query).rejects.toThrow(ForbiddenError);
+            }
+        },
+    );
 
     it('reports a timeout as a timeout', async () => {
         mockSecureFetch.mockRejectedValue(

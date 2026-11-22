@@ -278,7 +278,10 @@ import {
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
 import { type AiCreditService } from '../AiCreditService';
-import { getExternalConnectionSubject } from '../ExternalConnectionService/externalConnectionAuthz';
+import {
+    getConnectionKind,
+    getExternalConnectionSubject,
+} from '../ExternalConnectionService/externalConnectionAuthz';
 import {
     createSandboxManager,
     S3SnapshotStore,
@@ -1975,6 +1978,12 @@ export class AppGenerateService extends BaseService {
             if (!/^[a-z0-9_-]+$/i.test(conn.alias) || conn.alias.length > 64) {
                 throw new ParameterError(
                     'Alias must contain only letters, numbers, hyphens, and underscores (max 64 chars)',
+                );
+            }
+            // Data app linking never applies to live data sources
+            if (getConnectionKind(connection) === 'live_source') {
+                throw new ParameterError(
+                    'Live data sources cannot be linked to data apps',
                 );
             }
             if (

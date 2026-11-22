@@ -49,7 +49,7 @@ describe('Semantic Layer permissions, per organization role', () => {
             false,
             false,
             false,
-            true,
+            false,
             false,
         ],
         [
@@ -59,7 +59,7 @@ describe('Semantic Layer permissions, per organization role', () => {
             false,
             true,
             false,
-            true,
+            false,
             false,
         ],
         [
@@ -68,7 +68,7 @@ describe('Semantic Layer permissions, per organization role', () => {
             true,
             true,
             true,
-            false,
+            true,
             true,
             true,
         ],

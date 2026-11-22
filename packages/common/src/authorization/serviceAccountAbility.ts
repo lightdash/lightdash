@@ -368,6 +368,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('manage', 'ExternalConnection', {
             organizationUuid,
         });
+        can('manage', 'LiveSource', {
+            organizationUuid,
+        });
         can('manage', 'OrganizationDesign', {
             organizationUuid,
         });

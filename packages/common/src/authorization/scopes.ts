@@ -1907,6 +1907,19 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
 
+    // Live data sources — integrations queried as explores. Querying one is
+    // `view:Explore`; this covers settings, fields, tests and samples, which
+    // can read data through the stored credentials (like the SQL runner).
+    {
+        name: 'manage:LiveSource',
+        description:
+            'Add, edit, and delete live data sources, curate their fields, and test them with their stored credentials',
+        isEnterprise: true,
+        group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+
     // Organization Design Assets (shared CSS/fonts/images/instructions
     // injected into every data app generated in the org). Org-scoped
     // resource — view is available to org viewers and above, manage to

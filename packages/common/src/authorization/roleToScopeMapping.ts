@@ -169,6 +169,7 @@ const BASE_ROLE_SCOPES = {
         'view:JobStatus', // All jobs in project
         'view:SourceCode',
         'manage:SourceCode',
+        'manage:LiveSource', // Live data source settings and fields; querying is view:Explore
 
         // Promote to upstream project. Both broad + @space variants
         // surface in `applyOrganizationMemberStaticAbilities.developer`.
@@ -321,6 +322,7 @@ export const TRAINING_PROJECT_EXCLUDED_SCOPES: readonly string[] = [
     'manage:DataAppDependency',
     'manage:ExternalConnection',
     'view:ExternalConnection',
+    'manage:LiveSource',
     'manage:ExternalSource',
     'manage:GitIntegration',
     'manage:SourceCode',
@@ -456,6 +458,7 @@ export const getNonEnterpriseScopesForRole = (
         'manage:DataApp@self',
         'view:ExternalConnection',
         'manage:ExternalConnection',
+        'manage:LiveSource',
         'view:OrganizationDesign',
         'manage:OrganizationDesign',
         'view:Roadmap',

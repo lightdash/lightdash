@@ -8961,6 +8961,21 @@ export class ProjectModel {
         return rows.flatMap(({ fields }) => Object.keys(fields ?? {}));
     }
 
+    /** The names of a live data source's explores in the project. */
+    async getApiSourceExploreNames(
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<string[]> {
+        const rows = await this.database(CachedExploreTableName)
+            .select<{ name: string }[]>('name')
+            .where('project_uuid', projectUuid)
+            .whereRaw("explore->>'type' = ?", [ExploreType.API_SOURCE])
+            .whereRaw("explore->'apiSource'->>'connectionUuid' = ?", [
+                connectionUuid,
+            ]);
+        return rows.map(({ name }) => name);
+    }
+
     async hasApiSourceExplores(
         projectUuid: string,
         connectionUuid: string,
