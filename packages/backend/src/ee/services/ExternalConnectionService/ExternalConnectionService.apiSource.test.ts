@@ -659,6 +659,49 @@ describe('ExternalConnectionService api source schema scans', () => {
         );
     });
 
+    it('scans for someone who manages the source without viewing its explores', async () => {
+        mockSecureFetch
+            .mockResolvedValueOnce(
+                postHogQueryResponse(
+                    [
+                        ['event', 'String'],
+                        ['occurrences', 'UInt64'],
+                    ],
+                    [['$pageview', 1]],
+                ),
+            )
+            .mockResolvedValueOnce(
+                postHogQueryResponse(
+                    [
+                        ['property_key', 'String'],
+                        ['occurrences', 'UInt64'],
+                    ],
+                    [],
+                ),
+            );
+        const { service } = buildService();
+        vi.spyOn(
+            service as unknown as { createAuditedAbility: () => unknown },
+            'createAuditedAbility',
+        ).mockReturnValue(
+            new Ability<PossibleAbilities>([
+                {
+                    action: 'manage',
+                    subject: 'LiveSource',
+                    conditions: { projectUuid: 'proj-1' },
+                },
+            ]),
+        );
+
+        const scan = await service.scanApiSourceSchema(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+
+        expect(scan).toMatchObject({ status: 'ready' });
+    });
+
     it('stores a failed scan when PostHog refuses the key', async () => {
         mockSecureFetch.mockResolvedValueOnce({
             status: 401,

@@ -2106,6 +2106,10 @@ export class AppGenerateService extends BaseService {
                         slug,
                     );
                 if (!connection) return { slug, status: 'not_found' };
+                // Live data sources are never linked to apps.
+                if (getConnectionKind(connection) === 'live_source') {
+                    return { slug, status: 'not_linkable' };
+                }
                 if (
                     ability.cannot(
                         'view',

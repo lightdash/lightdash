@@ -2676,6 +2676,25 @@ describe('AppGenerateService.importAppCode external connection links', () => {
         );
     });
 
+    it('never links an integration from the manifest', async () => {
+        const { service, appModel, externalConnectionModel } = buildService();
+        appModel.findApp.mockResolvedValue(undefined);
+        externalConnectionModel.findBySlug.mockResolvedValue(
+            makeConnection({ kind: 'live_source' }),
+        );
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(undefined, {
+                    externalConnections: [
+                        { alias: 'stripe', connectionSlug: 'stripe-api' },
+                    ],
+                }),
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(ForbiddenError);
+        expect(externalConnectionModel.replaceAppLinks).not.toHaveBeenCalled();
+    });
+
     it('warns and skips a missing slug while still applying resolvable links', async () => {
         const { service, appModel, externalConnectionModel } = buildService();
         appModel.findApp.mockResolvedValue(undefined);

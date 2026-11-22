@@ -2495,13 +2495,15 @@ export class ExternalConnectionService extends BaseService {
     ): Promise<ApiSourceSchemaScan> {
         let scan: ApiSourceSchemaScan;
         try {
+            // A scan is part of managing the source, not querying it.
+            const connection = await this.getOwnedConnection(
+                account,
+                projectUuid,
+                connectionUuid,
+            );
             scan = await scanPostHogSchema(async (args) =>
                 runLiveRequest(
-                    await this.getLiveSource(
-                        account,
-                        projectUuid,
-                        connectionUuid,
-                    ),
+                    this.getMeteredLiveSource(account, projectUuid, connection),
                     args,
                 ),
             );
