@@ -1,15 +1,15 @@
-import { ApiConnectorType } from '@lightdash/common';
+import { ApiConnectorType, LIVE_INTEGRATION_CATALOG } from '@lightdash/common';
 import { Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import {
     getLinkedInAdsSignInUrl,
+    LINKEDIN_AD_ACCOUNT_FIELD,
     LINKEDIN_AD_ACCOUNT_ID,
 } from './linkedInAdsConnection';
 import { LiveSourceTitle } from './LiveSourceIcon';
 import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
-import { LiveSourceSetupCard } from './LiveSourceSetupCard';
 import { NewLiveSourceDetails } from './NewLiveSourceDetails';
 
 /** Matches the fields of the Details card below. */
@@ -28,14 +28,18 @@ export const LinkedInAdsConnectionModal: FC<Props> = ({
     projectUuid,
 }) => {
     const form = useForm({
-        initialValues: { name: 'LinkedIn Ads', adAccountId: '' },
+        initialValues: {
+            name: LIVE_INTEGRATION_CATALOG[ApiConnectorType.LINKEDIN_ADS]
+                .defaultName,
+            adAccountId: '',
+        },
         validate: {
             name: (value) =>
                 value.trim().length === 0 ? 'Give it a name' : null,
             adAccountId: (value) =>
                 LINKEDIN_AD_ACCOUNT_ID.test(value.trim())
                     ? null
-                    : 'Use the numbers only, as shown in Campaign Manager',
+                    : LINKEDIN_AD_ACCOUNT_FIELD.invalidMessage,
         },
     });
 
@@ -59,19 +63,16 @@ export const LinkedInAdsConnectionModal: FC<Props> = ({
             onConfirm={() => handleSave()}
         >
             <Stack gap="lg">
-                <LiveSourceSetupCard
-                    connector={ApiConnectorType.LINKEDIN_ADS}
-                />
                 <SettingsCard title="Access">
                     <SettingsRow
-                        label="Ad account ID"
-                        hint="From Campaign Manager"
+                        label={LINKEDIN_AD_ACCOUNT_FIELD.label}
+                        hint={LINKEDIN_AD_ACCOUNT_FIELD.description}
                     >
                         <TextInput
                             w={FIELD_WIDTH}
                             size="xs"
-                            aria-label="Ad account ID"
-                            placeholder="1234567890"
+                            aria-label={LINKEDIN_AD_ACCOUNT_FIELD.label}
+                            placeholder={LINKEDIN_AD_ACCOUNT_FIELD.placeholder}
                             data-autofocus
                             {...form.getInputProps('adAccountId')}
                         />

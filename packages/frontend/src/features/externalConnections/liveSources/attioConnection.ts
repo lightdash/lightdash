@@ -9,8 +9,6 @@ import {
 import { type TokenLiveSourceForm } from './tokenLiveSource';
 
 export const ATTIO_TOKEN_FORM = {
-    label: 'Attio',
-    defaultName: 'Attio',
     origin: ATTIO_ORIGIN,
     // The token belongs to one workspace, and the source reads every standard object
     account: null,

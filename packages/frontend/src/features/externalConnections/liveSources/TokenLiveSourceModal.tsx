@@ -2,6 +2,7 @@
  * Adds a live data source that reads with an API token, laid out like its
  * settings: how it reaches the integration first, then what it is called.
  */
+import { LIVE_INTEGRATION_CATALOG } from '@lightdash/common';
 import { Button, PasswordInput, Stack, TextInput } from '@mantine/core';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
@@ -84,7 +85,7 @@ export const TokenLiveSourceModal: FC<Props> = ({
             size="xl"
             title={
                 <LiveSourceTitle connector={connector}>
-                    Add {definition.label} source
+                    Add {LIVE_INTEGRATION_CATALOG[connector].label} source
                 </LiveSourceTitle>
             }
             confirmLabel="Add source"

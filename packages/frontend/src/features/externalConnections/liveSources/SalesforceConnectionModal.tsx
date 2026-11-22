@@ -1,5 +1,6 @@
 import {
     ApiConnectorType,
+    LIVE_INTEGRATION_CATALOG,
     type SalesforceEnvironment,
 } from '@lightdash/common';
 import { Stack, Switch } from '@mantine/core';
@@ -8,7 +9,6 @@ import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import { LiveSourceTitle } from './LiveSourceIcon';
 import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
-import { LiveSourceSetupCard } from './LiveSourceSetupCard';
 import { NewLiveSourceDetails } from './NewLiveSourceDetails';
 import { getSalesforceSignInUrl } from './salesforceConnection';
 
@@ -25,7 +25,11 @@ export const SalesforceConnectionModal: FC<Props> = ({
     projectUuid,
 }) => {
     const form = useForm<{ name: string; environment: SalesforceEnvironment }>({
-        initialValues: { name: 'Salesforce', environment: 'production' },
+        initialValues: {
+            name: LIVE_INTEGRATION_CATALOG[ApiConnectorType.SALESFORCE]
+                .defaultName,
+            environment: 'production',
+        },
         validate: {
             name: (value) =>
                 value.trim().length === 0 ? 'Give it a name' : null,
@@ -52,7 +56,6 @@ export const SalesforceConnectionModal: FC<Props> = ({
             onConfirm={() => handleSave()}
         >
             <Stack gap="lg">
-                <LiveSourceSetupCard connector={ApiConnectorType.SALESFORCE} />
                 <SettingsCard title="Access">
                     <SettingsRow
                         label="Use a sandbox"

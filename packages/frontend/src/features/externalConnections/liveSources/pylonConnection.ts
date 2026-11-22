@@ -9,8 +9,6 @@ import {
 import { type TokenLiveSourceForm } from './tokenLiveSource';
 
 export const PYLON_TOKEN_FORM = {
-    label: 'Pylon',
-    defaultName: 'Pylon',
     origin: PYLON_ORIGIN,
     // The token belongs to one workspace, so there is nothing else to pick
     account: null,

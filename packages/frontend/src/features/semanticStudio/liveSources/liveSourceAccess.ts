@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { getLiveSource } from '../../externalConnections/liveSources/liveSourceCatalog';
 import {
+    POSTHOG_PROJECT_ID_FIELD,
     toPostHogFormValues,
     toPostHogUpdatePayload,
 } from '../../externalConnections/liveSources/postHogConnection';
@@ -37,8 +38,6 @@ type AccountField = {
     placeholder: string;
     validate: (value: string) => string | null;
 };
-
-const POSTHOG_PROJECT_ID = /^\d{1,12}$/;
 
 export const getLiveSourceAccess = (
     connection: LiveSourceConnection,
@@ -70,13 +69,11 @@ export const getAccountField = (
         }
         case 'posthogKey':
             return {
-                label: 'Project ID',
-                description: 'From Project settings',
-                placeholder: '12345',
+                ...POSTHOG_PROJECT_ID_FIELD,
                 validate: (value) =>
-                    POSTHOG_PROJECT_ID.test(value.trim())
+                    POSTHOG_PROJECT_ID_FIELD.isValid(value)
                         ? null
-                        : 'Enter the numeric project ID from your PostHog URL',
+                        : POSTHOG_PROJECT_ID_FIELD.invalidMessage,
             };
         case 'signedIn':
             return null;

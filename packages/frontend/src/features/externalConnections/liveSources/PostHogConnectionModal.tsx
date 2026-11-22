@@ -29,6 +29,7 @@ import { NewLiveSourceDetails } from './NewLiveSourceDetails';
 import {
     getPostHogQueryPath,
     getPostHogSignInUrl,
+    POSTHOG_PROJECT_ID_FIELD,
     toPostHogCreatePayload,
     usePostHogConnectionForm,
     type PostHogAuthMethod,
@@ -162,14 +163,16 @@ export const PostHogConnectionModal: FC<Props> = ({
                     {isSignIn ? null : (
                         <>
                             <SettingsRow
-                                label="Project ID"
-                                hint="From Project settings"
+                                label={POSTHOG_PROJECT_ID_FIELD.label}
+                                hint={POSTHOG_PROJECT_ID_FIELD.description}
                             >
                                 <TextInput
                                     w={FIELD_WIDTH}
                                     size="xs"
-                                    aria-label="Project ID"
-                                    placeholder="12345"
+                                    aria-label={POSTHOG_PROJECT_ID_FIELD.label}
+                                    placeholder={
+                                        POSTHOG_PROJECT_ID_FIELD.placeholder
+                                    }
                                     {...form.getInputProps('projectId')}
                                 />
                             </SettingsRow>

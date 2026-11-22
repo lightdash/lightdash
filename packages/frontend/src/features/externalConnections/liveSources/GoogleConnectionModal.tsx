@@ -9,7 +9,6 @@ import {
     type GoogleConnector,
 } from './googleConnection';
 import { LiveSourceTitle } from './LiveSourceIcon';
-import { LiveSourceSetupCard } from './LiveSourceSetupCard';
 import { NewLiveSourceDetails } from './NewLiveSourceDetails';
 
 type Props = {
@@ -70,7 +69,6 @@ export const GoogleConnectionModal: FC<Props> = ({
             confirmDisabled={sourceId.isBlocked}
         >
             <Stack gap="lg">
-                <LiveSourceSetupCard connector={connector} />
                 <NewLiveSourceDetails
                     nameProps={form.getInputProps('name')}
                     sourceId={sourceId}

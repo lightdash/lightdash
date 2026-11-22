@@ -16,8 +16,6 @@ const splitRepository = (repository: string) => {
 };
 
 export const GITHUB_TOKEN_FORM = {
-    label: 'GitHub',
-    defaultName: 'GitHub',
     origin: GITHUB_ORIGIN,
     account: {
         label: 'Repository',

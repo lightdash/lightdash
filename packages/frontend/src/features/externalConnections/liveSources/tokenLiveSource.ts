@@ -1,4 +1,5 @@
 import {
+    LIVE_INTEGRATION_CATALOG,
     type CreateExternalConnection,
     type ExternalConnection,
     type ExternalConnectionApiSource,
@@ -11,8 +12,6 @@ import { useForm } from '@mantine/form';
  * integration of this kind is a form definition and shares the dialog.
  */
 export type TokenLiveSourceForm = {
-    label: string;
-    defaultName: string;
     origin: string;
     /** Null when the token alone decides what the source reads. */
     account: {
@@ -61,7 +60,12 @@ export const useTokenLiveSourceForm = (
                   accountId: form.getAccountId(connection),
                   token: '',
               }
-            : { name: form.defaultName, accountId: '', token: '' },
+            : {
+                  name: LIVE_INTEGRATION_CATALOG[form.toApiSource('').connector]
+                      .defaultName,
+                  accountId: '',
+                  token: '',
+              },
         validate: {
             name: (value) =>
                 value.trim().length === 0 ? 'Give it a name' : null,

@@ -8,8 +8,6 @@ import { type TokenLiveSourceForm } from './tokenLiveSource';
 const AD_ACCOUNT_ID = /^\d{1,20}$/;
 
 export const META_ADS_TOKEN_FORM = {
-    label: 'Meta Ads',
-    defaultName: 'Meta Ads',
     origin: META_ADS_ORIGIN,
     account: {
         label: 'Ad account ID',

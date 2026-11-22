@@ -8,8 +8,6 @@ import {
 import { type TokenLiveSourceForm } from './tokenLiveSource';
 
 export const HUBSPOT_TOKEN_FORM = {
-    label: 'HubSpot',
-    defaultName: 'HubSpot',
     origin: HUBSPOT_ORIGIN,
     // The token belongs to one HubSpot account, so there is nothing else to pick
     account: null,
