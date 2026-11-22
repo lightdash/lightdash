@@ -7,6 +7,7 @@
 import {
     LIVE_SOURCE_AI_HINT_MAX_LENGTH,
     LIVE_SOURCE_CACHE_TTL_MAX_SECONDS,
+    type ExternalConnectionTestResponse,
 } from '@lightdash/common';
 import {
     Box,
@@ -18,14 +19,18 @@ import {
     Stack,
     Textarea,
     TextInput,
+    Tooltip,
 } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
-import { IconTrash } from '@tabler/icons-react';
+import {
+    IconAlertCircleFilled,
+    IconCircleCheckFilled,
+    IconTrash,
+} from '@tabler/icons-react';
 import { useState, type FC, type KeyboardEvent, type ReactNode } from 'react';
 import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
-import { ConnectionTestResult } from '../../externalConnections/components/ConnectionTestResult';
 import {
     usePurgeLiveSourceCache,
     useUpdateLiveSourceCache,
@@ -116,6 +121,33 @@ type Values = LiveSourceAccessValues & {
     ttl: string;
 };
 
+/** A test's outcome in one quiet line, in place of the row's hint. */
+const TestOutcome: FC<{ response: ExternalConnectionTestResponse }> = ({
+    response,
+}) => {
+    const ok = response.liveCheck?.ok ?? response.status < 300;
+    const summary =
+        response.liveCheck?.summary ??
+        (ok ? 'Works' : `Failed with status ${response.status}`);
+    return (
+        <Tooltip
+            label={response.liveCheck?.detail}
+            disabled={!response.liveCheck?.detail}
+            multiline
+            maw={320}
+            withinPortal
+        >
+            <Group gap={4} wrap="nowrap" role="status" c={ok ? 'green' : 'red'}>
+                <MantineIcon
+                    icon={ok ? IconCircleCheckFilled : IconAlertCircleFilled}
+                    size={12}
+                />
+                <span>{summary}</span>
+            </Group>
+        </Tooltip>
+    );
+};
+
 /** The saved token, or a new one in its place, and a check that it works. */
 const TokenRow: FC<{
     projectUuid: string;
@@ -170,9 +202,13 @@ const TokenRow: FC<{
             <SettingsRow
                 label={label}
                 hint={
-                    isReplacing
-                        ? 'Replaces the saved one'
-                        : 'Saved and encrypted, never shown again'
+                    test.data && !test.isLoading ? (
+                        <TestOutcome response={test.data} />
+                    ) : isReplacing ? (
+                        'Replaces the saved one'
+                    ) : (
+                        'Saved and encrypted, never shown again'
+                    )
                 }
             >
                 {isReplacing ? (
@@ -223,11 +259,6 @@ const TokenRow: FC<{
                     </Button>
                 ) : null}
             </SettingsRow>
-            {test.data ? (
-                <Box px="md" pb="sm">
-                    <ConnectionTestResult response={test.data} />
-                </Box>
-            ) : null}
         </>
     );
 };
