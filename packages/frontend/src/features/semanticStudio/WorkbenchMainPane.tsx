@@ -488,7 +488,6 @@ export const MainPane: FC<{
                     <Group gap={4} wrap="nowrap" flex="none">
                         {liveConnection ? (
                             <LiveSourceHeaderActions
-                                projectUuid={view.project.id}
                                 connection={liveConnection}
                             />
                         ) : null}

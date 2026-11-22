@@ -40,8 +40,8 @@ import {
     LiveSourceActionsContext,
     type LiveSourceActions,
 } from './liveSourceActions';
-import { LiveSourceCachingModal } from './LiveSourceCacheModals';
 import { type LiveSourceConnection } from './liveSourceRows';
+import { LiveSourceSettingsModal } from './LiveSourceSettingsModal';
 
 type Dialog =
     | { kind: 'closed' }
@@ -49,7 +49,7 @@ type Dialog =
     | { kind: 'create'; connector: ApiConnectorType }
     | { kind: 'edit'; connection: LiveSourceConnection }
     | { kind: 'remove'; connection: LiveSourceConnection }
-    | { kind: 'caching'; connection: LiveSourceConnection }
+    | { kind: 'settings'; connection: LiveSourceConnection }
     | { kind: 'reattach'; connectionUuid: string };
 
 const RemoveLiveSourceModal: FC<{
@@ -128,7 +128,8 @@ export const LiveSourceManager: FC<{
             add: () => setDialog({ kind: 'pick' }),
             edit: (connection) => setDialog({ kind: 'edit', connection }),
             remove: (connection) => setDialog({ kind: 'remove', connection }),
-            caching: (connection) => setDialog({ kind: 'caching', connection }),
+            settings: (connection) =>
+                setDialog({ kind: 'settings', connection }),
             getReconnect: (connection) => {
                 const { connector } = connection.apiSource;
                 const { setup } = getLiveSource(connector);
@@ -226,6 +227,7 @@ export const LiveSourceManager: FC<{
                 canUseGoogle={canUseGoogle}
                 canUseLinkedInAds={canUseLinkedInAds}
                 canUseSalesforce={canUseSalesforce}
+                getReconnect={actions.getReconnect}
                 onRemoved={onRemoved}
             />
         </LiveSourceActionsContext.Provider>
@@ -313,6 +315,7 @@ const LiveSourceDialogs: FC<{
     canUseGoogle: boolean;
     canUseLinkedInAds: boolean;
     canUseSalesforce: boolean;
+    getReconnect: LiveSourceActions['getReconnect'];
     onRemoved: () => void;
 }> = ({
     projectUuid,
@@ -323,6 +326,7 @@ const LiveSourceDialogs: FC<{
     canUseGoogle,
     canUseLinkedInAds,
     canUseSalesforce,
+    getReconnect,
     onRemoved,
 }) => {
     const navigate = useNavigate();
@@ -393,10 +397,23 @@ const LiveSourceDialogs: FC<{
                     onClose={close}
                 />
             )}
-            {dialog.kind === 'caching' && (
-                <LiveSourceCachingModal
+            {dialog.kind === 'settings' && (
+                <LiveSourceSettingsModal
                     projectUuid={projectUuid}
                     connection={dialog.connection}
+                    reconnect={getReconnect(dialog.connection)}
+                    onEdit={() =>
+                        setDialog({
+                            kind: 'edit',
+                            connection: dialog.connection,
+                        })
+                    }
+                    onDelete={() =>
+                        setDialog({
+                            kind: 'remove',
+                            connection: dialog.connection,
+                        })
+                    }
                     onClose={close}
                 />
             )}

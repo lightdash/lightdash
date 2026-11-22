@@ -8,23 +8,13 @@ import {
     Box,
     Button,
     Group,
-    Menu,
     Paper,
     Stack,
     Text,
     Title,
     Tooltip,
 } from '@mantine/core';
-import {
-    IconClockHour4,
-    IconDots,
-    IconInfoCircle,
-    IconPencil,
-    IconPlus,
-    IconRefresh,
-    IconReload,
-    IconTrash,
-} from '@tabler/icons-react';
+import { IconInfoCircle, IconPlus, IconSettings } from '@tabler/icons-react';
 import {
     type FC,
     type KeyboardEvent,
@@ -35,10 +25,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useResultsCacheStatus } from '../../../hooks/useProjectResultsCacheSettings';
 import { useExternalConnectionApiUsage } from '../../externalConnections/hooks/useExternalConnectionApiUsage';
 import { useExternalConnections } from '../../externalConnections/hooks/useExternalConnections';
-import {
-    useLiveSourceFields,
-    useRefreshLiveSourceFields,
-} from '../../externalConnections/hooks/useLiveSourceFields';
+import { useLiveSourceFields } from '../../externalConnections/hooks/useLiveSourceFields';
 import { formatChartCount } from '../../externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../../externalConnections/liveSources/LiveSourceIcon';
 import { useLiveSourceActions } from './liveSourceActions';
@@ -53,80 +40,48 @@ import classes from './LiveSources.module.css';
 
 const stopPropagation = (event: MouseEvent) => event.stopPropagation();
 
-/** Refresh fields, edit, sign in again and delete: one source's controls. */
-const LiveSourceMenu: FC<{
-    projectUuid: string;
-    connection: LiveSourceConnection;
-}> = ({ projectUuid, connection }) => {
+/** Opens one source's settings, in the table: an icon. */
+const LiveSourceSettingsIcon: FC<{ connection: LiveSourceConnection }> = ({
+    connection,
+}) => {
     const actions = useLiveSourceActions();
-    const refreshFields = useRefreshLiveSourceFields({
-        projectUuid,
-        connectionUuid: connection.externalConnectionUuid,
-    });
     if (!actions) return null;
-    const reconnect = actions.getReconnect(connection);
     return (
-        <Menu position="bottom-end" withinPortal>
-            <Menu.Target>
-                <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    size="sm"
-                    aria-label={`Actions for ${connection.name}`}
-                    onClick={stopPropagation}
-                >
-                    <MantineIcon icon={IconDots} />
-                </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown onClick={stopPropagation}>
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconPencil} />}
-                    onClick={() => actions.edit(connection)}
-                >
-                    Edit
-                </Menu.Item>
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconReload} />}
-                    disabled={refreshFields.isLoading}
-                    onClick={() => refreshFields.mutate()}
-                >
-                    Refresh fields
-                </Menu.Item>
-                {reconnect ? (
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconRefresh} />}
-                        onClick={reconnect}
-                    >
-                        Sign in again
-                    </Menu.Item>
-                ) : null}
-                <Menu.Divider />
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconClockHour4} />}
-                    onClick={() => actions.caching(connection)}
-                >
-                    Caching
-                </Menu.Item>
-                <Menu.Divider />
-                <Menu.Item
-                    color="red"
-                    leftSection={<MantineIcon icon={IconTrash} />}
-                    onClick={() => actions.remove(connection)}
-                >
-                    Delete
-                </Menu.Item>
-            </Menu.Dropdown>
-        </Menu>
+        <Tooltip label="Settings" withinPortal>
+            <ActionIcon
+                variant="subtle"
+                color="gray"
+                size="sm"
+                aria-label={`Settings for ${connection.name}`}
+                onClick={(event) => {
+                    stopPropagation(event);
+                    actions.settings(connection);
+                }}
+            >
+                <MantineIcon icon={IconSettings} />
+            </ActionIcon>
+        </Tooltip>
     );
 };
 
 /** The page header's controls for one source. */
 export const LiveSourceHeaderActions: FC<{
-    projectUuid: string;
     connection: LiveSourceConnection;
-}> = ({ projectUuid, connection }) => (
-    <LiveSourceMenu projectUuid={projectUuid} connection={connection} />
-);
+}> = ({ connection }) => {
+    const actions = useLiveSourceActions();
+    if (!actions) return null;
+    return (
+        <Button
+            size="xs"
+            variant="subtle"
+            color="gray"
+            leftSection={<MantineIcon icon={IconSettings} size={14} />}
+            onClick={() => actions.settings(connection)}
+        >
+            Settings
+        </Button>
+    );
+};
 
 const EmptyLiveSources: FC = () => {
     const actions = useLiveSourceActions();
@@ -258,10 +213,7 @@ export const LiveSourcesTable: FC<{
                         {used.medianLatency ?? '—'}
                     </Text>
                     <Box role="cell">
-                        <LiveSourceMenu
-                            projectUuid={projectUuid}
-                            connection={connection}
-                        />
+                        <LiveSourceSettingsIcon connection={connection} />
                     </Box>
                 </Box>
             ))}

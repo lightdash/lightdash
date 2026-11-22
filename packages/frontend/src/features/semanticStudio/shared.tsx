@@ -30,7 +30,6 @@ import {
     IconFileSpreadsheet,
     IconFileTypeCsv,
     IconFolder,
-    IconGripVertical,
     IconLock,
     IconPlus,
     IconSearch,
@@ -511,11 +510,6 @@ const FieldRow = memo<{
                     onDragStart={(event) => onDragStart(event, field)}
                     onClick={() => onOpen(field)}
                 >
-                    {canDrag ? (
-                        <Box className={classes.dragGrip} aria-hidden>
-                            <MantineIcon icon={IconGripVertical} size={12} />
-                        </Box>
-                    ) : null}
                     <Group gap={8} wrap="nowrap" className={classes.fieldName}>
                         <Box flex="none" display="flex">
                             <FieldTypeIcon field={field} />
