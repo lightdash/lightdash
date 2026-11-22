@@ -478,7 +478,7 @@ export const LiveSourceSettings: FC<{
                     {connection.liveSourceName ? (
                         <SettingsRow
                             label="Explore prefix"
-                            hint="Names this source's explores. Can't be changed"
+                            hint="Added to the start of each explore name"
                         >
                             <Code className={classes.settingsCode}>
                                 {connection.liveSourceName}
