@@ -93110,6 +93110,11 @@ export function RegisterRoutes(app: Router) {
         },
         returnTo: { in: 'query', name: 'returnTo', dataType: 'string' },
         environment: { in: 'query', name: 'environment', dataType: 'string' },
+        explorePrefix: {
+            in: 'query',
+            name: 'explorePrefix',
+            dataType: 'string',
+        },
     };
     app.get(
         '/api/v1/ee/projects/:projectUuid/live-sources/salesforce/oauth/start',
@@ -95579,6 +95584,11 @@ export function RegisterRoutes(app: Router) {
             dataType: 'string',
         },
         returnTo: { in: 'query', name: 'returnTo', dataType: 'string' },
+        explorePrefix: {
+            in: 'query',
+            name: 'explorePrefix',
+            dataType: 'string',
+        },
     };
     app.get(
         '/api/v1/ee/projects/:projectUuid/live-sources/linkedin/oauth/start',
