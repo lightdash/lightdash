@@ -47,7 +47,9 @@ const renderModal = ({
     );
 
 const openRequest = () =>
-    userEvent.click(screen.getByRole('button', { name: 'Request a source' }));
+    userEvent.click(
+        screen.getByRole('button', { name: 'Request a live source' }),
+    );
 
 const customInput = () => screen.getByRole('textbox', { name: 'Source name' });
 
@@ -95,7 +97,7 @@ describe('AddLiveSourceModal', () => {
         expect(screen.getByText('PostHog')).toBeInTheDocument();
     });
 
-    it('asks for a source name only after Request a source is clicked', async () => {
+    it('asks for a source name only after Request a live source is clicked', async () => {
         renderModal();
 
         expect(

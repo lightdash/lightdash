@@ -46,7 +46,7 @@ export const CustomLiveSourceRequestCard: FC<Props> = ({ onRequest }) => {
                 <UnstyledButton
                     className={styles.card}
                     data-request
-                    aria-label="Request a source"
+                    aria-label="Request a live source"
                     onClick={() => setOpened((isOpen) => !isOpen)}
                 >
                     <Group gap="sm" wrap="nowrap" align="flex-start">
@@ -55,7 +55,7 @@ export const CustomLiveSourceRequestCard: FC<Props> = ({ onRequest }) => {
                         </span>
                         <Stack gap={2} miw={0}>
                             <Text fw={600} fz="sm">
-                                Request a source
+                                Request a live source
                             </Text>
                             <Text fz="xs" c="dimmed" lineClamp={2}>
                                 {lastRequested === null
