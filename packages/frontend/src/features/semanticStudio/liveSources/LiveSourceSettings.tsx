@@ -2,7 +2,8 @@
  * One live data source's settings, below its summary on its own page. Rows
  * of a label on the left and its control on the right: how it signs in
  * (account, access), what it is (name, AI hint), its data (fields and
- * caching), then deleting it. Each setting saves on its own, as soon as it changes.
+ * caching), then deleting it. Each setting saves on its own: a field with its Save or Enter,
+ * a choice as soon as it changes.
  */
 import {
     LIVE_SOURCE_AI_HINT_MAX_LENGTH,
@@ -10,11 +11,13 @@ import {
     type ExternalConnectionTestResponse,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Box,
     Button,
     Code,
     Group,
     PasswordInput,
+    Popover,
     Select,
     Stack,
     Textarea,
@@ -24,6 +27,7 @@ import {
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import {
     IconAlertCircleFilled,
+    IconCheck,
     IconCircleCheckFilled,
     IconTrash,
 } from '@tabler/icons-react';
@@ -204,50 +208,53 @@ const TokenRow: FC<{
                 hint={
                     test.data && !test.isLoading ? (
                         <TestOutcome response={test.data} />
-                    ) : isReplacing ? (
-                        'Replaces the saved one'
                     ) : (
                         'Saved and encrypted, never shown again'
                     )
                 }
             >
-                {isReplacing ? (
-                    <>
-                        <PasswordInput
-                            w={240}
-                            size="xs"
-                            placeholder="New token"
-                            aria-label={`New ${label}`}
-                            autoFocus
-                            {...form.getInputProps('token')}
-                            onKeyDown={(event) => {
-                                if (event.key === 'Enter') onSave();
-                                if (event.key === 'Escape') onKeep();
-                            }}
-                        />
+                <Popover
+                    opened={isReplacing}
+                    onChange={(opened) => {
+                        if (!opened && !isSaving) onKeep();
+                    }}
+                    position="bottom-end"
+                    trapFocus
+                    withinPortal
+                >
+                    <Popover.Target>
                         <Button
                             size="xs"
-                            variant="subtle"
-                            color="gray"
-                            disabled={isSaving}
-                            onClick={onKeep}
+                            variant="default"
+                            onClick={isReplacing ? onKeep : onReplace}
                         >
-                            Cancel
+                            Replace
                         </Button>
-                        <Button
-                            size="xs"
-                            disabled={values.token.trim() === ''}
-                            loading={isSaving}
-                            onClick={onSave}
-                        >
-                            Save
-                        </Button>
-                    </>
-                ) : (
-                    <Button size="xs" variant="default" onClick={onReplace}>
-                        Replace
-                    </Button>
-                )}
+                    </Popover.Target>
+                    <Popover.Dropdown>
+                        <Group gap="xs" wrap="nowrap">
+                            <PasswordInput
+                                size="xs"
+                                w={200}
+                                aria-label={`New ${label}`}
+                                placeholder={`New ${label.toLowerCase()}`}
+                                data-autofocus
+                                {...form.getInputProps('token')}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Enter') onSave();
+                                }}
+                            />
+                            <Button
+                                size="xs"
+                                disabled={values.token.trim() === ''}
+                                loading={isSaving}
+                                onClick={onSave}
+                            >
+                                Save
+                            </Button>
+                        </Group>
+                    </Popover.Dropdown>
+                </Popover>
                 {tokenForm ? (
                     <Button
                         size="xs"
@@ -339,15 +346,35 @@ export const LiveSourceSettings: FC<{
         setIsReplacingToken(false);
     };
 
+    /** Enter saves, Escape puts back the saved value. */
     const saveOnEnter =
         (key: keyof LiveSourceAccessValues) =>
-        (event: KeyboardEvent<HTMLInputElement>) => {
-            if (event.key === 'Enter') event.currentTarget.blur();
+        (event: KeyboardEvent<HTMLElement>) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                void saveSource([key]);
+            }
             if (event.key === 'Escape') {
                 form.setFieldValue(key, form.getInitialValues()[key]);
                 form.clearFieldError(key);
             }
         };
+
+    /** A small Save inside a field, shown while it holds an unsaved change. */
+    const saveButton = (key: keyof LiveSourceAccessValues) =>
+        form.values[key].trim() !== form.getInitialValues()[key].trim() ? (
+            <Tooltip label="Save" withinPortal>
+                <ActionIcon
+                    size="sm"
+                    variant="filled"
+                    aria-label="Save"
+                    loading={updateSource.isLoading}
+                    onClick={() => void saveSource([key])}
+                >
+                    <MantineIcon icon={IconCheck} size={14} />
+                </ActionIcon>
+            </Tooltip>
+        ) : null;
 
     const saveTtl = (value: string | null) => {
         if (!value || value === form.getInitialValues().ttl) return;
@@ -381,8 +408,8 @@ export const LiveSourceSettings: FC<{
                                 aria-label={accountField.label}
                                 placeholder={accountField.placeholder}
                                 {...form.getInputProps('accountId')}
-                                onBlur={() => void saveSource(['accountId'])}
                                 onKeyDown={saveOnEnter('accountId')}
+                                rightSection={saveButton('accountId')}
                             />
                         </SettingsRow>
                     ) : null}
@@ -429,8 +456,8 @@ export const LiveSourceSettings: FC<{
                             size="xs"
                             aria-label="Name"
                             {...form.getInputProps('name')}
-                            onBlur={() => void saveSource(['name'])}
                             onKeyDown={saveOnEnter('name')}
+                            rightSection={saveButton('name')}
                         />
                     </SettingsRow>
                     {connection.liveSourceName ? (
@@ -464,7 +491,8 @@ export const LiveSourceSettings: FC<{
                             maxRows={4}
                             maxLength={LIVE_SOURCE_AI_HINT_MAX_LENGTH}
                             {...form.getInputProps('aiHint')}
-                            onBlur={() => void saveSource(['aiHint'])}
+                            onKeyDown={saveOnEnter('aiHint')}
+                            rightSection={saveButton('aiHint')}
                         />
                     </SettingsRow>
                 </SettingsCard>
