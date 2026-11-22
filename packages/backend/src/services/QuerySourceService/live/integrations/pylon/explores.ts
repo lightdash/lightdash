@@ -1,4 +1,4 @@
-import { DimensionType, FilterOperator } from '@lightdash/common';
+import { DimensionType, FilterOperator, TimeFrames } from '@lightdash/common';
 import type {
     LiveDimensionDefinition,
     LiveExploreDefinition,
@@ -59,6 +59,42 @@ const text = (
 
 const date = (name: string, label: string, description: string) =>
     dimension(name, label, DimensionType.DATE, PYLON_DATE_FILTERS, description);
+
+/**
+ * A date of an issue with its week and month, worked out per issue from the
+ * day. The grains take no filters of their own: the day filters them.
+ */
+const withGrains = (
+    name: string,
+    label: string,
+    description: string,
+): LiveDimensionDefinition[] => [
+    {
+        ...date(name, label, description),
+        // The day is its own grain, grouped with the coarser ones
+        timeInterval: { base: name, grain: TimeFrames.DAY },
+    },
+    {
+        ...dimension(
+            `${name}_week`,
+            `${label} week`,
+            DimensionType.DATE,
+            [],
+            `Monday of the week, in UTC. Filter ${label} to choose the weeks.`,
+        ),
+        timeInterval: { base: name, grain: TimeFrames.WEEK },
+    },
+    {
+        ...dimension(
+            `${name}_month`,
+            `${label} month`,
+            DimensionType.DATE,
+            [],
+            `First day of the month, in UTC. Filter ${label} to choose the months.`,
+        ),
+        timeInterval: { base: name, grain: TimeFrames.MONTH },
+    },
+];
 
 export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
     name: 'issues',
@@ -123,13 +159,17 @@ export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
             PYLON_VALUE_FILTERS,
             'The issue tags, comma separated. "Is" keeps issues with any of the tags.',
         ),
-        date('created_at', 'Created', 'The day the issue was created, in UTC.'),
-        date(
+        ...withGrains(
+            'created_at',
+            'Created',
+            'The day the issue was created, in UTC.',
+        ),
+        ...withGrains(
             'updated_at',
             'Updated',
             'The day the issue last changed, in UTC.',
         ),
-        date(
+        ...withGrains(
             'resolved_at',
             'Resolved',
             'The day the issue was last resolved, in UTC.',
