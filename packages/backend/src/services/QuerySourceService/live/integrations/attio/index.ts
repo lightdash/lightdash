@@ -103,9 +103,24 @@ export const attioIntegration = defineLiveIntegration({
         oauth: 'no_review',
     },
     paging: { description: 'Up to 500 records a page, with limit and offset.' },
-    rateLimiting: {
-        description:
-            '100 reads a second per workspace; list queries are scored by their filters and sorts over 10 seconds.',
+    rateLimits: {
+        concurrentCalls: 3,
+        callsPerSecond: 50,
+        buckets: [
+            {
+                id: 'minute',
+                label: 'per minute',
+                windowMs: 60_000,
+                capacity: 600,
+            },
+            {
+                id: 'hour',
+                label: 'per hour',
+                windowMs: 3_600_000,
+                capacity: 20_000,
+            },
+        ],
+        note: 'List queries are also scored by their filters and sorts over 10 seconds; Attio publishes no threshold.',
     },
     useCases: attioUseCases,
     validate: () => {},

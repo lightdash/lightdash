@@ -105,9 +105,24 @@ export const linkedInAdsIntegration = defineLiveIntegration({
         description:
             'One adAnalytics call returns up to 15,000 rows, with no paging.',
     },
-    rateLimiting: {
-        description:
-            "Daily per-app and per-member limits shown in LinkedIn's developer portal, not published as fixed numbers.",
+    rateLimits: {
+        concurrentCalls: 5,
+        callsPerSecond: null,
+        buckets: [
+            {
+                id: 'minute',
+                label: 'per minute',
+                windowMs: 60_000,
+                capacity: 60,
+            },
+            {
+                id: 'hour',
+                label: 'per hour',
+                windowMs: 3_600_000,
+                capacity: 1_000,
+            },
+        ],
+        note: 'LinkedIn shows its daily per-app and per-member limits only in the developer portal.',
     },
     useCases: linkedInAdsUseCases,
     validate: ({ adAccountId }) => {

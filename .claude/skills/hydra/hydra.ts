@@ -18,7 +18,7 @@ import type { LiveIntegrationSpec } from '../../../packages/backend/src/services
 
 type PageIntegration = Pick<
     LiveIntegrationSpec,
-    'level' | 'auth' | 'paging' | 'rateLimiting' | 'useCases'
+    'level' | 'auth' | 'paging' | 'rateLimits' | 'useCases'
 > & {
     name: string;
     label: string;
@@ -50,7 +50,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = join(homedir(), '.hydra');
 
 const toPageIntegration = (connector: ApiConnectorType): PageIntegration => {
-    const { label, level, auth, paging, rateLimiting, useCases } =
+    const { label, level, auth, paging, rateLimits, useCases } =
         getLiveIntegration(connector);
     return {
         name: connector,
@@ -58,7 +58,7 @@ const toPageIntegration = (connector: ApiConnectorType): PageIntegration => {
         level,
         auth,
         paging,
-        rateLimiting,
+        rateLimits,
         useCases,
     };
 };

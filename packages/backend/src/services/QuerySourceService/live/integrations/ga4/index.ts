@@ -104,9 +104,24 @@ export const ga4Integration = defineLiveIntegration({
         description:
             'One report call returns up to 250,000 rows; offset pages beyond that.',
     },
-    rateLimiting: {
-        description:
-            'Standard properties: 10 requests at once, plus hourly and daily quota tokens per property.',
+    rateLimits: {
+        concurrentCalls: 5,
+        callsPerSecond: null,
+        buckets: [
+            {
+                id: 'minute',
+                label: 'per minute',
+                windowMs: 60_000,
+                capacity: 60,
+            },
+            {
+                id: 'hour',
+                label: 'per hour',
+                windowMs: 3_600_000,
+                capacity: 1_000,
+            },
+        ],
+        note: 'GA4 counts quota in tokens per property, not calls.',
     },
     useCases: ga4UseCases,
     validate: ({ propertyId }) => {
