@@ -61,11 +61,11 @@ export const usePurgeLiveSourceCache = (params: LiveSourceParams) => {
             await queryClient.invalidateQueries({
                 queryKey: ['external-connections', params.projectUuid],
             });
-            showToastSuccess({ title: 'Cache purged' });
+            showToastSuccess({ title: 'Cache cleared' });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to purge cache',
+                title: 'Failed to clear cache',
                 apiError: error,
             });
         },

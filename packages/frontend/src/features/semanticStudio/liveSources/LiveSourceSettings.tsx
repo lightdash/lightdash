@@ -99,7 +99,7 @@ const formatDate = (date: Date | string) =>
     });
 
 const formatPurgedAt = (purgedAt: Date | null | undefined) =>
-    purgedAt ? `Last purged ${formatDate(purgedAt)}` : 'Never purged';
+    purgedAt ? `Last cleared ${formatDate(purgedAt)}` : 'Never cleared';
 
 type Values = {
     name: string;
@@ -370,10 +370,10 @@ export const LiveSourceSettings: FC<{
                         </Button>
                     </SettingsRow>
                     <SettingsRow
-                        label="Reuse results for"
+                        label="Cache results for"
                         hint={
                             <>
-                                Everyone gets the same result until it expires
+                                After this, queries fetch fresh data
                                 <ProjectCacheOffAlert
                                     projectUuid={projectUuid}
                                 />
@@ -383,7 +383,7 @@ export const LiveSourceSettings: FC<{
                         <Select
                             w={116}
                             size="xs"
-                            aria-label="Reuse results for"
+                            aria-label="Cache results for"
                             allowDeselect={false}
                             comboboxProps={{ withinPortal: true }}
                             data={ttlOptions.map((option) => ({
@@ -394,7 +394,7 @@ export const LiveSourceSettings: FC<{
                         />
                     </SettingsRow>
                     <SettingsRow
-                        label="Cached results"
+                        label="Clear cache"
                         hint={formatPurgedAt(connection.cachePurgedAt)}
                     >
                         <Button
@@ -403,7 +403,7 @@ export const LiveSourceSettings: FC<{
                             loading={purge.isLoading}
                             onClick={() => setIsPurgeOpen(true)}
                         >
-                            Purge
+                            Clear
                         </Button>
                     </SettingsRow>
                 </SettingsCard>
@@ -411,7 +411,7 @@ export const LiveSourceSettings: FC<{
                 <SettingsCard title="Danger zone">
                     <SettingsRow
                         label="Delete live data source"
-                        hint="Removes its explores. Charts on it stop working"
+                        hint="Charts that use it will stop working"
                     >
                         <Button
                             size="xs"
@@ -451,10 +451,10 @@ export const LiveSourceSettings: FC<{
             <MantineModal
                 opened={isPurgeOpen}
                 onClose={() => setIsPurgeOpen(false)}
-                title="Purge cached results?"
+                title="Clear cache?"
                 role="alertdialog"
-                description={`Results from "${connection.name}" stop being reused. The next query from anyone calls the integration for fresh data.`}
-                confirmLabel="Purge"
+                description={`The next query to "${connection.name}" fetches fresh data.`}
+                confirmLabel="Clear"
                 confirmLoading={purge.isLoading}
                 onConfirm={() =>
                     purge.mutate(undefined, {
