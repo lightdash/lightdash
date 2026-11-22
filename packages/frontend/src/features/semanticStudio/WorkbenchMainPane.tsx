@@ -10,7 +10,7 @@ import {
 } from '@mantine/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useContext, useEffect, useMemo, useRef, type FC } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { LiveSourceBetaBadge } from '../externalConnections/liveSources/LiveSourceBetaBadge';
 import { DraftMarksContext } from './draftMarks';
 import { useExternalSourceActions } from './externalSources/externalSourceActions';
@@ -22,6 +22,8 @@ import {
 import { useManagedExternalSource } from './externalSources/useManagedExternalSource';
 import { JoinDiagram } from './JoinDiagram';
 import { useLiveSourceActions } from './liveSources/liveSourceActions';
+import { LiveSourceDetailsForm } from './liveSources/LiveSourceManager';
+import { LiveSourceSettings } from './liveSources/LiveSourceSettings';
 import {
     LiveSourceHeaderActions,
     LiveSourceSummary,
@@ -45,6 +47,7 @@ import {
     CHANGE_KIND_LABELS,
     describeFieldChanges,
     getModelCodeSearch,
+    VIEW_PARAM,
 } from './modelCode';
 import { ModelMark } from './ModelMark';
 import { ModelTabs } from './ModelTabs';
@@ -57,7 +60,7 @@ import {
     SettingsLink,
 } from './shared';
 import { useAddToStudioChat, startStudioChatRefDrag } from './studioChatRefs';
-import { getSemanticStudioUrl } from './urls';
+import { getSemanticStudioSourceUrl, getSemanticStudioUrl } from './urls';
 import { useExploreFields } from './useExploreFields';
 import {
     useSemanticLayerDraft,
@@ -366,12 +369,16 @@ const Crumbs: FC<{
     </Breadcrumbs>
 );
 
+/** The `view` of a live data source's page that shows its settings. */
+const SETTINGS_VIEW = 'settings';
+
 export const MainPane: FC<{
     view: ViewModel;
     onOpen: (ref: NodeRef | null) => void;
     onOpenNode: (node: TreeNode) => void;
     onBuildModel: (() => void) | null;
 }> = ({ view, onOpen, onOpenNode, onBuildModel }) => {
+    const navigate = useNavigate();
     const canDrag = useAddToStudioChat() !== null;
     const selected = view.selected;
     const ref = selected ? containerOf(selected) : null;
@@ -421,6 +428,14 @@ export const MainPane: FC<{
             ? source.connectionUuid
             : undefined,
     );
+    // A source's settings replace its fields below the summary
+    const [searchParams, setSearchParams] = useSearchParams();
+    const isLiveSettingsOpen =
+        !!liveConnection && searchParams.get(VIEW_PARAM) === SETTINGS_VIEW;
+    const toggleLiveSettings = () =>
+        setSearchParams(
+            isLiveSettingsOpen ? {} : { [VIEW_PARAM]: SETTINGS_VIEW },
+        );
     // External sources likewise: the list on their kind's page, and each
     // file's or sheet's state and controls above its fields.
     const externalActions = useExternalSourceActions();
@@ -488,7 +503,8 @@ export const MainPane: FC<{
                     <Group gap={4} wrap="nowrap" flex="none">
                         {liveConnection ? (
                             <LiveSourceHeaderActions
-                                connection={liveConnection}
+                                isSettingsOpen={isLiveSettingsOpen}
+                                onToggleSettings={toggleLiveSettings}
                             />
                         ) : null}
                         {externalSource ? (
@@ -521,11 +537,34 @@ export const MainPane: FC<{
                 {externalSource ? (
                     <ExternalSourceSummary source={externalSource} />
                 ) : null}
-                {isLiveSourcesPage ? (
+                {liveConnection && isLiveSettingsOpen ? (
+                    <LiveSourceSettings
+                        projectUuid={view.project.id}
+                        connection={liveConnection}
+                        reconnect={
+                            liveActions?.getReconnect(liveConnection) ?? null
+                        }
+                        details={
+                            <LiveSourceDetailsForm
+                                projectUuid={view.project.id}
+                                connection={liveConnection}
+                            />
+                        }
+                        onDelete={() => liveActions?.remove(liveConnection)}
+                    />
+                ) : isLiveSourcesPage ? (
                     <LiveSourcesTable
                         projectUuid={view.project.id}
                         onOpen={(connectionUuid) =>
                             onOpen({ type: 'source', sourceId: connectionUuid })
+                        }
+                        onOpenSettings={(connectionUuid) =>
+                            void navigate(
+                                `${getSemanticStudioSourceUrl(
+                                    view.project.id,
+                                    connectionUuid,
+                                )}?${VIEW_PARAM}=${SETTINGS_VIEW}`,
+                            )
                         }
                     />
                 ) : isExternalSourcesPage ? (

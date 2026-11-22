@@ -1,6 +1,6 @@
 /**
  * Everything an admin does to a live data source, wherever on the Semantic
- * Layer page they start it: add, edit, sign in again and remove. The dialogs
+ * Layer page they start it: add, sign in again and remove. The dialogs
  * live here once, and sign-in callbacks (?connected=, ?signInError=,
  * ?pickGoogleSource=) and ?add=true land here, on whichever page they open.
  */
@@ -41,14 +41,12 @@ import {
     type LiveSourceActions,
 } from './liveSourceActions';
 import { type LiveSourceConnection } from './liveSourceRows';
-import { LiveSourceSettingsModal } from './LiveSourceSettingsModal';
 
 type Dialog =
     | { kind: 'closed' }
     | { kind: 'pick' }
     | { kind: 'create'; connector: ApiConnectorType }
     | { kind: 'remove'; connection: LiveSourceConnection }
-    | { kind: 'settings'; connection: LiveSourceConnection }
     | { kind: 'reattach'; connectionUuid: string };
 
 const RemoveLiveSourceModal: FC<{
@@ -126,8 +124,6 @@ export const LiveSourceManager: FC<{
         (): LiveSourceActions => ({
             add: () => setDialog({ kind: 'pick' }),
             remove: (connection) => setDialog({ kind: 'remove', connection }),
-            settings: (connection) =>
-                setDialog({ kind: 'settings', connection }),
             getReconnect: (connection) => {
                 const { connector } = connection.apiSource;
                 const { setup } = getLiveSource(connector);
@@ -225,7 +221,6 @@ export const LiveSourceManager: FC<{
                 canUseGoogle={canUseGoogle}
                 canUseLinkedInAds={canUseLinkedInAds}
                 canUseSalesforce={canUseSalesforce}
-                getReconnect={actions.getReconnect}
                 onRemoved={onRemoved}
             />
         </LiveSourceActionsContext.Provider>
@@ -321,7 +316,6 @@ const LiveSourceDialogs: FC<{
     canUseGoogle: boolean;
     canUseLinkedInAds: boolean;
     canUseSalesforce: boolean;
-    getReconnect: LiveSourceActions['getReconnect'];
     onRemoved: () => void;
 }> = ({
     projectUuid,
@@ -332,7 +326,6 @@ const LiveSourceDialogs: FC<{
     canUseGoogle,
     canUseLinkedInAds,
     canUseSalesforce,
-    getReconnect,
     onRemoved,
 }) => {
     const navigate = useNavigate();
@@ -395,33 +388,6 @@ const LiveSourceDialogs: FC<{
                     onClose={close}
                 />
             )}
-            {dialog.kind === 'settings' && (
-                <LiveSourceSettingsModal
-                    projectUuid={projectUuid}
-                    connection={dialog.connection}
-                    reconnect={getReconnect(dialog.connection)}
-                    details={
-                        <LiveSourceConnectDialog
-                            inline
-                            key={dialog.connection.externalConnectionUuid}
-                            projectUuid={projectUuid}
-                            connector={dialog.connection.apiSource.connector}
-                            connection={dialog.connection}
-                            canSignIn={canSignIn}
-                            // Saving keeps the settings open
-                            onClose={() => undefined}
-                            onCreated={() => undefined}
-                        />
-                    }
-                    onDelete={() =>
-                        setDialog({
-                            kind: 'remove',
-                            connection: dialog.connection,
-                        })
-                    }
-                    onClose={close}
-                />
-            )}
             {dialog.kind === 'remove' && (
                 <RemoveLiveSourceModal
                     projectUuid={projectUuid}
@@ -434,5 +400,26 @@ const LiveSourceDialogs: FC<{
                 />
             )}
         </>
+    );
+};
+
+/** A source's own form in place, on its settings: name, account, credentials. */
+export const LiveSourceDetailsForm: FC<{
+    projectUuid: string;
+    connection: LiveSourceConnection;
+}> = ({ projectUuid, connection }) => {
+    const { data: health } = useHealth();
+    return (
+        <LiveSourceConnectDialog
+            inline
+            key={connection.externalConnectionUuid}
+            projectUuid={projectUuid}
+            connector={connection.apiSource.connector}
+            connection={connection}
+            canSignIn={health?.hasPostHogOAuth ?? false}
+            // Saving keeps the settings open
+            onClose={() => undefined}
+            onCreated={() => undefined}
+        />
     );
 };

@@ -41,47 +41,42 @@ import classes from './LiveSources.module.css';
 const stopPropagation = (event: MouseEvent) => event.stopPropagation();
 
 /** Opens one source's settings, in the table: an icon. */
-const LiveSourceSettingsIcon: FC<{ connection: LiveSourceConnection }> = ({
-    connection,
-}) => {
-    const actions = useLiveSourceActions();
-    if (!actions) return null;
-    return (
-        <Tooltip label="Settings" withinPortal>
-            <ActionIcon
-                variant="subtle"
-                color="gray"
-                size="sm"
-                aria-label={`Settings for ${connection.name}`}
-                onClick={(event) => {
-                    stopPropagation(event);
-                    actions.settings(connection);
-                }}
-            >
-                <MantineIcon icon={IconSettings} />
-            </ActionIcon>
-        </Tooltip>
-    );
-};
-
-/** The page header's controls for one source. */
-export const LiveSourceHeaderActions: FC<{
+const LiveSourceSettingsIcon: FC<{
     connection: LiveSourceConnection;
-}> = ({ connection }) => {
-    const actions = useLiveSourceActions();
-    if (!actions) return null;
-    return (
-        <Button
-            size="xs"
+    onOpenSettings: (connectionUuid: string) => void;
+}> = ({ connection, onOpenSettings }) => (
+    <Tooltip label="Settings" withinPortal>
+        <ActionIcon
             variant="subtle"
             color="gray"
-            leftSection={<MantineIcon icon={IconSettings} size={14} />}
-            onClick={() => actions.settings(connection)}
+            size="sm"
+            aria-label={`Settings for ${connection.name}`}
+            onClick={(event) => {
+                stopPropagation(event);
+                onOpenSettings(connection.externalConnectionUuid);
+            }}
         >
-            Settings
-        </Button>
-    );
-};
+            <MantineIcon icon={IconSettings} />
+        </ActionIcon>
+    </Tooltip>
+);
+
+/** The page header's controls for one source: its settings, below the summary. */
+export const LiveSourceHeaderActions: FC<{
+    isSettingsOpen: boolean;
+    onToggleSettings: () => void;
+}> = ({ isSettingsOpen, onToggleSettings }) => (
+    <Button
+        size="xs"
+        variant={isSettingsOpen ? 'light' : 'subtle'}
+        color="gray"
+        leftSection={<MantineIcon icon={IconSettings} size={14} />}
+        aria-pressed={isSettingsOpen}
+        onClick={onToggleSettings}
+    >
+        Settings
+    </Button>
+);
 
 const EmptyLiveSources: FC = () => {
     const actions = useLiveSourceActions();
@@ -137,7 +132,9 @@ const UsageWindowInfo: FC<{ windowDays: number | undefined }> = ({
 export const LiveSourcesTable: FC<{
     projectUuid: string;
     onOpen: (connectionUuid: string) => void;
-}> = ({ projectUuid, onOpen }) => {
+    onOpenSettings: (connectionUuid: string) => void;
+}> = ({ projectUuid, onOpen, onOpenSettings }) => {
+    const canManage = useLiveSourceActions() !== null;
     const { data: connections } = useExternalConnections(projectUuid);
     const { data: usage } = useExternalConnectionApiUsage(projectUuid);
     const rows = toLiveSourceRows(connections ?? [], usage);
@@ -213,7 +210,12 @@ export const LiveSourcesTable: FC<{
                         {used.medianLatency ?? '—'}
                     </Text>
                     <Box role="cell">
-                        <LiveSourceSettingsIcon connection={connection} />
+                        {canManage ? (
+                            <LiveSourceSettingsIcon
+                                connection={connection}
+                                onOpenSettings={onOpenSettings}
+                            />
+                        ) : null}
                     </Box>
                 </Box>
             ))}

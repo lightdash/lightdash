@@ -7,7 +7,6 @@ export type LiveSourceActions = {
     /** Null when this instance has no sign-in for the integration. */
     getReconnect: (connection: LiveSourceConnection) => (() => void) | null;
     remove: (connection: LiveSourceConnection) => void;
-    settings: (connection: LiveSourceConnection) => void;
 };
 
 export const LiveSourceActionsContext = createContext<LiveSourceActions | null>(
