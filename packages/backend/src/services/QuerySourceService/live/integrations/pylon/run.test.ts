@@ -348,6 +348,53 @@ describe('pylonIntegration issues', () => {
     });
 });
 
+describe('pylonIntegration date grains', () => {
+    it('reads the Monday of the week and the first of the month, in UTC', async () => {
+        const { source } = connect(
+            page([
+                issue(1, {
+                    created_at: '2026-11-01T10:00:00Z',
+                    updated_at: '2026-11-30T23:59:00Z',
+                    resolution_time: '2026-11-04T23:00:00Z',
+                }),
+                issue(2, { created_at: '2026-10-31T23:59:00Z' }),
+            ]),
+        );
+
+        const { rows } = await run(source, {
+            kind: 'issues',
+            filters: [LAST_30_DAYS],
+            columns: [
+                'created_at_week',
+                'created_at_month',
+                'updated_at_week',
+                'updated_at_month',
+                'resolved_at_week',
+                'resolved_at_month',
+            ],
+        });
+
+        // 2026-11-01 is a Sunday, so its week starts on the Monday before
+        expect(rows).toEqual([
+            {
+                created_at_week: '2026-10-26',
+                created_at_month: '2026-11-01',
+                updated_at_week: '2026-11-30',
+                updated_at_month: '2026-11-01',
+                resolved_at_week: '2026-11-02',
+                resolved_at_month: '2026-11-01',
+            },
+            expect.objectContaining({
+                created_at_week: '2026-10-26',
+                created_at_month: '2026-10-01',
+                // An open issue has no resolved grains
+                resolved_at_week: null,
+                resolved_at_month: null,
+            }),
+        ]);
+    });
+});
+
 describe('pylonIntegration people', () => {
     it('reads assignee emails from the teammates', async () => {
         const { source, send } = connect(

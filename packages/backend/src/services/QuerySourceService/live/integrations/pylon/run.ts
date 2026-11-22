@@ -52,8 +52,14 @@ const COLUMNS = {
         'team_id',
         'tags',
         'created_at',
+        'created_at_week',
+        'created_at_month',
         'updated_at',
+        'updated_at_week',
+        'updated_at_month',
         'resolved_at',
+        'resolved_at_week',
+        'resolved_at_month',
         'first_response_minutes',
         'resolution_hours',
         'touches',
@@ -98,8 +104,14 @@ const NUMBER_COLUMNS = new Set([
 
 const DATE_COLUMNS = new Set([
     'created_at',
+    'created_at_week',
+    'created_at_month',
     'updated_at',
+    'updated_at_week',
+    'updated_at_month',
     'resolved_at',
+    'resolved_at_week',
+    'resolved_at_month',
     'last_customer_activity_at',
     'last_vendor_activity_at',
 ]);
@@ -308,6 +320,23 @@ const usersSchema = z.object({
 const toDay = (timestamp: string | null | undefined) =>
     timestamp ? timestamp.slice(0, 10) : null;
 
+const DAY_MS = 86_400_000;
+
+/** The Monday of a UTC day's week. */
+const toWeek = (day: string | null) => {
+    if (!day) {
+        return null;
+    }
+    const date = new Date(`${day}T00:00:00Z`);
+    const daysSinceMonday = (date.getUTCDay() + 6) % 7;
+    return new Date(date.getTime() - daysSinceMonday * DAY_MS)
+        .toISOString()
+        .slice(0, 10);
+};
+
+/** The first day of a UTC day's month. */
+const toMonth = (day: string | null) => (day ? `${day.slice(0, 7)}-01` : null);
+
 const round = (value: number, digits: number) =>
     Math.round(value * 10 ** digits) / 10 ** digits;
 
@@ -355,10 +384,22 @@ const readIssueColumn = (
             return joinTags(issue.tags);
         case 'created_at':
             return toDay(issue.created_at);
+        case 'created_at_week':
+            return toWeek(toDay(issue.created_at));
+        case 'created_at_month':
+            return toMonth(toDay(issue.created_at));
         case 'updated_at':
             return toDay(issue.updated_at);
+        case 'updated_at_week':
+            return toWeek(toDay(issue.updated_at));
+        case 'updated_at_month':
+            return toMonth(toDay(issue.updated_at));
         case 'resolved_at':
             return toDay(issue.resolution_time);
+        case 'resolved_at_week':
+            return toWeek(toDay(issue.resolution_time));
+        case 'resolved_at_month':
+            return toMonth(toDay(issue.resolution_time));
         case 'first_response_minutes':
             return issue.first_response_time &&
                 issue.first_response_seconds !== undefined
