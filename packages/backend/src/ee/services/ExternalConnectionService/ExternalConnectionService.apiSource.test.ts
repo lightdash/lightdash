@@ -2153,6 +2153,36 @@ describe('ExternalConnectionService live source access rule', () => {
         ).resolves.toMatchObject(rule);
     });
 
+    it('puts the previous rule back when the explores fail to rebuild', async () => {
+        const previous: LiveSourceAccessRule = {
+            required: { team: ['support'] },
+            any: {},
+        };
+        const { service, externalConnectionModel, projectModel } = buildService(
+            {
+                orgAttributeNames: ['team', 'region'],
+                connections: [posthogConnection({ accessRule: previous })],
+            },
+        );
+        projectModel.replaceApiSourceExplores.mockRejectedValueOnce(
+            new Error('explore clash'),
+        );
+
+        await expect(
+            service.updateLiveSourceAccess(account, 'proj-1', 'conn-1', rule),
+        ).rejects.toThrow('explore clash');
+
+        expect(
+            externalConnectionModel.setLiveSourceAccessRule.mock.calls,
+        ).toEqual([
+            ['conn-1', rule],
+            ['conn-1', previous],
+        ]);
+        await expect(
+            service.getLiveSourceAccess(account, 'proj-1', 'conn-1'),
+        ).resolves.toMatchObject(previous);
+    });
+
     it('gives the editor the organization attributes and their own values', async () => {
         const { service } = buildService({
             orgAttributeNames: ['team', 'region'],

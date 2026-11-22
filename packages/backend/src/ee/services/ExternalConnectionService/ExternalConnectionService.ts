@@ -1554,9 +1554,21 @@ export class ExternalConnectionService extends BaseService {
             connectionUuid,
             accessRule,
         );
-        const updated = await this.loadConnection(projectUuid, connectionUuid);
-        if (updated.apiSource) {
-            await this.rebuildApiSourceExplores(updated, updated.apiSource);
+        try {
+            const updated = await this.loadConnection(
+                projectUuid,
+                connectionUuid,
+            );
+            if (updated.apiSource) {
+                await this.rebuildApiSourceExplores(updated, updated.apiSource);
+            }
+        } catch (error) {
+            // The explores still carry the old rule, so the stored rule goes back to match them.
+            await this.externalConnectionModel.setLiveSourceAccessRule(
+                connectionUuid,
+                connection.accessRule ?? null,
+            );
+            throw error;
         }
         this.analytics.track({
             event: 'live_source.access_updated',

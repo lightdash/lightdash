@@ -91,10 +91,22 @@ const ConditionList: FC<{
                         searchable
                         comboboxProps={{ withinPortal: true }}
                         value={condition.name}
-                        data={attributeNames.filter(
-                            (name) =>
-                                name === condition.name || !picked.has(name),
-                        )}
+                        data={[
+                            ...(condition.name &&
+                            !attributeNames.includes(condition.name)
+                                ? [
+                                      {
+                                          value: condition.name,
+                                          label: `${condition.name} (deleted)`,
+                                      },
+                                  ]
+                                : []),
+                            ...attributeNames.filter(
+                                (name) =>
+                                    name === condition.name ||
+                                    !picked.has(name),
+                            ),
+                        ]}
                         onChange={(name) => update(index, { name })}
                     />
                     <TagsInput
