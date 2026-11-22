@@ -1,5 +1,6 @@
 import { ApiConnectorType } from '@lightdash/common';
 import { Group, SimpleGrid, Stack, Text, UnstyledButton } from '@mantine/core';
+import clsx from 'clsx';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import useApp from '../../../providers/App/useApp';
@@ -13,6 +14,7 @@ import {
     isAvailableLiveSource,
     LIVE_SOURCE_CATALOG,
     type AvailableLiveSource,
+    getLiveSourceIconClass,
 } from './liveSourceCatalog';
 import { ProjectCacheOffAlert } from './ProjectCacheOffAlert';
 
@@ -30,7 +32,11 @@ type Props = {
 
 const CardHead: FC<{ entry: AvailableLiveSource }> = ({ entry }) => (
     <Group gap="sm" wrap="nowrap" align="flex-start">
-        <img src={entry.icon} alt="" className={styles.icon} />
+        <img
+            src={entry.icon}
+            alt=""
+            className={clsx(styles.icon, getLiveSourceIconClass(entry.icon))}
+        />
         <Stack gap={2} miw={0}>
             <Text fw={600} fz="sm" truncate>
                 {entry.label}

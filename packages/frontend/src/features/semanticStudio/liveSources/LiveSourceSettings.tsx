@@ -481,7 +481,7 @@ export const LiveSourceSettings: FC<{
                         </Button>
                     </SettingsRow>
                     <SettingsRow
-                        label="Cache results for"
+                        label="Cache"
                         hint={
                             <>
                                 {formatPurgedAt(connection.cachePurgedAt)}
@@ -494,7 +494,7 @@ export const LiveSourceSettings: FC<{
                         <Select
                             w={116}
                             size="xs"
-                            aria-label="Cache results for"
+                            aria-label="Cache"
                             allowDeselect={false}
                             comboboxProps={{ withinPortal: true }}
                             data={ttlOptions.map((option) => ({

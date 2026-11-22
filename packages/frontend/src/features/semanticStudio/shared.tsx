@@ -39,6 +39,7 @@ import {
     type Icon,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import clsx from 'clsx';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import {
@@ -62,7 +63,10 @@ import dbtLogo from '../../components/ProjectConnection/ProjectConnectFlow/Asset
 import { WarehouseTypeLabels } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
 import { WarehouseLogoStack } from '../../components/ProjectConnection/ProjectConnectFlow/WarehouseLogoStack';
 import { useDefaultAiAgent } from '../../ee/features/aiCopilot/components/Launcher/useDefaultAiAgent';
-import { getLiveSource } from '../../features/externalConnections/liveSources/liveSourceCatalog';
+import {
+    getLiveSource,
+    getLiveSourceIconClass,
+} from '../../features/externalConnections/liveSources/liveSourceCatalog';
 import useHealth from '../../hooks/health/useHealth';
 import { useProject } from '../../hooks/useProject';
 import googleSheetsLogo from '../../svgs/google-sheets.svg';
@@ -106,7 +110,13 @@ dayjs.extend(relativeTime);
 // Icons
 
 const Logo: FC<{ src: string; size: number }> = ({ src, size }) => (
-    <Image src={src} alt="" w={size} h={size} className={classes.logo} />
+    <Image
+        src={src}
+        alt=""
+        w={size}
+        h={size}
+        className={clsx(classes.logo, getLiveSourceIconClass(src))}
+    />
 );
 
 const WarehouseLogo: FC<{ type: string; size: number }> = ({ type, size }) => {
