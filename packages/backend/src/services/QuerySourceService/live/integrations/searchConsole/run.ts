@@ -1,6 +1,7 @@
 import { ApiConnectorType, DimensionType } from '@lightdash/common';
 import { z } from 'zod';
 import { assertMaxRows } from '../../integration';
+import { refuseLiveQuery } from '../../query/refuse';
 import { type LiveRunArgs, type LiveRunResult } from '../../types';
 
 export const SEARCH_CONSOLE_ORIGIN = 'https://searchconsole.googleapis.com';
@@ -109,6 +110,18 @@ export const runSearchConsoleQuery = async ({
         },
         responseSchema,
     );
+    // Compile reads every row it can only when it sorts on our side, which a
+    // date grouping forces for any sort: the API returns those rows by date
+    if (
+        dimensions.includes('date') &&
+        rowLimit === SEARCH_CONSOLE_MAX_QUERY_ROWS &&
+        rows.length > rowLimit
+    ) {
+        throw refuseLiveQuery(
+            'live_source.refused.row_limit',
+            'Search Console returns rows grouped by date in date order, so sorting them has to read every row, and this query has more than 24,999. Narrow the date range or filters, remove the date to get the top rows by clicks in one call, or get the top pages first and then query those pages by day.',
+        );
+    }
     return {
         columns: [
             ...dimensions.map((name) => ({

@@ -9,7 +9,10 @@ import {
 import { searchConsoleIntegration } from '.';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
-import { getSearchConsoleQueryPath } from './run';
+import {
+    getSearchConsoleQueryPath,
+    SEARCH_CONSOLE_MAX_QUERY_ROWS,
+} from './run';
 
 const jsonResponse = (
     body: unknown,
@@ -113,6 +116,44 @@ describe('searchConsoleIntegration run', () => {
             },
         ]);
         expect(result.hasMoreRows).toBe(true);
+    });
+
+    describe('when every row is read for a sort on our side', () => {
+        const fullRead = (dimensions: string[]) => ({
+            query: JSON.stringify({
+                startDate: '2026-10-01',
+                endDate: '2026-10-28',
+                dimensions,
+            }),
+            limit: SEARCH_CONSOLE_MAX_QUERY_ROWS,
+        });
+        const tooManyRows = {
+            rows: Array.from(
+                { length: SEARCH_CONSOLE_MAX_QUERY_ROWS + 1 },
+                (_, index) => ({
+                    keys: ['2026-10-01', `/page-${index}`],
+                    clicks: 1,
+                    impressions: 1,
+                    ctr: 1,
+                    position: 1,
+                }),
+            ),
+        };
+
+        it('says why a date grouping with too many rows is refused', async () => {
+            const { source } = connect(jsonResponse(tooManyRows));
+            const run = source.run(fullRead(['date', 'page']));
+            await expect(run).rejects.toBeInstanceOf(ParameterError);
+            await expect(run).rejects.toThrow(
+                /grouped by date in date order.*Narrow the date range/,
+            );
+        });
+
+        it('leaves a query without the date to the generic check', async () => {
+            const { source } = connect(jsonResponse(tooManyRows));
+            const result = await source.run(fullRead(['page']));
+            expect(result.hasMoreRows).toBe(true);
+        });
     });
 
     it('uses a smaller row limit from the request', async () => {
