@@ -1,3 +1,10 @@
+# [3.364.0](https://github.com/lightdash/lightdash/compare/3.363.0...3.364.0) (2026-11-22)
+
+
+### Features
+
+* **live-sources:** let composer merge nodes join live data sources ([#32936](https://github.com/lightdash/lightdash/issues/32936)) ([d4ee02d](https://github.com/lightdash/lightdash/commit/d4ee02d91b41c439e105f0688ad16651173aafe8))
+
 # [3.363.0](https://github.com/lightdash/lightdash/compare/3.362.0...3.363.0) (2026-11-22)
 
 
