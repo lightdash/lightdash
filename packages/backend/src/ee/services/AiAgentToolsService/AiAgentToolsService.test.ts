@@ -2003,6 +2003,56 @@ describe('AiAgentToolsService', () => {
                 /Explore "hubspot_deals" is not available\..*Do not retry this explore/,
             );
         });
+
+        it.each([
+            ['runs a saved chart on a chosen integration', 'ga4_sessions'],
+            [
+                'refuses a saved chart on an excluded integration',
+                'hubspot_deals',
+            ],
+        ])('%s', async (_case, exploreName) => {
+            const executeSavedChartQueryAndGetResults = vi
+                .fn()
+                .mockResolvedValue({ rows: [] });
+            const runtime = makeService({
+                explores: {
+                    ga4_sessions: liveExplore('ga4_sessions', 'ga4-uuid'),
+                    hubspot_deals: liveExplore('hubspot_deals', 'hubspot-uuid'),
+                },
+                savedChartService: {
+                    get: vi.fn().mockResolvedValue({
+                        uuid: 'chart-uuid',
+                        spaceUuid: 'space-uuid',
+                        metricQuery: {
+                            exploreName,
+                            dimensions: [],
+                            metrics: [],
+                        },
+                    }),
+                },
+                asyncQueryService: { executeSavedChartQueryAndGetResults },
+            }).createRuntime(
+                makeRuntimeContext({
+                    tags: null,
+                    liveSourceUuids: ['ga4-uuid'],
+                }),
+            );
+
+            const run = runtime.runSavedChartQuery({
+                chartUuid: 'chart-uuid',
+                dashboardSlug: null,
+                limit: 100,
+            });
+
+            if (exploreName === 'ga4_sessions') {
+                await expect(run).resolves.toEqual({ rows: [] });
+            } else {
+                await expect(run).rejects.toThrow(NotFoundError);
+                expect(
+                    executeSavedChartQueryAndGetResults,
+                ).not.toHaveBeenCalled();
+            }
+        });
     });
 
     describe('project Tables configuration', () => {

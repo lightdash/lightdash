@@ -2124,7 +2124,10 @@ export class AiAgentController extends BaseController {
     async getAgentExploreAccessSummary(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Body() body: { tags: string[] | null },
+        @Body() body: {
+            tags: string[] | null;
+            liveSourceUuids?: string[] | null;
+        },
     ): Promise<ApiAiAgentExploreAccessSummaryResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -2134,7 +2137,10 @@ export class AiAgentController extends BaseController {
                 await this.getAiAgentService().getAgentExploreAccessSummary(
                     toSessionUser(req.account),
                     projectUuid,
-                    body.tags,
+                    {
+                        tags: body.tags,
+                        liveSourceUuids: body.liveSourceUuids ?? null,
+                    },
                 ),
         };
     }

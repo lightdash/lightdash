@@ -5185,12 +5185,13 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    /** A tag-scoped agent may only run a saved chart whose explore and fields its tags expose. */
+    /** A scoped agent may only run a saved chart whose explore and fields its tags and integrations expose. */
     private async assertSavedChartFieldsInScope(
         context: AiAgentToolsRuntimeContext,
         chartUuid: string,
     ) {
-        if (!context.tags || context.tags.length === 0) return;
+        const hasTags = !!context.tags && context.tags.length > 0;
+        if (!hasTags && context.liveSourceUuids === null) return;
 
         const { metricQuery } = await this.savedChartService.get(
             chartUuid,

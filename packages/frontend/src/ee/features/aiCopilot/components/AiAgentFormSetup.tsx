@@ -257,6 +257,7 @@ export const AiAgentFormSetup = ({
         projectUuid!,
         {
             tags: form.values.tags,
+            liveSourceUuids: form.values.liveSourceUuids,
         },
     );
 

@@ -3991,7 +3991,7 @@ export class AiAgentService extends BaseService {
     public async getAgentExploreAccessSummary(
         user: SessionUser,
         projectUuid: string,
-        tags: string[] | null,
+        scope: AgentExploreScope,
     ) {
         const { organizationUuid } = user;
 
@@ -4002,7 +4002,7 @@ export class AiAgentService extends BaseService {
         const availableExplores = await this.getAvailableExplores(
             user,
             projectUuid,
-            { tags, liveSourceUuids: null },
+            scope,
         );
 
         const exploreAccessSummary = availableExplores.map((explore) => ({
