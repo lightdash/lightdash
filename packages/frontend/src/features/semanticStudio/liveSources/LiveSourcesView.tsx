@@ -19,6 +19,7 @@ import {
     IconClockHour4,
     IconDots,
     IconInfoCircle,
+    IconLock,
     IconPencil,
     IconPlus,
     IconRefresh,
@@ -44,6 +45,7 @@ import { formatChartCount } from '../../externalConnections/liveSources/liveSour
 import { LiveSourceIcon } from '../../externalConnections/liveSources/LiveSourceIcon';
 import { useLiveSourceActions } from './liveSourceActions';
 import {
+    describeLiveSourceAccessRule,
     formatFreshness,
     getLiveSourceFreshness,
     toLiveSourceRow,
@@ -106,6 +108,12 @@ const LiveSourceMenu: FC<{
                     </Menu.Item>
                 ) : null}
                 <Menu.Divider />
+                <Menu.Item
+                    leftSection={<MantineIcon icon={IconLock} />}
+                    onClick={() => actions.access(connection)}
+                >
+                    Access
+                </Menu.Item>
                 <Menu.Item
                     leftSection={<MantineIcon icon={IconClockHour4} />}
                     onClick={() => actions.cacheSettings(connection)}
@@ -211,6 +219,25 @@ const UsageWindowInfo: FC<{ windowDays: number | undefined }> = ({
     );
 };
 
+/** A lock beside a source that only some people can query, with its rule as a tooltip. */
+const AccessRuleBadge: FC<{ connection: LiveSourceConnection }> = ({
+    connection,
+}) => {
+    const rule = describeLiveSourceAccessRule(connection.accessRule);
+    if (!rule) return null;
+    const label = `Only people whose ${rule} can query it`;
+    return (
+        <Tooltip label={label} withinPortal multiline maw={320}>
+            <MantineIcon
+                icon={IconLock}
+                size={14}
+                color="dimmed"
+                aria-label={label}
+            />
+        </Tooltip>
+    );
+};
+
 /** Every live data source, with how much it was used; a row opens it. */
 export const LiveSourcesTable: FC<{
     projectUuid: string;
@@ -266,15 +293,17 @@ export const LiveSourcesTable: FC<{
                             {integration}
                         </Text>
                     </Group>
-                    <Text
-                        role="cell"
-                        className={classes.name}
-                        miw={0}
-                        truncate
-                        title={target}
-                    >
-                        {connection.name}
-                    </Text>
+                    <Group role="cell" gap={6} wrap="nowrap" miw={0}>
+                        <Text
+                            className={classes.name}
+                            miw={0}
+                            truncate
+                            title={target}
+                        >
+                            {connection.name}
+                        </Text>
+                        <AccessRuleBadge connection={connection} />
+                    </Group>
                     <span role="cell" className={classes.number}>
                         {used.dataRead}
                     </span>
@@ -364,6 +393,19 @@ export const LiveSourceSummary: FC<{
                         ? 'Signed in'
                         : 'API key'
                 }
+            />
+            <Stat
+                label="Who can query"
+                value={
+                    describeLiveSourceAccessRule(connection.accessRule)
+                        ? 'Limited by an access rule'
+                        : 'Everyone in the project'
+                }
+                title={
+                    describeLiveSourceAccessRule(connection.accessRule) ??
+                    undefined
+                }
+                labelExtra={<AccessRuleBadge connection={connection} />}
             />
             <Stat
                 label="Used by"

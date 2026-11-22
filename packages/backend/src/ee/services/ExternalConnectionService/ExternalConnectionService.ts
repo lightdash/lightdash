@@ -5,6 +5,7 @@ import {
     assertRegisteredAccount,
     assertUnreachable,
     DATA_APP_VIZ_TEMPLATE,
+    EMPTY_LIVE_SOURCE_ACCESS_RULE,
     EXPLORE_PREFIX_MAX_LENGTH,
     EXTERNAL_CONNECTION_DEFAULTS,
     EXTERNAL_CONNECTION_IDENTITY_HEADERS,
@@ -20,6 +21,7 @@ import {
     getSalesforceEnvironment,
     getSalesforceTokenUrl,
     isJwtUser,
+    isLiveSourceAccessRuleEmpty,
     isSalesforceEnvironment,
     isSalesforceInstanceOrigin,
     isValidLiveSourceCacheTtlSeconds,
@@ -57,6 +59,8 @@ import {
     type ExternalFetchResponse,
     type GoogleLiveSourceChoice,
     type GoogleLiveSourcePendingChoice,
+    type LiveSourceAccess,
+    type LiveSourceAccessRule,
     type LiveSourceFieldChange,
     type LiveSourceFieldEditor,
     type LiveSourceFields,
@@ -77,6 +81,7 @@ import { type AppModel } from '../../../models/AppModel';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { SavedChartModel } from '../../../models/SavedChartModel';
+import type { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { BaseService } from '../../../services/BaseService';
 import {
     createLiveCalls,
@@ -123,6 +128,7 @@ import { getLiveIntegration } from '../../../services/QuerySourceService/live/re
 import { getLiveSourceTestCheck } from '../../../services/QuerySourceService/live/testCheck';
 import { type LiveScanResult } from '../../../services/QuerySourceService/live/types';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
+import { checkUserAttributesAccess } from '../../../services/UserAttributesService/UserAttributeUtils';
 import {
     normalizeCredentialUrlHref,
     normalizeCredentialUrlOrigin,
@@ -236,6 +242,10 @@ type ExternalConnectionServiceArguments = {
         | 'getApiSourceExploreNames'
         | 'listApiSourceExploreHashes'
         | 'getApiSourceFieldIds'
+    >;
+    userAttributesModel: Pick<
+        UserAttributesModel,
+        'getAttributeValuesForOrgMember' | 'find'
     >;
     encryptionUtil: Pick<EncryptionUtil, 'encrypt' | 'decrypt'>;
     lightdashConfig: Pick<
@@ -363,6 +373,8 @@ export class ExternalConnectionService extends BaseService {
     private readonly schedulerClient: ExternalConnectionServiceArguments['schedulerClient'];
     private readonly projectModel: ExternalConnectionServiceArguments['projectModel'];
 
+    private readonly userAttributesModel: ExternalConnectionServiceArguments['userAttributesModel'];
+
     private readonly savedChartModel: ExternalConnectionServiceArguments['savedChartModel'];
 
     private static readonly DEFAULT_RATE_LIMIT_PER_MINUTE = 60;
@@ -392,6 +404,7 @@ export class ExternalConnectionService extends BaseService {
         this.featureFlagModel = args.featureFlagModel;
         this.schedulerClient = args.schedulerClient;
         this.projectModel = args.projectModel;
+        this.userAttributesModel = args.userAttributesModel;
         this.savedChartModel = args.savedChartModel;
     }
 
@@ -1377,7 +1390,8 @@ export class ExternalConnectionService extends BaseService {
 
     /**
      * Querying a live data source directly takes the access its explores
-     * grant, as a metric query on them would: view on every one. A source
+     * grant, as a metric query on them would: its access rule, then view on
+     * every explore. The rule applies to everyone, admins included. A source
      * with no explores yet is left to those who manage it. Data app linking
      * never applies.
      */
@@ -1385,6 +1399,19 @@ export class ExternalConnectionService extends BaseService {
         account: RegisteredAccount,
         connection: ExternalConnection,
     ): Promise<boolean> {
+        if (
+            connection.accessRule &&
+            !checkUserAttributesAccess(
+                connection.accessRule.required,
+                connection.accessRule.any,
+                await this.userAttributesModel.getAttributeValuesForOrgMember({
+                    organizationUuid: connection.organizationUuid,
+                    userUuid: account.user.id,
+                }),
+            )
+        ) {
+            return false;
+        }
         const ability = this.createAuditedAbility(account);
         const { organizationUuid, projectUuid } = connection;
         const exploreNames = await this.projectModel.getApiSourceExploreNames(
@@ -1463,6 +1490,129 @@ export class ExternalConnectionService extends BaseService {
             },
         });
         return this.loadConnection(projectUuid, connectionUuid);
+    }
+
+    /** Who can query a live data source; empty conditions when everyone in the project can. */
+    async getLiveSourceAccess(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<LiveSourceAccess> {
+        const connection = await this.getOwnedLiveSource(
+            account,
+            projectUuid,
+            connectionUuid,
+        );
+        return this.toLiveSourceAccess(
+            account,
+            connection.organizationUuid,
+            connection.accessRule ?? EMPTY_LIVE_SOURCE_ACCESS_RULE,
+        );
+    }
+
+    private async toLiveSourceAccess(
+        account: RegisteredAccount,
+        organizationUuid: string,
+        rule: LiveSourceAccessRule,
+    ): Promise<LiveSourceAccess> {
+        const [attributes, yourAttributes] = await Promise.all([
+            this.userAttributesModel.find({ organizationUuid }),
+            this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: account.user.id,
+            }),
+        ]);
+        return {
+            ...rule,
+            attributeNames: attributes.map(({ name }) => name).sort(),
+            yourAttributes,
+        };
+    }
+
+    /**
+     * Replaces who can query a live data source and rebuilds its explores,
+     * which carry the rule. Empty conditions open it to the whole project.
+     */
+    async updateLiveSourceAccess(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+        rule: LiveSourceAccessRule,
+    ): Promise<LiveSourceAccess> {
+        const connection = await this.getOwnedLiveSource(
+            account,
+            projectUuid,
+            connectionUuid,
+        );
+        const accessRule = await this.parseLiveSourceAccessRule(
+            connection.organizationUuid,
+            rule,
+        );
+        await this.externalConnectionModel.setLiveSourceAccessRule(
+            connectionUuid,
+            accessRule,
+        );
+        const updated = await this.loadConnection(projectUuid, connectionUuid);
+        if (updated.apiSource) {
+            await this.rebuildApiSourceExplores(updated, updated.apiSource);
+        }
+        this.analytics.track({
+            event: 'live_source.access_updated',
+            userId: account.user.id,
+            properties: {
+                organizationId: connection.organizationUuid,
+                projectId: projectUuid,
+                externalConnectionUuid: connectionUuid,
+                ...ExternalConnectionService.kindProperties(connection),
+                requiredCount: Object.keys(accessRule?.required ?? {}).length,
+                anyCount: Object.keys(accessRule?.any ?? {}).length,
+            },
+        });
+        return this.toLiveSourceAccess(
+            account,
+            connection.organizationUuid,
+            accessRule ?? EMPTY_LIVE_SOURCE_ACCESS_RULE,
+        );
+    }
+
+    /** Trims and checks a rule: names must be the organization's attributes, each with values. Null when empty. */
+    private async parseLiveSourceAccessRule(
+        organizationUuid: string,
+        rule: LiveSourceAccessRule,
+    ): Promise<LiveSourceAccessRule | null> {
+        const attributeNames = new Set(
+            (await this.userAttributesModel.find({ organizationUuid })).map(
+                ({ name }) => name,
+            ),
+        );
+        const parseConditions = (conditions: Record<string, string[]>) =>
+            Object.fromEntries(
+                Object.entries(conditions ?? {}).map(([name, values]) => {
+                    if (!attributeNames.has(name)) {
+                        throw new ParameterError(
+                            `"${name}" is not a user attribute in this organization`,
+                        );
+                    }
+                    const kept = [
+                        ...new Set(
+                            (values ?? [])
+                                .map((value) => value.trim())
+                                .filter(Boolean),
+                        ),
+                    ];
+                    if (kept.length === 0) {
+                        throw new ParameterError(
+                            `Give "${name}" at least one value`,
+                        );
+                    }
+                    return [name, kept];
+                }),
+            );
+        const parsed = {
+            required: parseConditions(rule.required),
+            any: parseConditions(rule.any),
+        };
+        return isLiveSourceAccessRuleEmpty(parsed) ? null : parsed;
     }
 
     /**
@@ -1627,9 +1777,13 @@ export class ExternalConnectionService extends BaseService {
         await this.externalConnectionModel.withLiveSourceBuildLock(
             externalConnectionUuid,
             async () => {
-                const [sourceName, state] = await Promise.all([
+                const [sourceName, state, stored] = await Promise.all([
                     this.resolveLiveSourceName(connection, apiSource),
                     this.externalConnectionModel.getLiveSourceFieldState(
+                        externalConnectionUuid,
+                    ),
+                    // The rule stored now, not the one the caller loaded
+                    this.externalConnectionModel.findByUuid(
                         externalConnectionUuid,
                     ),
                 ]);
@@ -1655,6 +1809,7 @@ export class ExternalConnectionService extends BaseService {
                         ),
                         ...(state.aiHint ? [state.aiHint] : []),
                     ],
+                    accessRule: stored?.accessRule ?? null,
                 });
                 if (keepFields) {
                     const lost = getLostLiveFieldIds({

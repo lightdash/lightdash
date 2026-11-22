@@ -9918,6 +9918,47 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('findExplores with a denied explore', () => {
+        const deniedExplore: Explore = {
+            ...validExplore,
+            name: 'denied_explore',
+            tables: {
+                ...validExplore.tables,
+                a: {
+                    ...validExplore.tables.a,
+                    requiredAttributes: { team: 'sales' },
+                },
+            },
+        };
+        const openExplore: Explore = { ...validExplore, name: 'open_explore' };
+        const find = (omitDeniedExplores?: boolean) => {
+            vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce(
+                [deniedExplore, openExplore],
+            );
+            vi.spyOn(service, 'getUserAttributes').mockResolvedValueOnce({
+                userAttributes: { team: ['support'] },
+                intrinsicUserAttributes: { email: 'viewer@example.com' },
+            });
+            return service.findExplores({
+                account,
+                projectUuid,
+                exploreNames: [deniedExplore.name, openExplore.name],
+                organizationUuid: account.organization.organizationUuid,
+                omitDeniedExplores,
+            });
+        };
+
+        test('refuses them all with a 403 by default', async () => {
+            await expect(find()).rejects.toThrow(ForbiddenError);
+        });
+
+        test('leaves out only the denied explore when asked', async () => {
+            await expect(find(true)).resolves.toEqual({
+                open_explore: expect.objectContaining({ name: 'open_explore' }),
+            });
+        });
+    });
+
     describe('getExplore', () => {
         test.each(['allowed', 'denied'])(
             'applies detail override %s to joined tables, dimensions, and metrics',
@@ -16346,6 +16387,39 @@ describe('ProjectService', () => {
                         ([args]) => args.body.exploreName,
                     ),
                 ).toEqual([validExplore.name]);
+            });
+
+            test("refuses a merge whose live leg the viewer's attributes deny", async () => {
+                const [ruledExplore] = buildLiveExplores({
+                    connectionUuid: '03386598-7a51-45b2-b1f9-5ef55bd09016',
+                    sourceName: 'ga4_03386598',
+                    name: 'Marketing site',
+                    apiSource: {
+                        connector: ApiConnectorType.GA4,
+                        propertyId: '123',
+                    },
+                    scannedFields: [],
+                    edits: {},
+                    accessRule: { required: { team: ['marketing'] }, any: {} },
+                });
+                vi.mocked(service.getExplore).mockRestore();
+                // One lookup per leg
+                vi.mocked(projectModel.findExploresFromCache)
+                    .mockResolvedValueOnce([ruledExplore])
+                    .mockResolvedValueOnce([validExplore]);
+                vi.spyOn(service, 'getUserAttributes').mockResolvedValue({
+                    userAttributes: { team: ['sales'] },
+                    intrinsicUserAttributes: { email: 'viewer@example.com' },
+                });
+
+                await expect(
+                    service.compileMergeQuery({
+                        account: sessionAccount,
+                        projectUuid,
+                        mergeQuery: liveMerge([liveSource('a'), source('b')]),
+                        sourcesRunAsNodes: true,
+                    }),
+                ).rejects.toThrow(ForbiddenError);
             });
 
             test('refuses what the live data source refuses on its own', async () => {

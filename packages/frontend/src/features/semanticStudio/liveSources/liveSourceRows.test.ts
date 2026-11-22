@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    describeLiveSourceAccessRule,
     formatFreshness,
     formatCacheHits,
     getLiveSourceFreshness,
@@ -149,5 +150,30 @@ describe('live source freshness', () => {
             isDefault: false,
             label: 'Always fetch',
         });
+    });
+});
+
+describe('describeLiveSourceAccessRule', () => {
+    it.each([
+        ['no rule', null, null],
+        ['an empty rule', { required: {}, any: {} }, null],
+        [
+            'required conditions',
+            {
+                required: { team: ['sales', 'support'], region: ['emea'] },
+                any: {},
+            },
+            'team is sales or support, and region is emea',
+        ],
+        [
+            'any conditions after required ones',
+            {
+                required: { team: ['sales'] },
+                any: { region: ['emea'], tier: ['gold'] },
+            },
+            'team is sales, and region is emea, or tier is gold',
+        ],
+    ])('describes %s', (_case, rule, expected) => {
+        expect(describeLiveSourceAccessRule(rule)).toBe(expected);
     });
 });

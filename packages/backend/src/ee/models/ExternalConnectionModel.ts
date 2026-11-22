@@ -6,6 +6,7 @@ import {
     EXTERNAL_CONNECTION_DEFAULTS,
     generateSlug,
     getAppDisplayName,
+    isLiveSourceAccessRuleEmpty,
     NotFoundError,
     ParameterError,
     sleep,
@@ -19,6 +20,7 @@ import {
     type ExternalConnectionListItem,
     type ExternalConnectionSample,
     type ExternalConnectionSampleRequest,
+    type LiveSourceAccessRule,
     type ProjectType,
     type UpdateExternalConnection,
 } from '@lightdash/common';
@@ -126,7 +128,25 @@ const SERVER_OWNED_API_SOURCE_KEYS = [
     'aiHint',
     'targetLabel',
     'cache',
+    'access',
 ] as const;
+
+const conditionsSchema = z.record(z.string(), z.array(z.string()));
+const liveSourceAccessSchema = z.object({
+    access: z
+        .object({ required: conditionsSchema, any: conditionsSchema })
+        .nullish()
+        .catch(null),
+});
+
+/** Who can query a live source, kept under `access` in `api_source`; null when everyone can. */
+export const readLiveSourceAccessRule = (
+    value: unknown,
+): LiveSourceAccessRule | null => {
+    const parsed = liveSourceAccessSchema.safeParse(value);
+    const access = parsed.success ? parsed.data.access : null;
+    return access && !isLiveSourceAccessRuleEmpty(access) ? access : null;
+};
 
 const liveSourceCacheSchema = z.object({
     cache: z
@@ -178,6 +198,7 @@ export type DeletedLiveSource = {
     fieldEdits: LiveSourceFieldEdits | null;
     aiHint: string | null;
     targetLabel: string | null;
+    accessRule: LiveSourceAccessRule | null;
 };
 
 const kindOf = (
@@ -243,6 +264,9 @@ export class ExternalConnectionModel {
             apiSource: parseApiSource(row.api_source),
             liveSourceName: readSourceName(row.api_source),
             ...readSourceDetails(row.api_source),
+            ...(row.api_source
+                ? { accessRule: readLiveSourceAccessRule(row.api_source) }
+                : {}),
             ...(row.api_source
                 ? readLiveSourceCacheSettings(row.api_source)
                 : {}),
@@ -1129,15 +1153,45 @@ export class ExternalConnectionModel {
     /** Gives a source a deleted twin's details, keeping any it already has. */
     async restoreLiveSourceDetails(
         uuid: string,
-        details: { aiHint: string | null; targetLabel: string | null },
+        details: {
+            aiHint: string | null;
+            targetLabel: string | null;
+            accessRule: LiveSourceAccessRule | null;
+        },
     ): Promise<void> {
         await this.database(ExternalConnectionsTableName)
             .where('external_connection_uuid', uuid)
             .update({
                 api_source: this.database.raw(
-                    `jsonb_strip_nulls(jsonb_build_object('aiHint', ?::text, 'targetLabel', ?::text)) || api_source`,
-                    [details.aiHint, details.targetLabel],
+                    `jsonb_strip_nulls(jsonb_build_object('aiHint', ?::text, 'targetLabel', ?::text, 'access', ?::jsonb)) || api_source`,
+                    [
+                        details.aiHint,
+                        details.targetLabel,
+                        details.accessRule
+                            ? JSON.stringify(details.accessRule)
+                            : null,
+                    ],
                 ) as unknown as string,
+            });
+    }
+
+    /** Null lets everyone in the project query the source again. */
+    async setLiveSourceAccessRule(
+        uuid: string,
+        rule: LiveSourceAccessRule | null,
+    ): Promise<void> {
+        await this.database(ExternalConnectionsTableName)
+            .where('external_connection_uuid', uuid)
+            .whereNotNull('api_source')
+            .update({
+                api_source: (rule
+                    ? this.database.raw(
+                          `jsonb_set(api_source, '{access}', ?::jsonb)`,
+                          [JSON.stringify(rule)],
+                      )
+                    : this.database.raw(
+                          `api_source - 'access'`,
+                      )) as unknown as string,
             });
     }
 
@@ -1319,6 +1373,7 @@ export class ExternalConnectionModel {
                           fieldEdits: parseLiveSourceFieldState(row.api_source)
                               .fields,
                           ...readSourceDetails(row.api_source),
+                          accessRule: readLiveSourceAccessRule(row.api_source),
                       },
                   ]
                 : [];

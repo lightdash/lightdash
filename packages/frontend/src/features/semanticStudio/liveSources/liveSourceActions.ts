@@ -10,6 +10,8 @@ export type LiveSourceActions = {
     remove: (connection: LiveSourceConnection) => void;
     cacheSettings: (connection: LiveSourceConnection) => void;
     purgeCache: (connection: LiveSourceConnection) => void;
+    /** Who can query the source. */
+    access: (connection: LiveSourceConnection) => void;
 };
 
 export const LiveSourceActionsContext = createContext<LiveSourceActions | null>(

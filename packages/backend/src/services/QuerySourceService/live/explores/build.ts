@@ -12,6 +12,7 @@ import {
     type Explore,
     type ExternalConnectionApiSource,
     type ItemsMap,
+    type LiveSourceAccessRule,
     type MetricQuery,
     type ResultColumns,
     type SortField,
@@ -293,6 +294,32 @@ export const describeLiveTarget = (
         targetLabel,
     });
 
+/**
+ * Puts the source's access rule on the explore's base table, where the
+ * explore checks read `required_attributes` and `any_attributes`.
+ */
+const withAccessRule = (
+    explore: Explore,
+    accessRule: LiveSourceAccessRule | null,
+): Explore => {
+    const baseTable = explore.tables[explore.baseTable];
+    if (!accessRule || !baseTable) return explore;
+    const { required, any } = accessRule;
+    return {
+        ...explore,
+        tables: {
+            ...explore.tables,
+            [explore.baseTable]: {
+                ...baseTable,
+                ...(Object.keys(required).length > 0
+                    ? { requiredAttributes: required }
+                    : {}),
+                ...(Object.keys(any).length > 0 ? { anyAttributes: any } : {}),
+            },
+        },
+    };
+};
+
 /** The explores a live data source answers metric queries with. */
 export const buildLiveExplores = ({
     connectionUuid,
@@ -302,6 +329,7 @@ export const buildLiveExplores = ({
     scannedFields,
     edits,
     aiHint,
+    accessRule = null,
 }: {
     connectionUuid: string;
     sourceName: string;
@@ -311,6 +339,8 @@ export const buildLiveExplores = ({
     edits: LiveSourceFieldEdits;
     /** The target first, then the admin's text. */
     aiHint?: string[];
+    /** Who can query the source; copied onto each explore's base table. */
+    accessRule?: LiveSourceAccessRule | null;
 }): Explore[] => {
     const { definitions } = getLiveBaseLayer(apiSource.connector);
     const scannedModels = getLiveScannedModels(apiSource.connector);
@@ -332,17 +362,20 @@ export const buildLiveExplores = ({
         const scanned = scannedModels.find(
             (candidate) => candidate.definition === definition,
         );
-        return build(
-            scanned
-                ? applyLiveSourceFieldEdits({
-                      base: definition,
-                      ...getLiveModelFieldInputs({
-                          model: scanned.model,
-                          scannedFields,
-                          edits,
-                      }),
-                  })
-                : definition,
+        return withAccessRule(
+            build(
+                scanned
+                    ? applyLiveSourceFieldEdits({
+                          base: definition,
+                          ...getLiveModelFieldInputs({
+                              model: scanned.model,
+                              scannedFields,
+                              edits,
+                          }),
+                      })
+                    : definition,
+            ),
+            accessRule,
         );
     });
 };

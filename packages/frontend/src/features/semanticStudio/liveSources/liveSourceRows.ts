@@ -5,10 +5,12 @@
 import {
     formatEstimatedBytes,
     getLiveSourceCacheTtlSeconds,
+    isLiveSourceAccessRuleEmpty,
     LIVE_SOURCE_DEFAULT_CACHE_TTL_SECONDS,
     type ExternalConnection,
     type ExternalConnectionApiSource,
     type ExternalConnectionApiUsage,
+    type LiveSourceAccessRule,
 } from '@lightdash/common';
 import { formatDuration } from '../../../utils/formatters';
 import { getApiSourceTarget } from '../../externalConnections/liveSources/liveSourceCatalog';
@@ -121,4 +123,23 @@ export const getLiveSourceFreshness = (connection: LiveSourceConnection) => {
         defaultSeconds: LIVE_SOURCE_DEFAULT_CACHE_TTL_SECONDS[connector],
         label: `${formatFreshness(seconds)}${isDefault ? ' (default)' : ''}`,
     };
+};
+
+const describeCondition = ([name, values]: [string, string[]]) =>
+    `${name} is ${values.join(' or ')}`;
+
+/**
+ * Who a live data source's access rule lets query it, in words, such as
+ * "team is sales, and region is emea or tier is gold". Null when everyone can.
+ */
+export const describeLiveSourceAccessRule = (
+    rule: LiveSourceAccessRule | null | undefined,
+): string | null => {
+    if (!rule || isLiveSourceAccessRuleEmpty(rule)) return null;
+    const required = Object.entries(rule.required).map(describeCondition);
+    const any = Object.entries(rule.any).map(describeCondition);
+    return [
+        ...required,
+        ...(any.length > 0 ? [any.join(any.length > 1 ? ', or ' : '')] : []),
+    ].join(', and ');
 };

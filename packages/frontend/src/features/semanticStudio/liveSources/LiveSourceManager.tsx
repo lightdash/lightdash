@@ -36,6 +36,7 @@ import { SalesforceConnectionModal } from '../../externalConnections/liveSources
 import { TokenLiveSourceModal } from '../../externalConnections/liveSources/TokenLiveSourceModal';
 import { useLiveSourceSignInResult } from '../../externalConnections/liveSources/useLiveSourceSignInResult';
 import { getSemanticStudioSourceUrl } from '../urls';
+import { LiveSourceAccessModal } from './LiveSourceAccessModal';
 import {
     LiveSourceActionsContext,
     type LiveSourceActions,
@@ -54,6 +55,7 @@ type Dialog =
     | { kind: 'remove'; connection: LiveSourceConnection }
     | { kind: 'cacheSettings'; connection: LiveSourceConnection }
     | { kind: 'purgeCache'; connection: LiveSourceConnection }
+    | { kind: 'access'; connection: LiveSourceConnection }
     | { kind: 'reattach'; connectionUuid: string };
 
 const RemoveLiveSourceModal: FC<{
@@ -136,6 +138,7 @@ export const LiveSourceManager: FC<{
                 setDialog({ kind: 'cacheSettings', connection }),
             purgeCache: (connection) =>
                 setDialog({ kind: 'purgeCache', connection }),
+            access: (connection) => setDialog({ kind: 'access', connection }),
             getReconnect: (connection) => {
                 const { connector } = connection.apiSource;
                 const { setup } = getLiveSource(connector);
@@ -402,6 +405,13 @@ const LiveSourceDialogs: FC<{
             )}
             {dialog.kind === 'cacheSettings' && (
                 <LiveSourceCacheSettingsModal
+                    projectUuid={projectUuid}
+                    connection={dialog.connection}
+                    onClose={close}
+                />
+            )}
+            {dialog.kind === 'access' && (
+                <LiveSourceAccessModal
                     projectUuid={projectUuid}
                     connection={dialog.connection}
                     onClose={close}
