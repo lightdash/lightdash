@@ -1,11 +1,12 @@
 /**
- * A live data source's cache, for the admins who manage it: how long its
+ * A live data source's caching, for the admins who manage it: how long its
  * results answer the same query for everyone, and purging them.
  */
 import { LIVE_SOURCE_CACHE_TTL_MAX_SECONDS } from '@lightdash/common';
-import { Select, Stack, Text } from '@mantine/core';
+import { Button, Select, Stack, Text } from '@mantine/core';
 import { IconClockHour4, IconRefreshDot } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import {
     usePurgeLiveSourceCache,
@@ -18,7 +19,6 @@ import {
     type LiveSourceConnection,
 } from './liveSourceRows';
 
-const DEFAULT_OPTION = 'default';
 const WINDOW_SECONDS = [
     0,
     60,
@@ -30,19 +30,19 @@ const WINDOW_SECONDS = [
     LIVE_SOURCE_CACHE_TTL_MAX_SECONDS,
 ];
 
-export const LiveSourceCacheSettingsModal: FC<{
+export const LiveSourceCachingModal: FC<{
     projectUuid: string;
     connection: LiveSourceConnection;
     onClose: () => void;
 }> = ({ projectUuid, connection, onClose }) => {
     const freshness = getLiveSourceFreshness(connection);
-    const [value, setValue] = useState(
-        freshness.isDefault ? DEFAULT_OPTION : String(freshness.seconds),
-    );
-    const { mutate, isLoading } = useUpdateLiveSourceCache({
+    const [value, setValue] = useState(String(freshness.seconds));
+    const params = {
         projectUuid,
         connectionUuid: connection.externalConnectionUuid,
-    });
+    };
+    const { mutate, isLoading } = useUpdateLiveSourceCache(params);
+    const purge = usePurgeLiveSourceCache(params);
     // A window set through the API may not be one of the presets.
     const seconds = WINDOW_SECONDS.includes(freshness.seconds)
         ? WINDOW_SECONDS
@@ -51,20 +51,25 @@ export const LiveSourceCacheSettingsModal: FC<{
         <MantineModal
             opened
             onClose={onClose}
-            title="Cache settings"
+            title="Caching"
             icon={IconClockHour4}
             size="md"
             confirmLabel="Save"
             confirmLoading={isLoading}
             cancelDisabled={isLoading}
+            leftActions={
+                <Button
+                    variant="default"
+                    leftSection={<MantineIcon icon={IconRefreshDot} />}
+                    loading={purge.isLoading}
+                    title={`The next query on "${connection.name}" from anyone calls the integration for fresh data`}
+                    onClick={() => purge.mutate()}
+                >
+                    Purge cache
+                </Button>
+            }
             onConfirm={() =>
-                mutate(
-                    {
-                        ttlSeconds:
-                            value === DEFAULT_OPTION ? null : Number(value),
-                    },
-                    { onSuccess: onClose },
-                )
+                mutate({ ttlSeconds: Number(value) }, { onSuccess: onClose })
             }
         >
             <Stack gap="sm">
@@ -79,45 +84,12 @@ export const LiveSourceCacheSettingsModal: FC<{
                     comboboxProps={{ withinPortal: true }}
                     value={value}
                     onChange={(picked) => picked && setValue(picked)}
-                    data={[
-                        {
-                            value: DEFAULT_OPTION,
-                            label: `Integration default (${formatFreshness(
-                                freshness.defaultSeconds,
-                            )})`,
-                        },
-                        ...seconds.map((option) => ({
-                            value: String(option),
-                            label: formatFreshness(option),
-                        })),
-                    ]}
+                    data={seconds.map((option) => ({
+                        value: String(option),
+                        label: formatFreshness(option),
+                    }))}
                 />
             </Stack>
         </MantineModal>
-    );
-};
-
-export const PurgeLiveSourceCacheModal: FC<{
-    projectUuid: string;
-    connection: LiveSourceConnection;
-    onClose: () => void;
-}> = ({ projectUuid, connection, onClose }) => {
-    const { mutate, isLoading } = usePurgeLiveSourceCache({
-        projectUuid,
-        connectionUuid: connection.externalConnectionUuid,
-    });
-    return (
-        <MantineModal
-            opened
-            onClose={onClose}
-            title="Purge cache"
-            icon={IconRefreshDot}
-            size="md"
-            description={`The next query on "${connection.name}" from anyone will call the integration for fresh data.`}
-            confirmLabel="Purge cache"
-            confirmLoading={isLoading}
-            cancelDisabled={isLoading}
-            onConfirm={() => mutate(undefined, { onSuccess: onClose })}
-        />
     );
 };

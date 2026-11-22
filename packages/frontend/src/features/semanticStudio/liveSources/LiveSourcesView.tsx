@@ -22,7 +22,6 @@ import {
     IconPencil,
     IconPlus,
     IconRefresh,
-    IconRefreshDot,
     IconReload,
     IconTrash,
 } from '@tabler/icons-react';
@@ -58,9 +57,7 @@ const stopPropagation = (event: MouseEvent) => event.stopPropagation();
 const LiveSourceMenu: FC<{
     projectUuid: string;
     connection: LiveSourceConnection;
-    /** The page header shows Refresh fields as its own button. */
-    withRefresh?: boolean;
-}> = ({ projectUuid, connection, withRefresh = true }) => {
+}> = ({ projectUuid, connection }) => {
     const actions = useLiveSourceActions();
     const refreshFields = useRefreshLiveSourceFields({
         projectUuid,
@@ -88,15 +85,13 @@ const LiveSourceMenu: FC<{
                 >
                     Edit
                 </Menu.Item>
-                {withRefresh ? (
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconReload} />}
-                        disabled={refreshFields.isLoading}
-                        onClick={() => refreshFields.mutate()}
-                    >
-                        Refresh fields
-                    </Menu.Item>
-                ) : null}
+                <Menu.Item
+                    leftSection={<MantineIcon icon={IconReload} />}
+                    disabled={refreshFields.isLoading}
+                    onClick={() => refreshFields.mutate()}
+                >
+                    Refresh fields
+                </Menu.Item>
                 {reconnect ? (
                     <Menu.Item
                         leftSection={<MantineIcon icon={IconRefresh} />}
@@ -108,15 +103,9 @@ const LiveSourceMenu: FC<{
                 <Menu.Divider />
                 <Menu.Item
                     leftSection={<MantineIcon icon={IconClockHour4} />}
-                    onClick={() => actions.cacheSettings(connection)}
+                    onClick={() => actions.caching(connection)}
                 >
-                    Cache settings
-                </Menu.Item>
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconRefreshDot} />}
-                    onClick={() => actions.purgeCache(connection)}
-                >
-                    Purge cache
+                    Caching
                 </Menu.Item>
                 <Menu.Divider />
                 <Menu.Item
@@ -135,31 +124,9 @@ const LiveSourceMenu: FC<{
 export const LiveSourceHeaderActions: FC<{
     projectUuid: string;
     connection: LiveSourceConnection;
-}> = ({ projectUuid, connection }) => {
-    const refreshFields = useRefreshLiveSourceFields({
-        projectUuid,
-        connectionUuid: connection.externalConnectionUuid,
-    });
-    return (
-        <>
-            <Button
-                size="xs"
-                variant="subtle"
-                color="gray"
-                leftSection={<MantineIcon icon={IconReload} size={14} />}
-                loading={refreshFields.isLoading}
-                onClick={() => refreshFields.mutate()}
-            >
-                Refresh fields
-            </Button>
-            <LiveSourceMenu
-                projectUuid={projectUuid}
-                connection={connection}
-                withRefresh={false}
-            />
-        </>
-    );
-};
+}> = ({ projectUuid, connection }) => (
+    <LiveSourceMenu projectUuid={projectUuid} connection={connection} />
+);
 
 const EmptyLiveSources: FC = () => {
     const actions = useLiveSourceActions();
@@ -345,7 +312,7 @@ export const LiveSourceSummary: FC<{
     const cachingTitle =
         freshness.seconds === 0
             ? 'Every query calls the integration'
-            : `A result answers the same query for everyone for ${formatFreshness(freshness.seconds)}${freshness.isDefault ? ', the default' : ''}`;
+            : `A result answers the same query for everyone for ${formatFreshness(freshness.seconds)}`;
     // Every explore whose fields can be curated, not only the first
     const allFields = fields?.explores.flatMap((explore) => explore.fields);
     const inUse = allFields?.filter((field) => field.inUse).length;
