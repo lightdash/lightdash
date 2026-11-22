@@ -48,7 +48,7 @@ const WINDOW_SECONDS = [
 
 const SettingsSection: FC<{
     title: string;
-    description: string;
+    description?: string;
     /** On the title's line, on the right. */
     action?: ReactNode;
     children?: ReactNode;
@@ -58,9 +58,11 @@ const SettingsSection: FC<{
             <Group justify="space-between" wrap="nowrap" gap="md">
                 <Box miw={0}>
                     <Text fw={500}>{title}</Text>
-                    <Text fz="sm" c="dimmed">
-                        {description}
-                    </Text>
+                    {description ? (
+                        <Text fz="sm" c="dimmed">
+                            {description}
+                        </Text>
+                    ) : null}
                 </Box>
                 {action}
             </Group>
@@ -172,7 +174,6 @@ export const LiveSourceSettings: FC<{
         <Stack gap="md">
             <SettingsSection
                 title="Details"
-                description="Its name and the account it reads from."
                 action={
                     reconnect ? (
                         <Button

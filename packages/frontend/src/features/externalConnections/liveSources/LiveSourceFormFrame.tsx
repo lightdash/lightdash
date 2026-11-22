@@ -16,7 +16,7 @@ type Props = {
     children: ReactNode;
 };
 
-/** A live data source's form: in its own modal, or inline with a Save button. */
+/** A live data source's form: in its own modal, or inline with Save changes, which edits only. */
 export const LiveSourceFormFrame: FC<Props> = ({
     inline = false,
     opened,
@@ -34,12 +34,11 @@ export const LiveSourceFormFrame: FC<Props> = ({
             {children}
             <Group justify="flex-end">
                 <Button
-                    size="xs"
                     loading={confirmLoading}
                     disabled={confirmDisabled}
                     onClick={onConfirm}
                 >
-                    {confirmLabel}
+                    Save changes
                 </Button>
             </Group>
         </Stack>
