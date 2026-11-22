@@ -15,6 +15,7 @@ import {
     Group,
     PasswordInput,
     Popover,
+    SegmentedControl,
     Select,
     Stack,
     Textarea,
@@ -224,6 +225,11 @@ export const LiveSourceSettings: FC<{
     };
     const access = getLiveSourceAccess(connection);
     const accountField = getAccountField(access);
+    const isPostHogKey = access.kind === 'posthogKey';
+    /** What the Access card saves together. */
+    const accessKeys: (keyof LiveSourceAccessValues)[] = isPostHogKey
+        ? ['accountId', 'region']
+        : ['accountId'];
     const tokenLabel = getTokenLabel(access);
     const { data: fields } = useLiveSourceFields(params);
     const refreshFields = useRefreshLiveSourceFields(params);
@@ -356,7 +362,7 @@ export const LiveSourceSettings: FC<{
             <Stack gap="lg">
                 <SettingsCard
                     title="Access"
-                    onSubmit={accountField ? submit(['accountId']) : undefined}
+                    onSubmit={accountField ? submit(accessKeys) : undefined}
                 >
                     {accountField ? (
                         <SettingsRow
@@ -369,6 +375,19 @@ export const LiveSourceSettings: FC<{
                                 aria-label={accountField.label}
                                 placeholder={accountField.placeholder}
                                 {...form.getInputProps('accountId')}
+                            />
+                        </SettingsRow>
+                    ) : null}
+                    {isPostHogKey ? (
+                        <SettingsRow label="Region" hint="Where you log in">
+                            <SegmentedControl
+                                size="xs"
+                                w={240}
+                                data={[
+                                    { value: 'us', label: 'US Cloud' },
+                                    { value: 'eu', label: 'EU Cloud' },
+                                ]}
+                                {...form.getInputProps('region')}
                             />
                         </SettingsRow>
                     ) : null}
@@ -403,7 +422,21 @@ export const LiveSourceSettings: FC<{
                             ) : null}
                         </SettingsRow>
                     )}
-                    {accountField ? saveFooter(['accountId']) : null}
+                    {isPostHogKey && reconnect ? (
+                        <SettingsRow
+                            label="Sign in instead"
+                            hint="Replaces the key with a PostHog sign-in"
+                        >
+                            <Button
+                                size="xs"
+                                variant="default"
+                                onClick={reconnect}
+                            >
+                                Sign in with PostHog
+                            </Button>
+                        </SettingsRow>
+                    ) : null}
+                    {accountField ? saveFooter(accessKeys) : null}
                 </SettingsCard>
 
                 <SettingsCard
