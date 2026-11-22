@@ -602,7 +602,7 @@ describe('Slack image delivery scope', () => {
         expect(getExplore).toHaveBeenCalledWith(
             expect.anything(),
             'project',
-            ['allowed'],
+            expect.objectContaining({ tags: ['allowed'] }),
             'orders',
         );
         expect(getAsyncQueryHistory).toHaveBeenCalledWith(
