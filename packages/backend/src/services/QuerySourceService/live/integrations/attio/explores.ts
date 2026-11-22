@@ -1,4 +1,9 @@
-import { DimensionType, FilterOperator } from '@lightdash/common';
+import {
+    ATTIO_OBJECTS,
+    DimensionType,
+    FilterOperator,
+    type AttioObject,
+} from '@lightdash/common';
 import { z } from 'zod';
 import type {
     LiveDimensionDefinition,
@@ -48,11 +53,23 @@ const BUILT_IN_DIMENSIONS: LiveDimensionDefinition[] = [
     },
 ];
 
-/** The built-in fields a record always has; a scan adds the object's attributes. */
-export const ATTIO_RECORDS_EXPLORE: LiveExploreDefinition = {
-    name: 'records',
-    label: 'Records',
-    description: `Records of one Attio object, read live from Attio, one row per record, at most ${ATTIO_MAX_RECORDS.toLocaleString(
+/** Each object's explore label, as Attio's sidebar names it. */
+const OBJECT_LABELS: Record<AttioObject, string> = {
+    companies: 'Companies',
+    people: 'People',
+    deals: 'Deals',
+    users: 'Users',
+    workspaces: 'Workspaces',
+};
+
+/**
+ * One object's built-in fields, which every record has; a scan adds the
+ * object's attributes. The explore is named by the object's slug.
+ */
+const toObjectExplore = (object: AttioObject): LiveExploreDefinition => ({
+    name: object,
+    label: OBJECT_LABELS[object],
+    description: `Attio ${object} records, read live from Attio, one row per record, at most ${ATTIO_MAX_RECORDS.toLocaleString(
         'en-US',
     )} per query.`,
     dimensions: BUILT_IN_DIMENSIONS,
@@ -61,7 +78,40 @@ export const ATTIO_RECORDS_EXPLORE: LiveExploreDefinition = {
     maxMetrics: null,
     dateRange: null,
     incompatible: [],
+});
+
+/** Companies first: an integration's first explore is its main one. */
+export const ATTIO_EXPLORES = ATTIO_OBJECTS.map(toObjectExplore) as [
+    LiveExploreDefinition,
+    ...LiveExploreDefinition[],
+];
+
+/** Names of the explores scans add fields to besides the first. */
+export const ATTIO_SCANNED_MODELS = ATTIO_EXPLORES.slice(1).map(
+    ({ name }) => name,
+);
+
+/** The object an explore definition reads. */
+export const toAttioObject = (definitionName: string): AttioObject => {
+    const object = ATTIO_OBJECTS.find(
+        (candidate) => candidate === definitionName,
+    );
+    if (!object) {
+        throw new Error(`"${definitionName}" isn't an Attio object`);
+    }
+    return object;
 };
+
+/** One object's attribute list from a scan; anything else reads as none. */
+export const readAttioAttributes = (
+    scanned: unknown,
+    object: AttioObject,
+): unknown =>
+    scanned !== null &&
+    typeof scanned === 'object' &&
+    Object.hasOwn(scanned, object)
+        ? (scanned as Record<string, unknown>)[object]
+        : undefined;
 
 /**
  * Names attribute fields can't take: built-in fields, and fields of earlier

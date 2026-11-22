@@ -5,15 +5,48 @@ exports[`live data source names > Attio explore names and field ids never change
   "explores": [
     {
       "fieldIds": [
-        "attio_records_attribute_count",
-        "attio_records_created_at",
-        "attio_records_name",
-        "attio_records_record_id",
-        "attio_records_stage",
-        "attio_records_value",
-        "attio_records_web_url",
+        "attio_companies_created_at",
+        "attio_companies_record_id",
+        "attio_companies_web_url",
       ],
-      "name": "attio_records",
+      "name": "attio_companies",
+    },
+    {
+      "fieldIds": [
+        "attio_people_created_at",
+        "attio_people_email_addresses",
+        "attio_people_record_id",
+        "attio_people_web_url",
+      ],
+      "name": "attio_people",
+    },
+    {
+      "fieldIds": [
+        "attio_deals_attribute_count",
+        "attio_deals_created_at",
+        "attio_deals_name",
+        "attio_deals_record_id",
+        "attio_deals_stage",
+        "attio_deals_value",
+        "attio_deals_web_url",
+      ],
+      "name": "attio_deals",
+    },
+    {
+      "fieldIds": [
+        "attio_users_created_at",
+        "attio_users_record_id",
+        "attio_users_web_url",
+      ],
+      "name": "attio_users",
+    },
+    {
+      "fieldIds": [
+        "attio_workspaces_created_at",
+        "attio_workspaces_record_id",
+        "attio_workspaces_web_url",
+      ],
+      "name": "attio_workspaces",
     },
   ],
   "reservedExploreNames": [],

@@ -107,7 +107,7 @@ const SOURCES = [
         date: 'created_at',
     },
     {
-        apiSource: { connector: ApiConnectorType.ATTIO, object: 'deals' },
+        apiSource: { connector: ApiConnectorType.ATTIO },
         // Built-in fields only: attributes come from a scan. No metrics.
         fields: { dimension: 'record_id', other: 'record_id' },
         date: 'created_at',

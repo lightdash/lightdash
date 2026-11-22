@@ -1,5 +1,6 @@
 import {
     ApiConnectorType,
+    ATTIO_OBJECTS,
     DimensionType,
     getAttioAttributesPath,
     getAttioRecordsQueryPath,
@@ -15,6 +16,7 @@ import {
     type LiveScanResult,
 } from '../../types';
 import { parseAttioApiName, type AttioValueProperty } from './attributes';
+import { AttioObjectAccessError } from './errors';
 import {
     ATTIO_MAX_PAGES,
     ATTIO_MAX_RECORDS,
@@ -64,6 +66,8 @@ export type AttioSort = z.infer<typeof sortSchema>;
 /** One records query, as compile writes it: one row per record. */
 export const attioRequestSchema = z
     .object({
+        /** The standard object to read, by its slug. */
+        object: z.enum(ATTIO_OBJECTS),
         columns: z.array(columnSchema).min(1),
         /** Attio's own filter object, sent as it is. */
         filter: z.record(z.string(), z.unknown()).optional(),
@@ -232,7 +236,6 @@ const readRecords = async ({
 
 /** Runs one Attio records query: one row per record, in pages of 500. */
 export const runAttioQuery = async ({
-    settings: { object },
     request,
     limit,
     calls,
@@ -243,7 +246,7 @@ export const runAttioQuery = async ({
     assertMaxRows(limit, ATTIO_MAX_RECORDS);
     const { columns } = request;
     const { records, hasMoreRows } = await readRecords({
-        object,
+        object: request.object,
         request,
         requestedRows: limit,
         calls,
@@ -262,20 +265,44 @@ export const runAttioQuery = async ({
     };
 };
 
-/** Reads the object's attributes, which become its fields. */
+/**
+ * Reads each object's attributes, which become its explore's fields. An
+ * object the token can't read, or the workspace lacks, keeps its built-in
+ * fields; any other failed call, such as a throttled one, fails the scan so
+ * the last good scan stays.
+ */
 export const scanAttioAttributes = async ({
-    settings: { object },
     calls,
 }: {
-    settings: { object: string };
     calls: LiveCalls;
-}): Promise<LiveScanResult> => ({
-    attioAttributes: await calls.fetch(
-        {
-            method: 'GET',
-            path: getAttioAttributesPath(object),
-            body: undefined,
-        },
-        z.unknown(),
-    ),
-});
+}): Promise<LiveScanResult> => {
+    const results = await Promise.allSettled(
+        ATTIO_OBJECTS.map((object) =>
+            calls.fetch(
+                {
+                    method: 'GET',
+                    path: getAttioAttributesPath(object),
+                    body: undefined,
+                },
+                z.unknown(),
+            ),
+        ),
+    );
+    const failed = results.flatMap((result) =>
+        result.status === 'rejected' ? [result.reason as unknown] : [],
+    );
+    const [unexpected] = failed.filter(
+        (error) => !(error instanceof AttioObjectAccessError),
+    );
+    if (unexpected !== undefined) {
+        throw unexpected;
+    }
+    const read = ATTIO_OBJECTS.flatMap((object, index) => {
+        const result = results[index];
+        return result.status === 'fulfilled' ? [[object, result.value]] : [];
+    });
+    if (read.length === 0) {
+        throw failed[0];
+    }
+    return { attioAttributes: Object.fromEntries(read) };
+};

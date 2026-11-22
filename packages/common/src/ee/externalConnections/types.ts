@@ -72,10 +72,19 @@ export type PylonApiSource = {
     connector: ApiConnectorType.PYLON;
 };
 
+/** The Attio standard objects a source reads, one explore each, companies first. */
+export const ATTIO_OBJECTS = [
+    'companies',
+    'people',
+    'deals',
+    'users',
+    'workspaces',
+] as const;
+export type AttioObject = (typeof ATTIO_OBJECTS)[number];
+
+/** The access token picks the Attio workspace, so nothing else is set. */
 export type AttioApiSource = {
     connector: ApiConnectorType.ATTIO;
-    /** The slug of the Attio object the source reads, e.g. companies or deals. */
-    object: string;
 };
 
 /** The HubSpot CRM objects a source reads, one explore each. */
