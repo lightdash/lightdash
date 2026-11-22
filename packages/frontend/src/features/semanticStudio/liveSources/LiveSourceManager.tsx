@@ -230,18 +230,10 @@ export const LiveSourceManager: FC<{
 const LiveSourceConnectDialog: FC<{
     projectUuid: string;
     connector: ApiConnectorType;
-    connection: LiveSourceConnection | null;
     canSignIn: boolean;
     onClose: () => void;
     onCreated: (connectionUuid: string) => void;
-}> = ({
-    projectUuid,
-    connector,
-    connection,
-    canSignIn,
-    onClose,
-    onCreated,
-}) => {
+}> = ({ projectUuid, connector, canSignIn, onClose, onCreated }) => {
     const { setup } = getLiveSource(connector);
     switch (setup.kind) {
         case 'google':
@@ -251,7 +243,6 @@ const LiveSourceConnectDialog: FC<{
                     onClose={onClose}
                     projectUuid={projectUuid}
                     connector={connector}
-                    connection={connection}
                 />
             ) : null;
         case 'posthog':
@@ -260,7 +251,6 @@ const LiveSourceConnectDialog: FC<{
                     opened
                     onClose={onClose}
                     projectUuid={projectUuid}
-                    connection={connection}
                     canSignIn={canSignIn}
                     onCreated={onCreated}
                 />
@@ -272,7 +262,6 @@ const LiveSourceConnectDialog: FC<{
                     opened
                     onClose={onClose}
                     projectUuid={projectUuid}
-                    connection={connection}
                     onCreated={onCreated}
                 />
             );
@@ -282,7 +271,6 @@ const LiveSourceConnectDialog: FC<{
                     opened
                     onClose={onClose}
                     projectUuid={projectUuid}
-                    connection={connection}
                 />
             );
         case 'salesforce':
@@ -291,7 +279,6 @@ const LiveSourceConnectDialog: FC<{
                     opened
                     onClose={onClose}
                     projectUuid={projectUuid}
-                    connection={connection}
                 />
             );
         default:
@@ -357,7 +344,6 @@ const LiveSourceDialogs: FC<{
                     key={connector}
                     projectUuid={projectUuid}
                     connector={connector}
-                    connection={null}
                     canSignIn={canSignIn}
                     onClose={close}
                     onCreated={openConnected}

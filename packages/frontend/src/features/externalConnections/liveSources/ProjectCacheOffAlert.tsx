@@ -25,7 +25,7 @@ export const ProjectCacheOffAlert: FC<{ projectUuid: string }> = ({
                 color={WARNING_TEXT}
             />
             <Text fz="xs" c={WARNING_TEXT}>
-                Project caching is off, so every query calls the integration.{' '}
+                Caching is off for this project, so every query calls the API{' '}
                 <Anchor
                     component={Link}
                     to={`/generalSettings/projectManagement/${projectUuid}/caching`}

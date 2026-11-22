@@ -8,10 +8,8 @@
 import {
     LIVE_SOURCE_AI_HINT_MAX_LENGTH,
     LIVE_SOURCE_CACHE_TTL_MAX_SECONDS,
-    type ExternalConnectionTestResponse,
 } from '@lightdash/common';
 import {
-    Box,
     Button,
     Code,
     Group,
@@ -22,15 +20,10 @@ import {
     Stack,
     Textarea,
     TextInput,
-    Tooltip,
 } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
-import {
-    IconAlertCircleFilled,
-    IconCircleCheckFilled,
-    IconTrash,
-} from '@tabler/icons-react';
-import { useState, type FC, type FormEvent, type ReactNode } from 'react';
+import { IconTrash } from '@tabler/icons-react';
+import { useState, type FC, type FormEvent } from 'react';
 import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -49,6 +42,12 @@ import {
     useUpdateExternalConnection,
 } from '../../externalConnections/hooks/useUpdateExternalConnection';
 import { getApiSourceTarget } from '../../externalConnections/liveSources/liveSourceCatalog';
+import {
+    SettingsCard,
+    SettingsRow,
+    TestOutcome,
+} from '../../externalConnections/liveSources/LiveSourceSettingsRows';
+import rowClasses from '../../externalConnections/liveSources/LiveSourceSettingsRows.module.css';
 import { ProjectCacheOffAlert } from '../../externalConnections/liveSources/ProjectCacheOffAlert';
 import {
     normalizeAccountId,
@@ -69,7 +68,6 @@ import {
     getLiveSourceFreshness,
     type LiveSourceConnection,
 } from './liveSourceRows';
-import classes from './LiveSources.module.css';
 
 const WINDOW_SECONDS = [
     0,
@@ -81,42 +79,6 @@ const WINDOW_SECONDS = [
     6 * 60 * 60,
     LIVE_SOURCE_CACHE_TTL_MAX_SECONDS,
 ];
-
-/** A label and a short hint on the left, its control on the right. */
-const SettingsRow: FC<{
-    label: string;
-    hint?: ReactNode;
-    children: ReactNode;
-}> = ({ label, hint, children }) => (
-    <Box className={classes.settingsRow}>
-        <Box miw={0}>
-            <span className={classes.settingsLabel}>{label}</span>
-            {hint ? <Box className={classes.settingsHint}>{hint}</Box> : null}
-        </Box>
-        <Group gap="xs" wrap="nowrap" justify="flex-end" flex="none">
-            {children}
-        </Group>
-    </Box>
-);
-
-/** The same raised card as the summary above, one row per setting. */
-const SettingsCard: FC<{
-    title?: string;
-    /** Makes the card a form whose rows save together. */
-    onSubmit?: (event: FormEvent) => void;
-    children: ReactNode;
-}> = ({ title, onSubmit, children }) => (
-    <Stack gap={6}>
-        {title ? <span className={classes.settingsTitle}>{title}</span> : null}
-        {onSubmit ? (
-            <form className={classes.settings} onSubmit={onSubmit} noValidate>
-                {children}
-            </form>
-        ) : (
-            <Box className={classes.settings}>{children}</Box>
-        )}
-    </Stack>
-);
 
 const formatDate = (date: Date | string) =>
     new Date(date).toLocaleString(undefined, {
@@ -130,33 +92,6 @@ const formatPurgedAt = (purgedAt: Date | null | undefined) =>
 type Values = LiveSourceAccessValues & {
     /** Seconds, as the select holds it. */
     ttl: string;
-};
-
-/** A test's outcome in one quiet line, in place of the row's hint. */
-const TestOutcome: FC<{ response: ExternalConnectionTestResponse }> = ({
-    response,
-}) => {
-    const ok = response.liveCheck?.ok ?? response.status < 300;
-    const summary =
-        response.liveCheck?.summary ??
-        (ok ? 'Works' : `Failed with status ${response.status}`);
-    return (
-        <Tooltip
-            label={response.liveCheck?.detail}
-            disabled={!response.liveCheck?.detail}
-            multiline
-            maw={320}
-            withinPortal
-        >
-            <Group gap={4} wrap="nowrap" role="status" c={ok ? 'green' : 'red'}>
-                <MantineIcon
-                    icon={ok ? IconCircleCheckFilled : IconAlertCircleFilled}
-                    size={12}
-                />
-                <span>{summary}</span>
-            </Group>
-        </Tooltip>
-    );
 };
 
 /** The saved token, or a new one in its place, and a check that it works. */
@@ -377,7 +312,7 @@ export const LiveSourceSettings: FC<{
             <Group
                 justify="flex-end"
                 gap="xs"
-                className={classes.settingsFooter}
+                className={rowClasses.settingsFooter}
             >
                 <Button
                     size="xs"
@@ -513,7 +448,7 @@ export const LiveSourceSettings: FC<{
                             label="Explore prefix"
                             hint="Added to the start of each explore name"
                         >
-                            <Code className={classes.settingsCode}>
+                            <Code className={rowClasses.settingsCode}>
                                 {connection.liveSourceName}
                             </Code>
                             <CopyActionIcon

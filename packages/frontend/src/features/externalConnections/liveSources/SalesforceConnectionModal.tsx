@@ -1,130 +1,82 @@
 import {
-    type ExternalConnection,
+    ApiConnectorType,
+    LIVE_INTEGRATION_CATALOG,
     type SalesforceEnvironment,
 } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    Input,
-    SegmentedControl,
-    Stack,
-    Text,
-    TextInput,
-} from '@mantine/core';
+import { Stack, Switch } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
-import { useUpdateExternalConnection } from '../hooks/useUpdateExternalConnection';
+import { LiveSourceTitle } from './LiveSourceIcon';
+import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
+import { NewLiveSourceDetails } from './NewLiveSourceDetails';
 import { getSalesforceSignInUrl } from './salesforceConnection';
 
 type Props = {
     opened: boolean;
     onClose: () => void;
     projectUuid: string;
-    connection: ExternalConnection | null;
 };
 
+/** Adds a Salesforce source, which signs in to Salesforce to finish. */
 export const SalesforceConnectionModal: FC<Props> = ({
     opened,
     onClose,
     projectUuid,
-    connection,
 }) => {
     const form = useForm<{ name: string; environment: SalesforceEnvironment }>({
         initialValues: {
-            name: connection?.name ?? 'Salesforce',
+            name: LIVE_INTEGRATION_CATALOG[ApiConnectorType.SALESFORCE]
+                .defaultName,
             environment: 'production',
         },
         validate: {
             name: (value) =>
-                value.trim().length === 0 ? 'Name is required' : null,
+                value.trim().length === 0 ? 'Give it a name' : null,
         },
     });
-    const updateMutation = useUpdateExternalConnection();
 
-    const signIn = (connectionUuid: string | null) => {
-        if (form.validate().hasErrors) return;
+    const handleSave = form.onSubmit((values) => {
         window.location.assign(
-            getSalesforceSignInUrl(
-                projectUuid,
-                // A reconnect keeps the source's own login host
-                connectionUuid ? { name: form.values.name } : form.values,
-                connectionUuid,
-                'settings',
-            ),
+            getSalesforceSignInUrl(projectUuid, values, null, 'settings'),
         );
-    };
-
-    const handleSave = form.onSubmit(async ({ name }) => {
-        if (!connection) {
-            signIn(null);
-            return;
-        }
-        await updateMutation.mutateAsync({
-            projectUuid,
-            connectionUuid: connection.externalConnectionUuid,
-            data: { name: name.trim() },
-        });
-        onClose();
     });
 
     return (
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title={connection ? 'Edit Salesforce source' : 'Add Salesforce'}
-            confirmLabel={connection ? 'Save' : 'Continue to Salesforce'}
+            size="xl"
+            title={
+                <LiveSourceTitle connector={ApiConnectorType.SALESFORCE}>
+                    Add Salesforce source
+                </LiveSourceTitle>
+            }
+            confirmLabel="Continue to Salesforce"
             onConfirm={() => handleSave()}
-            confirmLoading={updateMutation.isLoading}
-            cancelDisabled={updateMutation.isLoading}
         >
-            <Stack gap="sm">
-                <Text c="dimmed" fz="sm">
-                    AI agents read opportunities, accounts, leads and contacts
-                    live, one table each. Salesforce counts and totals the
-                    records itself, so most questions take one API call. Fields
-                    come from each object, including custom ones; pick which to
-                    use after connecting.
-                </Text>
-                <TextInput
-                    required
-                    label="Name"
-                    description={
-                        connection
-                            ? undefined
-                            : 'Sign in with a user who has the API Enabled permission and can read these objects.'
-                    }
-                    data-autofocus
-                    {...form.getInputProps('name')}
-                />
-                {connection ? null : (
-                    <Input.Wrapper
-                        label="Environment"
-                        description="Sandbox orgs sign in at test.salesforce.com."
+            <Stack gap="lg">
+                <SettingsCard title="Access">
+                    <SettingsRow
+                        label="Use a sandbox"
+                        hint="Production by default"
                     >
-                        <SegmentedControl
-                            mt={4}
-                            data={[
-                                { value: 'production', label: 'Production' },
-                                { value: 'sandbox', label: 'Sandbox' },
-                            ]}
-                            {...form.getInputProps('environment')}
-                        />
-                    </Input.Wrapper>
-                )}
-                {connection ? (
-                    <Group justify="flex-end">
-                        <Button
-                            size="xs"
-                            variant="default"
-                            onClick={() =>
-                                signIn(connection.externalConnectionUuid)
+                        <Switch
+                            size="sm"
+                            aria-label="Use a sandbox"
+                            checked={form.values.environment === 'sandbox'}
+                            onChange={(event) =>
+                                form.setFieldValue(
+                                    'environment',
+                                    event.currentTarget.checked
+                                        ? 'sandbox'
+                                        : 'production',
+                                )
                             }
-                        >
-                            Reconnect to Salesforce
-                        </Button>
-                    </Group>
-                ) : null}
+                        />
+                    </SettingsRow>
+                </SettingsCard>
+                <NewLiveSourceDetails nameProps={form.getInputProps('name')} />
             </Stack>
         </MantineModal>
     );
