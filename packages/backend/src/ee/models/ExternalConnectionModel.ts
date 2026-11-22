@@ -212,6 +212,7 @@ export class ExternalConnectionModel {
     private static mapToExternalConnection(
         row: DbExternalConnection,
         hasSecret: boolean,
+        secretSetAt: Date | null,
     ): ExternalConnection {
         return {
             externalConnectionUuid: row.external_connection_uuid,
@@ -247,6 +248,7 @@ export class ExternalConnectionModel {
                 ? readLiveSourceCacheSettings(row.api_source)
                 : {}),
             hasSecret,
+            secretSetAt,
             createdByUserUuid: row.created_by_user_uuid,
             updatedByUserUuid: row.updated_by_user_uuid,
             createdAt: row.created_at,
@@ -399,6 +401,7 @@ export class ExternalConnectionModel {
             return ExternalConnectionModel.mapToExternalConnection(
                 row,
                 Boolean(secret),
+                secret ? new Date() : null,
             );
         });
     }
@@ -591,6 +594,7 @@ export class ExternalConnectionModel {
                 Array<
                     DbExternalConnection & {
                         encrypted_payload: Buffer | null;
+                        secret_set_at: Date | null;
                         linked_data_app_count: string;
                         linked_chart_type_count: string;
                     }
@@ -598,6 +602,11 @@ export class ExternalConnectionModel {
             >(
                 `${ExternalConnectionsTableName}.*`,
                 `${ExternalConnectionSecretsTableName}.encrypted_payload`,
+                this.database.raw('COALESCE(??, ??) AS ??', [
+                    `${ExternalConnectionSecretsTableName}.rotated_at`,
+                    `${ExternalConnectionSecretsTableName}.created_at`,
+                    'secret_set_at',
+                ]),
                 this.database.raw('COALESCE(??, 0) AS ??', [
                     'linked_data_app_counts.linked_data_app_count',
                     'linked_data_app_count',
@@ -612,6 +621,7 @@ export class ExternalConnectionModel {
             ...ExternalConnectionModel.mapToExternalConnection(
                 row,
                 row.encrypted_payload !== null,
+                row.secret_set_at,
             ),
             linkedDataAppCount: Number(row.linked_data_app_count),
             linkedChartTypeCount: Number(row.linked_chart_type_count),
@@ -771,11 +781,19 @@ export class ExternalConnectionModel {
             )
             .whereNull(`${ExternalConnectionsTableName}.deleted_at`)
             .first<
-                | (DbExternalConnection & { encrypted_payload: Buffer | null })
+                | (DbExternalConnection & {
+                      encrypted_payload: Buffer | null;
+                      secret_set_at: Date | null;
+                  })
                 | undefined
             >(
                 `${ExternalConnectionsTableName}.*`,
                 `${ExternalConnectionSecretsTableName}.encrypted_payload`,
+                this.database.raw('COALESCE(??, ??) AS ??', [
+                    `${ExternalConnectionSecretsTableName}.rotated_at`,
+                    `${ExternalConnectionSecretsTableName}.created_at`,
+                    'secret_set_at',
+                ]),
             );
 
         if (!row) {
@@ -784,6 +802,7 @@ export class ExternalConnectionModel {
         return ExternalConnectionModel.mapToExternalConnection(
             row,
             row.encrypted_payload !== null,
+            row.secret_set_at,
         );
     }
 
@@ -807,11 +826,19 @@ export class ExternalConnectionModel {
             .where(`${ExternalConnectionsTableName}.slug`, slug)
             .whereNull(`${ExternalConnectionsTableName}.deleted_at`)
             .first<
-                | (DbExternalConnection & { encrypted_payload: Buffer | null })
+                | (DbExternalConnection & {
+                      encrypted_payload: Buffer | null;
+                      secret_set_at: Date | null;
+                  })
                 | undefined
             >(
                 `${ExternalConnectionsTableName}.*`,
                 `${ExternalConnectionSecretsTableName}.encrypted_payload`,
+                this.database.raw('COALESCE(??, ??) AS ??', [
+                    `${ExternalConnectionSecretsTableName}.rotated_at`,
+                    `${ExternalConnectionSecretsTableName}.created_at`,
+                    'secret_set_at',
+                ]),
             );
 
         if (!row) {
@@ -820,6 +847,7 @@ export class ExternalConnectionModel {
         return ExternalConnectionModel.mapToExternalConnection(
             row,
             row.encrypted_payload !== null,
+            row.secret_set_at,
         );
     }
 
@@ -983,10 +1011,12 @@ export class ExternalConnectionModel {
             ) {
                 await ExternalConnectionModel.deleteSecret(trx, uuid);
             } else if (data.secret) {
+                // Someone replaced it or signed in again; refreshes don't count.
                 await ExternalConnectionModel.upsertSecret(
                     trx,
                     uuid,
                     this.encryptionUtil.encrypt(data.secret),
+                    true,
                 );
             }
         });
@@ -1630,12 +1660,18 @@ export class ExternalConnectionModel {
                     DbExternalConnection & {
                         alias: string;
                         encrypted_payload: Buffer | null;
+                        secret_set_at: Date | null;
                     }
                 >
             >(
                 `${ExternalConnectionsTableName}.*`,
                 `${AppExternalConnectionsTableName}.alias`,
                 `${ExternalConnectionSecretsTableName}.encrypted_payload`,
+                this.database.raw('COALESCE(??, ??) AS ??', [
+                    `${ExternalConnectionSecretsTableName}.rotated_at`,
+                    `${ExternalConnectionSecretsTableName}.created_at`,
+                    'secret_set_at',
+                ]),
             );
 
         return rows.map((row) => ({
@@ -1643,6 +1679,7 @@ export class ExternalConnectionModel {
             connection: ExternalConnectionModel.mapToExternalConnection(
                 row,
                 row.encrypted_payload !== null,
+                row.secret_set_at,
             ),
         }));
     }
@@ -1693,11 +1730,19 @@ export class ExternalConnectionModel {
             )
             .whereNull(`${ExternalConnectionsTableName}.deleted_at`)
             .first<
-                | (DbExternalConnection & { encrypted_payload: Buffer | null })
+                | (DbExternalConnection & {
+                      encrypted_payload: Buffer | null;
+                      secret_set_at: Date | null;
+                  })
                 | undefined
             >(
                 `${ExternalConnectionsTableName}.*`,
                 `${ExternalConnectionSecretsTableName}.encrypted_payload`,
+                this.database.raw('COALESCE(??, ??) AS ??', [
+                    `${ExternalConnectionSecretsTableName}.rotated_at`,
+                    `${ExternalConnectionSecretsTableName}.created_at`,
+                    'secret_set_at',
+                ]),
             );
 
         if (!row) {
@@ -1706,6 +1751,7 @@ export class ExternalConnectionModel {
         return ExternalConnectionModel.mapToExternalConnection(
             row,
             row.encrypted_payload !== null,
+            row.secret_set_at,
         );
     }
 

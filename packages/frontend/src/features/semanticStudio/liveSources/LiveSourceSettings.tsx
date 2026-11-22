@@ -11,6 +11,7 @@ import {
 import {
     Box,
     Button,
+    Code,
     Group,
     PasswordInput,
     Select,
@@ -21,6 +22,7 @@ import {
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import { IconTrash } from '@tabler/icons-react';
 import { useState, type FC, type KeyboardEvent, type ReactNode } from 'react';
+import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { ConnectionTestResult } from '../../externalConnections/components/ConnectionTestResult';
@@ -170,7 +172,9 @@ const TokenRow: FC<{
                 hint={
                     isReplacing
                         ? 'Replaces the saved one'
-                        : 'Saved and encrypted, never shown again'
+                        : connection.secretSetAt
+                          ? `Set ${formatDate(connection.secretSetAt)}`
+                          : 'Saved and encrypted'
                 }
             >
                 {isReplacing ? (
@@ -370,8 +374,12 @@ export const LiveSourceSettings: FC<{
                         />
                     ) : (
                         <SettingsRow
-                            label="Account"
-                            hint={`Reads ${getApiSourceTarget(connection.apiSource)}`}
+                            label={getApiSourceTarget(connection.apiSource)}
+                            hint={
+                                connection.secretSetAt
+                                    ? `Signed in ${formatDate(connection.secretSetAt)}`
+                                    : 'Signed in'
+                            }
                         >
                             {reconnect ? (
                                 <Button
@@ -400,6 +408,24 @@ export const LiveSourceSettings: FC<{
                             onKeyDown={saveOnEnter('name')}
                         />
                     </SettingsRow>
+                    {(fields?.explores ?? []).map((explore, index, all) => (
+                        <SettingsRow
+                            key={explore.exploreName}
+                            label={all.length > 1 ? explore.label : 'Explore'}
+                            hint="Set when the source was added"
+                        >
+                            <Code className={classes.settingsCode}>
+                                {explore.exploreName}
+                            </Code>
+                            <CopyActionIcon
+                                value={explore.exploreName}
+                                copyLabel="Copy explore name"
+                                variant="subtle"
+                                color="gray"
+                                size="sm"
+                            />
+                        </SettingsRow>
+                    ))}
                     <SettingsRow
                         label="AI hint"
                         hint="Helps agents pick this source"

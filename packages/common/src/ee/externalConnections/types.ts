@@ -351,6 +351,8 @@ export type ExternalConnection = {
     /** Live sources: results fetched before this are never reused. */
     cachePurgedAt?: Date | null;
     hasSecret: boolean;
+    /** When someone last set the secret or signed in; token refreshes don't count. */
+    secretSetAt?: Date | null;
     createdByUserUuid: string | null;
     updatedByUserUuid: string | null;
     createdAt: Date;

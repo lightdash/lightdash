@@ -172,3 +172,7 @@
     font-size: 12px;
     color: var(--mantine-color-dimmed);
 }
+
+.settingsCode {
+    font-size: 12px;
+}
