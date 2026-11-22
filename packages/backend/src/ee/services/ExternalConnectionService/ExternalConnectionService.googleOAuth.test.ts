@@ -139,6 +139,7 @@ const buildService = ({
             windows: [],
         }),
         refundApiSourceRateBuckets: vi.fn().mockResolvedValue(undefined),
+        holdApiSourceRateBuckets: vi.fn().mockResolvedValue(undefined),
         bookApiSourceRateTurn: vi.fn().mockImplementation(async () => ({
             booked: true,
             turnAt: new Date(),

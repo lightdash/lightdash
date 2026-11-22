@@ -17,6 +17,7 @@ type RateGateModel = Pick<
     ExternalConnectionModel,
     | 'chargeApiSourceRateBuckets'
     | 'refundApiSourceRateBuckets'
+    | 'holdApiSourceRateBuckets'
     | 'bookApiSourceRateTurn'
     | 'tryTakeApiSourceRateSlot'
     | 'releaseApiSourceRateSlot'
@@ -48,8 +49,14 @@ export type RateLimitTurn = {
     waitedMs: number;
 };
 
+/** The integration said to slow down; `resumesAt` is null when it didn't say until when. */
+export type VendorRateLimit = { resumesAt: Date | null };
+
 /** How long a call may wait for its turn before it is refused. */
 export const DEFAULT_RATE_LIMIT_DEADLINE_MS = 60_000;
+
+// Retries after the integration says to slow down, within the deadline.
+const MAX_VENDOR_RETRIES = 2;
 
 const SLOT_POLL_MS = 250;
 // A crashed server's slot frees itself once the call could no longer be running.
@@ -130,25 +137,54 @@ export class ApiSourceCallLimiter {
                 }));
     }
 
+    /**
+     * Runs one call in its turn. When `readRateLimit` says the integration
+     * answered "slow down", the charged buckets are held until it said, and
+     * the call is retried in a new turn, up to twice within the deadline.
+     * Other calls on those buckets wait for the hold instead of calling.
+     */
     async run<T>(
         target: RateLimitTarget,
         call: (turn: RateLimitTurn) => Promise<T>,
-        { deadlineMs = DEFAULT_RATE_LIMIT_DEADLINE_MS } = {},
+        {
+            deadlineMs = DEFAULT_RATE_LIMIT_DEADLINE_MS,
+            readRateLimit,
+        }: {
+            deadlineMs?: number;
+            readRateLimit?: (result: T) => VendorRateLimit | null;
+        } = {},
     ): Promise<T> {
-        const { turn, release } = await this.admit(target, deadlineMs);
-        try {
-            return await call(turn);
-        } finally {
-            await release();
+        const giveUpAt = this.now().getTime() + deadlineMs;
+        for (let attempt = 0; ; attempt += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            const { turn, release } = await this.admit(target, giveUpAt);
+            let result: T;
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                result = await call(turn);
+            } finally {
+                // eslint-disable-next-line no-await-in-loop
+                await release();
+            }
+            const limited = readRateLimit?.(result) ?? null;
+            if (!limited || turn.buckets.length === 0) return result;
+            // eslint-disable-next-line no-await-in-loop
+            await this.model.holdApiSourceRateBuckets(
+                target.limitKey,
+                target.rateLimits.buckets.filter(({ id }) =>
+                    turn.buckets.includes(id),
+                ),
+                limited.resumesAt,
+            );
+            if (attempt >= MAX_VENDOR_RETRIES) return result;
         }
     }
 
     private async admit(
         target: RateLimitTarget,
-        deadlineMs: number,
+        giveUpAt: number,
     ): Promise<{ turn: RateLimitTurn; release: () => Promise<void> }> {
         const startedAt = this.now().getTime();
-        const giveUpAt = startedAt + deadlineMs;
         try {
             const windows = await this.chargeBuckets(target, giveUpAt);
             let leaseUuid: string;
@@ -208,15 +244,18 @@ export class ApiSourceCallLimiter {
                 buckets.find(({ id }) => id === charge.bucketId) ?? buckets[0];
             const waitMs = charge.resumesAt.getTime() - charge.now.getTime();
             if (this.now().getTime() + waitMs > giveUpAt) {
+                const resumes = `Resumes at ${formatUtcTime(
+                    charge.resumesAt,
+                    waitMs < 60_000,
+                )}.`;
                 throw refuse({
-                    message: `${label} limit reached (${formatCount(
-                        charge.used,
-                    )}/${formatCount(bucket.capacity)} calls ${
-                        bucket.label
-                    }). Resumes at ${formatUtcTime(
-                        charge.resumesAt,
-                        bucket.windowMs < 3_600_000,
-                    )}.`,
+                    message: charge.isHeldByVendor
+                        ? `${label} asked Lightdash to slow down. ${resumes}`
+                        : `${label} limit reached (${formatCount(
+                              charge.used,
+                          )}/${formatCount(bucket.capacity)} calls ${
+                              bucket.label
+                          }). ${resumes}`,
                     code: RATE_LIMITED,
                     resumesAt: charge.resumesAt,
                     now: charge.now,

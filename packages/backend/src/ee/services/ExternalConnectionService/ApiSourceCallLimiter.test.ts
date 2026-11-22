@@ -52,6 +52,7 @@ const buildLimiter = ({
                 (charges.shift() ?? charged)(clock),
         ),
         refundApiSourceRateBuckets: vi.fn().mockResolvedValue(undefined),
+        holdApiSourceRateBuckets: vi.fn().mockResolvedValue(undefined),
         bookApiSourceRateTurn: vi.fn(
             async (): Promise<ApiSourceRateTurn> =>
                 (
@@ -185,6 +186,7 @@ describe('ApiSourceCallLimiter', () => {
                     bucketId: 'hour',
                     used: 10_000,
                     resumesAt: new Date(now + 2_000),
+                    isHeldByVendor: false,
                 }),
             ],
         });
@@ -206,6 +208,7 @@ describe('ApiSourceCallLimiter', () => {
                     bucketId: 'hour',
                     used: 10_000,
                     resumesAt: new Date(now + 20 * 60_000),
+                    isHeldByVendor: false,
                 }),
             ],
         });
@@ -301,5 +304,97 @@ describe('ApiSourceCallLimiter', () => {
         await limiter.run(target({ buckets: [] }), async () => 'rows');
 
         expect(model.chargeApiSourceRateBuckets).not.toHaveBeenCalled();
+    });
+
+    describe('when the integration says to slow down', () => {
+        const limitedFor = (seconds: number | null) => (result: string) =>
+            result === 'limited'
+                ? {
+                      resumesAt:
+                          seconds === null
+                              ? null
+                              : new Date(NOW + seconds * 1_000),
+                  }
+                : null;
+
+        it('holds the charged buckets and retries the call', async () => {
+            const { limiter, model } = buildLimiter();
+            const call = vi
+                .fn()
+                .mockResolvedValueOnce('limited')
+                .mockResolvedValueOnce('rows');
+
+            await expect(
+                limiter.run(target(), call, { readRateLimit: limitedFor(4) }),
+            ).resolves.toBe('rows');
+
+            expect(call).toHaveBeenCalledTimes(2);
+            expect(model.holdApiSourceRateBuckets).toHaveBeenCalledWith(
+                'connection-1',
+                target().rateLimits.buckets,
+                new Date(NOW + 4_000),
+            );
+            // The retry is a call too, so it is charged again
+            expect(model.chargeApiSourceRateBuckets).toHaveBeenCalledTimes(2);
+        });
+
+        it('retries at most twice, then returns what the integration said', async () => {
+            const { limiter, model } = buildLimiter();
+            const call = vi.fn().mockResolvedValue('limited');
+
+            await expect(
+                limiter.run(target(), call, {
+                    readRateLimit: limitedFor(null),
+                }),
+            ).resolves.toBe('limited');
+
+            expect(call).toHaveBeenCalledTimes(3);
+            expect(model.holdApiSourceRateBuckets).toHaveBeenCalledWith(
+                'connection-1',
+                target().rateLimits.buckets,
+                null,
+            );
+        });
+
+        it('refuses at once when the hold lasts past the deadline', async () => {
+            const call = vi.fn().mockResolvedValue('limited');
+            const { limiter } = buildLimiter({
+                charges: [
+                    charged,
+                    (now) => ({
+                        charged: false,
+                        now: new Date(now),
+                        bucketId: 'hour',
+                        used: 12,
+                        resumesAt: new Date(now + 5 * 60_000),
+                        isHeldByVendor: true,
+                    }),
+                ],
+            });
+
+            const error = await refusal(
+                limiter.run(target(), call, {
+                    readRateLimit: limitedFor(300),
+                }),
+            );
+
+            expect(error.message).toBe(
+                'HubSpot asked Lightdash to slow down. Resumes at 14:05 UTC.',
+            );
+            expect(error.data.resumesAt).toBe('2026-11-22T14:05:00.000Z');
+            expect(call).toHaveBeenCalledOnce();
+        });
+
+        it('does not retry a result that is not a rate limit', async () => {
+            const { limiter, model } = buildLimiter();
+            const call = vi.fn().mockResolvedValue('server error');
+
+            await limiter.run(target(), call, {
+                readRateLimit: limitedFor(4),
+            });
+
+            expect(call).toHaveBeenCalledOnce();
+            expect(model.holdApiSourceRateBuckets).not.toHaveBeenCalled();
+        });
     });
 });
