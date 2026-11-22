@@ -18,6 +18,7 @@ import {
     toAbsoluteDateRange,
 } from '../../query/dateRange';
 import { escapeRe2 } from '../../query/escapeRe2';
+import { refuseLiveQuery } from '../../query/refuse';
 
 const anyOf = (values: string[]) => {
     const escaped = values.map(escapeRe2);
@@ -67,6 +68,34 @@ const toFilters = (
                 `"${rule.target.fieldId}" can't be filtered with "${rule.operator}".`,
             );
     }
+};
+
+/** The search types a query can read; Google reads web when none is set. */
+const SEARCH_TYPES = ['web', 'image', 'video', 'news'] as const;
+type SearchType = (typeof SEARCH_TYPES)[number];
+const isSearchType = (value: string): value is SearchType =>
+    SEARCH_TYPES.includes(value as SearchType);
+
+/** The field Search Console reads as the request's `type`, not as a dimension. */
+export const SEARCH_TYPE_FIELD = 'search_type';
+
+/** The search type a query filters to; null when it doesn't. */
+const toSearchType = (rules: FilterRule[]): SearchType | null => {
+    if (rules.length === 0) return null;
+    const [rule] = rules;
+    const values = (rule.values ?? []).map(String);
+    if (
+        rules.length > 1 ||
+        rule.operator !== FilterOperator.EQUALS ||
+        values.length !== 1 ||
+        !isSearchType(values[0])
+    ) {
+        throw refuseLiveQuery(
+            'live_source.refused.filter_operator',
+            'Search Console reads one search type per query: filter Search type to equal one of web, image, video or news.',
+        );
+    }
+    return values[0];
 };
 
 /** Months of data Search Console keeps, per Google's help pages. */
@@ -126,8 +155,14 @@ export const compileSearchConsoleQuery = ({
             `Search Console has data from ${earliestDate} to ${today}. Pick a date in that range.`,
         );
     }
-    const filters = (otherFilters ? flattenFilterGroup(otherFilters) : [])
-        .filter((rule) => !rule.disabled && (rule.values ?? []).length > 0)
+    const activeRules = (
+        otherFilters ? flattenFilterGroup(otherFilters) : []
+    ).filter((rule) => !rule.disabled && (rule.values ?? []).length > 0);
+    const isSearchTypeRule = (rule: FilterRule) =>
+        apiName(rule.target.fieldId) === SEARCH_TYPE_FIELD;
+    const searchType = toSearchType(activeRules.filter(isSearchTypeRule));
+    const filters = activeRules
+        .filter((rule) => !isSearchTypeRule(rule))
         .flatMap((rule) => toFilters(apiName(rule.target.fieldId), rule));
 
     // The API returns rows by clicks descending, except that rows grouped by
@@ -145,7 +180,11 @@ export const compileSearchConsoleQuery = ({
     const localSorts = isApiOrder ? [] : metricQuery.sorts;
     const request = {
         ...dateRange,
-        dimensions: metricQuery.dimensions.map(apiName),
+        // The search type is the request's type, echoed on each row by run
+        dimensions: metricQuery.dimensions
+            .map(apiName)
+            .filter((name) => name !== SEARCH_TYPE_FIELD),
+        ...(searchType ? { type: searchType } : {}),
         ...(filters.length > 0
             ? { dimensionFilterGroups: [{ groupType: 'and', filters }] }
             : {}),

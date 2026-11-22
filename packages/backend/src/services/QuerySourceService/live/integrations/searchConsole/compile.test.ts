@@ -1,6 +1,9 @@
 import {
     ApiConnectorType,
     FilterOperator,
+    getApiSourceQueryIssues,
+    getItemMap,
+    ParameterError,
     SupportedDbtAdapter,
     type FilterRule,
     type MetricQuery,
@@ -287,5 +290,84 @@ describe('getSearchConsoleEarliestDate', () => {
         expect(getSearchConsoleEarliestDate('2026-06-30')).toBe('2025-02-28');
         expect(getSearchConsoleEarliestDate('2027-06-29')).toBe('2026-02-28');
         expect(getSearchConsoleEarliestDate('2025-06-29')).toBe('2024-02-29');
+    });
+});
+
+describe('Search Console search type and appearance', () => {
+    const typeFilter = (operator: FilterOperator, values: unknown[]) => ({
+        dimensions: {
+            id: 'root',
+            and: [rule('search_type', operator, values)],
+        },
+    });
+
+    test('reads a search type filter as the request type, not a dimension', () => {
+        const { request } = compile(
+            query({
+                dimensions: [field('query'), field('search_type')],
+                filters: typeFilter(FilterOperator.EQUALS, ['image']),
+            }),
+        );
+        expect(request.type).toBe('image');
+        expect(request.dimensions).toEqual(['query']);
+        expect(request.dimensionFilterGroups).toBeUndefined();
+    });
+
+    test('leaves the type to Google, which reads web, without a filter', () => {
+        const { request } = compile(
+            query({ dimensions: [field('search_type')] }),
+        );
+        expect(request.type).toBeUndefined();
+        expect(request.dimensions).toEqual([]);
+    });
+
+    test.each([
+        ['two values', FilterOperator.EQUALS, ['web', 'image']],
+        ['an unknown type', FilterOperator.EQUALS, ['discover']],
+        ['another operator', FilterOperator.NOT_EQUALS, ['web']],
+    ])('refuses a search type filter with %s', (_, operator, values) => {
+        expect(() =>
+            compile(query({ filters: typeFilter(operator, values) })),
+        ).toThrow(
+            'Search Console reads one search type per query: filter Search type to equal one of web, image, video or news.',
+        );
+    });
+
+    test('sends search appearance as its API dimension', () => {
+        const { request } = compile(
+            query({ dimensions: [field('search_appearance')] }),
+        );
+        expect(request.dimensions).toEqual(['searchAppearance']);
+    });
+
+    test('refuses search appearance with another dimension, but not with a filter', () => {
+        const issuesOf = (metricQuery: MetricQuery) =>
+            getApiSourceQueryIssues(explore.apiSource!, metricQuery, {
+                itemsMap: getItemMap(explore),
+            });
+        expect(
+            issuesOf(
+                query({
+                    dimensions: [field('search_appearance'), field('page')],
+                    sorts: [],
+                }),
+            ),
+        ).not.toEqual([]);
+        expect(
+            issuesOf(
+                query({
+                    dimensions: [field('search_appearance')],
+                    filters: {
+                        dimensions: {
+                            id: 'root',
+                            and: [
+                                rule('country', FilterOperator.EQUALS, ['usa']),
+                            ],
+                        },
+                    },
+                    sorts: [],
+                }),
+            ),
+        ).toEqual([]);
     });
 });

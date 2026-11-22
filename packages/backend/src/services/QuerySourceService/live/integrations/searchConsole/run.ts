@@ -13,7 +13,14 @@ export const SEARCH_CONSOLE_SITES_PATH = '/webmasters/v3/sites/';
  */
 export const SEARCH_CONSOLE_MAX_QUERY_ROWS = 24_999;
 
-const DIMENSIONS = ['date', 'query', 'page', 'country', 'device'] as const;
+const DIMENSIONS = [
+    'date',
+    'query',
+    'page',
+    'country',
+    'device',
+    'searchAppearance',
+] as const;
 const METRICS = ['clicks', 'impressions', 'ctr', 'position'] as const;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -129,6 +136,7 @@ export const runSearchConsoleQuery = async ({
                 type:
                     name === 'date' ? DimensionType.DATE : DimensionType.STRING,
             })),
+            { name: 'search_type', type: DimensionType.STRING },
             ...METRICS.map((name) => ({ name, type: DimensionType.NUMBER })),
         ],
         rows: rows.slice(0, rowLimit).map((row) => ({
@@ -138,6 +146,8 @@ export const runSearchConsoleQuery = async ({
                     row.keys?.[index] ?? null,
                 ]),
             ),
+            // Not an API dimension: every row has the type the request read
+            search_type: request.type ?? 'web',
             clicks: row.clicks,
             impressions: row.impressions,
             ctr: row.ctr,
