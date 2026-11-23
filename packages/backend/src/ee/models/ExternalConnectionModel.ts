@@ -128,6 +128,14 @@ const SERVER_OWNED_API_SOURCE_KEYS = [
     'cache',
 ] as const;
 
+/**
+ * Settings an integration stopped asking for that older sources still read:
+ * Attio's `object`, the one object a records table from before one source
+ * read every object reads. No client sends them, so settings writes keep
+ * the stored ones.
+ */
+const LEGACY_API_SOURCE_KEYS = ['object'] as const;
+
 const liveSourceCacheSchema = z.object({
     cache: z
         .object({
@@ -926,7 +934,10 @@ export class ExternalConnectionModel {
                           [
                               toApiSourceSettingsJson(data.apiSource),
                               `${ExternalConnectionsTableName}.api_source`,
-                              [...SERVER_OWNED_API_SOURCE_KEYS],
+                              [
+                                  ...SERVER_OWNED_API_SOURCE_KEYS,
+                                  ...LEGACY_API_SOURCE_KEYS,
+                              ],
                           ],
                       )
                     : null;

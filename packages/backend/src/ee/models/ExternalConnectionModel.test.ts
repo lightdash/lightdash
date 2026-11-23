@@ -1,4 +1,8 @@
-import { ConflictError, ParameterError } from '@lightdash/common';
+import {
+    ApiConnectorType,
+    ConflictError,
+    ParameterError,
+} from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
@@ -633,6 +637,26 @@ describe('ExternalConnectionModel', () => {
                 query.sql.includes(ExternalConnectionSecretsTableName),
             );
             expect(secretWrites).toHaveLength(0);
+        });
+
+        it("keeps a legacy Attio source's stored object when its settings are saved", async () => {
+            tracker.on.select(ExternalConnectionsTableName).response([
+                {
+                    ...makeDbConnection({}),
+                    encrypted_payload: Buffer.from('enc:tok', 'utf-8'),
+                },
+            ]);
+            tracker.on.update(ExternalConnectionsTableName).response(1);
+
+            await model.update(CONNECTION_UUID, USER_UUID, {
+                apiSource: { connector: ApiConnectorType.ATTIO },
+            });
+
+            const [write] = tracker.history.update;
+            expect(write.sql).toContain('jsonb_each');
+            expect(write.bindings).toContainEqual(
+                expect.arrayContaining(['sourceName', 'object']),
+            );
         });
 
         it('leaves the stored secret unchanged when secret is blank', async () => {
