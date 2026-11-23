@@ -109,7 +109,7 @@ import { getCreateScheduledDelivery } from '../tools/createScheduledDelivery';
 import { getDelegateResearchTask } from '../tools/delegateResearchTask';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getDiscoverRepos } from '../tools/discoverRepos';
-import { getEditContent } from '../tools/editContent';
+import { getAgentEditContent } from '../tools/editContent';
 import { getEditDbtProject } from '../tools/editDbtProject';
 import { getEditProjectContext } from '../tools/editProjectContext';
 import { getExploreRepo } from '../tools/exploreRepo';
@@ -2090,8 +2090,9 @@ export const getAgentTools = (
                 documentsEnabled,
             }),
         editContent: () =>
-            getEditContent({
+            getAgentEditContent({
                 editContent: dependencies.editContent,
+                readContent: dependencies.readContent,
                 prepareComposerChartEdit: dependencies.prepareComposerChartEdit,
                 siteUrl: args.siteUrl,
                 documentsEnabled,
@@ -2112,6 +2113,7 @@ export const getAgentTools = (
                 chartsEnabled: args.enableContentTools,
                 artifacts: dependencies.chartExportArtifacts,
                 sqlChartSaving: getSqlChartSaving(),
+                resultFormat: 'ack',
             }),
         createScheduledDelivery: () =>
             getCreateScheduledDelivery({

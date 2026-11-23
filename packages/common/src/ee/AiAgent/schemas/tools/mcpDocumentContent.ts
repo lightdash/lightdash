@@ -9,6 +9,8 @@ import {
     toolCreateContentArgsSchema,
 } from './toolCreateContentArgs';
 import {
+    AGENT_EDIT_CONTENT_DESCRIPTION,
+    agentEditContentArgsSchema,
     TOOL_EDIT_CONTENT_DESCRIPTION,
     toolEditContentArgsSchema,
 } from './toolEditContentArgs';
@@ -269,6 +271,18 @@ export const mcpEditContentArgsSchema = toolEditContentArgsSchema.extend({
             'A Document edit: replace the Markdown (content), patch one chart (chart), or update metadata (metadata).',
         ),
 });
+
+export const AGENT_DOCUMENTS_EDIT_CONTENT_DESCRIPTION = (
+    context: ToolDescriptionContext,
+): string =>
+    `${AGENT_EDIT_CONTENT_DESCRIPTION(context)} For a Document, pass documentEdit instead of edits.`;
+
+export const agentDocumentsEditContentArgsSchema =
+    agentEditContentArgsSchema.extend({
+        type: mcpEditContentArgsSchema.shape.type,
+        edits: agentEditContentArgsSchema.shape.edits.nullish(),
+        documentEdit: mcpEditContentArgsSchema.shape.documentEdit,
+    });
 
 export const documentEditContentArgsSchema = z.object({
     slug: toolEditContentArgsSchema.shape.slug,

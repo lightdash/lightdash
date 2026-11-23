@@ -33,6 +33,8 @@ import {
 import { MCP_FILTER_EXPRESSION_SKILL_INSTRUCTION } from '../filterExpressions/mcpGuidance';
 import { structuredToolOutputSchema } from '../outputMetadata';
 import {
+    AGENT_DOCUMENTS_EDIT_CONTENT_DESCRIPTION,
+    agentDocumentsEditContentArgsSchema,
     DOCUMENT_CREATE_CONTENT_DESCRIPTION,
     DOCUMENT_EDIT_CONTENT_DESCRIPTION,
     documentCreateContentArgsSchema,
@@ -118,6 +120,8 @@ import {
     toolDiscoverReposOutputSchema,
 } from './toolDiscoverReposArgs';
 import {
+    AGENT_EDIT_CONTENT_DESCRIPTION,
+    agentEditContentArgsSchema,
     TOOL_EDIT_CONTENT_DESCRIPTION,
     toolEditContentArgsSchema,
     toolEditContentOutputSchema,
@@ -2342,6 +2346,23 @@ export const mcpEditContentToolDefinition = defineTool({
     availability: ['agent', 'mcp'],
     inputSchema: mcpEditContentArgsSchema,
     mcp: { name: 'edit_content', annotations: writeAnnotations },
+});
+
+// Agent edit tools: text edits instead of the MCP RFC6902 patch.
+export const agentEditContentToolDefinition = defineTool({
+    name: 'editContent',
+    title: 'Edit content',
+    description: AGENT_EDIT_CONTENT_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: agentEditContentArgsSchema,
+});
+
+export const agentDocumentsEditContentToolDefinition = defineTool({
+    name: 'editContent',
+    title: 'Edit content',
+    description: AGENT_DOCUMENTS_EDIT_CONTENT_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: agentDocumentsEditContentArgsSchema,
 });
 
 // Agent tools for an actor who can save Documents but not charts or dashboards.

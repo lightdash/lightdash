@@ -10,6 +10,7 @@ import { tool, type FlexibleSchema } from 'ai';
 import { z } from 'zod';
 import type { ReadContentFn } from '../types/aiAgentDependencies';
 import { toAbsoluteHref } from '../utils/absoluteHref';
+import { serializeContent } from '../utils/contentText';
 import { readWithContentTypeFallback } from '../utils/contentTypeFallback';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
@@ -26,7 +27,7 @@ type ReadContentResult = Awaited<ReturnType<ReadContentFn>>;
 
 // Shown with every dashboard read so the first filter edit has the right shape without a skill round trip.
 const DASHBOARD_READ_HINT =
-    'Filter rules under /filters/dimensions need "target": { "fieldId", "tableName" }; per-tile overrides go in "tileTargets" keyed by tileSlug. Each saved_chart tile carries a read-only "chartQuery" (exploreName, fieldIds) to pick targets without reading charts; never patch chartQuery. Load the "developing-in-lightdash" skill resource "dashboard-reference" before editing filters or tiles.';
+    'Filter rules under filters.dimensions need "target": { "fieldId", "tableName" }; per-tile overrides go in "tileTargets" keyed by tileSlug. Each saved_chart tile carries a read-only "chartQuery" (exploreName, fieldIds) to pick targets without reading charts; leave chartQuery unchanged. Load the "developing-in-lightdash" skill resource "dashboard-reference" before editing filters or tiles.';
 
 const contentResult = ({
     content,
@@ -46,6 +47,30 @@ const contentResult = ({
         '---',
         JSON.stringify(content, null, 2),
     ].join('\n');
+
+// The agent reads charts and dashboards as the exact text its edits match against.
+const agentReadOutput = (
+    read: ToolReadContentStructuredContent,
+    siteUrl: string,
+): string | null => {
+    switch (read.type) {
+        case 'dashboard':
+        case 'chart':
+        case 'sql_chart':
+        case 'composer_chart':
+            return [
+                `<${read.type} href="${toAbsoluteHref(siteUrl, read.href)}" slug="${read.slug}" />`,
+                ...(read.type === 'dashboard' ? [DASHBOARD_READ_HINT] : []),
+                '---',
+                serializeContent(read.content),
+            ].join('\n');
+        case 'data_app':
+        case 'document':
+            return null;
+        default:
+            return assertUnreachable(read, 'Unknown read content type');
+    }
+};
 
 const toStructuredContent = (
     read: ReadContentResult,
@@ -157,6 +182,15 @@ export const getReadContent = ({
                 );
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
+        toModelOutput: ({ output }) => {
+            const view =
+                output.metadata.status === 'success' &&
+                !('error' in output.structuredContent)
+                    ? agentReadOutput(output.structuredContent, siteUrl)
+                    : null;
+            return view === null
+                ? toModelOutput(output)
+                : { type: 'text', value: view };
+        },
     });
 };

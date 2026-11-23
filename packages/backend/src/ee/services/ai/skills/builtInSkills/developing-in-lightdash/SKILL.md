@@ -14,6 +14,7 @@ Use this skill when working with Lightdash dashboards and charts.
 This skill is shared with Lightdash's native agent, so its workflows use camelCase tool names. When reading it through MCP:
 
 - Use `read_content`, `edit_content`, and `create_content` for `readContent`, `editContent`, and `createContent`.
+- Where a workflow calls `editContent` with text edits, call `edit_content` with an RFC6902 JSON Patch against the JSON `read_content` returned.
 - Use `grep_fields` and `get_metadata` for native `grepFields` and `getMetadata`.
 - Use `generate_hashes` for native `generateHashes`.
 - Replace `runContentQuery` with `run_metric_query` to check a chart's governed semantic-layer `metricQuery`. Do not use `run_sql` for this check.
@@ -28,7 +29,7 @@ This skill is shared with Lightdash's native agent, so its workflows use camelCa
 | Create, read, edit SQL charts      | `createContent` / `readContent` / `editContent`, `sql_chart`      | `sql-chart-reference`                 |
 | Create, read, edit composer charts | `createContent` / `readContent` / `editContent`, `composer_chart` | `composer-chart-reference`            |
 | Read data apps (read-only)         | `readContent` with `type: data_app`                               | manifest-shaped JSON, no source code  |
-| Edit dashboards                    | `editContent` with RFC6902 JSON Patch                             | `dashboard-reference`                 |
+| Edit dashboards                    | `editContent` with text edits                                     | `dashboard-reference`                 |
 | Edit charts and tiles              | `editContent`, then update referencing dashboards if needed       | Chart refs, `dashboard-reference`     |
 | Create charts                      | `grepFields`, `getMetadata`, `runContentQuery`, `createContent`   | Chart refs                            |
 | Create dashboards                  | `grepFields`, `getMetadata`, `createContent`                      | `dashboard-reference`, best practices |
@@ -39,7 +40,7 @@ Rules:
 
 - Always read content before editing if you have not read it since the last user message.
 - Preserve unrelated fields.
-- Prefer minimal patches.
+- Prefer minimal edits.
 - Follow the dashboard or chart shape from the resource instead of inventing structure.
 - When you create or edit content, please provide links for them in the final response
 
@@ -57,11 +58,9 @@ Rules:
 
 ### Edit Dashboards
 
-1. Call `readContent` and inspect the current JSON shape.
+1. Call `readContent` and inspect the current shape.
 2. Always read the `dashboard-reference` resource.
-3. Build the smallest possible JSON Patch.
-4. Call `editContent` with that patch.
-5. Re-read if needed to verify the final state.
+3. Call `editContent` with the smallest text edits, all changes to the dashboard in one call.
 
 To add or retarget a dashboard filter, take each tile's explore and field ids from its read-only `chartQuery` in the dashboard JSON (see `Per-Tile Filter Targeting` in `dashboard-reference`). Do not read every chart on the dashboard for that. A dimension filter is added to `/filters/dimensions` with this shape; `target` and `tileTargets` values are objects with `fieldId` and `tableName`, never bare field id strings:
 
@@ -84,18 +83,16 @@ To add or retarget a dashboard filter, take each tile's explore and field ids fr
 
 When `config.controlOrder` is present, add a `{ "kind": "filter", "slug": ... }` entry with the new filter's `slug` where it should sit on the filter bar, and remove a deleted filter's entry. Control slugs only link entries within the edit and are never saved. See `Control order` in `dashboard-reference`.
 
-To put a filter in an existing section, set its `sectionSlug` to a `slug` from `config.controlSections`. Group controls into sections only when the user asks or the dashboard already uses them, and read `Control sections` in `dashboard-reference` before creating, renaming or removing one. A patch that changes something else leaves `controlSections`, every `sectionSlug`, `dateZoomConfig` and `controlOrder` as read.
+To put a filter in an existing section, set its `sectionSlug` to a `slug` from `config.controlSections`. Group controls into sections only when the user asks or the dashboard already uses them, and read `Control sections` in `dashboard-reference` before creating, renaming or removing one. An edit that changes something else leaves `controlSections`, every `sectionSlug`, `dateZoomConfig` and `controlOrder` as read.
 
 ### Edit Charts and Dashboard Tiles
 
 1. Call `readContent` for the chart slug.
 2. Always read the chart reference for chart type (see `Choosing the Right Chart Type` below).
-3. If you add or change filters, verify exact filter values before patching.
+3. If you add or change filters, verify exact filter values before editing.
 4. If you change the chart's name or purpose, also update dashboards that reference that chart.
-5. Build the smallest possible JSON Patch.
-6. If you changed the chart's `metricQuery`, check it: call `runContentQuery` with `source.type: "metricQuery"` and the edited chart's `tableName`/`metricQuery` as it will be saved.
-7. Call `editContent` with that patch.
-8. Re-read if needed to verify the final state.
+5. If you changed the chart's `metricQuery`, check it: call `runContentQuery` with `source.type: "metricQuery"` and the edited chart's `tableName`/`metricQuery` as it will be saved.
+6. Call `editContent` with the smallest text edits, all changes to the chart in one call.
 
 ### Create Charts
 
