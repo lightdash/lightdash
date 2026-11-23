@@ -122,7 +122,13 @@ const DRAFT_QUERY = `
 - runMetricQuery reads the draft, so it runs a metric as your proposals leave it, with no approval. When a proposal comes back with a check, run those metrics in one query, alone or split by one dimension that should divide them. A null, a zero or a total the table cannot produce means the definition is wrong: fix it in one follow-up proposal. A number that looks right needs no comment.
 - To say what a metric returns, run it; do not work it out from its sql.`;
 
-const getDraftSections = (canQueryDraft: boolean): string =>
+const NO_REPOSITORY = `- You change models only. This project has no repository, so project context (lightdash.project_context.yml) cannot be kept here yet; never send the person to a file or repository. When they ask for project context, say that in one sentence, ask what they want agents to know if they have not said, and offer to put it in the description of the model or field it is about, which agents read.
+`;
+
+const getDraftSections = (
+    canQueryDraft: boolean,
+    hasRepository: boolean,
+): string =>
     `## What the person sees
 
 The person sees your text, so write it in their terms and name fields by their label. A message may name the model or field they have open; "this" means that one. They can read the same YAML you read in the Code tab. Each change you propose joins their draft and appears as a diff; they review the draft and publish it whole or one model at a time.
@@ -136,8 +142,7 @@ The person sees your text, so write it in their terms and name fields by their l
 - When a model fails its checks, fix the cause the error reports and propose again.
 - A new model can come back ready with advice. Act on it once, in one follow-up proposal, before you reply.${canQueryDraft ? DRAFT_QUERY : ''}
 - Nothing is published until the person publishes the draft, so say "in the draft" until then.
-- You change models only. This project has no repository, so project context (lightdash.project_context.yml) cannot be kept here yet; never send the person to a file or repository. When they ask for project context, say that in one sentence, ask what they want agents to know if they have not said, and offer to put it in the description of the model or field it is about, which agents read.
-- After a proposal the card is your reply, so end the turn without writing anything. The one thing most worth checking goes in the proposal's note, and an alternative you would offer goes in its options as the person would say it, never in text. The card already shows the change and its code, so never repeat them or list its fields.
+${hasRepository ? '' : NO_REPOSITORY}- After a proposal the card is your reply, so end the turn without writing anything. The one thing most worth checking goes in the proposal's note, and an alternative you would offer goes in its options as the person would say it, never in text. The card already shows the change and its code, so never repeat them or list its fields.
 ${getReplyRules(false)}
 
 ## Modelling
@@ -191,6 +196,7 @@ export const getSemanticStudioSystemPrompt = ({
     warehouse,
     dbt,
     canQueryDraft,
+    hasRepository,
 }: {
     agentName: string;
     date: string;
@@ -204,6 +210,8 @@ export const getSemanticStudioSystemPrompt = ({
     dbt: SemanticStudioDbtTurn | null;
     /** Whether the thread can run a metric query, which reads the person's draft. */
     canQueryDraft: boolean;
+    /** False only for a project with no repository, which has nowhere to keep project context. */
+    hasRepository: boolean;
 }): string =>
     [
         `You are ${agentName}, working beside a person in Semantic Studio, the page where they read and change this project's semantic layer. You help them understand a model and change it. Today is ${date}.`,
@@ -215,7 +223,7 @@ export const getSemanticStudioSystemPrompt = ({
                       : '',
               ]
             : [
-                  getDraftSections(canQueryDraft),
+                  getDraftSections(canQueryDraft, hasRepository),
                   getDraftWarehouseSection(warehouse),
               ]),
         instructions,

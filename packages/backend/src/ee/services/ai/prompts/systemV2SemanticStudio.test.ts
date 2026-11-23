@@ -9,6 +9,7 @@ const base = {
     projectContext: null,
     warehouse: { type: 'postgres', schema: null },
     canQueryDraft: false,
+    hasRepository: false,
 };
 
 describe('getSemanticStudioSystemPrompt', () => {
@@ -16,6 +17,16 @@ describe('getSemanticStudioSystemPrompt', () => {
         const prompt = getSemanticStudioSystemPrompt({ ...base, dbt: null });
         expect(prompt).toContain('proposeSemanticLayerChange');
         expect(prompt).not.toContain('editDbtProject');
+    });
+
+    it('says project context has nowhere to live only on a project with no repository', () => {
+        const draft = { ...base, dbt: null };
+        expect(getSemanticStudioSystemPrompt(draft)).toContain(
+            'This project has no repository',
+        );
+        expect(
+            getSemanticStudioSystemPrompt({ ...draft, hasRepository: true }),
+        ).not.toContain('This project has no repository');
     });
 
     it('explains running a metric on the draft only when the thread can', () => {

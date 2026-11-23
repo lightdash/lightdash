@@ -216,6 +216,8 @@ export const getSystemPromptV2 = (
         semanticStudioProjectMap?: string | null;
         // Semantic Studio can run a metric query, which reads the person's draft.
         semanticStudioQueriesDraft?: boolean;
+        // False only for a Studio project with no repository.
+        semanticStudioHasRepository?: boolean;
         // Org Slack setting: the answer may not carry query results into Slack.
         slackLinksOnly?: boolean;
         canRunSql?: boolean;
@@ -243,6 +245,7 @@ export const getSystemPromptV2 = (
         semanticStudioBuilder = false,
         semanticStudioProjectMap = null,
         semanticStudioQueriesDraft = false,
+        semanticStudioHasRepository = true,
         promptSections = NO_PROMPT_SECTIONS,
         slackChannelId = null,
         slackLinksOnly = false,
@@ -382,6 +385,7 @@ export const getSystemPromptV2 = (
                         ? projectContextContent
                         : null,
                 canQueryDraft: semanticStudioQueriesDraft,
+                hasRepository: semanticStudioHasRepository,
                 warehouse: promptSections.has('runSql')
                     ? {
                           type: args.warehouseType ?? null,
