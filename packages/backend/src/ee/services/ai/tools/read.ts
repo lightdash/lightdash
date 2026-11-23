@@ -3,6 +3,7 @@ import {
     type ToolReadStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import type { CodeModeLibraries } from '../../SemanticStudioService/codeMode/codeMode';
 import type { ReadFn } from '../types/aiAgentDependencies';
 import type {
     ExecuteStructuredToolResult,
@@ -14,11 +15,12 @@ const MAX_OUTPUT_CHARS = 30_000;
 
 type Dependencies = {
     read: ReadFn;
+    libraries: CodeModeLibraries;
 };
 
 const toolDefinition = readToolDefinition.for('agent');
 
-export const getRead = ({ read }: Dependencies) =>
+export const getRead = ({ read, libraries }: Dependencies) =>
     tool({
         ...toolDefinition,
         execute: async ({
@@ -28,8 +30,10 @@ export const getRead = ({ read }: Dependencies) =>
             | ExecuteToolErrorResult
         > => {
             try {
-                const { branch, onPullRequest, logs, error } =
-                    await read(script);
+                const { branch, onPullRequest, logs, error } = await read(
+                    script,
+                    libraries,
+                );
                 const source = onPullRequest
                     ? `Read the pull request branch ${branch}.`
                     : `Read what is published, on ${branch}; this conversation has no pull request yet.`;

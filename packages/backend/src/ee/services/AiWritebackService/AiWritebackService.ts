@@ -106,6 +106,7 @@ import {
     runCodeMode,
     unifiedDiffs,
     validateSemanticLayerYaml,
+    type CodeModeLibraries,
     type CodeModeRepo,
 } from '../SemanticStudioService/codeMode/codeMode';
 import {
@@ -1937,6 +1938,7 @@ export class AiWritebackService extends BaseService {
     async readWithScript(
         args: { user: SessionUser; projectUuid: string; aiThreadUuid: string },
         script: string,
+        libraries: CodeModeLibraries = {},
     ): Promise<ScriptRead> {
         const { user, projectUuid, aiThreadUuid } = args;
         const prUrl =
@@ -1953,6 +1955,24 @@ export class AiWritebackService extends BaseService {
             throw error;
         });
         const startedAt = performance.now();
+        const libraryCalls: string[] = [];
+        const traced = Object.fromEntries(
+            Object.entries(libraries).map(([lib, fns]) => [
+                lib,
+                Object.fromEntries(
+                    Object.entries(fns).map(([fn, entry]) => [
+                        fn,
+                        {
+                            ...entry,
+                            run: (input: unknown) => {
+                                libraryCalls.push(`${lib}.${fn}`);
+                                return entry.run(input);
+                            },
+                        },
+                    ]),
+                ),
+            ]),
+        );
         let listing: Promise<string[]> | null = null;
         const ran = await runCodeMode(
             script,
@@ -1971,7 +1991,7 @@ export class AiWritebackService extends BaseService {
                 findModel: (name) => this.findModelFiles(projectUuid, name),
                 validateYaml: () => null,
             },
-            { timeoutMs: 20000 },
+            { timeoutMs: 60_000, libraries: traced },
         );
         const error =
             ran.error ??
@@ -1984,6 +2004,7 @@ export class AiWritebackService extends BaseService {
             onPullRequest: checkout.prUrl !== null,
             ok: error === null,
             logLines: ran.logs.length,
+            libraryCalls,
             durationMs: Math.round(performance.now() - startedAt),
         });
         return {

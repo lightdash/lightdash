@@ -15997,10 +15997,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 name,
             );
 
-        const read: ReadFn = (script) =>
+        const read: ReadFn = (script, libraries) =>
             this.aiWritebackService.readWithScript(
                 { user, projectUuid, aiThreadUuid: prompt.threadUuid },
                 script,
+                libraries,
             );
 
         const verify: VerifyFn = () =>

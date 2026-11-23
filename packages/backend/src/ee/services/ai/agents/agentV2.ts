@@ -148,6 +148,7 @@ import { getProjectContextSearchEntries } from '../tools/memoryProjectContext';
 import { getRead } from '../tools/read';
 import { getReadAttachments } from '../tools/readAttachments';
 import { getReadContent } from '../tools/readContent';
+import { buildReadLibraries } from '../tools/readLibraries';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
 import { getResolveUrl } from '../tools/resolveUrl';
 import { getRunComposerQueries } from '../tools/runComposerQueries';
@@ -2276,7 +2277,13 @@ export const getAgentTools = (
             getReadSemanticModel({
                 readSemanticModel: dependencies.readSemanticModel,
             }),
-        read: () => getRead({ read: dependencies.read }),
+        read: () =>
+            getRead({
+                read: dependencies.read,
+                libraries: buildReadLibraries((name) =>
+                    loadout.toolNames.has(name) ? toolBuilders[name]() : null,
+                ),
+            }),
         verify: () =>
             getVerify({
                 verify: dependencies.verify,

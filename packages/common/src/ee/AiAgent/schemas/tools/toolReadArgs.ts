@@ -9,7 +9,9 @@ export const TOOL_READ_DESCRIPTION = `Read this project's dbt repository with a 
 
 Use it to read the files you are about to change or just changed, several in one call. What the script passes to console.log is what you get back, so print only what you need.
 
-API (synchronous, values are plain JSON, paths relative to the dbt project): repo.list(prefix?) -> file paths; repo.read(path) -> the file's text, or null; yaml.get(path, keys) -> the value at keys, e.g. yaml.get(m.yml, [...m.keys, 'columns']); dbt.model(name) -> { yml, sql, keys } | null, where yml and sql are file PATHS, so read them with repo.read. It cannot change files: save a change with editDbtProject.`;
+API (synchronous, values are plain JSON, paths relative to the dbt project): repo.list(prefix?) -> file paths; repo.read(path) -> the file's text, or null; yaml.get(path, keys) -> the value at keys, e.g. yaml.get(m.yml, [...m.keys, 'columns']); dbt.model(name) -> { yml, sql, keys } | null, where yml and sql are file PATHS, so read them with repo.read. It cannot change files: save a change with editDbtProject.
+
+Libraries, each a tool you may have under a shorter name, taking the same arguments and returning the same text: layer.fields (grepFields), layer.explore (getMetadata), layer.search (searchSemanticLayer), layer.impact (analyzeFieldImpact), layer.changes (listChanges), layer.values (searchFieldValues), layer.context (loadProjectContext), warehouse.tables (listWarehouseTables), warehouse.describe (describeWarehouseTable), warehouse.columns (grepWarehouseColumns). help() lists the ones this conversation has; help('layer.fields') shows one's arguments. A failed call throws. Use them to batch lookups with file reads in one script.`;
 
 export const toolReadArgsSchema = createToolSchema()
     .extend({
