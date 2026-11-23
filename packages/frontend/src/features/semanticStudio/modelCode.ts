@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     diffModelDocuments,
     isWholeModelPath,
+    MODEL_FRAGMENT_REFUSAL_TEXT,
     parseModelPartPath,
     type ModelFragmentChange,
     type ModelFragmentRefusal,
@@ -176,7 +177,7 @@ export const CHANGE_KIND_STYLE: Record<
     changed: {
         label: CHANGE_KIND_LABELS.changed,
         glyph: CHANGE_GLYPHS.changed,
-        color: 'orange',
+        color: 'yellow',
     },
     removed: {
         label: CHANGE_KIND_LABELS.removed,
@@ -203,7 +204,8 @@ export const getChangeKind = ({
 export const refusalText = (
     model: string,
     { path, reason }: ModelFragmentRefusal,
-): string => `Left out ${model}.${path} (${reason.replaceAll('_', ' ')})`;
+): string =>
+    `Left out ${model}.${path} because it ${MODEL_FRAGMENT_REFUSAL_TEXT[reason]}.`;
 
 /** The field or join a change path names, and the key changed on it; a null key means the whole thing. */
 const parseChangePath = (

@@ -61,6 +61,17 @@ const comparable = (name: string, value: unknown): unknown =>
         ? value.map((filter: object) => omit(filter, 'id'))
         : value;
 
+/** The attributes a person defined that differ between two versions of a field. */
+export const changedAttributes = (before: object, after: object): string[] =>
+    [...new Set([...Object.keys(after), ...Object.keys(before)])].filter(
+        (name) =>
+            !DERIVED.has(name) &&
+            !isEqual(
+                comparable(name, Reflect.get(after, name)),
+                comparable(name, Reflect.get(before, name)),
+            ),
+    );
+
 const toWords = (key: string): string =>
     key.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
 
@@ -80,18 +91,7 @@ export const diffModelFields = (
             changes.push({ key, ...entry, label, kind: 'new', attributes: [] });
             return;
         }
-        const attributes = [
-            ...new Set([...Object.keys(field), ...Object.keys(old)]),
-        ]
-            .filter(
-                (name) =>
-                    !DERIVED.has(name) &&
-                    !isEqual(
-                        comparable(name, Reflect.get(field, name)),
-                        comparable(name, Reflect.get(old, name)),
-                    ),
-            )
-            .map(toWords);
+        const attributes = changedAttributes(old, field).map(toWords);
         if (attributes.length > 0) {
             changes.push({ key, ...entry, label, kind: 'changed', attributes });
         }

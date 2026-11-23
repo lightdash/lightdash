@@ -2,9 +2,11 @@ import { type Explore } from '@lightdash/common';
 import { describe, expect, it, test } from 'vitest';
 import { describePublisher, diffDraftFields } from './draftState';
 
+type TestField = { sql: string; index: number; compiledSql?: string };
+
 const explore = (
-    dimensions: Record<string, { sql: string; index: number }>,
-    metrics: Record<string, { sql: string; index: number }> = {},
+    dimensions: Record<string, TestField>,
+    metrics: Record<string, TestField> = {},
 ): Explore => {
     const items = (fieldType: string, fields: typeof dimensions) =>
         Object.fromEntries(
@@ -58,6 +60,15 @@ describe('diffDraftFields', () => {
         expect(Object.fromEntries(diffDraftFields(live, draft))).toEqual({
             orders_amount: 'removed',
         });
+    });
+
+    it('ignores what the compiler derives, like a joined field compiled under a new alias', () => {
+        const compiled = (compiledSql: string) =>
+            explore({ amount: { sql: 'amount', index: 0, compiledSql } });
+        expect(
+            diffDraftFields(compiled('"orders".amount'), compiled('"o".amount'))
+                .size,
+        ).toBe(0);
     });
 
     it('removes every field when the model goes', () => {

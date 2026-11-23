@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     DbtProjectType,
+    describeModelFragmentRefusal,
     diffModelDocuments,
     doModelPathsOverlap,
     FeatureFlags,
@@ -26,8 +27,6 @@ import {
     type LightdashError,
     type LightdashModelWithSource,
     type ModelFragmentChange,
-    type ModelFragmentRefusal,
-    type ModelFragmentRefusalReason,
     type SaveSemanticLayerDraftModelRequest,
     type SemanticLayerBlocker,
     type SemanticLayerDraft,
@@ -261,17 +260,6 @@ const failed = (
     changes: [],
     error,
 });
-
-const REFUSAL_REASONS: Record<ModelFragmentRefusalReason, string> = {
-    access: 'changes who can see it, which cannot be changed here.',
-    name_taken: 'uses a name another field of this model already has.',
-    incomplete: 'is missing what it needs, such as its type or sql.',
-    invalid_filter: 'has a filter that is not a single field: value pair.',
-    not_found: 'is not in the model.',
-};
-
-const describeRefusal = ({ path, reason }: ModelFragmentRefusal): string =>
-    `${path} ${REFUSAL_REASONS[reason]}`;
 
 // A draft that redefines more fields than this is only partly looked up; page the lookup if drafts grow that large.
 const MAX_USAGE_FIELDS = 40;
@@ -965,7 +953,7 @@ export class SemanticStudioService extends BaseService {
         );
         const problems = results.flatMap(({ error, refusals }) => [
             ...(error === null ? [] : [error]),
-            ...refusals.map(describeRefusal),
+            ...refusals.map(describeModelFragmentRefusal),
         ]);
         if (problems.length > 0) {
             return fail('check_failed', problems.join(' '));

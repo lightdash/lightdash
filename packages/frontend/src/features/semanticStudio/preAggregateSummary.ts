@@ -10,27 +10,6 @@ import dayjs from 'dayjs';
 // Read in one page; a project with more pre-aggregates than this shows only the first ones.
 export const PRE_AGGREGATES_PAGE_SIZE = 500;
 
-type Status = { label: string; color: string | undefined };
-
-export const getPreAggregateStatus = (
-    summary: PreAggregateMaterializationSummary,
-): Status => {
-    if (summary.definitionError) return { label: 'Not valid', color: 'red' };
-    if (summary.externalTable) {
-        return { label: 'Your own table', color: undefined };
-    }
-    switch (summary.materialization?.status) {
-        case 'active':
-            return { label: 'Ready', color: 'green' };
-        case 'in_progress':
-            return { label: 'Building', color: 'yellow' };
-        case 'failed':
-            return { label: 'Failed', color: 'red' };
-        default:
-            return { label: 'Not built yet', color: undefined };
-    }
-};
-
 type Labelled = Record<string, { label: string }>;
 /** The part of an explore that names its fields. */
 type LabelledExplore = {
@@ -90,23 +69,24 @@ export const coversEveryDimension = (
     return own.length > 1 && own.every((dimension) => kept.has(dimension.name));
 };
 
+/** When a pre-aggregate is rebuilt, as a phrase to follow other facts. */
 export const describeRefresh = (
     summary: PreAggregateMaterializationSummary,
 ): string => {
-    if (summary.externalTable) return 'Kept up to date outside this app';
+    if (summary.externalTable) return 'kept up to date outside this app';
     const onChange = summary.materializeOnChange
         ? 'when its definition changes'
         : null;
     if (!summary.refreshCron) {
         return onChange
-            ? `Rebuilt ${onChange}`
-            : 'Rebuilt only when you ask for it';
+            ? `rebuilt ${onChange}`
+            : 'rebuilt only when you ask for it';
     }
     const schedule = cronstrue.toString(summary.refreshCron, {
         verbose: false,
         throwExceptionOnParseError: false,
     });
-    return `Rebuilt ${schedule.charAt(0).toLowerCase()}${schedule.slice(1)}${onChange ? `, and ${onChange}` : ''}`;
+    return `rebuilt ${schedule.charAt(0).toLowerCase()}${schedule.slice(1)}${onChange ? `, and ${onChange}` : ''}`;
 };
 
 /** What a model's queries did over the period: served from a pre-aggregate, or run on the warehouse and why. */

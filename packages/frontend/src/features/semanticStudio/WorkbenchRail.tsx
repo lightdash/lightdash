@@ -20,6 +20,10 @@ import {
     type KeyboardEvent,
 } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import {
+    getPreAggregateStatus,
+    PRE_AGGREGATE_STATUS,
+} from '../../components/PreAggregateMaterializations/preAggregateStatus';
 import { AddSourceButton } from './AddSourceButton';
 import { DraftMarksContext } from './draftMarks';
 import { LineCounts } from './LineCounts';
@@ -32,7 +36,6 @@ import {
     type TreeNode,
 } from './model';
 import { CHANGE_KIND_LABELS } from './modelCode';
-import { getPreAggregateStatus } from './preAggregateSummary';
 import { SearchResultsList } from './SearchResultsList';
 import { NodeIcon } from './shared';
 import { useAddToStudioChat, startStudioChatRefDrag } from './studioChatRefs';
@@ -385,7 +388,10 @@ export const CodeRail: FC<{
                     </Box>
                     {/* A pre-aggregate lives in its model's file; its row jumps to where it is defined. */}
                     {(preAggregates.get(file) ?? []).map((summary) => {
-                        const status = getPreAggregateStatus(summary);
+                        const status =
+                            PRE_AGGREGATE_STATUS[
+                                getPreAggregateStatus(summary)
+                            ];
                         return (
                             <Tooltip
                                 key={summary.preAggregateDefinitionUuid}

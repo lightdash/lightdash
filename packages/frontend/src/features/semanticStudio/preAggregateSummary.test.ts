@@ -3,12 +3,12 @@ import {
     type PreAggregateMaterializationSummary,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
+import { getPreAggregateStatus } from '../../components/PreAggregateMaterializations/preAggregateStatus';
 import {
     coversEveryDimension,
     describeRefresh,
     getFieldLabel,
     getPreAggregateQuery,
-    getPreAggregateStatus,
     summariseUsage,
     usageByDay,
 } from './preAggregateSummary';
@@ -39,14 +39,19 @@ const summary = (
 describe('getPreAggregateStatus', () => {
     it('puts a definition that is not valid ahead of anything built', () => {
         expect(
-            getPreAggregateStatus(summary({ definitionError: 'bad field' }))
-                .label,
-        ).toBe('Not valid');
-        expect(getPreAggregateStatus(summary()).label).toBe('Not built yet');
+            getPreAggregateStatus(
+                summary({
+                    definitionError: 'bad field',
+                    externalTable: 'analytics.daily',
+                }),
+            ),
+        ).toBe('invalid');
+        expect(getPreAggregateStatus(summary())).toBe('never_built');
         expect(
-            getPreAggregateStatus(summary({ externalTable: 'analytics.daily' }))
-                .label,
-        ).toBe('Your own table');
+            getPreAggregateStatus(
+                summary({ externalTable: 'analytics.daily' }),
+            ),
+        ).toBe('external');
     });
 });
 
@@ -77,17 +82,17 @@ describe('getFieldLabel', () => {
 describe('describeRefresh', () => {
     it('says when a pre-aggregate is rebuilt', () => {
         expect(describeRefresh(summary())).toBe(
-            'Rebuilt when its definition changes',
+            'rebuilt when its definition changes',
         );
         expect(describeRefresh(summary({ materializeOnChange: false }))).toBe(
-            'Rebuilt only when you ask for it',
+            'rebuilt only when you ask for it',
         );
         expect(describeRefresh(summary({ refreshCron: '0 * * * *' }))).toBe(
-            'Rebuilt every hour, and when its definition changes',
+            'rebuilt every hour, and when its definition changes',
         );
         expect(
             describeRefresh(summary({ externalTable: 'analytics.daily' })),
-        ).toBe('Kept up to date outside this app');
+        ).toBe('kept up to date outside this app');
     });
 });
 

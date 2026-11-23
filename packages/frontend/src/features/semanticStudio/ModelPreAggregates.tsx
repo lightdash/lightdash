@@ -23,6 +23,10 @@ import Callout from '../../components/common/Callout';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import MaterializationDetailDrawer from '../../components/PreAggregateMaterializations/MaterializationDetailDrawer';
+import {
+    getPreAggregateStatus,
+    PRE_AGGREGATE_STATUS,
+} from '../../components/PreAggregateMaterializations/preAggregateStatus';
 import { useExploreByProjectUuid } from '../../hooks/useExplore';
 import { stringifyCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { usePreAggregateMaterializations } from '../../hooks/usePreAggregateMaterializations';
@@ -36,7 +40,6 @@ import {
     describeRefresh,
     getFieldLabel,
     getPreAggregateQuery,
-    getPreAggregateStatus,
     PRE_AGGREGATES_PAGE_SIZE as PAGE_SIZE,
     coversEveryDimension,
     summariseUsage,
@@ -82,7 +85,8 @@ const PreAggregateCard: FC<{
 }> = ({ projectUuid, summary, explore, hits }) => {
     const refresh = useRefreshPreAggregateByDefinitionName(projectUuid);
     const [isDetailOpen, detail] = useDisclosure(false);
-    const status = getPreAggregateStatus(summary);
+    const statusKind = getPreAggregateStatus(summary);
+    const status = PRE_AGGREGATE_STATUS[statusKind];
     const { materialization } = summary;
     const isBuilding = materialization?.status === 'in_progress';
     const facts = [
@@ -105,15 +109,14 @@ const PreAggregateCard: FC<{
     ];
     const error = summary.definitionError ?? materialization?.errorMessage;
     const isWhole = coversEveryDimension(explore, summary);
-    const refreshRule = describeRefresh(summary);
     const meta = [
         materialization?.materializedAt ? (
             <BuiltAgo key="built" date={materialization.materializedAt} />
         ) : (
-            (summary.externalTable ?? 'Not built yet')
+            (summary.externalTable ?? PRE_AGGREGATE_STATUS.never_built.label)
         ),
         ...facts,
-        `${refreshRule.charAt(0).toLowerCase()}${refreshRule.slice(1)}`,
+        describeRefresh(summary),
         ...(hits > 0
             ? [
                   `served ${plural(hits, 'chart query', 'chart queries')} in the last ${STATS_DAYS} days`,
@@ -149,7 +152,7 @@ const PreAggregateCard: FC<{
                             >
                                 Details
                             </Button>
-                            {explore && status.label === 'Ready' ? (
+                            {explore && statusKind === 'active' ? (
                                 <Button
                                     component="a"
                                     href={exploreHref(
@@ -251,7 +254,7 @@ const PreAggregateCard: FC<{
                         and table calculations still run on the warehouse.
                     </Callout>
                 ) : null}
-                {explore && status.label === 'Ready' ? (
+                {explore && statusKind === 'active' ? (
                     <PreAggregateSample
                         projectUuid={projectUuid}
                         summary={summary}

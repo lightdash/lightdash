@@ -1,8 +1,34 @@
 import { describe, expect, it } from 'vitest';
-import { listTurnIssues } from './proposalIssues';
+import { listProposalIssues, listTurnIssues } from './proposalIssues';
 
 const attempt = (status: 'ready' | 'failed', error: string | null) => ({
     models: [{ model: 'orders', status, changes: [], refusals: [], error }],
+});
+
+describe('listProposalIssues', () => {
+    it('says why a part was left out in the words the agent is told', () => {
+        expect(
+            listProposalIssues({
+                models: [
+                    {
+                        model: 'orders',
+                        status: 'ready',
+                        changes: [],
+                        refusals: [
+                            { path: 'metrics.revenue', reason: 'not_found' },
+                        ],
+                        error: null,
+                    },
+                ],
+            }),
+        ).toEqual([
+            {
+                kind: 'skipped',
+                model: 'orders',
+                detail: 'metrics.revenue is not in the model.',
+            },
+        ]);
+    });
 });
 
 describe('listTurnIssues', () => {
