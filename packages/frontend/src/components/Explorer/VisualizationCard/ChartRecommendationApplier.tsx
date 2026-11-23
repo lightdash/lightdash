@@ -9,6 +9,10 @@ import {
     explorerActions,
     useExplorerDispatch,
 } from '../../../features/explorer/store';
+import {
+    selectCartesianLayout,
+    useVisualizationSelector,
+} from '../../../features/visualization/store';
 import { useCartesianEditorActions } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { isCartesianVisualizationConfig } from '../../LightdashVisualization/types';
 import {
@@ -33,8 +37,14 @@ const ChartRecommendationApplier: FC<Props> = ({ onApplied }) => {
     const { options } = useChartTypeOptions();
     const visualizationConfig = useVisualizationConfig();
     const { setPivotDimensions } = useVisualizationServices();
-    const { setXField, setXAxisSort, setRowLimit, setStacking } =
-        useCartesianEditorActions();
+    const {
+        setXField,
+        setXAxisSort,
+        setRowLimit,
+        setStacking,
+        addSingleSeries,
+    } = useCartesianEditorActions();
+    const layout = useVisualizationSelector(selectCartesianLayout);
     const explorerDispatch = useExplorerDispatch();
     const picked = useRef<ChartRecommendation | null>(null);
     const isCartesian = isCartesianVisualizationConfig(visualizationConfig);
@@ -91,6 +101,9 @@ const ChartRecommendationApplier: FC<Props> = ({ onApplied }) => {
         const recommendation = picked.current;
         if (!recommendation || !isCartesian) return;
         if (recommendation.xField) setXField(recommendation.xField);
+        recommendation.yFields
+            .filter((yField) => !layout?.yField?.includes(yField))
+            .forEach((yField) => addSingleSeries(yField));
         if (recommendation.groupBy) setStacking(false);
         if (
             recommendation.kind === ChartKind.HORIZONTAL_BAR &&
