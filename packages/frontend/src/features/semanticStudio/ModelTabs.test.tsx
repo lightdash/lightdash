@@ -10,7 +10,10 @@ import {
     type StudioCheckoutState,
 } from './useStudioCheckout';
 
-vi.mock('./pierreEditor', () => ({ createEditor: () => null }));
+vi.mock('./pierreEditor', async (importOriginal) => ({
+    ...(await importOriginal<Record<string, unknown>>()),
+    createEditor: () => null,
+}));
 vi.mock('@pierre/diffs/react', () => ({
     WorkerPoolContextProvider: ({ children }: PropsWithChildren) => children,
     EditProvider: ({ children }: PropsWithChildren) => children,

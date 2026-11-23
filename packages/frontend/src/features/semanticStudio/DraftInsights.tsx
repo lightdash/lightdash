@@ -20,6 +20,7 @@ import {
     VisuallyHidden,
 } from '@mantine/core';
 import {
+    IconChevronRight,
     IconCircleCheck,
     IconCircleDashed,
     IconAlertTriangle,
@@ -524,7 +525,8 @@ export const ChangeQueue: FC<{
     projectUuid: string;
     draft: SemanticLayerDraft;
     onAskAgent: (prompt: string) => void;
-}> = ({ projectUuid, draft, onAskAgent }) => {
+    className: string;
+}> = ({ projectUuid, draft, onAskAgent, className }) => {
     const hasFailure = draft.changes.some(({ models }) =>
         models.some(({ error }) => error !== null),
     );
@@ -536,19 +538,26 @@ export const ChangeQueue: FC<{
         ]),
     );
     return (
-        <Paper
+        <Box
             component="details"
-            className={classes.section}
+            className={className}
             open={hasFailure || undefined}
         >
-            <Text
+            <Group
                 component="summary"
-                fz="sm"
-                fw={500}
-                className={classes.sectionTitle}
+                gap="xs"
+                wrap="nowrap"
+                className={classes.queueTitle}
             >
-                {count(draft.changes.length, 'change')}
-            </Text>
+                <MantineIcon
+                    icon={IconChevronRight}
+                    color="dimmed"
+                    className={classes.queueChevron}
+                />
+                <Text fz="sm" fw={500}>
+                    {count(draft.changes.length, 'change')}
+                </Text>
+            </Group>
             {draft.changes.map((change, index) => (
                 <ChangeRow
                     key={change.draftChangeUuid}
@@ -560,7 +569,7 @@ export const ChangeQueue: FC<{
                     onAskAgent={onAskAgent}
                 />
             ))}
-        </Paper>
+        </Box>
     );
 };
 

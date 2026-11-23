@@ -60,7 +60,13 @@ import {
 } from './modelCode';
 import { ModelPreAggregates } from './ModelPreAggregates';
 import classes from './ModelTabs.module.css';
-import { createEditor } from './pierreEditor';
+import {
+    createEditor,
+    editorOptionsFor,
+    readSelection,
+    type Attached,
+} from './pierreEditor';
+import { useAddToStudioChat } from './studioChatRefs';
 import {
     useSemanticLayerModel,
     useAppliesAsPullRequest,
@@ -117,15 +123,34 @@ export const ModelCodeView: FC<{
     const shownContent = isShowingSaved ? justSaved.content : content;
     // Pierre owns the document while editing: it starts from `startedFrom` and reports each change into `text`.
     const [isEditing, setIsEditing] = useState(startsEditing);
-    const editorInstance = useRef<{ undo(): void; redo(): void } | null>(null);
+    const editorInstance = useRef<Attached | null>(null);
     const [history, setHistory] = useState({ canUndo: false, canRedo: false });
+    const addToStudioChat = useAddToStudioChat();
+    const addToChat = () => {
+        const picked = readSelection(editorInstance.current);
+        if (!picked || !addToStudioChat) return;
+        addToStudioChat({
+            modelName,
+            fieldName: null,
+            modelLabel: `${modelName}.yml`,
+            fieldLabel: null,
+            fieldKind: null,
+            fieldType: null,
+            code: { path: `${modelName}.yml`, ...picked },
+        });
+    };
+    // Pierre keeps the first options it is given, so the chip reads the latest through a ref.
+    const addToChatRef = useRef(addToChat);
+    addToChatRef.current = addToChat;
     const editorOptions = useMemo(
-        () => ({
-            onAttach: (attached: { undo(): void; redo(): void }) => {
-                editorInstance.current = attached;
-                setHistory({ canUndo: false, canRedo: false });
-            },
-        }),
+        () =>
+            editorOptionsFor<'file'>(
+                (attached) => {
+                    editorInstance.current = attached;
+                    setHistory({ canUndo: false, canRedo: false });
+                },
+                () => addToChatRef.current(),
+            ),
         [],
     );
     const [startedFrom, setStartedFrom] = useState<string | null>(null);
@@ -329,12 +354,14 @@ export const ModelCodeView: FC<{
                 className={classes.codeEditor}
                 ref={editor}
                 onKeyDownCapture={(event) => {
-                    if (
-                        (event.metaKey || event.ctrlKey) &&
-                        event.key.toLowerCase() === 's'
-                    ) {
+                    if (!(event.metaKey || event.ctrlKey)) return;
+                    const key = event.key.toLowerCase();
+                    if (key === 's') {
                         event.preventDefault();
                         submit();
+                    } else if (key === 'l' && addToStudioChat) {
+                        event.preventDefault();
+                        addToChat();
                     }
                 }}
             >

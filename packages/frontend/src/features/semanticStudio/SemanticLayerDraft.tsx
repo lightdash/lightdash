@@ -730,25 +730,27 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                     fz="sm"
                                     fw={500}
                                     truncate
-                                    flex={1}
                                     miw={0}
                                 >
                                     {modelChange.model}.yml
                                 </Text>
-                                <Tooltip label="Edit in code">
-                                    <ActionIcon
-                                        size="sm"
-                                        variant="subtle"
-                                        color="gray"
-                                        className={classes.editFile}
-                                        aria-label={`Edit ${modelChange.model}.yml`}
-                                        onClick={() =>
-                                            onOpenFile(modelChange.model)
-                                        }
-                                    >
+                                <Button
+                                    size="compact-xs"
+                                    variant="light"
+                                    color="gray"
+                                    flex="none"
+                                    className={classes.editFile}
+                                    leftSection={
                                         <MantineIcon icon={IconPencil} />
-                                    </ActionIcon>
-                                </Tooltip>
+                                    }
+                                    aria-label={`Edit ${modelChange.model}.yml`}
+                                    onClick={() =>
+                                        onOpenFile(modelChange.model)
+                                    }
+                                >
+                                    Edit
+                                </Button>
+                                <Box flex={1} />
                                 <LineCounts
                                     counts={countChangedLines(modelChange)}
                                 />
@@ -839,6 +841,7 @@ export const DraftReview: FC<DraftReviewProps> = ({
                 projectUuid={projectUuid}
                 draft={draft}
                 onAskAgent={onAskAgent}
+                className={classes.model}
             />
         </Stack>
     );
