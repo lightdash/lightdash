@@ -75,6 +75,8 @@ export enum ApiConnectorType {
     ATTIO = 'attio',
     HUBSPOT = 'hubspot',
     SALESFORCE = 'salesforce',
+    /** A test integration the tests control; registered only when turned on. */
+    HYDRA = 'hydra',
 }
 
 /**

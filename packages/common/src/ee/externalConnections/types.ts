@@ -110,6 +110,29 @@ export type SalesforceApiSource = {
     connector: ApiConnectorType.SALESFORCE;
 };
 
+/**
+ * Hydra, the test integration: its rows are seeded from the sign-in token,
+ * and these settings make its fake API slow, fail or rate limit on demand.
+ */
+export type HydraApiSource = {
+    connector: ApiConnectorType.HYDRA;
+    /** Milliseconds each call waits before answering. */
+    latencyMs: number;
+    /** Share of calls, 0 to 1, that fail with a 500. */
+    errorRate: number;
+    /** Every Nth call answers 429 with Retry-After; 0 never does. */
+    retryAfterEvery: number;
+    /** The Retry-After those 429s carry, in seconds. */
+    retryAfterSeconds: number;
+    /** Every call answers 401, as a revoked sign-in would. */
+    failAuth: boolean;
+    /** Events seeded per sign-in token, over the last 90 days. */
+    rowCount: number;
+    /** The limits Lightdash keeps the source's calls under. */
+    callsPerMinute: number;
+    callsPerHour: number;
+};
+
 /** Connector settings of a live source; the server fixes its access rules. */
 export type ExternalConnectionApiSource =
     | PostHogApiSource
@@ -123,7 +146,8 @@ export type ExternalConnectionApiSource =
     | PylonApiSource
     | AttioApiSource
     | HubspotApiSource
-    | SalesforceApiSource;
+    | SalesforceApiSource
+    | HydraApiSource;
 
 /** The settings of one integration's sources. */
 export type ApiSourceOf<C extends ApiConnectorType> = Extract<
@@ -172,6 +196,13 @@ export const PYLON_ISSUES_SEARCH_PATH = '/issues/search';
 export const PYLON_ACCOUNTS_SEARCH_PATH = '/accounts/search';
 export const PYLON_CONTACTS_SEARCH_PATH = '/contacts/search';
 export const PYLON_USERS_PATH = '/users';
+
+/** Never resolves: Hydra answers in-process, so nothing is sent to it. */
+export const HYDRA_ORIGIN = 'https://hydra.invalid';
+export const HYDRA_REPORT_PATH = '/v1/report';
+export const HYDRA_ACCOUNT_PATH = '/v1/account';
+/** Set to "true" to register Hydra; it is absent everywhere otherwise. */
+export const HYDRA_ENABLED_ENV = 'LIVE_SOURCES_HYDRA_ENABLED';
 
 export const ATTIO_ORIGIN = 'https://api.attio.com';
 /** Owner names; reading them needs the user_management:read scope. */

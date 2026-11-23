@@ -379,6 +379,7 @@ export const LiveSourceSettings: FC<{
                                 size="xs"
                                 aria-label={accountField.label}
                                 placeholder={accountField.placeholder}
+                                autoComplete="off"
                                 {...form.getInputProps('accountId')}
                             />
                         </SettingsRow>

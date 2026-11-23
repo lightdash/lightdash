@@ -1,5 +1,7 @@
 import {
     ApiConnectorType,
+    HYDRA_DEFAULT_SETTINGS,
+    HYDRA_ENABLED_ENV,
     ParameterError,
     type ExternalConnectionApiSource,
     type MetricQuery,
@@ -7,7 +9,11 @@ import {
 import { buildLiveExplores, compileLiveMetricQuery } from './explores/build';
 import { getInitialLiveSourceFieldEdits } from './explores/fields';
 import { connectLiveSource } from './liveSource.mock';
-import { getLiveIntegration } from './registry';
+import {
+    getLiveIntegration,
+    isLiveIntegrationRegistered,
+    parseStoredApiSource,
+} from './registry';
 import { type LiveHttpResponse } from './types';
 
 /**
@@ -60,6 +66,7 @@ const SAMPLE_SETTINGS: {
     [ApiConnectorType.ATTIO]: { connector: ApiConnectorType.ATTIO },
     [ApiConnectorType.HUBSPOT]: { connector: ApiConnectorType.HUBSPOT },
     [ApiConnectorType.SALESFORCE]: { connector: ApiConnectorType.SALESFORCE },
+    [ApiConnectorType.HYDRA]: HYDRA_DEFAULT_SETTINGS,
 };
 
 const SERVER_ERROR: LiveHttpResponse = {
@@ -163,3 +170,26 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
         });
     },
 );
+
+describe('Hydra, the test integration', () => {
+    afterEach(() => {
+        vi.unstubAllEnvs();
+    });
+
+    test('is absent from the registry unless turned on', () => {
+        vi.stubEnv(HYDRA_ENABLED_ENV, '');
+        expect(isLiveIntegrationRegistered(ApiConnectorType.HYDRA)).toBe(false);
+        expect(() => getLiveIntegration(ApiConnectorType.HYDRA)).toThrow(
+            ParameterError,
+        );
+        // A source saved while it was on reads as no live source
+        expect(parseStoredApiSource(HYDRA_DEFAULT_SETTINGS)).toBeNull();
+        expect(isLiveIntegrationRegistered(ApiConnectorType.PYLON)).toBe(true);
+
+        vi.stubEnv(HYDRA_ENABLED_ENV, 'true');
+        expect(isLiveIntegrationRegistered(ApiConnectorType.HYDRA)).toBe(true);
+        expect(parseStoredApiSource(HYDRA_DEFAULT_SETTINGS)).toEqual(
+            HYDRA_DEFAULT_SETTINGS,
+        );
+    });
+});

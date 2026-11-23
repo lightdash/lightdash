@@ -16151,6 +16151,7 @@ const models: TsoaRoute.Models = {
             'attio',
             'hubspot',
             'salesforce',
+            'hydra',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -16430,6 +16431,30 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiConnectorType.HYDRA': {
+        dataType: 'refEnum',
+        enums: ['hydra'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HydraApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                callsPerHour: { dataType: 'double', required: true },
+                callsPerMinute: { dataType: 'double', required: true },
+                rowCount: { dataType: 'double', required: true },
+                failAuth: { dataType: 'boolean', required: true },
+                retryAfterSeconds: { dataType: 'double', required: true },
+                retryAfterEvery: { dataType: 'double', required: true },
+                errorRate: { dataType: 'double', required: true },
+                latencyMs: { dataType: 'double', required: true },
+                connector: { ref: 'ApiConnectorType.HYDRA', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExternalConnectionApiSource: {
         dataType: 'refAlias',
         type: {
@@ -16447,6 +16472,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'AttioApiSource' },
                 { ref: 'HubspotApiSource' },
                 { ref: 'SalesforceApiSource' },
+                { ref: 'HydraApiSource' },
             ],
             validators: {},
         },

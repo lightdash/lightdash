@@ -55,6 +55,7 @@ export const storyHealth = (
         hasPostHogOAuth: true,
         hasLinkedInAdsOAuth: false,
         hasSalesforceOAuth: false,
+        hasHydraLiveSource: false,
         siteUrl: 'https://acme.example.com',
         externalSources: { ...base.externalSources, engineAvailable: true },
         ...overrides,
