@@ -5,6 +5,7 @@ import {
     type ColorSchemePreference,
 } from '../../../theme';
 import MantineIcon from '../../common/MantineIcon';
+import { useNavMenuTrigger } from '../NavMenuTriggerContext';
 import { useThemePreference } from './useThemePreference';
 
 const THEME_OPTIONS: { value: ColorSchemePreference; label: string }[] = [
@@ -15,10 +16,11 @@ const THEME_OPTIONS: { value: ColorSchemePreference; label: string }[] = [
 
 export const ThemeSwitcherMenuItem = () => {
     const { colorSchemePreference, handleThemeChange } = useThemePreference();
+    const isInSidebar = useNavMenuTrigger() !== null;
 
     return (
         <>
-            <Group px="xs" py={4} gap="xs" wrap="nowrap">
+            <Group px="xs" py={isInSidebar ? 4 : 'xs'} gap="xs" wrap="nowrap">
                 <MantineIcon icon={IconBrightness} color="text" />
                 <SegmentedControl
                     variant="raised"
