@@ -1,3 +1,18 @@
+# [3.369.0](https://github.com/lightdash/lightdash/compare/3.368.0...3.369.0) (2026-11-23)
+
+
+### Bug Fixes
+
+* **dashboards:** group the edit toolbar's zoom, background and filter controls ([#33216](https://github.com/lightdash/lightdash/issues/33216)) ([2dc3134](https://github.com/lightdash/lightdash/commit/2dc31340daa8dc5eca2db851623e25197715fbe7))
+* **dashboards:** let editors collapse the controls bar from the bar itself ([#33215](https://github.com/lightdash/lightdash/issues/33215)) ([59cfb47](https://github.com/lightdash/lightdash/commit/59cfb470c9ce276d0ef8410242324a5e090f0f92))
+* **scheduler:** show the delivery message in Google Chat cards ([#33218](https://github.com/lightdash/lightdash/issues/33218)) ([c84f48f](https://github.com/lightdash/lightdash/commit/c84f48fe1939780fc47a0a7f087ab943a2973c88))
+* **tables:** wrap long unbroken values in expanded table cells ([#33211](https://github.com/lightdash/lightdash/issues/33211)) ([4c78658](https://github.com/lightdash/lightdash/commit/4c78658c5c816ef65eaaf191b2411b464531f52e))
+
+
+### Features
+
+* **dashboards:** default the dashboard editor canvas to a dotted background ([#33214](https://github.com/lightdash/lightdash/issues/33214)) ([2f23fdf](https://github.com/lightdash/lightdash/commit/2f23fdfbad4d930336cd2f9277d068ecc116eefa))
+
 # [3.368.0](https://github.com/lightdash/lightdash/compare/3.367.4...3.368.0) (2026-11-23)
 
 

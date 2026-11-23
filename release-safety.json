@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.368.0",
-  "previousVersion": "3.367.4",
-  "releaseDate": "2026-11-23T10:42:48.214Z",
+  "version": "3.369.0",
+  "previousVersion": "3.368.0",
+  "releaseDate": "2026-11-23T11:16:48.309Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261123140000_add_follow_up_to_semantic_studio_branch_compiles.ts",
-        "edition": "ee",
-        "tables": [
-          "semantic_studio_branch_compiles"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
