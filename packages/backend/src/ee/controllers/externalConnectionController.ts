@@ -176,7 +176,7 @@ export class ExternalConnectionController extends BaseController {
     }
 
     /**
-     * Lightdash's calls against the live source's declared rate limits: each limit's usage and when it resets, calls in flight, and whether the vendor has paused the integration. Other apps on the same vendor account aren't counted.
+     * Lightdash's calls against the live source's declared rate limits: each limit's usage and when it resets, and whether the vendor has paused the integration. Other apps on the same vendor account aren't counted.
      * @summary Get live source rate-limit usage
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

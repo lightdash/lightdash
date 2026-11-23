@@ -155,15 +155,6 @@
     font-weight: 500;
 }
 
-.rateSubtitle {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    color: var(--mantine-color-dimmed);
-    cursor: help;
-}
-
 .rateRow {
     display: grid;
     grid-template-columns: 120px minmax(80px, 320px) 110px minmax(0, 1fr);

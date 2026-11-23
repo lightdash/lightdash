@@ -794,16 +794,12 @@ export type ExternalConnectionRateLimitUsage = {
     /** The integration's name, such as HubSpot. */
     integrationLabel: string;
     checkedAt: string;
-    /** Calls in flight now, out of how many may run at once. */
-    concurrent: { used: number; limit: number };
     /** Even spacing between calls; null when none is declared. */
     callsPerSecond: number | null;
     /** Shortest window first. */
     buckets: ExternalConnectionRateLimitBucket[];
     /** When the vendor's pause ends, ISO; null when it hasn't paused the integration. */
     limitedUntil: string | null;
-    /** What the numbers can't say, such as limits that roll or count tokens. */
-    note: string | null;
 };
 
 export type ApiExternalConnectionRateLimitUsageResponse = {

@@ -131,7 +131,6 @@ const buildService = ({
         getApiSourceUsage: vi.fn().mockResolvedValue([]),
         getApiSourceRateUsage: vi.fn().mockResolvedValue({
             now: new Date('2026-11-23T14:00:00.000Z'),
-            inFlight: 1,
             buckets: [],
         }),
         setApiSourceSchema: vi.fn().mockResolvedValue(undefined),
@@ -629,7 +628,6 @@ describe('ExternalConnectionService rate-limit usage', () => {
         ).toHaveBeenCalledWith('conn-1');
         expect(usage).toMatchObject({
             checkedAt: '2026-11-23T14:00:00.000Z',
-            concurrent: { used: 1 },
             limitedUntil: null,
         });
     });

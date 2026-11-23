@@ -17,40 +17,36 @@ const RATE_LIMITS: LiveRateLimits = {
 
 const usageOf = (
     buckets: Parameters<typeof toRateLimitUsage>[0]['snapshot']['buckets'],
-    { inFlight = 0, rateLimits = RATE_LIMITS } = {},
+    { rateLimits = RATE_LIMITS } = {},
 ) =>
     toRateLimitUsage({
         integrationLabel: 'HubSpot',
         rateLimits,
-        snapshot: { now: NOW, inFlight, buckets },
+        snapshot: { now: NOW, buckets },
     });
 
 const ago = (ms: number) => new Date(NOW.getTime() - ms);
 
 describe('toRateLimitUsage', () => {
     it('shows each open window, shortest first, with when it resets', () => {
-        const usage = usageOf(
-            [
-                {
-                    bucketId: 'hour',
-                    used: 410,
-                    windowStartedAt: ago(23 * MINUTE),
-                    limitedUntil: null,
-                },
-                {
-                    bucketId: 'minute',
-                    used: 18,
-                    windowStartedAt: ago(18_000),
-                    limitedUntil: null,
-                },
-            ],
-            { inFlight: 2 },
-        );
+        const usage = usageOf([
+            {
+                bucketId: 'hour',
+                used: 410,
+                windowStartedAt: ago(23 * MINUTE),
+                limitedUntil: null,
+            },
+            {
+                bucketId: 'minute',
+                used: 18,
+                windowStartedAt: ago(18_000),
+                limitedUntil: null,
+            },
+        ]);
 
         expect(usage).toEqual({
             integrationLabel: 'HubSpot',
             checkedAt: NOW.toISOString(),
-            concurrent: { used: 2, limit: 5 },
             callsPerSecond: 4,
             buckets: [
                 {
@@ -71,7 +67,6 @@ describe('toRateLimitUsage', () => {
                 },
             ],
             limitedUntil: null,
-            note: null,
         });
     });
 
@@ -138,7 +133,7 @@ describe('toRateLimitUsage', () => {
         expect(usage.buckets.map(({ id }) => id)).toEqual(['minute', 'hour']);
     });
 
-    it('returns no buckets and the note when nothing is budgeted', () => {
+    it('returns no buckets when nothing is budgeted', () => {
         const usage = usageOf([], {
             rateLimits: {
                 concurrentCalls: 2,
@@ -149,10 +144,8 @@ describe('toRateLimitUsage', () => {
         });
 
         expect(usage).toMatchObject({
-            concurrent: { used: 0, limit: 2 },
             callsPerSecond: null,
             buckets: [],
-            note: 'Counts tokens, not calls.',
         });
     });
 });

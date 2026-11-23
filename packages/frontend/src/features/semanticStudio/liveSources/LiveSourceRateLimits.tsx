@@ -4,10 +4,8 @@
  * it. Read once when the page opens.
  */
 import { type ExternalConnectionRateLimitUsage } from '@lightdash/common';
-import { Box, Progress, Text, Tooltip } from '@mantine/core';
-import { IconInfoCircle } from '@tabler/icons-react';
+import { Box, Progress, Text } from '@mantine/core';
 import { type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
 import { useExternalConnectionRateLimitUsage } from '../../externalConnections/hooks/useExternalConnectionRateLimitUsage';
 import classes from './LiveSources.module.css';
 import {
@@ -16,9 +14,6 @@ import {
     formatUntil,
     formatUsed,
 } from './rateLimitFormat';
-
-const USAGE_INFO =
-    "Calls Lightdash made through this integration. Other apps on the same account aren't counted, so the vendor may allow fewer.";
 
 const capitalize = (text: string) =>
     text.charAt(0).toUpperCase() + text.slice(1);
@@ -60,16 +55,6 @@ const RateLimitRows: FC<{ usage: ExternalConnectionRateLimitUsage }> = ({
     const hasLimits = usage.buckets.length > 0 || usage.callsPerSecond !== null;
     return (
         <>
-            <LimitRow
-                label="Running now"
-                used={usage.concurrent.used}
-                capacity={usage.concurrent.limit}
-                detail={
-                    usage.concurrent.used >= usage.concurrent.limit
-                        ? 'Others wait their turn'
-                        : ''
-                }
-            />
             {usage.callsPerSecond !== null ? (
                 <Box className={classes.rateRow}>
                     <span className={classes.rateLabel}>Paced</span>
@@ -101,24 +86,18 @@ const RateLimitRows: FC<{ usage: ExternalConnectionRateLimitUsage }> = ({
                     </span>
                 </Box>
             ) : null}
-            <Box className={classes.rateRow}>
-                <span className={classes.rateLabel}>
-                    {usage.integrationLabel}
-                </span>
-                <span
-                    className={classes.rateSpan}
-                    data-paused={usage.limitedUntil ? true : undefined}
-                >
-                    {usage.limitedUntil
-                        ? `Paused by ${usage.integrationLabel} ${formatUntil(
-                              usage.limitedUntil,
-                              usage.checkedAt,
-                          )}`
-                        : 'Not rate-limited'}
-                </span>
-            </Box>
-            {usage.note ? (
-                <Text className={classes.rateNote}>{usage.note}</Text>
+            {usage.limitedUntil ? (
+                <Box className={classes.rateRow}>
+                    <span className={classes.rateLabel}>
+                        {usage.integrationLabel}
+                    </span>
+                    <span className={classes.rateSpan} data-paused>
+                        {`Paused by ${usage.integrationLabel} ${formatUntil(
+                            usage.limitedUntil,
+                            usage.checkedAt,
+                        )}`}
+                    </span>
+                </Box>
             ) : null}
         </>
     );
@@ -136,12 +115,6 @@ export const LiveSourceRateLimits: FC<{
         <Box className={classes.rateLimits} aria-label="Rate limits">
             <Box className={classes.rateHeader}>
                 <span className={classes.rateTitle}>Rate limits</span>
-                <Tooltip label={USAGE_INFO} multiline maw={280} withinPortal>
-                    <span className={classes.rateSubtitle}>
-                        Lightdash's usage
-                        <MantineIcon icon={IconInfoCircle} size={12} />
-                    </span>
-                </Tooltip>
             </Box>
             {usage ? (
                 <RateLimitRows usage={usage} />

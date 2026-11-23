@@ -226,7 +226,6 @@ export type ApiSourceRateTurn = { booked: boolean; turnAt: Date; now: Date };
 /** A limit key's stored rate-limit state, as of the DB's `now`. */
 export type ApiSourceRateUsageSnapshot = {
     now: Date;
-    inFlight: number;
     buckets: {
         bucketId: string;
         used: number;
@@ -2073,14 +2072,13 @@ export class ExternalConnectionModel {
             .delete();
     }
 
-    /** A limit key's bucket rows and calls in flight, read at once with the DB's clock. */
+    /** A limit key's bucket rows, read with the DB's clock. */
     async getApiSourceRateUsage(
         limitKey: string,
     ): Promise<ApiSourceRateUsageSnapshot> {
         const { rows } = await this.database.raw<{
             rows: {
                 now: Date;
-                in_flight: number;
                 buckets: {
                     bucket_id: string;
                     used: number;
@@ -2090,8 +2088,6 @@ export class ExternalConnectionModel {
             }[];
         }>(
             `SELECT now() AS now,
-                (SELECT count(*)::int FROM ${ApiSourceRateSlotsTableName}
-                    WHERE limit_key = :limitKey AND expires_at > now()) AS in_flight,
                 COALESCE((SELECT json_agg(json_build_object(
                         'bucket_id', bucket_id,
                         'used', used,
@@ -2104,7 +2100,6 @@ export class ExternalConnectionModel {
         const [row] = rows;
         return {
             now: row.now,
-            inFlight: row.in_flight,
             buckets: row.buckets.map((bucket) => ({
                 bucketId: bucket.bucket_id,
                 used: bucket.used,

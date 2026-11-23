@@ -51,14 +51,9 @@ export const toRateLimitUsage = ({
     return {
         integrationLabel,
         checkedAt: snapshot.now.toISOString(),
-        concurrent: {
-            used: Math.min(snapshot.inFlight, rateLimits.concurrentCalls),
-            limit: rateLimits.concurrentCalls,
-        },
         callsPerSecond: rateLimits.callsPerSecond,
         buckets,
         limitedUntil:
             limitedUntil === null ? null : new Date(limitedUntil).toISOString(),
-        note: rateLimits.note ?? null,
     };
 };
