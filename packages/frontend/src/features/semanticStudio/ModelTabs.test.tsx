@@ -10,9 +10,7 @@ import {
     type StudioCheckoutState,
 } from './useStudioCheckout';
 
-vi.mock('./pierreEditor', () => ({
-    createTrackedEditor: () => () => null,
-}));
+vi.mock('./pierreEditor', () => ({ createEditor: () => null }));
 vi.mock('@pierre/diffs/react', () => ({
     WorkerPoolContextProvider: ({ children }: PropsWithChildren) => children,
     EditProvider: ({ children }: PropsWithChildren) => children,
@@ -23,14 +21,20 @@ vi.mock('@pierre/diffs/react', () => ({
     }: {
         file: { contents: string };
         edit?: boolean;
-        onEditChange?: (event: { file: { contents: string } }) => void;
+        onEditChange?: (event: {
+            file: { contents: string };
+            editor: { canUndo: boolean; canRedo: boolean };
+        }) => void;
     }) =>
         edit ? (
             <textarea
                 data-testid="editor"
                 defaultValue={file.contents}
                 onChange={(event) =>
-                    onEditChange?.({ file: { contents: event.target.value } })
+                    onEditChange?.({
+                        file: { contents: event.target.value },
+                        editor: { canUndo: true, canRedo: false },
+                    })
                 }
             />
         ) : (
@@ -143,6 +147,7 @@ describe('ModelCodeView', () => {
             screen.queryByRole('button', { name: 'Discard' }),
         ).not.toBeInTheDocument();
         type('edited orders');
+        expect(screen.getByRole('button', { name: 'Undo' })).toBeEnabled();
         expect(
             screen.getByRole('button', { name: 'Discard' }),
         ).toBeInTheDocument();

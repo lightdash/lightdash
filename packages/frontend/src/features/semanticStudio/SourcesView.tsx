@@ -52,6 +52,7 @@ import MantineIcon from '../../components/common/MantineIcon';
 import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
+    pierreThemeFor,
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
 import { splitPatchIntoFiles } from '../../ee/features/aiCopilot/components/ChatElements/ToolCalls/splitPatch';
 import { type StoredThread } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
@@ -735,7 +736,7 @@ export const SourcePane: FC<{
         setLayout(next);
     };
     const options = {
-        theme: colorScheme === 'dark' ? 'pierre-dark' : 'pierre-light',
+        ...pierreThemeFor(colorScheme),
         overflow: 'scroll',
         disableFileHeader: true,
     } as const;

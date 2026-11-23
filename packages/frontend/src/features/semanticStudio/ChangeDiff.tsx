@@ -2,6 +2,7 @@ import { type SemanticLayerModelChange } from '@lightdash/common';
 import { Box, Button, Text, useComputedColorScheme } from '@mantine/core';
 import { MultiFileDiff, Virtualizer } from '@pierre/diffs/react';
 import { useState, type FC } from 'react';
+import { pierreThemeFor } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
 import classes from './ChangeDiff.module.css';
 import { findPeekStart } from './modelCode';
 
@@ -72,7 +73,6 @@ export const ChangeDiff: FC<{
     const isFolded =
         variant === 'full' && !isUnfolded && lineCount > FOLD_LINES;
     const name = `${modelName}.yml`;
-    const theme = colorScheme === 'dark' ? 'pierre-dark' : 'pierre-light';
     const viewport = {
         className:
             variant === 'whole'
@@ -113,7 +113,6 @@ export const ChangeDiff: FC<{
                         name,
                         contents: change.contentAfter ?? '',
                     }}
-                    className={classes.diffHost}
                     options={{
                         diffStyle: 'unified',
                         overflow: compact ? 'scroll' : 'wrap',
@@ -122,7 +121,7 @@ export const ChangeDiff: FC<{
                         diffIndicators: 'bars',
                         lineDiffType: 'word',
                         parseDiffOptions: { context: CONTEXT_LINES[variant] },
-                        theme,
+                        ...pierreThemeFor(colorScheme),
                         unsafeCSS: THIN_BARS_CSS,
                     }}
                 />

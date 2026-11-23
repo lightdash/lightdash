@@ -42,6 +42,7 @@ import MantineIcon from '../../components/common/MantineIcon';
 import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
+    pierreThemeFor,
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -59,7 +60,7 @@ import {
 } from './modelCode';
 import { ModelPreAggregates } from './ModelPreAggregates';
 import classes from './ModelTabs.module.css';
-import { createTrackedEditor, type StudioEditor } from './pierreEditor';
+import { createEditor } from './pierreEditor';
 import {
     useSemanticLayerModel,
     useAppliesAsPullRequest,
@@ -116,14 +117,15 @@ export const ModelCodeView: FC<{
     const shownContent = isShowingSaved ? justSaved.content : content;
     // Pierre owns the document while editing: it starts from `startedFrom` and reports each change into `text`.
     const [isEditing, setIsEditing] = useState(startsEditing);
-    const editorInstance = useRef<StudioEditor | null>(null);
+    const editorInstance = useRef<{ undo(): void; redo(): void } | null>(null);
     const [history, setHistory] = useState({ canUndo: false, canRedo: false });
-    const editorFactory = useMemo(
-        () =>
-            createTrackedEditor((created) => {
-                editorInstance.current = created;
+    const editorOptions = useMemo(
+        () => ({
+            onAttach: (attached: { undo(): void; redo(): void }) => {
+                editorInstance.current = attached;
                 setHistory({ canUndo: false, canRedo: false });
-            }),
+            },
+        }),
         [],
     );
     const [startedFrom, setStartedFrom] = useState<string | null>(null);
@@ -224,7 +226,7 @@ export const ModelCodeView: FC<{
     }
     const where = shown?.workspace?.name ?? null;
     const options = {
-        theme: colorScheme === 'dark' ? 'pierre-dark' : 'pierre-light',
+        ...pierreThemeFor(colorScheme),
         overflow: 'wrap',
         disableFileHeader: true,
     } as const;
@@ -345,15 +347,15 @@ export const ModelCodeView: FC<{
                         poolOptions={PIERRE_POOL_OPTIONS}
                         highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
                     >
-                        <EditProvider createEditor={editorFactory}>
+                        <EditProvider createEditor={createEditor}>
                             <File
                                 key={`${modelName}:${revision}`}
-                                className={classes.codeHost}
                                 file={{
                                     name: `${modelName}.yml`,
                                     contents: startedFrom ?? shownContent,
                                 }}
                                 options={options}
+                                editorOptions={editorOptions}
                                 edit={!save.isLoading}
                                 onEditChange={(event) => {
                                     if (text === null) {
@@ -367,12 +369,8 @@ export const ModelCodeView: FC<{
                                     }
                                     setText(event.file.contents);
                                     setHistory({
-                                        canUndo:
-                                            editorInstance.current?.canUndo ??
-                                            false,
-                                        canRedo:
-                                            editorInstance.current?.canRedo ??
-                                            false,
+                                        canUndo: event.editor.canUndo,
+                                        canRedo: event.editor.canRedo,
                                     });
                                 }}
                                 onEditComplete={() => 'accept'}
@@ -405,7 +403,6 @@ export const ModelCodeView: FC<{
                             highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
                         >
                             <File
-                                className={classes.codeHost}
                                 file={{
                                     name: `${modelName}.yml`,
                                     contents: shownContent,

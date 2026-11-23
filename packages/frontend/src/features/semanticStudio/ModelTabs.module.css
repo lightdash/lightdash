@@ -30,14 +30,6 @@
     white-space: pre-wrap;
 }
 
-.codeHost {
-    color-scheme: light;
-
-    @mixin dark {
-        color-scheme: dark;
-    }
-}
-
 .codeToolbar {
     flex: none;
     min-height: 45px;
