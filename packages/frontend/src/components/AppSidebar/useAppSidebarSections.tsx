@@ -29,6 +29,8 @@ export type AppSidebarItem = {
     to: string;
     icon: ReactNode;
     onClick: (() => void) | null;
+    /** The name walkthroughs know this destination by. */
+    tourNav: string;
 };
 
 export type AppSidebarSection = {
@@ -61,6 +63,7 @@ export const useAppSidebarSections = ({
                 items: [
                     {
                         key: 'home',
+                        tourNav: 'home',
                         label: 'Home',
                         to: '/',
                         icon: <MantineIcon icon={IconHome} />,
@@ -84,6 +87,7 @@ export const useAppSidebarSections = ({
     const main: AppSidebarItem[] = [
         {
             key: 'home',
+            tourNav: 'home',
             label: 'Home',
             to: `${base}/home`,
             icon: <MantineIcon icon={IconHome} />,
@@ -93,6 +97,7 @@ export const useAppSidebarSections = ({
             ? [
                   {
                       key: 'askAi' as const,
+                      tourNav: 'ask-ai',
                       label: 'Ask AI',
                       to: `/projects/${projectUuid}/ai-agents`,
                       icon: <AiAgentIcon size={16} />,
@@ -105,6 +110,7 @@ export const useAppSidebarSections = ({
     const content: AppSidebarItem[] = [
         {
             key: 'spaces',
+            tourNav: 'all-spaces',
             label: 'Spaces',
             to: `${base}/spaces`,
             icon: <MantineIcon icon={IconFolders} />,
@@ -112,6 +118,7 @@ export const useAppSidebarSections = ({
         },
         {
             key: 'dashboards',
+            tourNav: 'all-dashboards',
             label: 'Dashboards',
             to: `${base}/dashboards`,
             icon: <MantineIcon icon={IconLayoutDashboard} />,
@@ -119,6 +126,7 @@ export const useAppSidebarSections = ({
         },
         {
             key: 'charts',
+            tourNav: 'all-charts',
             label: 'Charts',
             to: `${base}/saved`,
             icon: <MantineIcon icon={IconChartAreaLine} />,
@@ -126,6 +134,7 @@ export const useAppSidebarSections = ({
         },
         {
             key: 'documents',
+            tourNav: 'all-documents',
             label: 'Documents',
             to: `${base}/documents`,
             icon: <MantineIcon icon={IconFileText} />,
@@ -136,6 +145,7 @@ export const useAppSidebarSections = ({
             ? [
                   {
                       key: 'dataApps' as const,
+                      tourNav: 'all-apps',
                       label: 'Data apps',
                       to: `/projects/${projectUuid}/apps`,
                       icon: <MantineIcon icon={IconAppWindow} />,
@@ -158,6 +168,7 @@ export const useAppSidebarSections = ({
             ? [
                   {
                       key: 'tables' as const,
+                      tourNav: 'new-chart',
                       label: 'Query from tables',
                       to: `${base}/tables`,
                       icon: <MantineIcon icon={IconTable} />,
@@ -169,6 +180,7 @@ export const useAppSidebarSections = ({
             ? [
                   {
                       key: 'sqlRunner' as const,
+                      tourNav: 'new-sql-runner',
                       label: 'SQL runner',
                       to: `${base}/sql-runner`,
                       icon: <MantineIcon icon={IconTerminal2} />,
@@ -180,6 +192,7 @@ export const useAppSidebarSections = ({
             ? [
                   {
                       key: 'metrics' as const,
+                      tourNav: 'metrics',
                       label: 'Metrics',
                       to: `${base}/metrics`,
                       icon: <MantineIcon icon={IconHash} />,

@@ -1,10 +1,7 @@
-import { FeatureFlags } from '@lightdash/common';
 import { AppShell, useAppShellResize } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { clamp } from 'es-toolkit/compat';
 import { type FC, type ReactNode } from 'react';
-import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
 import { PAGE_SCROLLER_ID } from '../../utils/pageScroller';
 import {
@@ -19,13 +16,13 @@ import {
 import NavBar from '../NavBar';
 import { NavBarRoot } from '../NavBar/NavBarRoot';
 import { SharedSignInExpiryListener } from '../NavBar/SharedSignInExpiryListener';
-import { useCompactNavigation } from '../NavBar/useCompactNavigation';
 import { useNavBarState } from '../NavBar/useNavBarState';
 import { AppSidebar } from './AppSidebar';
 import classes from './AppSidebar.module.css';
 import { APP_SIDEBAR_ID } from './appSidebarNavigation';
 import { PreviewGutter } from './PreviewGutter';
 import { useAppSidebarCollapse } from './useAppSidebarCollapse';
+import { useIsLeftNavigationShown } from './useIsLeftNavigationShown';
 
 const APP_SIDEBAR_WIDTH_STORAGE_KEY = 'app-sidebar:width';
 
@@ -145,17 +142,7 @@ type Props = {
 };
 
 export const AppNavigationShell: FC<Props> = ({ isNavBarFixed, children }) => {
-    const leftNavigationFlag = useServerFeatureFlag(
-        FeatureFlags.LeftNavigation,
-    );
-    const isCompact = useCompactNavigation();
-    const { isEditingDashboardChart } = useDashboardStorage();
-    // Phones keep the top navbar, and so does editing a dashboard chart: its
-    // bar holds the way back to the dashboard.
-    const showSidebar =
-        leftNavigationFlag.data?.enabled === true &&
-        !isCompact &&
-        !isEditingDashboardChart;
+    const showSidebar = useIsLeftNavigationShown();
 
     if (showSidebar) return <SidebarShell>{children}</SidebarShell>;
 

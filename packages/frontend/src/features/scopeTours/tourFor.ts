@@ -1,4 +1,8 @@
-import { SCOPE_TOURS, type ScopeTourDefinition } from './generated';
+import {
+    SCOPE_TOURS,
+    type ScopeTourDefinition,
+    type ScopeTourStepDefinition,
+} from './generated';
 
 /**
  * The one way to look a tour up by scope name.
@@ -29,3 +33,24 @@ export const lessonScopesFor = (scope: string): string[] => {
     const covers = tourFor(primary)?.covers ?? [];
     return [primary, ...covers.filter((covered) => covered !== primary)];
 };
+
+// The top navbar keeps its destinations inside these two menus. The left
+// sidebar lists the same destinations as rows, so there is no menu to open.
+const NAVBAR_MENU_TARGETS = new Set([
+    '[data-tour-nav="browse"]',
+    '[data-tour-nav="new"]',
+]);
+
+/**
+ * A lesson's steps as they run with the left sidebar: the same lesson
+ * without the clicks that only open a navbar menu.
+ */
+export const stepsForLeftNavigation = (
+    steps: ScopeTourStepDefinition[],
+): ScopeTourStepDefinition[] =>
+    steps
+        .filter((step) => !step.target || !NAVBAR_MENU_TARGETS.has(step.target))
+        .map((step) => ({
+            ...step,
+            via: step.via.filter((hop) => !NAVBAR_MENU_TARGETS.has(hop)),
+        }));

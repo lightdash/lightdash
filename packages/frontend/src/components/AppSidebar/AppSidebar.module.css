@@ -138,6 +138,70 @@
     flex: none;
 }
 
+.learnCard {
+    display: flex;
+    flex-direction: column;
+    gap: rem(10px);
+    padding: var(--mantine-spacing-sm);
+    margin-bottom: var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background-color: var(--mantine-color-body);
+}
+
+.learnHeader {
+    display: flex;
+    align-items: center;
+    gap: rem(4px);
+}
+
+.learnCount {
+    margin-left: auto;
+}
+
+/* Hiding the card is rare, so its control waits for the pointer. */
+.learnHide {
+    display: none;
+    margin-left: auto;
+}
+
+.learnCard:is(:hover, :focus-within) .learnHide {
+    display: flex;
+}
+
+.learnCard:is(:hover, :focus-within) .learnCount {
+    display: none;
+}
+
+.learnNext {
+    display: flex;
+    align-items: center;
+    gap: rem(6px);
+    color: var(--mantine-color-dimmed);
+
+    &:hover:not(:disabled) {
+        color: var(--mantine-color-text);
+    }
+}
+
+.learnNextText {
+    flex: 1;
+    min-width: 0;
+}
+
+.learnRing {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: rem(32px);
+    height: rem(35px);
+    border-radius: var(--mantine-radius-md);
+
+    &:hover {
+        background-color: var(--mantine-color-default-hover);
+    }
+}
+
 .account {
     position: relative;
     display: flex;
