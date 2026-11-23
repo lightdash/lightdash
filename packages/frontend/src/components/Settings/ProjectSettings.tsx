@@ -433,7 +433,7 @@ const ProjectSettings: FC<{
                           element: (
                               <ProjectSettingsPage
                                   title="Semantic layer"
-                                  description="Configure this project's semantic layer connection."
+                                  description="Query this project's semantic layer from other tools over SQL."
                               >
                                   <SemanticLayerConnectionPanel
                                       projectUuid={projectUuid}
