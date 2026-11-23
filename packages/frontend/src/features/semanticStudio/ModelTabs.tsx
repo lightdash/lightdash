@@ -82,7 +82,9 @@ export const ModelCodeView: FC<{
     fieldName: string | null;
     /** Why the code is read and not edited, as a sentence; null when it can be edited. */
     readOnlyReason: string | null;
-}> = ({ projectUuid, modelName, fieldName, readOnlyReason }) => {
+    /** Opens straight into editing, as the overview's pencil asks. */
+    startsEditing: boolean;
+}> = ({ projectUuid, modelName, fieldName, readOnlyReason, startsEditing }) => {
     const colorScheme = useComputedColorScheme('light');
     const { data: model, isLoading } = useSemanticLayerModel(
         projectUuid,
@@ -102,7 +104,7 @@ export const ModelCodeView: FC<{
     const isShowingSaved = justSaved !== null && justSaved.over === content;
     const shownContent = isShowingSaved ? justSaved.content : content;
     // Pierre owns the document while editing: it starts from `startedFrom` and reports each change into `text`.
-    const [isEditing, setIsEditing] = useState(false);
+    const [isEditing, setIsEditing] = useState(startsEditing);
     const [startedFrom, setStartedFrom] = useState<string | null>(null);
     const [text, setText] = useState<string | null>(null);
     const [revision, setRevision] = useState(0);
@@ -287,10 +289,12 @@ export const ModelCodeView: FC<{
                     </>
                 ) : null}
                 {shownContent !== null ? (
-                    <CopyActionIcon
-                        value={text ?? shownContent}
-                        copyLabel="Copy YAML"
-                    />
+                    <Box className={classes.copy}>
+                        <CopyActionIcon
+                            value={text ?? shownContent}
+                            copyLabel="Copy YAML"
+                        />
+                    </Box>
                 ) : null}
             </Group>
             {changedUnder ? (

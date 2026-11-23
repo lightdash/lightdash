@@ -209,6 +209,7 @@ const BlockedNotice: FC<{ blocker: SemanticLayerBlocker }> = ({ blocker }) => {
 };
 
 const FILE_PARAM = 'file';
+const EDIT_PARAM = 'edit';
 
 const BUILD_MODEL_PROMPT =
     'Look through my warehouse and suggest the first model and metrics to add.';
@@ -1228,6 +1229,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         modelName={file}
                         fieldName={searchParams.get(FIELD_PARAM)}
                         readOnlyReason={codeReadOnlyReason}
+                        startsEditing={searchParams.get(EDIT_PARAM) === 'true'}
                     />
                 ) : storedError ? (
                     <EmptyState
@@ -1336,6 +1338,13 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                             setIsChatOpen(true);
                             setAskedPrompt(prompt);
                         }}
+                        onOpenFile={(model) =>
+                            setSearchParams({
+                                [VIEW_PARAM]: 'code',
+                                [FILE_PARAM]: model,
+                                [EDIT_PARAM]: 'true',
+                            })
+                        }
                     />
                 ) : null;
             case 'browse':

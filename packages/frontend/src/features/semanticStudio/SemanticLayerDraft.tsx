@@ -22,6 +22,7 @@ import {
     IconExternalLink,
     IconEye,
     IconFileCode,
+    IconPencil,
 } from '@tabler/icons-react';
 import { sortBy, uniqBy } from 'es-toolkit/compat';
 import { useContext, useEffect, useRef, useState, type FC } from 'react';
@@ -54,7 +55,6 @@ import {
     count,
     countChangedLines,
     countPublishedChanges,
-    describeModelChange,
     DRAFT_PARAM,
     DRAFT_REVIEW,
     getChangeKind,
@@ -666,12 +666,15 @@ type DraftProps = { projectUuid: string; draft: SemanticLayerDraft };
 type DraftReviewProps = DraftProps & {
     /** Hands a request to the agent beside the review. */
     onAskAgent: (prompt: string) => void;
+    /** Opens a model's file in the code view. */
+    onOpenFile: (model: string) => void;
 };
 
 export const DraftReview: FC<DraftReviewProps> = ({
     projectUuid,
     draft,
     onAskAgent,
+    onOpenFile,
 }) => {
     const publishesHere = usePublishMode(projectUuid) === 'live';
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
@@ -705,10 +708,6 @@ export const DraftReview: FC<DraftReviewProps> = ({
                 highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
             >
                 {models.map((modelChange) => {
-                    const { title, subtitle } = describeModelChange(
-                        modelChange.model,
-                        modelChange,
-                    );
                     const fields = listPublishedParts(draft, modelChange);
                     return (
                         <Box
@@ -716,7 +715,7 @@ export const DraftReview: FC<DraftReviewProps> = ({
                             component="section"
                             className={classes.model}
                         >
-                            {/* A file's header, as an editor shows one: its name, what it models, how much moved. */}
+                            {/* A file's header, as an editor shows one: its name and how much moved. */}
                             <Group
                                 className={classes.modelHead}
                                 gap="xs"
@@ -735,22 +734,21 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                     miw={0}
                                 >
                                     {modelChange.model}.yml
-                                    <Text span inherit fw={400} c="dimmed">
-                                        {` · ${[
-                                            title,
-                                            subtitle ??
-                                                (fields.length === 0
-                                                    ? CHANGE_KIND_LABELS[
-                                                          getChangeKind(
-                                                              modelChange,
-                                                          )
-                                                      ]
-                                                    : null),
-                                        ]
-                                            .filter(Boolean)
-                                            .join(' · ')}`}
-                                    </Text>
                                 </Text>
+                                <Tooltip label="Edit in code">
+                                    <ActionIcon
+                                        size="sm"
+                                        variant="subtle"
+                                        color="gray"
+                                        className={classes.editFile}
+                                        aria-label={`Edit ${modelChange.model}.yml`}
+                                        onClick={() =>
+                                            onOpenFile(modelChange.model)
+                                        }
+                                    >
+                                        <MantineIcon icon={IconPencil} />
+                                    </ActionIcon>
+                                </Tooltip>
                                 <LineCounts
                                     counts={countChangedLines(modelChange)}
                                 />

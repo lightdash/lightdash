@@ -77,6 +77,7 @@ const codeOf = (
             modelName={modelName}
             fieldName={null}
             readOnlyReason={readOnlyReason}
+            startsEditing={false}
         />
     </StudioCheckoutProvider>
 );

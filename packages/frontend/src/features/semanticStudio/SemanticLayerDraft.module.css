@@ -24,8 +24,9 @@
     border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
-.model:not(:first-child) {
-    border-top: 1px solid var(--mantine-color-default-border);
+/* Files stack flush, one rule between them, as one long file would. */
+.model + .model {
+    margin-top: calc(var(--stack-gap) * -1);
 }
 
 /* Stays in view while its diff scrolls under it. */
@@ -37,6 +38,16 @@
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
     border-bottom: 1px solid var(--mantine-color-default-border);
     background: var(--mantine-color-ldGray-0);
+}
+
+.editFile {
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.model:hover .editFile,
+.editFile:focus-visible {
+    opacity: 1;
 }
 
 .fields {

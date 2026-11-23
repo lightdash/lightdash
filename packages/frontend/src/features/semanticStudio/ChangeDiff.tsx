@@ -13,7 +13,7 @@ const FOLD_LINES = 40;
 
 // A hairline marks a changed line, rather than Pierre's 4px bar, and the code starts under its header.
 const THIN_BARS_CSS =
-    "[data-indicators='bars'] [data-column-number]::before { width: 2px !important; } pre { padding-top: 0 !important; }";
+    "[data-indicators='bars'] [data-column-number]::before { width: 2px !important; } [data-code] { padding-block: 0 !important; }";
 
 const CONTEXT_LINES = { full: 2, compact: 1, peek: 1, whole: 100_000 };
 
