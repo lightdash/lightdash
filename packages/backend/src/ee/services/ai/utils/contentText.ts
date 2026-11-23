@@ -1,5 +1,6 @@
 import { ParameterError, type ContentTextEdit } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { toAbsoluteHref } from './absoluteHref';
 
 export type TextEditableContentType =
@@ -28,19 +29,19 @@ export const toContentView = (content: object): Record<string, unknown> =>
         Object.entries(content).filter(([key]) => !HIDDEN_KEYS.has(key)),
     );
 
-/** Stable text for a content view: the exact string text edits match against. */
+/** Stable YAML for a content view: the exact text edits match against. */
 export const serializeContentView = (view: Record<string, unknown>): string =>
-    JSON.stringify(view, null, 2);
+    stringifyYaml(view, { lineWidth: 0 });
 
 export const serializeContent = (content: object): string =>
     serializeContentView(toContentView(content));
 
 const parseContentText = (text: string): unknown => {
     try {
-        return JSON.parse(text);
+        return parseYaml(text);
     } catch (error) {
         throw new ParameterError(
-            `The edited content is not valid JSON: ${
+            `The edited content is not valid YAML: ${
                 error instanceof Error ? error.message : String(error)
             }`,
         );

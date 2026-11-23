@@ -23,22 +23,18 @@ describe('contentText', () => {
         const text = serializeContent(chart);
         expect(text).not.toContain('slug');
         expect(text).not.toContain('updatedAt');
-        expect(text).toContain('"name": "Monthly revenue"');
+        expect(text).toContain('name: Monthly revenue\n');
     });
 
     it('turns edits into a patch, adding keys that did not exist', () => {
-        const text = serializeContent(chart);
-        const layout = text.slice(
-            text.indexOf('"layout"'),
-            text.indexOf('"yField"'),
-        );
+        const layout = '    layout:\n';
         expect(
             textEditsToPatch(chart, [
                 {
-                    old: '"Monthly revenue"',
-                    new: '"Monthly revenue by status"',
+                    old: 'name: Monthly revenue\n',
+                    new: 'name: Monthly revenue by status\n',
                 },
-                { old: layout, new: `${layout}"stack": true,\n` },
+                { old: layout, new: `${layout}      stack: true\n` },
             ]),
         ).toEqual([
             {
@@ -58,14 +54,14 @@ describe('contentText', () => {
         const text = serializeContent(chart);
         expect(() =>
             applyTextEdits(text, [
-                { old: '"Monthly revenue"', new: '"Renamed"' },
+                { old: 'name: Monthly revenue', new: 'name: Renamed' },
                 {
-                    old: '"layout": {\n  "xField": "orders_month"',
-                    new: '"layout": {}',
+                    old: 'layout:\n  xField: orders_month',
+                    new: 'layout: {}',
                 },
             ]),
         ).toThrow(
-            /Edit 2 of 2: "old" was not found after the earlier edits[\s\S]*Closest lines:[\s\S]*"xField": "orders_month"/,
+            /Edit 2 of 2: "old" was not found after the earlier edits[\s\S]*Closest lines:[\s\S]*xField: orders_month/,
         );
     });
 
@@ -77,11 +73,11 @@ describe('contentText', () => {
 
     it('refuses edits that break the format or change nothing', () => {
         expect(() =>
-            textEditsToPatch(chart, [{ old: '"name"', new: 'name' }]),
+            textEditsToPatch(chart, [{ old: 'name: ', new: 'name: [' }]),
         ).toThrow(/not valid/);
         expect(() =>
             textEditsToPatch(chart, [
-                { old: '"Monthly revenue"', new: '"Monthly revenue"' },
+                { old: 'Monthly revenue', new: 'Monthly revenue' },
             ]),
         ).toThrow(/unchanged/);
     });
