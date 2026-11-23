@@ -1,3 +1,10 @@
+## [3.369.2](https://github.com/lightdash/lightdash/compare/3.369.1...3.369.2) (2026-11-23)
+
+
+### Bug Fixes
+
+* **dashboards:** make the controls bar Hide work without the edit toolbar ([#33229](https://github.com/lightdash/lightdash/issues/33229)) ([671c695](https://github.com/lightdash/lightdash/commit/671c6954f73d0c3dd76fa0ccf9b977295be5b2ee))
+
 ## [3.369.1](https://github.com/lightdash/lightdash/compare/3.369.0...3.369.1) (2026-11-23)
 
 
