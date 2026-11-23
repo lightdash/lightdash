@@ -111,8 +111,8 @@ For a weekly chart of "the last 12 weeks up to today" where every week starts on
 1. Always read the `dashboard-reference` and `dashboard-best-practices` resources.
 2. Explore existing dashboards and charts to find reusable content and inspiration for layout and design.
 3. Use `grepFields`, then `getMetadata`, to explore available fields and plan which charts to include.
-4. Create an empty dashboard shell first.
-5. Start building charts and adding them to the dashboard one by one, using the workflow above for creating charts.
+4. Create the dashboard without chart tiles.
+5. Create each chart with `dashboardSlug` set to the dashboard, using the workflow above for creating charts; create independent charts in the same turn. Each chart is placed on the dashboard as a tile, laid out in rows in creation order, so edit the dashboard only to change that layout or add non-chart tiles.
 
 ### Create and Edit SQL Charts
 

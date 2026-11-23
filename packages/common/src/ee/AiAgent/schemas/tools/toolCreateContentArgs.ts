@@ -20,7 +20,7 @@ export const TOOL_CREATE_CONTENT_DESCRIPTION = ({
     )} or ${toolNameFor(
         'listContent',
         runtime,
-    )} results; a write to any other space is refused. ${SQL_CHART_CREATE_GUIDANCE} ${COMPOSER_CHART_CREATE_GUIDANCE}`;
+    )} results; a write to any other space is refused. A chart created with a dashboardSlug is saved in that dashboard and placed on it as a new tile, laid out in rows. ${SQL_CHART_CREATE_GUIDANCE} ${COMPOSER_CHART_CREATE_GUIDANCE}`;
 
 type RequiredMetricQueryKeys = keyof Omit<
     ChartAsCode['metricQuery'],

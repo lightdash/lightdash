@@ -94,6 +94,7 @@ import {
     type CustomChartType,
     type Dashboard,
     type DashboardAsCode,
+    type DashboardChartTileAsCode,
     type DataAppCreationExperience,
     type DataAppVizSchema,
     type DateZoom,
@@ -257,6 +258,7 @@ import {
 } from '../ai/utils/agentMergeGuard';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import { readWithContentTypeFallback } from '../ai/utils/contentTypeFallback';
+import { getChartTileSize, placeTile } from '../ai/utils/dashboardTileLayout';
 import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
@@ -4152,6 +4154,14 @@ export class AiAgentToolsService extends BaseService {
                                 `Created chart "${finalSlug}" was not found`,
                             );
                         }
+                        if (content.dashboardSlug) {
+                            await this.placeChartOnDashboard(context, {
+                                dashboardSlug: content.dashboardSlug,
+                                chartSlug: finalSlug,
+                                chartName: content.name,
+                                chartType: content.chartConfig.type,
+                            });
+                        }
                         const createdContent = await this.readContentAsCode(
                             context,
                             {
@@ -4180,6 +4190,100 @@ export class AiAgentToolsService extends BaseService {
                 }
             },
         );
+    }
+
+    // Serializes tile placement per dashboard: parallel chart creates read and write the same tiles.
+    private readonly dashboardTileQueues = new Map<string, Promise<void>>();
+
+    /** A chart saved in a dashboard gets a tile there, laid out by the server. */
+    private async placeChartOnDashboard(
+        context: AiAgentToolsRuntimeContext,
+        {
+            dashboardSlug,
+            chartSlug,
+            chartName,
+            chartType,
+        }: {
+            dashboardSlug: string;
+            chartSlug: string;
+            chartName: string;
+            chartType: ChartType;
+        },
+    ): Promise<void> {
+        const place = async () => {
+            const read = await this.readContentAsCode(
+                context,
+                { slug: dashboardSlug, type: 'dashboard' },
+                'update',
+            );
+            if (read.type !== 'dashboard') {
+                throw new NotFoundError(
+                    `Dashboard "${dashboardSlug}" was not found`,
+                );
+            }
+            const dashboard = read.content;
+            if (
+                dashboard.tiles.some(
+                    (tile) =>
+                        tile.type === DashboardTileTypes.SAVED_CHART &&
+                        tile.properties.chartSlug === chartSlug,
+                )
+            ) {
+                return;
+            }
+            const tabSlug =
+                [...dashboard.tabs].sort((a, b) => a.order - b.order)[0]
+                    ?.slug ?? null;
+            const tile: DashboardChartTileAsCode = {
+                uuid: undefined,
+                tileSlug: undefined,
+                type: DashboardTileTypes.SAVED_CHART,
+                tabSlug,
+                ...placeTile(
+                    dashboard.tiles.filter(
+                        (existing) => (existing.tabSlug ?? null) === tabSlug,
+                    ),
+                    getChartTileSize(chartType),
+                ),
+                properties: {
+                    title: '',
+                    hideTitle: false,
+                    chartSlug,
+                    chartName,
+                },
+            };
+            const next = { ...dashboard, tiles: [...dashboard.tiles, tile] };
+            this.validateContentAsCode('dashboard', next);
+            await this.coderService.upsertDashboard(
+                context.user,
+                context.projectUuid,
+                dashboardSlug,
+                next,
+                {
+                    force: true,
+                    authorization: 'space_access',
+                    syncEnabled: false,
+                },
+            );
+        };
+        const previous =
+            this.dashboardTileQueues.get(dashboardSlug) ?? Promise.resolve();
+        const placed = previous.then(place);
+        const tail = placed.catch(() => undefined);
+        this.dashboardTileQueues.set(dashboardSlug, tail);
+        try {
+            await placed;
+        } catch (error) {
+            throw new ParameterError(
+                `Chart "${chartSlug}" was saved but not placed on dashboard "${dashboardSlug}": ${
+                    error instanceof Error ? error.message : String(error)
+                }. Add its tile with editContent.`,
+            );
+        } finally {
+            if (this.dashboardTileQueues.get(dashboardSlug) === tail) {
+                this.dashboardTileQueues.delete(dashboardSlug);
+            }
+        }
     }
 
     /** Every check of a composer chart edit short of saving it, so approval asks only for a save that can happen. */

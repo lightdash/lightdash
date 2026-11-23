@@ -9927,21 +9927,31 @@ describe('AiAgentToolsService in a thread bound to a dashboard', () => {
             },
         );
 
-        it('creates a chart saved in the bound dashboard', async () => {
+        it('creates a chart saved in the bound dashboard and places its tile', async () => {
             const upsertChart = vi.fn().mockResolvedValue({
                 charts: [
                     { data: { uuid: 'chart-uuid', slug: 'orders-chart' } },
                 ],
             });
+            const upsertDashboard = vi.fn().mockResolvedValue({
+                dashboards: [{ data: { uuid: boundDashboard.uuid } }],
+            });
             const service = makeService({
                 dashboardModel: dashboardModel(),
+                dashboardService: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue(boundDashboard),
+                },
                 savedChartService: {
                     get: vi.fn().mockResolvedValue({ uuid: 'chart-uuid' }),
                 },
                 coderService: {
                     upsertChart,
+                    upsertDashboard,
                     getChartsForRead: vi.fn().mockResolvedValue({
                         charts: [makeChart(boundDashboard.slug)],
+                    }),
+                    getDashboardsForRead: vi.fn().mockResolvedValue({
+                        dashboards: [makeDashboard(boundDashboard.slug)],
                     }),
                 },
                 aiAgentContentValidation: contentValidation(),
@@ -9953,6 +9963,25 @@ describe('AiAgentToolsService in a thread bound to a dashboard', () => {
             } as never);
 
             expect(upsertChart).toHaveBeenCalled();
+            expect(upsertDashboard).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.anything(),
+                boundDashboard.slug,
+                expect.objectContaining({
+                    tiles: [
+                        expect.objectContaining({
+                            type: 'saved_chart',
+                            x: 0,
+                            y: 0,
+                            w: 36,
+                            properties: expect.objectContaining({
+                                chartSlug: 'orders-chart',
+                            }),
+                        }),
+                    ],
+                }),
+                expect.anything(),
+            );
         });
 
         it('rejects a new SQL chart', async () => {
