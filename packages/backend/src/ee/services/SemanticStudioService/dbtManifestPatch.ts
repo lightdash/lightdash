@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { isEqual, merge } from 'es-toolkit/compat';
 import { parse } from 'yaml';
-import { type CompiledDbtManifest } from '../../../../services/ProjectService/compiledDbtManifest';
+import { type CompiledDbtManifest } from '../../../services/ProjectService/compiledDbtManifest';
 
 /** A file of the dbt project as of the stored manifest's commit, and as the change leaves it; null where it does not exist. */
 export type DbtFileChange = {

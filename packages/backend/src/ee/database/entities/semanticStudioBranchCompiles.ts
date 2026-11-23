@@ -1,16 +1,18 @@
-import { type Explore, type ExploreError } from '@lightdash/common';
+import {
+    type Explore,
+    type ExploreError,
+    type SemanticStudioBranchCompileStatus,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const SemanticStudioBranchCompilesTableName =
     'semantic_studio_branch_compiles';
 
-export type BranchCompileStatus = 'compiling' | 'ready' | 'failed';
-
 export type DbSemanticStudioBranchCompile = {
     semantic_studio_workspace_uuid: string;
     /** The latest request; a compile that finishes for an older one is dropped. */
     compile_request_uuid: string;
-    status: BranchCompileStatus;
+    status: SemanticStudioBranchCompileStatus;
     /** The branch last compiled; null until a compile has resolved it. */
     branch: string | null;
     error: string | null;

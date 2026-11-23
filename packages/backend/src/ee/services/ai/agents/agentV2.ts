@@ -73,6 +73,7 @@ import { queryErrorOverride } from '../decisions/queryErrors';
 import { createQueryReviewer } from '../decisions/queryReview';
 import {
     getAvailableSkills,
+    getStudioAbilities,
     hasDecisionsInStandardMode,
     resolveLoadout,
     type AgentToolName,
@@ -2278,7 +2279,7 @@ export const getAgentTools = (
             getProposeSemanticLayerChange({
                 proposeSemanticLayerChange:
                     dependencies.proposeSemanticLayerChange,
-                canRunMetrics: loadout.toolNames.has('runMetricQuery'),
+                canRunMetrics: getStudioAbilities(loadout).canRunMetrics,
             }),
         listChanges: () => getListChanges(dependencies.listChanges),
         readSemanticModel: () =>
@@ -2839,9 +2840,9 @@ export const getAgentMessages = (
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         semanticStudioHasRepository: args.semanticStudioHasRepository,
-        semanticStudioBuilder: loadout.withheldToolNames.size > 0,
+        semanticStudioBuilder: getStudioAbilities(loadout).builder,
         semanticStudioProjectMap: args.semanticStudioProjectMap,
-        semanticStudioQueriesDraft: loadout.toolNames.has('runMetricQuery'),
+        semanticStudioQueriesDraft: getStudioAbilities(loadout).canRunMetrics,
         slackLinksOnly: args.slackLinksOnly,
         enableComposerPythonNodes: args.enableComposerQueries,
         liveSources: args.liveSources,

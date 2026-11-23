@@ -10,6 +10,7 @@ import { SystemModelMessage } from 'ai';
 import moment from 'moment';
 import type { DeferredPromptSection, PromptSection } from '../loadout';
 import { AiAgentSkillReference } from '../skills/types';
+import { readLibraryPath } from '../tools/readLibraries';
 import {
     AgentLiveSource,
     AiAgentDeepResearchRunContext,
@@ -337,7 +338,7 @@ export const getSystemPromptV2 = (
         'No project context has been configured for this project.';
     if (promptSections.has('projectContext') && args.hasProjectContext) {
         const contextTool = semanticStudioBuilder
-            ? '`layer.context` in read'
+            ? `\`${readLibraryPath('loadProjectContext')}\` in read`
             : '`loadProjectContext`';
         const projectContextDefinition =
             'This project has curated business context: acronyms, definitions, rules and conventions that are not in the field metadata.';

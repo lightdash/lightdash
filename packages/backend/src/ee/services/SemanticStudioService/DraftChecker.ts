@@ -1,6 +1,7 @@
 import {
     compileLightdashModels,
     DEFAULT_SPOTLIGHT_CONFIG,
+    ExploreType,
     findAccessLoss,
     getErrorMessage,
     getItemId,
@@ -110,6 +111,10 @@ const toRelationship = (
 
 const isCompiled = (explore: Explore | ExploreError): explore is Explore =>
     !isExploreError(explore);
+
+/** An explore compiled from a model, rather than a pre-aggregate or user-managed one. */
+export const isModelExplore = (type: ExploreType | null | undefined): boolean =>
+    type === undefined || type === null || type === ExploreType.DEFAULT;
 
 /** Whether an explore is built on any of these models, as its base or through a join, aliased or not. */
 export const usesAnyModel = (

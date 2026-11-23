@@ -3,7 +3,7 @@ import {
     type ToolReadStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
-import type { CodeModeLibraries } from '../../SemanticStudioService/codeMode/codeMode';
+import type { CodeModeLibraries } from '../../AiWritebackService/codeMode';
 import type { ReadFn } from '../types/aiAgentDependencies';
 import type {
     ExecuteStructuredToolResult,

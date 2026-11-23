@@ -1,5 +1,5 @@
-import { findPreferredPreset, type ModelCatalogue } from '../ai/models';
-import { type ModelTier } from '../ai/models/presets';
+import { findPreferredPreset, type ModelCatalogue } from '.';
+import { type ModelTier } from './presets';
 
 const CLAUDE_PROVIDERS = ['anthropic', 'bedrock'];
 // People wait on each Studio turn, so the quicker model goes first.

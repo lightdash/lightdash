@@ -52,8 +52,7 @@ const renderProposedModel = (
     ].join('\n');
 
 /** A model can escape the quotes inside a string it writes; the card shows text, so they are plain again. */
-const unescapeQuotes = (text: string | null): string | null =>
-    text === null ? null : text.replaceAll('\\"', '"');
+const unescapeQuotes = (text: string): string => text.replaceAll('\\"', '"');
 
 export const getProposeSemanticLayerChange = ({
     proposeSemanticLayerChange,
@@ -129,11 +128,12 @@ export const getProposeSemanticLayerChange = ({
                                     advice.length > 0 ||
                                     metricsToRun.length > 0,
                             ),
-                        note: draftChangeUuid ? unescapeQuotes(note) : null,
+                        note:
+                            draftChangeUuid && note !== null
+                                ? unescapeQuotes(note)
+                                : null,
                         options: draftChangeUuid
-                            ? options.map(
-                                  (option) => unescapeQuotes(option) ?? option,
-                              )
+                            ? options.map(unescapeQuotes)
                             : [],
                     },
                     structuredContent: { models: results },
