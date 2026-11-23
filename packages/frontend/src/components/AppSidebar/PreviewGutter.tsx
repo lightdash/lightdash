@@ -66,27 +66,32 @@ export const PreviewGutter: FC<Props> = ({
                     </Box>
                 )}
                 <MantineIcon icon={IconTools} className={classes.previewIcon} />
-                <Text
-                    fz="sm"
-                    fw={600}
-                    truncate
-                    miw={0}
-                    className={classes.previewName}
-                >
-                    {previewName}
-                </Text>
-                {expiresAt && (
-                    <Tooltip
-                        label={new Date(expiresAt).toLocaleString(undefined, {
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                        })}
+                <Box className={classes.label}>
+                    <Text
+                        fz="sm"
+                        fw={600}
+                        truncate
+                        miw={0}
+                        className={classes.previewName}
                     >
-                        <Text c="dimmed" className={classes.expiry}>
-                            {formatExpiry(expiresAt)}
-                        </Text>
-                    </Tooltip>
-                )}
+                        {previewName}
+                    </Text>
+                    {expiresAt && (
+                        <Tooltip
+                            label={new Date(expiresAt).toLocaleString(
+                                undefined,
+                                {
+                                    dateStyle: 'medium',
+                                    timeStyle: 'short',
+                                },
+                            )}
+                        >
+                            <Text c="dimmed" className={classes.expiry}>
+                                {formatExpiry(expiresAt)}
+                            </Text>
+                        </Tooltip>
+                    )}
+                </Box>
             </Box>
             {upstreamProject && (
                 <Anchor
