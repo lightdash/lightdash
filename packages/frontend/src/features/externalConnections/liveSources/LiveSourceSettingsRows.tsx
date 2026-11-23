@@ -4,7 +4,7 @@
  * source and changing its settings use the same ones.
  */
 import { type ExternalConnectionTestResponse } from '@lightdash/common';
-import { Box, Group, Stack } from '@mantine/core';
+import { Box, Group, Stack, Text, Tooltip } from '@mantine/core';
 import {
     IconAlertCircleFilled,
     IconCircleCheckFilled,
@@ -49,35 +49,43 @@ export const SettingsCard: FC<{
     </Stack>
 );
 
+/** The first sentence of a message, which says what went wrong. */
+const getFirstSentence = (message: string) => message.split(/(?<=\.)\s/)[0];
+
 /**
  * A test's outcome in one quiet line, in place of the row's hint. A failure
- * shows the integration's own message, which names what to change (a missing
- * scope, the wrong region), rather than the generic summary.
+ * shows what the integration said went wrong rather than the generic summary,
+ * with its full message, which names what to change, on hover.
  */
 export const TestOutcome: FC<{ response: ExternalConnectionTestResponse }> = ({
     response,
 }) => {
     const check = response.liveCheck;
     const ok = check?.ok ?? response.status < 300;
+    const detail = ok ? null : (check?.detail ?? null);
     const message = ok
         ? (check?.summary ?? 'Works')
-        : (check?.detail ??
-          check?.summary ??
-          `Failed with status ${response.status}`);
+        : detail
+          ? getFirstSentence(detail)
+          : (check?.summary ?? `Failed with status ${response.status}`);
     return (
-        <Group
-            gap={4}
-            wrap="nowrap"
-            align="flex-start"
-            role="status"
-            c={ok ? 'green' : 'red'}
+        <Tooltip
+            label={detail}
+            disabled={!detail}
+            multiline
+            maw={320}
+            withinPortal
         >
-            <MantineIcon
-                icon={ok ? IconCircleCheckFilled : IconAlertCircleFilled}
-                size={12}
-                className={classes.testOutcomeIcon}
-            />
-            <span>{message}</span>
-        </Group>
+            <Group gap={4} wrap="nowrap" role="status" c={ok ? 'green' : 'red'}>
+                <MantineIcon
+                    icon={ok ? IconCircleCheckFilled : IconAlertCircleFilled}
+                    size={12}
+                    className={classes.testOutcomeIcon}
+                />
+                <Text span inherit truncate>
+                    {message}
+                </Text>
+            </Group>
+        </Tooltip>
     );
 };

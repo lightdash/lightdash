@@ -80,7 +80,7 @@ describe('TokenLiveSourceModal', () => {
         renderModal();
 
         expect(screen.getByRole('status')).toHaveTextContent(
-            'HubSpot rejected the access token. Check its scopes.',
+            /^HubSpot rejected the access token\.$/,
         );
         expect(screen.queryByText(/can't read from/)).not.toBeInTheDocument();
     });
