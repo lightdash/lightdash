@@ -14,7 +14,26 @@
     gap: var(--mantine-spacing-md);
     height: 100%;
     padding: rem(6px) var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    overflow: hidden;
+}
+
+/* Only the navigation scrolls, so a long list never pushes the header or
+   the footer out of view. */
+.scroll {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--mantine-spacing-md);
+    min-height: 0;
+    margin-inline: calc(var(--mantine-spacing-xs) * -1);
+    padding-inline: var(--mantine-spacing-xs);
     overflow: hidden auto;
+    scrollbar-width: thin;
+}
+
+/* A rail of identical icons says nothing about which favorite is which. */
+.sidebar[data-collapsed='true'] .favorites {
+    display: none;
 }
 
 .top {
@@ -59,6 +78,46 @@
     color: var(--mantine-color-dimmed);
 }
 
+.sectionToggle {
+    display: flex;
+    align-items: center;
+    gap: rem(4px);
+    width: 100%;
+
+    &:hover {
+        color: var(--mantine-color-text);
+    }
+}
+
+/* The chevron stays out of the way until the label is pointed at, and
+   stays on a folded section to say there is more inside. */
+.sectionChevron {
+    margin-left: auto;
+    opacity: 0;
+    transition:
+        opacity 120ms ease,
+        transform 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.sectionToggle:is(:hover, :focus-visible, [data-folded='true'])
+    .sectionChevron {
+    opacity: 1;
+}
+
+.sectionToggle[data-folded='true'] .sectionChevron {
+    transform: rotate(-90deg);
+}
+
+.sidebar[data-collapsed='true'] .sectionToggle {
+    pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sectionChevron {
+        transition: none;
+    }
+}
+
 .shortcut {
     font-size: rem(11px);
     color: var(--mantine-color-placeholder);
@@ -76,7 +135,7 @@
 }
 
 .footer {
-    margin-top: auto;
+    flex: none;
 }
 
 .account {
