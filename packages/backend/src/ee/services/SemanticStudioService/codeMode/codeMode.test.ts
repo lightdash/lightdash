@@ -209,6 +209,62 @@ describe('runCodeMode', () => {
         const { error } = await run(`repo.write('../secrets.yml', 'a: 1')`);
         expect(error).toBe('../secrets.yml is not a path inside the project');
     });
+
+    describe('libraries', () => {
+        const libraries = {
+            layer: {
+                fields: {
+                    description: 'Find fields by name.\nMore detail.',
+                    schema: async () => ({ type: 'object' }),
+                    run: async (args: unknown) =>
+                        `fields for ${JSON.stringify(args)}`,
+                },
+            },
+        };
+
+        it('calls a library function and lists them with help', async () => {
+            const { logs, error } = await runCodeMode(
+                `console.log(layer.fields({ q: 'amount' })); console.log(help()); console.log(help('layer.fields'));`,
+                repoOf({}),
+                { libraries },
+            );
+            expect(error).toBeNull();
+            expect(logs).toEqual([
+                'fields for {"q":"amount"}',
+                'layer.fields: Find fields by name.',
+                'Find fields by name.\nMore detail.\nArguments (JSON schema): {"type":"object"}',
+            ]);
+        });
+
+        it('turns a failed call into an error the script can catch', async () => {
+            const { logs } = await runCodeMode(
+                `try { failing.call({}) } catch (e) { console.log(e.message) }`,
+                repoOf({}),
+                {
+                    libraries: {
+                        failing: {
+                            call: {
+                                description: '',
+                                schema: async () => ({}),
+                                run: async () => {
+                                    throw new Error('no access');
+                                },
+                            },
+                        },
+                    },
+                },
+            );
+            expect(logs).toEqual(['no access']);
+        });
+
+        it('refuses a library that would replace a built-in', async () => {
+            await expect(
+                runCodeMode('', repoOf({}), {
+                    libraries: { repo: libraries.layer },
+                }),
+            ).rejects.toThrow('repo cannot be a library name');
+        });
+    });
 });
 
 describe('validateSemanticLayerYaml', () => {

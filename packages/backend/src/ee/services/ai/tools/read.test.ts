@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { getRead } from './read';
 
 const run = (read: Parameters<typeof getRead>[0]['read'], script = 'x') =>
-    getRead({ read }).execute!(
+    getRead({ read, libraries: {} }).execute!(
         { script },
         { messages: [], toolCallId: 't', context: {} },
     );
