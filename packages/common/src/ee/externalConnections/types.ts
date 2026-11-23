@@ -163,7 +163,21 @@ export type HydraApiSource = {
     declaredLimits?: 'vendor' | HydraRateLimits | null;
     /** Fake answers a test sets for given calls, counted per source from 1; the first match wins. */
     mockResponses?: HydraMockResponse[];
+    /** Seconds an access token from Hydra's sign-in lasts before it must be refreshed. */
+    tokenTtlSeconds?: number;
+    /** People whose Hydra sign-ins are revoked: their tokens answer 401 and refreshes are refused. */
+    revokedViewers?: string[];
+    /**
+     * What each person's sign-in may read, by email; anyone not listed
+     * reads everything. A call outside a person's scopes answers 403.
+     */
+    viewerScopes?: Record<string, HydraScope[]>;
+    /** Hydra's consent screen answers `access_denied`, as a person declining would. */
+    denyConsent?: boolean;
 };
+
+/** What a Hydra sign-in may read: a report, or the revenue metric. */
+export type HydraScope = 'events:read' | 'users:read' | 'revenue:read';
 
 /** A Hydra source's settings with every default filled in. */
 export type HydraSettings = Required<Omit<HydraApiSource, 'connector'>>;
@@ -269,6 +283,11 @@ export const PYLON_USERS_PATH = '/users';
 export const HYDRA_ORIGIN = 'https://hydra.invalid';
 export const HYDRA_REPORT_PATH = '/v1/report';
 export const HYDRA_ACCOUNT_PATH = '/v1/account';
+export const HYDRA_TOKEN_PATH = '/oauth/token';
+/** The OAuth app Lightdash signs viewers in to Hydra with. */
+export const HYDRA_OAUTH_CLIENT_ID = 'lightdash-hydra';
+/** Not a secret: Hydra is test data, answered in-process. */
+export const HYDRA_OAUTH_CLIENT_SECRET = 'hydra-test-client-secret';
 /** Set to "true" to register Hydra; it is absent everywhere otherwise. */
 export const HYDRA_ENABLED_ENV = 'LIVE_SOURCES_HYDRA_ENABLED';
 

@@ -14,6 +14,7 @@ import {
     getHydraAccountId,
     type HydraDataset,
 } from './data';
+import { createHydraOAuth, type HydraAuthorizeParams } from './oauth';
 import { hydraReportSchema, runHydraReport } from './report';
 
 /** The most groups one report returns, as a vendor's page size would. */
@@ -133,6 +134,7 @@ export const createHydraServer = ({
 }: HydraServerOptions = {}) => {
     const sources = new Map<string, SourceState>();
     const datasets = new Map<string, HydraDataset>();
+    const oauth = createHydraOAuth({ now });
 
     const getSource = (sourceKey: string) => {
         const existing = sources.get(sourceKey);
@@ -236,13 +238,13 @@ export const createHydraServer = ({
 
     const answer = (
         settings: HydraSettings,
-        token: string,
+        seed: string,
         request: HydraCall['request'],
     ): LiveHttpResponse => {
-        const dataset = getDataset(token, settings.rowCount);
+        const dataset = getDataset(seed, settings.rowCount);
         if (request.method === 'GET' && request.path === HYDRA_ACCOUNT_PATH) {
             return json(200, {
-                account: getHydraAccountId(token),
+                account: getHydraAccountId(seed),
                 events: dataset.events.length,
                 users: dataset.users.length,
             });
@@ -283,6 +285,7 @@ export const createHydraServer = ({
     const call = async (
         source: SourceState,
         {
+            sourceKey,
             settings: apiSource,
             token,
             request,
@@ -295,6 +298,15 @@ export const createHydraServer = ({
         source.callNumber = callNumber;
         // eslint-disable-next-line no-param-reassign
         source.stats.calls += 1;
+        const identity = token
+            ? oauth.identify(sourceKey, settings, token)
+            : null;
+        oauth.log(sourceKey, {
+            callNumber,
+            method: request.method,
+            path: request.path,
+            subject: identity?.kind === 'viewer' ? identity.subject : null,
+        });
 
         // The vendor refuses at once, before doing any work
         const arrivedAt = now().getTime();
@@ -335,16 +347,31 @@ export const createHydraServer = ({
                         : { 'retry-after': String(retryAfterSeconds) },
                 );
             }
-            if (settings.failAuth || !token) {
+            if (settings.failAuth || !identity) {
                 return json(401, {
                     message: 'The sign-in token was rejected',
+                });
+            }
+            if (identity.kind === 'rejected') {
+                return json(401, { message: identity.message });
+            }
+            const missingScopes = oauth.getMissingScopes(
+                settings,
+                identity,
+                request,
+                HYDRA_REPORT_PATH,
+            );
+            if (missingScopes.length > 0) {
+                return json(403, {
+                    error: 'insufficient_scope',
+                    message: `This sign-in lacks ${missingScopes.join(', ')}`,
                 });
             }
             // A mocked 200 answers as usual, skipping injected failures
             if (!mock && random() < settings.errorRate) {
                 return json(500, { message: 'Injected server error' });
             }
-            return answer(settings, token, request);
+            return answer(settings, identity.seed, request);
         } finally {
             // eslint-disable-next-line no-param-reassign
             source.inFlight -= 1;
@@ -356,13 +383,57 @@ export const createHydraServer = ({
 
     return {
         fetch,
+        /**
+         * Hydra's consent screen for `subject`, the person signing in; a
+         * redirect back with a code, or an error the spec says not to send
+         * back to an unchecked redirect URI.
+         */
+        authorize: ({
+            sourceKey,
+            settings,
+            subject,
+            params,
+        }: {
+            sourceKey: string;
+            settings: HydraApiSource;
+            subject: string;
+            params: HydraAuthorizeParams;
+        }) =>
+            oauth.authorize({
+                sourceKey,
+                settings: withHydraDefaults(settings),
+                subject,
+                params,
+            }),
+        /** Hydra's token endpoint: exchanges a code, or rotates a refresh token. */
+        token: ({
+            sourceKey,
+            settings,
+            form,
+        }: {
+            sourceKey: string;
+            settings: HydraApiSource;
+            form: URLSearchParams;
+        }): LiveHttpResponse =>
+            oauth.token({
+                sourceKey,
+                settings: withHydraDefaults(settings),
+                form,
+            }),
+        /** The source's latest calls and whose sign-in made each, per process. */
+        getRequestLog: oauth.getLog,
         /** What Hydra saw of one source's calls; counts are per backend process. */
         getStats: (sourceKey: string): HydraStats =>
             structuredClone(getSource(sourceKey).stats),
-        /** Forgets call numbers, windows and stats, for one source or all. */
+        /**
+         * Forgets call numbers, windows, stats and the request log, for one
+         * source or all; resetting all also forgets used codes and rotated
+         * refresh tokens.
+         */
         reset: (sourceKey?: string) => {
             if (sourceKey === undefined) sources.clear();
             else sources.delete(sourceKey);
+            oauth.reset(sourceKey);
         },
     };
 };

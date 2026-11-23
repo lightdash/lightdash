@@ -77,6 +77,49 @@ describe('Hydra settings', () => {
         expect(getHydraSettingsProblem(hydra(settings))).toEqual(problem);
     });
 
+    describe('sign-in settings', () => {
+        it('accepts revoked people, scopes per person and a declining consent screen', () => {
+            expect(
+                getHydraSettingsProblem(
+                    hydra({
+                        tokenTtlSeconds: 60,
+                        revokedViewers: ['alice@example.com'],
+                        viewerScopes: {
+                            'bob@example.com': ['events:read', 'revenue:read'],
+                        },
+                        denyConsent: true,
+                    }),
+                ),
+            ).toBeNull();
+        });
+
+        it.each([
+            [{ tokenTtlSeconds: 0 }, expect.stringMatching(/^tokenTtlSeconds/)],
+            [
+                { revokedViewers: [''] },
+                expect.stringMatching(/^revokedViewers/),
+            ],
+            [
+                { viewerScopes: { 'bob@example.com': ['admin'] } },
+                expect.stringMatching(/^viewerScopes/),
+            ],
+            [
+                {
+                    viewerScopes: Object.fromEntries(
+                        Array.from({ length: 51 }, (_, index) => [
+                            `person-${index}@example.com`,
+                            [],
+                        ]),
+                    ),
+                },
+                expect.stringMatching(/^viewerScopes/),
+            ],
+            [{ denyConsent: 'yes' }, 'denyConsent must be true or false'],
+        ])('refuses %#', (settings, problem) => {
+            expect(getHydraSettingsProblem(hydra(settings))).toEqual(problem);
+        });
+    });
+
     describe('caps what one call does', () => {
         const bucket = (id: string) => ({ id, windowMs: 60_000, capacity: 1 });
         const limits = (buckets: unknown[]) => ({
