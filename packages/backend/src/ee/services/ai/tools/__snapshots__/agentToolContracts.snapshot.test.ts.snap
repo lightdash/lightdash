@@ -18,7 +18,7 @@ For explore-backed tables use grepFields and getMetadata; to find a table's name
           ],
         },
         "schema": {
-          "description": "Schema name, e.g. "jaffle". Omit for the project's default schema.",
+          "description": "Schema name, e.g. "<schema>". Omit for the project's default schema.",
           "type": [
             "string",
             "null",
@@ -8902,14 +8902,14 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
           "type": "integer",
         },
         "schema": {
-          "description": "Schema to list, e.g. "jaffle", "public" or "raw". Omit to list every schema.",
+          "description": "Schema to list, e.g. "public" or "raw". Omit to list every schema.",
           "type": [
             "string",
             "null",
           ],
         },
         "search": {
-          "description": "Case-insensitive substring of the table name, e.g. "work_order".",
+          "description": "Case-insensitive substring of the table name, e.g. "<name part>".",
           "type": [
             "string",
             "null",
@@ -12203,7 +12203,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
           "type": "string",
         },
         "script": {
-          "description": "JavaScript that makes the change, run against the repository before the pull request is opened. Paths are relative to the dbt project. Nothing is written unless the whole script succeeds and every changed YAML file passes the semantic layer schema; on failure the tool returns the error, so fix the script and call again. API (synchronous, values are plain JSON): dbt.model(name) -> { yml, sql, keys } | null, where keys is the YAML path of that model; yaml.get(path, keys), yaml.set(path, keys, value), yaml.push(path, keys, value) to append to a list, yaml.remove(path, keys); keys is a list of mapping keys, list indexes, or { name } to pick the list item with that name, e.g. [...m.keys, 'columns', { name: 'amount' }, 'config', 'meta', 'metrics', 'total_amount']; set creates missing mappings, and edits keep comments and the rest of the file as it is; repo.list(prefix?), repo.read(path), repo.write(path, text), repo.remove(path) for whole files such as a new model SQL; console.log(...) is returned with errors. Follow where the file already keeps things (e.g. config.meta rather than meta when it uses that). Null when the change needs dbt to run, such as checking new SQL against the warehouse. With a script, start prompt with a one-line summary under 72 characters, like a commit subject: it becomes the pull request title.",
+          "description": "JavaScript that makes the change, run against the repository before the pull request is opened. Paths are relative to the dbt project. Nothing is written unless the whole script succeeds and every changed YAML file passes the semantic layer schema; on failure the tool returns the error, so fix the script and call again. API (synchronous, values are plain JSON): dbt.model(name) -> { yml, sql, keys } | null, where keys is the YAML path of that model; yaml.get(path, keys), yaml.set(path, keys, value), yaml.push(path, keys, value) to append to a list, yaml.remove(path, keys); keys is a list of mapping keys, list indexes, or { name } to pick the list item with that name, e.g. [...m.keys, 'columns', { name: '<column>' }, 'config', 'meta', 'metrics', '<metric>']; set creates missing mappings, and edits keep comments and the rest of the file as it is; repo.list(prefix?), repo.read(path), repo.write(path, text), repo.remove(path) for whole files such as a new model SQL; console.log(...) is returned with errors. Follow where the file already keeps things (e.g. config.meta rather than meta when it uses that). Null when the change needs dbt to run, such as checking new SQL against the warehouse. With a script, start prompt with a one-line summary under 72 characters, like a commit subject: it becomes the pull request title.",
           "type": [
             "string",
             "null",
@@ -21341,7 +21341,7 @@ A custom chart type is chosen the same way: by its own description first, then a
     "description": "Tool: searchFieldValues
 
 Purpose:
-Validate or disambiguate a candidate value for a specific dimension (e.g. a product name or status) before filtering on it. Returns up to 100 unique values matching the query.
+Validate or disambiguate a candidate value for a specific dimension (e.g. a name or status) before filtering on it. Returns up to 100 unique values matching the query.
 
 Usage Tips:
 - Search only when the value is uncertain: when the user or field metadata already gives the exact value, filter on it directly
@@ -23224,8 +23224,8 @@ Call this for the explores and fields you intend to use whose full detail you do
 
 Inputs:
 Each entry in \`requests\` is one of:
-- \`{ "type": "explore", "exploreIds": ["orders", "customers"] }\` for whole explores.
-- \`{ "type": "field", "fields": [{ "exploreId": "orders", "fieldId": "orders_status" }] }\` for specific fields.
+- \`{ "type": "explore", "exploreIds": ["<explore>", "<other explore>"] }\` for whole explores.
+- \`{ "type": "field", "fields": [{ "exploreId": "<explore>", "fieldId": "<table>_<field>" }] }\` for specific fields.
 
 Applying the result:
 Use a metric's default time dimension unless the user asks for a different one.
@@ -23275,7 +23275,7 @@ Use a metric's default time dimension unless the user asks for a different one.
                           "type": "string",
                         },
                         "fieldId": {
-                          "description": "The fieldId, e.g. \`orders_status\`.",
+                          "description": "The fieldId, e.g. \`<table>_<field>\`.",
                           "minLength": 1,
                           "type": "string",
                         },
@@ -23995,7 +23995,7 @@ It reports references, not values: when a field keeps its id but its SQL or aggr
       "additionalProperties": false,
       "properties": {
         "fieldId": {
-          "description": "The exact field id to analyze, formatted as "<table>_<fieldName>" (e.g. "orders_total_revenue"): the id used in chart definitions, not the label. When you only have the label, resolve the id first with grepFields or searchSemanticLayer.",
+          "description": "The exact field id to analyze, formatted as "<table>_<fieldName>": the id used in chart definitions, not the label. When you only have the label, resolve the id first with grepFields or searchSemanticLayer.",
           "type": "string",
         },
       },
@@ -24445,7 +24445,7 @@ It reports references, not values: when a field keeps its id but its SQL or aggr
     "description": "Tool: searchSemanticLayer
 
 Purpose:
-Search or list metrics and dimensions across every explore at once, as one flat, paginated inventory, so you can compare names, labels and descriptions across the whole project: an inventory, duplicate or confusingly similar metrics, which explores define a "revenue" metric. To find the fields that answer a data question, use grepFields, which groups matches by explore.
+Search or list metrics and dimensions across every explore at once, as one flat, paginated inventory, so you can compare names, labels and descriptions across the whole project: an inventory, duplicate or confusingly similar metrics, which explores define a "<metric>" metric. To find the fields that answer a data question, use grepFields, which groups matches by explore.
 ",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -25399,7 +25399,7 @@ exports[`AI agent tool contracts > matches the filter-expression field-value con
   "description": "Tool: searchFieldValues
 
 Purpose:
-Validate or disambiguate a candidate value for a specific dimension (e.g. a product name or status) before filtering on it. Returns up to 100 unique values matching the query.
+Validate or disambiguate a candidate value for a specific dimension (e.g. a name or status) before filtering on it. Returns up to 100 unique values matching the query.
 
 Usage Tips:
 - Search only when the value is uncertain: when the user or field metadata already gives the exact value, filter on it directly

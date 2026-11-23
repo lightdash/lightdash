@@ -17,7 +17,7 @@ export const toolGrepWarehouseColumnsArgsSchema = createToolSchema()
             .string()
             .min(1)
             .describe(
-                'What to look for in column names and types, e.g. "customer id", "amount|total" or "timestamp".',
+                'What to look for in column names and types, e.g. "<entity> id", "<word>|<synonym>" or "timestamp".',
             ),
         schema: z
             .string()

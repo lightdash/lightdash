@@ -1648,7 +1648,7 @@
                 "readOnlyHint": true,
                 "title": "Get metadata"
             },
-            "description": "Tool: get_metadata\n\nPurpose:\nGet the full metadata for explores and fields whose IDs you already know, typically from grep_fields: an explore's joined tables, table filters, required filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table.\n\nWhen to use:\nCall this for the explores and fields you intend to use whose full detail you do not already have. Batch every explore and field you need into one call. Descriptions and hints truncated elsewhere (\"...(truncated)\") are returned here in full.\n\nInputs:\nEach entry in `requests` is one of:\n- `{ \"type\": \"explore\", \"exploreIds\": [\"orders\", \"customers\"] }` for whole explores.\n- `{ \"type\": \"field\", \"fields\": [{ \"exploreId\": \"orders\", \"fieldId\": \"orders_status\" }] }` for specific fields.\n\nApplying the result:\nUse a metric's default time dimension unless the user asks for a different one.\n",
+            "description": "Tool: get_metadata\n\nPurpose:\nGet the full metadata for explores and fields whose IDs you already know, typically from grep_fields: an explore's joined tables, table filters, required filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table.\n\nWhen to use:\nCall this for the explores and fields you intend to use whose full detail you do not already have. Batch every explore and field you need into one call. Descriptions and hints truncated elsewhere (\"...(truncated)\") are returned here in full.\n\nInputs:\nEach entry in `requests` is one of:\n- `{ \"type\": \"explore\", \"exploreIds\": [\"<explore>\", \"<other explore>\"] }` for whole explores.\n- `{ \"type\": \"field\", \"fields\": [{ \"exploreId\": \"<explore>\", \"fieldId\": \"<table>_<field>\" }] }` for specific fields.\n\nApplying the result:\nUse a metric's default time dimension unless the user asks for a different one.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -1687,7 +1687,7 @@
                                                         "type": "string"
                                                     },
                                                     "fieldId": {
-                                                        "description": "The fieldId, e.g. `orders_status`.",
+                                                        "description": "The fieldId, e.g. `<table>_<field>`.",
                                                         "minLength": 1,
                                                         "type": "string"
                                                     }
@@ -9648,7 +9648,7 @@
                 "readOnlyHint": true,
                 "title": "Search field values"
             },
-            "description": "Tool: search_field_values\n\nPurpose:\nValidate or disambiguate a candidate value for a specific dimension (e.g. a product name or status) before filtering on it. Returns up to 100 unique values matching the query.\n\nUsage Tips:\n- Search only when the value is uncertain: when the user or field metadata already gives the exact value, filter on it directly\n- Omit filters when the search does not need additional filters\n\nReading the result: the values describe observed data, not the permitted filter literals.\n",
+            "description": "Tool: search_field_values\n\nPurpose:\nValidate or disambiguate a candidate value for a specific dimension (e.g. a name or status) before filtering on it. Returns up to 100 unique values matching the query.\n\nUsage Tips:\n- Search only when the value is uncertain: when the user or field metadata already gives the exact value, filter on it directly\n- Omit filters when the search does not need additional filters\n\nReading the result: the values describe observed data, not the permitted filter literals.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {

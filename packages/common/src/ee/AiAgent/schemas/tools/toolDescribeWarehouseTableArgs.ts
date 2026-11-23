@@ -22,7 +22,7 @@ export const toolDescribeWarehouseTableArgsSchema = createToolSchema()
             .string()
             .nullish()
             .describe(
-                'Schema name, e.g. "jaffle". Omit for the project\'s default schema.',
+                'Schema name, e.g. "<schema>". Omit for the project\'s default schema.',
             ),
         database: z
             .string()

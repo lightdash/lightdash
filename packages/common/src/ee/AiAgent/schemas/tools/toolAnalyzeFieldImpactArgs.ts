@@ -26,7 +26,7 @@ export const toolAnalyzeFieldImpactArgsSchema = createToolSchema()
         fieldId: z
             .string()
             .describe(
-                'The exact field id to analyze, formatted as "<table>_<fieldName>" (e.g. "orders_total_revenue"): the id used in chart definitions, not the label. When you only have the label, resolve the id first with grepFields or searchSemanticLayer.',
+                'The exact field id to analyze, formatted as "<table>_<fieldName>": the id used in chart definitions, not the label. When you only have the label, resolve the id first with grepFields or searchSemanticLayer.',
             ),
     })
     .build();
