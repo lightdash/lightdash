@@ -61,8 +61,11 @@
    window, so its rounded corners are painted over it in the sidebar color
    and stay put. Dark mode adds a hairline along the edge, where the two
    grays are too close to separate the surfaces on their own. */
-.shell[data-rounded-page='true']::before {
+.shell[data-rounded-page='true'] {
     --app-page-radius: rem(12px);
+}
+
+.shell[data-rounded-page='true']::before {
     --app-page-border: light-dark(transparent, rgb(236 236 238 / 0.07));
     --app-page-corner-stops:
         transparent calc(var(--app-page-radius) - 1px),
