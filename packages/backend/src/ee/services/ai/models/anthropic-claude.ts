@@ -19,7 +19,8 @@ import { AiModel } from './types';
 const PROVIDER = 'anthropic';
 
 const TOOL_RESULT_CLEARING_TRIGGER_INPUT_TOKENS = 120_000;
-const TOOL_RESULT_CLEARING_MIN_INPUT_TOKENS = 5_000;
+// Each clear rewrites the cached history, so skip clears too small to repay that.
+const TOOL_RESULT_CLEARING_MIN_INPUT_TOKENS = 40_000;
 // Covers the charts inspected just before an edit; earlier reads can still be cleared.
 const TOOL_RESULTS_KEPT_AFTER_CLEARING = 10;
 // Skills are instructions the agent follows until the end of the run; content reads

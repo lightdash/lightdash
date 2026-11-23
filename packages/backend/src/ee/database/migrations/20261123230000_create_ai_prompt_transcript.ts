@@ -18,8 +18,9 @@ export async function up(knex: Knex): Promise<void> {
             .references('ai_prompt_uuid')
             .inTable(AiPromptTableName)
             .onDelete('CASCADE');
+        // json, not jsonb: jsonb reorders object keys, which changes the replayed bytes.
         table
-            .jsonb('messages')
+            .json('messages')
             .notNullable()
             .comment(
                 'Model messages exactly as sent in the prompt final step plus its response, without leading system messages.',
