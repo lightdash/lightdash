@@ -11,7 +11,7 @@ export const APP_SIDEBAR_RAIL_WIDTH = 49;
 // As tall as the sidebar's header row, so the preview's name lines up with the project selector.
 export const APP_PREVIEW_GUTTER_HEIGHT = 40;
 // Dragging the sidebar's edge narrower than this collapses it to the rail.
-export const APP_SIDEBAR_COLLAPSE_THRESHOLD = 140;
+export const APP_SIDEBAR_COLLAPSE_THRESHOLD = 70;
 
 export const FOOTER_HEIGHT = 80;
 export const FOOTER_MARGIN: MantineSize = 'lg';
