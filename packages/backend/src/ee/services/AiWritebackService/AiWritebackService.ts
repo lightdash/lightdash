@@ -221,6 +221,8 @@ export type ScriptSave =
           changedModels: string[];
           /** What the change compiled to before it was committed; null when it was not compiled. */
           explores: (Explore | ExploreError)[] | null;
+          /** False when only dbt can check the change, so it was committed unchecked. */
+          checked: boolean;
       };
 
 const STALE_RUN_ERROR_MESSAGE =
@@ -1944,7 +1946,7 @@ export class AiWritebackService extends BaseService {
             expectedSource?: { path: string; revision: string | null } | null;
             dryRun: boolean;
             assertPublishAllowed: (() => Promise<void>) | null;
-            /** Compiles a dbt change before it is committed; null commits without compiling. */
+            /** Compiles a dbt change before it is committed; a change it cannot check, or null, commits without compiling. */
             checkDbt:
                 | ((change: DbtScriptChange) => Promise<DbtScriptCheck>)
                 | null;
@@ -1999,12 +2001,7 @@ export class AiWritebackService extends BaseService {
         };
         const startedAt = performance.now();
         const timings = startStepTimings();
-        let outcome:
-            | 'saved'
-            | 'checked'
-            | 'script_failed'
-            | 'check_unsupported'
-            | 'error' = 'error';
+        let outcome: 'saved' | 'checked' | 'script_failed' | 'error' = 'error';
         let stage: AiWritebackFailureStage = 'clone';
         try {
             setStage('clone');
@@ -2165,10 +2162,7 @@ export class AiWritebackService extends BaseService {
                         : {}),
                     durationMs: Math.round(performance.now() - startedAt),
                 });
-                if (check.status === 'unsupported') {
-                    outcome = 'check_unsupported';
-                    return null;
-                }
+                // Only dbt can check this change, so it is committed unchecked and the branch compile checks it.
                 if (check.status === 'failed') {
                     outcome = 'script_failed';
                     return {
@@ -2312,8 +2306,16 @@ export class AiWritebackService extends BaseService {
                               ),
                           ],
                 explores: check?.status === 'passed' ? check.explores : null,
+                checked: check?.status !== 'unsupported',
                 result: {
-                    output: ran.logs.join('\n'),
+                    output: [
+                        ...ran.logs,
+                        ...(check?.status === 'unsupported'
+                            ? [
+                                  `Not checked before saving (${check.reason}). dbt compiles the branch next, and Studio shows any error.`,
+                              ]
+                            : []),
+                    ].join('\n'),
                     exitCode: 0,
                     prUrl: committed.prUrl,
                     prAction: committed.prCreated ? 'opened' : 'updated',

@@ -3584,6 +3584,7 @@ describe('saving a hand edit', () => {
                 status: 'saved',
                 changedModels: [],
                 explores: null,
+                checked: true,
                 result: {
                     output: '',
                     exitCode: 0,

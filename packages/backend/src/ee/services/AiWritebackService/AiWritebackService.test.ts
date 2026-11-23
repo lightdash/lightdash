@@ -6564,14 +6564,27 @@ describe('AiWritebackService.saveWithScript compile check', () => {
         expect(provider.commitApiChanges).not.toHaveBeenCalled();
     });
 
-    it('leaves a change only dbt can check to the sandbox', async () => {
+    it('commits a change only dbt can check, unchecked, and says so', async () => {
         const { save, provider } = setUp();
         const checkDbt = vi.fn().mockResolvedValue({
             status: 'unsupported',
             reason: 'models/x.sql needs dbt to parse',
         });
-        await expect(save(checkDbt, true)).resolves.toBeNull();
+        await expect(save(checkDbt, true)).resolves.toMatchObject({
+            status: 'checked',
+        });
         expect(provider.commitApiChanges).not.toHaveBeenCalled();
+
+        const saved = await save(checkDbt, false);
+        expect(provider.commitApiChanges).toHaveBeenCalledTimes(1);
+        expect(saved).toMatchObject({
+            status: 'saved',
+            explores: null,
+            checked: false,
+        });
+        expect(saved?.status === 'saved' && saved.result.output).toContain(
+            'Not checked before saving (models/x.sql needs dbt to parse)',
+        );
     });
 
     it('compiles the edits as the dbt project sees them, then commits', async () => {

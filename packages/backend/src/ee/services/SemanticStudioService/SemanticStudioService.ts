@@ -3326,11 +3326,11 @@ export class SemanticStudioService extends BaseService {
             this.checkDbtScriptChange(user, projectUuid, change, {
                 checkQueries: false,
             });
-        const save = (dryRun: boolean, checked: boolean) =>
+        const save = (dryRun: boolean) =>
             this.aiWritebackService.saveWithScript(args, script, {
                 dryRun,
                 assertPublishAllowed: null,
-                checkDbt: checked ? compile : null,
+                checkDbt: compile,
                 expectedSource:
                     revision === undefined ? null : { path, revision },
             });
@@ -3343,8 +3343,7 @@ export class SemanticStudioService extends BaseService {
             }
             throw error;
         };
-        // Null means only dbt can check the change, so it is committed unchecked.
-        const dryRun = await save(true, true).catch(forPerson);
+        const dryRun = await save(true).catch(forPerson);
         const trackFailed = () =>
             this.track(user, projectUuid, {
                 event: 'semantic_studio.change_failed',
@@ -3358,8 +3357,7 @@ export class SemanticStudioService extends BaseService {
             trackFailed();
             return { status: 'failed', error: dryRun.error };
         }
-        const checked = dryRun !== null;
-        const saved = await save(false, checked).catch(forPerson);
+        const saved = await save(false).catch(forPerson);
         if (saved === null) {
             throw new ParameterError(
                 'This draft cannot take hand edits. Ask for the change in the chat, or go back to Published and edit there to start a new draft.',
@@ -3464,7 +3462,7 @@ export class SemanticStudioService extends BaseService {
             prUrl: savedPrUrl,
             prAction: saved.result.prAction === 'opened' ? 'opened' : 'updated',
             commitSha,
-            checked,
+            checked: saved.checked,
             revision: createHash('sha256').update(content).digest('hex'),
         };
     }

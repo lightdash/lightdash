@@ -143,7 +143,9 @@ export const getListWarehouseTables = ({
                     return {
                         result: `No tables matched. Filters: schema=${
                             schema ?? '(none)'
-                        }, search=${search ?? '(none)'}. Try a broader search.`,
+                        }, search=${search ?? '(none)'}. Try a broader search. This list only covers ${
+                            Object.keys(all).join(', ') || 'no databases'
+                        } and can miss tables created since it was saved. For a table elsewhere whose name you know, such as a dbt source, call describeWarehouseTable with its database and schema.`,
                         metadata: { status: 'success' },
                         structuredContent: {
                             matchCount: 0,

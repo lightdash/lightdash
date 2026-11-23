@@ -296,7 +296,7 @@ describe('listWarehouseTables tool', () => {
         });
 
         expect(output.result).toBe(
-            'No tables matched. Filters: schema=missing, search=(none). Try a broader search.',
+            'No tables matched. Filters: schema=missing, search=(none). Try a broader search. This list only covers analytics and can miss tables created since it was saved. For a table elsewhere whose name you know, such as a dbt source, call describeWarehouseTable with its database and schema.',
         );
         expect(output.metadata).toEqual({ status: 'success' });
         expect(output.structuredContent).toEqual({
