@@ -70,6 +70,69 @@
     opacity: 1;
 }
 
+.footer {
+    margin-top: auto;
+}
+
+.account {
+    display: flex;
+    align-items: center;
+    gap: rem(4px);
+}
+
+.account .item {
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+.account .itemLabel {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.triggerIcon {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* An avatar is wider than an icon; this keeps every label on one line. */
+    width: rem(16px);
+}
+
+.iconTrigger {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: rem(35px);
+    height: rem(35px);
+    border-radius: var(--mantine-radius-md);
+
+    &:hover,
+    &[aria-expanded='true'] {
+        background-color: var(--mantine-color-default-hover);
+    }
+}
+
+/* The rail is one control wide, so the bell sits under the account. */
+.sidebar[data-collapsed='true'] .account {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.sidebar[data-collapsed='true'] .iconTrigger {
+    width: rem(32px);
+}
+
+.dot {
+    width: rem(6px);
+    height: rem(6px);
+    border-radius: 50%;
+    background-color: var(--mantine-color-blue-filled);
+}
+
 /* The rail clips the labels, so they are hidden rather than cut mid-letter. */
 .sidebar[data-collapsed='true']
     :is(.sectionLabel, .itemLabel, .itemSection[data-position='right']) {

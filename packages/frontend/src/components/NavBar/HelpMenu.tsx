@@ -13,6 +13,7 @@ import {
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { useIntercom } from 'react-use-intercom';
+import { LearnMenuItem } from '../../features/learn/LearnLink';
 import useHealth from '../../hooks/health/useHealth';
 import useApp from '../../providers/App/useApp';
 import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerContent';
@@ -20,9 +21,11 @@ import LargeMenuItem from '../common/LargeMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import { Z_INDEX_FLOATING } from '../common/Page/constants';
 import { useNavBarMenuProps } from './NavBarPortalContext';
+import { useNavMenuTrigger } from './NavMenuTriggerContext';
 
 const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
     const menuProps = useNavBarMenuProps();
+    const Trigger = useNavMenuTrigger();
     const health = useHealth();
     const { user } = useApp();
     const canViewRoadmap = user.data?.ability.can(
@@ -40,6 +43,24 @@ const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
 
     // If helpMenuUrl is set, render a button that opens the URL in a new tab
     if (helpMenuUrl) {
+        if (Trigger) {
+            return (
+                <Trigger
+                    variant="row"
+                    icon={<MantineIcon icon={IconHelp} />}
+                    label="Help"
+                    hasIndicator={false}
+                    badge={null}
+                    onClick={() =>
+                        window.open(
+                            helpMenuUrl,
+                            '_blank',
+                            'noopener,noreferrer',
+                        )
+                    }
+                />
+            );
+        }
         return (
             <Button
                 aria-label="Help"
@@ -65,13 +86,25 @@ const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
             {...menuProps}
         >
             <Menu.Target>
-                <Button aria-label="Help" variant="default" size="xs">
-                    <MantineIcon icon={IconHelp} />
-                    {withLabel && ' Help'}
-                </Button>
+                {Trigger ? (
+                    <Trigger
+                        variant="row"
+                        icon={<MantineIcon icon={IconHelp} />}
+                        label="Help"
+                        hasIndicator={false}
+                        badge={null}
+                    />
+                ) : (
+                    <Button aria-label="Help" variant="default" size="xs">
+                        <MantineIcon icon={IconHelp} />
+                        {withLabel && ' Help'}
+                    </Button>
+                )}
             </Menu.Target>
 
             <Menu.Dropdown>
+                {Trigger && <LearnMenuItem />}
+
                 <LargeMenuItem
                     component="a"
                     href="https://docs.lightdash.com/"

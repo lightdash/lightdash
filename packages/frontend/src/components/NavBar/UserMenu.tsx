@@ -13,10 +13,12 @@ import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { UserAvatar } from '../UserAvatar';
 import { useNavBarMenuProps } from './NavBarPortalContext';
+import { useNavMenuTrigger } from './NavMenuTriggerContext';
 import { ThemeSwitcherMenuItem } from './ThemeSwitcher';
 
 const UserMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
     const menuProps = useNavBarMenuProps();
+    const Trigger = useNavMenuTrigger();
     const { user } = useApp();
     const { activeProjectUuid } = useActiveProjectUuid();
     const { mutate: logout } = useLogoutMutation({
@@ -34,7 +36,19 @@ const UserMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
             {...menuProps}
         >
             <Menu.Target>
-                {withLabel ? (
+                {Trigger ? (
+                    <Trigger
+                        variant="row"
+                        icon={<UserAvatar size={20} />}
+                        label={
+                            [user.data?.firstName, user.data?.lastName]
+                                .filter(Boolean)
+                                .join(' ') || 'Account'
+                        }
+                        hasIndicator={false}
+                        badge={null}
+                    />
+                ) : withLabel ? (
                     <Button variant="default" leftSection={<UserAvatar />}>
                         Account
                     </Button>

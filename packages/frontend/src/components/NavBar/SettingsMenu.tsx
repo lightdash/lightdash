@@ -13,9 +13,11 @@ import { useProject } from '../../hooks/useProject';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { useNavBarMenuProps } from './NavBarPortalContext';
+import { useNavMenuTrigger } from './NavMenuTriggerContext';
 
 const SettingsMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
     const menuProps = useNavBarMenuProps();
+    const Trigger = useNavMenuTrigger();
     const {
         user: { data: user },
     } = useApp();
@@ -45,18 +47,31 @@ const SettingsMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
             {...menuProps}
         >
             <Menu.Target>
-                <Button
-                    aria-label="Settings"
-                    variant="default"
-                    size="xs"
-                    data-testid="settings-menu"
-                    // Navigation anchor for scope walkthroughs (data-tour-via)
-                    data-tour-nav="settings"
-                    data-tour-hint="Click Settings"
-                >
-                    <MantineIcon icon={IconSettings} />
-                    {withLabel && ' Settings'}
-                </Button>
+                {Trigger ? (
+                    <Trigger
+                        variant="row"
+                        icon={<MantineIcon icon={IconSettings} />}
+                        label="Settings"
+                        hasIndicator={false}
+                        badge={null}
+                        data-testid="settings-menu"
+                        data-tour-nav="settings"
+                        data-tour-hint="Click Settings"
+                    />
+                ) : (
+                    <Button
+                        aria-label="Settings"
+                        variant="default"
+                        size="xs"
+                        data-testid="settings-menu"
+                        // Navigation anchor for scope walkthroughs (data-tour-via)
+                        data-tour-nav="settings"
+                        data-tour-hint="Click Settings"
+                    >
+                        <MantineIcon icon={IconSettings} />
+                        {withLabel && ' Settings'}
+                    </Button>
+                )}
             </Menu.Target>
 
             <Menu.Dropdown>

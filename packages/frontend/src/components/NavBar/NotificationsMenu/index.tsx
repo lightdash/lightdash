@@ -26,6 +26,7 @@ import {
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import { useNavBarMenuProps } from '../NavBarPortalContext';
+import { useNavMenuTrigger } from '../NavMenuTriggerContext';
 import classes from './NotificationsMenu.module.css';
 import { ValidationErrorNotification } from './ValidationErrorNotification';
 
@@ -34,6 +35,7 @@ export const NotificationsMenu: FC<{
     withLabel?: boolean;
 }> = ({ projectUuid, withLabel = false }) => {
     const menuProps = useNavBarMenuProps();
+    const Trigger = useNavMenuTrigger();
     const { user } = useApp();
 
     // Validator notifications
@@ -195,24 +197,35 @@ export const NotificationsMenu: FC<{
             {...menuProps}
         >
             <Menu.Target>
-                <Button
-                    aria-label="Notifications"
-                    variant="default"
-                    size="xs"
-                    // NOTE: Set validation notification as read (Local Storage)
-                    onClick={setHasReadValidationNotification}
-                    classNames={{ label: classes.buttonLabel }}
-                >
-                    <Indicator
-                        size={12}
-                        color="red"
-                        offset={1}
-                        disabled={!showNotificationBadge()}
+                {Trigger ? (
+                    <Trigger
+                        variant="icon"
+                        icon={<MantineIcon icon={IconBell} />}
+                        label="Notifications"
+                        hasIndicator={showNotificationBadge()}
+                        badge={null}
+                        onClick={setHasReadValidationNotification}
+                    />
+                ) : (
+                    <Button
+                        aria-label="Notifications"
+                        variant="default"
+                        size="xs"
+                        // NOTE: Set validation notification as read (Local Storage)
+                        onClick={setHasReadValidationNotification}
+                        classNames={{ label: classes.buttonLabel }}
                     >
-                        <MantineIcon icon={IconBell} />
-                    </Indicator>
-                    {withLabel && 'Notifications'}
-                </Button>
+                        <Indicator
+                            size={12}
+                            color="red"
+                            offset={1}
+                            disabled={!showNotificationBadge()}
+                        >
+                            <MantineIcon icon={IconBell} />
+                        </Indicator>
+                        {withLabel && 'Notifications'}
+                    </Button>
+                )}
             </Menu.Target>
             <Menu.Dropdown
                 maw="min(400px, calc(100vw - 24px))"
