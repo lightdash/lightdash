@@ -1,5 +1,6 @@
 import { FeatureFlags } from '@lightdash/common';
 import {
+    Box,
     Button,
     getDefaultZIndex,
     Indicator,
@@ -10,6 +11,7 @@ import {
 } from '@mantine/core';
 import { IconDeviceMobile } from '@tabler/icons-react';
 import {
+    useContext,
     useEffect,
     useId,
     useRef,
@@ -25,6 +27,7 @@ import { EventName } from '../../types/Events';
 import { isSignInIdle, isWaitingForScan } from './isSignInIdle';
 import { useMobilePitchDismissed } from './mobilePitchDismissed';
 import classes from './MobileSettingsPage.module.css';
+import { MobileSignInOpenerContext } from './mobileSignInOpener';
 import { useMobileSignInSeen } from './mobileSignInSeen';
 import {
     MobileSignInDetails,
@@ -145,6 +148,15 @@ const MobileSignInPopover: FC<{
         liveSignIn.hide();
     };
 
+    const opener = useContext(MobileSignInOpenerContext);
+    useEffect(() => {
+        if (!opener) return;
+        opener.current = open;
+        return () => {
+            opener.current = null;
+        };
+    });
+
     const onDismissPitch = (reason: MobilePitchDismissReason) => {
         tracking?.track({
             name: EventName.MOBILE_PITCH_DISMISSED,
@@ -180,36 +192,44 @@ const MobileSignInPopover: FC<{
             {...menuProps}
         >
             <Popover.Target>
-                <Tooltip
-                    label={MOBILE_STRINGS.signInTitle}
-                    position="bottom"
-                    withinPortal
-                    disabled={opened}
-                >
-                    <Button
-                        ref={phoneButton}
-                        id={id}
-                        aria-label={MOBILE_STRINGS.signInTitle}
-                        aria-haspopup="dialog"
-                        aria-expanded={opened}
-                        aria-controls={opened ? `${id}-dropdown` : undefined}
-                        variant="default"
-                        size="xs"
-                        className={withLabel ? undefined : classes.headerButton}
-                        classNames={{ label: classes.signInButtonLabel }}
-                        onClick={() => (opened ? close() : open())}
+                {opener ? (
+                    <Box id={id} className={classes.signInAnchor} />
+                ) : (
+                    <Tooltip
+                        label={MOBILE_STRINGS.signInTitle}
+                        position="bottom"
+                        withinPortal
+                        disabled={opened}
                     >
-                        <Indicator
-                            size={12}
-                            color="red"
-                            offset={1}
-                            disabled={seen}
+                        <Button
+                            ref={phoneButton}
+                            id={id}
+                            aria-label={MOBILE_STRINGS.signInTitle}
+                            aria-haspopup="dialog"
+                            aria-expanded={opened}
+                            aria-controls={
+                                opened ? `${id}-dropdown` : undefined
+                            }
+                            variant="default"
+                            size="xs"
+                            className={
+                                withLabel ? undefined : classes.headerButton
+                            }
+                            classNames={{ label: classes.signInButtonLabel }}
+                            onClick={() => (opened ? close() : open())}
                         >
-                            <MantineIcon icon={IconDeviceMobile} />
-                        </Indicator>
-                        {withLabel && ` ${MOBILE_STRINGS.signInTitle}`}
-                    </Button>
-                </Tooltip>
+                            <Indicator
+                                size={12}
+                                color="red"
+                                offset={1}
+                                disabled={seen}
+                            >
+                                <MantineIcon icon={IconDeviceMobile} />
+                            </Indicator>
+                            {withLabel && ` ${MOBILE_STRINGS.signInTitle}`}
+                        </Button>
+                    </Tooltip>
+                )}
             </Popover.Target>
             <Popover.Dropdown ref={dropdown}>
                 <MobileUpsellFrame

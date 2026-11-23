@@ -18,7 +18,7 @@ export const ThemeSwitcherMenuItem = () => {
 
     return (
         <>
-            <Group p="xs" gap="xs" wrap="nowrap">
+            <Group px="xs" py={4} gap="xs" wrap="nowrap">
                 <MantineIcon icon={IconBrightness} color="text" />
                 <SegmentedControl
                     variant="raised"

@@ -70,11 +70,17 @@
     opacity: 1;
 }
 
+/* A row with nothing on the right would still reserve that slot's margin. */
+.itemSection:empty {
+    display: none;
+}
+
 .footer {
     margin-top: auto;
 }
 
 .account {
+    position: relative;
     display: flex;
     align-items: center;
     gap: rem(4px);
@@ -99,6 +105,21 @@
     justify-content: center;
     /* An avatar is wider than an icon; this keeps every label on one line. */
     width: rem(16px);
+}
+
+/* The What's new count shrinks to the same dot the bell uses. */
+.footer .triggerIcon :global(#headway-badge) {
+    top: 0;
+    left: 0;
+}
+
+.footer .triggerIcon :global(.HW_badge) {
+    top: rem(-2px);
+    left: rem(10px);
+    width: rem(8px);
+    height: rem(8px);
+    font-size: 0;
+    background: var(--mantine-color-red-filled);
 }
 
 .iconTrigger {
@@ -133,10 +154,24 @@
     background-color: var(--mantine-color-blue-filled);
 }
 
+/* Labels fade in when the sidebar opens; closing clips them, so they just go. */
+.itemLabel,
+.sectionLabel {
+    transition: opacity 150ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .itemLabel,
+    .sectionLabel {
+        transition: none;
+    }
+}
+
 /* The rail clips the labels, so they are hidden rather than cut mid-letter. */
 .sidebar[data-collapsed='true']
     :is(.sectionLabel, .itemLabel, .itemSection[data-position='right']) {
     opacity: 0;
+    transition: none;
 }
 
 .sidebar[data-collapsed='true'] .item {
