@@ -293,7 +293,7 @@ describe('Hydra connections', () => {
             'latencyMs must be a whole number from 0 to 120000',
         ],
         [{ errorRate: 2 }, 'errorRate must be a number from 0 to 1'],
-        [{ pageSize: -1 }, 'pageSize must be a whole number from 0 to 10000'],
+        [{ pageSize: -1 }, 'pageSize must be 0, or from 10 to 10000'],
     ])('refuses %o, naming the field and its range', (overrides, message) => {
         expect(() => validateApiSourceConnection(hydra(overrides))).toThrow(
             new ParameterError(`The Hydra setting ${message}`),

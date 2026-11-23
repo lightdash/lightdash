@@ -140,7 +140,7 @@ export type HydraApiSource = {
     connector: ApiConnectorType.HYDRA;
     /** Events seeded per sign-in token, over the last 90 days. */
     rowCount: number;
-    /** Rows per call; a bigger report takes several calls. 0 never pages. */
+    /** Rows per call, 10 or more; a bigger report takes several calls. 0 never pages. */
     pageSize: number;
     /** Milliseconds each call waits before answering. */
     latencyMs: number;
@@ -168,7 +168,7 @@ export type HydraRateLimits = {
     /** Calls in flight at once; null for no cap. */
     concurrentCalls: number | null;
     callsPerSecond: number | null;
-    /** Fixed windows of calls, like a minute or an hour. */
+    /** Fixed windows of calls, like a minute or an hour; ids are unique, and "second" is kept for `callsPerSecond`. */
     buckets: { id: string; windowMs: number; capacity: number }[];
 };
 
@@ -261,9 +261,6 @@ export const PYLON_USERS_PATH = '/users';
 export const HYDRA_ORIGIN = 'https://hydra.invalid';
 export const HYDRA_REPORT_PATH = '/v1/report';
 export const HYDRA_ACCOUNT_PATH = '/v1/account';
-/** What Hydra saw of the source's calls; POST to `/reset` to forget it. */
-export const HYDRA_STATS_PATH = '/v1/stats';
-export const HYDRA_STATS_RESET_PATH = '/v1/stats/reset';
 /** Set to "true" to register Hydra; it is absent everywhere otherwise. */
 export const HYDRA_ENABLED_ENV = 'LIVE_SOURCES_HYDRA_ENABLED';
 

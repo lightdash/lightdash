@@ -1,8 +1,6 @@
 import {
     HYDRA_ACCOUNT_PATH,
     HYDRA_REPORT_PATH,
-    HYDRA_STATS_PATH,
-    HYDRA_STATS_RESET_PATH,
     type HydraApiSource,
     type HydraRateLimits,
     type HydraScriptStep,
@@ -26,6 +24,8 @@ export type HydraCall = {
     settings: HydraApiSource;
     token: string | null;
     request: Pick<LiveHttpRequest, 'method' | 'path' | 'body'>;
+    /** A call whose wait reaches this throws HydraTimeoutError after it. */
+    timeoutMs?: number;
 };
 
 /** What Hydra saw of one source's calls, for tests of the rate-limit gate. */
@@ -54,7 +54,10 @@ type SourceState = {
     callNumber: number;
     inFlight: number;
     lastAcceptedAt: number | null;
-    /** Calls accepted in each bucket's current window. */
+    /**
+     * Calls accepted in each bucket's open window. A window opens at the
+     * first call after the last one closed, as the rate-limit gate's do.
+     */
     windows: Map<string, { startedAt: number; count: number }>;
     stats: HydraStats;
 };
@@ -108,8 +111,8 @@ const matchesStep = ({ calls }: HydraScriptStep, callNumber: number) => {
     );
 };
 
-const getWindowStart = (time: number, windowMs: number) =>
-    Math.floor(time / windowMs) * windowMs;
+/** A call Hydra let run past the source's timeout; the caller fails it. */
+export class HydraTimeoutError extends Error {}
 
 /**
  * Hydra's API, answered in-process: nothing goes over the network. Each call
@@ -148,6 +151,17 @@ export const createHydraServer = ({
         return dataset;
     };
 
+    const getOpenWindow = (
+        source: SourceState,
+        bucket: Bucket,
+        time: number,
+    ) => {
+        const window = source.windows.get(bucket.id);
+        return window && time < window.startedAt + bucket.windowMs
+            ? window
+            : null;
+    };
+
     /** When the limit that refuses this call frees up; null to accept it. */
     const getRefusedUntil = (
         source: SourceState,
@@ -160,15 +174,12 @@ export const createHydraServer = ({
         ) {
             return time + BUSY_RETRY_MS;
         }
-        const resets = getBuckets(limits)
-            .filter(({ id, windowMs, capacity }) => {
-                const window = source.windows.get(id);
-                return (
-                    window?.startedAt === getWindowStart(time, windowMs) &&
-                    window.count >= capacity
-                );
-            })
-            .map(({ windowMs }) => getWindowStart(time, windowMs) + windowMs);
+        const resets = getBuckets(limits).flatMap((bucket) => {
+            const window = getOpenWindow(source, bucket, time);
+            return window && window.count >= bucket.capacity
+                ? [window.startedAt + bucket.windowMs]
+                : [];
+        });
         return resets.length > 0 ? Math.max(...resets) : null;
     };
 
@@ -178,15 +189,14 @@ export const createHydraServer = ({
         time: number,
     ) => {
         const { stats } = source;
-        (limits ? getBuckets(limits) : []).forEach(({ id, windowMs }) => {
-            const startedAt = getWindowStart(time, windowMs);
-            const window = source.windows.get(id);
-            const accepted =
-                window?.startedAt === startedAt ? window.count + 1 : 1;
-            source.windows.set(id, { startedAt, count: accepted });
-            stats.peakPerBucket[id] = Math.max(
-                stats.peakPerBucket[id] ?? 0,
-                accepted,
+        (limits ? getBuckets(limits) : []).forEach((bucket) => {
+            const window = getOpenWindow(source, bucket, time);
+            const opened = window ?? { startedAt: time, count: 0 };
+            opened.count += 1;
+            source.windows.set(bucket.id, opened);
+            stats.peakPerBucket[bucket.id] = Math.max(
+                stats.peakPerBucket[bucket.id] ?? 0,
+                opened.count,
             );
         });
         if (source.lastAcceptedAt !== null) {
@@ -268,7 +278,7 @@ export const createHydraServer = ({
 
     const call = async (
         source: SourceState,
-        { settings, token, request }: HydraCall,
+        { settings, token, request, timeoutMs = Infinity }: HydraCall,
     ): Promise<LiveHttpResponse> => {
         const callNumber = source.callNumber + 1;
         // eslint-disable-next-line no-param-reassign
@@ -292,6 +302,12 @@ export const createHydraServer = ({
         try {
             const waitMs =
                 settings.latencyMs + Math.floor(random() * settings.jitterMs);
+            if (waitMs >= timeoutMs) {
+                await sleep(timeoutMs);
+                throw new HydraTimeoutError(
+                    `Hydra did not answer within ${timeoutMs}ms`,
+                );
+            }
             if (waitMs > 0) await sleep(waitMs);
 
             const step = settings.script.find((candidate) =>
@@ -324,20 +340,8 @@ export const createHydraServer = ({
         }
     };
 
-    const fetch = async (hydraCall: HydraCall): Promise<LiveHttpResponse> => {
-        const { sourceKey, request } = hydraCall;
-        if (request.method === 'GET' && request.path === HYDRA_STATS_PATH) {
-            return json(200, getSource(sourceKey).stats);
-        }
-        if (
-            request.method === 'POST' &&
-            request.path === HYDRA_STATS_RESET_PATH
-        ) {
-            sources.delete(sourceKey);
-            return json(200, { reset: true });
-        }
-        return call(getSource(sourceKey), hydraCall);
-    };
+    const fetch = async (hydraCall: HydraCall): Promise<LiveHttpResponse> =>
+        call(getSource(hydraCall.sourceKey), hydraCall);
 
     return {
         fetch,

@@ -21,7 +21,6 @@ const accountCall = (settings: HydraApiSource, timeoutMs = 30_000) =>
             now: () => new Date(NOW),
             sleep: vi.fn(),
         }),
-        sleep: vi.fn(),
     });
 
 describe('fetchFromHydra', () => {
@@ -60,5 +59,23 @@ describe('fetchFromHydra', () => {
         await expect(
             accountCall(settingsWith({ latencyMs: 5_000 }), 5_000),
         ).rejects.toBeInstanceOf(SecureFetchError);
+    });
+
+    it('times out when latency and jitter together reach the timeout', async () => {
+        const sleep = vi.fn().mockResolvedValue(undefined);
+        const call = fetchFromHydra({
+            connectionUuid: 'connection-1',
+            settings: settingsWith({ latencyMs: 1_000, jitterMs: 10_000 }),
+            secret: 'alice',
+            timeoutMs: 5_000,
+            request: { method: 'GET', path: '/v1/account' },
+            server: createHydraServer({
+                now: () => new Date(NOW),
+                sleep,
+                random: () => 0.5,
+            }),
+        });
+        await expect(call).rejects.toMatchObject({ reason: 'timeout' });
+        expect(sleep).toHaveBeenCalledWith(5_000);
     });
 });

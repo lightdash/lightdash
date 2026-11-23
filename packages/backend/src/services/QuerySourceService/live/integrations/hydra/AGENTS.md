@@ -21,7 +21,16 @@ Use it to test anything live data sources do (adding a source, charts, dashboard
       "type": "bearer_token",
       "origin": "https://hydra.invalid",
       "secret": "alice",
-      "apiSource": { ...HYDRA_DEFAULT_SETTINGS, "latencyMs": 500 },
+      "apiSource": {
+          "connector": "hydra", "rowCount": 1000, "pageSize": 0, "latencyMs": 0, "jitterMs": 0,
+          "errorRate": 0, "failAuth": false,
+          "vendorLimits": { "concurrentCalls": 2, "callsPerSecond": null, "buckets": [
+              { "id": "minute", "windowMs": 60000, "capacity": 30 },
+              { "id": "hour", "windowMs": 3600000, "capacity": 300 } ] },
+          "onLimit": { "status": 429, "retryAfter": "seconds", "body": null },
+          "declaredLimits": "vendor",
+          "script": []
+      },
       "allowedMethods": ["GET", "POST"],
       "allowedPathPrefixes": ["/v1/report", "/v1/account"],
       "allowedContentTypes": ["application/json"],
@@ -29,7 +38,7 @@ Use it to test anything live data sources do (adding a source, charts, dashboard
   }
   ```
 
-  `apiSource` must hold every setting: start from `HYDRA_DEFAULT_SETTINGS` (`@lightdash/common`). `createHydraSource` in `packages/api-tests/tests/hydraLiveSource.test.ts` builds the same body. `PATCH` the same URL plus `/<uuid>` with a new `apiSource` to change behaviour.
+  `apiSource` must hold every setting; these are the defaults (`HYDRA_DEFAULT_SETTINGS` in `@lightdash/common`). `createHydraSource` in `packages/api-tests/tests/hydraLiveSource.test.ts` builds the same body. `PATCH` the same URL plus `/<uuid>` with a new `apiSource` to change behaviour.
 
 ## Data
 
@@ -45,12 +54,12 @@ The UI's Behaviour field takes `key=value` pairs for the simple keys, or a JSON 
 
 | Key | Default | Effect | What a query shows |
 | --- | --- | --- | --- |
-| `latencyMs`, `jitterMs` | 0, 0 | Waits `latencyMs` plus up to `jitterMs` at random. At 30000 or more the call times out | A slow tile, or a timeout error |
+| `latencyMs`, `jitterMs` | 0, 0 | Waits `latencyMs` plus up to `jitterMs` at random. A wait of 30000 or more times out | A slow tile, or a timeout error |
 | `failAuth` | false | Answers 401 | `Hydra rejected the sign-in token…` |
 | `errorRate` | 0 | Share of calls (0 to 1) that answer 500 | `Hydra returned 500…` |
 | `rowCount` | 1000 | Seeded events | Bigger or smaller totals |
-| `pageSize` | 0 | Rows per call; a bigger report takes several calls (at most 11 per query). 0 never pages | The same rows, over more calls |
-| `vendorLimits` | 2 at once, 30 a minute, 300 an hour | What Hydra's API enforces: `concurrentCalls`, `callsPerSecond` and fixed-window `buckets` (`{id, windowMs, capacity}`). It refuses calls past them until the window resets; null enforces none | Nothing while the gate keeps under them |
+| `pageSize` | 0 | Rows per call, 0 or 10 to 10000; a bigger report takes several calls (at most 51 per query). 0 never pages | The same rows, over more calls |
+| `vendorLimits` | 2 at once, 30 a minute, 300 an hour | What Hydra's API enforces: `concurrentCalls`, `callsPerSecond` and `buckets` (`{id, windowMs, capacity}`, unique ids, `second` reserved). A window opens at the first call after the last one closed, as the gate's do. Hydra refuses calls past a limit until its window closes; null enforces none | Nothing while the gate keeps under them |
 | `onLimit` | 429, Retry-After in seconds | How Hydra refuses: `status`, `retryAfter` (`seconds`, `date` or `none`) and `body`. A body with `"code": "rate_limited"` marks a throttle under any status | `Hydra rate limit reached…` once retries run out |
 | `declaredLimits` | `"vendor"` | The limits Lightdash's rate-limit gate keeps calls under, in the `vendorLimits` shape: `"vendor"` copies them, an object sets tighter or looser ones, null declares none | Calls wait their turn; past the deadline, `…reached its limit…` |
 | `script` | none | Fixed answers by call number, from 1 per source: `[{"calls": "1-2", "respond": "ok"}, {"calls": "3", "respond": {"status": 429, "retryAfterSeconds": 5}}]`. `"4-"` matches every call from 4. `"ok"` answers as usual, skipping `errorRate` | Whatever the step answers |
@@ -64,7 +73,7 @@ To test the gate against the vendor:
 
 ## Stats
 
-`hydraServer.getStats(connectionUuid)` (in `server.ts`) returns `{ calls, refused, maxInFlight, minGapMs, peakPerBucket }` for a source, and `hydraServer.reset(connectionUuid)` forgets its counts, windows and script position. The same stats are at `GET /v1/stats`, and `POST /v1/stats/reset` resets them. Stats calls are not counted. Counts are per backend process and start over when it restarts, so API tests against an env check what queries return, not the counts.
+`hydraServer.getStats(connectionUuid)` (in `server.ts`) returns `{ calls, refused, maxInFlight, minGapMs, peakPerBucket }` for a source, and `hydraServer.reset(connectionUuid)` forgets its counts, windows and script position. They are in-process only, for backend tests: reading them over HTTP would go through the gate and use up its limits. Counts are per backend process and start over when it restarts, so API tests against an env check what queries return, not the counts.
 
 ## What to check
 

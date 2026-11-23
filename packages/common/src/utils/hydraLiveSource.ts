@@ -34,20 +34,36 @@ const body = z.record(z.string(), z.unknown());
 const rateLimitsSchema = z.object({
     concurrentCalls: count.nullable(),
     callsPerSecond: count.nullable(),
-    buckets: z.array(
-        z.object({
-            id: z.string().min(1),
-            windowMs: count,
-            capacity: count,
-        }),
-    ),
+    buckets: z
+        .array(
+            z.object({
+                // "second" counts callsPerSecond
+                id: z
+                    .string()
+                    .min(1)
+                    .refine((id) => id !== 'second', 'must not be second'),
+                windowMs: count,
+                capacity: count,
+            }),
+        )
+        .refine(
+            (buckets) =>
+                new Set(buckets.map(({ id }) => id)).size === buckets.length,
+            'must have unique ids',
+        ),
 });
 
 /** What a Hydra source accepts; the API and the setup form both check against it. */
 export const HYDRA_SETTINGS_SCHEMA = z.object({
     connector: z.literal(ApiConnectorType.HYDRA),
     rowCount: z.number().int().min(0).max(100_000),
-    pageSize: z.number().int().min(0).max(10_000),
+    // At least 10, so the row cap fits in a query's 51 calls
+    pageSize: z
+        .number()
+        .int()
+        .refine((size) => size === 0 || (size >= 10 && size <= 10_000), {
+            message: 'must be 0, or from 10 to 10000',
+        }),
     latencyMs: z.number().int().min(0).max(120_000),
     jitterMs: z.number().int().min(0).max(120_000),
     errorRate: z.number().min(0).max(1),
@@ -96,6 +112,7 @@ export const getHydraSettingsProblem = (value: unknown): string | null => {
     if (parsed.success) return null;
     const [issue] = parsed.error.issues;
     const path = issue.path.map(String).join('.');
+    if (issue.code === 'custom') return `${path} ${issue.message}`;
     const field =
         issue.path.length === 1
             ? (HYDRA_SETTINGS_SCHEMA.shape[

@@ -77,13 +77,23 @@ describe('Hydra behaviour', () => {
             'latencyMs must be a whole number from 0 to 120000',
         ],
         [{ errorRate: 2 }, 'errorRate must be a number from 0 to 1'],
-        [
-            { pageSize: 10_001 },
-            'pageSize must be a whole number from 0 to 10000',
-        ],
+        [{ pageSize: 10_001 }, 'pageSize must be 0, or from 10 to 10000'],
         [
             { onLimit: { status: 200, retryAfter: 'none', body: null } },
             expect.stringMatching(/^onLimit\.status: /),
+        ],
+        [
+            {
+                vendorLimits: {
+                    concurrentCalls: null,
+                    callsPerSecond: null,
+                    buckets: [
+                        { id: 'minute', windowMs: 60_000, capacity: 1 },
+                        { id: 'minute', windowMs: 60_000, capacity: 2 },
+                    ],
+                },
+            },
+            'vendorLimits.buckets must have unique ids',
         ],
         [{ failAuth: 'yes' }, 'failAuth must be true or false'],
     ])('names the field and its range for %o', (overrides, problem) => {

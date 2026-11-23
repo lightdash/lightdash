@@ -49,11 +49,30 @@ describe('Hydra vendor limits', () => {
     it('refuses calls past a bucket until its window resets', async () => {
         const { call, tick } = buildServer();
         expect((await call(ONE_PER_TWO_SECONDS)).status).toBe(200);
+        tick(500);
         const refused = await call(ONE_PER_TWO_SECONDS);
         expect(refused.status).toBe(429);
         expect(refused.headers['retry-after']).toBe('2');
-        tick(2_000);
+        tick(1_500);
         expect((await call(ONE_PER_TWO_SECONDS)).status).toBe(200);
+    });
+
+    it('opens a window at the first call, as the rate-limit gate does', async () => {
+        const { call, tick } = buildServer();
+        const settings = settingsWith({
+            vendorLimits: {
+                concurrentCalls: null,
+                callsPerSecond: null,
+                buckets: [{ id: 'minute', windowMs: 60_000, capacity: 1 }],
+            },
+        });
+        tick(59_500);
+        expect((await call(settings)).status).toBe(200);
+        // A clock-aligned minute would have reset at 12:01:00
+        tick(1_000);
+        const refused = await call(settings);
+        expect(refused.status).toBe(429);
+        expect(refused.headers['retry-after']).toBe('59');
     });
 
     it('limits calls per second as a one-second window', async () => {
@@ -159,26 +178,6 @@ describe('Hydra stats', () => {
             peakPerBucket: { burst: 1 },
         });
         expect(server.getStats('source-2')).toMatchObject({ calls: 1 });
-    });
-
-    it('answers its stats over the API and forgets them on reset', async () => {
-        const { server, call } = buildServer();
-        await call(settingsWith());
-        const stats = (method: 'GET' | 'POST', path: string) =>
-            server.fetch({
-                sourceKey: 'source-1',
-                settings: settingsWith(),
-                token: 'alice',
-                request: { method, path, body: undefined },
-            });
-        expect((await stats('GET', '/v1/stats')).body).toMatchObject({
-            calls: 1,
-        });
-        await stats('POST', '/v1/stats/reset');
-        // Stats calls are not counted
-        expect((await stats('GET', '/v1/stats')).body).toMatchObject({
-            calls: 0,
-        });
     });
 
     it('starts call numbers over after a reset, for scripts', async () => {
