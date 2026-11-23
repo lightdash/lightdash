@@ -540,6 +540,9 @@
                             "format": {
                                 "$ref": "#/$defs/Format"
                             },
+                            "formatOptions": {
+                                "$ref": "#/$defs/CustomFormat"
+                            },
                             "label": {
                                 "type": "string"
                             },

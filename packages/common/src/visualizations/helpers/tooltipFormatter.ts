@@ -739,12 +739,15 @@ export const buildSqlRunnerCartesianTooltipFormatter =
         xFieldId,
         originalValues,
         xAxisDateFormat,
+        valueFormatters,
     }: {
         stackValue: string | boolean | undefined;
         flipAxes: boolean | undefined;
         xFieldId: string | undefined;
         originalValues?: Map<string, Map<string, number>> | undefined;
         xAxisDateFormat?: string;
+        // Formatter per series, keyed by the column the series reads from
+        valueFormatters?: Map<string, (value: number) => string>;
     }): TooltipComponentFormatterCallback<
         TooltipFormatterParams | TooltipFormatterParams[]
     > =>
@@ -814,10 +817,15 @@ export const buildSqlRunnerCartesianTooltipFormatter =
                 if (valueForFormat === undefined || valueForFormat === null)
                     return '';
 
-                // Format the value - for SQL Runner, we'll use the raw number
+                // Format the value with the series' format when it has one;
+                // otherwise SQL Runner shows the raw number
+                const seriesFormatter = dim
+                    ? valueFormatters?.get(dim)
+                    : undefined;
                 const formattedValue =
                     typeof valueForFormat === 'number'
-                        ? valueForFormat.toLocaleString()
+                        ? (seriesFormatter?.(valueForFormat) ??
+                          valueForFormat.toLocaleString())
                         : String(valueForFormat);
 
                 const colorIndicator = formatColorIndicator(

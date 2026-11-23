@@ -1,12 +1,15 @@
 // This is explicit to exploring
 // Not needed when viewing a cartesian chart on a dashboard
 import {
+    CartesianChartDataModel,
     ChartKind,
+    CustomFormatType,
     isFormat,
     StackType,
     VIZ_DEFAULT_AGGREGATION,
     VizAggregationOptions,
     type CartesianChartDisplay,
+    type CustomFormat,
     type PivotValuesColumn,
     type SortByDirection,
     type ValueLabelPositionOptions,
@@ -16,6 +19,7 @@ import {
 } from '@lightdash/common';
 import type { PayloadAction, SerializedError } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+import { type ValueOf } from 'type-fest';
 import { type prepareAndFetchChartData } from '../../../features/sqlRunner/store/thunks';
 
 export type CartesianChartState = {
@@ -311,27 +315,42 @@ export const cartesianChartConfigSlice = createSlice({
             state.display.stack = stackValue;
         },
 
-        setYAxisFormat: (
-            { fieldConfig, display },
-            action: PayloadAction<{ format: string; index: number }>,
+        // Sets one format option at a time, so the format form's back-to-back
+        // field updates each apply to the latest state.
+        setYAxisFormatOption: (
+            state,
+            action: PayloadAction<{
+                index: number;
+                path: keyof CustomFormat;
+                value: ValueOf<CustomFormat>;
+            }>,
         ) => {
-            if (!fieldConfig) return;
-            display = display || {};
-
-            const validFormat = isFormat(action.payload.format)
-                ? action.payload.format
-                : undefined;
+            if (!state.fieldConfig) return;
+            state.display = state.display || {};
+            const { display } = state;
 
             // Initialize with empty objects to prevent null values in case one is not set
             display.yAxis = display.yAxis || [{}, {}];
 
-            if (!display.yAxis[action.payload.index]) {
-                display.yAxis[action.payload.index] = {
-                    format: validFormat,
-                };
-            } else {
-                display.yAxis[action.payload.index].format = validFormat;
-            }
+            const { index, path, value } = action.payload;
+            const axis = display.yAxis[index] ?? {};
+            // Start from the format in effect, which may be a legacy preset
+            const formatOptions: CustomFormat = {
+                ...(CartesianChartDataModel.getAxisFormat(axis) ?? {
+                    type: CustomFormatType.DEFAULT,
+                }),
+                [path]: value,
+            };
+
+            display.yAxis[index] = {
+                ...axis,
+                // Format options replace the legacy preset
+                format: undefined,
+                formatOptions:
+                    formatOptions.type === CustomFormatType.DEFAULT
+                        ? undefined
+                        : formatOptions,
+            };
         },
         setSeriesFormat: (
             { display },
