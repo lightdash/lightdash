@@ -36,10 +36,10 @@ export const useModelFieldChanges = (
     const changes = useMemo(
         () =>
             // A model that is new has no live version to read.
-            mine.data && (live.data || live.isError)
-                ? diffModelFields(live.data ?? null, mine.data)
+            mine.data && live.data !== undefined
+                ? diffModelFields(live.data, mine.data)
                 : null,
-        [live.data, live.isError, mine.data],
+        [live.data, mine.data],
     );
     return { live: live.data ?? null, mine: mine.data ?? null, changes };
 };
