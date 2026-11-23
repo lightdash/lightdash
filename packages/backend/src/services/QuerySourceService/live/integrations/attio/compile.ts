@@ -24,7 +24,7 @@ import {
     isAttioChoiceProperty,
     parseAttioApiName,
 } from './attributes';
-import { toAttioObject } from './explores';
+import { toAttioRequestObject } from './explores';
 import { type AttioRequest, type AttioSort } from './run';
 
 type AttioCondition = Record<string, unknown>;
@@ -282,8 +282,9 @@ export const compileAttioQuery = ({
         apiName,
         typeOf,
     );
+    const object = toAttioRequestObject(getLiveDefinitionName(explore));
     const request: AttioRequest = {
-        object: toAttioObject(getLiveDefinitionName(explore)),
+        ...(object ? { object } : {}),
         columns,
         ...(filter ? { filter } : {}),
         ...(sorts ? { sorts } : {}),

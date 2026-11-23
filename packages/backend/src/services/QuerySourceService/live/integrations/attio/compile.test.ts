@@ -18,12 +18,20 @@ import { isInternalAttioField } from './attributes';
 import { compileAttioQuery } from './compile';
 import {
     ATTIO_EXPLORES,
+    ATTIO_LEGACY_RECORDS,
     ATTIO_MAX_RECORDS,
     ATTIO_SCANNED_MODELS,
+    getAttioLegacyObject,
     readAttioAttributes,
     toAttioObject,
+    toAttioRequestObject,
     withAttioAttributeFields,
 } from './explores';
+
+const LEGACY_SETTINGS = {
+    connector: ApiConnectorType.ATTIO,
+    object: 'companies',
+} as const;
 
 const DEALS_EXPLORE = ATTIO_EXPLORES.find(({ name }) => name === 'deals')!;
 
@@ -178,10 +186,32 @@ describe('Attio explores', () => {
 
     it('reads each object from its explore name', () => {
         expect(toAttioObject('people')).toBe('people');
-        // The explore of a source not refreshed since it read one object
-        expect(() => toAttioObject('records')).toThrow(
+        expect(() => toAttioObject('tickets')).toThrow(
             "Refresh the source's fields",
         );
+    });
+
+    it("leaves a legacy records table's object to its source", () => {
+        expect(toAttioRequestObject('people')).toBe('people');
+        expect(toAttioRequestObject(ATTIO_LEGACY_RECORDS)).toBeUndefined();
+        // A stored legacy source keeps its object when its settings are read
+        expect(attioIntegration.settings.parse(LEGACY_SETTINGS)).toEqual(
+            LEGACY_SETTINGS,
+        );
+        expect(getAttioLegacyObject(LEGACY_SETTINGS)).toBe('companies');
+        expect(
+            getAttioLegacyObject({
+                ...LEGACY_SETTINGS,
+                object: '0b7e8a3c-1d2f-4a5b-9c6d-7e8f9a0b1c2d',
+            }),
+        ).toBe('0b7e8a3c-1d2f-4a5b-9c6d-7e8f9a0b1c2d');
+        expect(
+            getAttioLegacyObject({ connector: ApiConnectorType.ATTIO }),
+        ).toBeUndefined();
+        // Never a path of its own
+        expect(
+            getAttioLegacyObject({ ...LEGACY_SETTINGS, object: '../lists' }),
+        ).toBeUndefined();
     });
 
     it("reads one object's attributes from a scan, and none from anything else", () => {
@@ -221,6 +251,30 @@ describe('compileAttioQuery', () => {
             },
             localSorts: [],
         });
+    });
+
+    it("names no object on a legacy records table, so it reads its source's own", () => {
+        const legacy = buildLiveExplore({
+            definition: { ...DEALS_EXPLORE, name: ATTIO_LEGACY_RECORDS },
+            exploreName: 'attio_records',
+            label: 'Attio',
+            connectionUuid: 'connection-uuid',
+            integration: ApiConnectorType.ATTIO,
+            baseVersion: 1,
+            capabilities: attioIntegration.capabilities,
+            warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                SupportedDbtAdapter.DUCKDB,
+            ),
+        });
+        const { query: request } = compileAttioQuery({
+            explore: legacy,
+            metricQuery: query({
+                exploreName: legacy.name,
+                dimensions: ['attio_records_record_id'],
+            }),
+            today: '2026-11-17',
+        });
+        expect(JSON.parse(request)).toEqual({ columns: ['record_id'] });
     });
 
     it('sorts by created_at as the record attribute', () => {

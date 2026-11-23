@@ -7,6 +7,7 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { attioIntegration } from '.';
+import { getLiveAccessRules } from '../../integration';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
 import { ATTIO_DEAL_ATTRIBUTES, attioDeal } from './attio.fixtures';
@@ -229,6 +230,64 @@ describe('attioIntegration listing', () => {
         await expect(
             run(source, { columns: ['name.secret_property'] }),
         ).rejects.toThrow('columns are attribute slugs');
+        expect(send).not.toHaveBeenCalled();
+    });
+
+    it('reads the object a legacy source was set up with when the query names none', async () => {
+        const send = vi.fn().mockResolvedValue(page([attioDeal('d1')]));
+        const legacy = connectLiveSource(
+            attioIntegration,
+            { ...SETTINGS, object: 'deals' },
+            send,
+        );
+
+        const result = await legacy.run({
+            query: JSON.stringify({ columns: ['record_id'] }),
+            limit: 10,
+        });
+
+        expect(send.mock.calls[0][0].path).toBe(
+            '/v2/objects/deals/records/query',
+        );
+        expect(result.rows).toEqual([{ record_id: 'd1' }]);
+    });
+
+    it('reads a custom object a legacy source was set up with', async () => {
+        const send = vi.fn().mockResolvedValue(page([attioDeal('d1')]));
+        const legacy = connectLiveSource(
+            attioIntegration,
+            { ...SETTINGS, object: 'tickets' },
+            send,
+        );
+
+        await legacy.run({
+            query: JSON.stringify({ columns: ['record_id'] }),
+            limit: 10,
+        });
+
+        expect(send.mock.calls[0][0].path).toBe(
+            '/v2/objects/tickets/records/query',
+        );
+        // The proxy lets only a legacy source reach a custom object
+        expect(
+            getLiveAccessRules(attioIntegration, {
+                ...SETTINGS,
+                object: 'tickets',
+            }).allowedPathPrefixes,
+        ).toContain('/v2/objects/tickets/records/query');
+        expect(
+            getLiveAccessRules(attioIntegration, SETTINGS).allowedPathPrefixes,
+        ).not.toContain('/v2/objects/tickets/records/query');
+    });
+
+    it('asks for an object when neither the query nor the source names one', async () => {
+        const { source, send } = connect();
+        await expect(
+            source.run({
+                query: JSON.stringify({ columns: ['record_id'] }),
+                limit: 10,
+            }),
+        ).rejects.toThrow('Name the Attio object to read');
         expect(send).not.toHaveBeenCalled();
     });
 

@@ -85,6 +85,11 @@ export type AttioObject = (typeof ATTIO_OBJECTS)[number];
 /** The access token picks the Attio workspace, so nothing else is set. */
 export type AttioApiSource = {
     connector: ApiConnectorType.ATTIO;
+    /**
+     * Set only on sources from before one source read every object: the slug
+     * of the one object their records table reads.
+     */
+    object?: string;
 };
 
 /** The HubSpot CRM objects a source reads, one explore each. */

@@ -5,6 +5,8 @@ import {
     DimensionType,
     getAttioAttributesPath,
     getAttioRecordsQueryPath,
+    ParameterError,
+    type AttioApiSource,
 } from '@lightdash/common';
 import { z } from 'zod';
 import { assertMaxRows } from '../../integration';
@@ -22,6 +24,7 @@ import {
     ATTIO_MAX_PAGES,
     ATTIO_MAX_RECORDS,
     ATTIO_PAGE_SIZE,
+    getAttioLegacyObject,
 } from './explores';
 
 const LABEL = 'Attio';
@@ -69,8 +72,11 @@ export type AttioSort = z.infer<typeof sortSchema>;
 /** One records query, as compile writes it: one row per record. */
 export const attioRequestSchema = z
     .object({
-        /** The standard object to read, by its slug. */
-        object: z.enum(ATTIO_OBJECTS),
+        /**
+         * The standard object to read, by its slug. Absent on a legacy
+         * records table, which reads its source's own object.
+         */
+        object: z.enum(ATTIO_OBJECTS).optional(),
         columns: z.array(columnSchema).min(1),
         /** Attio's own filter object, sent as it is. */
         filter: z.record(z.string(), z.unknown()).optional(),
@@ -303,8 +309,26 @@ const readRecords = async ({
     return { records: records.slice(0, requestedRows), hasMoreRows };
 };
 
+/**
+ * The object a query reads: the one it names, or else the one a source from
+ * before one source read every object was set up with.
+ */
+const toRecordsObject = (
+    request: AttioRequest,
+    settings: AttioApiSource,
+): string => {
+    const object = request.object ?? getAttioLegacyObject(settings);
+    if (object === undefined) {
+        throw new ParameterError(
+            `Name the Attio object to read: ${ATTIO_OBJECTS.join(', ')}. A table from before one source read every object needs its source's fields refreshed in Live data sources.`,
+        );
+    }
+    return object;
+};
+
 /** Runs one Attio records query: one row per record, in pages of 500. */
 export const runAttioQuery = async ({
+    settings,
     request,
     limit,
     calls,
@@ -314,10 +338,11 @@ export const runAttioQuery = async ({
 >): Promise<LiveRunResult> => {
     assertMaxRows(limit, ATTIO_MAX_RECORDS);
     const { columns } = request;
+    const object = toRecordsObject(request, settings);
     // Neither call needs the other's result, so they run together
     const [{ records, hasMoreRows }, memberNames] = await Promise.all([
         readRecords({
-            object: request.object,
+            object,
             request,
             requestedRows: limit,
             calls,

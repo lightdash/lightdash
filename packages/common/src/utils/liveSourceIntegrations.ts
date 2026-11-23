@@ -187,6 +187,9 @@ export const LIVE_INTEGRATION_CATALOG: {
         setup: 'token',
         settings: z.object({
             connector: z.literal(ApiConnectorType.ATTIO),
+            // Kept so sources from before one source read every object can
+            // still read their records table
+            object: z.string().optional(),
         }),
         getTarget: () => 'Attio workspace',
     },

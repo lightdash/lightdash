@@ -3,6 +3,7 @@ import {
     DimensionType,
     FilterOperator,
     ParameterError,
+    type AttioApiSource,
     type AttioObject,
 } from '@lightdash/common';
 import { z } from 'zod';
@@ -93,19 +94,50 @@ export const ATTIO_SCANNED_MODELS = ATTIO_EXPLORES.slice(1).map(
     ({ name }) => name,
 );
 
+/**
+ * The definition name of a source's one table from before one source read
+ * every object. It reads the object its source was set up with.
+ */
+export const ATTIO_LEGACY_RECORDS = 'records';
+
+// A slug like companies or deals, or an object's id, as legacy setup took it
+const ATTIO_LEGACY_OBJECT =
+    /^(?:[a-z0-9_]{1,64}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
+
+/**
+ * The object a source from before one source read every object was set up
+ * with; anything else, or a value that isn't an object's slug or id, is none.
+ */
+export const getAttioLegacyObject = ({
+    object,
+}: AttioApiSource): string | undefined =>
+    object !== undefined && ATTIO_LEGACY_OBJECT.test(object)
+        ? object
+        : undefined;
+
 /** The object an explore definition reads. */
 export const toAttioObject = (definitionName: string): AttioObject => {
     const object = ATTIO_OBJECTS.find(
         (candidate) => candidate === definitionName,
     );
     if (!object) {
-        // A source last built when it read one object, before a refresh
         throw new ParameterError(
-            "This Attio table is from before one source read every object. Refresh the source's fields in Live data sources, then use its Companies, People, Deals, Users or Workspaces table.",
+            `The Attio table "${definitionName}" reads no known object. Refresh the source's fields in Live data sources, then use its Companies, People, Deals, Users or Workspaces table.`,
         );
     }
     return object;
 };
+
+/**
+ * The object a query on an explore names; none on a legacy records table,
+ * so it reads its source's own object.
+ */
+export const toAttioRequestObject = (
+    definitionName: string,
+): AttioObject | undefined =>
+    definitionName === ATTIO_LEGACY_RECORDS
+        ? undefined
+        : toAttioObject(definitionName);
 
 /** One object's attribute list from a scan; anything else reads as none. */
 export const readAttioAttributes = (

@@ -29,6 +29,7 @@ import {
     ATTIO_MAX_PAGES,
     ATTIO_MAX_RECORDS,
     ATTIO_SCANNED_MODELS,
+    getAttioLegacyObject,
     readAttioAttributes,
     toAttioObject,
     withAttioAttributeFields,
@@ -44,17 +45,25 @@ export const attioIntegration = defineLiveIntegration({
     label: LABEL,
     settings: CATALOG.settings,
     origins: [ATTIO_ORIGIN],
-    access: () => ({
-        pathPrefixes: [
-            ...ATTIO_OBJECTS.flatMap((object) => [
-                getAttioAttributesPath(object),
-                getAttioRecordsQueryPath(object),
-            ]),
-            ATTIO_WORKSPACE_MEMBERS_PATH,
-        ],
-        // Records are read with POST, attributes with GET
-        methods: ['GET', 'POST'],
-    }),
+    access: (settings) => {
+        // A source from before one source read every object may read another
+        // object, such as a custom one, from its records table
+        const legacyObject = getAttioLegacyObject(settings);
+        return {
+            pathPrefixes: [
+                ...ATTIO_OBJECTS.flatMap((object) => [
+                    getAttioAttributesPath(object),
+                    getAttioRecordsQueryPath(object),
+                ]),
+                ATTIO_WORKSPACE_MEMBERS_PATH,
+                ...(legacyObject
+                    ? [getAttioRecordsQueryPath(legacyObject)]
+                    : []),
+            ],
+            // Records are read with POST, attributes with GET
+            methods: ['GET', 'POST'],
+        };
+    },
     // Attio allows 100 reads a second per workspace, and scores list
     // queries by their filters and sorts over a 10-second window.
     limits: {
