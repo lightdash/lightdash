@@ -1,6 +1,7 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+    useCompileFollowUp,
     useFinishDiscardedWork,
     useChatOpen,
     useStudioAgent,
@@ -13,6 +14,13 @@ const held = vi.hoisted(() => ({
     mutate: vi.fn(),
     toast: vi.fn(),
     onError: null as ((error: unknown) => void) | null,
+    compile: null as {
+        status: 'compiling' | 'ready' | 'failed';
+        requestedByAgent: boolean;
+        compileRequestUuid: string;
+    } | null,
+    claim: vi.fn(),
+    send: vi.fn(),
 }));
 
 vi.mock('../../../../../hooks/toaster/useToaster', () => ({
@@ -29,6 +37,7 @@ vi.mock('../../hooks/useProjectAiAgents', () => ({
         held.onError = options.onError;
         return { data: undefined };
     },
+    useCreateAgentThreadMessageMutation: () => ({ mutate: held.send }),
 }));
 
 vi.mock('../../../../../features/semanticStudio/useStudioWorkspaces', () => ({
@@ -40,6 +49,8 @@ vi.mock('../../../../../features/semanticStudio/useStudioWorkspaces', () => ({
 vi.mock('../../../../../features/semanticStudio/useSemanticLayerModel', () => ({
     useKeepsSemanticLayerDraft: () => true,
     useCanEditSemanticLayer: () => true,
+    useDraftCheckout: () => ({ data: { branchCompile: held.compile } }),
+    useClaimCompileFollowUp: () => ({ mutateAsync: held.claim }),
 }));
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({ data: { enabled: held.editing } }),
@@ -141,4 +152,72 @@ it('opens the composer by default even if another project hid its new chat', () 
     expect(first.result.current[0]).toBe(false);
     const second = renderHook(() => useChatOpen('second-project'));
     expect(second.result.current[0]).toBe(true);
+});
+
+describe('useCompileFollowUp', () => {
+    const render = (isBusy: boolean) =>
+        renderHook(
+            (props: { isBusy: boolean }) =>
+                useCompileFollowUp({
+                    projectUuid: 'project',
+                    agentUuid: 'agent',
+                    threadUuid: 'thread',
+                    isBusy: props.isBusy,
+                    enableSqlMode: false,
+                }),
+            { initialProps: { isBusy } },
+        );
+
+    beforeEach(() => {
+        held.claim.mockReset();
+        held.send.mockReset();
+        held.compile = {
+            status: 'failed',
+            requestedByAgent: true,
+            compileRequestUuid: 'request-1',
+        };
+    });
+
+    it('sends the failure to the agent as a hidden prompt once the chat is idle', async () => {
+        held.claim.mockResolvedValue({
+            agentUuid: 'agent',
+            threadUuid: 'thread',
+            prompt: 'Fix it',
+        });
+        const { rerender } = render(true);
+        expect(held.claim).not.toHaveBeenCalled();
+        rerender({ isBusy: false });
+        await waitFor(() =>
+            expect(held.send).toHaveBeenCalledWith(
+                expect.objectContaining({ prompt: 'Fix it', hidden: true }),
+            ),
+        );
+        expect(held.claim).toHaveBeenCalledWith({
+            compileRequestUuid: 'request-1',
+            threadUuid: 'thread',
+        });
+        rerender({ isBusy: true });
+        rerender({ isBusy: false });
+        expect(held.claim).toHaveBeenCalledTimes(1);
+    });
+
+    it('asks again after a refusal once the chat is next idle', async () => {
+        held.claim.mockResolvedValue(null);
+        const { rerender } = render(false);
+        await waitFor(() => expect(held.claim).toHaveBeenCalledTimes(1));
+        rerender({ isBusy: true });
+        rerender({ isBusy: false });
+        await waitFor(() => expect(held.claim).toHaveBeenCalledTimes(2));
+        expect(held.send).not.toHaveBeenCalled();
+    });
+
+    it("leaves a person's own compile alone", () => {
+        held.compile = {
+            status: 'failed',
+            requestedByAgent: false,
+            compileRequestUuid: 'request-1',
+        };
+        render(false);
+        expect(held.claim).not.toHaveBeenCalled();
+    });
 });

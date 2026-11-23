@@ -63,6 +63,7 @@ import { StudioChatEmptyState } from './StudioChatEmptyState';
 import { StudioChatRefChips } from './StudioChatRefChips';
 import {
     useChatOpen,
+    useCompileFollowUp,
     useStudioAgent,
     useStudioThread,
     type StoredThread,
@@ -315,6 +316,13 @@ const ExistingThread: FC<
     };
     useAskedPrompt({ prompt, onPromptTaken }, (message) => send({ message }));
     const { data: draft } = useSemanticLayerDraft(projectUuid);
+    useCompileFollowUp({
+        projectUuid,
+        agentUuid: agent.uuid,
+        threadUuid,
+        isBusy: isLoading || isSending || isStreaming || isThreadPending,
+        enableSqlMode: sqlMode,
+    });
     // The composer stays put while the conversation loads, so opening one never blanks the panel.
     if (isLoading || !thread) {
         return (

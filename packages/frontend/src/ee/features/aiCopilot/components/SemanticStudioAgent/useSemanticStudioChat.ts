@@ -1,10 +1,12 @@
 import { FeatureFlags } from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import {
-    useKeepsSemanticLayerDraft,
     useCanEditSemanticLayer,
+    useClaimCompileFollowUp,
+    useDraftCheckout,
+    useKeepsSemanticLayerDraft,
 } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import {
     useActiveStudioWorkspace,
@@ -13,7 +15,10 @@ import {
 } from '../../../../../features/semanticStudio/useStudioWorkspaces';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
-import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
+import {
+    useAiAgentThread,
+    useCreateAgentThreadMessageMutation,
+} from '../../hooks/useProjectAiAgents';
 import { useDefaultAiAgent } from '../Launcher/useDefaultAiAgent';
 
 export type StoredThread = { threadUuid: string; agentUuid: string };
@@ -149,4 +154,59 @@ export const useStudioAgent = (projectUuid: string) => {
             follow(previous);
         },
     };
+};
+
+/** Sends the agent the failed compile of its last save as a hidden prompt, once per compile, while this chat is open and idle. */
+export const useCompileFollowUp = ({
+    projectUuid,
+    agentUuid,
+    threadUuid,
+    isBusy,
+    enableSqlMode,
+}: {
+    projectUuid: string;
+    agentUuid: string;
+    threadUuid: string;
+    isBusy: boolean;
+    enableSqlMode: boolean;
+}) => {
+    const { data: checkout } = useDraftCheckout(projectUuid);
+    const { mutateAsync: claim } = useClaimCompileFollowUp(projectUuid);
+    const { mutate: sendMessage } = useCreateAgentThreadMessageMutation(
+        projectUuid,
+        agentUuid,
+        threadUuid,
+    );
+    const asking = useRef<string | null>(null);
+    const compile = checkout?.branchCompile ?? null;
+    const failedRequest =
+        compile?.status === 'failed' && compile.requestedByAgent
+            ? compile.compileRequestUuid
+            : null;
+    useEffect(() => {
+        if (
+            isBusy ||
+            failedRequest === null ||
+            asking.current === failedRequest
+        )
+            return;
+        asking.current = failedRequest;
+        claim({ compileRequestUuid: failedRequest, threadUuid })
+            .then((followUp) => {
+                if (followUp === null) {
+                    // Not sendable yet, such as while the agent still answers; asked again once idle.
+                    asking.current = null;
+                    return;
+                }
+                sendMessage({
+                    prompt: followUp.prompt,
+                    hidden: true,
+                    enableSqlMode,
+                    autoApproveSql: true,
+                });
+            })
+            .catch(() => {
+                asking.current = null;
+            });
+    }, [claim, enableSqlMode, failedRequest, isBusy, sendMessage, threadUuid]);
 };

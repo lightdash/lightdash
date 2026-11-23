@@ -14574,7 +14574,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 prompt.threadCreatedFrom === 'semantic_studio'
             ) {
                 await this.semanticStudioService
-                    .queueBranchCompile(user, projectUuid, result.prUrl)
+                    .queueBranchCompile(
+                        user,
+                        projectUuid,
+                        result.prUrl,
+                        'agent',
+                    )
                     .catch((error: unknown) => {
                         Logger.warn(
                             `AiAgent.runEditDbtProjectPipeline: failed to queue a compile of run ${aiWritebackRunUuid}: ${getErrorMessage(error)}`,

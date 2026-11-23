@@ -372,6 +372,12 @@ const setup = ({
     );
     const files = new Map<string, Buffer>();
     const branchCompiles = new Map<string, DbSemanticStudioBranchCompile>();
+    const threadPrompts: {
+        prompt: string;
+        hidden: boolean;
+        created_at: Date;
+        responded_at: Date | null;
+    }[] = [];
     let compileRequests = 0;
     const queueBranchCompile = vi.fn(
         async (_payload: CompileSemanticStudioBranchPayload) => undefined,
@@ -418,7 +424,7 @@ const setup = ({
             projectUuid: PROJECT_UUID,
             name: 'A change',
             threadUuid: activeWorkspace.threadUuid,
-            agentUuid: null,
+            agentUuid: 'agent-studio',
             owner: { userUuid: USER_UUID, name: 'Someone' },
             isMine: true,
             isActive: true,
@@ -519,7 +525,7 @@ const setup = ({
             },
             attachThreadPullRequest: async () => undefined,
             recordPullRequestState,
-            requestBranchCompile: async (workspaceUuid) => {
+            requestBranchCompile: async (workspaceUuid, requestedByAgent) => {
                 compileRequests += 1;
                 const compileRequestUuid = `request-${compileRequests}`;
                 const previous = branchCompiles.get(workspaceUuid);
@@ -532,6 +538,8 @@ const setup = ({
                     explores: previous?.explores ?? null,
                     requested_at: new Date(),
                     compiled_at: previous?.compiled_at ?? null,
+                    requested_by_agent: requestedByAgent,
+                    follow_up_claimed_at: null,
                 });
                 return compileRequestUuid;
             },
@@ -559,6 +567,26 @@ const setup = ({
             findBranchCompile: async (workspaceUuid) =>
                 branchCompiles.get(workspaceUuid) ?? null,
             deleteFinishedBranchCompiles: async () => undefined,
+            claimBranchCompileFollowUp: async (
+                workspaceUuid,
+                compileRequestUuid,
+            ) => {
+                const row = branchCompiles.get(workspaceUuid);
+                if (
+                    row?.compile_request_uuid !== compileRequestUuid ||
+                    row.status !== 'failed' ||
+                    !row.requested_by_agent ||
+                    row.follow_up_claimed_at !== null
+                )
+                    return false;
+                branchCompiles.set(workspaceUuid, {
+                    ...row,
+                    follow_up_claimed_at: new Date(),
+                });
+                return true;
+            },
+            findLatestPrompts: async (_threadUuid, limit) =>
+                threadPrompts.slice(0, limit),
         },
         featureFlagModel: {
             get: async () => ({ id: 'semantic-studio-editing', enabled }),
@@ -813,6 +841,7 @@ const setup = ({
         mergePullRequest,
         queueBranchCompile,
         branchCompiles,
+        threadPrompts,
         upsert,
         scheduleCompileAfterMerge,
         saveExploresToCacheAndIndexCatalog,
@@ -4205,6 +4234,7 @@ describe('compiling a dbt change on its branch', () => {
             repoWriter,
             PROJECT_UUID,
             OWN_PULL_REQUEST,
+            'agent',
         );
         expect(context.queueBranchCompile).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -4241,6 +4271,7 @@ describe('compiling a dbt change on its branch', () => {
             repoWriter,
             PROJECT_UUID,
             OWN_PULL_REQUEST,
+            'agent',
         );
         await runQueued(context);
         expect(info).toHaveBeenCalledWith(
@@ -4267,6 +4298,7 @@ describe('compiling a dbt change on its branch', () => {
             repoWriter,
             PROJECT_UUID,
             'https://github.com/acme/shop/pull/8',
+            'agent',
         );
         expect(other.queueBranchCompile).not.toHaveBeenCalled();
         const native = onChange({
@@ -4276,6 +4308,7 @@ describe('compiling a dbt change on its branch', () => {
             deployer,
             PROJECT_UUID,
             OWN_PULL_REQUEST,
+            'agent',
         );
         expect(native.queueBranchCompile).not.toHaveBeenCalled();
     });
@@ -4286,11 +4319,13 @@ describe('compiling a dbt change on its branch', () => {
             repoWriter,
             PROJECT_UUID,
             OWN_PULL_REQUEST,
+            'agent',
         );
         await context.service.queueBranchCompile(
             repoWriter,
             PROJECT_UUID,
             OWN_PULL_REQUEST,
+            'agent',
         );
         await runQueued(context, 0);
         expect(context.branchCompiles.get('workspace-thread')).toMatchObject({
@@ -4310,6 +4345,7 @@ describe('compiling a dbt change on its branch', () => {
             repoWriter,
             PROJECT_UUID,
             OWN_PULL_REQUEST,
+            'agent',
         );
         await runQueued(context, 0);
         context.compileExploresFromBranch.mockRejectedValueOnce(
@@ -4319,6 +4355,7 @@ describe('compiling a dbt change on its branch', () => {
             repoWriter,
             PROJECT_UUID,
             OWN_PULL_REQUEST,
+            'agent',
         );
         await runQueued(context, 1);
         expect(context.branchCompiles.get('workspace-thread')).toMatchObject({
@@ -4333,6 +4370,105 @@ describe('compiling a dbt change on its branch', () => {
                 )
             )?.get(BRANCH_EXPLORE.name),
         ).toEqual(BRANCH_EXPLORE);
+    });
+
+    describe('sending a failed compile back to the agent', () => {
+        const failAgentCompile = async (
+            requestedBy: 'agent' | 'person' = 'agent',
+        ) => {
+            const context = onChange();
+            context.threadPrompts.push({
+                prompt: 'Add a margin metric',
+                hidden: false,
+                created_at: new Date(Date.now() - 60_000),
+                responded_at: new Date(Date.now() - 30_000),
+            });
+            await context.service.queueBranchCompile(
+                repoWriter,
+                PROJECT_UUID,
+                OWN_PULL_REQUEST,
+                requestedBy,
+            );
+            context.compileExploresFromBranch.mockRejectedValueOnce(
+                new Error('Compilation Error in model orders'),
+            );
+            await runQueued(context);
+            return context;
+        };
+        const claim = (
+            context: ReturnType<typeof setup>,
+            threadUuid = 'thread',
+        ) =>
+            context.service.claimBranchCompileFollowUp(
+                repoWriter,
+                PROJECT_UUID,
+                { compileRequestUuid: 'request-1', threadUuid },
+            );
+
+        it('gives the agent its compile error once', async () => {
+            const context = await failAgentCompile();
+            const followUp = await claim(context);
+            expect(followUp).toMatchObject({
+                agentUuid: 'agent-studio',
+                threadUuid: 'thread',
+            });
+            expect(followUp?.prompt).toContain(
+                'Compilation Error in model orders',
+            );
+            expect(await claim(context)).toBeNull();
+        });
+
+        it("leaves a person's own compile to them", async () => {
+            expect(await claim(await failAgentCompile('person'))).toBeNull();
+        });
+
+        it('gives it only to the chat of the checked-out change', async () => {
+            const context = await failAgentCompile();
+            expect(await claim(context, 'another-thread')).toBeNull();
+            expect(await claim(context)).not.toBeNull();
+        });
+
+        it('waits while a turn runs and stays out once the person spoke', async () => {
+            const running = await failAgentCompile();
+            running.threadPrompts.unshift({
+                prompt: 'Also rename it',
+                hidden: false,
+                created_at: new Date(Date.now() + 1000),
+                responded_at: null,
+            });
+            expect(await claim(running)).toBeNull();
+            running.threadPrompts[0].responded_at = new Date();
+            expect(await claim(running)).toBeNull();
+        });
+
+        it('stops after two fixes in a row', async () => {
+            const context = await failAgentCompile();
+            const followUp = await claim(context);
+            const answered = {
+                prompt: followUp!.prompt,
+                hidden: true,
+                created_at: new Date(),
+                responded_at: new Date(),
+            };
+            context.threadPrompts.unshift(answered, answered);
+            await context.service.queueBranchCompile(
+                repoWriter,
+                PROJECT_UUID,
+                OWN_PULL_REQUEST,
+                'agent',
+            );
+            context.compileExploresFromBranch.mockRejectedValueOnce(
+                new Error('Still broken'),
+            );
+            await runQueued(context, 1);
+            expect(
+                await context.service.claimBranchCompileFollowUp(
+                    repoWriter,
+                    PROJECT_UUID,
+                    { compileRequestUuid: 'request-2', threadUuid: 'thread' },
+                ),
+            ).toBeNull();
+        });
     });
 
     it('tells the person which change they are on and where its compile stands', async () => {
@@ -4430,6 +4566,7 @@ describe('compiling a dbt change on its branch', () => {
             repoWriter,
             PROJECT_UUID,
             OWN_PULL_REQUEST,
+            'agent',
         );
         await runQueued(context);
         expect(context.compileExploresFromBranch).not.toHaveBeenCalled();
