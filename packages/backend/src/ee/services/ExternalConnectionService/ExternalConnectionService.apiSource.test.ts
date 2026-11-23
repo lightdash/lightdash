@@ -129,6 +129,10 @@ const buildService = ({
         purgeLiveSourceCache: vi.fn().mockResolvedValue(undefined),
         rotateSecret: vi.fn().mockResolvedValue(undefined),
         getApiSourceUsage: vi.fn().mockResolvedValue([]),
+        getApiSourceRateUsage: vi.fn().mockResolvedValue({
+            now: new Date('2026-11-23T14:00:00.000Z'),
+            buckets: [],
+        }),
         setApiSourceSchema: vi.fn().mockResolvedValue(undefined),
         getApiSourceSchemas: vi.fn().mockResolvedValue(new Map()),
         listDeletedLiveSources: vi.fn().mockResolvedValue(deletedSources),
@@ -607,6 +611,53 @@ describe('ExternalConnectionService api sources', () => {
             'org-1',
             { kind: 'live_source' },
         );
+    });
+});
+
+describe('ExternalConnectionService rate-limit usage', () => {
+    it('reads the shared buckets of the source under its integration limits', async () => {
+        const { service, externalConnectionModel } = buildService();
+        const usage = await service.getApiSourceRateLimitUsage(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+
+        expect(
+            externalConnectionModel.getApiSourceRateUsage,
+        ).toHaveBeenCalledWith('conn-1');
+        expect(usage).toMatchObject({
+            checkedAt: '2026-11-23T14:00:00.000Z',
+            limitedUntil: null,
+        });
+    });
+
+    it('refuses an account that cannot view the source', async () => {
+        const { service, externalConnectionModel } = buildService({
+            canView: false,
+        });
+        await expect(
+            service.getApiSourceRateLimitUsage(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow(ForbiddenError);
+        expect(
+            externalConnectionModel.getApiSourceRateUsage,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('refuses a connection that is not a live data source', async () => {
+        const { service } = buildService({
+            connections: [posthogConnection({ apiSource: null })],
+        });
+        await expect(
+            service.getApiSourceRateLimitUsage(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    it('refuses while live sources are off', async () => {
+        const { service } = buildService({ liveSourcesEnabled: false });
+        await expect(
+            service.getApiSourceRateLimitUsage(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow();
     });
 });
 

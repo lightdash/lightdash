@@ -125,6 +125,7 @@ import type {
     EmbedUrl,
     ExternalConnection,
     ExternalConnectionLinkedApps,
+    ExternalConnectionRateLimitUsage,
     ExternalConnectionSample,
     ExternalFetchResponse,
     ManagedAgentRuntimeInfo,
@@ -1920,6 +1921,7 @@ type ApiResults =
     | ExternalConnection
     | ExternalConnection[]
     | ExternalConnectionLinkedApps
+    | ExternalConnectionRateLimitUsage
     | ExternalConnectionSample
     | ExternalConnectionSample[]
     | AppExternalConnectionLink
