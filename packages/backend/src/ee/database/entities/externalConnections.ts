@@ -3,12 +3,15 @@ import {
     type ExternalConnectionAuthType,
     type ExternalConnectionKind,
     type ExternalConnectionMethod,
+    type LiveSourceSignInMode,
     type OAuthClientAuthMethod,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 
 export const ExternalConnectionsTableName = 'external_connections';
 export const ExternalConnectionSecretsTableName = 'external_connection_secrets';
+export const ExternalConnectionUserCredentialsTableName =
+    'external_connection_user_credentials';
 export const AppExternalConnectionsTableName = 'app_external_connections';
 export const ExternalConnectionRateCountersTableName =
     'external_connection_rate_counters';
@@ -48,6 +51,7 @@ export type DbExternalConnection = {
     oauth_client_auth_method: OAuthClientAuthMethod | null;
     custom_headers: Record<string, string> | null;
     connection_kind: ExternalConnectionKind;
+    sign_in_mode: LiveSourceSignInMode;
     // Parsed against the connector schema on read
     api_source: unknown;
     // Parsed against the scan schema on read
@@ -95,6 +99,7 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
                 | 'allow_browser_images'
                 | 'allow_data_app_builder_linking'
                 | 'forward_user_identity'
+                | 'sign_in_mode'
                 | 'created_by_user_uuid'
                 | 'updated_by_user_uuid'
             >
@@ -118,6 +123,7 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
             | 'allow_browser_images'
             | 'allow_data_app_builder_linking'
             | 'forward_user_identity'
+            | 'sign_in_mode'
             | 'updated_by_user_uuid'
             | 'updated_at'
             | 'deleted_at'
@@ -149,6 +155,31 @@ export type ExternalConnectionSecretsTable = Knex.CompositeTableType<
     >,
     Partial<
         Pick<DbExternalConnectionSecret, 'encrypted_payload' | 'rotated_at'>
+    >
+>;
+
+/** A viewer's own sign-in to a live source that queries as each viewer. */
+export type DbExternalConnectionUserCredential = {
+    external_connection_user_credential_uuid: string;
+    external_connection_uuid: string;
+    user_uuid: string;
+    encrypted_payload: Buffer;
+    signed_in_at: Date;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type ExternalConnectionUserCredentialsTable = Knex.CompositeTableType<
+    DbExternalConnectionUserCredential,
+    Pick<
+        DbExternalConnectionUserCredential,
+        'external_connection_uuid' | 'user_uuid' | 'encrypted_payload'
+    >,
+    Partial<
+        Pick<
+            DbExternalConnectionUserCredential,
+            'encrypted_payload' | 'signed_in_at' | 'updated_at'
+        >
     >
 >;
 

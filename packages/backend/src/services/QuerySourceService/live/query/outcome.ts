@@ -5,6 +5,7 @@ import {
     LIVE_SOURCE_INTERNAL_ERROR_CODES,
     LIVE_SOURCE_REFUSAL_CODES,
     LIVE_SOURCE_UPSTREAM_ERROR_CODES,
+    LiveSourceSignInRequiredError,
     ParameterError,
     TimeoutError,
     TooManyRequestsError,
@@ -32,6 +33,8 @@ export type LiveQueryOutcome = (typeof LIVE_QUERY_OUTCOMES)[number];
 
 /** Buckets a failed api query by cause, from the errors connectors throw. */
 export const getLiveQueryOutcome = (error: unknown): LiveQueryOutcome => {
+    if (error instanceof LiveSourceSignInRequiredError)
+        return 'connection_error';
     if (error instanceof ParameterError) return 'invalid_request';
     if (error instanceof WarehouseQueryError) return 'query_error';
     if (error instanceof WarehouseConnectionError) return 'connection_error';

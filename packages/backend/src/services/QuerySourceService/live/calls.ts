@@ -127,7 +127,15 @@ export type LiveQueryCall = {
  */
 export type LiveCacheScope =
     | { kind: 'source' }
-    | { kind: 'viewer'; userUuid: string };
+    | {
+          kind: 'viewer';
+          userUuid: string;
+          /**
+           * When the viewer last connected an account. Part of the key, so a
+           * query still running under a replaced account never answers later.
+           */
+          signedInAt: Date | null;
+      };
 
 /** How long a source's results answer the same query, and since when. */
 export type LiveCachePolicy = {

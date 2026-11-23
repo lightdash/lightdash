@@ -19,13 +19,19 @@ import {
     getSalesforceDescribePath,
     getSalesforceEnvironment,
     getSalesforceTokenUrl,
+    HYDRA_OAUTH_CLIENT_ID,
+    HYDRA_OAUTH_CLIENT_SECRET,
+    HYDRA_ORIGIN,
+    HYDRA_TOKEN_PATH,
     isJwtUser,
     isSalesforceEnvironment,
     isSalesforceInstanceOrigin,
     isValidLiveSourceCacheTtlSeconds,
+    LIVE_INTEGRATION_CATALOG,
     LIVE_SOURCE_AI_HINT_MAX_LENGTH,
     LIVE_SOURCE_CACHE_TTL_MAX_SECONDS,
     LIVE_SOURCE_CACHE_TTL_MIN_SECONDS,
+    LiveSourceSignInRequiredError,
     MissingConfigError,
     NotFoundError,
     ParameterError,
@@ -60,6 +66,8 @@ import {
     type LiveSourceFieldChange,
     type LiveSourceFieldEditor,
     type LiveSourceFields,
+    type LiveSourceSignInRequired,
+    type LiveSourceUserSignIn,
     type QuerySourceSchemaTable,
     type ReattachableLiveSource,
     type RegisteredAccount,
@@ -107,6 +115,7 @@ import {
     listLiveSourceFields,
 } from '../../../services/QuerySourceService/live/explores/fields';
 import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/live/integrations/google/signIn';
+import { hydraServer } from '../../../services/QuerySourceService/live/integrations/hydra/server';
 import {
     getLinkedInAdsAccountPath,
     LINKEDIN_ADS_ORIGIN,
@@ -122,7 +131,10 @@ import {
 import { refuseLiveQuery } from '../../../services/QuerySourceService/live/query/refuse';
 import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import { LIVE_RATE_LIMIT_DEADLINES_MS } from '../../../services/QuerySourceService/live/rateLimitDeadlines';
-import { getLiveIntegration } from '../../../services/QuerySourceService/live/registry';
+import {
+    getLiveIntegration,
+    isHydraEnabled,
+} from '../../../services/QuerySourceService/live/registry';
 import { getLiveSourceTestCheck } from '../../../services/QuerySourceService/live/testCheck';
 import { type LiveScanResult } from '../../../services/QuerySourceService/live/types';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
@@ -173,18 +185,24 @@ import {
     type GoogleConnectorType,
 } from './googleOAuth';
 import { type GoogleServiceAccountTokenProvider } from './GoogleServiceAccountTokenProvider';
-import { fetchFromHydra } from './hydraFetch';
+import { fetchFromHydra, fetchHydraToken } from './hydraFetch';
 import {
     buildLinkedInAdsAuthorizeUrl,
     getLinkedInAdsOAuthRedirectUri,
 } from './linkedInAdsOAuth';
 import {
+    buildHydraAuthorizeUrl,
+    getLiveSourceSignInReturnUrl,
+    getLiveSourceUserSignInRedirectUri,
+    type LiveSourceUserSignInSession,
+} from './liveSourceUserSignIn';
+import {
     isAccessTokenFresh,
+    OAuthAuthorizationCodeTokenClient,
     OAuthGrantRejectedError,
     parseStoredOAuthTokens,
     serializeStoredOAuthTokens,
     type OAuthAuthorizationCodeClientConfig,
-    type OAuthAuthorizationCodeTokenClient,
     type StoredOAuthTokens,
 } from './OAuthAuthorizationCodeTokenClient';
 import {
@@ -439,6 +457,36 @@ export class ExternalConnectionService extends BaseService {
         }
     }
 
+    private static latestDate(a: Date | null, b: Date | null): Date | null {
+        if (!a) return b;
+        if (!b) return a;
+        return a.getTime() >= b.getTime() ? a : b;
+    }
+
+    /** Only integrations that can sign in each viewer offer that mode. */
+    private static assertSignInModeSupported(
+        apiSource: ExternalConnectionApiSource | null,
+        signInMode: ExternalConnection['signInMode'],
+    ) {
+        if (signInMode === undefined || signInMode === 'shared') return;
+        if (signInMode !== 'per_user') {
+            throw new ParameterError(
+                'Sign-in mode must be "shared" or "per_user"',
+            );
+        }
+        if (!apiSource) {
+            throw new ParameterError(
+                "Only live data sources can query with each viewer's own sign-in",
+            );
+        }
+        const entry = LIVE_INTEGRATION_CATALOG[apiSource.connector];
+        if (!entry.userSignIn) {
+            throw new ParameterError(
+                `${entry.label} can't sign in each viewer yet, so its sources use one shared sign-in`,
+            );
+        }
+    }
+
     private assertCanManage(
         account: RegisteredAccount,
         projectUuid: string,
@@ -555,6 +603,10 @@ export class ExternalConnectionService extends BaseService {
         this.assertCanManage(account, projectUuid, organizationUuid);
         if (data.apiSource) await this.assertLiveSourcesEnabled(account);
         ExternalConnectionService.assertNotSignInType(data.type);
+        ExternalConnectionService.assertSignInModeSupported(
+            data.apiSource ?? null,
+            data.signInMode,
+        );
         const config = withApiSourceAccessRules(data);
         validateExternalConnectionConfig(config, Boolean(config.secret));
         validateApiSourceConnection(config);
@@ -882,6 +934,12 @@ export class ExternalConnectionService extends BaseService {
         if (!isLiveSource && data.apiSource) {
             throw new ParameterError(
                 'A data app connection cannot become a live data source',
+            );
+        }
+        if (data.signInMode !== undefined) {
+            ExternalConnectionService.assertSignInModeSupported(
+                data.apiSource ?? existing.apiSource ?? null,
+                data.signInMode,
             );
         }
         if (isLiveSource && data.apiSource === null) {
@@ -2279,29 +2337,52 @@ export class ExternalConnectionService extends BaseService {
         }
     }
 
-    private getMeteredLiveSource(
+    private async getMeteredLiveSource(
         account: RegisteredAccount,
         projectUuid: string,
         connection: ExternalConnection,
         rateLimitDeadlineMs: number,
-    ): MeteredLiveSource {
+    ): Promise<MeteredLiveSource> {
+        const viewerUuid = this.getViewerUuid(account, connection);
+        let viewerSignedInAt: Date | undefined;
+        if (viewerUuid) {
+            // Fails here, before the query is queued, so the app gets a typed
+            // error it can turn into "Connect your account".
+            await this.getViewerAccessToken(connection, viewerUuid, null);
+            viewerSignedInAt = (
+                await this.externalConnectionModel.getUserSignedInAt(
+                    [connection.externalConnectionUuid],
+                    viewerUuid,
+                )
+            ).get(connection.externalConnectionUuid);
+        }
         const { usage, ...source } = this.createLiveSource(
             account,
             connection,
-            { isPerQuery: true, rateLimitDeadlineMs },
+            { isPerQuery: true, rateLimitDeadlineMs, viewerUuid },
         );
         return {
             ...source,
             cache: {
-                // Every integration signs in with one credential for the
-                // whole source today. Per-viewer sign-in (SPK-3093) must
-                // scope to the viewer instead.
-                scope: { kind: 'source' },
+                // A shared sign-in answers everyone alike, so its results are
+                // shared; each viewer's own sign-in answers only them.
+                scope: viewerUuid
+                    ? {
+                          kind: 'viewer',
+                          userUuid: viewerUuid,
+                          signedInAt: viewerSignedInAt ?? null,
+                      }
+                    : { kind: 'source' },
                 ttlSeconds: getLiveSourceCacheTtlSeconds(
                     source.settings.connector,
                     connection.cacheTtlSeconds,
                 ),
-                purgedAt: connection.cachePurgedAt ?? null,
+                // Rows cached under an account the viewer has since replaced
+                // are never reused
+                purgedAt: ExternalConnectionService.latestDate(
+                    connection.cachePurgedAt ?? null,
+                    viewerSignedInAt ?? null,
+                ),
             },
             usage: () => ({ ...usage }),
             logCall: async (call) => {
@@ -2548,7 +2629,13 @@ export class ExternalConnectionService extends BaseService {
         {
             isPerQuery,
             rateLimitDeadlineMs,
-        }: { isPerQuery: boolean; rateLimitDeadlineMs: number },
+            viewerUuid = null,
+        }: {
+            isPerQuery: boolean;
+            rateLimitDeadlineMs: number;
+            /** Calls with this viewer's own sign-in instead of the source's. */
+            viewerUuid?: string | null;
+        },
     ): Pick<MeteredLiveSource, 'integration' | 'settings' | 'calls'> & {
         usage: LiveCallUsage;
     } {
@@ -2570,26 +2657,67 @@ export class ExternalConnectionService extends BaseService {
             responseBytes: 0,
             providerStatus: null,
         };
-        const sendOnce: LiveTransport = async (request) => {
-            const secret =
-                await this.externalConnectionModel.getDecryptedSecret(
-                    connection.externalConnectionUuid,
-                );
+        const fetchOnce = async (
+            credential: {
+                connection: ExternalConnection;
+                secret: string | null;
+            },
+            request: Parameters<LiveTransport>[0],
+        ) => {
             usage.apiCalls += 1;
+            return this.executeExternalFetch(
+                credential.connection,
+                credential.secret,
+                {
+                    method: request.method,
+                    path: request.path,
+                    query: request.query,
+                    rawQuery: request.rawQuery,
+                    body: request.body,
+                },
+                { account, appUuid: null },
+            );
+        };
+        // A viewer's access token goes out as a bearer token; a rejected one
+        // is refreshed and the call replayed once, as a source's own is.
+        const fetchWithCredential = async (
+            request: Parameters<LiveTransport>[0],
+        ) => {
+            if (!viewerUuid) {
+                const secret =
+                    await this.externalConnectionModel.getDecryptedSecret(
+                        connection.externalConnectionUuid,
+                    );
+                return fetchOnce({ connection, secret }, request);
+            }
+            const asViewer = {
+                ...connection,
+                type: 'bearer_token' as const,
+            };
+            const accessToken = await this.getViewerAccessToken(
+                connection,
+                viewerUuid,
+                null,
+            );
+            const first = await fetchOnce(
+                { connection: asViewer, secret: accessToken },
+                request,
+            );
+            if (first.response.status !== 401) return first;
+            const refreshed = await this.getViewerAccessToken(
+                connection,
+                viewerUuid,
+                accessToken,
+            );
+            return fetchOnce(
+                { connection: asViewer, secret: refreshed },
+                request,
+            );
+        };
+        const sendOnce: LiveTransport = async (request) => {
             try {
                 const { response, responseBytes } =
-                    await this.executeExternalFetch(
-                        connection,
-                        secret,
-                        {
-                            method: request.method,
-                            path: request.path,
-                            query: request.query,
-                            rawQuery: request.rawQuery,
-                            body: request.body,
-                        },
-                        { account, appUuid: null },
-                    );
+                    await fetchWithCredential(request);
                 usage.responseBytes += responseBytes;
                 usage.providerStatus = response.status;
                 return {
@@ -3814,6 +3942,440 @@ export class ExternalConnectionService extends BaseService {
             connectionUuid: args.connectionUuid,
             config,
         });
+    }
+
+    // -----------------------------------------------------------------------
+    // Each viewer's own sign-in, for sources that query as each viewer
+    // -----------------------------------------------------------------------
+
+    /**
+     * The viewer whose own sign-in a query on this source uses, or null when
+     * the source shares one sign-in. Service accounts are nobody's viewer.
+     */
+    private getViewerUuid(
+        account: RegisteredAccount,
+        connection: ExternalConnection,
+    ): string | null {
+        if (connection.signInMode !== 'per_user') return null;
+        if (account.authentication.type === 'service-account') {
+            throw new ForbiddenError(
+                `"${connection.name}" queries with each viewer's own sign-in, so service accounts can't query it`,
+            );
+        }
+        return account.user.id;
+    }
+
+    private static getIntegrationLabel(connection: ExternalConnection) {
+        return connection.apiSource
+            ? LIVE_INTEGRATION_CATALOG[connection.apiSource.connector]
+                  .messageLabel
+            : connection.name;
+    }
+
+    private signInRequired(
+        connection: ExternalConnection,
+        reason: LiveSourceSignInRequired['reason'],
+    ): LiveSourceSignInRequiredError {
+        const connectUrl = new URL(
+            `/api/v1/ee/projects/${connection.projectUuid}/live-sources/${connection.externalConnectionUuid}/user-sign-in/start`,
+            this.lightdashConfig.siteUrl,
+        ).href;
+        return new LiveSourceSignInRequiredError({
+            externalConnectionUuid: connection.externalConnectionUuid,
+            name: connection.name,
+            integration:
+                ExternalConnectionService.getIntegrationLabel(connection),
+            reason,
+            connectUrl,
+        });
+    }
+
+    /** How a source's viewers sign in with their own access. */
+    private getUserSignInProvider(connection: ExternalConnection): {
+        client: OAuthAuthorizationCodeClientConfig;
+        tokenClient: OAuthAuthorizationCodeTokenClient;
+        buildAuthorizeUrl: (args: {
+            redirectUri: string;
+            state: string;
+            codeChallenge: string;
+        }) => string;
+    } {
+        const { apiSource } = connection;
+        if (apiSource?.connector === ApiConnectorType.HYDRA) {
+            const settings = apiSource;
+            return {
+                client: {
+                    tokenUrl: `${HYDRA_ORIGIN}${HYDRA_TOKEN_PATH}`,
+                    clientId: HYDRA_OAUTH_CLIENT_ID,
+                    clientSecret: HYDRA_OAUTH_CLIENT_SECRET,
+                },
+                tokenClient: new OAuthAuthorizationCodeTokenClient({
+                    allowedPrivateHostCidrs: this.allowedPrivateHostCidrs,
+                    fetchToken: (_url, options) =>
+                        fetchHydraToken({
+                            connectionUuid: connection.externalConnectionUuid,
+                            settings,
+                            body: options.body,
+                        }),
+                }),
+                buildAuthorizeUrl: (args) =>
+                    buildHydraAuthorizeUrl({
+                        siteUrl: this.lightdashConfig.siteUrl,
+                        clientId: HYDRA_OAUTH_CLIENT_ID,
+                        connectionUuid: connection.externalConnectionUuid,
+                        ...args,
+                    }),
+            };
+        }
+        throw new ParameterError(
+            `"${connection.name}" can't sign in each viewer`,
+        );
+    }
+
+    /**
+     * A usable access token from the viewer's own sign-in, refreshed under
+     * its row lock when it expired or was rejected. A sign-in the
+     * integration refuses to refresh is deleted, so the viewer is asked to
+     * connect again rather than failing on every query.
+     */
+    private async getViewerAccessToken(
+        connection: ExternalConnection,
+        userUuid: string,
+        rejectedAccessToken: string | null,
+    ): Promise<string> {
+        const connectionUuid = connection.externalConnectionUuid;
+        const stored = parseStoredOAuthTokens(
+            await this.externalConnectionModel.getDecryptedUserSecret(
+                connectionUuid,
+                userUuid,
+            ),
+        );
+        if (!stored) {
+            throw this.signInRequired(connection, 'missing');
+        }
+        if (
+            rejectedAccessToken === null &&
+            isAccessTokenFresh(stored, Date.now())
+        ) {
+            return stored.accessToken;
+        }
+        const knownAccessToken = rejectedAccessToken ?? stored.accessToken;
+        const { client, tokenClient } = this.getUserSignInProvider(connection);
+        let latestSecret: string | null;
+        try {
+            latestSecret =
+                await this.externalConnectionModel.updateUserSecretLocked(
+                    connectionUuid,
+                    userUuid,
+                    async (current) => {
+                        const latest = parseStoredOAuthTokens(current);
+                        // Another query refreshed while this one waited
+                        if (
+                            latest &&
+                            latest.accessToken !== knownAccessToken &&
+                            isAccessTokenFresh(latest, Date.now())
+                        ) {
+                            return null;
+                        }
+                        if (!latest?.refreshToken) {
+                            throw new OAuthGrantRejectedError(
+                                'No refresh token is stored',
+                            );
+                        }
+                        return serializeStoredOAuthTokens(
+                            await tokenClient.refresh(
+                                client,
+                                latest.refreshToken,
+                            ),
+                        );
+                    },
+                    // A refused refresh forgets the sign-in under the lock
+                    (error) => error instanceof OAuthGrantRejectedError,
+                );
+        } catch (error) {
+            if (error instanceof OAuthGrantRejectedError) {
+                throw this.signInRequired(connection, 'expired');
+            }
+            this.logger.warn(
+                `Refreshing a viewer's sign-in to connection ${connectionUuid} failed: ${getErrorMessage(error)}`,
+            );
+            throw new UnexpectedServerError(
+                `Could not refresh your sign-in to "${connection.name}". Try again shortly.`,
+            );
+        }
+        const latest = parseStoredOAuthTokens(latestSecret);
+        if (!latest) {
+            throw this.signInRequired(connection, 'missing');
+        }
+        return latest.accessToken;
+    }
+
+    private assertCanViewProject(
+        account: RegisteredAccount,
+        connection: Pick<
+            ExternalConnection,
+            'organizationUuid' | 'projectUuid'
+        >,
+    ): void {
+        const ability = this.createAuditedAbility(account);
+        if (
+            ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: connection.organizationUuid,
+                    projectUuid: connection.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to view this project',
+            );
+        }
+    }
+
+    /** A source that queries as each viewer, which this account may sign in to. */
+    private async getUserSignInSource(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<ExternalConnection> {
+        const connection = await this.loadConnection(
+            projectUuid,
+            connectionUuid,
+        );
+        this.assertCanViewProject(account, connection);
+        if (
+            connection.kind !== 'live_source' ||
+            connection.signInMode !== 'per_user'
+        ) {
+            throw new ParameterError(
+                `"${connection.name}" uses one shared sign-in, so there is nothing to connect`,
+            );
+        }
+        return connection;
+    }
+
+    /** The project's sources that query as each viewer, and whether this viewer signed in. */
+    async listUserSignIns(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ): Promise<LiveSourceUserSignIn[]> {
+        const organizationUuid =
+            await this.externalConnectionModel.getProjectOrganizationUuid(
+                projectUuid,
+            );
+        if (!organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        this.assertCanViewProject(account, { organizationUuid, projectUuid });
+        const sources = (
+            await this.externalConnectionModel.list(
+                projectUuid,
+                organizationUuid,
+                { kind: 'live_source' },
+            )
+        ).filter((connection) => connection.signInMode === 'per_user');
+        const signedInAt = await this.externalConnectionModel.getUserSignedInAt(
+            sources.map((source) => source.externalConnectionUuid),
+            account.user.id,
+        );
+        return sources.flatMap((source) =>
+            source.apiSource
+                ? [
+                      {
+                          externalConnectionUuid: source.externalConnectionUuid,
+                          name: source.name,
+                          connector: source.apiSource.connector,
+                          isSignedIn: signedInAt.has(
+                              source.externalConnectionUuid,
+                          ),
+                          signedInAt:
+                              signedInAt.get(source.externalConnectionUuid) ??
+                              null,
+                      },
+                  ]
+                : [],
+        );
+    }
+
+    /** Starts a viewer's own sign-in to a source that queries as each viewer. */
+    async startUserSignIn(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+        returnPath: string,
+    ): Promise<{
+        authorizeUrl: string;
+        state: string;
+        session: LiveSourceUserSignInSession;
+    }> {
+        await this.assertLiveSourcesEnabled(account);
+        const connection = await this.getUserSignInSource(
+            account,
+            projectUuid,
+            connectionUuid,
+        );
+        const provider = this.getUserSignInProvider(connection);
+        const state = randomBytes(24).toString('base64url');
+        const codeVerifier = randomBytes(32).toString('base64url');
+        const redirectUri = getLiveSourceUserSignInRedirectUri(
+            this.lightdashConfig.siteUrl,
+        );
+        return {
+            authorizeUrl: provider.buildAuthorizeUrl({
+                redirectUri,
+                state,
+                codeChallenge: createHash('sha256')
+                    .update(codeVerifier)
+                    .digest('base64url'),
+            }),
+            state,
+            session: {
+                projectUuid,
+                connectionUuid,
+                redirectUri,
+                codeVerifier,
+                returnPath,
+            },
+        };
+    }
+
+    /** Exchanges the viewer's sign-in code and keeps their tokens for this source. */
+    async completeUserSignIn(
+        account: RegisteredAccount,
+        session: LiveSourceUserSignInSession,
+        code: string,
+    ): Promise<void> {
+        const connection = await this.getUserSignInSource(
+            account,
+            session.projectUuid,
+            session.connectionUuid,
+        );
+        const { client, tokenClient } = this.getUserSignInProvider(connection);
+        let tokens: StoredOAuthTokens;
+        try {
+            ({ tokens } = await tokenClient.exchangeCode(client, {
+                code,
+                redirectUri: session.redirectUri,
+                codeVerifier: session.codeVerifier,
+            }));
+        } catch (error) {
+            this.logger.warn(
+                `A viewer's sign-in to connection ${connection.externalConnectionUuid} failed: ${getErrorMessage(error)}`,
+            );
+            throw new WarehouseConnectionError(
+                `${ExternalConnectionService.getIntegrationLabel(connection)} did not accept the sign-in. Try connecting again.`,
+            );
+        }
+        await this.externalConnectionModel.saveUserSecret(
+            connection.externalConnectionUuid,
+            account.user.id,
+            serializeStoredOAuthTokens(tokens),
+        );
+        this.analytics.track({
+            event: 'live_source.user_signed_in',
+            userId: account.user.id,
+            properties: {
+                organizationId: connection.organizationUuid,
+                projectId: connection.projectUuid,
+                externalConnectionUuid: connection.externalConnectionUuid,
+                integration: connection.apiSource?.connector ?? null,
+            },
+        });
+    }
+
+    /** Forgets the viewer's own sign-in to a source; they connect again to query it. */
+    async deleteUserSignIn(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<void> {
+        const connection = await this.loadConnection(
+            projectUuid,
+            connectionUuid,
+        );
+        this.assertCanViewProject(account, connection);
+        const isDeleted = await this.externalConnectionModel.deleteUserSecret(
+            connectionUuid,
+            account.user.id,
+        );
+        if (isDeleted) {
+            this.analytics.track({
+                event: 'live_source.user_signed_out',
+                userId: account.user.id,
+                properties: {
+                    organizationId: connection.organizationUuid,
+                    projectId: connection.projectUuid,
+                    externalConnectionUuid: connectionUuid,
+                    integration: connection.apiSource?.connector ?? null,
+                },
+            });
+        }
+    }
+
+    /** Where a viewer lands after signing in, with how it went. */
+    getUserSignInReturnUrl(
+        returnPath: string,
+        result: { connectionUuid: string } | { error: string },
+    ): string {
+        return getLiveSourceSignInReturnUrl(
+            this.lightdashConfig.siteUrl,
+            returnPath,
+            result,
+        );
+    }
+
+    /**
+     * Hydra's consent screen for the signed-in person, so each Lightdash
+     * user reads their own Hydra rows. It only answers to this server's
+     * callback, for a Hydra source in a project the person can see; Hydra checks
+     * the client, PKCE and its consent settings.
+     */
+    async authorizeHydraUserSignIn(
+        account: RegisteredAccount,
+        query: {
+            responseType?: string;
+            clientId?: string;
+            resource?: string;
+            redirectUri?: string;
+            state?: string;
+            codeChallenge?: string;
+            codeChallengeMethod?: string;
+        },
+    ): Promise<string> {
+        if (!isHydraEnabled()) {
+            throw new NotFoundError('Hydra is not enabled on this server');
+        }
+        if (
+            query.redirectUri !==
+            getLiveSourceUserSignInRedirectUri(this.lightdashConfig.siteUrl)
+        ) {
+            throw new ParameterError('This is not a Hydra sign-in request');
+        }
+        const connection = query.resource
+            ? await this.externalConnectionModel.findByUuid(query.resource)
+            : null;
+        if (connection?.apiSource?.connector !== ApiConnectorType.HYDRA) {
+            throw new NotFoundError('Hydra source not found');
+        }
+        this.assertCanViewProject(account, connection);
+        const answer = hydraServer.authorize({
+            sourceKey: connection.externalConnectionUuid,
+            settings: connection.apiSource,
+            subject: account.user.email ?? account.user.id,
+            params: {
+                response_type: query.responseType,
+                client_id: query.clientId,
+                redirect_uri: query.redirectUri,
+                state: query.state,
+                code_challenge: query.codeChallenge,
+                code_challenge_method: query.codeChallengeMethod,
+            },
+        });
+        if (answer.kind === 'invalid') {
+            throw new ParameterError(answer.message);
+        }
+        return answer.location;
     }
 
     private static signInExpiredError(connection: ExternalConnection) {

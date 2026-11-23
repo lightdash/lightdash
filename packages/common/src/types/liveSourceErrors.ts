@@ -25,6 +25,7 @@ export const LIVE_SOURCE_REFUSAL_CODES = [
     'live_source.refused.call_budget',
     'live_source.refused.sort',
     'live_source.refused.date_grain',
+    'live_source.refused.sign_in_required',
 ] as const;
 
 /** Lightdash refused the query before calling the API: the source can't run it. */
@@ -75,9 +76,102 @@ export const getLiveSourceErrorOrigin = (
     return 'integration';
 };
 
+/**
+ * A source that queries as each viewer, which this viewer has no usable
+ * sign-in for: never signed in, or their sign-in expired or was revoked.
+ */
+export type LiveSourceSignInRequired = {
+    externalConnectionUuid: string;
+    /** The source's name, for "Connect your <name> account". */
+    name: string;
+    /** The integration's label, such as Salesforce. */
+    integration: string;
+    reason: 'missing' | 'expired';
+    /** Opens the integration's sign-in in a browser; returns to the app after. */
+    connectUrl: string;
+};
+
 /** What a live data source error carries in `LightdashError.data`. */
 export type LiveSourceErrorData = {
     liveSourceErrorCode: LiveSourceErrorCode;
     /** Every distinct code when one query was refused for several reasons. */
     liveSourceErrorCodes: LiveSourceErrorCode[];
+    /** Set with `live_source.refused.sign_in_required`. */
+    signIn?: LiveSourceSignInRequired;
+};
+
+export const isLiveSourceSignInRequired = (
+    data: unknown,
+): data is LiveSourceErrorData & { signIn: LiveSourceSignInRequired } =>
+    typeof data === 'object' &&
+    data !== null &&
+    'liveSourceErrorCode' in data &&
+    data.liveSourceErrorCode === 'live_source.refused.sign_in_required' &&
+    'signIn' in data &&
+    typeof data.signIn === 'object' &&
+    data.signIn !== null;
+
+/** What a person reads when a source needs their own sign-in. */
+export const getLiveSourceSignInSentence = ({
+    name,
+    integration,
+    reason,
+}: Pick<LiveSourceSignInRequired, 'name' | 'integration' | 'reason'>) =>
+    reason === 'expired'
+        ? `Your sign-in to ${name} expired or was revoked. Connect your ${integration} account again to see this data.`
+        : `${name} shows each person their own ${integration} data. Connect your ${integration} account to see it.`;
+
+/** The error message: the sentence, then the link, for agents and MCP clients. */
+export const getLiveSourceSignInRequiredMessage = (
+    signIn: LiveSourceSignInRequired,
+) =>
+    `${getLiveSourceSignInSentence(signIn)} Connect it here: ${signIn.connectUrl}`;
+
+const SIGN_IN_MESSAGE_PATTERNS: {
+    reason: LiveSourceSignInRequired['reason'];
+    pattern: RegExp;
+}[] = [
+    {
+        reason: 'expired',
+        pattern:
+            /^Your sign-in to (.+) expired or was revoked\. Connect your (.+) account again to see this data\. Connect it here: (\S+)$/,
+    },
+    {
+        reason: 'missing',
+        pattern:
+            /^(.+) shows each person their own (.+) data\. Connect your .+ account to see it\. Connect it here: (\S+)$/,
+    },
+];
+
+const CONNECT_PATH_PATTERN = /\/live-sources\/([^/]+)\/user-sign-in\/start$/;
+
+/**
+ * Reads a sign-in prompt back from a stored error message: a query that
+ * lost its sign-in while running keeps only its message.
+ */
+export const parseLiveSourceSignInRequiredMessage = (
+    message: string,
+): LiveSourceSignInRequired | null => {
+    for (const { reason, pattern } of SIGN_IN_MESSAGE_PATTERNS) {
+        const match = pattern.exec(message);
+        if (match) {
+            const [, name, integration, connectUrl] = match;
+            let pathname: string;
+            try {
+                pathname = new URL(connectUrl).pathname;
+            } catch {
+                return null;
+            }
+            const connection = CONNECT_PATH_PATTERN.exec(pathname);
+            if (!connection) return null;
+            return {
+                externalConnectionUuid: connection[1],
+                name,
+                integration,
+                reason,
+                connectUrl,
+            };
+        }
+    }
+    return null;
 };

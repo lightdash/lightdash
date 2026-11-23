@@ -7,6 +7,7 @@ import {
     type PostHogOAuthSession,
     type SalesforceOAuthSession,
 } from '../ee/services/ExternalConnectionService/ExternalConnectionService';
+import { type LiveSourceUserSignInSession } from '../ee/services/ExternalConnectionService/liveSourceUserSignIn';
 import { type AgentConnectAttempt } from '../services/AiAccessService/AiAccessService';
 
 declare module 'express-session' {
@@ -47,6 +48,7 @@ declare module 'express-session' {
             salesforce?: SalesforceOAuthSession;
             googleLiveSource?: GoogleOAuthSession;
             liveSourceReturnTo?: LiveSourceReturnTo;
+            liveSourceUserSignIn?: LiveSourceUserSignInSession;
             isPopup?: boolean | undefined;
             databricks?: {
                 projectUuid?: string | undefined;
