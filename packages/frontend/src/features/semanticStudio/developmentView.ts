@@ -11,6 +11,17 @@ import {
 } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
+import {
+    CHECKOUT_KEY,
+    DRAFT_KEY,
+    DRAFT_STATE_KEY,
+    MODEL_VERSION_KEY,
+    PULL_REQUEST_CI_CHECKS_KEY,
+    PULL_REQUEST_DIFF_KEY,
+    SOURCES_KEY,
+    WORKSPACES_KEY,
+    WRITEBACK_RUN_STATUS_KEY,
+} from './studioQueryKeys';
 
 /** Open Try it sessions; each keeps the view it started on, so no other tab or page moves it or switches it off under them. */
 let pins = 0;
@@ -47,16 +58,16 @@ export const developmentHeadersFor = (previewProjectUuid: string | null) => ({
 
 // Queries that read the repository or name their own view, so switching the view cannot change them.
 const SAME_IN_EITHER_VIEW = new Set([
-    'pullRequestCiChecks',
-    'pullRequestDiff',
-    'aiWritebackRunStatus',
-    'semantic-studio-sources',
-    'semantic-studio-workspaces',
-    'semantic-studio-model-version',
-    'semantic-studio-checkout',
+    PULL_REQUEST_CI_CHECKS_KEY,
+    PULL_REQUEST_DIFF_KEY,
+    WRITEBACK_RUN_STATUS_KEY,
+    SOURCES_KEY,
+    WORKSPACES_KEY,
+    MODEL_VERSION_KEY,
+    CHECKOUT_KEY,
     // The draft is the person's own whichever view reads the models.
-    'semantic-layer-draft',
-    'semantic-layer-draft-state',
+    DRAFT_KEY,
+    DRAFT_STATE_KEY,
     // Who may ask the agent is the same in either view; refetching it blanks the chat's composer.
     'ai-access',
 ]);

@@ -19,9 +19,9 @@ import { type CustomRendererProps } from 'streamdown';
 import { AiMarkdownErrorBoundary } from '../../../../../components/common/AiMarkdown/AiMarkdownErrorBoundary';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
+import { recountHunks } from '../../../../../features/semanticStudio/splitPatch';
 import classes from './DiffMarkdownCodeBlock.module.css';
 import { QuietCardsContext } from './ToolCalls/quietCards';
-import { recountHunks } from './ToolCalls/splitPatch';
 
 const PlainDiff: FC<{ code: string }> = ({ code }) => (
     <Box component="pre" className={classes.plain}>

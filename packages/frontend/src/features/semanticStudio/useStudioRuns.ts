@@ -3,11 +3,11 @@ import {
     type SemanticStudioWorkspace,
 } from '@lightdash/common';
 import { useQueries } from '@tanstack/react-query';
-import { type StudioPendingChange } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
-import { pullRequestCiChecksQuery } from '../../ee/features/aiCopilot/hooks/usePullRequestCiChecks';
-import { useWritebackProgress } from '../../ee/features/aiCopilot/hooks/useWritebackProgress';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
+import { type StudioPendingChange } from './studioChange';
 import { toStudioRun, type StudioRun } from './studioRuns';
+import { pullRequestCiChecksQuery } from './usePullRequestCiChecks';
+import { useWritebackProgress } from './useWritebackProgress';
 
 export type StudioRunRow = {
     workspace: SemanticStudioWorkspace;

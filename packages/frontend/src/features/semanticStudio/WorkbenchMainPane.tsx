@@ -2,12 +2,14 @@ import {
     Anchor,
     Box,
     Breadcrumbs,
+    Button,
     Center,
     Group,
     Loader,
     Text,
     Title,
 } from '@mantine/core';
+import { IconSettings } from '@tabler/icons-react';
 import {
     useContext,
     useEffect,
@@ -15,25 +17,29 @@ import {
     useRef,
     useState,
     type FC,
+    type MouseEvent,
 } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
+import MantineIcon from '../../components/common/MantineIcon';
+import { useLiveSourceActions } from '../externalConnections/liveSources/liveSourceActions';
 import { LiveSourceBetaBadge } from '../externalConnections/liveSources/LiveSourceBetaBadge';
-import { DraftMarksContext } from './draftMarks';
-import { useExternalSourceActions } from './externalSources/externalSourceActions';
+import { LiveSourceSettings } from '../externalConnections/liveSources/LiveSourceSettings';
+import {
+    LiveSourceSummary,
+    LiveSourcesTable,
+} from '../externalConnections/liveSources/LiveSourcesView';
+import { useManagedLiveSource } from '../externalConnections/liveSources/useManagedLiveSource';
 import {
     ExternalSourceHeaderActions,
     ExternalSourceSummary,
     ExternalSourcesTable,
-} from './externalSources/ExternalSourcesView';
-import { useManagedExternalSource } from './externalSources/useManagedExternalSource';
+} from '../externalSources/components/ExternalSourcesView';
+import { useExternalSourceActions } from '../externalSources/hooks/externalSourceActions';
+import { useManagedExternalSource } from '../externalSources/hooks/useManagedExternalSource';
+import { DraftMarksContext } from './draftMarks';
+import { FieldDetailModal } from './FieldDetailModal';
+import { FieldList, FieldListToolbar } from './FieldList';
 import { JoinDiagram } from './JoinDiagram';
-import { useLiveSourceActions } from './liveSources/liveSourceActions';
-import { LiveSourceSettings } from './liveSources/LiveSourceSettings';
-import {
-    LiveSourceSummary,
-    LiveSourcesTable,
-} from './liveSources/LiveSourcesView';
-import { useManagedLiveSource } from './liveSources/useManagedLiveSource';
 import {
     containerOf,
     fieldGroups,
@@ -45,6 +51,7 @@ import {
     summaryOf,
     trailTo,
     type NodeRef,
+    type Source,
     type TreeNode,
 } from './model';
 import {
@@ -56,24 +63,49 @@ import {
 import { ModelMark } from './ModelMark';
 import { ModelTabs, SourceTabs } from './ModelTabs';
 import { PageScrollContext, usePageVirtualizer } from './pageScroll';
-import {
-    FieldDetailModal,
-    FieldList,
-    FieldListToolbar,
-    NodeIcon,
-    SemanticLayerNudge,
-    SettingsLink,
-} from './shared';
+import { SemanticLayerNudge } from './SemanticLayerNudge';
+import { NodeIcon } from './shared';
+import sharedClasses from './shared.module.css';
 import { useAddToStudioChat, startStudioChatRefDrag } from './studioChatRefs';
 import { getSemanticStudioSourceUrl, getSemanticStudioUrl } from './urls';
+import { addPath } from './useAddSource';
 import { useExploreFields } from './useExploreFields';
+import { useFieldListState } from './useFieldListState';
 import {
     useSemanticLayerDraft,
     useSemanticLayerModel,
 } from './useSemanticLayerModel';
-import { useFieldListState, type ViewModel } from './useSemanticStudio';
+import { type ViewModel } from './useSemanticStudio';
 import { findCheckedOutModel, useStudioCheckout } from './useStudioCheckout';
 import classes from './WorkbenchView.module.css';
+
+/** Opens the source's existing settings page; labelled, never a bare gear. */
+const SettingsLink: FC<{
+    view: ViewModel;
+    source: Source;
+    variant?: 'button' | 'subtle';
+}> = ({ view, source, variant = 'button' }) => {
+    if (
+        !source.settingsPath ||
+        !view.canOpenSettings ||
+        !view.permissions[source.kind]
+    )
+        return null;
+    return (
+        <Button
+            component={Link}
+            to={addPath(view, source.settingsPath)}
+            size="xs"
+            variant={variant === 'subtle' ? 'subtle' : 'default'}
+            color={variant === 'subtle' ? 'gray' : undefined}
+            className={sharedClasses.pressable}
+            leftSection={<MantineIcon icon={IconSettings} size={14} />}
+            onClick={(event: MouseEvent) => event.stopPropagation()}
+        >
+            Settings
+        </Button>
+    );
+};
 
 const CHILD_ROW_HEIGHT = 40;
 

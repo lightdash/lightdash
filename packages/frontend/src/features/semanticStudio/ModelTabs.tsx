@@ -39,11 +39,6 @@ import {
 } from 'react';
 import { useSearchParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
-import {
-    PIERRE_HIGHLIGHTER_OPTIONS,
-    PIERRE_POOL_OPTIONS,
-    pierreThemeFor,
-} from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -60,6 +55,11 @@ import {
 } from './modelCode';
 import { ModelPreAggregates } from './ModelPreAggregates';
 import classes from './ModelTabs.module.css';
+import {
+    PIERRE_HIGHLIGHTER_OPTIONS,
+    PIERRE_POOL_OPTIONS,
+    pierreThemeFor,
+} from './pierreDiffConfig';
 import {
     createEditor,
     editorOptionsFor,

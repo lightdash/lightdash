@@ -15,13 +15,13 @@ import {
     useStepTimes,
     useWritebackProgress,
     type WritebackProgress,
-} from '../../../hooks/useWritebackProgress';
-import { QuietCardsContext } from './quietCards';
+} from '../../../../../../features/semanticStudio/useWritebackProgress';
 import {
     formatDuration,
     stepDuration,
     WRITEBACK_STEPS,
-} from './writebackProgress';
+} from '../../../../../../features/semanticStudio/writebackProgress';
+import { QuietCardsContext } from './quietCards';
 import classes from './WritebackProgressCard.module.css';
 
 const STEP_ICONS: Record<(typeof WRITEBACK_STEPS)[number], Icon> = {

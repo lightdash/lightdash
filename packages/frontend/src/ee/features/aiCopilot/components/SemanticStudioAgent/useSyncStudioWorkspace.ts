@@ -3,15 +3,13 @@ import {
     type AiAgentMessageUser,
 } from '@lightdash/common';
 import { useEffect, useRef } from 'react';
+import { useStoredStudioThread } from '../../../../../features/semanticStudio/studioChange';
 import { splitStudioChatCode } from '../../../../../features/semanticStudio/studioChatRefs';
 import {
     useStudioWorkspaceAction,
     useStudioWorkspaces,
 } from '../../../../../features/semanticStudio/useStudioWorkspaces';
-import {
-    useStoredStudioThread,
-    useStudioThread,
-} from './useSemanticStudioChat';
+import { useStudioThread } from './useSemanticStudioChat';
 
 const NAME_LENGTH = 60;
 

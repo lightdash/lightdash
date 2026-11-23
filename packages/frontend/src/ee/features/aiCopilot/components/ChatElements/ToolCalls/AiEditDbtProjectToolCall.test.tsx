@@ -2,8 +2,8 @@ import { CiMergeState } from '@lightdash/common';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { usePullRequestCiChecks } from '../../../../../../features/semanticStudio/usePullRequestCiChecks';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
-import { usePullRequestCiChecks } from '../../../hooks/usePullRequestCiChecks';
 import { AiEditDbtProjectToolCall } from './AiEditDbtProjectToolCall';
 import { QuietCardsContext, StudioAskContext } from './quietCards';
 
@@ -22,9 +22,12 @@ const held = vi.hoisted(
         workspaces: [],
     }),
 );
-vi.mock('../../../hooks/usePullRequestCiChecks', () => ({
-    usePullRequestCiChecks: vi.fn(() => ({ data: held.ciChecks })),
-}));
+vi.mock(
+    '../../../../../../features/semanticStudio/usePullRequestCiChecks',
+    () => ({
+        usePullRequestCiChecks: vi.fn(() => ({ data: held.ciChecks })),
+    }),
+);
 vi.mock(
     '../../../../../../components/common/GithubIntegration/hooks/useGithubIntegration',
     () => ({ useGithubUserCredential: () => ({ data: null }) }),
@@ -43,7 +46,7 @@ vi.mock('./WritebackDiffModal', () => ({ WritebackDiffModal: () => null }));
 vi.mock('../../../../../../features/semanticStudio/ModelFieldChanges', () => ({
     ModelFieldChanges: () => null,
 }));
-vi.mock('../../SemanticStudioAgent/TryItButton', () => ({
+vi.mock('../../../../../../features/semanticStudio/TryItButton', () => ({
     TryIt: () => null,
 }));
 vi.mock('../../SemanticStudioAgent/PublishDraftModal', () => ({
@@ -80,7 +83,7 @@ vi.mock(
         }),
     }),
 );
-vi.mock('../../../hooks/usePullRequestDiff', () => ({
+vi.mock('../../../../../../features/semanticStudio/usePullRequestDiff', () => ({
     usePullRequestDiff: () => ({ data: { diff: held.diff } }),
 }));
 

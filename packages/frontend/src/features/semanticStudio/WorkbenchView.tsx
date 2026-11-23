@@ -58,9 +58,9 @@ import {
     StudioDevelopmentBar,
     StudioSavingBar,
 } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/StudioDevelopmentBar';
+import { StudioFirstRequest } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/StudioFirstRequest';
 import {
     useChatOpen,
-    useStoredStudioThread,
     useStudioAgent,
 } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import {
@@ -72,14 +72,15 @@ import { useSyncStudioWorkspace } from '../../ee/features/aiCopilot/components/S
 import { useProject } from '../../hooks/useProject';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { LiveSourceManager } from '../externalConnections/liveSources/LiveSourceManager';
+import { ExternalSourceManager } from '../externalSources/components/ExternalSourceManager';
 import { useDevelopmentView } from './developmentView';
 import {
     DraftMarksContext,
     MarkPublishedContext,
     type DraftMarks,
 } from './draftMarks';
-import { ExternalSourceManager } from './externalSources/ExternalSourceManager';
-import { LiveSourceManager } from './liveSources/LiveSourceManager';
+import { BuildFirstModel, EmptyProject } from './EmptyProject';
 import {
     ancestorKeys,
     containerOf,
@@ -99,8 +100,8 @@ import {
 } from './modelCode';
 import { ModelCodeView } from './ModelTabs';
 import { DraftDevelopmentBar, DraftReview } from './SemanticLayerDraft';
-import { BuildFirstModel, EmptyProject } from './shared';
 import { type SourcesTarget } from './SourcesView';
+import { useStoredStudioThread } from './studioChange';
 import {
     AddToStudioChatContext,
     sameStudioChatRef,
@@ -110,6 +111,7 @@ import { DraftPickerMenu, StudioCheckoutPicker } from './StudioCheckoutPicker';
 import { StudioStageLine, type StudioStage } from './StudioStageLine';
 import { StudioWorkspacesList } from './StudioWorkspacesList';
 import {
+    getNewAgentUrl,
     getSemanticStudioUrl,
     getSemanticStudioWorkspaceUrl,
     parseSemanticStudioWorkspaceUuid,
@@ -304,6 +306,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         thread: studioThread,
         isEnabled: hasChat,
         isLoadingAgents,
+        hasAgents,
     } = useStudioAgent(view.project.id);
     const [isChatOpen, setIsChatOpen] = useChatOpen(view.project.id);
     const [askedPrompt, setAskedPrompt] = useState<string | null>(null);
@@ -780,8 +783,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const showsCodeRail =
         (pane === 'code' || pane === 'review') &&
         (files.length > 0 || hasDraft);
-    // Published is the default state; Drafts is everything in flight, and an open draft gets its own bar.
-    const isChangesView = isReviewPane;
     const isChangeOpen =
         (pane === 'changes' || pane === 'review') &&
         !!(shownWorkspace || workspace);
@@ -858,7 +859,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         );
         setIsChatOpen(true);
     };
-    const askFirst = (prompt: string) => {
+    const askAgent = (prompt: string) => {
         setIsChatOpen(true);
         setAskedPrompt(prompt);
     };
@@ -878,7 +879,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 />
             ) : null}
             {keepsDraft ? (
-                <DraftDevelopmentBar projectUuid={view.project.id} />
+                <DraftDevelopmentBar
+                    projectUuid={view.project.id}
+                    onDiscarded={startNewThread}
+                />
             ) : null}
         </Group>
     );
@@ -1135,13 +1139,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         </header>
     );
 
-    const renderPaneWithChat = () => (
-        <AddToStudioChatContext.Provider
-            value={agentAvailable ? attachToChat : null}
-        >
-            {renderPane()}
-        </AddToStudioChatContext.Provider>
-    );
     const renderPane = () => {
         switch (pane) {
             case 'changes':
@@ -1325,10 +1322,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     <DraftReview
                         projectUuid={view.project.id}
                         draft={draft}
-                        onAskAgent={(prompt) => {
-                            setIsChatOpen(true);
-                            setAskedPrompt(prompt);
-                        }}
+                        onAskAgent={askAgent}
                         onOpenFile={(model) =>
                             setSearchParams({
                                 [VIEW_PARAM]: 'code',
@@ -1345,12 +1339,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         onOpen={(ref) => (ref ? open(ref) : view.select(null))}
                         onOpenNode={openNode}
                         onBuildModel={
-                            canNudge
-                                ? () => {
-                                      setIsChatOpen(true);
-                                      setAskedPrompt(BUILD_MODEL_PROMPT);
-                                  }
-                                : null
+                            canNudge ? () => askAgent(BUILD_MODEL_PROMPT) : null
                         }
                     />
                 );
@@ -1358,11 +1347,19 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 return (
                     <BuildFirstModel
                         view={view}
-                        onAsk={showsChat ? null : askFirst}
+                        onAsk={showsChat ? null : askAgent}
+                        firstRequest={
+                            showsChat ? null : (
+                                <StudioFirstRequest
+                                    projectUuid={view.project.id}
+                                    onAsk={askAgent}
+                                />
+                            )
+                        }
                     />
                 );
             case 'empty':
-                return <EmptyProject view={view} />;
+                return <EmptyProject view={view} hasAgents={hasAgents} />;
             default:
                 return assertUnreachable(pane, 'Unknown pane');
         }
@@ -1447,7 +1444,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                     className={classes.view}
                                                     aria-selected={
                                                         !isCodeTab &&
-                                                        !isChangesView
+                                                        !isReviewPane
                                                     }
                                                     onClick={() =>
                                                         switchView('models')
@@ -1538,7 +1535,9 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                         color="gray"
                                                         flex="none"
                                                         component={Link}
-                                                        to={`/projects/${view.project.id}/ai-agents/new`}
+                                                        to={getNewAgentUrl(
+                                                            view.project.id,
+                                                        )}
                                                     >
                                                         Create an agent
                                                     </Button>
@@ -1547,74 +1546,75 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         </Group>
                                     </>
                                 )}
-                                <Box
-                                    className={classes.workspaceBody}
-                                    data-sources={
-                                        pane === 'sources' || undefined
-                                    }
-                                    data-no-rail={
-                                        isReviewPane ||
-                                        ((pane === 'code' ||
-                                            pane === 'review') &&
-                                            !showsCodeRail) ||
-                                        (!isCodeTab && isEmpty)
-                                    }
+                                <AddToStudioChatContext.Provider
+                                    value={agentAvailable ? attachToChat : null}
                                 >
-                                    {(pane === 'code' || pane === 'review') &&
-                                    !showsCodeRail ? null : showsCodeRail ? (
-                                        <CodeRail
-                                            files={files}
-                                            overview={
-                                                hasDraft
-                                                    ? {
-                                                          isOpen:
-                                                              pane === 'review',
-                                                          onOpen: () =>
-                                                              switchView(
-                                                                  'changes',
-                                                              ),
-                                                      }
-                                                    : null
-                                            }
-                                            selected={
-                                                pane === 'review' ? null : file
-                                            }
-                                            selectedPart={searchParams.get(
-                                                FIELD_PARAM,
-                                            )}
-                                            drafted={drafted}
-                                            lineCounts={lineCounts}
-                                            preAggregates={preAggregatesByModel}
-                                            onOpen={(next, part) =>
-                                                setSearchParams({
-                                                    [VIEW_PARAM]: 'code',
-                                                    [FILE_PARAM]: next,
-                                                    ...(part
+                                    <Box
+                                        className={classes.workspaceBody}
+                                        data-sources={
+                                            pane === 'sources' || undefined
+                                        }
+                                        data-no-rail={
+                                            isReviewPane ||
+                                            ((pane === 'code' ||
+                                                pane === 'review') &&
+                                                !showsCodeRail) ||
+                                            (!isCodeTab && isEmpty)
+                                        }
+                                    >
+                                        {(pane === 'code' ||
+                                            pane === 'review') &&
+                                        !showsCodeRail ? null : showsCodeRail ? (
+                                            <CodeRail
+                                                files={files}
+                                                overview={
+                                                    hasDraft
                                                         ? {
-                                                              [FIELD_PARAM]:
-                                                                  part,
+                                                              isOpen:
+                                                                  pane ===
+                                                                  'review',
+                                                              onOpen: () =>
+                                                                  switchView(
+                                                                      'changes',
+                                                                  ),
                                                           }
-                                                        : {}),
-                                                })
-                                            }
-                                        />
-                                    ) : pane === 'sources' ? (
-                                        <Suspense fallback={null}>
-                                            <SourcesRail
-                                                target={sourcesTarget}
-                                                proposal={shownProposal}
-                                                isSaving={isSavingProposal}
-                                                hasOverview={!!sourcesPrUrl}
+                                                        : null
+                                                }
+                                                selected={
+                                                    pane === 'review'
+                                                        ? null
+                                                        : file
+                                                }
+                                                selectedPart={searchParams.get(
+                                                    FIELD_PARAM,
+                                                )}
+                                                lineCounts={lineCounts}
+                                                preAggregates={
+                                                    preAggregatesByModel
+                                                }
+                                                onOpen={(next, part) =>
+                                                    setSearchParams({
+                                                        [VIEW_PARAM]: 'code',
+                                                        [FILE_PARAM]: next,
+                                                        ...(part
+                                                            ? {
+                                                                  [FIELD_PARAM]:
+                                                                      part,
+                                                              }
+                                                            : {}),
+                                                    })
+                                                }
                                             />
-                                        </Suspense>
-                                    ) : isEmpty || isReviewPane ? null : (
-                                        <AddToStudioChatContext.Provider
-                                            value={
-                                                agentAvailable
-                                                    ? attachToChat
-                                                    : null
-                                            }
-                                        >
+                                        ) : pane === 'sources' ? (
+                                            <Suspense fallback={null}>
+                                                <SourcesRail
+                                                    target={sourcesTarget}
+                                                    proposal={shownProposal}
+                                                    isSaving={isSavingProposal}
+                                                    hasOverview={!!sourcesPrUrl}
+                                                />
+                                            </Suspense>
+                                        ) : isEmpty || isReviewPane ? null : (
                                             <Rail
                                                 view={view}
                                                 expanded={expanded}
@@ -1622,25 +1622,25 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                 onToggle={toggle}
                                                 onOpen={open}
                                             />
-                                        </AddToStudioChatContext.Provider>
-                                    )}
-                                    {pane === 'browse' ? (
-                                        renderPaneWithChat()
-                                    ) : (
-                                        <Box
-                                            className={classes.main}
-                                            data-full={
-                                                pane === 'code' ||
-                                                pane === 'review' ||
-                                                pane === 'sources' ||
-                                                pane === 'changes' ||
-                                                pane === 'changeSummary'
-                                            }
-                                        >
-                                            {renderPaneWithChat()}
-                                        </Box>
-                                    )}
-                                </Box>
+                                        )}
+                                        {pane === 'browse' ? (
+                                            renderPane()
+                                        ) : (
+                                            <Box
+                                                className={classes.main}
+                                                data-full={
+                                                    pane === 'code' ||
+                                                    pane === 'review' ||
+                                                    pane === 'sources' ||
+                                                    pane === 'changes' ||
+                                                    pane === 'changeSummary'
+                                                }
+                                            >
+                                                {renderPane()}
+                                            </Box>
+                                        )}
+                                    </Box>
+                                </AddToStudioChatContext.Provider>
                             </Box>
                         </Box>
                     </ExternalSourceManager>

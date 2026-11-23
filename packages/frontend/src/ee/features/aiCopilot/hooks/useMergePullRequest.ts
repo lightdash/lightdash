@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type LightdashApi } from '../../../../api';
+import { PULL_REQUEST_CI_CHECKS_KEY } from '../../../../features/semanticStudio/studioQueryKeys';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
@@ -49,12 +50,18 @@ export const useMergePullRequest = (projectUuid: string) => {
             // Prefix match covers every pinned-commit variant of the key.
             if (result.merged) {
                 queryClient.setQueriesData<CiChecks | null>(
-                    { queryKey: ['pullRequestCiChecks', projectUuid, prUrl] },
+                    {
+                        queryKey: [
+                            PULL_REQUEST_CI_CHECKS_KEY,
+                            projectUuid,
+                            prUrl,
+                        ],
+                    },
                     (old) => (old ? { ...old, merged: true } : old),
                 );
             }
             void queryClient.invalidateQueries({
-                queryKey: ['pullRequestCiChecks', projectUuid, prUrl],
+                queryKey: [PULL_REQUEST_CI_CHECKS_KEY, projectUuid, prUrl],
             });
             // Refresh the in-thread workstreams panel too so its PR badge flips
             // to "Merged" — that query is keyed by thread, not prUrl (#41).

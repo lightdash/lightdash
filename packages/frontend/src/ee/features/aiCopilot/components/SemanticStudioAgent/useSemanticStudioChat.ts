@@ -3,6 +3,10 @@ import { useLocalStorage } from '@mantine/hooks';
 import { useCallback, useEffect, useRef } from 'react';
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import {
+    useStoredStudioThread,
+    type StoredThread,
+} from '../../../../../features/semanticStudio/studioChange';
+import {
     useCanEditSemanticLayer,
     useClaimCompileFollowUp,
     useDraftCheckout,
@@ -21,15 +25,10 @@ import {
 } from '../../hooks/useProjectAiAgents';
 import { useDefaultAiAgent } from '../Launcher/useDefaultAiAgent';
 
-export type StoredThread = { threadUuid: string; agentUuid: string };
-
-/** The chat this browser has open; it follows the active workspace, see useSyncStudioWorkspace. */
-export const useStoredStudioThread = (projectUuid: string) =>
-    useLocalStorage<StoredThread | null>({
-        key: `semantic-studio-agent-thread-${projectUuid}`,
-        defaultValue: null,
-        getInitialValueInEffect: false,
-    });
+/** Asks for the project's agents with the page, so the chat loads alongside the explores and not after them. */
+export const usePrefetchStudioAgent = (projectUuid: string | undefined) => {
+    useDefaultAiAgent(projectUuid);
+};
 
 /** Whether the chat is open on the change you are on; closing it is remembered per change. */
 export const useChatOpen = (projectUuid: string) => {
@@ -132,6 +131,7 @@ export const useStudioAgent = (projectUuid: string) => {
     return {
         isLoadingAgents,
         isEnabled,
+        hasAgents: agents.length > 0,
         agent: storedAgent ?? defaultAgent ?? agents.at(0),
         thread:
             storedAgent && stored

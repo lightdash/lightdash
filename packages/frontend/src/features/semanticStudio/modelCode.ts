@@ -124,6 +124,12 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
     removed: 'Removed',
 };
 
+export const CHANGE_GLYPHS: Record<ChangeKind, string> = {
+    new: '+',
+    changed: '~',
+    removed: '−',
+};
+
 /** What an applied change did to a model, as its history reads it. */
 export const CHANGE_KIND_VERBS: Record<ChangeKind, string> = {
     new: 'Created',
@@ -196,7 +202,7 @@ export const summarizeModelChanges = (
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
 
-export type FieldChangeKind = 'dimension' | 'metric' | 'join' | 'model';
+type FieldChangeKind = 'dimension' | 'metric' | 'join' | 'model';
 
 /** One thing a change touched, in the words of the semantic layer. */
 export type FieldChange = {
@@ -434,23 +440,43 @@ export const describeFieldChanges = (fields: FieldChange[]): string =>
         )
         .join('. ');
 
-/** A model's title and, when it is new or removed, what happened to it, in words. */
+/** A whole model added, with what it holds, or removed. */
+export type WholeModelChange =
+    | { kind: 'new'; counts: string[] }
+    | { kind: 'removed' };
+
+/** A model's title and, when it is new or removed, what happened to it, in words and as data. */
 export const describeModelChange = (
     model: string,
     change: ContentChange | null,
-): { title: string; subtitle: string | null } => {
+): {
+    title: string;
+    subtitle: string | null;
+    whole: WholeModelChange | null;
+} => {
     const parsed = parseModel(
         change?.contentAfter ?? change?.contentBefore ?? '',
     );
     const title = parsed?.label ?? model;
     const kind = change ? getChangeKind(change) : 'changed';
     if (kind === 'removed') {
-        return { title, subtitle: CHANGE_KIND_LABELS.removed };
+        return {
+            title,
+            subtitle: CHANGE_KIND_LABELS.removed,
+            whole: { kind: 'removed' },
+        };
     }
-    if (kind === 'changed' || !parsed) return { title, subtitle: null };
+    if (kind === 'changed' || !parsed) {
+        return { title, subtitle: null, whole: null };
+    }
+    const counts = [
+        count(parsed.dimensions, 'dimension'),
+        count(parsed.metrics, 'metric'),
+    ];
     return {
         title,
-        subtitle: `${CHANGE_KIND_LABELS.new} · ${count(parsed.dimensions, 'dimension')} · ${count(parsed.metrics, 'metric')}`,
+        subtitle: [CHANGE_KIND_LABELS.new, ...counts].join(' · '),
+        whole: { kind: 'new', counts },
     };
 };
 

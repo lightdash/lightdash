@@ -9,10 +9,10 @@ import { IconArrowUpRight } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
-import { TryIt } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/TryItButton';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { developmentHeadersFor } from './developmentView';
 import classes from './MetricPreview.module.css';
+import { TryIt } from './TryItButton';
 import { useModelVersion } from './useFieldChangesInDevelopment';
 import { LIVE_HEADERS, useTotals } from './useMetricTotals';
 

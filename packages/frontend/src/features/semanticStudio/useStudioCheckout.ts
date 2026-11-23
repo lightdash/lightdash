@@ -10,11 +10,11 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { createContext, useContext, useRef } from 'react';
-import { useStoredStudioThread } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { PUBLISHED_HEADERS, PUBLISHED_VIEW } from './developmentView';
 import {
+    keepsSemanticLayerDraft,
     useSemanticLayerStatus,
     useSemanticLayerWorkspaceDraft,
 } from './useSemanticLayerModel';
@@ -24,7 +24,7 @@ import {
 } from './useStudioWorkspaces';
 
 /** What Models and Code show: Published, or one of your drafts folded on it. */
-export type StudioCheckout = {
+type StudioCheckout = {
     /** Null on Published. */
     workspace: SemanticStudioWorkspace | null;
     /** Null on Published, and on projects whose changes live in a repository. */
@@ -49,7 +49,7 @@ export const useStudioCheckoutState = (
     const workspaces = useStudioWorkspaces(projectUuid);
     const active =
         workspaces.data?.mine.find(({ isActive }) => isActive) ?? null;
-    const keepsDraft = status?.appliesAs !== 'dbt_pull_request';
+    const keepsDraft = keepsSemanticLayerDraft(status);
     const draft = useSemanticLayerWorkspaceDraft(
         projectUuid,
         status?.enabled && keepsDraft ? (active?.workspaceUuid ?? null) : null,
@@ -154,7 +154,6 @@ export const useCheckOut = (projectUuid: string) => {
     const action = useStudioWorkspaceAction(projectUuid);
     const { shown, isSwitching } = useStudioCheckout();
     const { showToastApiError } = useToaster();
-    const [, setStoredThread] = useStoredStudioThread(projectUuid);
     const isBusy = action.isLoading || isSwitching;
     const onError = (title: string) => (error: ApiError) => {
         showToastApiError({ title, apiError: error.error });
@@ -178,7 +177,7 @@ export const useCheckOut = (projectUuid: string) => {
             },
         );
     };
-    const createChange = () => {
+    const createChange = (onStarted: () => void) => {
         if (isBusy) return;
         action.mutate(
             {
@@ -186,8 +185,7 @@ export const useCheckOut = (projectUuid: string) => {
                 body: { threadUuid: null, name: UNTITLED_WORKSPACE_NAME },
             },
             {
-                // A new draft starts its own chat.
-                onSuccess: () => setStoredThread(null),
+                onSuccess: onStarted,
                 onError: onError('Could not start a draft'),
             },
         );

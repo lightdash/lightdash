@@ -16,7 +16,7 @@ import {
 import ErrorState from '../../components/common/ErrorState';
 import Page from '../../components/common/Page/Page';
 import ForbiddenPanel from '../../components/ForbiddenPanel';
-import { useDefaultAiAgent } from '../../ee/features/aiCopilot/components/Launcher/useDefaultAiAgent';
+import { usePrefetchStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import { useExplores } from '../../hooks/useExplores';
 import { useProject } from '../../hooks/useProject';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -28,6 +28,7 @@ import {
     canOpenProjectSettings,
     canOpenSemanticStudio,
     getStudioPermissions,
+    type StudioPermissions,
 } from './permissions';
 import { buildRealProject } from './realProject';
 import { StudioPageSkeleton } from './StudioPageSkeleton';
@@ -38,10 +39,10 @@ import {
     type StudioRoute,
 } from './urls';
 import {
+    keepsSemanticLayerDraft,
     useSemanticLayerDraft,
     useSemanticLayerStatus,
 } from './useSemanticLayerModel';
-import { type StudioPermissions } from './useSemanticStudio';
 import {
     foldDraftExplores,
     usePublishedExplores,
@@ -72,8 +73,7 @@ const SemanticStudioPage: FC = () => {
     } = useProject(projectUuid);
     // A draft kept in the app is laid over the published list, which is then the same on and off the draft.
     const status = useSemanticLayerStatus(projectUuid ?? '');
-    const readsPublished =
-        !!status?.enabled && status.appliesAs !== 'dbt_pull_request';
+    const readsPublished = !!status?.enabled && keepsSemanticLayerDraft(status);
     const viewExplores = useExplores(projectUuid, true, false, {
         enabled: !!projectUuid && !readsPublished,
     });
@@ -139,7 +139,7 @@ const SemanticStudioPage: FC = () => {
     const checkedOutDraft = isDraftGone
         ? null
         : (checkout.shown?.draft ?? null);
-    useDefaultAiAgent(projectUuid);
+    usePrefetchStudioAgent(projectUuid);
 
     const realProject = useMemo(
         () =>

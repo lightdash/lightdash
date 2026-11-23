@@ -10,10 +10,10 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
-import { WRITEBACK_STEPS } from '../../ee/features/aiCopilot/components/ChatElements/ToolCalls/writebackProgress';
-import { useElapsed } from '../../ee/features/aiCopilot/hooks/useWritebackProgress';
 import classes from './StudioRunRing.module.css';
 import { studioRunProgress, type StudioRun } from './studioRuns';
+import { useElapsed } from './useWritebackProgress';
+import { WRITEBACK_STEPS } from './writebackProgress';
 
 const LOOK: Record<StudioRun['kind'], { color: string; icon: Icon }> = {
     draft: { color: 'gray', icon: IconPencil },

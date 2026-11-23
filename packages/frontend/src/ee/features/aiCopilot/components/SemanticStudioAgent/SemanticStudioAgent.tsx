@@ -33,6 +33,7 @@ import {
 import { Provider } from 'react-redux';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SidebarPosition } from '../../../../../components/common/Page/types';
+import { type StoredThread } from '../../../../../features/semanticStudio/studioChange';
 import {
     withStudioChatCode,
     isStudioChatRefDrag,
@@ -68,7 +69,6 @@ import {
     useCompileFollowUp,
     useStudioAgent,
     useStudioThread,
-    type StoredThread,
 } from './useSemanticStudioChat';
 
 type OpenModel = { modelName: string | null; fieldName: string | null };
@@ -170,6 +170,43 @@ const useStartThread = (
     };
 };
 
+/** The chat's composer, with what is attached to the next message above it. */
+const StudioComposer: FC<
+    Pick<Attached, 'attached' | 'onDetach'> & {
+        projectUuid: string;
+        agentUuid: string;
+        threadUuid: string | null;
+        messageCount: number;
+        loading: boolean;
+        onSubmit: (submitted: Submitted) => void;
+    }
+> = ({
+    projectUuid,
+    agentUuid,
+    threadUuid,
+    messageCount,
+    loading,
+    onSubmit,
+    attached,
+    onDetach,
+}) => (
+    <>
+        <StudioChatRefChips refs={attached} onRemove={onDetach} />
+        <AgentChatInput
+            allowAttachments={false}
+            accessCalloutVariant="inline"
+            loading={loading}
+            onSubmit={onSubmit}
+            placeholder="What should I build or change?"
+            messageCount={messageCount}
+            projectUuid={projectUuid}
+            agentUuid={agentUuid}
+            threadUuid={threadUuid ?? undefined}
+            fullWidth
+        />
+    </>
+);
+
 /** Sends a prompt asked for from outside the chat, once. */
 const useAskedPrompt = (
     { prompt, onPromptTaken }: AskedPrompt,
@@ -245,22 +282,20 @@ const NewThread: FC<
             ) : (
                 <StudioChatEmptyState keepsDraft={keepsDraft} />
             )}
-            <StudioChatRefChips refs={attached} onRemove={onDetach} />
-            <AgentChatInput
-                allowAttachments={false}
-                accessCalloutVariant="inline"
-                loading={isLoading}
-                onSubmit={start}
-                placeholder="What should I build or change?"
+            <StudioComposer
                 projectUuid={projectUuid}
                 agentUuid={agent.uuid}
-                fullWidth
+                threadUuid={null}
+                messageCount={0}
+                loading={isLoading}
+                onSubmit={start}
+                attached={attached}
+                onDetach={onDetach}
             />
         </>
     );
 };
 
-/** Where the composer was once a change is out: the chat is done, and the next request starts a new one. */
 /** Where a chat ends once its change has left the draft: a line under it, and a way to start the next one. */
 const ChangeClosed: FC<{ onStartNew: () => void }> = ({ onStartNew }) => (
     <Divider
@@ -341,17 +376,15 @@ const ExistingThread: FC<
                 <Center flex={1}>
                     <Loader size="sm" color="gray" />
                 </Center>
-                <StudioChatRefChips refs={attached} onRemove={onDetach} />
-                <AgentChatInput
-                    allowAttachments={false}
-                    accessCalloutVariant="inline"
-                    loading
-                    onSubmit={send}
-                    placeholder="What should I build or change?"
+                <StudioComposer
                     projectUuid={projectUuid}
                     agentUuid={agent.uuid}
                     threadUuid={threadUuid}
-                    fullWidth
+                    messageCount={0}
+                    loading
+                    onSubmit={send}
+                    attached={attached}
+                    onDetach={onDetach}
                 />
             </>
         );
@@ -383,24 +416,16 @@ const ExistingThread: FC<
                     </Text>
                 ) : null}
                 {closed ? null : (
-                    <>
-                        <StudioChatRefChips
-                            refs={attached}
-                            onRemove={onDetach}
-                        />
-                        <AgentChatInput
-                            allowAttachments={false}
-                            accessCalloutVariant="inline"
-                            loading={isBusy}
-                            onSubmit={send}
-                            placeholder="What should I build or change?"
-                            messageCount={thread.messages.length}
-                            projectUuid={projectUuid}
-                            agentUuid={agent.uuid}
-                            threadUuid={threadUuid}
-                            fullWidth
-                        />
-                    </>
+                    <StudioComposer
+                        projectUuid={projectUuid}
+                        agentUuid={agent.uuid}
+                        threadUuid={threadUuid}
+                        messageCount={thread.messages.length}
+                        loading={isBusy}
+                        onSubmit={send}
+                        attached={attached}
+                        onDetach={onDetach}
+                    />
                 )}
             </AgentChatDisplay>
         </StudioAskContext.Provider>

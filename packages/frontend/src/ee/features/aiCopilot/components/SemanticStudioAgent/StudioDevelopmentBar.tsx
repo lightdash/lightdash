@@ -23,17 +23,18 @@ import {
     isDevelopmentViewPinned,
     useDevelopmentView,
 } from '../../../../../features/semanticStudio/developmentView';
-import { useCompileCheckout } from '../../../../../features/semanticStudio/useSemanticLayerModel';
-import { useClosePullRequest } from '../../hooks/useClosePullRequest';
-import { useWritebackProgress } from '../../hooks/useWritebackProgress';
-import { PublishDraftModal } from './PublishDraftModal';
-import { TryItButton } from './TryItButton';
-import { useFinishDiscardedWork } from './useSemanticStudioChat';
-import { useStudioPublish } from './useStudioPublish';
 import {
     type StudioPendingChange,
     type StudioPullRequest,
-} from './useStudioPullRequest';
+} from '../../../../../features/semanticStudio/studioChange';
+import { TryItButton } from '../../../../../features/semanticStudio/TryItButton';
+import { getSemanticStudioUrl } from '../../../../../features/semanticStudio/urls';
+import { useCompileCheckout } from '../../../../../features/semanticStudio/useSemanticLayerModel';
+import { useWritebackProgress } from '../../../../../features/semanticStudio/useWritebackProgress';
+import { useClosePullRequest } from '../../hooks/useClosePullRequest';
+import { PublishDraftModal } from './PublishDraftModal';
+import { useFinishDiscardedWork } from './useSemanticStudioChat';
+import { onlyWritersCanPublish, useStudioPublish } from './useStudioPublish';
 
 /** What a dbt project's Studio conversation has saved so far: its pull request, a look at the result, and publishing it. */
 export const StudioDevelopmentBar: FC<{
@@ -83,7 +84,7 @@ export const StudioDevelopmentBar: FC<{
                     w={240}
                     label={
                         mergesHere
-                            ? `Only people who can write to ${branch ?? "the project's branch"} can publish.`
+                            ? onlyWritersCanPublish(branch)
                             : 'Merge it in your repository to publish.'
                     }
                 >
@@ -143,7 +144,9 @@ export const StudioDevelopmentBar: FC<{
                     {previewProjectUuid ? (
                         <Menu.Item
                             component={Link}
-                            to={`/projects/${previewProjectUuid}/semantic-layer`}
+                            to={getSemanticStudioUrl(previewProjectUuid, {
+                                ref: null,
+                            })}
                             target="_blank"
                             leftSection={
                                 <MantineIcon icon={IconExternalLink} />

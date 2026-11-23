@@ -25,17 +25,17 @@ import confetti from 'canvas-confetti';
 import { useContext, useEffect, useRef, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { isMergeable } from '../../../../../../features/semanticStudio/pullRequestActions';
+import { usePullRequestCiChecks } from '../../../../../../features/semanticStudio/usePullRequestCiChecks';
 import { useClosePullRequest } from '../../../hooks/useClosePullRequest';
 import { useMergePullRequest } from '../../../hooks/useMergePullRequest';
 import {
     useCreateAgentThreadMessageMutation,
     useProjectAiAgent,
 } from '../../../hooks/useProjectAiAgents';
-import { usePullRequestCiChecks } from '../../../hooks/usePullRequestCiChecks';
 import { POST_MERGE_MIGRATION_PROMPT } from '../../../postMergeMigrationPrompt';
 import styles from './AiEditDbtProjectToolCall.module.css';
 import { DbtTurnSummaryCard } from './DbtTurnSummaryCard';
-import { isMergeable } from './pullRequestActions';
 import {
     INSTALL_ACTIONS,
     summarisePrUrl,

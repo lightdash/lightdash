@@ -44,18 +44,15 @@ describe('toModelLineage', () => {
         },
     });
 
-    it('links each model to the models built from it', () => {
+    it('links each model to the models built from it, up to the explore', () => {
         const { links } = toModelLineage(explore([orders, buyers], ['buyers']));
         expect(links.map(({ id }) => id).sort()).toEqual([
-            'campaigns->touchpoints',
-            'customers->touchpoints',
-            'orders->orders_summary',
             'raw->stg_orders',
             'stg_orders->orders',
         ]);
     });
 
-    it('places each model relative to the explore', () => {
+    it('keeps the explore and what is upstream of it', () => {
         const { models } = toModelLineage(
             explore([orders, buyers], ['buyers']),
         );
@@ -66,9 +63,6 @@ describe('toModelLineage', () => {
             customers: 'joined',
             stg_orders: 'upstream',
             raw: 'upstream',
-            orders_summary: 'downstream',
-            touchpoints: 'downstream',
-            campaigns: 'other',
         });
     });
 
