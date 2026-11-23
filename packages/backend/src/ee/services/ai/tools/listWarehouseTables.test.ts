@@ -309,6 +309,20 @@ describe('listWarehouseTables tool', () => {
         ).toBe(true);
     });
 
+    test('names at most ten databases when nothing matches', async () => {
+        const many: WarehouseTablesCatalog = Object.fromEntries(
+            Array.from({ length: 12 }, (_, i) => [`db${i}`, { s: { t: {} } }]),
+        );
+        const output = await execute(async () => many, {
+            search: 'missing',
+            limit: 100,
+        });
+
+        expect(output.result).toContain(
+            'covers db0, db1, db2, db3, db4, db5, db6, db7, db8, db9 and 2 more databases and',
+        );
+    });
+
     test('mirrors the error text as structured content when the catalog throws', async () => {
         const output = await execute(
             async () => {
