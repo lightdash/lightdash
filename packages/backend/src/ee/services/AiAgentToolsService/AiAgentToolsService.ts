@@ -4322,17 +4322,19 @@ export class AiAgentToolsService extends BaseService {
             const tabSlug =
                 [...dashboard.tabs].sort((a, b) => a.order - b.order)[0]
                     ?.slug ?? null;
+            const tabTiles = dashboard.tiles.filter(
+                (existing) => (existing.tabSlug ?? null) === tabSlug,
+            );
+            const layout = placeTile(tabTiles, getChartTileSize(chartType));
+            const relaidOut = new Map(
+                tabTiles.map((existing, i) => [existing, layout.tiles[i]]),
+            );
             const tile: DashboardChartTileAsCode = {
                 uuid: undefined,
                 tileSlug: undefined,
                 type: DashboardTileTypes.SAVED_CHART,
                 tabSlug,
-                ...placeTile(
-                    dashboard.tiles.filter(
-                        (existing) => (existing.tabSlug ?? null) === tabSlug,
-                    ),
-                    getChartTileSize(chartType),
-                ),
+                ...layout.placed,
                 properties: {
                     title: '',
                     hideTitle: false,
@@ -4340,7 +4342,15 @@ export class AiAgentToolsService extends BaseService {
                     chartName,
                 },
             };
-            const next = { ...dashboard, tiles: [...dashboard.tiles, tile] };
+            const next = {
+                ...dashboard,
+                tiles: [
+                    ...dashboard.tiles.map(
+                        (existing) => relaidOut.get(existing) ?? existing,
+                    ),
+                    tile,
+                ],
+            };
             this.validateContentAsCode('dashboard', next);
             await this.coderService.upsertDashboard(
                 context.user,
