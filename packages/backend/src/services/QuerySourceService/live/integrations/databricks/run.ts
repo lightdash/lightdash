@@ -38,7 +38,7 @@ export const DATABRICKS_CALLS_PER_QUERY =
 
 const COLUMN_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,254}$/;
 // A read starts with SELECT, WITH or VALUES, but WITH can lead into a write;
-// checked outside string literals and comments
+// checked outside string literals
 const WRITE_STATEMENT =
     /\b(insert|update|delete|merge|drop|create|alter|truncate|grant|revoke)\b/i;
 const READ_STATEMENT = /^\s*(\(\s*)*(select|with|values)\b/i;
@@ -138,46 +138,39 @@ const toResultValue = (value: string | null, type: DimensionType): unknown => {
     return value;
 };
 
-/**
- * The statement with string literals, quoted identifiers and comments
- * blanked in one pass, so a quote inside a comment, or a comment marker
- * inside a string, cannot hide the rest from the read-only check. An
- * unterminated literal or comment swallows the rest, like Databricks would.
- */
 const QUOTES = new Set(["'", '"', '`']);
+const RAW_STRING_PREFIX = /(^|[^A-Za-z0-9_])[rR]$/;
 
-export const stripLiterals = (sql: string): string => {
-    const closers: Record<string, string> = {
-        "'": "'",
-        '"': '"',
-        '`': '`',
-        '--': '\n',
-        '/*': '*/',
-    };
-    // Strings escape with a backslash; identifiers and comments don't
-    const isEscaped = (at: number, opener: string) => {
-        if (opener !== "'" && opener !== '"') return false;
+/**
+ * The statement with string literals and quoted identifiers blanked, or
+ * null when it has a raw string (r'...'), whose escaping differs. Comments
+ * are left in place: the read-only check refuses them, since Spark nests
+ * block comments and a quote inside one could hide what follows.
+ */
+export const stripLiterals = (sql: string): string | null => {
+    // Strings escape with a backslash; identifiers double the backtick
+    const isEscaped = (at: number, quote: string) => {
+        if (quote === '`') return false;
         const backslashes = /\\*$/.exec(sql.slice(0, at))?.[0].length ?? 0;
         return backslashes % 2 === 1;
     };
-    const findEnd = (opener: string, from: number): number => {
-        const closer = closers[opener];
-        let at = sql.indexOf(closer, from);
-        while (at !== -1 && isEscaped(at, opener)) {
-            at = sql.indexOf(closer, at + 1);
+    const findEnd = (quote: string, from: number): number => {
+        let at = sql.indexOf(quote, from);
+        while (at !== -1 && isEscaped(at, quote)) {
+            at = sql.indexOf(quote, at + 1);
         }
-        return at === -1 ? sql.length : at + closer.length;
+        return at === -1 ? sql.length : at + 1;
     };
     const parts: string[] = [];
     let index = 0;
     while (index < sql.length) {
-        const two = sql.slice(index, index + 2);
         const char = sql[index];
-        const comment = two === '--' || two === '/*' ? two : null;
-        const opener = comment ?? (QUOTES.has(char) ? char : null);
-        if (opener) {
-            parts.push(opener.length === 1 ? `${opener}${opener}` : ' ');
-            index = findEnd(opener, index + opener.length);
+        if (QUOTES.has(char)) {
+            if (char !== '`' && RAW_STRING_PREFIX.test(sql.slice(0, index))) {
+                return null;
+            }
+            parts.push(`${char}${char}`);
+            index = findEnd(char, index + 1);
         } else {
             parts.push(char);
             index += 1;
@@ -185,6 +178,9 @@ export const stripLiterals = (sql: string): string => {
     }
     return parts.join('');
 };
+
+const READ_ONLY_MESSAGE =
+    'Databricks live data sources run one read-only SELECT statement, without comments or raw strings';
 
 /** Reads one read-only statement, dropping trailing semicolons. */
 export const parseDatabricksQuery = (query: string): string => {
@@ -194,13 +190,14 @@ export const parseDatabricksQuery = (query: string): string => {
     }
     const outsideStrings = stripLiterals(sql);
     if (
+        outsideStrings === null ||
+        outsideStrings.includes('--') ||
+        outsideStrings.includes('/*') ||
         !READ_STATEMENT.test(outsideStrings) ||
         WRITE_STATEMENT.test(outsideStrings) ||
         outsideStrings.includes(';')
     ) {
-        throw new ParameterError(
-            'Databricks live data sources run one read-only SELECT statement',
-        );
+        throw new ParameterError(READ_ONLY_MESSAGE);
     }
     return sql;
 };

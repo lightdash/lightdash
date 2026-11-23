@@ -210,7 +210,7 @@ describe('parseDatabricksQuery', () => {
         ).toContain('drop table');
         expect(
             parseDatabricksQuery(
-                "SELECT 'it''s; -- not a comment' AS a, `delete` FROM t -- a 'comment'",
+                "SELECT 'it''s; -- not a comment /*' AS a, `delete`, 'a\\'b' FROM t",
             ),
         ).toContain('not a comment');
     });
@@ -225,6 +225,9 @@ describe('parseDatabricksQuery', () => {
         "WITH x AS (SELECT 1 -- '\n) INSERT INTO t SELECT * FROM x -- '",
         "SELECT 1 /* ' */ ; DROP TABLE t",
         "SELECT 'it\\'s' AS a; DROP TABLE t",
+        "WITH x AS (SELECT r'\\' AS a) INSERT INTO t SELECT * FROM x --'",
+        "WITH x AS (SELECT 1 AS a) /* /* */ ' */ INSERT INTO t SELECT * FROM x -- '",
+        'SELECT 1 AS a -- a harmless comment',
     ])('refuses %j', (sql) => {
         expect(() => parseDatabricksQuery(sql)).toThrow();
     });
