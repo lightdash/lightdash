@@ -209,8 +209,6 @@ export const getSystemPromptV2 = (
         // Whether the repo host supports server-side code search (GitHub yes,
         // GitLab no). Defaults true; when false the prompt steers off `search`.
         repoFsSupportsCodeSearch?: boolean;
-        // Semantic Studio saves its change with a code mode script.
-        semanticStudioCodeMode?: boolean;
         semanticStudioBuilder?: boolean;
         // A Studio dbt project's layout from its last compile.
         semanticStudioProjectMap?: string | null;
@@ -241,7 +239,6 @@ export const getSystemPromptV2 = (
         siteUrl = '',
         repoFsRoot = null,
         repoFsSupportsCodeSearch = true,
-        semanticStudioCodeMode = false,
         semanticStudioBuilder = false,
         semanticStudioProjectMap = null,
         semanticStudioQueriesDraft = false,
@@ -374,11 +371,6 @@ export const getSystemPromptV2 = (
                 agentName,
                 date,
                 instructions,
-                // The shared wording for no explores tells the agent to answer from SQL or give up.
-                availableExplores:
-                    args.availableExplores.length === 0
-                        ? 'None yet: this project has no models.'
-                        : availableExploresContent,
                 projectContext:
                     promptSections.has('projectContext') &&
                     args.hasProjectContext
@@ -398,8 +390,6 @@ export const getSystemPromptV2 = (
                     promptSections.has('aiWriteback')
                         ? {
                               saves: promptSections.has('aiWriteback'),
-                              codeMode: semanticStudioCodeMode,
-                              builder: semanticStudioBuilder,
                               projectMap: semanticStudioProjectMap,
                               sections: [
                                   ...(promptSections.has('aiWriteback')
