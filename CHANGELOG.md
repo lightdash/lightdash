@@ -1,3 +1,10 @@
+## [3.367.1](https://github.com/lightdash/lightdash/compare/3.367.0...3.367.1) (2026-11-23)
+
+
+### Bug Fixes
+
+* **semantic-studio:** count pane views once the draft and checkout load ([#33203](https://github.com/lightdash/lightdash/issues/33203)) ([fa5678f](https://github.com/lightdash/lightdash/commit/fa5678ff6b9879dad89563eb67a4e59a4260a4b2))
+
 # [3.367.0](https://github.com/lightdash/lightdash/compare/3.366.0...3.367.0) (2026-11-23)
 
 
