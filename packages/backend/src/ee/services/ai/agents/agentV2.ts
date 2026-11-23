@@ -210,6 +210,7 @@ import {
     summarizeToolResult,
 } from '../utils/toolSummaries';
 import { getAgentLogContext, withToolCallLogContext } from './agentLogContext';
+import { getBoundContentPreload } from './boundContentPreload';
 import { pruneSupersededContentReads } from './contentReadRetention';
 import { getMcpActiveTools } from './mcpToolGating';
 import { compactChartDiscovery, getPreviousQueryUuid } from './previousQuery';
@@ -3065,7 +3066,13 @@ const prepareAgentTurn = async ({
     const isFollowUp = args.messageHistory.some(
         (message) => message.role === 'assistant',
     );
-    const toolIntents = isFollowUp ? [] : (preparedContext?.toolIntents ?? []);
+    // A bound thread exists to change its content: start with the whole toolbox, no loadAgentTools step.
+    const isBoundContentThread =
+        args.threadBinding !== null && !!tools.editContent;
+    const toolIntents =
+        isFollowUp || isBoundContentThread
+            ? []
+            : (preparedContext?.toolIntents ?? []);
     const deferredSections = getDeferredPromptSections(
         getIntentToolNames(tools, toolIntents),
     );
@@ -3124,6 +3131,14 @@ const prepareAgentTurn = async ({
             content: `Reference material preloaded from the available tools for this request:\n${preparedContext.content}`,
         });
     }
+    const boundContent = isBoundContentThread
+        ? await getBoundContentPreload({
+              threadBinding: args.threadBinding,
+              readContent: dependencies.readContent,
+              siteUrl: args.siteUrl,
+          })
+        : null;
+    if (boundContent) messages.push({ role: 'user', content: boundContent });
     const invalidToolCallIds = new Set<string>();
     const prepareStep = buildPrepareStep({
         args,
