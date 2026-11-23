@@ -223,14 +223,9 @@ export const NodeIcon: FC<{
         case 'explore': {
             const explore = getExplore(project, nodeRef.exploreId);
             const source = getSource(project, explore.sourceId);
-            // A live source with several explores shows its logo on the
-            // source row above; a single-explore source is its explore
-            const isUnderLiveSource =
-                source.type === 'live' &&
-                project.explores.filter(
-                    ({ sourceId }) => sourceId === source.id,
-                ).length > 1;
-            return source.type === 'dbt' || isUnderLiveSource ? (
+            // A live source shows its logo on the source row above its
+            // explores, however many it has
+            return source.type === 'dbt' || source.type === 'live' ? (
                 <MantineIcon icon={IconTable} size={size} color="dimmed" />
             ) : (
                 <SourceLogo source={source} size={size} />
