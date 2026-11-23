@@ -428,6 +428,7 @@ export * from './utils/bigNumber';
 export * from './utils/awsWebIdentity';
 export * from './utils/bigqueryWorkloadIdentity';
 export * from './utils/bigqueryKeyfile';
+export * from './utils/chartRecommendation';
 export * from './utils/charts';
 export * from './utils/cellUrls';
 export * from './utils/chartValidation';
