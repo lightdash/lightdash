@@ -115,42 +115,46 @@ const mockResponseSchema = z
         'must not set retryAfterSeconds or body with status 200',
     );
 
-/** What a Hydra source accepts; the API and the setup form both check against it. */
-export const HYDRA_SETTINGS_SCHEMA = z
-    .object({
-        connector: z.literal(ApiConnectorType.HYDRA),
-        rowCount: z.number().int().min(0).max(100_000).optional(),
-        // At least 10, so the row cap fits in a query's 51 calls
-        pageSize: z
-            .number()
-            .int()
-            .refine((size) => size === 0 || (size >= 10 && size <= 10_000), {
-                message: 'must be 0, or from 10 to 10000',
-            })
-            .optional(),
-        latencyMs: z.number().int().min(0).max(120_000).optional(),
-        jitterMs: z.number().int().min(0).max(120_000).optional(),
-        errorRate: z.number().min(0).max(1).optional(),
-        failAuth: z.boolean().optional(),
-        vendorLimits: rateLimitsSchema.nullable().optional(),
-        onLimit: z
-            .object({
-                status: errorStatus,
-                retryAfterFormat: z.enum(['seconds', 'date', 'none']),
-                body: body.optional(),
-            })
-            .strict()
-            .optional(),
-        declaredLimits: z
-            .union([z.literal('vendor'), rateLimitsSchema])
-            .nullable()
-            .optional(),
-        mockResponses: z
-            .array(mockResponseSchema)
-            .max(MAX_MOCK_RESPONSES)
-            .optional(),
-    })
-    .strict();
+/**
+ * What a Hydra source accepts. Stored sources carry the engine's own keys too
+ * (sourceName, fields, lastScan), so reading one strips unknown keys; the API
+ * and the setup form check input with HYDRA_INPUT_SCHEMA, which refuses them.
+ */
+export const HYDRA_SETTINGS_SCHEMA = z.object({
+    connector: z.literal(ApiConnectorType.HYDRA),
+    rowCount: z.number().int().min(0).max(100_000).optional(),
+    // At least 10, so the row cap fits in a query's 51 calls
+    pageSize: z
+        .number()
+        .int()
+        .refine((size) => size === 0 || (size >= 10 && size <= 10_000), {
+            message: 'must be 0, or from 10 to 10000',
+        })
+        .optional(),
+    latencyMs: z.number().int().min(0).max(120_000).optional(),
+    jitterMs: z.number().int().min(0).max(120_000).optional(),
+    errorRate: z.number().min(0).max(1).optional(),
+    failAuth: z.boolean().optional(),
+    vendorLimits: rateLimitsSchema.nullable().optional(),
+    onLimit: z
+        .object({
+            status: errorStatus,
+            retryAfterFormat: z.enum(['seconds', 'date', 'none']),
+            body: body.optional(),
+        })
+        .strict()
+        .optional(),
+    declaredLimits: z
+        .union([z.literal('vendor'), rateLimitsSchema])
+        .nullable()
+        .optional(),
+    mockResponses: z
+        .array(mockResponseSchema)
+        .max(MAX_MOCK_RESPONSES)
+        .optional(),
+});
+
+const HYDRA_INPUT_SCHEMA = HYDRA_SETTINGS_SCHEMA.strict();
 
 const unwrap = (field: z.ZodType): z.ZodType =>
     field instanceof z.ZodOptional
@@ -174,7 +178,7 @@ const describeAllowed = (schema: z.ZodType): string | null => {
  * allows, or null when they are valid.
  */
 export const getHydraSettingsProblem = (value: unknown): string | null => {
-    const parsed = HYDRA_SETTINGS_SCHEMA.safeParse(value);
+    const parsed = HYDRA_INPUT_SCHEMA.safeParse(value);
     if (parsed.success) return null;
     const [issue] = parsed.error.issues;
     if (issue.code === 'unrecognized_keys') {

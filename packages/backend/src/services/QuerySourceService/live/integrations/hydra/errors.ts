@@ -33,7 +33,7 @@ export const toHydraError = (
                 retryAfterSeconds
                     ? `in ${retryAfterSeconds} seconds`
                     : 'shortly'
-            }, or loosen the source's vendorLimits or script.`,
+            }, or loosen the source's vendorLimits or mockResponses.`,
             { retryAfterSeconds },
         );
     }

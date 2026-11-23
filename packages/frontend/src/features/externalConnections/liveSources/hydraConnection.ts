@@ -18,7 +18,7 @@ export const HYDRA_TOKEN_FORM = {
     account: {
         label: 'Behaviour',
         description:
-            'Keys like latencyMs, failAuth, errorRate and pageSize, or JSON for limits and scripts',
+            'Keys like latencyMs, failAuth, errorRate and pageSize, or JSON for limits and mock responses',
         placeholder: 'Leave blank for defaults',
         invalidMessage:
             'Use key=value pairs with the keys above, or a JSON object of Hydra settings',

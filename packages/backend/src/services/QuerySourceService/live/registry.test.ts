@@ -94,6 +94,19 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
             expect(integration.settings.parse(settings)).toEqual(settings);
         });
 
+        test('reads a stored source that carries the engine keys too', () => {
+            vi.stubEnv(HYDRA_ENABLED_ENV, 'true');
+            expect(
+                parseStoredApiSource({
+                    ...settings,
+                    sourceName: 'source',
+                    fields: {},
+                    lastScan: { fields: [], scannedAt: '2026-11-23' },
+                }),
+            ).toEqual(settings);
+            vi.unstubAllEnvs();
+        });
+
         test('scans only explores it has, besides its first', () => {
             const [first, ...others] = integration.explores.map(
                 ({ name }) => name,
