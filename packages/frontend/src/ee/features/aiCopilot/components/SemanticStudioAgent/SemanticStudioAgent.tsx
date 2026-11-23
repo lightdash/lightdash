@@ -273,15 +273,17 @@ const ChangeClosed: FC<{
     const { setPendingPrompt } = usePendingPrompt();
     const isLive = closed.pullRequestUrl === null;
     const names = closed.models.map(friendlyName);
+    // The first model is the one the change was about; a join it added elsewhere needs no button.
+    const [model] = closed.models;
     return (
         <Stack gap="xs" p="md">
             <Text fz="sm" c="dimmed">
                 {isLive
-                    ? 'Published. Try it where people ask questions.'
+                    ? 'Published. Everyone on this project can use it now.'
                     : 'Sent for review.'}
             </Text>
-            <Group gap="xs">
-                {isLive && names.length > 0 ? (
+            <Group gap="xs" wrap="nowrap">
+                {isLive && model ? (
                     <>
                         <Button
                             size="xs"
@@ -296,17 +298,14 @@ const ChangeClosed: FC<{
                         >
                             Ask a question
                         </Button>
-                        {closed.models.slice(0, 2).map((model, index) => (
-                            <Button
-                                key={model}
-                                size="xs"
-                                variant="default"
-                                component={Link}
-                                to={`/projects/${projectUuid}/tables/${model}`}
-                            >
-                                Explore {names[index]}
-                            </Button>
-                        ))}
+                        <Button
+                            size="xs"
+                            variant="default"
+                            component={Link}
+                            to={`/projects/${projectUuid}/tables/${model}`}
+                        >
+                            Explore {names[0]}
+                        </Button>
                     </>
                 ) : null}
                 <Button
@@ -315,7 +314,7 @@ const ChangeClosed: FC<{
                     color="gray"
                     onClick={onStartNew}
                 >
-                    Start a new chat
+                    New chat
                 </Button>
             </Group>
         </Stack>
