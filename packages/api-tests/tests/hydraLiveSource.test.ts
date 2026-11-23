@@ -400,9 +400,16 @@ describe('Hydra, the test integration', () => {
         expect(await getApiCalls(admin, limited.uuid)).toBe(2);
     });
 
-    it('keeps calls under declared limits that match the vendor, so it never refuses', async () => {
+    it('keeps calls under declared limits a little stricter than the vendor, so it never refuses', async () => {
+        // The gate's window opens when it charges a call, a moment before the
+        // call reaches Hydra, so the declared window keeps a margin
         const limited = await createHydraSource(admin, 'paced', 'heidi', {
             vendorLimits: {
+                concurrentCalls: 1,
+                callsPerSecond: null,
+                buckets: [{ id: 'burst', windowMs: 2_500, capacity: 1 }],
+            },
+            declaredLimits: {
                 concurrentCalls: 1,
                 callsPerSecond: null,
                 buckets: [{ id: 'burst', windowMs: 3_000, capacity: 1 }],
