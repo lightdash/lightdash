@@ -209,6 +209,7 @@ const BlockedNotice: FC<{ blocker: SemanticLayerBlocker }> = ({ blocker }) => {
 };
 
 const FILE_PARAM = 'file';
+const PANE_VIEW_SETTLE_MS = 1000;
 
 const BUILD_MODEL_PROMPT =
     'Look through my warehouse and suggest the first model and metrics to add.';
@@ -743,11 +744,17 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const trackRef = useRef(track);
     trackRef.current = track;
     const projectId = view.project.id;
+    // Counted once it settles: the pane passes through others while the draft, status and checkout load.
     useEffect(() => {
-        trackRef.current({
-            name: EventName.SEMANTIC_STUDIO_PANE_VIEWED,
-            properties: { projectId, pane },
-        });
+        const timer = setTimeout(
+            () =>
+                trackRef.current({
+                    name: EventName.SEMANTIC_STUDIO_PANE_VIEWED,
+                    properties: { projectId, pane },
+                }),
+            PANE_VIEW_SETTLE_MS,
+        );
+        return () => clearTimeout(timer);
     }, [projectId, pane]);
     useEffect(() => {
         if (openExplore === null) return;
