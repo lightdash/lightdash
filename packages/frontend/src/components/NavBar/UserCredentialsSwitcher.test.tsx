@@ -1,5 +1,5 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactNode } from 'react';
@@ -292,6 +292,41 @@ describe('UserCredentialsSwitcher required credentials prompt', () => {
         expect(
             screen.queryByRole('button', { name: 'Connect PostgreSQL' }),
         ).toBeNull();
+    });
+
+    it('stays closed when an already failed query is invalidated', async () => {
+        const user = userEvent.setup();
+        const Invalidate = () => {
+            const queryClient = useQueryClient();
+            return (
+                <button onClick={() => queryClient.invalidateQueries()}>
+                    Invalidate
+                </button>
+            );
+        };
+        const queryFn = vi
+            .fn()
+            .mockRejectedValueOnce({
+                error: { name: 'MissingWarehouseCredentialsError' },
+            })
+            .mockResolvedValue('rows');
+        const Query = () => {
+            useQuery({ queryKey: ['tile'], queryFn, retry: false });
+            return null;
+        };
+        renderWithProviders(
+            <MemoryRouter initialEntries={['/projects/project/spaces']}>
+                <UserCredentialsSwitcher />
+                <Query />
+                <Invalidate />
+            </MemoryRouter>,
+        );
+        await user.click(await screen.findByRole('button', { name: 'Close' }));
+
+        await user.click(screen.getByRole('button', { name: 'Invalidate' }));
+        await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2));
+
+        expect(screen.queryByRole('dialog')).toBeNull();
     });
 
     it('opens when a request outside the query cache reports missing credentials', async () => {

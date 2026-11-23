@@ -1,5 +1,6 @@
 import { type QueryClient } from '@tanstack/react-query';
 import { useSyncExternalStore } from 'react';
+import { dashboardResultsQueryPredicate } from '../dashboard/useDashboardRefresh';
 
 export const WAREHOUSE_CREDENTIALS_ERROR = 'warehouse-credentials-error';
 
@@ -44,14 +45,26 @@ const isCredentialsError = (error: unknown) => {
     return typeof name === 'string' && CREDENTIAL_ERROR_NAMES.has(name);
 };
 
-// For pages that must not reload after credentials are saved (unsaved edits):
-// re-run what failed on credentials and let non-query runners retry
+// For pages that must not reload after credentials are saved (unsaved edits).
+// Tile results are refreshed even when they loaded fine: their cache keys
+// don't include the credential, so they'd keep showing the previous one's data
 export const retryAfterWarehouseCredentialsSaved = (
     queryClient: QueryClient,
     projectUuid: string,
 ) => {
-    void queryClient.refetchQueries({
-        predicate: (query) => isCredentialsError(query.state.error),
+    void queryClient.invalidateQueries({
+        predicate: (query) => {
+            if (query.queryKey[0] === 'dashboard_chart_ready_query') {
+                return query.queryKey[1] === projectUuid;
+            }
+            // SQL chart tiles carry no project in their key; only mounted
+            // queries refetch, and those belong to the active project
+            if (dashboardResultsQueryPredicate(query)) return true;
+            return (
+                isCredentialsError(query.state.error) &&
+                query.queryKey.includes(projectUuid)
+            );
+        },
     });
     window.dispatchEvent(
         new CustomEvent(WAREHOUSE_CREDENTIALS_CONNECTED, {

@@ -125,8 +125,10 @@ const UserCredentialsSwitcher = () => {
     // Re-open the credentials modal whenever a query fails on credentials
     useEffect(() => {
         const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
-            if (event.type === 'updated' && event.query.state.error) {
-                handleCredentialsError((event.query.state.error as any)?.error);
+            // Only a fresh failure: an errored query also emits updates when
+            // it is invalidated or refetched after credentials are saved
+            if (event.type === 'updated' && event.action.type === 'error') {
+                handleCredentialsError((event.action.error as any)?.error);
             }
         });
 

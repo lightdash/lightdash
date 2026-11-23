@@ -474,7 +474,7 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
     );
 
     useEffect(() => {
-        const retryFailedRun = (event: Event) => {
+        const takeFailedRun = (event: Event) => {
             const failedRun = lastFailedRun.current;
             if (
                 !(event instanceof CustomEvent) ||
@@ -484,24 +484,46 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                     ? failedRun.args.projectUuid !== projectUuid
                     : failedRun.projectUuid !== projectUuid)
             )
-                return;
+                return null;
             lastFailedRun.current = null;
+            return failedRun;
+        };
+        const retryFailedRun = (event: Event) => {
+            const failedRun = takeFailedRun(event);
+            if (!failedRun) return;
             if (failedRun.kind === 'sql') {
                 void dispatch(runSqlQuery(failedRun.args));
             } else {
                 void dispatch(prepareAndFetchChartData({ forceRefresh: true }));
             }
         };
-        const events = [
-            SHARED_SIGN_IN_RECONNECTED,
+        // The cost estimate may have failed on the missing credentials too,
+        // so this retry goes back through the cost confirmation
+        const retryWithNewCredentials = (event: Event) => {
+            const failedRun = takeFailedRun(event);
+            if (!failedRun) return;
+            if (failedRun.kind === 'sql') {
+                void handleRunQuery(failedRun.args.sql);
+            } else {
+                void dispatch(prepareAndFetchChartData({ forceRefresh: true }));
+            }
+        };
+        window.addEventListener(SHARED_SIGN_IN_RECONNECTED, retryFailedRun);
+        window.addEventListener(
             WAREHOUSE_CREDENTIALS_CONNECTED,
-        ];
-        events.forEach((name) => window.addEventListener(name, retryFailedRun));
-        return () =>
-            events.forEach((name) =>
-                window.removeEventListener(name, retryFailedRun),
+            retryWithNewCredentials,
+        );
+        return () => {
+            window.removeEventListener(
+                SHARED_SIGN_IN_RECONNECTED,
+                retryFailedRun,
             );
-    }, [dispatch, projectUuid]);
+            window.removeEventListener(
+                WAREHOUSE_CREDENTIALS_CONNECTED,
+                retryWithNewCredentials,
+            );
+        };
+    }, [dispatch, projectUuid, handleRunQuery]);
 
     useQueryErrorToast(queryError, queryErrorProjectUuid);
 
