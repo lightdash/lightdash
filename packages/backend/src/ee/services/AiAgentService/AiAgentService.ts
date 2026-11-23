@@ -15190,12 +15190,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         // Studio queries read the person's draft over what is published, the way trying their changes does.
         const inDraft = <T>(run: () => Promise<T>): Promise<T> => {
             let drafted:
-                | ReturnType<SemanticStudioService['findDevelopmentExplores']>
+                | ReturnType<
+                      SemanticStudioCheckoutService['findDevelopmentExplores']
+                  >
                 | undefined;
             // Reading the draft reads the project itself, which must see what is published.
             const findExplores = () => {
                 drafted ??= developmentView.exit(() =>
-                    this.semanticStudioService.findDevelopmentExplores(
+                    this.semanticStudioCheckoutService.findDevelopmentExplores(
                         user,
                         projectUuid,
                     ),

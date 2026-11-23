@@ -13,7 +13,6 @@ import {
     type DevelopmentView,
 } from '../../../services/ProjectService/developmentView';
 import { type SemanticStudioCheckoutService } from './SemanticStudioCheckoutService';
-import { type SemanticStudioService } from './SemanticStudioService';
 
 const isRegistered = (account: Account): account is RegisteredAccount =>
     account.user.type === 'registered';
@@ -25,7 +24,9 @@ export const developmentViewMiddleware: RequestHandler = (req, _res, next) => {
         return;
     }
     const previewProjectUuid = req.get(DEVELOPMENT_PREVIEW_HEADER);
-    type Found = ReturnType<SemanticStudioService['findDevelopmentExplores']>;
+    type Found = ReturnType<
+        SemanticStudioCheckoutService['findDevelopmentExplores']
+    >;
     // One request reads explores more than once; the draft is worked out once per project.
     const found = new Map<string, Found>();
     const findExplores: DevelopmentView['findExplores'] = (
@@ -38,19 +39,17 @@ export const developmentViewMiddleware: RequestHandler = (req, _res, next) => {
         const { services } = req;
         const user = toSessionUser(account);
         // Reading the draft or the preview reads projects themselves, which must see what is live.
+        const checkout =
+            services.getSemanticStudioCheckoutService<SemanticStudioCheckoutService>();
         const reading: Found = developmentView
             .exit(() =>
                 previewProjectUuid
-                    ? services
-                          .getSemanticStudioCheckoutService<SemanticStudioCheckoutService>()
-                          .findPreviewExplores(
-                              user,
-                              projectUuid,
-                              previewProjectUuid,
-                          )
-                    : services
-                          .getSemanticStudioService<SemanticStudioService>()
-                          .findDevelopmentExplores(user, projectUuid),
+                    ? checkout.findPreviewExplores(
+                          user,
+                          projectUuid,
+                          previewProjectUuid,
+                      )
+                    : checkout.findDevelopmentExplores(user, projectUuid),
             )
             // A draft that cannot be read, or a preview that is gone, must not take the live project down with it.
             .catch((error: unknown) => {

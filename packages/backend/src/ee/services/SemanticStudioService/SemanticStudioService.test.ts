@@ -38,7 +38,7 @@ import {
     type ProjectModelDocumentModel,
     type StoredDraftChange,
 } from '../../models/ProjectModelDocumentModel';
-import { saveDbtTryOut } from './dbtTryOut';
+import { findDbtDraftExplores, saveDbtTryOut } from './dbtTryOut';
 import {
     SemanticStudioService,
     type SemanticStudioServiceArguments,
@@ -477,7 +477,6 @@ const setup = ({
                 if (activeWorkspace) activeWorkspace.prUrl = url;
             },
             recordPullRequestState,
-            findBranchCompile: async () => null,
             deleteFinishedBranchCompiles: async () => undefined,
         },
         featureFlagModel: {
@@ -1423,10 +1422,7 @@ dimensions:
         it('compiles the drafted models for the person who drafted them', async () => {
             const context = setup();
             expect(
-                await context.service.findDevelopmentExplores(
-                    deployer,
-                    PROJECT_UUID,
-                ),
+                await context.service.findDraftExplores(deployer, PROJECT_UUID),
             ).toBeNull();
             await context.service.proposeDraftChange(
                 deployer,
@@ -1435,7 +1431,7 @@ dimensions:
                 null,
                 null,
             );
-            const explores = await context.service.findDevelopmentExplores(
+            const explores = await context.service.findDraftExplores(
                 deployer,
                 PROJECT_UUID,
             );
@@ -1459,17 +1455,14 @@ dimensions:
             );
             expect(
                 (
-                    await context.service.findDevelopmentExplores(
+                    await context.service.findDraftExplores(
                         deployer,
                         PROJECT_UUID,
                     )
                 )?.get('orders'),
             ).toBeNull();
             expect(
-                await context.service.findDevelopmentExplores(
-                    viewer,
-                    PROJECT_UUID,
-                ),
+                await context.service.findDraftExplores(viewer, PROJECT_UUID),
             ).toBeNull();
         });
     });
@@ -1479,44 +1472,27 @@ dimensions:
             prUrl: 'https://github.com/acme/shop/pull/1',
             explores: [TRY_OUT_EXPLORE],
         };
-        const dbt = (overrides: Parameters<typeof setup>[0] = {}) =>
-            setup({ dbtConnection: DBT_IN_GITHUB, ...overrides });
-
-        it('shows the person who made the change what it compiles to, and no one else', async () => {
-            const context = dbt();
-            expect(
-                await context.service.findDevelopmentExplores(
-                    repoWriter,
-                    PROJECT_UUID,
-                ),
-            ).toBeNull();
-            await saveDbtTryOut(
-                context.fileStorageClient,
-                { projectUuid: PROJECT_UUID, userUuid: repoWriter.userUuid },
-                null,
-                project,
-            );
-            expect(
-                (
-                    await context.service.findDevelopmentExplores(
-                        repoWriter,
-                        PROJECT_UUID,
-                    )
-                )?.get('try_out'),
-            ).toEqual(TRY_OUT_EXPLORE);
-            expect(
-                await context.service.findDevelopmentExplores(
-                    deployer,
-                    PROJECT_UUID,
-                ),
-            ).toBeNull();
-        });
 
         it('is forgotten once its own pull request settles, not another one', async () => {
-            const context = dbt();
+            const context = setup({ dbtConnection: DBT_IN_GITHUB });
+            const owner = {
+                projectUuid: PROJECT_UUID,
+                userUuid: repoWriter.userUuid,
+            };
+            const findTryOut = () =>
+                findDbtDraftExplores(
+                    {
+                        storage: context.fileStorageClient,
+                        workspaceModel: {
+                            findActive: context.workspaceModel.findActive,
+                            findBranchCompile: async () => null,
+                        },
+                    },
+                    owner,
+                );
             await saveDbtTryOut(
                 context.fileStorageClient,
-                { projectUuid: PROJECT_UUID, userUuid: repoWriter.userUuid },
+                owner,
                 null,
                 project,
             );
@@ -1526,70 +1502,14 @@ dimensions:
                 'https://github.com/acme/shop/pull/2',
                 'closed',
             );
-            expect(
-                await context.service.findDevelopmentExplores(
-                    repoWriter,
-                    PROJECT_UUID,
-                ),
-            ).not.toBeNull();
+            expect(await findTryOut()).not.toBeNull();
             await context.service.recordPullRequestState(
                 repoWriter,
                 PROJECT_UUID,
                 project.prUrl,
                 'merged',
             );
-            expect(
-                await context.service.findDevelopmentExplores(
-                    repoWriter,
-                    PROJECT_UUID,
-                ),
-            ).toBeNull();
-        });
-
-        it("reads the active workspace's own change, not an older one for another pull request", async () => {
-            const context = dbt();
-            await saveDbtTryOut(
-                context.fileStorageClient,
-                { projectUuid: PROJECT_UUID, userUuid: repoWriter.userUuid },
-                null,
-                project,
-            );
-            context.setActiveWorkspace({
-                threadUuid: 'thread-2',
-                prUrl: 'https://github.com/acme/shop/pull/2',
-            });
-            expect(
-                await context.service.findDevelopmentExplores(
-                    repoWriter,
-                    PROJECT_UUID,
-                ),
-            ).toBeNull();
-            await saveDbtTryOut(
-                context.fileStorageClient,
-                { projectUuid: PROJECT_UUID, userUuid: repoWriter.userUuid },
-                'thread-2',
-                project,
-            );
-            expect(
-                (
-                    await context.service.findDevelopmentExplores(
-                        repoWriter,
-                        PROJECT_UUID,
-                    )
-                )?.get('try_out'),
-            ).toEqual(TRY_OUT_EXPLORE);
-            context.setActiveWorkspace({
-                threadUuid: 'thread-1',
-                prUrl: project.prUrl,
-            });
-            expect(
-                (
-                    await context.service.findDevelopmentExplores(
-                        repoWriter,
-                        PROJECT_UUID,
-                    )
-                )?.get('try_out'),
-            ).toEqual(TRY_OUT_EXPLORE);
+            expect(await findTryOut()).toBeNull();
         });
     });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dbtChangeFingerprint } from './dbtTryOut';
+import { dbtChangeFingerprint } from './checkedExplores';
 
 describe('dbtChangeFingerprint', () => {
     const a = { path: 'models/a.yml', base: 'a: 1', next: 'a: 2' };

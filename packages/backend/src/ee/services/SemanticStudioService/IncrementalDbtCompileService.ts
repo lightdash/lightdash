@@ -27,6 +27,12 @@ import {
 import { startStepTimings } from '../../../utils/stepTimings';
 import { type AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import {
+    dbtChangeFingerprint,
+    keepCheckedExplores,
+    takeCheckedExplores,
+    type CheckedExploresStorage,
+} from './checkedExplores';
+import {
     advanceCompiledManifest,
     findModelsToCompile,
     findNewCompileErrors,
@@ -34,12 +40,6 @@ import {
     type DbtScriptChange,
     type DbtScriptCheck,
 } from './dbtManifestPatch';
-import {
-    dbtChangeFingerprint,
-    keepCheckedExplores,
-    takeCheckedExplores,
-    type DbtTryOutStorage,
-} from './dbtTryOut';
 import {
     isModelExplore,
     usesAnyModel,
@@ -66,7 +66,7 @@ export type IncrementalDbtCompileServiceArguments = {
         'compileExploresFromManifest' | 'saveExploresToCacheAndIndexCatalog'
     >;
     checker: Pick<DraftChecker, 'findExploreError'>;
-    fileStorageClient: DbtTryOutStorage;
+    fileStorageClient: CheckedExploresStorage;
     projectCompileLogModel: Pick<ProjectCompileLogModel, 'findLatestJobUuid'>;
     aiWritebackService: Pick<AiWritebackService, 'openStudioCheckout'>;
 };

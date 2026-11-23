@@ -448,17 +448,13 @@ export class SemanticStudioWorkspaceModel {
     }
 
     /** Ends a workspace: it leaves the person's list and stays as history. */
-    async finish(owner: Owner, workspaceUuid: string | null): Promise<number> {
+    async finish(owner: Owner, workspaceUuid: string): Promise<number> {
         return this.database(SemanticStudioWorkspacesTableName)
             .where({
                 project_uuid: owner.projectUuid,
                 created_by_user_uuid: owner.userUuid,
+                semantic_studio_workspace_uuid: workspaceUuid,
             })
-            .andWhere(
-                workspaceUuid
-                    ? { semantic_studio_workspace_uuid: workspaceUuid }
-                    : { is_active: true },
-            )
             .update({
                 is_active: false,
                 finished_at: this.database.fn.now(),

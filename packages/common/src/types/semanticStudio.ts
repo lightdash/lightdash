@@ -4,6 +4,7 @@ import {
 } from '../lightdash/applyModelFragment';
 import { type ApiSuccess } from './api/success';
 import { type UUID } from './api/uuid';
+import { type CiChecks } from './ci';
 import { type Explore } from './explore';
 
 export type SemanticLayerApplyMode =
@@ -411,6 +412,18 @@ export const isPullRequestOpen = (
     pullRequest !== null &&
     pullRequest.state !== 'merged' &&
     pullRequest.state !== 'closed';
+
+/** A pull request's state as its CI checks report it. */
+export const pullRequestStateOf = ({
+    state,
+    merged,
+}: Pick<
+    CiChecks,
+    'state' | 'merged'
+>): SemanticStudioWorkspacePullRequestState => {
+    if (merged) return 'merged';
+    return state === 'open' ? 'open' : 'closed';
+};
 
 /** A workspace that has not landed or been dropped yet. */
 export const isOpenWorkspace = ({

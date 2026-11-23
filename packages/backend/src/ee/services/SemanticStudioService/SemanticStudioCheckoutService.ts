@@ -25,7 +25,6 @@ import {
     type WritebackMergeResult,
 } from '@lightdash/common';
 import { NATIVE_MODEL_DIRECTORIES } from '@lightdash/common/lightdash/loader';
-import { createHash } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import {
     type LightdashAnalytics,
@@ -38,6 +37,7 @@ import { startStepTimings } from '../../../utils/stepTimings';
 import { type SemanticStudioWorkspaceModel } from '../../models/SemanticStudioWorkspaceModel';
 import { type AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
+import { sourceRevision } from '../AiWritebackService/utils';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import {
     quoteCompileOutput,
@@ -58,7 +58,10 @@ export type SemanticStudioCheckoutServiceArguments = {
     analytics: Pick<LightdashAnalytics, 'track'>;
     studio: Pick<
         SemanticStudioService,
-        'getStatus' | 'assertCanUseStudio' | 'recordPullRequestState'
+        | 'getStatus'
+        | 'assertCanUseStudio'
+        | 'mergePullRequest'
+        | 'findDraftExplores'
     >;
     projectModel: {
         get: (projectUuid: string) => Promise<ModelProject>;
@@ -100,10 +103,7 @@ export type SemanticStudioCheckoutServiceArguments = {
     >;
     aiWritebackService: Pick<
         AiWritebackService,
-        | 'openStudioCheckout'
-        | 'saveWithScript'
-        | 'findPullRequestBranch'
-        | 'mergePullRequest'
+        'openStudioCheckout' | 'saveWithScript' | 'findPullRequestBranch'
     >;
     incrementalDbtCompile: Pick<
         IncrementalDbtCompileService,
@@ -591,20 +591,12 @@ export class SemanticStudioCheckoutService extends BaseService {
                 'This draft can be published once its latest edit compiles',
             );
         }
-        const result = await this.aiWritebackService.mergePullRequest({
+        const result = await this.studio.mergePullRequest(
             user,
             projectUuid,
             prUrl,
-            incrementalCompile: true,
-        });
-        if (result.merged) {
-            await this.studio.recordPullRequestState(
-                user,
-                projectUuid,
-                prUrl,
-                'merged',
-            );
-        }
+            { sha: undefined, incrementalCompile: true },
+        );
         this.track(
             user,
             projectUuid,
@@ -712,6 +704,26 @@ export class SemanticStudioCheckoutService extends BaseService {
         }
     }
 
+    /** Every explore as the person's unpublished change leaves it: their checked-out dbt change, else their draft. */
+    async findDevelopmentExplores(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<Map<string, Explore | ExploreError | null> | null> {
+        const status = await this.studio.getStatus(user, projectUuid);
+        if (status.appliesAs !== 'dbt_pull_request') {
+            return this.studio.findDraftExplores(user, projectUuid);
+        }
+        return status.enabled
+            ? findDbtDraftExplores(
+                  {
+                      storage: this.fileStorageClient,
+                      workspaceModel: this.workspaceModel,
+                  },
+                  { projectUuid, userUuid: user.userUuid },
+              )
+            : null;
+    }
+
     /**
      * Every explore as a dbt project's pull request leaves it, read from the preview
      * project built from that branch; null when this is not such a preview or the
@@ -814,10 +826,7 @@ export class SemanticStudioCheckoutService extends BaseService {
         return {
             path,
             content,
-            revision:
-                content === null
-                    ? null
-                    : createHash('sha256').update(content).digest('hex'),
+            revision: content === null ? null : sourceRevision(content),
         };
     }
 
@@ -1017,7 +1026,7 @@ export class SemanticStudioCheckoutService extends BaseService {
             prAction: saved.result.prAction === 'opened' ? 'opened' : 'updated',
             commitSha,
             checked: saved.checked,
-            revision: createHash('sha256').update(content).digest('hex'),
+            revision: sourceRevision(content),
         };
     }
 }

@@ -20,7 +20,6 @@ import {
     toDraftEdit,
     UNTITLED_WORKSPACE_NAME,
     ValidationTarget,
-    type CiChecks,
     type Explore,
     type ExploreError,
     type ExploreType,
@@ -53,6 +52,7 @@ import {
     type SemanticStudioWorkspaces,
     type SemanticStudioWorkspaceStartBody,
     type SessionUser,
+    type WritebackMergeResult,
 } from '@lightdash/common';
 import { groupBy } from 'es-toolkit/compat';
 import { createHash } from 'node:crypto';
@@ -81,11 +81,7 @@ import {
 import { type SemanticStudioWorkspaceModel } from '../../models/SemanticStudioWorkspaceModel';
 import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
 import { type AiWritebackService } from '../AiWritebackService/AiWritebackService';
-import {
-    findDbtDraftExplores,
-    retireDbtTryOut,
-    type DbtTryOutStorage,
-} from './dbtTryOut';
+import { retireDbtTryOut, type DbtTryOutStorage } from './dbtTryOut';
 import {
     DraftChecker,
     isModelExplore,
@@ -189,7 +185,6 @@ export type SemanticStudioServiceArguments = {
         | 'finish'
         | 'attachPullRequest'
         | 'recordPullRequestState'
-        | 'findBranchCompile'
         | 'deleteFinishedBranchCompiles'
     >;
 };
@@ -289,18 +284,6 @@ const RECENT_WORKSPACE_MS = 14 * 24 * 60 * 60 * 1000;
 type Blocker = { reason: SemanticLayerBlocker; error: LightdashError };
 
 const CANNOT_USE_STUDIO = "You cannot change this project's models here";
-
-/** A pull request's state as its CI checks report it. */
-export const pullRequestStateOf = ({
-    state,
-    merged,
-}: Pick<
-    CiChecks,
-    'state' | 'merged'
->): SemanticStudioWorkspacePullRequestState => {
-    if (merged) return 'merged';
-    return state === 'open' ? 'open' : 'closed';
-};
 
 /** Keeps a project's native models on the server and takes reviewed drafts of them live. */
 export class SemanticStudioService extends BaseService {
@@ -1039,22 +1022,10 @@ export class SemanticStudioService extends BaseService {
      * the draft removes; null when they have nothing drafted or cannot change the
      * project. This is what lets them query their own changes on the live project.
      */
-    async findDevelopmentExplores(
+    async findDraftExplores(
         user: SessionUser,
         projectUuid: string,
     ): Promise<Map<string, Explore | ExploreError | null> | null> {
-        const status = await this.getStatus(user, projectUuid);
-        if (status.appliesAs === 'dbt_pull_request') {
-            return status.enabled
-                ? findDbtDraftExplores(
-                      {
-                          storage: this.fileStorageClient,
-                          workspaceModel: this.workspaceModel,
-                      },
-                      { projectUuid, userUuid: user.userUuid },
-                  )
-                : null;
-        }
         if (!(await this.canEditModels(user, projectUuid))) return null;
         // Asked first: with nothing drafted there is no reason to read the live models, which for a repository is a network call.
         const owner = await this.findDraftOwner(projectUuid, user.userUuid);
@@ -1934,10 +1905,8 @@ export class SemanticStudioService extends BaseService {
         const merge = async (triesLeft: number): Promise<boolean> => {
             try {
                 return (
-                    await this.aiWritebackService.mergePullRequest({
-                        user,
-                        projectUuid,
-                        prUrl,
+                    await this.mergePullRequest(user, projectUuid, prUrl, {
+                        sha: undefined,
                         incrementalCompile: true,
                     })
                 ).merged;
@@ -1960,12 +1929,6 @@ export class SemanticStudioService extends BaseService {
                     reason: 'The repository did not merge it.',
                 };
             }
-            await this.recordPullRequestState(
-                user,
-                projectUuid,
-                prUrl,
-                'merged',
-            );
             return { merged: true };
         } catch (error) {
             return { merged: false, reason: getErrorMessage(error) };
@@ -2594,6 +2557,30 @@ export class SemanticStudioService extends BaseService {
             event: 'semantic_studio.draft_discarded',
             properties: { scope: 'draft' },
         });
+    }
+
+    /** Merges a pull request and, once merged, records it so the change reads merged from that moment. */
+    async mergePullRequest(
+        user: SessionUser,
+        projectUuid: string,
+        prUrl: string,
+        opts: { sha: string | undefined; incrementalCompile: boolean },
+    ): Promise<WritebackMergeResult> {
+        const result = await this.aiWritebackService.mergePullRequest({
+            user,
+            projectUuid,
+            prUrl,
+            ...opts,
+        });
+        if (result.merged) {
+            await this.recordPullRequestState(
+                user,
+                projectUuid,
+                prUrl,
+                'merged',
+            );
+        }
+        return result;
     }
 
     /**
