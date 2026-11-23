@@ -1925,52 +1925,86 @@ export class SemanticStudioService extends BaseService {
         workspaceUuid,
         compileRequestUuid,
     }: CompileSemanticStudioBranchPayload): Promise<void> {
+        const timings = startStepTimings();
+        let outcome: 'ready' | 'failed' | 'no_pull_request' | 'no_branch' =
+            'failed';
+        let counts = { exploreCount: 0, exploreErrorCount: 0 };
+        let dbtTimings: Record<string, number | null> = {};
         const fail = (branch: string | null, error: string) =>
             this.workspaceModel.finishBranchCompile(
                 workspaceUuid,
                 compileRequestUuid,
                 { status: 'failed', branch, error },
             );
-        const workspace = await this.workspaceModel.find(
-            workspaceUuid,
-            userUuid,
-        );
-        const prUrl = workspace?.pullRequest?.url ?? null;
-        if (!workspace || workspace.finishedAt || prUrl === null) {
-            await fail(null, 'This draft has no open pull request to compile.');
-            return;
-        }
-        let branch: string;
         try {
-            branch = await this.aiWritebackService.findPullRequestBranch(
-                organizationUuid,
-                projectUuid,
-                prUrl,
+            const workspace = await this.workspaceModel.find(
+                workspaceUuid,
+                userUuid,
             );
-        } catch (error) {
-            this.logger.warn(
-                `SemanticStudio: could not read the branch of ${prUrl}: ${getErrorMessage(error)}`,
-            );
-            await fail(
-                null,
-                "Could not read this draft's branch. Its pull request may be merged, closed or in another repository.",
-            );
-            return;
-        }
-        try {
-            const explores =
-                await this.projectService.compileExploresFromBranch(
-                    { userUuid, organizationUuid },
-                    projectUuid,
-                    branch,
+            const prUrl = workspace?.pullRequest?.url ?? null;
+            if (!workspace || workspace.finishedAt || prUrl === null) {
+                outcome = 'no_pull_request';
+                await fail(
+                    null,
+                    'This draft has no open pull request to compile.',
                 );
-            await this.workspaceModel.finishBranchCompile(
+                return;
+            }
+            let branch: string;
+            try {
+                branch = await this.aiWritebackService.findPullRequestBranch(
+                    organizationUuid,
+                    projectUuid,
+                    prUrl,
+                );
+            } catch (error) {
+                this.logger.warn(
+                    `SemanticStudio: could not read the branch of ${prUrl}: ${getErrorMessage(error)}`,
+                );
+                outcome = 'no_branch';
+                await fail(
+                    null,
+                    "Could not read this draft's branch. Its pull request may be merged, closed or in another repository.",
+                );
+                return;
+            }
+            timings.mark('branchLookup');
+            try {
+                const compiled =
+                    await this.projectService.compileExploresFromBranch(
+                        { userUuid, organizationUuid },
+                        projectUuid,
+                        branch,
+                    );
+                timings.mark('compile');
+                dbtTimings = compiled.timings;
+                const exploreErrorCount =
+                    compiled.explores.filter(isExploreError).length;
+                counts = {
+                    exploreCount: compiled.explores.length - exploreErrorCount,
+                    exploreErrorCount,
+                };
+                await this.workspaceModel.finishBranchCompile(
+                    workspaceUuid,
+                    compileRequestUuid,
+                    { status: 'ready', branch, explores: compiled.explores },
+                );
+                timings.mark('save');
+                outcome = 'ready';
+            } catch (error) {
+                await fail(branch, getErrorMessage(error));
+            }
+        } finally {
+            this.logger.info('Semantic Studio branch compile timed', {
+                event: 'semantic_studio.branch_compile.timed',
+                projectUuid,
                 workspaceUuid,
                 compileRequestUuid,
-                { status: 'ready', branch, explores },
-            );
-        } catch (error) {
-            await fail(branch, getErrorMessage(error));
+                outcome,
+                ...counts,
+                ...dbtTimings,
+                ...timings.summary(),
+            });
         }
     }
 
