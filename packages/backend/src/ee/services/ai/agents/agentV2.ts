@@ -2815,6 +2815,7 @@ export const getAgentMessages = (
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         semanticStudioCodeMode: args.semanticStudioCodeMode,
+        semanticStudioProjectMap: args.semanticStudioProjectMap,
         semanticStudioQueriesDraft: loadout.toolNames.has('runMetricQuery'),
         slackLinksOnly: args.slackLinksOnly,
         enableComposerPythonNodes: args.enableComposerQueries,

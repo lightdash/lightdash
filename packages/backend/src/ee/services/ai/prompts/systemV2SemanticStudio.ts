@@ -12,14 +12,23 @@ export type SemanticStudioDbtTurn = {
     codeMode: boolean;
     /** The repository sections that apply to this turn. */
     sections: string[];
+    /** The project's layout from its last compile; null when none is stored. */
+    projectMap: string | null;
 };
 
-const DBT_READ = `- This project's models are built by dbt, so its semantic layer lives in the repository's YAML and SQL. Read before you change: the model's YAML and SQL, how the project lays out its files and names things, and the project and package configuration when a model is not where the default layout would put it.
-- A model that an installed package provides is not in this repository. Say so, and change only what the project itself owns for that model.`;
+const DBT_READ_SURVEY = `- This project's models are built by dbt, so its semantic layer lives in the repository's YAML and SQL. Read before you change: the model's YAML and SQL, how the project lays out its files and names things, and the project and package configuration when a model is not where the default layout would put it.`;
+
+const DBT_READ_MAPPED = `- This project's models are built by dbt, so its semantic layer lives in the repository's YAML and SQL. The project layout below says where sources are declared and which database they read, how folders and files are named, and which packages are installed. Rely on it and on dbt's conventions rather than surveying the repository: read the files you change, and one existing file of the same kind to follow its conventions.`;
+
+const DBT_READ_SHARED = `- A model that an installed package provides is not in this repository. Say so, and change only what the project itself owns for that model.
+- Make reads and queries that do not depend on each other in the same step, not one after another.`;
+
+const getDbtRead = (mapped: boolean) =>
+    `${mapped ? DBT_READ_MAPPED : DBT_READ_SURVEY}\n${DBT_READ_SHARED}`;
 
 const DBT_IMPACT = `- Redefining or removing what exists changes numbers people already rely on. Before you change that, check what uses the field with analyzeFieldImpact, and say what you found in the change's note. A field saved charts use should keep its name.`;
 
-const DBT_PROPOSAL = `${DBT_READ}
+const getDbtProposal = (mapped: boolean) => `${getDbtRead(mapped)}
 - Propose the change as a unified diff in a \`\`\`diff block, one block per file with the file's path in its header, built from the file as you read it and following the conventions you read. Keep it to what was asked.
 - You cannot save changes to this repository in this thread. Show the whole proposal again when they ask for more, so the latest diff is the full change.
 ${DBT_IMPACT}
@@ -31,25 +40,30 @@ ${DBT_IMPACT} When saved charts use it, ask before you save.
 - Nothing is published until the person publishes the draft, so say "in the draft" until then. Once saved, the draft compiles and the bar above this chat lets them try it and publish it.
 - After saving, the card is your reply, so end the turn without writing anything. The one thing most worth checking goes in the save's note, and an alternative you would offer goes in its options as the person would say it.`;
 
-const DBT_SAVE = `${DBT_READ}
+const getDbtSave = (mapped: boolean) => `${getDbtRead(mapped)}
 - Save with editDbtProject, one call per change, with a request that names the files, the models and fields, and what each becomes.
 ${DBT_SAVE_RULES}`;
 
-const DBT_SAVE_CODE_MODE = `${DBT_READ}
+const getDbtSaveCodeMode = (mapped: boolean) => `${getDbtRead(mapped)}
 - Save with editDbtProject, one call per change, with a script that makes it and a prompt that says the same change in words: the files, the models and fields, and what each becomes.
 - Write the script from the files as you read them: use yaml.set and yaml.push for YAML, so the rest of each file stays as it is, and repo.write only for a whole new file such as a new model's SQL. Put each field where that file already keeps its kind. If the tool says the script failed, fix it from the error and call again; tell the person only if it still fails.
 - Pass a null script only when the change needs dbt itself to run, such as checking new SQL against the warehouse; the slower sandbox makes that change instead.
 ${DBT_SAVE_RULES}`;
 
-const getDbtChangeRules = (saves: boolean, codeMode: boolean) => {
-    if (!saves) return DBT_PROPOSAL;
-    return codeMode ? DBT_SAVE_CODE_MODE : DBT_SAVE;
+const getDbtChangeRules = (
+    saves: boolean,
+    codeMode: boolean,
+    mapped: boolean,
+) => {
+    if (!saves) return getDbtProposal(mapped);
+    return codeMode ? getDbtSaveCodeMode(mapped) : getDbtSave(mapped);
 };
 
 const getDbtSections = ({
     saves,
     codeMode,
     sections,
+    projectMap,
 }: SemanticStudioDbtTurn): string[] => [
     `## What the person sees
 
@@ -61,7 +75,7 @@ The person sees your text, so write it in their terms and name fields by their l
 
 ## How to change the layer
 
-${getDbtChangeRules(saves, codeMode)}
+${getDbtChangeRules(saves, codeMode, projectMap !== null)}
 ${REPLY_RULES}
 
 ## Modelling
@@ -69,6 +83,7 @@ ${REPLY_RULES}
 - A model is one table at one grain, and its label says what one row is.
 - Keep warehouse names as names and put plain words on labels. A name that is an acronym or code gets a label and a one-sentence description. When the meaning is unclear, ask.
 - A metric is reusable: a condition that defines the measure stays in the metric, and a condition that only picks one question's slice stays out.`,
+    ...(projectMap ? [`## Project layout\n\n${projectMap}`] : []),
     ...sections,
 ];
 

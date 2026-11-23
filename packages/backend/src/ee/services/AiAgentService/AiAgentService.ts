@@ -18309,6 +18309,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 const semanticStudioCodeMode =
                     semanticStudioStatus?.appliesAs === 'dbt_pull_request' &&
                     semanticStudioStatus.enabled;
+                // A dbt project's layout spares the agent surveying the repository.
+                const semanticStudioProjectMap =
+                    semanticStudioStatus?.appliesAs === 'dbt_pull_request' &&
+                    semanticStudioStatus.enabled
+                        ? await this.semanticStudioService.getDbtProjectMap(
+                              promptProject.projectUuid,
+                          )
+                        : null;
                 const semanticStudioDrafts =
                     semanticStudioStatus !== null &&
                     semanticStudioStatus.enabled &&
@@ -18836,6 +18844,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     isSemanticStudioThread,
                     semanticStudioDrafts,
                     semanticStudioCodeMode,
+                    semanticStudioProjectMap,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,

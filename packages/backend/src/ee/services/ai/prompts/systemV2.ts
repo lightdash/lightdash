@@ -211,6 +211,8 @@ export const getSystemPromptV2 = (
         repoFsSupportsCodeSearch?: boolean;
         // Semantic Studio saves its change with a code mode script.
         semanticStudioCodeMode?: boolean;
+        // A Studio dbt project's layout from its last compile.
+        semanticStudioProjectMap?: string | null;
         // Semantic Studio can run a metric query, which reads the person's draft.
         semanticStudioQueriesDraft?: boolean;
         // Org Slack setting: the answer may not carry query results into Slack.
@@ -237,6 +239,7 @@ export const getSystemPromptV2 = (
         repoFsRoot = null,
         repoFsSupportsCodeSearch = true,
         semanticStudioCodeMode = false,
+        semanticStudioProjectMap = null,
         semanticStudioQueriesDraft = false,
         promptSections = NO_PROMPT_SECTIONS,
         slackChannelId = null,
@@ -387,6 +390,7 @@ export const getSystemPromptV2 = (
                         ? {
                               saves: promptSections.has('aiWriteback'),
                               codeMode: semanticStudioCodeMode,
+                              projectMap: semanticStudioProjectMap,
                               sections: [
                                   ...(promptSections.has('aiWriteback')
                                       ? [

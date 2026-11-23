@@ -82,9 +82,11 @@ import { CompileInterruptedError } from '../../../scheduler/compileShutdown';
 import { BaseService } from '../../../services/BaseService';
 import {
     readCompiledDbtManifest,
+    readCompiledDbtProjectMap,
     saveCompiledDbtManifest,
     type CompiledDbtManifest,
 } from '../../../services/ProjectService/compiledDbtManifest';
+import { describeDbtProjectMap } from '../../../services/ProjectService/dbtProjectMap';
 import {
     type IncrementalCompileResult,
     type ProjectService,
@@ -1757,6 +1759,28 @@ export class SemanticStudioService extends BaseService {
      * request, as a refresh would; nothing for a change that is not theirs or a
      * project that is not dbt in a repository.
      */
+    /** The dbt project's layout from its last compile, for the agent's prompt; null when none is stored. */
+    async getDbtProjectMap(projectUuid: string): Promise<string | null> {
+        try {
+            const stored = await readCompiledDbtProjectMap(
+                this.fileStorageClient,
+                projectUuid,
+            );
+            if (stored) return stored.map;
+            // A manifest saved before maps were stored; its next compile stores one.
+            const compiled = await readCompiledDbtManifest(
+                this.fileStorageClient,
+                projectUuid,
+            );
+            return compiled ? describeDbtProjectMap(compiled.manifest) : null;
+        } catch (error) {
+            this.logger.warn(
+                `SemanticStudio: could not read the project map of ${projectUuid}: ${getErrorMessage(error)}`,
+            );
+            return null;
+        }
+    }
+
     async queueBranchCompile(
         user: SessionUser,
         projectUuid: string,
