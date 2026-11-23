@@ -209,7 +209,6 @@ const BlockedNotice: FC<{ blocker: SemanticLayerBlocker }> = ({ blocker }) => {
 };
 
 const FILE_PARAM = 'file';
-const PANE_VIEW_SETTLE_MS = 1000;
 
 const BUILD_MODEL_PROMPT =
     'Look through my warehouse and suggest the first model and metrics to add.';
@@ -298,7 +297,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         keepsDraft || project?.dbtConnection.type === DbtProjectType.GITHUB;
     const canEditModels = useCanEditSemanticLayer(view.project.id);
     const status = useSemanticLayerStatus(view.project.id);
-    const checkout = useStudioCheckout().shown;
+    const { shown: checkout, isSwitching } = useStudioCheckout();
     const checkedOutDraft = keepsDraft ? (checkout?.draft ?? null) : null;
 
     const {
@@ -744,18 +743,17 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const trackRef = useRef(track);
     trackRef.current = track;
     const projectId = view.project.id;
-    // Counted once it settles: the pane passes through others while the draft, status and checkout load.
+    // Until the draft and checkout first load, the pane is a placeholder, not a view.
+    const hasLoaded = useRef(false);
+    if (!isSwitching && draft !== undefined) hasLoaded.current = true;
+    const isPaneSettled = hasLoaded.current;
     useEffect(() => {
-        const timer = setTimeout(
-            () =>
-                trackRef.current({
-                    name: EventName.SEMANTIC_STUDIO_PANE_VIEWED,
-                    properties: { projectId, pane },
-                }),
-            PANE_VIEW_SETTLE_MS,
-        );
-        return () => clearTimeout(timer);
-    }, [projectId, pane]);
+        if (!isPaneSettled) return;
+        trackRef.current({
+            name: EventName.SEMANTIC_STUDIO_PANE_VIEWED,
+            properties: { projectId, pane },
+        });
+    }, [projectId, pane, isPaneSettled]);
     useEffect(() => {
         if (openExplore === null) return;
         trackRef.current({
