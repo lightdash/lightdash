@@ -209,3 +209,95 @@ describe('postCsvsWithWebhook app failure lines', () => {
         },
     );
 });
+
+describe('delivery message body', () => {
+    const client = new GoogleChatClient();
+    const csvUrl: AttachmentUrl = {
+        filename: 'chart-0.csv',
+        path: 'https://s3.example.com/exports/chart-0.csv',
+        localPath: '/tmp/chart-0.csv',
+        truncated: false,
+    };
+    const baseArgs = {
+        webhookUrl: 'https://chat.googleapis.com/v1/spaces/abc/messages',
+        title: 'Delivery',
+        name: 'Chart',
+        description: 'Description',
+        ctaUrl: 'https://app.lightdash.com/chart',
+        footer: 'Footer',
+    };
+    const MESSAGE = 'Weekly numbers, see **notes** in [the doc](https://x.io)';
+
+    const send: Record<string, (message?: string) => Promise<void>> = {
+        image: (message) =>
+            client.postImageWithWebhook({
+                ...baseArgs,
+                message,
+                image: 'https://app.lightdash.com/image.png',
+            }),
+        'chart csv': (message) =>
+            client.postCsvWithWebhook({ ...baseArgs, message, csvUrl }),
+        'dashboard csvs': (message) =>
+            client.postCsvsWithWebhook({
+                ...baseArgs,
+                message,
+                csvUrls: [csvUrl],
+            }),
+    };
+
+    const sentWidgets = () =>
+        mockedPostSchedulerWebhook.mock.calls[0][1].cardsV2[0].card.sections[0]
+            .widgets;
+
+    beforeEach(() => {
+        mockedPostSchedulerWebhook.mockReset();
+        mockedPostSchedulerWebhook.mockResolvedValue(successfulWebhookResponse);
+    });
+
+    describe.each(Object.keys(send))('%s delivery', (kind) => {
+        it('shows the message after the description', async () => {
+            await send[kind](MESSAGE);
+
+            const widgets = sentWidgets();
+            const descriptionIndex = widgets.findIndex(
+                (w: { textParagraph?: { text: string } }) =>
+                    w.textParagraph?.text === 'Description',
+            );
+            expect(widgets[descriptionIndex + 1]).toEqual({
+                textParagraph: {
+                    text: 'Weekly numbers, see <strong>notes</strong> in <a href="https://x.io">the doc</a>',
+                },
+            });
+        });
+
+        it('keeps paragraphs separate and drops unsafe markup', async () => {
+            await send[kind](
+                'First\n\nSecond <img src="https://evil/pixel"><script>x()</script>\n\n- one\n- two',
+            );
+
+            const { text } =
+                sentWidgets()[
+                    sentWidgets().findIndex(
+                        (w: { textParagraph?: { text: string } }) =>
+                            w.textParagraph?.text === 'Description',
+                    ) + 1
+                ].textParagraph;
+            expect(text).toBe(
+                'First\n\nSecond<ul><li>one</li><li>two</li></ul>',
+            );
+        });
+
+        it.each([undefined, '', '   '])(
+            'sends the same card as before when the message is %j',
+            async (message) => {
+                await send[kind](message);
+
+                expect(
+                    sentWidgets().filter(
+                        (w: { textParagraph?: unknown }) => w.textParagraph,
+                    ),
+                ).toHaveLength(kind === 'dashboard csvs' ? 3 : 2);
+            },
+        );
+    });
+});
