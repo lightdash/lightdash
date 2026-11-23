@@ -62,6 +62,7 @@ export const AGENT_TOOL_NAMES = [
     'listDataAppThemes',
     'listDataAppConnections',
     'editDbtProject',
+    'write',
     'editProjectContext',
     'proposeSemanticLayerChange',
     'listChanges',

@@ -27,7 +27,7 @@ export const describeCheck = (check: BranchCompileCheck): string => {
             return check.exploreErrors.length === 0
                 ? 'The pull request branch compiled and every model loaded.'
                 : [
-                      'The pull request branch compiled, but these models failed to load. Fix them with editDbtProject, then check again.',
+                      'The pull request branch compiled, but these models failed to load. Fix them with write, then check again.',
                       quoteCompileOutput(
                           check.exploreErrors
                               .map(
@@ -39,7 +39,7 @@ export const describeCheck = (check: BranchCompileCheck): string => {
                   ].join('\n');
         case 'failed':
             return [
-                'The compile of the pull request branch failed. Its output is between the markers below. Fix the cause with editDbtProject, then check again.',
+                'The compile of the pull request branch failed. Its output is between the markers below. Fix the cause with write, then check again.',
                 quoteCompileOutput(check.error),
             ].join('\n');
         case 'saving':
@@ -47,7 +47,7 @@ export const describeCheck = (check: BranchCompileCheck): string => {
         case 'compiling':
             return 'The pull request branch is still compiling after a minute. Tell the person the check is still running; if the compile fails, its error is sent to you.';
         case 'nothing_saved':
-            return 'This conversation has saved no change to a pull request, so there is nothing to check. Save the change with editDbtProject first.';
+            return 'This conversation has saved no change to a pull request, so there is nothing to check. Save the change with write first.';
         case 'unavailable':
             return 'This project does not save changes to a pull request, so there is no branch compile to check.';
         default:

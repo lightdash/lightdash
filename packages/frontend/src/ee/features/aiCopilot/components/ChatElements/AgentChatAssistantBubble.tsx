@@ -6,6 +6,8 @@ import {
     DBT_SAVE_CARD_REPLY,
     describeSemanticLayerProposals,
     getEditDbtProjectCardExtras,
+    DBT_WRITE_TOOL_NAMES,
+    isDbtWriteToolName,
     isToolEditDbtProjectResult,
     isToolProposeSemanticLayerChangeResult,
     isToolEditRepoResult,
@@ -634,7 +636,7 @@ const AssistantBubbleContent: FC<{
         if (writebackResult) return { metadata: writebackResult.metadata };
 
         const livePart = findLiveToolPart(streamingState?.parts, [
-            'editDbtProject',
+            ...DBT_WRITE_TOOL_NAMES,
         ]);
         const liveOutput = livePart?.toolResult as
             | ToolEditDbtProjectOutput
@@ -1068,8 +1070,8 @@ const AssistantBubbleContent: FC<{
                     isLatest={isLastMessage}
                     note={
                         getEditDbtProjectCardExtras(
-                            message.toolCalls.findLast(
-                                ({ toolName }) => toolName === 'editDbtProject',
+                            message.toolCalls.findLast(({ toolName }) =>
+                                isDbtWriteToolName(toolName),
                             )?.toolArgs,
                         ).note
                     }

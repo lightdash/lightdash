@@ -42,6 +42,7 @@ import {
     getErrorMessage,
     getReviewItemProjectContextEntry,
     isAiAdminScopedProjectType,
+    isDbtWriteToolName,
     isHiddenAiAgentReviewRootCause,
     isToolEditDbtProjectResult,
     isValidRetentionWindowHours,
@@ -2541,7 +2542,7 @@ export class AiAgentAdminService extends BaseService {
             latestPrompt.ai_prompt_uuid,
         );
         const latestWritebackResult = toolResults
-            .filter((result) => result.toolName === 'editDbtProject')
+            .filter((result) => isDbtWriteToolName(result.toolName))
             .at(-1);
         if (!latestWritebackResult) {
             return { type: 'not_started' };

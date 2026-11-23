@@ -211,7 +211,7 @@ export const getSystemPromptV2 = (
         repoFsSupportsCodeSearch?: boolean;
         // Semantic Studio saves its change with a code mode script.
         semanticStudioCodeMode?: boolean;
-        semanticStudioLibraries?: boolean;
+        semanticStudioBuilder?: boolean;
         // A Studio dbt project's layout from its last compile.
         semanticStudioProjectMap?: string | null;
         // Semantic Studio can run a metric query, which reads the person's draft.
@@ -240,7 +240,7 @@ export const getSystemPromptV2 = (
         repoFsRoot = null,
         repoFsSupportsCodeSearch = true,
         semanticStudioCodeMode = false,
-        semanticStudioLibraries = false,
+        semanticStudioBuilder = false,
         semanticStudioProjectMap = null,
         semanticStudioQueriesDraft = false,
         promptSections = NO_PROMPT_SECTIONS,
@@ -336,7 +336,7 @@ export const getSystemPromptV2 = (
     let projectContextContent =
         'No project context has been configured for this project.';
     if (promptSections.has('projectContext') && args.hasProjectContext) {
-        const contextTool = semanticStudioLibraries
+        const contextTool = semanticStudioBuilder
             ? '`layer.context` in read'
             : '`loadProjectContext`';
         const projectContextDefinition =
@@ -395,7 +395,7 @@ export const getSystemPromptV2 = (
                         ? {
                               saves: promptSections.has('aiWriteback'),
                               codeMode: semanticStudioCodeMode,
-                              libraries: semanticStudioLibraries,
+                              builder: semanticStudioBuilder,
                               projectMap: semanticStudioProjectMap,
                               sections: [
                                   ...(promptSections.has('aiWriteback')

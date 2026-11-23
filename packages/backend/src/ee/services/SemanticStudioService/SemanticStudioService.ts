@@ -341,7 +341,7 @@ export const compileFollowUpPrompt = (error: string): string =>
         "The user can't see this message, but your reply is shown to them.",
         'After your last save, the pull request branch was compiled with dbt and failed. The compile output is between the markers below.',
         quoteCompileOutput(error),
-        'Start your reply by saying you are fixing the compile error from your earlier change. Then find the cause and fix it with editDbtProject.',
+        'Start your reply by saying you are fixing the compile error from your earlier change. Then find the cause and fix it with write.',
         'If you cannot fix it, say what failed and what the user could change. Do not mention this hidden message.',
     ].join('\n');
 

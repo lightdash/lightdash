@@ -1,6 +1,7 @@
 import {
     interpolateUiString,
     isComposerQueryToolName,
+    isDbtWriteToolName,
     type AiAgentToolCall,
     type AiAgentToolName,
     type AiAgentToolResult,
@@ -115,6 +116,7 @@ const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
     'loadSkill',
     'loadProjectContext',
     'editDbtProject',
+    'write',
     'runSavedChart',
 ]);
 
@@ -881,14 +883,19 @@ export const LiveActivityCard: FC<Props> = ({
             </UnstyledButton>
             {renderInlineLiveTrace({ latest, isLive })}
             {isLive &&
-                latest?.toolName === 'editDbtProject' &&
+                latest &&
+                isDbtWriteToolName(latest.toolName) &&
                 (() => {
                     // Live grouped step rows for the writeback tool: parse the
                     // streamed progress strings back into structured steps so
                     // they render (and group) the same way as the persisted
                     // steps once the run completes.
                     const liveSteps = stepProgressMessages
-                        .filter((m) => m.toolName === 'editDbtProject')
+                        .filter(
+                            (m) =>
+                                m.toolName !== null &&
+                                isDbtWriteToolName(m.toolName),
+                        )
                         .map((m) => parseAgentStep(m.message));
                     if (liveSteps.length === 0) return null;
                     return (
@@ -941,21 +948,22 @@ export const LiveActivityCard: FC<Props> = ({
                                 // step actions into grouped step rows. The
                                 // adaptation lives here (the orchestrator),
                                 // never in the generic row/step components.
-                                const groupSteps =
-                                    group.toolName === 'editDbtProject'
-                                        ? group.calls.flatMap((tc) => {
-                                              const meta = toolResults?.find(
-                                                  (r) =>
-                                                      r.toolCallId ===
-                                                      tc.toolCallId,
-                                              )?.metadata as
-                                                  | {
-                                                        steps?: AiWritebackStep[];
-                                                    }
-                                                  | undefined;
-                                              return meta?.steps ?? [];
-                                          })
-                                        : [];
+                                const groupSteps = isDbtWriteToolName(
+                                    group.toolName,
+                                )
+                                    ? group.calls.flatMap((tc) => {
+                                          const meta = toolResults?.find(
+                                              (r) =>
+                                                  r.toolCallId ===
+                                                  tc.toolCallId,
+                                          )?.metadata as
+                                              | {
+                                                    steps?: AiWritebackStep[];
+                                                }
+                                              | undefined;
+                                          return meta?.steps ?? [];
+                                      })
+                                    : [];
                                 return (
                                     <Box key={group.keyId}>
                                         <ToolCallRow

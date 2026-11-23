@@ -119,6 +119,7 @@ export const DISTILL_TOOL_POLICIES = {
     listDataAppThemes: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
     listDataAppConnections: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
     editDbtProject: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
+    write: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     syncDbtProject: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     setupPreviewDeploy: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     closePullRequest: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },

@@ -17,6 +17,7 @@ const TOOLS_WITHOUT_DESCRIPTION = [
     'listDataAppThemes',
     'listDataAppConnections',
     'editDbtProject',
+    'write',
     'editProjectContext',
     'proposeSemanticLayerChange',
     'listChanges',
