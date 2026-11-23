@@ -1,3 +1,10 @@
+## [3.367.2](https://github.com/lightdash/lightdash/compare/3.367.1...3.367.2) (2026-11-23)
+
+
+### Performance Improvements
+
+* **semantic-studio:** log per-step timings for scripted saves, checks and the compile after a merge ([#33204](https://github.com/lightdash/lightdash/issues/33204)) ([dc5cf58](https://github.com/lightdash/lightdash/commit/dc5cf588aff82ebcc99ef0ef155124a2eec20428))
+
 ## [3.367.1](https://github.com/lightdash/lightdash/compare/3.367.0...3.367.1) (2026-11-23)
 
 
