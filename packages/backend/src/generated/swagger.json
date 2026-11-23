@@ -17046,32 +17046,6 @@
                 ],
                 "description": "Connector settings of a live source; the server fixes its access rules."
             },
-            "Record_string.string-Array_": {
-                "properties": {},
-                "additionalProperties": {
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "LiveSourceAccessRule": {
-                "properties": {
-                    "any": {
-                        "$ref": "#/components/schemas/Record_string.string-Array_",
-                        "description": "At least one attribute must match one of its values."
-                    },
-                    "required": {
-                        "$ref": "#/components/schemas/Record_string.string-Array_",
-                        "description": "Every attribute must match one of its values."
-                    }
-                },
-                "required": ["any", "required"],
-                "type": "object",
-                "description": "Who can query a live data source, as user attribute conditions. The rule is\ncopied onto each of the source's explores (`required_attributes` and\n`any_attributes` on the base table), so every explore check applies it.\nEmpty conditions mean everyone who can query the project can query it."
-            },
             "ExternalConnection": {
                 "properties": {
                     "updatedAt": {
@@ -17092,15 +17066,6 @@
                     },
                     "hasSecret": {
                         "type": "boolean"
-                    },
-                    "accessRule": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/LiveSourceAccessRule"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "Live sources: who can query it, as user attribute conditions; null when\neveryone in the project can. Returned only to those who manage it."
                     },
                     "cachePurgedAt": {
                         "type": "string",
@@ -22022,6 +21987,17 @@
             },
             "PreAggregateSort": {
                 "$ref": "#/components/schemas/Pick_SortField.fieldId-or-descending_"
+            },
+            "Record_string.string-Array_": {
+                "properties": {},
+                "additionalProperties": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
             },
             "UserAttributeValueMap": {
                 "$ref": "#/components/schemas/Record_string.string-Array_"
@@ -34683,7 +34659,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-liveSourceUuids-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
+            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -34729,13 +34705,6 @@
                         "nullable": true
                     },
                     "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
-                    "liveSourceUuids": {
                         "items": {
                             "type": "string"
                         },
@@ -34860,7 +34829,6 @@
                     "userAccess",
                     "imageUrlSource",
                     "tags",
-                    "liveSourceUuids",
                     "integrations",
                     "instruction",
                     "groupAccess",
@@ -34882,7 +34850,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-liveSourceUuids-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -35791,7 +35759,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-liveSourceUuids-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -35837,13 +35805,6 @@
                         "nullable": true
                     },
                     "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
-                    "liveSourceUuids": {
                         "items": {
                             "type": "string"
                         },
@@ -35968,7 +35929,6 @@
                     "userAccess",
                     "imageUrlSource",
                     "tags",
-                    "liveSourceUuids",
                     "integrations",
                     "instruction",
                     "groupAccess",
@@ -35990,7 +35950,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-liveSourceUuids-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -36867,13 +36827,6 @@
                                 ],
                                 "nullable": true
                             },
-                            "liveSourceUuids": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array",
-                                "nullable": true
-                            },
                             "mcpServerUuids": {
                                 "items": {
                                     "type": "string"
@@ -37014,13 +36967,6 @@
                             },
                             "providerCredentialUuid": {
                                 "type": "string",
-                                "nullable": true
-                            },
-                            "liveSourceUuids": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array",
                                 "nullable": true
                             },
                             "mcpServerUuids": {
@@ -94542,13 +94488,6 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
-                                    "liveSourceUuids": {
-                                        "items": {
-                                            "type": "string"
-                                        },
-                                        "type": "array",
-                                        "nullable": true
-                                    },
                                     "tags": {
                                         "items": {
                                             "type": "string"
