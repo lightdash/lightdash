@@ -171,6 +171,9 @@
        already sits below any banner. */
     --banner-height: 0px;
 
+    /* Without this, absolutely positioned content escapes the card and makes
+       the window scroll too. */
+    position: relative;
     height: calc(100dvh - var(--app-shell-header-offset, 0rem));
     min-height: 0;
     margin-top: var(--app-shell-header-offset, 0rem);
