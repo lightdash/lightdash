@@ -14,12 +14,12 @@ import { getQueryErrorText } from './liveSourceSignInError';
 const signIn = (
     reason: LiveSourceSignInRequired['reason'],
 ): LiveSourceSignInRequired => ({
-    externalConnectionUuid: 'c-1',
+    externalConnectionUuid: '22222222-2222-4222-8222-222222222222',
     name: 'Events',
     integration: 'Hydra',
     reason,
     connectUrl:
-        'https://app.example.com/api/v1/ee/projects/p-1/live-sources/c-1/user-sign-in/start',
+        'https://app.example.com/api/v1/ee/projects/11111111-1111-4111-8111-111111111111/live-sources/22222222-2222-4222-8222-222222222222/user-sign-in/start',
 });
 
 const renderAt = (ui: ReactElement, path = '/') =>
@@ -49,7 +49,7 @@ describe('ConnectLiveSourceAction', () => {
         const href = new URL(link.getAttribute('href') ?? '');
         expect(href.origin).toBe(window.location.origin);
         expect(href.pathname).toBe(
-            '/api/v1/ee/projects/p-1/live-sources/c-1/user-sign-in/start',
+            '/api/v1/ee/projects/11111111-1111-4111-8111-111111111111/live-sources/22222222-2222-4222-8222-222222222222/user-sign-in/start',
         );
         expect(href.searchParams.get('returnTo')).toBe(
             '/projects/p-1/saved/chart?tab=1',
@@ -68,6 +68,16 @@ describe('ConnectLiveSourceAction', () => {
         expect(getQueryErrorText(error)).toBe(
             'Your sign-in to Events expired or was revoked. Connect your Hydra account again to see this data.',
         );
+    });
+
+    it('renders nothing for a link that would leave this app', () => {
+        const forged = new LiveSourceSignInRequiredError({
+            ...signIn('missing'),
+            connectUrl:
+                'https://x//evil.example.com/live-sources/a/user-sign-in/start',
+        });
+        renderAt(<ConnectLiveSourceAction error={toDetail(forged)} />);
+        expect(screen.queryByRole('link')).toBeNull();
     });
 
     it('renders nothing for other errors', () => {

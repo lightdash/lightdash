@@ -24,6 +24,7 @@ import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
 import { DashboardExplorerBanner } from './DashboardExplorerBanner';
 import { ImpersonationBanner } from './ImpersonationBanner';
 import classes from './index.module.css';
+import LiveSourceSignInReturnListener from './LiveSourceSignInReturnListener';
 import { MainNavBarContent } from './MainNavBarContent';
 import { PreviewBanner } from './PreviewBanner';
 import { SampleDataBanner } from './SampleDataBanner';
@@ -150,6 +151,8 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
     // The manual `data-mantine-color-scheme="dark"` attribute helps CSS selectors match correctly.
     return (
         <>
+            {/* Here, not in the nav content, which changes with width and mode */}
+            <LiveSourceSignInReturnListener />
             <Box
                 id="navbar-header"
                 data-mantine-color-scheme="dark"
