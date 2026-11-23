@@ -52,6 +52,7 @@ import {
     type ExternalConnectionLinkedApps,
     type ExternalConnectionListItem,
     type ExternalConnectionMethod,
+    type ExternalConnectionRateLimitUsage,
     type ExternalConnectionSample,
     type ExternalConnectionSampleRequest,
     type ExternalConnectionTestResponse,
@@ -217,6 +218,7 @@ import {
     serializeRequestBody,
     validateCustomHeaders,
 } from './proxyValidation';
+import { toRateLimitUsage } from './rateLimitUsage';
 import {
     buildSalesforceAuthorizeUrl,
     getSalesforceOAuthRedirectUri,
@@ -2728,6 +2730,38 @@ export class ExternalConnectionService extends BaseService {
             connectionUuid,
         ]);
         return scans.get(connectionUuid) ?? null;
+    }
+
+    /** Lightdash's calls against the live source's declared rate limits, now. */
+    async getApiSourceRateLimitUsage(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<ExternalConnectionRateLimitUsage> {
+        await this.assertLiveSourcesEnabled(account);
+        const connection = await this.getViewableConnection(
+            account,
+            projectUuid,
+            connectionUuid,
+        );
+        if (!connection.apiSource) {
+            throw new ParameterError(
+                'Rate limits apply only to live data sources',
+            );
+        }
+        const target = ExternalConnectionService.getRateLimitTarget(
+            connection,
+            connection.apiSource,
+        );
+        const snapshot =
+            await this.externalConnectionModel.getApiSourceRateUsage(
+                target.limitKey,
+            );
+        return toRateLimitUsage({
+            integrationLabel: target.label,
+            rateLimits: target.rateLimits,
+            snapshot,
+        });
     }
 
     /** Live sources the account may query, each with its last schema scan. */

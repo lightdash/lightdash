@@ -5,6 +5,7 @@ import {
     type ApiErrorPayload,
     type ApiExplorePrefixCheckResponse,
     type ApiExternalConnectionApiUsageResponse,
+    type ApiExternalConnectionRateLimitUsageResponse,
     type ApiExternalConnectionSchemaResponse,
     type ApiListExternalConnectionLinkedAppsResponse,
     type ApiListExternalConnectionSamplesResponse,
@@ -170,6 +171,31 @@ export class ExternalConnectionController extends BaseController {
         return {
             status: 'ok',
             results: await this.getService().getApiSourceSchema(
+                req.account,
+                projectUuid,
+                connectionUuid,
+            ),
+        };
+    }
+
+    /**
+     * Lightdash's calls against the live source's declared rate limits: each limit's usage and when it resets, and whether the vendor has paused the integration. Other apps on the same vendor account aren't counted.
+     * @summary Get live source rate-limit usage
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('external-connections/{connectionUuid}/rate-limits')
+    @OperationId('getExternalConnectionRateLimitUsage')
+    async getExternalConnectionRateLimitUsage(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+    ): Promise<ApiExternalConnectionRateLimitUsageResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().getApiSourceRateLimitUsage(
                 req.account,
                 projectUuid,
                 connectionUuid,

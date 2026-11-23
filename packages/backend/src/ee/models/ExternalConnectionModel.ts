@@ -244,6 +244,17 @@ export type ApiSourceRateCharge =
 
 export type ApiSourceRateTurn = { booked: boolean; turnAt: Date; now: Date };
 
+/** A limit key's stored rate-limit state, as of the DB's `now`. */
+export type ApiSourceRateUsageSnapshot = {
+    now: Date;
+    buckets: {
+        bucketId: string;
+        used: number;
+        windowStartedAt: Date;
+        limitedUntil: Date | null;
+    }[];
+};
+
 type FullBucketRow = {
     used: number;
     window_started_at: Date;
@@ -2114,6 +2125,45 @@ export class ExternalConnectionModel {
         await this.database(ApiSourceRateSlotsTableName)
             .where({ limit_key: limitKey, lease_uuid: leaseUuid })
             .delete();
+    }
+
+    /** A limit key's bucket rows, read with the DB's clock. */
+    async getApiSourceRateUsage(
+        limitKey: string,
+    ): Promise<ApiSourceRateUsageSnapshot> {
+        const { rows } = await this.database.raw<{
+            rows: {
+                now: Date;
+                buckets: {
+                    bucket_id: string;
+                    used: number;
+                    window_started_at: string;
+                    limited_until: string | null;
+                }[];
+            }[];
+        }>(
+            `SELECT now() AS now,
+                COALESCE((SELECT json_agg(json_build_object(
+                        'bucket_id', bucket_id,
+                        'used', used,
+                        'window_started_at', window_started_at,
+                        'limited_until', limited_until))
+                    FROM ${ApiSourceRateBucketsTableName}
+                    WHERE limit_key = :limitKey), '[]'::json) AS buckets`,
+            { limitKey },
+        );
+        const [row] = rows;
+        return {
+            now: row.now,
+            buckets: row.buckets.map((bucket) => ({
+                bucketId: bucket.bucket_id,
+                used: bucket.used,
+                windowStartedAt: new Date(bucket.window_started_at),
+                limitedUntil: bucket.limited_until
+                    ? new Date(bucket.limited_until)
+                    : null,
+            })),
+        };
     }
 
     /** Deletes rate-limit rows nothing has touched since `cutoff`. */

@@ -29,6 +29,7 @@ import {
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useResultsCacheStatus } from '../../../hooks/useProjectResultsCacheSettings';
 import { useExternalConnectionApiUsage } from '../../externalConnections/hooks/useExternalConnectionApiUsage';
+import { useExternalConnectionRateLimitUsage } from '../../externalConnections/hooks/useExternalConnectionRateLimitUsage';
 import { useExternalConnections } from '../../externalConnections/hooks/useExternalConnections';
 import { useLiveSourceFields } from '../../externalConnections/hooks/useLiveSourceFields';
 import { formatChartCount } from '../../externalConnections/liveSources/liveSourceCatalog';
@@ -43,6 +44,7 @@ import {
     type LiveSourceConnection,
 } from './liveSourceRows';
 import classes from './LiveSources.module.css';
+import { getRateLimitStat } from './rateLimitFormat';
 
 const stopPropagation = (event: MouseEvent) => event.stopPropagation();
 
@@ -247,7 +249,9 @@ const Stat: FC<{
     title?: string;
     /** Shown after the label, such as an info icon. */
     labelExtra?: ReactNode;
-}> = ({ label, value, detail, title, labelExtra }) => (
+    /** Colours the value: red for a full rate limit, orange for a warning. */
+    tone?: 'danger' | 'warning';
+}> = ({ label, value, detail, title, labelExtra, tone }) => (
     <Box className={classes.stat}>
         <span className={classes.statLabel}>
             {label}
@@ -255,6 +259,7 @@ const Stat: FC<{
         </span>
         <span
             className={classes.statValue}
+            data-tone={tone}
             title={title ?? (detail ? `${value} (${detail})` : value)}
         >
             {value}
@@ -276,6 +281,11 @@ export const LiveSourceSummary: FC<{
         connectionUuid: connection.externalConnectionUuid,
     });
     const { data: projectCache } = useResultsCacheStatus(projectUuid);
+    const { data: rateLimits } = useExternalConnectionRateLimitUsage({
+        projectUuid,
+        connectionUuid: connection.externalConnectionUuid,
+    });
+    const rateLimit = getRateLimitStat(rateLimits);
     const isProjectCacheOff = projectCache?.enabled === false;
     const row = toLiveSourceRow(connection, usage);
     const freshness = getLiveSourceFreshness(connection);
@@ -295,11 +305,11 @@ export const LiveSourceSummary: FC<{
                 <Stat label="Explore" value={fields?.exploreName ?? '—'} />
             )}
             <Stat
-                label="Access"
+                label="Fields in use"
                 value={
-                    connection.type === 'oauth_authorization_code'
-                        ? 'Signed in'
-                        : 'API key'
+                    allFields && inUse !== undefined
+                        ? `${inUse.toLocaleString()} of ${allFields.length.toLocaleString()}`
+                        : '—'
                 }
             />
             <Stat
@@ -343,7 +353,7 @@ export const LiveSourceSummary: FC<{
                 label="Cache"
                 value={
                     isProjectCacheOff
-                        ? 'Not cached'
+                        ? 'Disabled'
                         : formatFreshness(freshness.seconds)
                 }
                 detail={isProjectCacheOff ? null : row.usage.cacheHitsLabel}
@@ -352,14 +362,14 @@ export const LiveSourceSummary: FC<{
                         ? 'Results caching is off for this project'
                         : cachingTitle
                 }
+                tone={isProjectCacheOff ? 'warning' : undefined}
             />
             <Stat
-                label="Fields in use"
-                value={
-                    allFields && inUse !== undefined
-                        ? `${inUse.toLocaleString()} of ${allFields.length.toLocaleString()}`
-                        : '—'
-                }
+                label="Rate limit"
+                value={rateLimit.value}
+                detail={rateLimit.detail}
+                title={rateLimit.title}
+                tone={rateLimit.limitReached ? 'danger' : undefined}
             />
         </Box>
     );
