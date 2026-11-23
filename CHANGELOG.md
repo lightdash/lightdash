@@ -1,3 +1,10 @@
+# [3.370.0](https://github.com/lightdash/lightdash/compare/3.369.2...3.370.0) (2026-11-23)
+
+
+### Features
+
+* **semantic-studio:** give the dbt agent the project's layout from its last compile ([#33209](https://github.com/lightdash/lightdash/issues/33209)) ([2320c24](https://github.com/lightdash/lightdash/commit/2320c24a79e151713023db2c1c650f83dca8084c))
+
 ## [3.369.2](https://github.com/lightdash/lightdash/compare/3.369.1...3.369.2) (2026-11-23)
 
 
