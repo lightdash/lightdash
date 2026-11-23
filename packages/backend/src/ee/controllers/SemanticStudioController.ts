@@ -15,6 +15,7 @@ import {
     type ApiSemanticLayerStatusResponse,
     type ApiSemanticLayerStoredModelsResponse,
     type ApiSemanticLayerUndoResponse,
+    type ApiSemanticStudioBranchCompileFollowUpResponse,
     type ApiSemanticStudioCheckoutResponse,
     type ApiSemanticStudioSourceFileResponse,
     type ApiSemanticStudioSourceSaveResponse,
@@ -27,6 +28,7 @@ import {
     type SaveSemanticStudioSourceRequest,
     type SemanticLayerFieldUsageBody,
     type SemanticLayerUndoRequest,
+    type SemanticStudioBranchCompileFollowUpBody,
     type SemanticStudioPublishBody,
     type SemanticStudioWorkspaceRenameBody,
     type SemanticStudioWorkspaceStartBody,
@@ -215,6 +217,30 @@ export class SemanticStudioController extends BaseController {
             results: await this.getService().compileCheckout(
                 toSessionUser(req.account),
                 projectUuid,
+            ),
+        };
+    }
+
+    /**
+     * Claims the hidden prompt that sends a failed compile of the agent's last save back to the agent; null when there is none to send.
+     * @summary Claim a Semantic Studio compile follow-up
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/checkout/compile/follow-up')
+    @OperationId('claimSemanticStudioCompileFollowUp')
+    async claimCompileFollowUp(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: SemanticStudioBranchCompileFollowUpBody,
+    ): Promise<ApiSemanticStudioBranchCompileFollowUpResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().claimBranchCompileFollowUp(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
             ),
         };
     }

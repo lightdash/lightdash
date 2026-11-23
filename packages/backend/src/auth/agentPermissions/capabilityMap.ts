@@ -1071,6 +1071,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'SemanticStudioController.applyDraft': [AgentCapability.DbtWriteback],
     'SemanticStudioController.applyDraftModel': [AgentCapability.DbtWriteback],
     'SemanticStudioController.checkDraftImpact': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.claimCompileFollowUp': [
+        AgentCapability.DbtWriteback,
+    ],
     'SemanticStudioController.compileCheckout': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getCheckout': [AgentCapability.ReadDiscover],
     'SemanticStudioController.publishCheckout': [AgentCapability.DbtWriteback],

@@ -9,9 +9,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { ProjectModelDraftChangesTableName } from '../../database/entities/projectModelDraftChanges';
 import { UserTableName } from '../../database/entities/users';
 import {
+    AiPromptTableName,
     AiThreadTableName,
     AiWebAppThreadTableName,
     AiWritebackRunTableName,
+    type DbAiPrompt,
 } from '../database/entities/ai';
 import {
     SemanticStudioBranchCompilesTableName,
@@ -418,13 +420,17 @@ export class SemanticStudioWorkspaceModel {
     }
 
     /** Asks for a new compile of a change's branch; returns the request a compile must still match to be kept. */
-    async requestBranchCompile(workspaceUuid: string): Promise<string> {
+    async requestBranchCompile(
+        workspaceUuid: string,
+        requestedByAgent: boolean,
+    ): Promise<string> {
         const compileRequestUuid = uuidv4();
         await this.database(SemanticStudioBranchCompilesTableName)
             .insert({
                 semantic_studio_workspace_uuid: workspaceUuid,
                 compile_request_uuid: compileRequestUuid,
                 status: 'compiling',
+                requested_by_agent: requestedByAgent,
             })
             .onConflict('semantic_studio_workspace_uuid')
             .merge({
@@ -432,8 +438,43 @@ export class SemanticStudioWorkspaceModel {
                 status: 'compiling',
                 error: null,
                 requested_at: this.database.fn.now(),
+                requested_by_agent: requestedByAgent,
+                follow_up_claimed_at: null,
             });
         return compileRequestUuid;
+    }
+
+    /** Marks an agent's failed compile as sent back to the agent; false when it is not that, or was already sent. */
+    async claimBranchCompileFollowUp(
+        workspaceUuid: string,
+        compileRequestUuid: string,
+    ): Promise<boolean> {
+        const updated = await this.database(
+            SemanticStudioBranchCompilesTableName,
+        )
+            .where({
+                semantic_studio_workspace_uuid: workspaceUuid,
+                compile_request_uuid: compileRequestUuid,
+                status: 'failed',
+                requested_by_agent: true,
+            })
+            .whereNull('follow_up_claimed_at')
+            .update({ follow_up_claimed_at: this.database.fn.now() });
+        return updated > 0;
+    }
+
+    /** The thread's latest prompts, newest first. */
+    async findLatestPrompts(
+        threadUuid: string,
+        limit: number,
+    ): Promise<
+        Pick<DbAiPrompt, 'prompt' | 'hidden' | 'created_at' | 'responded_at'>[]
+    > {
+        return this.database(AiPromptTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .orderBy('created_at', 'desc')
+            .limit(limit)
+            .select('prompt', 'hidden', 'created_at', 'responded_at');
     }
 
     /** Records a compile's outcome, unless a newer one was asked for since; a failure keeps the last good explores. */
