@@ -4,11 +4,13 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo } from 'react';
 import {
     Link,
+    Navigate,
     useOutletContext,
     useParams,
     useSearchParams,
 } from 'react-router';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import { getSemanticStudioUrl } from '../../../features/semanticStudio/urls';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import { ReviewVerificationPanel } from '../../features/aiCopilot/components/Admin/ReviewVerificationPanel';
@@ -441,6 +443,16 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                         {getUiString('aiAgent.thread.startNew')}
                     </Button>
                 }
+            />
+        );
+    }
+
+    // A Studio conversation belongs to Studio, not to the Ask AI thread view.
+    if (thread?.createdFrom === 'semantic_studio' && projectUuid) {
+        return (
+            <Navigate
+                to={getSemanticStudioUrl(projectUuid, { ref: null })}
+                replace
             />
         );
     }

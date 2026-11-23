@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="15.8 15.8 68.4 68.4" role="img" aria-label="Hydra Ripple, six curling arms joined at the center">
+  <g fill="none" stroke="#FF636D">
+    <g stroke-width="6.5" stroke-linecap="round">
+    <path transform="rotate(0 50 50)" d="M50 50 C47 44 47 35 51 29 C54 24 57 22 61 22 C66 22 69 26 68 30"/>
+    <path transform="rotate(60 50 50)" d="M50 50 C47 44 47 35 51 29 C54 24 57 22 61 22 C66 22 69 26 68 30"/>
+    <path transform="rotate(120 50 50)" d="M50 50 C47 44 47 35 51 29 C54 24 57 22 61 22 C66 22 69 26 68 30"/>
+    <path transform="rotate(180 50 50)" d="M50 50 C47 44 47 35 51 29 C54 24 57 22 61 22 C66 22 69 26 68 30"/>
+    <path transform="rotate(240 50 50)" d="M50 50 C47 44 47 35 51 29 C54 24 57 22 61 22 C66 22 69 26 68 30"/>
+    <path transform="rotate(300 50 50)" d="M50 50 C47 44 47 35 51 29 C54 24 57 22 61 22 C66 22 69 26 68 30"/>
+    </g>
+  </g>
+</svg>

@@ -64,6 +64,8 @@ export const DraftPickerMenu: FC<{
     status: ReactNode;
     /** How the checked-out draft is doing, above the list. */
     header: ReactNode;
+    /** A merged or closed draft is no longer a draft, so the trigger drops its draft dot. */
+    isEnded?: boolean;
     onPublished: () => void;
     onPick: (id: string) => void;
     onNew: () => void;
@@ -74,6 +76,7 @@ export const DraftPickerMenu: FC<{
     isBusy,
     status,
     header,
+    isEnded = false,
     onPublished,
     onPick,
     onNew,
@@ -106,13 +109,15 @@ export const DraftPickerMenu: FC<{
                             : `Draft: ${currentName}`
                     }
                     leftSection={
-                        <Box
-                            component="span"
-                            className={classes.pickerDot}
-                            data-kind={
-                                currentName === null ? 'published' : 'draft'
-                            }
-                        />
+                        isEnded ? null : (
+                            <Box
+                                component="span"
+                                className={classes.pickerDot}
+                                data-kind={
+                                    currentName === null ? 'published' : 'draft'
+                                }
+                            />
+                        )
                     }
                     rightSection={
                         <Group gap={6} wrap="nowrap">
@@ -125,7 +130,7 @@ export const DraftPickerMenu: FC<{
                         </Group>
                     }
                 >
-                    <Text span inherit truncate>
+                    <Text span inherit truncate lh={1.4}>
                         {currentName ?? 'Published'}
                     </Text>
                 </Button>

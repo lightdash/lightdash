@@ -146,17 +146,14 @@ describe('useStudioCheckoutState', () => {
 });
 
 describe('the checkout leaving Published', () => {
-    it('says which change an agent edit started and checked out', async () => {
+    it('checks out a change an agent edit started without a toast over the chat', async () => {
         showToastInfo.mockClear();
         const { result, checkOut, answer } = setup(null);
         await waitFor(() => expect(result.current.shown?.workspace).toBe(null));
         await checkOut('A');
         await answer('A', draftA);
         await waitFor(() => expect(shownUuid(result.current)).toBe('A'));
-        expect(showToastInfo).toHaveBeenCalledTimes(1);
-        expect(showToastInfo).toHaveBeenCalledWith({
-            title: 'Now on draft: Change A',
-        });
+        expect(showToastInfo).not.toHaveBeenCalled();
     });
 
     it('says nothing when the person checks out a change themselves', async () => {

@@ -4,7 +4,7 @@
  * source and changing its settings use the same ones.
  */
 import { type ExternalConnectionTestResponse } from '@lightdash/common';
-import { Box, Group, Stack, Tooltip } from '@mantine/core';
+import { Box, Group, Stack, Text, Tooltip } from '@mantine/core';
 import {
     IconAlertCircleFilled,
     IconCircleCheckFilled,
@@ -49,18 +49,29 @@ export const SettingsCard: FC<{
     </Stack>
 );
 
-/** A test's outcome in one quiet line, in place of the row's hint. */
+/** The first sentence of a message, which says what went wrong. */
+const getFirstSentence = (message: string) => message.split(/(?<=\.)\s/)[0];
+
+/**
+ * A test's outcome in one quiet line, in place of the row's hint. A failure
+ * shows what the integration said went wrong rather than the generic summary,
+ * with its full message, which names what to change, on hover.
+ */
 export const TestOutcome: FC<{ response: ExternalConnectionTestResponse }> = ({
     response,
 }) => {
-    const ok = response.liveCheck?.ok ?? response.status < 300;
-    const summary =
-        response.liveCheck?.summary ??
-        (ok ? 'Works' : `Failed with status ${response.status}`);
+    const check = response.liveCheck;
+    const ok = check?.ok ?? response.status < 300;
+    const detail = ok ? null : (check?.detail ?? null);
+    const message = ok
+        ? (check?.summary ?? 'Works')
+        : detail
+          ? getFirstSentence(detail)
+          : (check?.summary ?? `Failed with status ${response.status}`);
     return (
         <Tooltip
-            label={response.liveCheck?.detail}
-            disabled={!response.liveCheck?.detail}
+            label={detail}
+            disabled={!detail}
             multiline
             maw={320}
             withinPortal
@@ -69,8 +80,11 @@ export const TestOutcome: FC<{ response: ExternalConnectionTestResponse }> = ({
                 <MantineIcon
                     icon={ok ? IconCircleCheckFilled : IconAlertCircleFilled}
                     size={12}
+                    className={classes.testOutcomeIcon}
                 />
-                <span>{summary}</span>
+                <Text span inherit truncate>
+                    {message}
+                </Text>
             </Group>
         </Tooltip>
     );

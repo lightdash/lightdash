@@ -261,6 +261,24 @@ exports[`live data source names > HubSpot explore names and field ids never chan
       ],
       "name": "hubspot_companies",
     },
+    {
+      "fieldIds": [
+        "hubspot_tickets_count",
+        "hubspot_tickets_created_at",
+        "hubspot_tickets_record_id",
+        "hubspot_tickets_updated_at",
+      ],
+      "name": "hubspot_tickets",
+    },
+    {
+      "fieldIds": [
+        "hubspot_leads_count",
+        "hubspot_leads_created_at",
+        "hubspot_leads_record_id",
+        "hubspot_leads_updated_at",
+      ],
+      "name": "hubspot_leads",
+    },
   ],
   "reservedExploreNames": [],
 }

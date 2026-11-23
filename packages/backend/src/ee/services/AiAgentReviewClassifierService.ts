@@ -78,6 +78,7 @@ const REVIEW_AGENT_VERSION = 'llm-judge-v1';
 const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v17';
 const WRITEBACK_TOOL_NAMES = new Set([
     'editDbtProject',
+    'write',
     'propose_writeback',
     'runAiWriteback',
     'run_ai_writeback',

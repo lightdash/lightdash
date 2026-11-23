@@ -168,8 +168,12 @@ export const LiveSourcesTable: FC<{
                     Data read
                     <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
                 </span>
-                <span role="columnheader" className={classes.number}>
+                <span
+                    role="columnheader"
+                    className={`${classes.number} ${classes.headWithInfo}`}
+                >
                     API calls
+                    <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
                 </span>
                 <span />
             </Box>
@@ -325,6 +329,9 @@ export const LiveSourceSummary: FC<{
             <Stat
                 label="API calls"
                 value={row.usage.apiCalls}
+                labelExtra={
+                    <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
+                }
                 detail={row.usage.medianLatency}
                 title={
                     row.usage.medianLatency

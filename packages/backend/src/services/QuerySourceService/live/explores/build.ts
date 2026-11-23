@@ -232,7 +232,8 @@ export const getLiveDefinitionHashes = memoize(
                                     'source',
                                     definition.name,
                                 ),
-                                label: 'source',
+                                label: definition.label,
+                                groupLabel: 'source',
                                 connectionUuid: 'connection',
                                 // A placeholder, so a change to how hints
                                 // are built still changes the hash
@@ -345,15 +346,14 @@ export const buildLiveExplores = ({
     const { definitions } = getLiveBaseLayer(apiSource.connector);
     const scannedModels = getLiveScannedModels(apiSource.connector);
     const definitionHashes = getLiveDefinitionHashes(apiSource.connector);
-    const isSingle = definitions.length === 1;
     const build = (definition: LiveExploreDefinition) =>
         buildDefinitionExplore(apiSource.connector, {
             definition,
             exploreName: getLiveExploreName(sourceName, definition.name),
-            // One explore is the source; several are named by their model
-            // and grouped under the source
-            label: isSingle ? label : definition.label,
-            ...(isSingle ? {} : { groupLabel: label }),
+            // Every explore is named by its model and grouped under the
+            // source, even when the source has only one
+            label: definition.label,
+            groupLabel: label,
             connectionUuid,
             definitionHash: definitionHashes[definition.name],
             aiHint,

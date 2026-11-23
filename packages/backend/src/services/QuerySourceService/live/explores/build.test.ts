@@ -132,12 +132,13 @@ describe('buildLiveExplores', () => {
         ).toEqual(['report', 'performance']);
     });
 
-    test('names each explore after its integration and connection', () => {
+    test('names each explore after its model, under its source', () => {
         expect(
             [ga4(), searchConsole(), posthog()].map(
-                ({ name, label, type, apiSource }) => ({
+                ({ name, label, groupLabel, type, apiSource }) => ({
                     name,
                     label,
+                    groupLabel,
                     type,
                     connectionUuid: apiSource?.connectionUuid,
                 }),
@@ -145,19 +146,22 @@ describe('buildLiveExplores', () => {
         ).toEqual([
             {
                 name: 'ga4_03386598_report',
-                label: 'Marketing site',
+                label: 'Report',
+                groupLabel: 'Marketing site',
                 type: ExploreType.API_SOURCE,
                 connectionUuid: CONNECTION_UUID,
             },
             {
                 name: 'search_console_03386598_performance',
-                label: 'Marketing site',
+                label: 'Search performance',
+                groupLabel: 'Marketing site',
                 type: ExploreType.API_SOURCE,
                 connectionUuid: CONNECTION_UUID,
             },
             {
                 name: 'posthog_03386598_events',
-                label: 'Marketing site',
+                label: 'Events',
+                groupLabel: 'Marketing site',
                 type: ExploreType.API_SOURCE,
                 connectionUuid: CONNECTION_UUID,
             },

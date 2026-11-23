@@ -5,6 +5,7 @@ const loadoutFor = (base: LoadoutBase): Loadout => ({
     base,
     addOns: new Set(['skills', 'contentReads', 'mcp']),
     toolNames: new Set(['runQuery', 'findContent', 'loadSkill']),
+    withheldToolNames: new Set(),
     promptSections: new Set(),
     skills: new Set(['developing-in-lightdash']),
 });

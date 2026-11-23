@@ -92,6 +92,7 @@ import {
     ProposeSemanticLayerChangeFn,
     ReadAttachmentsFn,
     ReadContentFn,
+    ReadFn,
     ReadPinnedThreadFn,
     ReadSemanticModelFn,
     RecordMcpToolCallFn,
@@ -122,6 +123,7 @@ import {
     UpdateSlackMessageFn,
     UpdateUserNameFn,
     ValidateContentFn,
+    VerifyFn,
     WaitForSqlApprovalFn,
 } from './aiAgentDependencies';
 
@@ -341,6 +343,10 @@ export type AiAgentArgs = AnyAiModel & {
     repoFsSupportsCodeSearch: boolean;
     // Semantic Studio saves changes with a code mode script instead of the sandbox.
     semanticStudioCodeMode: boolean;
+    // False only for a Studio project with no repository.
+    semanticStudioHasRepository: boolean;
+    // A Studio dbt project's layout from its last compile; null otherwise.
+    semanticStudioProjectMap: string | null;
     canRunSql: boolean;
     // Whether the composer query tool is the query path: composer flags, data
     // access and the agent's enableComposerQueries opt-in.
@@ -504,6 +510,8 @@ export type AiAgentDependencies = {
     /** Runs a metric query on the person's draft over what is published. */
     runDraftQuery: RunAsyncQueryFn;
     readSemanticModel: ReadSemanticModelFn;
+    verify: VerifyFn;
+    read: ReadFn;
     syncDbtProject: SyncDbtProjectFn;
     exploreRepo: ExploreRepoFn;
     discoverRepos: DiscoverReposFn;

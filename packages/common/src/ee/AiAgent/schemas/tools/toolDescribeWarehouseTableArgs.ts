@@ -16,13 +16,13 @@ export const toolDescribeWarehouseTableArgsSchema = createToolSchema()
             .string()
             .min(1)
             .describe(
-                'Unqualified table name, e.g. "raw_parts", not "jaffle.raw_parts"; pass the schema and database in their own parameters.',
+                'Unqualified table name, e.g. "<table>", not "<schema>.<table>"; pass the schema and database in their own parameters.',
             ),
         schema: z
             .string()
             .nullish()
             .describe(
-                'Schema name, e.g. "jaffle". Omit for the project\'s default schema.',
+                'Schema name, e.g. "<schema>". Omit for the project\'s default schema.',
             ),
         database: z
             .string()

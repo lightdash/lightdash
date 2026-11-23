@@ -491,6 +491,7 @@ import {
     type ApiSemanticLayerDraftResponse,
     type ApiSemanticLayerDraftStateResponse,
     type ApiSemanticLayerDraftUsageResponse,
+    type ApiSemanticStudioBranchCompileFollowUpResponse,
     type ApiSemanticStudioCheckoutResponse,
     type ApiSemanticStudioSourceFileResponse,
     type ApiSemanticStudioSourceSaveResponse,
@@ -895,6 +896,8 @@ export type HealthState = {
     hasLinkedInAdsOAuth: boolean;
     hasSalesforceOAuth: boolean;
     hasGoogleLiveSources: boolean;
+    /** Whether the Hydra test integration is registered on this server. */
+    hasHydraLiveSource: boolean;
     hasHeadlessBrowser: boolean;
     hasManagedAnalytics?: boolean;
     hasExtendedUsageAnalytics: boolean;
@@ -1941,6 +1944,7 @@ type ApiResults =
     | ApiSemanticLayerDraftStateResponse['results']
     | ApiSemanticStudioWorkspacesResponse['results']
     | ApiSemanticStudioCheckoutResponse['results']
+    | ApiSemanticStudioBranchCompileFollowUpResponse['results']
     | ApiSemanticStudioSourcesResponse['results']
     | ApiSemanticStudioSourceFileResponse['results']
     | ApiSemanticStudioSourceSaveResponse['results']

@@ -21,6 +21,7 @@ import { OrganizationService } from '../services/OrganizationService/Organizatio
 import { isAnalyticsProjectAvailable } from '../services/ProjectService/analyticsProject/analyticsProjectAvailability';
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { provisionTrainingProject } from '../services/ProjectService/provisionTrainingProject';
+import { getLiveRateLimitDeadlineMs } from '../services/QuerySourceService/live/rateLimitDeadlines';
 import { QuerySourceRegistry } from '../services/QuerySourceService/QuerySourceRegistry';
 import { QuerySourceService } from '../services/QuerySourceService/QuerySourceService';
 import { ApiQuerySource } from '../services/QuerySourceService/sources/ApiQuerySource';
@@ -605,13 +606,19 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 registry.register(
                     new ApiQuerySource({
                         asyncQueryService: repository.getAsyncQueryService(),
-                        getLiveSource: (account, projectUuid, connectionUuid) =>
+                        getLiveSource: (
+                            account,
+                            projectUuid,
+                            connectionUuid,
+                            queryContext,
+                        ) =>
                             repository
                                 .getExternalConnectionService<ExternalConnectionService>()
                                 .getLiveSource(
                                     account,
                                     projectUuid,
                                     connectionUuid,
+                                    getLiveRateLimitDeadlineMs(queryContext),
                                 ),
                         listSchemaTables: (account, projectUuid) =>
                             repository
@@ -1217,6 +1224,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 repository,
                 utils,
                 clients,
+                prometheusMetrics,
             }) =>
                 new ExternalConnectionService({
                     allowedPrivateHostCidrs:
@@ -1253,6 +1261,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                     .externalConnectionAllowedPrivateHostCidrs,
                         }),
                     lightdashConfig: context.lightdashConfig,
+                    prometheusMetrics,
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
                         featureFlagModel: models.getFeatureFlagModel(),
@@ -1642,6 +1651,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         account,
                         projectUuid,
                         connectionUuid,
+                        queryContext,
                     ) =>
                         repository
                             .getExternalConnectionService<ExternalConnectionService>()
@@ -1649,6 +1659,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                 account,
                                 projectUuid,
                                 connectionUuid,
+                                getLiveRateLimitDeadlineMs(queryContext),
                             ),
                     externalSourceTableResolver: (
                         projectUuid,

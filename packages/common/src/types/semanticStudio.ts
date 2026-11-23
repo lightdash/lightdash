@@ -423,7 +423,27 @@ export type SemanticStudioBranchCompile = {
     hasExplores: boolean;
     requestedAt: Date;
     compiledAt: Date | null;
+    /** The compile this describes; a newer request replaces it. */
+    compileRequestUuid: string;
+    /** Whether an agent's save asked for it, so a failure can go back to the agent. */
+    requestedByAgent: boolean;
 };
+
+/** A hidden prompt that sends an agent's failed compile back to it. */
+export type SemanticStudioBranchCompileFollowUp = {
+    agentUuid: string;
+    threadUuid: string;
+    prompt: string;
+};
+
+export type SemanticStudioBranchCompileFollowUpBody = {
+    compileRequestUuid: string;
+    /** The Studio chat asking; only the chat of the checked-out change gets the follow-up. */
+    threadUuid: string;
+};
+
+export type ApiSemanticStudioBranchCompileFollowUpResponse =
+    ApiSuccess<SemanticStudioBranchCompileFollowUp | null>;
 
 /** The change a person has checked out in a project, which the whole app shows them. */
 export type SemanticStudioCheckout = {

@@ -107,6 +107,7 @@ export const TokenLiveSourceModal: FC<Props> = ({
                                 size="xs"
                                 aria-label={account.label}
                                 placeholder={account.placeholder}
+                                autoComplete="off"
                                 data-autofocus
                                 {...form.getInputProps('accountId')}
                             />
@@ -118,7 +119,8 @@ export const TokenLiveSourceModal: FC<Props> = ({
                             testMutation.data ? (
                                 <TestOutcome response={testMutation.data} />
                             ) : (
-                                'Read access is enough'
+                                (definition.tokenHint ??
+                                'Read access is enough')
                             )
                         }
                     >
