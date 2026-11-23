@@ -10,6 +10,7 @@ import {
     Center,
     Group,
     Loader,
+    Stack,
     Text,
     Tooltip,
 } from '@mantine/core';
@@ -223,8 +224,9 @@ const NewThread: FC<
     const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
     return (
         <>
-            <StudioChatEmptyState keepsDraft={keepsDraft}>
-                {showStarters ? (
+            {showStarters ? (
+                // The page beside the chat already explains the empty layer, so the chat keeps only the starters.
+                <Stack flex={1} justify="flex-end" px="md" pb="sm">
                     <Group gap="xs" justify="center">
                         {STUDIO_STARTERS.map(({ label, prompt: starter }) => (
                             <Button
@@ -238,8 +240,10 @@ const NewThread: FC<
                             </Button>
                         ))}
                     </Group>
-                ) : null}
-            </StudioChatEmptyState>
+                </Stack>
+            ) : (
+                <StudioChatEmptyState keepsDraft={keepsDraft} />
+            )}
             <StudioChatRefChips refs={attached} onRemove={onDetach} />
             <AgentChatInput
                 allowAttachments={false}

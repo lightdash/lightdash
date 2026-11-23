@@ -303,6 +303,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const {
         startNewThread,
         agent: studioAgent,
+        thread: studioThread,
         isEnabled: hasChat,
         isLoadingAgents,
     } = useStudioAgent(view.project.id);
@@ -738,6 +739,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         if (!canBuildFirstModel) return 'empty';
         return 'buildFirst';
     })();
+    // An empty project asks its first question in the page, and the chat opens once it is asked.
+    const waitsForFirstAsk =
+        pane === 'buildFirst' && !studioThread && askedPrompt === null;
+    const showsChat = isChatOpen && !waitsForFirstAsk;
     const { track } = useTracking();
     // A ref, so a new track identity (such as when analytics loads) does not count a view twice.
     const trackRef = useRef(track);
@@ -897,6 +902,9 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     // Whose change the page shows decides whether its code can be edited, and whether your chat's proposal belongs on it.
     const sourcesOwnerReason = ((): string | null => {
         if (!opensInSources) return null;
+        if (stage?.step === 'live' || stage?.step === 'closed') {
+            return 'This draft has ended, so it can no longer be edited.';
+        }
         if (!changeOnPage?.isMine) {
             return `Only ${shownWorkspace?.owner.name ?? 'its owner'} can edit this draft.`;
         }
@@ -1019,6 +1027,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 updatedAt: target.updatedAt,
             }))}
             isBusy={false}
+            isEnded={stage?.step === 'live' || stage?.step === 'closed'}
             status={null}
             header={
                 branchCompile && compileDescription ? (
@@ -1349,7 +1358,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 return (
                     <BuildFirstModel
                         view={view}
-                        onAsk={isChatOpen ? null : askFirst}
+                        onAsk={showsChat ? null : askFirst}
                     />
                 );
             case 'empty':
@@ -1387,10 +1396,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                             data-no-chat={
                                 !hasChat ||
                                 (!isLoadingAgents &&
-                                    (!studioAgent || !isChatOpen))
+                                    (!studioAgent || !showsChat))
                             }
                         >
-                            {hasChat && (
+                            {hasChat && !waitsForFirstAsk && (
                                 <SemanticStudioAgent
                                     projectUuid={view.project.id}
                                     {...openModel}
@@ -1499,7 +1508,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                     </>
                                                 ) : null}
                                                 {agentAvailable &&
-                                                !isChatOpen ? (
+                                                !isChatOpen &&
+                                                !waitsForFirstAsk ? (
                                                     <Button
                                                         size="xs"
                                                         variant="subtle"
