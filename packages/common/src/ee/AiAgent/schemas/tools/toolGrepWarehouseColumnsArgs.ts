@@ -7,7 +7,7 @@ import { createToolSchema } from '../toolSchemaBuilder';
 
 export const TOOL_GREP_WAREHOUSE_COLUMNS_DESCRIPTION = `Search the columns of the warehouse's physical tables by name or type, to find which tables hold a column: a key to join on, a date, an amount. It reads column metadata, kept for a while after the first read, so it runs no query on table data and needs no approval. The first search of a large schema is slower while its columns are read.
 
-The pattern is case-insensitive. Words separated by spaces must all match one column, and | separates alternatives, e.g. "customer id|cust_id". It is matched against each column's name and type, so "timestamp" finds every timestamp column.
+The pattern is case-insensitive. Words separated by spaces must all match one column, and | separates alternatives, e.g. "<entity> id|<entity>_id". It is matched against each column's name and type, so "timestamp" finds every timestamp column.
 
 For every column of one table use describeWarehouseTable; for fields already in the semantic layer use grepFields.`;
 
