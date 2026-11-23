@@ -1,3 +1,15 @@
+## [3.367.4](https://github.com/lightdash/lightdash/compare/3.367.3...3.367.4) (2026-11-23)
+
+
+### Bug Fixes
+
+* **semantic-studio:** commit an agent's dbt change the quick check cannot verify ([#33208](https://github.com/lightdash/lightdash/issues/33208)) ([d94b5cc](https://github.com/lightdash/lightdash/commit/d94b5cca4f26079b5cb7d6aefd0622bb56b17acd))
+
+
+### Performance Improvements
+
+* **semantic-studio:** reuse what a checked change compiled to when it merges unchanged ([#33206](https://github.com/lightdash/lightdash/issues/33206)) ([7e20553](https://github.com/lightdash/lightdash/commit/7e20553245845f4695ca794e5571257b6b031eb6))
+
 ## [3.367.3](https://github.com/lightdash/lightdash/compare/3.367.2...3.367.3) (2026-11-23)
 
 
