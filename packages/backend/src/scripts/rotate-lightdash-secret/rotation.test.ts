@@ -49,7 +49,7 @@ afterEach(() => {
 });
 
 describe('ciphertext registry', () => {
-    test('contains the full 29-field inventory', () => {
+    test('contains the full field inventory', () => {
         expect(
             CIPHERTEXT_REGISTRY.map((e) => `${e.table}.${e.column}`),
         ).toEqual([
@@ -84,6 +84,7 @@ describe('ciphertext registry', () => {
             'ai_organization_settings.encrypted_provider_api_keys',
             'ai_organization_provider_credential.encrypted_config',
             'external_connection_secrets.encrypted_payload',
+            'external_connection_user_credentials.encrypted_payload',
             'dbt_cloud_integrations.service_token',
         ]);
     });

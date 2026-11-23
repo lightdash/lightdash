@@ -167,6 +167,11 @@ export const CIPHERTEXT_REGISTRY: CiphertextRegistryEntry[] = [
         column: 'encrypted_payload',
     },
     {
+        table: 'external_connection_user_credentials',
+        primaryKeyColumn: 'external_connection_user_credential_uuid',
+        column: 'encrypted_payload',
+    },
+    {
         table: 'dbt_cloud_integrations',
         primaryKeyColumn: 'project_id',
         column: 'service_token',

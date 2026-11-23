@@ -20,6 +20,8 @@ describeContentAsCodeSchemaContract({
         'liveSourceName',
         'organizationUuid',
         'projectUuid',
+        // Whether a live API source queries with each viewer's own sign-in.
+        'signInMode',
         // Saved from the connection picker of a live API source.
         'targetLabel',
         // Carried by the document as `authType`.

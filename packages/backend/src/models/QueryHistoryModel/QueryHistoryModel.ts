@@ -204,6 +204,8 @@ export class QueryHistoryModel {
             externalSourceSalt?: string;
             warehouseConnectionUuid?: string;
             aiPrincipalUuid?: string;
+            /** A live source viewer's own sign-in, which decides their rows. */
+            liveSignIn?: string;
             resultIdentity?: {
                 organizationUuid: string;
                 producer: QueryResultProducer;
@@ -242,6 +244,10 @@ export class QueryHistoryModel {
 
         if (resultsIdentifiers.aiPrincipalUuid) {
             queryHashKey += `.principal:${resultsIdentifiers.aiPrincipalUuid}`;
+        }
+
+        if (resultsIdentifiers.liveSignIn) {
+            queryHashKey += `.live-sign-in:${resultsIdentifiers.liveSignIn}`;
         }
 
         if (resultsIdentifiers.resultIdentity) {

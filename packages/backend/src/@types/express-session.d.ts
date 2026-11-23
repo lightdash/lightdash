@@ -7,6 +7,7 @@ import {
     type PostHogOAuthSession,
     type SalesforceOAuthSession,
 } from '../ee/services/ExternalConnectionService/ExternalConnectionService';
+import { type LiveSourceUserSignInSession } from '../ee/services/ExternalConnectionService/liveSourceUserSignIn';
 import { type AgentConnectAttempt } from '../services/AiAccessService/AiAccessService';
 
 declare module 'express-session' {
@@ -20,6 +21,12 @@ declare module 'express-session' {
         agentConnectAttempts?: Record<string, AgentConnectAttempt>;
         /** Kept apart from `oauth`, which other sign-ins reset. */
         pendingGoogleLiveSource?: PendingGoogleLiveSource;
+        /**
+         * Viewers' sign-ins to live sources waiting for the integration, by
+         * state, so sign-ins in several tabs don't undo each other. Kept apart
+         * from `oauth`, which other sign-ins reset.
+         */
+        liveSourceUserSignIns?: Record<string, LiveSourceUserSignInSession>;
         oauth: {
             inviteCode?: string | undefined;
             returnTo?: string | undefined;

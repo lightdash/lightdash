@@ -61,6 +61,7 @@ import {
     ExternalConnectionSamplesTableName,
     ExternalConnectionSecretsTableName,
     ExternalConnectionsTableName,
+    ExternalConnectionUserCredentialsTableName,
     type ApiSourceCallsTable,
     type DbExternalConnection,
     type DbExternalConnectionSample,
@@ -330,7 +331,10 @@ export class ExternalConnectionModel {
             liveSourceName: readSourceName(row.api_source),
             ...readSourceDetails(row.api_source),
             ...(row.api_source
-                ? readLiveSourceCacheSettings(row.api_source)
+                ? {
+                      ...readLiveSourceCacheSettings(row.api_source),
+                      signInMode: row.sign_in_mode,
+                  }
                 : {}),
             hasSecret,
             createdByUserUuid: row.created_by_user_uuid,
@@ -452,6 +456,9 @@ export class ExternalConnectionModel {
                         api_source: data.apiSource
                             ? toApiSourceSettingsJson(data.apiSource)
                             : null,
+                        sign_in_mode: data.apiSource
+                            ? (data.signInMode ?? 'shared')
+                            : 'shared',
                         created_by_user_uuid: userUuid,
                         updated_by_user_uuid: userUuid,
                     })
@@ -528,6 +535,9 @@ export class ExternalConnectionModel {
                         allow_data_app_builder_linking:
                             src.allow_data_app_builder_linking,
                         forward_user_identity: src.forward_user_identity,
+                        // A copy of a source where each viewer signs in keeps
+                        // asking each viewer; their sign-ins are not copied
+                        sign_in_mode: src.sign_in_mode,
                         instructions: src.instructions,
                         allowed_path_prefixes: JSON.stringify(
                             src.allowed_path_prefixes,
@@ -963,6 +973,8 @@ export class ExternalConnectionModel {
                     data.allowDataAppBuilderLinking;
             if (data.forwardUserIdentity !== undefined)
                 updatePayload.forward_user_identity = data.forwardUserIdentity;
+            if (data.signInMode !== undefined)
+                updatePayload.sign_in_mode = data.signInMode;
             if (data.instructions !== undefined)
                 updatePayload.instructions = data.instructions;
             if (data.allowedPathPrefixes !== undefined)
@@ -1074,6 +1086,17 @@ export class ExternalConnectionModel {
                     uuid,
                     this.encryptionUtil.encrypt(data.secret),
                 );
+            }
+
+            // Viewers' sign-ins belong to one destination and one mode: a
+            // source moved elsewhere, or back to a shared sign-in, drops them.
+            const signInModeOff =
+                data.signInMode === 'shared' &&
+                existing.sign_in_mode !== 'shared';
+            if (signInModeOff || originChanged || typeChanged) {
+                await trx(ExternalConnectionUserCredentialsTableName)
+                    .where('external_connection_uuid', uuid)
+                    .delete();
             }
         });
 
@@ -1431,6 +1454,10 @@ export class ExternalConnectionModel {
             // The row stays only to keep its slug and, for a live source, its
             // name and field edits for reattach.
             await ExternalConnectionModel.deleteSecret(trx, uuid);
+            // Every viewer's own sign-in goes with the source's
+            await trx(ExternalConnectionUserCredentialsTableName)
+                .where('external_connection_uuid', uuid)
+                .delete();
             await trx(ApiSourceCallsTableName)
                 .where('external_connection_uuid', uuid)
                 .delete();
@@ -1498,6 +1525,137 @@ export class ExternalConnectionModel {
         await db(ExternalConnectionSecretsTableName)
             .where('external_connection_uuid', uuid)
             .delete();
+    }
+
+    // -----------------------------------------------------------------------
+    // Viewers' own sign-ins, for sources that query as each viewer
+    // -----------------------------------------------------------------------
+
+    /** INTERNAL ONLY: a viewer's decrypted sign-in, or null when they have none. */
+    async getDecryptedUserSecret(
+        connectionUuid: string,
+        userUuid: string,
+    ): Promise<string | null> {
+        const row = await this.database(
+            ExternalConnectionUserCredentialsTableName,
+        )
+            .where({
+                external_connection_uuid: connectionUuid,
+                user_uuid: userUuid,
+            })
+            .first<{ encrypted_payload: Buffer } | undefined>(
+                'encrypted_payload',
+            );
+        return row ? this.encryptionUtil.decrypt(row.encrypted_payload) : null;
+    }
+
+    async saveUserSecret(
+        connectionUuid: string,
+        userUuid: string,
+        secret: string,
+    ): Promise<void> {
+        const encryptedPayload = this.encryptionUtil.encrypt(secret);
+        await this.database(ExternalConnectionUserCredentialsTableName)
+            .insert({
+                external_connection_uuid: connectionUuid,
+                user_uuid: userUuid,
+                encrypted_payload: encryptedPayload,
+            })
+            .onConflict(['external_connection_uuid', 'user_uuid'])
+            .merge({
+                encrypted_payload: encryptedPayload,
+                signed_in_at: new Date(),
+                updated_at: new Date(),
+            });
+    }
+
+    /** Returns whether the viewer had a sign-in to delete. */
+    async deleteUserSecret(
+        connectionUuid: string,
+        userUuid: string,
+    ): Promise<boolean> {
+        const deleted = await this.database(
+            ExternalConnectionUserCredentialsTableName,
+        )
+            .where({
+                external_connection_uuid: connectionUuid,
+                user_uuid: userUuid,
+            })
+            .delete();
+        return deleted > 0;
+    }
+
+    /**
+     * Runs `update` with the viewer's current sign-in while holding its row
+     * lock, and stores what it returns unless that is null. Returns the
+     * stored sign-in, or null when the viewer has none. When `update` throws
+     * an error `forgetOn` accepts, the sign-in is deleted under the same lock,
+     * so a reconnect saved meanwhile is never the one deleted.
+     */
+    async updateUserSecretLocked(
+        connectionUuid: string,
+        userUuid: string,
+        update: (current: string) => Promise<string | null>,
+        forgetOn: (error: unknown) => boolean = () => false,
+    ): Promise<string | null> {
+        const outcome = await this.database.transaction<
+            { secret: string | null } | { error: unknown }
+        >(async (trx) => {
+            const row = await trx(ExternalConnectionUserCredentialsTableName)
+                .where({
+                    external_connection_uuid: connectionUuid,
+                    user_uuid: userUuid,
+                })
+                .forUpdate()
+                .first<{ encrypted_payload: Buffer } | undefined>(
+                    'encrypted_payload',
+                );
+            if (!row) return { secret: null };
+            const current = this.encryptionUtil.decrypt(row.encrypted_payload);
+            let next: string | null;
+            try {
+                next = await update(current);
+            } catch (error) {
+                if (!forgetOn(error)) throw error;
+                await trx(ExternalConnectionUserCredentialsTableName)
+                    .where({
+                        external_connection_uuid: connectionUuid,
+                        user_uuid: userUuid,
+                    })
+                    .delete();
+                return { error };
+            }
+            if (next === null) return { secret: current };
+            await trx(ExternalConnectionUserCredentialsTableName)
+                .where({
+                    external_connection_uuid: connectionUuid,
+                    user_uuid: userUuid,
+                })
+                .update({
+                    encrypted_payload: this.encryptionUtil.encrypt(next),
+                    updated_at: new Date(),
+                });
+            return { secret: next };
+        });
+        if ('error' in outcome) throw outcome.error;
+        return outcome.secret;
+    }
+
+    /** When the viewer signed in to each of the given sources, if they have. */
+    async getUserSignedInAt(
+        connectionUuids: string[],
+        userUuid: string,
+    ): Promise<Map<string, Date>> {
+        if (connectionUuids.length === 0) return new Map();
+        const rows = await this.database(
+            ExternalConnectionUserCredentialsTableName,
+        )
+            .whereIn('external_connection_uuid', connectionUuids)
+            .where('user_uuid', userUuid)
+            .select('external_connection_uuid', 'signed_in_at');
+        return new Map(
+            rows.map((row) => [row.external_connection_uuid, row.signed_in_at]),
+        );
     }
 
     // -----------------------------------------------------------------------

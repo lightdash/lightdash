@@ -23,6 +23,7 @@ import {
     validExplore,
 } from '../../../services/ProjectService/ProjectService.mock';
 import { ShareService } from '../../../services/ShareService/ShareService';
+import { getBorrowedIdentity } from '../ExternalConnectionService/borrowedIdentity';
 import { AiAgentService } from './AiAgentService';
 
 describe('Slack agent identity', () => {
@@ -100,6 +101,9 @@ describe('Slack agent identity', () => {
                     'editPlaceholderOrPost',
                 )
                 .mockImplementation(async () => {
+                    // This workspace doesn't sign people in, so the reply runs
+                    // as the installer and per-viewer sources refuse it
+                    expect(getBorrowedIdentity()).toBe('slack_agent');
                     expect(buildResultReader(fromSession(user))).toMatchObject({
                         kind: 'agent',
                         claim: {
@@ -127,6 +131,7 @@ describe('Slack agent identity', () => {
             await service.replyToSlackPrompt('prompt', slackAppId);
             expect(reply).toHaveBeenCalledOnce();
             expect(agentExecutionContext.getStore()).toBeUndefined();
+            expect(getBorrowedIdentity()).toBeNull();
         },
     );
     test('a Slack scope with no loaded app id retains an agent reader', () => {

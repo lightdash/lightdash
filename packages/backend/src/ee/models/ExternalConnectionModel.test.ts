@@ -9,6 +9,7 @@ import {
     ExternalConnectionSamplesTableName,
     ExternalConnectionSecretsTableName,
     ExternalConnectionsTableName,
+    ExternalConnectionUserCredentialsTableName,
 } from '../database/entities/externalConnections';
 import {
     ExternalConnectionModel,
@@ -374,6 +375,34 @@ describe('ExternalConnectionModel', () => {
                 JSON.stringify(['read:data']),
             );
         });
+
+        it('keeps a copied source asking each viewer to sign in', async () => {
+            tracker.on
+                .select(ExternalConnectionsTableName)
+                .responseOnce([makeDbConnection({ sign_in_mode: 'per_user' })]);
+            tracker.on
+                .insert(ExternalConnectionsTableName)
+                .responseOnce([
+                    { external_connection_uuid: 'cloned-conn-uuid' },
+                ]);
+            tracker.on
+                .select(ExternalConnectionSecretsTableName)
+                .responseOnce([]);
+            tracker.on
+                .select(ExternalConnectionSamplesTableName)
+                .responseOnce([]);
+
+            await model.copyConnectionsToProject(
+                PROJECT_UUID,
+                'target-project-uuid',
+            );
+
+            const cloneInsert = tracker.history.insert.find((q) =>
+                q.sql.includes(ExternalConnectionsTableName),
+            );
+            expect(cloneInsert?.sql).toContain('"sign_in_mode"');
+            expect(cloneInsert?.bindings).toContain('per_user');
+        });
     });
 
     describe('findByUuid', () => {
@@ -683,15 +712,21 @@ describe('ExternalConnectionModel', () => {
                 .response([makeDbConnection()]);
             tracker.on.update(ExternalConnectionsTableName).response(1);
             tracker.on.delete(ExternalConnectionSecretsTableName).response(1);
+            tracker.on
+                .delete(ExternalConnectionUserCredentialsTableName)
+                .response(1);
 
             await model.update(CONNECTION_UUID, USER_UUID, {
                 origin: 'https://attacker.example.com',
             });
 
-            expect(tracker.history.delete).toHaveLength(1);
-            expect(tracker.history.delete[0].sql).toContain(
-                ExternalConnectionSecretsTableName,
-            );
+            // Viewers' own sign-ins were for the old origin too
+            expect(tracker.history.delete.map(({ sql }) => sql)).toEqual([
+                expect.stringContaining(ExternalConnectionSecretsTableName),
+                expect.stringContaining(
+                    ExternalConnectionUserCredentialsTableName,
+                ),
+            ]);
         });
 
         it('deletes the stored secret when an OAuth credential destination changes without a replacement', async () => {
@@ -731,10 +766,13 @@ describe('ExternalConnectionModel', () => {
     });
 
     describe('softDelete', () => {
-        it('deletes the secret and call log but keeps the connection row', async () => {
+        it("deletes the secret, viewers' sign-ins and call log but keeps the connection row", async () => {
             tracker.on.update(ExternalConnectionsTableName).response(1);
             tracker.on.delete(AppExternalConnectionsTableName).response(0);
             tracker.on.delete(ExternalConnectionSecretsTableName).response(1);
+            tracker.on
+                .delete(ExternalConnectionUserCredentialsTableName)
+                .response(2);
             tracker.on.delete(ApiSourceCallsTableName).response(3);
 
             await model.softDelete(CONNECTION_UUID);
@@ -747,6 +785,7 @@ describe('ExternalConnectionModel', () => {
             expect(deletedTables).toEqual([
                 AppExternalConnectionsTableName,
                 ExternalConnectionSecretsTableName,
+                ExternalConnectionUserCredentialsTableName,
                 ApiSourceCallsTableName,
             ]);
             expect(
