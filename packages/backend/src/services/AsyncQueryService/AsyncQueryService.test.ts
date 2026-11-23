@@ -2627,6 +2627,7 @@ describe('AsyncQueryService', () => {
                 sessionAccount,
                 projectUuid,
                 CONNECTION_UUID,
+                QueryExecutionContext.EXPLORE,
             );
             const [[submitted]] = submitLiveQuery.mock.calls as AnyType;
             expect(submitted.source).toBe(source);

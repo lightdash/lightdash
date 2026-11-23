@@ -496,7 +496,12 @@ describe('Google sign-in for live sources', () => {
             }),
         );
 
-        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
+        const source = await service.getLiveSource(
+            account,
+            'proj-1',
+            'conn-1',
+            60_000,
+        );
         const result = await runLiveRequest(source, {
             query: JSON.stringify({
                 startDate: '2026-10-01',
