@@ -156,13 +156,13 @@ describe('buildProjectTree', () => {
         ).toHaveLength(1);
     });
 
-    it('folds a source with one explore into the explore', () => {
+    it('keeps a live data source with one explore as a folder', () => {
         const tree = buildProjectTree(
             project(
                 [warehouse, posthog, stripe],
                 [
                     explore('orders', 'warehouse'),
-                    explore('posthog_events', 'posthog'),
+                    explore('posthog_events', 'posthog', { label: 'Events' }),
                     explore('stripe_charges', 'stripe'),
                     explore('stripe_refunds', 'stripe'),
                 ],
@@ -171,10 +171,45 @@ describe('buildProjectTree', () => {
         const live = tree.nodes[1];
         expect(live.label).toBe('Live data sources');
         expect(live.children.map(({ ref }) => ref.type)).toEqual([
-            'explore',
+            'source',
             'source',
         ]);
+        expect(
+            findNode(tree.nodes, 'source:posthog')?.children.map(
+                ({ label }) => label,
+            ),
+        ).toEqual(['Events']);
         expect(live.exploreCount).toBe(3);
+    });
+
+    it('keeps the only live data source as a folder', () => {
+        const tree = buildProjectTree(
+            project(
+                [warehouse, posthog],
+                [
+                    explore('orders', 'warehouse'),
+                    explore('posthog_events', 'posthog'),
+                ],
+            ),
+        );
+        expect(tree.nodes[1].children.map(({ ref }) => ref)).toEqual([
+            { type: 'source', sourceId: 'posthog' },
+        ]);
+    });
+
+    it('folds a virtual views source with one explore into the explore', () => {
+        const tree = buildProjectTree(
+            project(
+                [warehouse, virtualViews],
+                [
+                    explore('orders', 'warehouse'),
+                    explore('big_orders', 'virtual-views'),
+                ],
+            ),
+        );
+        expect(tree.nodes[1].children.map(({ ref }) => ref.type)).toEqual([
+            'explore',
+        ]);
     });
 
     it('folds a warehouse with one explore into that explore', () => {
@@ -227,12 +262,22 @@ describe('refs', () => {
     });
 
     it('sends a folded source to its only explore', () => {
+        const withViews = project(
+            [warehouse, virtualViews],
+            [explore('orders', 'warehouse'), explore('big_orders', 'virtual-views')],
+        );
+        expect(
+            resolveRef(withViews, buildProjectTree(withViews).nodes, {
+                type: 'source',
+                sourceId: 'virtual-views',
+            }),
+        ).toEqual({ type: 'explore', exploreId: 'big_orders' });
         expect(
             resolveRef(shop, tree.nodes, {
                 type: 'source',
                 sourceId: 'posthog',
             }),
-        ).toEqual({ type: 'explore', exploreId: 'posthog_events' });
+        ).toEqual({ type: 'source', sourceId: 'posthog' });
         expect(
             resolveRef(shop, tree.nodes, {
                 type: 'source',
@@ -324,19 +369,19 @@ describe('pageNodes', () => {
 
     it('lists a source the tree folded into its kind', () => {
         const shop = project(
-            [warehouse, posthog],
+            [warehouse, virtualViews],
             [
                 explore('orders', 'warehouse'),
-                explore('events', 'posthog'),
-                explore('persons', 'posthog'),
+                explore('big_orders', 'virtual-views'),
+                explore('small_orders', 'virtual-views'),
             ],
         );
         const tree = buildProjectTree(shop);
-        const ref = { type: 'source', sourceId: 'posthog' } as const;
-        expect(findNode(tree.nodes, 'source:posthog')).toBeUndefined();
+        const ref = { type: 'source', sourceId: 'virtual-views' } as const;
+        expect(findNode(tree.nodes, 'source:virtual-views')).toBeUndefined();
         expect(labels(pageNodes(shop, tree, ref))).toEqual([
-            'events',
-            'persons',
+            'big_orders',
+            'small_orders',
         ]);
     });
 
