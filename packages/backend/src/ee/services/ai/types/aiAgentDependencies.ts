@@ -64,6 +64,7 @@ import {
     WarehouseTypes,
     type SqlApprovalToolName,
 } from '@lightdash/common';
+import type { ModelMessage } from 'ai';
 import {
     AiAgentFindContentCoverageEvent,
     AiAgentResponseStreamed,
@@ -724,6 +725,11 @@ export type StoreReasoningFn = (
         reasoningId: string;
         text: string;
     }>,
+) => Promise<void>;
+
+export type StoreTurnTranscriptFn = (
+    promptUuid: string,
+    messages: ModelMessage[],
 ) => Promise<void>;
 
 export type StoreLoadoutFn = (

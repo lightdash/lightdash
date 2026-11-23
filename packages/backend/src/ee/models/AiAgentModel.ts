@@ -131,6 +131,7 @@ import {
     type ToolGenerateDataAppOutput,
     type VerifiedContentListItem,
 } from '@lightdash/common';
+import type { ModelMessage } from 'ai';
 import { Knex } from 'knex';
 import moment from 'moment';
 import { validate as isValidUuid } from 'uuid';
@@ -201,6 +202,7 @@ import {
     AiPromptSkillSnapshot,
     AiPromptSteerTableName,
     AiPromptTableName,
+    AiPromptTranscriptTableName,
     AiSlackPromptTableName,
     AiSlackThreadTableName,
     AiSqlApprovalTableName,
@@ -218,6 +220,7 @@ import {
     DbAiPromptDecisionInsert,
     DbAiPromptInterrupt,
     DbAiPromptSteer,
+    DbAiPromptTranscript,
     DbAiPromptTurnDecision,
     DbAiSlackPrompt,
     DbAiSlackThread,
@@ -5766,6 +5769,41 @@ export class AiAgentModel {
         await this.database(AiPromptTableName)
             .where({ ai_prompt_uuid: promptUuid })
             .update({ loadout_base: loadout.base });
+    }
+
+    async createPromptTranscript(
+        promptUuid: string,
+        messages: ModelMessage[],
+    ): Promise<void> {
+        await this.database(AiPromptTranscriptTableName)
+            .insert({
+                ai_prompt_uuid: promptUuid,
+                messages: JSON.stringify(messages),
+            })
+            .onConflict('ai_prompt_uuid')
+            .ignore();
+    }
+
+    /** The latest of these prompts that has a transcript. */
+    async findLatestPromptTranscript(
+        promptUuids: string[],
+    ): Promise<
+        Pick<DbAiPromptTranscript, 'ai_prompt_uuid' | 'messages'> | undefined
+    > {
+        if (promptUuids.length === 0) return undefined;
+        return this.database(AiPromptTranscriptTableName)
+            .join(
+                AiPromptTableName,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiPromptTranscriptTableName}.ai_prompt_uuid`,
+            )
+            .whereIn(`${AiPromptTableName}.ai_prompt_uuid`, promptUuids)
+            .select(
+                `${AiPromptTranscriptTableName}.ai_prompt_uuid`,
+                `${AiPromptTranscriptTableName}.messages`,
+            )
+            .orderBy(`${AiPromptTableName}.created_at`, 'desc')
+            .first();
     }
 
     async findThreadMessage(

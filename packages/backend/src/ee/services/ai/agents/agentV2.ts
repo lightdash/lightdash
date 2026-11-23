@@ -82,7 +82,6 @@ import {
 import { loadoutSpanAttributes } from '../loadout/telemetry';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import {
-    getDeferredToolInstructions,
     getSystemPromptV2,
     type CapabilitySectionArgs,
 } from '../prompts/systemV2';
@@ -218,8 +217,6 @@ import { buildQueryRetryStepOverride } from './queryRetryCap';
 import { createQueryToolCallRepair } from './queryToolCallRepair';
 import {
     createIntentToolGate,
-    getDeferredPromptSections,
-    getIntentToolNames,
     type IntentToolGate,
 } from './referenceToolGating';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
@@ -229,6 +226,7 @@ import {
     withNonStreamingProviderTiming,
     type StepTiming,
 } from './turnTiming';
+import { createTurnTranscript, type TurnTranscript } from './turnTranscript';
 
 const createAiAgentLogger =
     (debugLoggingEnabled: boolean) => (context: string, message: string) => {
@@ -1617,6 +1615,7 @@ export const buildPrepareStep = ({
     logger,
     invalidToolCallIds,
     agentContext,
+    turnTranscript,
 }: {
     args: AiAgentArgs;
     dependencies: AiAgentDependencies;
@@ -1629,6 +1628,7 @@ export const buildPrepareStep = ({
     // onStepEnd/onChunk as the turn progresses (shared mutable set).
     invalidToolCallIds: ReadonlySet<string>;
     agentContext?: AgentContext;
+    turnTranscript?: TurnTranscript;
 }) => {
     const forcedFirstStep = buildForcedFirstStep(args, tools);
     const retryMarkersPersisted = new Set<string>();
@@ -1810,6 +1810,11 @@ export const buildPrepareStep = ({
             );
         }
         const stepActiveTools = stepBudgetOverride?.activeTools ?? activeTools;
+        const preparedMessages = withRollingCacheBreakpoint([
+            ...stepMessages,
+            ...extraMessages,
+        ]);
+        turnTranscript?.recordStep(preparedMessages);
 
         return {
             ...forced,
@@ -1819,10 +1824,7 @@ export const buildPrepareStep = ({
             ...(stepBudgetOverride?.toolChoice !== undefined
                 ? { toolChoice: stepBudgetOverride.toolChoice }
                 : {}),
-            messages: withRollingCacheBreakpoint([
-                ...stepMessages,
-                ...extraMessages,
-            ]),
+            messages: preparedMessages,
         };
     };
 };
@@ -3054,29 +3056,8 @@ const prepareAgentTurn = async ({
         );
     }
     const turnIntent = preparedContext?.turnIntent ?? null;
-    const toolIntents = preparedContext?.toolIntents ?? [];
-    const deferredSections = getDeferredPromptSections(
-        getIntentToolNames(tools, toolIntents),
-    );
-    const intentToolGate = createIntentToolGate(
-        tools,
-        turnIntent,
-        toolIntents,
-        getDeferredToolInstructions(
-            getCapabilitySectionArgs(args, loadout, customChartTypeLibrary),
-            deferredSections,
-        ),
-    );
-    if (intentToolGate.tools.loadAgentTools !== tools.loadAgentTools) {
-        Object.assign(
-            intentToolGate.tools,
-            withAgentToolPermissions(
-                { loadAgentTools: intentToolGate.tools.loadAgentTools },
-                dependencies,
-                new Set(),
-            ),
-        );
-    }
+    // Whole toolbox every step and turn: narrowing it by intent rewrote the cached prefix.
+    const intentToolGate = createIntentToolGate(tools, turnIntent, []);
     tools = withToolCallLogContext(
         reportEarlyToolProgress
             ? withEarlyToolProgress(
@@ -3101,8 +3082,11 @@ const prepareAgentTurn = async ({
             ? ''
             : preparedSeed,
         !!preparedContext?.projectContextEntryIds.length,
-        deferredSections,
     );
+    const turnTranscript =
+        args.execution.mode === 'standard'
+            ? createTurnTranscript(messages.length - args.messageHistory.length)
+            : undefined;
     if (preparedContext?.content) {
         messages.push({
             role: 'user',
@@ -3122,10 +3106,12 @@ const prepareAgentTurn = async ({
         logger,
         invalidToolCallIds,
         agentContext,
+        turnTranscript,
     });
 
     return {
         agentContext,
+        turnTranscript,
         answerVerifier,
         loadout,
         tools,
@@ -3145,6 +3131,22 @@ const prepareAgentTurn = async ({
             logger,
         ),
     };
+};
+
+/** Stores a cleanly finished turn so the next turn replays it as sent. */
+const storeTurnTranscript = async (
+    args: AiAgentArgs,
+    dependencies: AiAgentDependencies,
+    turnTranscript: TurnTranscript | undefined,
+    finalStep: {
+        finishReason: string;
+        response: { messages: readonly ModelMessage[] };
+    },
+) => {
+    if (!turnTranscript || finalStep.finishReason !== 'stop') return;
+    const messages = turnTranscript.complete(finalStep.response.messages);
+    if (messages)
+        await dependencies.storeTurnTranscript(args.promptUuid, messages);
 };
 
 // Forked scope so every capture in the turn, including from tool execute, carries the model.
@@ -3204,6 +3206,7 @@ const runGenerateAgentResponse = async ({
             prepareStep,
             stopWhenPromptInterrupted,
             repairToolCall,
+            turnTranscript,
         } = await prepareAgentTurn({
             args,
             dependencies,
@@ -3554,6 +3557,12 @@ const runGenerateAgentResponse = async ({
         }
 
         if (args.execution.mode !== 'deep_research') {
+            await storeTurnTranscript(
+                args,
+                dependencies,
+                turnTranscript,
+                result.finalStep,
+            );
             await dependencies.updatePrompt({
                 promptUuid: args.promptUuid,
                 response: agentContext.responseBlocks.render(
@@ -3672,6 +3681,7 @@ const runStreamAgentResponse = async ({
             prepareStep,
             stopWhenPromptInterrupted,
             repairToolCall,
+            turnTranscript,
         } = await prepareAgentTurn({
             args,
             dependencies,
@@ -4151,6 +4161,12 @@ const runStreamAgentResponse = async ({
                         responseTiming,
                     });
                 } else {
+                    await storeTurnTranscript(
+                        args,
+                        dependencies,
+                        turnTranscript,
+                        finalStep,
+                    );
                     await persistPrompt({
                         response: completeResponse,
                         promptUuid: args.promptUuid,

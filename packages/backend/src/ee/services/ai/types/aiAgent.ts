@@ -116,6 +116,7 @@ import {
     StoreToolCallErrorFn,
     StoreToolCallFn,
     StoreToolResultsFn,
+    StoreTurnTranscriptFn,
     SyncDbtProjectFn,
     TrackEventFn,
     UpdateProgressFn,
@@ -487,6 +488,7 @@ export type AiAgentDependencies = {
     recordMcpToolCall: RecordMcpToolCallFn;
     storeReasoning: StoreReasoningFn;
     storeLoadout: StoreLoadoutFn;
+    storeTurnTranscript: StoreTurnTranscriptFn;
     isPromptInterrupted: IsPromptInterruptedFn;
     consumePromptSteers: ConsumePromptSteersFn;
     searchFieldValues: SearchFieldValuesFn;

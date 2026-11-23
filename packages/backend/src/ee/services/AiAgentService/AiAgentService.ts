@@ -407,6 +407,7 @@ import { type ClientInfo } from '../../../utils/clientHeader';
 import { redactItemsMapSql } from '../../../utils/embedCompiledSql';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
 import {
+    type DbAiPrompt,
     type DbAiPromptTurnDecision,
     type DbAiPromptTurnDecisionOutcome,
 } from '../../database/entities/ai';
@@ -632,6 +633,7 @@ import {
     StoreToolCallErrorFn,
     StoreToolCallFn,
     StoreToolResultsFn,
+    StoreTurnTranscriptFn,
     UpdateProgressFn,
     UpdateSlackMessageFn,
     VerifyFn,
@@ -9071,6 +9073,8 @@ export class AiAgentService extends BaseService {
         };
         const historyOptions = {
             loadThreadAttachments,
+            // A transcript recorded before a compaction would replay the compacted turns.
+            replayTranscripts: applicableCompaction === null,
             organizationUuid: prompt.organizationUuid,
             projectUuid: agent.projectUuid,
             agentUuid: agent.uuid,
@@ -14044,6 +14048,25 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         return { threadFiles, threadImages };
     }
 
+    private static createFeedbackMessages(
+        message: Pick<DbAiPrompt, 'human_score' | 'human_feedback'>,
+    ): UserModelMessage[] {
+        if (!message.human_score) return [];
+        // TODO: we don't have a neutral option, we are storing -1 and 1 at the moment
+        const liked =
+            message.human_score > 0
+                ? 'I liked this response'
+                : 'I did not like this response';
+        return [
+            {
+                role: 'user',
+                content: message.human_feedback
+                    ? `${liked}\nReasoning: ${message.human_feedback}`
+                    : liked,
+            },
+        ];
+    }
+
     async getChatHistoryFromThreadMessages(
         // TODO: move getThreadMessages to AiAgentModel and improve types
         // also, it should be called through a service method...
@@ -14065,6 +14088,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             agentScope?: { user: SessionUser; spaceAccess: string[] } | null;
             /** Lets several history builds of one turn share a single read of the images. */
             loadThreadAttachments?: ThreadAttachmentsLoader;
+            /** Replay the latest stored turn transcript instead of rebuilding the turns it covers. */
+            replayTranscripts?: boolean;
         },
     ): Promise<ModelMessage[]> {
         const currentPromptExamples = options.currentPromptExamples ?? {
@@ -14091,8 +14116,29 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 ),
             ]);
 
+        // Replaying the latest transcript byte for byte lets the provider reuse its prompt cache.
+        const transcript = options.replayTranscripts
+            ? await this.aiAgentModel.findLatestPromptTranscript(
+                  promptUuids.filter(
+                      (uuid) => uuid !== options.currentPromptUuid,
+                  ),
+              )
+            : undefined;
+        const replayedPromptCount = transcript
+            ? promptUuids.indexOf(transcript.ai_prompt_uuid) + 1
+            : 0;
+        const replayedMessages: ModelMessage[] = transcript
+            ? [
+                  ...transcript.messages,
+                  ...AiAgentService.createFeedbackMessages(
+                      threadMessages[replayedPromptCount - 1],
+                  ),
+              ]
+            : [];
+
         const messagesWithToolCalls = await Promise.all(
             threadMessages.map(async (message, index) => {
+                if (index < replayedPromptCount) return [];
                 const messages: ModelMessage[] =
                     message.prompt.trim().length > 0
                         ? [
@@ -14208,30 +14254,18 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     } satisfies AssistantModelMessage);
                 }
 
-                if (message.human_score) {
-                    let feedbackContent =
-                        // TODO: we don't have a neutral option, we are storing -1 and 1 at the moment
-                        message.human_score > 0
-                            ? 'I liked this response'
-                            : 'I did not like this response';
-
-                    if (message.human_feedback) {
-                        feedbackContent += `\nReasoning: ${message.human_feedback}`;
-                    }
-
-                    messages.push({
-                        role: 'user',
-                        content: feedbackContent,
-                    } satisfies UserModelMessage);
-                }
+                messages.push(
+                    ...AiAgentService.createFeedbackMessages(message),
+                );
 
                 return messages;
             }),
         );
 
-        const history = AiAgentService.backfillDanglingToolResults(
-            messagesWithToolCalls.flat(),
-        );
+        const history = AiAgentService.backfillDanglingToolResults([
+            ...replayedMessages,
+            ...messagesWithToolCalls.flat(),
+        ]);
 
         if (history.length === 0) {
             return [
@@ -15533,6 +15567,22 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             );
         };
 
+        const storeTurnTranscript: StoreTurnTranscriptFn = async (
+            promptUuid,
+            messages,
+        ) => {
+            try {
+                await this.aiAgentModel.createPromptTranscript(
+                    promptUuid,
+                    messages,
+                );
+            } catch (error) {
+                this.logger.warn(
+                    `Failed to store transcript for prompt ${promptUuid}: ${getErrorMessage(error)}`,
+                );
+            }
+        };
+
         const storeLoadout: StoreLoadoutFn = async (promptUuid, loadout) => {
             try {
                 await this.aiAgentModel.updatePromptLoadout(
@@ -16132,6 +16182,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             storeToolResults,
             storeReasoning,
             storeLoadout,
+            storeTurnTranscript,
             isPromptInterrupted: (promptUuid: string) =>
                 this.aiAgentModel.hasAiPromptInterrupt(promptUuid),
             consumePromptSteers: (args: {
@@ -18559,6 +18610,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     storeToolResults,
                     storeReasoning,
                     storeLoadout,
+                    storeTurnTranscript,
                     isPromptInterrupted,
                     consumePromptSteers,
                     searchFieldValues,
@@ -19092,6 +19144,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     storeToolResults,
                     storeReasoning,
                     storeLoadout,
+                    storeTurnTranscript,
                     isPromptInterrupted,
                     consumePromptSteers,
                     searchFieldValues,
