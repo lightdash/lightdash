@@ -3,7 +3,7 @@ import { Button, getDefaultZIndex, Menu, Text } from '@mantine/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { matchRoutes, useLocation } from 'react-router';
+import { useLocation } from 'react-router';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
 import {
@@ -22,8 +22,8 @@ import { CreateCredentialsModal } from '../UserSettings/MyWarehouseConnectionsPa
 import AppColorSchemeScope from './AppColorSchemeScope';
 import { useNavBarMenuProps } from './NavBarPortalContext';
 import {
-    routesThatNeedWarehouseCredentials,
-    routesThatPromptForWarehouseCredentials,
+    isRouteThatNeedsWarehouseCredentials,
+    isRouteThatPromptsForWarehouseCredentials,
 } from './routesThatNeedWarehouseCredentials';
 
 const UserCredentialsSwitcher = () => {
@@ -32,14 +32,10 @@ const UserCredentialsSwitcher = () => {
     const location = useLocation();
     const [showCreateModalOnPageLoad, setShowCreateModalOnPageLoad] =
         useState(false);
-    const isRouteThatNeedsWarehouseCredentials = !!matchRoutes(
-        routesThatNeedWarehouseCredentials.map((path) => ({ path })),
-        location,
-    );
-    const isRouteThatPromptsForWarehouseCredentials = !!matchRoutes(
-        routesThatPromptForWarehouseCredentials.map((path) => ({ path })),
-        location,
-    );
+    const needsWarehouseCredentials =
+        isRouteThatNeedsWarehouseCredentials(location);
+    const promptsForWarehouseCredentials =
+        isRouteThatPromptsForWarehouseCredentials(location);
     const [isCreatingCredentials, setIsCreatingCredentials] = useState(false);
     const queryClient = useQueryClient();
 
@@ -55,7 +51,7 @@ const UserCredentialsSwitcher = () => {
         useProjectUserWarehouseCredentialsPreference(activeProjectUuid);
     const { mutate } = useProjectUserWarehouseCredentialsPreferenceMutation({
         onSuccess: () => {
-            if (isRouteThatNeedsWarehouseCredentials) {
+            if (needsWarehouseCredentials) {
                 // reload page because we can't invalidate the results mutation
                 window.location.reload();
             }
@@ -171,7 +167,7 @@ const UserCredentialsSwitcher = () => {
     useEffect(() => {
         // open create modal on page load if there are no compatible credentials
         if (
-            isRouteThatPromptsForWarehouseCredentials &&
+            promptsForWarehouseCredentials &&
             !showCreateModalOnPageLoad &&
             activeProject?.warehouseConnection?.requireUserCredentials &&
             !!compatibleCredentials &&
@@ -181,7 +177,7 @@ const UserCredentialsSwitcher = () => {
             setIsCreatingCredentials(true);
         }
     }, [
-        isRouteThatPromptsForWarehouseCredentials,
+        promptsForWarehouseCredentials,
         showCreateModalOnPageLoad,
         activeProject,
         compatibleCredentials,

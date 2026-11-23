@@ -234,6 +234,14 @@ describe('UserCredentialsSwitcher required credentials prompt', () => {
         ).toBeInTheDocument();
     });
 
+    it('stays closed on the new-app composer', async () => {
+        renderAt('/projects/project/apps/generate');
+        await new Promise((resolve) => {
+            setTimeout(resolve, 50);
+        });
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
     it('stays closed on home when credentials are not required', async () => {
         mocks.warehouseConnection = postgres;
         renderAt('/projects/project/home');

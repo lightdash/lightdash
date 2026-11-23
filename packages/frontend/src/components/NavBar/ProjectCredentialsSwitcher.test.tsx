@@ -104,6 +104,8 @@ describe('ProjectCredentialsSwitcher', () => {
         ['/projects/project-uuid/tables/orders', 1],
         ['/projects/project-uuid/sqlRunner', 1],
         ['/projects/project-uuid/home', 0],
+        ['/projects/project-uuid/apps/app-uuid', 1],
+        ['/projects/project-uuid/apps/generate', 0],
     ])('a saved choice on %s reloads the page %i times', (path, reloads) => {
         serveProject('multi');
         renderAt(path);
