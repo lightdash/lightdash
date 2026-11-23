@@ -97,15 +97,6 @@
     font-variant-numeric: tabular-nums;
 }
 
-.compare {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
-    border-top: 1px solid var(--mantine-color-default-border);
-}
-
-.compareAction:hover {
-    color: var(--mantine-color-text);
-}
-
 summary.sectionTitle {
     cursor: pointer;
 }

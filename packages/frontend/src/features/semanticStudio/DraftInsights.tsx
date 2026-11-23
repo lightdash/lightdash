@@ -1,9 +1,6 @@
 /** What a person needs around a draft before publishing it: what happened under it, who else is in it, each change in order, and what it does to the numbers. */
 import {
-    diffModelDocuments,
     getItemId,
-    readModelPart,
-    type Metric,
     type SemanticLayerDraft,
     type SemanticLayerDraftConflict,
     type SemanticLayerDraftModel,
@@ -18,7 +15,6 @@ import {
     Group,
     Paper,
     Stack,
-    Table,
     Text,
     Tooltip,
     VisuallyHidden,
@@ -30,24 +26,18 @@ import {
     IconArrowDown,
     IconArrowUp,
     IconGitMerge,
-    IconArrowsDiff,
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react';
 import { upperFirst } from 'es-toolkit/compat';
-import { useMemo, useState, type FC, type ReactNode } from 'react';
+import { type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
-import {
-    DEVELOPMENT_PREVIEW_HEADER,
-    DEVELOPMENT_VIEW_HEADER,
-} from './developmentView';
 import classes from './DraftInsights.module.css';
 import { describePublisher } from './draftState';
 import { FieldChangeIcon } from './KindTypeIcon';
-import { describeShift, pickComparedMetrics } from './metricComparison';
 import {
     CHANGE_KIND_LABELS,
     describeModelChange,
@@ -56,7 +46,6 @@ import {
     countChangedLines,
     listPublishedParts,
 } from './modelCode';
-import { LIVE_HEADERS, useTotals } from './useMetricTotals';
 import {
     useDiscardDraftChange,
     useKeepDraftModel,
@@ -634,212 +623,6 @@ export const FieldUsage: FC<{
                 </Box>
             ))}
         </Paper>
-    );
-};
-
-const findComparedMetrics = (
-    draft: SemanticLayerDraft,
-    model: SemanticLayerDraftModel,
-): Metric[] => {
-    if (!model.explore) return [];
-    const changed = new Set(
-        draft.changes
-            .flatMap(({ models }) => models)
-            .filter((entry) => entry.model === model.model)
-            .flatMap(({ changes }) => changes)
-            .flatMap(({ path }) => {
-                const name = /(?:^|\.)metrics\.([^.]+)/.exec(path)?.[1];
-                return name ? [name] : [];
-            }),
-    );
-    return pickComparedMetrics(
-        Object.values(
-            model.explore.tables[model.explore.baseTable]?.metrics ?? {},
-        ),
-        changed,
-        model.contentBefore === null,
-    );
-};
-
-const DRAFT_HEADERS = {
-    [DEVELOPMENT_VIEW_HEADER]: 'true',
-    [DEVELOPMENT_PREVIEW_HEADER]: '',
-};
-
-/** A model's metrics as totals, live against in development, run only when asked for since each side is a warehouse query. */
-const CompareTotals: FC<{
-    projectUuid: string;
-    exploreName: string;
-    metrics: Metric[];
-    /** The metrics that exist live too; asking live for a new one fails the whole query. */
-    liveMetricIds: string[];
-    isNewModel: boolean;
-    developmentHeaders: Record<string, string>;
-    cacheKey: string;
-}> = ({
-    projectUuid,
-    exploreName,
-    metrics,
-    liveMetricIds,
-    isNewModel,
-    developmentHeaders,
-    cacheKey,
-}) => {
-    const [isAsked, setIsAsked] = useState(false);
-    const ids = metrics.map((metric) => getItemId(metric));
-    const development = useTotals(
-        projectUuid,
-        exploreName,
-        ids,
-        developmentHeaders,
-        isAsked && ids.length > 0,
-        cacheKey,
-    );
-    const live = useTotals(
-        projectUuid,
-        exploreName,
-        liveMetricIds,
-        LIVE_HEADERS,
-        isAsked && liveMetricIds.length > 0 && !isNewModel,
-        cacheKey,
-    );
-    if (metrics.length === 0) return null;
-    if (!isAsked) {
-        return (
-            <Group className={classes.compare} gap="xs">
-                <Tooltip
-                    label={`${metrics.length === 1 ? '1 metric' : `${metrics.length} metrics`}, ${isNewModel ? 'one warehouse query' : 'one warehouse query each side'}.`}
-                >
-                    <Button
-                        size="compact-xs"
-                        variant="transparent"
-                        color="gray"
-                        px={0}
-                        className={classes.compareAction}
-                        leftSection={
-                            <MantineIcon icon={IconArrowsDiff} size={14} />
-                        }
-                        onClick={() => setIsAsked(true)}
-                    >
-                        {isNewModel
-                            ? 'Run the totals'
-                            : 'Compare totals with Published'}
-                    </Button>
-                </Tooltip>
-            </Group>
-        );
-    }
-    return (
-        <Box className={classes.compare}>
-            <Table verticalSpacing={4} fz="xs">
-                <Table.Thead>
-                    <Table.Tr>
-                        <Table.Th>Metric</Table.Th>
-                        {isNewModel ? null : (
-                            <Table.Th ta="right">Published</Table.Th>
-                        )}
-                        <Table.Th ta="right">My changes</Table.Th>
-                        {isNewModel ? null : <Table.Th ta="right" />}
-                    </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                    {metrics.map((metric) => {
-                        const id = getItemId(metric);
-                        const after = development.data?.[id];
-                        const before = live.data?.[id];
-                        const shift =
-                            before && after
-                                ? describeShift(before.raw, after.raw)
-                                : null;
-                        return (
-                            <Table.Tr key={id}>
-                                <Table.Td>{metric.label}</Table.Td>
-                                {isNewModel ? null : (
-                                    <Table.Td ta="right" c="dimmed">
-                                        {live.isInitialLoading
-                                            ? '…'
-                                            : (before?.formatted ?? 'new')}
-                                    </Table.Td>
-                                )}
-                                <Table.Td ta="right">
-                                    {development.isInitialLoading
-                                        ? '…'
-                                        : (after?.formatted ?? '∅')}
-                                </Table.Td>
-                                {isNewModel ? null : (
-                                    <Table.Td
-                                        ta="right"
-                                        c={shift ? 'orange' : 'dimmed'}
-                                    >
-                                        {shift ??
-                                            (before && after ? 'same' : '')}
-                                    </Table.Td>
-                                )}
-                            </Table.Tr>
-                        );
-                    })}
-                </Table.Tbody>
-            </Table>
-            {live.isError ? (
-                <Text fz="xs" c="dimmed">
-                    Could not run these live: {live.error.error.message}
-                </Text>
-            ) : null}
-            {development.isError ? (
-                <Text fz="xs" c="dimmed">
-                    Could not run these on the draft:{' '}
-                    {development.error.error.message}
-                </Text>
-            ) : null}
-        </Box>
-    );
-};
-
-/** A drafted model's metrics as totals, live against in development. */
-export const MetricComparison: FC<{
-    projectUuid: string;
-    draft: SemanticLayerDraft;
-    model: SemanticLayerDraftModel;
-}> = ({ projectUuid, draft, model }) => {
-    const metrics = useMemo(
-        () => findComparedMetrics(draft, model),
-        [draft, model],
-    );
-    const liveMetricIds = useMemo(() => {
-        // A metric the draft adds does not exist live.
-        const added = diffModelDocuments(
-            model.contentBefore,
-            model.contentAfter,
-        )
-            .filter(({ kind }) => kind === 'added')
-            .map(({ path }) => path);
-        return metrics
-            .filter(
-                ({ name }) =>
-                    !added.some(
-                        (path) =>
-                            path.endsWith(`metrics.${name}`) ||
-                            readModelPart(
-                                model.contentAfter,
-                                `${path}.metrics.${name}`,
-                            ) !== null,
-                    ),
-            )
-            .map((metric) => getItemId(metric));
-    }, [metrics, model]);
-    return (
-        <CompareTotals
-            projectUuid={projectUuid}
-            exploreName={model.model}
-            metrics={metrics}
-            liveMetricIds={liveMetricIds}
-            isNewModel={model.contentBefore === null}
-            // A draft is read from the draft itself, never from another project's preview.
-            developmentHeaders={DRAFT_HEADERS}
-            cacheKey={draft.changes
-                .map(({ draftChangeUuid }) => draftChangeUuid)
-                .join()}
-        />
     );
 };
 

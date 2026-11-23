@@ -22,7 +22,6 @@ import {
     IconExternalLink,
     IconEye,
     IconFileCode,
-    IconPlayerPlay,
 } from '@tabler/icons-react';
 import { sortBy, uniqBy } from 'es-toolkit/compat';
 import { useContext, useEffect, useRef, useState, type FC } from 'react';
@@ -34,7 +33,6 @@ import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
-import { TryIt } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/TryItButton';
 import { useStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
@@ -44,7 +42,6 @@ import { useDevelopmentView } from './developmentView';
 import {
     ChangeQueue,
     DraftUsage,
-    MetricComparison,
     ModelNotices,
     PublishChecklist,
     PublishSummary,
@@ -480,7 +477,6 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const [publishing, setPublishing] = useState(false);
     const [discarding, setDiscarding] = useState(false);
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
-    const [isTrying, setIsTrying] = useState(false);
     const discard = useDiscardSemanticLayerDraft(projectUuid);
     const { startNewThread } = useStudioAgent(projectUuid);
     const asPullRequest = usePublishMode(projectUuid) === 'pull_request';
@@ -515,26 +511,6 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                     )
                 }
             >
-                {tryModel ? (
-                    <Tooltip
-                        multiline
-                        w={240}
-                        label="Opens Explore over this page with your changes. Only you see them until you publish."
-                    >
-                        <Button
-                            size="xs"
-                            variant="subtle"
-                            color="gray"
-                            flex="none"
-                            leftSection={
-                                <MantineIcon icon={IconPlayerPlay} size={12} />
-                            }
-                            onClick={() => setIsTrying(true)}
-                        >
-                            Try it
-                        </Button>
-                    </Tooltip>
-                ) : null}
                 {conflicts > 0 ? (
                     <Tooltip label="Someone published to a part you changed too. Choose which version to keep, then publish.">
                         <Button
@@ -653,17 +629,6 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                     />
                 ) : null}
             </DevelopmentBar>
-            {isTrying ? (
-                <TryIt
-                    projectUuid={projectUuid}
-                    models={draft.models
-                        .filter((entry) => getChangeKind(entry) !== 'removed')
-                        .map(({ model }) => model)}
-                    previewProjectUuid={null}
-                    prUrl={null}
-                    onClose={() => setIsTrying(false)}
-                />
-            ) : null}
         </>
     );
 };
@@ -867,11 +832,6 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                     variant="full"
                                 />
                             )}
-                            <MetricComparison
-                                projectUuid={projectUuid}
-                                draft={draft}
-                                model={modelChange}
-                            />
                         </Box>
                     );
                 })}

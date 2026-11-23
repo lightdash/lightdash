@@ -130,7 +130,7 @@ export const DraftPickerMenu: FC<{
                         </Group>
                     }
                 >
-                    <Text span inherit truncate>
+                    <Text span inherit truncate lh={1.4}>
                         {currentName ?? 'Published'}
                     </Text>
                 </Button>

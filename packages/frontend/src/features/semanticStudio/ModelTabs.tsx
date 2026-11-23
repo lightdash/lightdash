@@ -22,7 +22,7 @@ import {
     File,
     WorkerPoolContextProvider,
 } from '@pierre/diffs/react';
-import { IconPencil } from '@tabler/icons-react';
+import { IconFileCode, IconPencil } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
@@ -200,12 +200,11 @@ export const ModelCodeView: FC<{
     } as const;
     return (
         <Box className={classes.codePane}>
-            <Group
-                className={classes.codeToolbar}
-                justify="flex-end"
-                wrap="nowrap"
-                gap="xs"
-            >
+            <Group className={classes.codeToolbar} wrap="nowrap" gap="xs">
+                <MantineIcon icon={IconFileCode} color="dimmed" />
+                <Text fz="sm" fw={500} truncate flex={1} miw={0}>
+                    {modelName}.yml
+                </Text>
                 {shownContent === null ? null : !canEdit ? (
                     readOnlyReason ? (
                         <Text fz="xs" c="dimmed" truncate maw={320}>
@@ -372,6 +371,7 @@ export const ModelCodeView: FC<{
                         highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
                     >
                         <File
+                            className={classes.codeHost}
                             file={{
                                 name: `${modelName}.yml`,
                                 contents: shownContent,
