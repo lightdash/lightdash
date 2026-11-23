@@ -1,3 +1,10 @@
+## [3.369.1](https://github.com/lightdash/lightdash/compare/3.369.0...3.369.1) (2026-11-23)
+
+
+### Bug Fixes
+
+* **live-sources:** show what to fix when a source test fails ([#33205](https://github.com/lightdash/lightdash/issues/33205)) ([22e5e36](https://github.com/lightdash/lightdash/commit/22e5e36d42a9fd1d0f1fbcd4d2675aac00b49355))
+
 # [3.369.0](https://github.com/lightdash/lightdash/compare/3.368.0...3.369.0) (2026-11-23)
 
 
