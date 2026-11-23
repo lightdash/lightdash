@@ -1,3 +1,15 @@
+# [3.368.0](https://github.com/lightdash/lightdash/compare/3.367.4...3.368.0) (2026-11-23)
+
+
+### Features
+
+* **semantic-studio:** send a failed branch compile back to the agent to fix ([#33212](https://github.com/lightdash/lightdash/issues/33212)) ([e025e8f](https://github.com/lightdash/lightdash/commit/e025e8fe696c45b6537fa4ea9928e0c8d6e3d7cc))
+
+
+### Performance Improvements
+
+* **semantic-studio:** log step timings for each branch compile ([#33210](https://github.com/lightdash/lightdash/issues/33210)) ([9666d3b](https://github.com/lightdash/lightdash/commit/9666d3b4d2618e662429c0c31947ce22cfb41f82))
+
 ## [3.367.4](https://github.com/lightdash/lightdash/compare/3.367.3...3.367.4) (2026-11-23)
 
 

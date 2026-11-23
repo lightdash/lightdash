@@ -43639,6 +43639,14 @@
             },
             "SemanticStudioBranchCompile": {
                 "properties": {
+                    "requestedByAgent": {
+                        "type": "boolean",
+                        "description": "Whether an agent's save asked for it, so a failure can go back to the agent."
+                    },
+                    "compileRequestUuid": {
+                        "type": "string",
+                        "description": "The compile this describes; a newer request replaces it."
+                    },
                     "compiledAt": {
                         "type": "string",
                         "format": "date-time",
@@ -43667,6 +43675,8 @@
                     }
                 },
                 "required": [
+                    "requestedByAgent",
+                    "compileRequestUuid",
                     "compiledAt",
                     "requestedAt",
                     "hasExplores",
@@ -43729,6 +43739,57 @@
             "ApiSemanticStudioCheckoutResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_SemanticStudioCheckout-or-null_",
                 "description": "Null when the person is on what is published."
+            },
+            "SemanticStudioBranchCompileFollowUp": {
+                "properties": {
+                    "prompt": {
+                        "type": "string"
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "agentUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["prompt", "threadUuid", "agentUuid"],
+                "type": "object",
+                "description": "A hidden prompt that sends an agent's failed compile back to it."
+            },
+            "ApiSuccess_SemanticStudioBranchCompileFollowUp-or-null_": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SemanticStudioBranchCompileFollowUp"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticStudioBranchCompileFollowUpResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticStudioBranchCompileFollowUp-or-null_"
+            },
+            "SemanticStudioBranchCompileFollowUpBody": {
+                "properties": {
+                    "threadUuid": {
+                        "type": "string",
+                        "description": "The Studio chat asking; only the chat of the checked-out change gets the follow-up."
+                    },
+                    "compileRequestUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["threadUuid", "compileRequestUuid"],
+                "type": "object"
             },
             "MergePullRequestResult": {
                 "properties": {
@@ -81303,7 +81364,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.367.4",
+        "version": "3.368.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -95899,6 +95960,57 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/checkout/compile/follow-up": {
+            "post": {
+                "operationId": "claimSemanticStudioCompileFollowUp",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioBranchCompileFollowUpResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Claims the hidden prompt that sends a failed compile of the agent's last save back to the agent; null when there is none to send.",
+                "summary": "Claim a Semantic Studio compile follow-up",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SemanticStudioBranchCompileFollowUpBody"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/semantic-studio/checkout/publish": {
