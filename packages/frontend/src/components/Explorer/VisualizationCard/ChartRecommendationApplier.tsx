@@ -1,13 +1,16 @@
 import {
     ChartKind,
+    ChartType,
     recommendChart,
     XAxisSort,
     type ChartRecommendation,
 } from '@lightdash/common';
-import { useEffect, useRef, type FC } from 'react';
+import { useEffect, useRef, useState, type FC } from 'react';
 import {
     explorerActions,
+    selectChartConfig,
     useExplorerDispatch,
+    useExplorerSelector,
 } from '../../../features/explorer/store';
 import {
     selectCartesianLayout,
@@ -47,6 +50,13 @@ const ChartRecommendationApplier: FC<Props> = ({ onApplied }) => {
     const layout = useVisualizationSelector(selectCartesianLayout);
     const explorerDispatch = useExplorerDispatch();
     const picked = useRef<ChartRecommendation | null>(null);
+    const [isAwaitingGroupedQuery, setIsAwaitingGroupedQuery] = useState(false);
+    const explorerXField = useExplorerSelector((state) => {
+        const chartConfig = selectChartConfig(state);
+        return chartConfig.type === ChartType.CARTESIAN
+            ? chartConfig.config?.layout?.xField
+            : undefined;
+    });
     const isCartesian = isCartesianVisualizationConfig(visualizationConfig);
     const metricQuery = resultsData?.metricQuery;
     const hasRows = (resultsData?.rows.length ?? 0) > 0;
@@ -90,7 +100,7 @@ const ChartRecommendationApplier: FC<Props> = ({ onApplied }) => {
                 explorerActions.setSortFields([recommendation.sort]),
             );
         }
-        if (recommendation.groupBy || recommendation.sort) {
+        if (recommendation.sort) {
             explorerDispatch(explorerActions.requestQueryExecution());
         }
         // Runs once, when results are first loaded
@@ -118,10 +128,28 @@ const ChartRecommendationApplier: FC<Props> = ({ onApplied }) => {
                 count: recommendation.topN.count,
             });
         }
-        onApplied(recommendation);
+        if (recommendation.groupBy) {
+            setIsAwaitingGroupedQuery(true);
+        } else {
+            onApplied(recommendation);
+        }
         // Runs once, when the type switch has built the cartesian editor
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isCartesian]);
+
+    // A grouped query is built from the chart's x-axis, so it can only run
+    // once the editor's layout has reached the explorer
+    useEffect(() => {
+        const recommendation = picked.current;
+        if (
+            !isAwaitingGroupedQuery ||
+            !recommendation ||
+            explorerXField !== recommendation.xField
+        )
+            return;
+        explorerDispatch(explorerActions.requestQueryExecution());
+        onApplied(recommendation);
+    }, [isAwaitingGroupedQuery, explorerXField, explorerDispatch, onApplied]);
 
     return null;
 };
