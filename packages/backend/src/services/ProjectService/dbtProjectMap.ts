@@ -1,4 +1,5 @@
 import { type DbtManifest } from '@lightdash/common';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 
 const MAX_SOURCES = 30;
@@ -24,12 +25,32 @@ const listed = <T>(items: T[], max: number, render: (item: T) => string) => [
     ...(items.length > max ? [`- and ${items.length - max} more`] : []),
 ];
 
+/** dbt before 1.6 writes no project_name, but its project_id is the md5 of that name. */
+const getProjectName = (manifest: DbtManifest): string | null => {
+    const name = text(manifest.metadata.project_name);
+    if (name !== null) return name;
+    const id = text(manifest.metadata.project_id);
+    if (id === null) return null;
+    const owners = new Set(
+        Object.values(manifest.nodes).map((node) =>
+            field(node, 'package_name'),
+        ),
+    );
+    return (
+        [...owners].find(
+            (owner) =>
+                owner !== null &&
+                createHash('md5').update(owner).digest('hex') === id,
+        ) ?? null
+    );
+};
+
 /**
  * The layout of a dbt project as its last compile saw it: where sources are declared and in which
  * database, how model folders and files are named, and the installed packages.
  */
 export const describeDbtProjectMap = (manifest: DbtManifest): string | null => {
-    const project = text(manifest.metadata.project_name);
+    const project = getProjectName(manifest);
     if (project === null) return null;
 
     const sources = new Map<
