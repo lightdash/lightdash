@@ -376,9 +376,10 @@ const setup = ({
     const queueBranchCompile = vi.fn(
         async (_payload: CompileSemanticStudioBranchPayload) => undefined,
     );
-    const compileExploresFromBranch = vi.fn(
-        async (): Promise<(Explore | ExploreError)[]> => [BRANCH_EXPLORE],
-    );
+    const compileExploresFromBranch = vi.fn(async () => ({
+        explores: [BRANCH_EXPLORE] as (Explore | ExploreError)[],
+        timings: { gitRefreshMs: 40, depsMs: 30, dbtCompileMs: 20 },
+    }));
     const findPullRequestBranch = vi.fn(async () => 'studio-branch');
     const mergePullRequest = vi.fn(async () => ({
         merged: true,
@@ -4231,6 +4232,33 @@ describe('compiling a dbt change on its branch', () => {
             PROJECT_UUID,
         );
         expect(explores?.get(BRANCH_EXPLORE.name)).toEqual(BRANCH_EXPLORE);
+    });
+
+    it('logs how long each step of a branch compile took, with no file contents', async () => {
+        const context = onChange();
+        const info = vi.spyOn(context.service['logger'], 'info');
+        await context.service.queueBranchCompile(
+            repoWriter,
+            PROJECT_UUID,
+            OWN_PULL_REQUEST,
+        );
+        await runQueued(context);
+        expect(info).toHaveBeenCalledWith(
+            'Semantic Studio branch compile timed',
+            expect.objectContaining({
+                event: 'semantic_studio.branch_compile.timed',
+                outcome: 'ready',
+                exploreCount: 0,
+                exploreErrorCount: 1,
+                gitRefreshMs: 40,
+                depsMs: 30,
+                dbtCompileMs: 20,
+                branchLookupMs: expect.any(Number),
+                compileMs: expect.any(Number),
+                saveMs: expect.any(Number),
+                totalMs: expect.any(Number),
+            }),
+        );
     });
 
     it('queues nothing for a pull request that is not one of your changes, or on a project kept on the server', async () => {
