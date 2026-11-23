@@ -1,0 +1,26 @@
+.preview {
+    padding: 8px var(--mantine-spacing-sm);
+}
+
+.sparkline {
+    display: block;
+    overflow: visible;
+}
+
+.sparkline polyline {
+    fill: none;
+    stroke: var(--mantine-color-blue-5);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.explore {
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.row:hover .explore,
+.explore:focus-visible {
+    opacity: 1;
+}

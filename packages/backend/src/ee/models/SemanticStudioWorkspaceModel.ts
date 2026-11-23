@@ -9,9 +9,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { ProjectModelDraftChangesTableName } from '../../database/entities/projectModelDraftChanges';
 import { UserTableName } from '../../database/entities/users';
 import {
+    AiPromptTableName,
     AiThreadTableName,
     AiWebAppThreadTableName,
     AiWritebackRunTableName,
+    type DbAiPrompt,
 } from '../database/entities/ai';
 import {
     SemanticStudioBranchCompilesTableName,
@@ -143,7 +145,11 @@ export class SemanticStudioWorkspaceModel {
             : null;
     }
 
-    async listChanges({ projectUuid, userUuid }: Owner) {
+    /** Open drafts and their models, each with who edited it; `threadUuid` is the chat asking. */
+    async listChanges(
+        { projectUuid, userUuid }: Owner,
+        threadUuid: string | null,
+    ) {
         return this.database(`${SemanticStudioWorkspacesTableName} as w`)
             .where({
                 'w.project_uuid': projectUuid,
@@ -154,12 +160,20 @@ export class SemanticStudioWorkspaceModel {
             .select<StudioChangeSummary[]>(
                 'w.name',
                 'w.is_active as isCheckedOut',
-                this.database
-                    .raw(`ARRAY(SELECT DISTINCT m->>'name' FROM project_model_draft_changes d
+                this.database.raw(
+                    `COALESCE((SELECT jsonb_agg(jsonb_build_object('name', name, 'editedIn', edited_in) ORDER BY name) FROM (
+                    SELECT m->>'name' AS name, array_agg(DISTINCT CASE
+                        WHEN d.prompt_uuid IS NULL THEN 'by_hand'
+                        WHEN p.ai_thread_uuid = ? THEN 'this_chat'
+                        ELSE 'another_chat' END) AS edited_in
+                    FROM project_model_draft_changes d
                     CROSS JOIN LATERAL jsonb_array_elements(d.models::jsonb) m
+                    LEFT JOIN ai_prompt p ON p.ai_prompt_uuid = d.prompt_uuid
                     WHERE d.workspace_uuid = w.semantic_studio_workspace_uuid AND d.status <> 'discarded'
                     AND d.created_by_user_uuid = w.created_by_user_uuid AND d.project_uuid = w.project_uuid
-                    ORDER BY 1) AS models`),
+                    GROUP BY 1) per_model), '[]'::jsonb) AS models`,
+                    [threadUuid],
+                ),
             );
     }
 
@@ -418,13 +432,17 @@ export class SemanticStudioWorkspaceModel {
     }
 
     /** Asks for a new compile of a change's branch; returns the request a compile must still match to be kept. */
-    async requestBranchCompile(workspaceUuid: string): Promise<string> {
+    async requestBranchCompile(
+        workspaceUuid: string,
+        requestedByAgent: boolean,
+    ): Promise<string> {
         const compileRequestUuid = uuidv4();
         await this.database(SemanticStudioBranchCompilesTableName)
             .insert({
                 semantic_studio_workspace_uuid: workspaceUuid,
                 compile_request_uuid: compileRequestUuid,
                 status: 'compiling',
+                requested_by_agent: requestedByAgent,
             })
             .onConflict('semantic_studio_workspace_uuid')
             .merge({
@@ -432,8 +450,43 @@ export class SemanticStudioWorkspaceModel {
                 status: 'compiling',
                 error: null,
                 requested_at: this.database.fn.now(),
+                requested_by_agent: requestedByAgent,
+                follow_up_claimed_at: null,
             });
         return compileRequestUuid;
+    }
+
+    /** Marks an agent's failed compile as sent back to the agent; false when it is not that, or was already sent. */
+    async claimBranchCompileFollowUp(
+        workspaceUuid: string,
+        compileRequestUuid: string,
+    ): Promise<boolean> {
+        const updated = await this.database(
+            SemanticStudioBranchCompilesTableName,
+        )
+            .where({
+                semantic_studio_workspace_uuid: workspaceUuid,
+                compile_request_uuid: compileRequestUuid,
+                status: 'failed',
+                requested_by_agent: true,
+            })
+            .whereNull('follow_up_claimed_at')
+            .update({ follow_up_claimed_at: this.database.fn.now() });
+        return updated > 0;
+    }
+
+    /** The thread's latest prompts, newest first. */
+    async findLatestPrompts(
+        threadUuid: string,
+        limit: number,
+    ): Promise<
+        Pick<DbAiPrompt, 'prompt' | 'hidden' | 'created_at' | 'responded_at'>[]
+    > {
+        return this.database(AiPromptTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .orderBy('created_at', 'desc')
+            .limit(limit)
+            .select('prompt', 'hidden', 'created_at', 'responded_at');
     }
 
     /** Records a compile's outcome, unless a newer one was asked for since; a failure keeps the last good explores. */

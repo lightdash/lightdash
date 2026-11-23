@@ -1,7 +1,7 @@
 import { ActionIcon, Button, Menu } from '@mantine/core';
 import {
     IconChevronDown,
-    IconDots,
+    IconDotsVertical,
     IconEye,
     IconFileDiff,
     IconGitPullRequest,
@@ -33,7 +33,7 @@ export const PullRequestViewMenu: FC<{
                 <Menu.Target>
                     {quiet ? (
                         <ActionIcon size="sm" aria-label="More">
-                            <MantineIcon icon={IconDots} />
+                            <MantineIcon icon={IconDotsVertical} />
                         </ActionIcon>
                     ) : (
                         <Button

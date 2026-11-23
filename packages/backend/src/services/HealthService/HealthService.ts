@@ -1,4 +1,5 @@
 import {
+    ApiConnectorType,
     HealthState,
     LightdashInstallType,
     LightdashMode,
@@ -22,6 +23,7 @@ import type { LearnSandboxService } from '../LearnSandboxService/LearnSandboxSer
 import { LicenseService } from '../LicenseService/LicenseService';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { isAnalyticsProjectAvailable } from '../ProjectService/analyticsProject/analyticsProjectAvailability';
+import { isLiveIntegrationRegistered } from '../QuerySourceService/live/registry';
 import type { ReadinessService } from '../ReadinessService/ReadinessService';
 
 type HealthServiceArguments = {
@@ -234,6 +236,9 @@ export class HealthService extends BaseService {
             hasGoogleLiveSources:
                 !!this.lightdashConfig.auth.google.oauth2ClientId &&
                 !!this.lightdashConfig.auth.google.oauth2ClientSecret,
+            hasHydraLiveSource: isLiveIntegrationRegistered(
+                ApiConnectorType.HYDRA,
+            ),
             auth: {
                 disablePasswordAuthentication:
                     this.lightdashConfig.auth.disablePasswordAuthentication,

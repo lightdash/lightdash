@@ -1,3 +1,4 @@
+import { type SemanticLayerDraft } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     countChangedLines,
@@ -6,9 +7,11 @@ import {
     describeModelChange,
     findPeekStart,
     changeTitle,
+    countPublishedChanges,
     findFieldBlock,
     findFieldLine,
     listFieldChanges,
+    listPublishedParts,
     summarizeModelChanges,
 } from './modelCode';
 
@@ -360,5 +363,73 @@ describe('describeFieldChanges', () => {
 
     it('is empty when no field changed', () => {
         expect(describeFieldChanges([])).toBe('');
+    });
+});
+
+describe('listPublishedParts', () => {
+    const content = [
+        'type: model',
+        'name: orders',
+        'dimensions:',
+        '  - name: amount',
+        '    type: number',
+        '    metrics:',
+        '      total:',
+        '        type: sum',
+        '        description: Sum of amounts',
+    ].join('\n');
+    const entry = {
+        model: 'orders',
+        contentBefore: null,
+        contentAfter: content,
+        explore: null,
+        reconciliation: null,
+        alsoChanging: [],
+        publishedSince: null,
+    };
+    const draft: SemanticLayerDraft = {
+        changes: [
+            {
+                draftChangeUuid: 'created',
+                question: null,
+                createdAt: new Date(0),
+                models: [
+                    {
+                        model: 'orders',
+                        changes: [{ path: 'orders', action: 'created' }],
+                        refusals: [],
+                        error: null,
+                    },
+                ],
+            },
+            {
+                draftChangeUuid: 'described',
+                question: null,
+                createdAt: new Date(1),
+                models: [
+                    {
+                        model: 'orders',
+                        changes: [
+                            {
+                                path: 'dimensions.amount.metrics.total.description',
+                                action: 'patched',
+                            },
+                        ],
+                        refusals: [],
+                        error: null,
+                    },
+                ],
+            },
+        ],
+        models: [entry],
+        errors: [],
+        settled: [],
+        inReview: [],
+        othersDrafting: [],
+    };
+
+    it('counts a model new as a whole as one change, however many edits built it', () => {
+        expect(listPublishedParts(draft, entry)).toEqual([]);
+        expect(countPublishedChanges(draft, null)).toBe(1);
     });
 });

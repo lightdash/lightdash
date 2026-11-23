@@ -97,15 +97,6 @@
     font-variant-numeric: tabular-nums;
 }
 
-.compare {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
-    border-top: 1px solid var(--mantine-color-default-border);
-}
-
-.compareAction:hover {
-    color: var(--mantine-color-text);
-}
-
 summary.sectionTitle {
     cursor: pointer;
 }
@@ -148,4 +139,30 @@ details:not([open]) > .sectionTitle {
 
 .publishGlyph[data-change='removed'] {
     color: var(--mantine-color-red-text);
+}
+
+/* The ordered changes, headed like a file in the overview. */
+.queueTitle {
+    min-height: 45px;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    background: var(--mantine-color-ldGray-0);
+    cursor: pointer;
+    list-style: none;
+}
+
+.queueTitle::-webkit-details-marker {
+    display: none;
+}
+
+details:not([open]) > .queueTitle {
+    border-bottom: 0;
+}
+
+.queueChevron {
+    transition: transform 120ms ease;
+}
+
+details[open] > .queueTitle .queueChevron {
+    transform: rotate(90deg);
 }

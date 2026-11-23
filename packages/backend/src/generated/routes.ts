@@ -16151,6 +16151,7 @@ const models: TsoaRoute.Models = {
             'attio',
             'hubspot',
             'salesforce',
+            'hydra',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -16430,6 +16431,123 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiConnectorType.HYDRA': {
+        dataType: 'refEnum',
+        enums: ['hydra'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HydraRateLimits: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                buckets: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            capacity: { dataType: 'double', required: true },
+                            windowMs: { dataType: 'double', required: true },
+                            id: { dataType: 'string', required: true },
+                        },
+                    },
+                    required: true,
+                },
+                callsPerSecond: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                concurrentCalls: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HydraOnLimit: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                body: { ref: 'Record_string.unknown_' },
+                retryAfterFormat: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['seconds'] },
+                        { dataType: 'enum', enums: ['date'] },
+                        { dataType: 'enum', enums: ['none'] },
+                    ],
+                    required: true,
+                },
+                status: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HydraMockResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                body: { ref: 'Record_string.unknown_' },
+                retryAfterSeconds: { dataType: 'double' },
+                status: { dataType: 'double', required: true },
+                toCall: { dataType: 'double' },
+                fromCall: { dataType: 'double' },
+                call: { dataType: 'double' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HydraApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                mockResponses: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'HydraMockResponse' },
+                },
+                declaredLimits: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['vendor'] },
+                        { ref: 'HydraRateLimits' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                onLimit: { ref: 'HydraOnLimit' },
+                vendorLimits: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'HydraRateLimits' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                failAuth: { dataType: 'boolean' },
+                errorRate: { dataType: 'double' },
+                jitterMs: { dataType: 'double' },
+                latencyMs: { dataType: 'double' },
+                pageSize: { dataType: 'double' },
+                rowCount: { dataType: 'double' },
+                connector: { ref: 'ApiConnectorType.HYDRA', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExternalConnectionApiSource: {
         dataType: 'refAlias',
         type: {
@@ -16447,6 +16565,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'AttioApiSource' },
                 { ref: 'HubspotApiSource' },
                 { ref: 'SalesforceApiSource' },
+                { ref: 'HydraApiSource' },
             ],
             validators: {},
         },
@@ -36503,6 +36622,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['loadProjectContext'] },
                 { dataType: 'enum', enums: ['loadSkill'] },
                 { dataType: 'enum', enums: ['proposeSemanticLayerChange'] },
+                { dataType: 'enum', enums: ['read'] },
                 { dataType: 'enum', enums: ['readAttachments'] },
                 { dataType: 'enum', enums: ['readContent'] },
                 { dataType: 'enum', enums: ['readPinnedThread'] },
@@ -36519,7 +36639,9 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['submitWorkerFindings'] },
                 { dataType: 'enum', enums: ['syncDbtProject'] },
                 { dataType: 'enum', enums: ['updateUserName'] },
+                { dataType: 'enum', enums: ['verify'] },
                 { dataType: 'enum', enums: ['visualize'] },
+                { dataType: 'enum', enums: ['write'] },
             ],
             validators: {},
         },
@@ -42600,6 +42722,13 @@ const models: TsoaRoute.Models = {
                                                                                                 dataType:
                                                                                                     'enum',
                                                                                                 enums: [
+                                                                                                    'read',
+                                                                                                ],
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'enum',
+                                                                                                enums: [
                                                                                                     'compile',
                                                                                                 ],
                                                                                             },
@@ -42608,13 +42737,6 @@ const models: TsoaRoute.Models = {
                                                                                                     'enum',
                                                                                                 enums: [
                                                                                                     'edit',
-                                                                                                ],
-                                                                                            },
-                                                                                            {
-                                                                                                dataType:
-                                                                                                    'enum',
-                                                                                                enums: [
-                                                                                                    'read',
                                                                                                 ],
                                                                                             },
                                                                                             {
@@ -48752,6 +48874,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                requestedByAgent: { dataType: 'boolean', required: true },
+                compileRequestUuid: { dataType: 'string', required: true },
                 compiledAt: {
                     dataType: 'union',
                     subSchemas: [
@@ -48831,6 +48955,58 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             ref: 'ApiSuccess_SemanticStudioCheckout-or-null_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticStudioBranchCompileFollowUp: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                prompt: { dataType: 'string', required: true },
+                threadUuid: { dataType: 'string', required: true },
+                agentUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiSuccess_SemanticStudioBranchCompileFollowUp-or-null_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'SemanticStudioBranchCompileFollowUp' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSemanticStudioBranchCompileFollowUpResponse: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'ApiSuccess_SemanticStudioBranchCompileFollowUp-or-null_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticStudioBranchCompileFollowUpBody: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                threadUuid: { dataType: 'string', required: true },
+                compileRequestUuid: { dataType: 'string', required: true },
+            },
             validators: {},
         },
     },
@@ -67710,6 +67886,7 @@ const models: TsoaRoute.Models = {
                 },
                 { dataType: 'enum', enums: ['cleanMcpToolCalls'] },
                 { dataType: 'enum', enums: ['cleanRateCounters'] },
+                { dataType: 'enum', enums: ['cleanApiSourceRateLimits'] },
                 {
                     dataType: 'enum',
                     enums: ['rebuildOutdatedApiSourceExplores'],
@@ -116103,6 +116280,73 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'compileCheckout',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSemanticStudioController_claimCompileFollowUp: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'SemanticStudioBranchCompileFollowUpBody',
+        },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/semantic-studio/checkout/compile/follow-up',
+        ...fetchMiddlewares<RequestHandler>(SemanticStudioController),
+        ...fetchMiddlewares<RequestHandler>(
+            SemanticStudioController.prototype.claimCompileFollowUp,
+        ),
+
+        async function SemanticStudioController_claimCompileFollowUp(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsSemanticStudioController_claimCompileFollowUp,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SemanticStudioController>(
+                        SemanticStudioController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'claimCompileFollowUp',
                     controller,
                     response,
                     next,

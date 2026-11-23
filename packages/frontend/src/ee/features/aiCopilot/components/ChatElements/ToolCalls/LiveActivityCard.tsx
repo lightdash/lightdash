@@ -1,6 +1,7 @@
 import {
     interpolateUiString,
     isComposerQueryToolName,
+    isDbtWriteToolName,
     type AiAgentToolCall,
     type AiAgentToolName,
     type AiAgentToolResult,
@@ -21,7 +22,7 @@ import {
     IconNotes,
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
-import { useContext, useState, type FC } from 'react';
+import { useContext, useState, type FC, type ReactNode } from 'react';
 import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { type ComposerQueryNodeStatus } from '../../../../../../features/composerCharts/lineage/composerNodeStatus';
@@ -92,6 +93,8 @@ type Props = {
     };
     /** Rendered as the first item of the card body. */
     reasoning?: { texts: string[]; isLive: boolean };
+    /** Rendered as the last item of the card body, e.g. results the steps produced. */
+    extra?: ReactNode;
 };
 
 const REASONING_PREVIEW_LENGTH = 140;
@@ -115,6 +118,7 @@ const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
     'loadSkill',
     'loadProjectContext',
     'editDbtProject',
+    'write',
     'runSavedChart',
 ]);
 
@@ -687,6 +691,7 @@ export const LiveActivityCard: FC<Props> = ({
     stepProgressMessages = [],
     approval,
     reasoning,
+    extra,
 }) => {
     const getUiString = useUiStrings();
     const quiet = useContext(QuietCardsContext);
@@ -732,7 +737,7 @@ export const LiveActivityCard: FC<Props> = ({
     const hasReasoning = (reasoning?.texts.length ?? 0) > 0;
 
     if (toolGroups.length === 0) {
-        if (!reasoning || !hasReasoning) return null;
+        if (!reasoning || !hasReasoning) return extra ? <>{extra}</> : null;
         return (
             <Box
                 className={styles.card}
@@ -881,14 +886,19 @@ export const LiveActivityCard: FC<Props> = ({
             </UnstyledButton>
             {renderInlineLiveTrace({ latest, isLive })}
             {isLive &&
-                latest?.toolName === 'editDbtProject' &&
+                latest &&
+                isDbtWriteToolName(latest.toolName) &&
                 (() => {
                     // Live grouped step rows for the writeback tool: parse the
                     // streamed progress strings back into structured steps so
                     // they render (and group) the same way as the persisted
                     // steps once the run completes.
                     const liveSteps = stepProgressMessages
-                        .filter((m) => m.toolName === 'editDbtProject')
+                        .filter(
+                            (m) =>
+                                m.toolName !== null &&
+                                isDbtWriteToolName(m.toolName),
+                        )
                         .map((m) => parseAgentStep(m.message));
                     if (liveSteps.length === 0) return null;
                     return (
@@ -941,21 +951,22 @@ export const LiveActivityCard: FC<Props> = ({
                                 // step actions into grouped step rows. The
                                 // adaptation lives here (the orchestrator),
                                 // never in the generic row/step components.
-                                const groupSteps =
-                                    group.toolName === 'editDbtProject'
-                                        ? group.calls.flatMap((tc) => {
-                                              const meta = toolResults?.find(
-                                                  (r) =>
-                                                      r.toolCallId ===
-                                                      tc.toolCallId,
-                                              )?.metadata as
-                                                  | {
-                                                        steps?: AiWritebackStep[];
-                                                    }
-                                                  | undefined;
-                                              return meta?.steps ?? [];
-                                          })
-                                        : [];
+                                const groupSteps = isDbtWriteToolName(
+                                    group.toolName,
+                                )
+                                    ? group.calls.flatMap((tc) => {
+                                          const meta = toolResults?.find(
+                                              (r) =>
+                                                  r.toolCallId ===
+                                                  tc.toolCallId,
+                                          )?.metadata as
+                                              | {
+                                                    steps?: AiWritebackStep[];
+                                                }
+                                              | undefined;
+                                          return meta?.steps ?? [];
+                                      })
+                                    : [];
                                 return (
                                     <Box key={group.keyId}>
                                         <ToolCallRow
@@ -1070,6 +1081,7 @@ export const LiveActivityCard: FC<Props> = ({
                         if (renderableCalls.length === 0) return null;
                         return <Stack gap={4}>{renderableCalls}</Stack>;
                     })()}
+                    {extra}
                 </Stack>
             </Collapse>
         </Box>

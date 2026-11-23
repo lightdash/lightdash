@@ -119,6 +119,7 @@ describe('ApiQuerySource', () => {
             account,
             projectUuid,
             connectionUuid,
+            QueryExecutionContext.AI,
         );
         expect(result).toEqual({
             queryUuid: 'api-query-uuid',

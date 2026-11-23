@@ -53,6 +53,9 @@ import {
     ApiSourceCallCountersTableName,
     ApiSourceCallLeasesTableName,
     ApiSourceCallsTableName,
+    ApiSourceRateBucketsTableName,
+    ApiSourceRatePacingTableName,
+    ApiSourceRateSlotsTableName,
     AppExternalConnectionsTableName,
     ExternalConnectionRateCountersTableName,
     ExternalConnectionSamplesTableName,
@@ -191,6 +194,78 @@ type DbApp = {
     created_by_user_uuid: string;
     organization_uuid: string;
 };
+
+// Whole milliseconds, so a refund can match the window it read back exactly.
+const WINDOW_START = `date_trunc('milliseconds', now())`;
+// Whether a bucket's window has closed, in the bucket upsert's terms.
+const WINDOW_CLOSED = `b.window_started_at + :windowMs * interval '1 millisecond' <= now()`;
+
+export type ApiSourceRateBucketLimit = {
+    id: string;
+    windowMs: number;
+    capacity: number;
+};
+
+/** The window a call was charged in, so a refund hits that window only. */
+export type ApiSourceRateWindow = { bucketId: string; windowStartedAt: Date };
+
+export type ApiSourceRateCharge =
+    | { charged: true; now: Date; windows: ApiSourceRateWindow[] }
+    | {
+          charged: false;
+          now: Date;
+          bucketId: string;
+          used: number;
+          resumesAt: Date;
+          /** The integration asked to slow down, rather than the bucket being full. */
+          isHeldByVendor: boolean;
+      };
+
+export type ApiSourceRateTurn = { booked: boolean; turnAt: Date; now: Date };
+
+type FullBucketRow = {
+    used: number;
+    window_started_at: Date;
+    limited_until: Date | null;
+    now: Date;
+};
+
+/** Why a bucket refused a call, and when it takes calls again. */
+const toBucketRefusal = (
+    bucket: ApiSourceRateBucketLimit,
+    row: FullBucketRow | undefined,
+): Extract<ApiSourceRateCharge, { charged: false }> => {
+    const now = row?.now ?? new Date();
+    const windowEndsAt =
+        (row?.window_started_at ?? now).getTime() + bucket.windowMs;
+    const isFull =
+        (row?.used ?? bucket.capacity) >= bucket.capacity &&
+        windowEndsAt > now.getTime();
+    const limitedUntil =
+        row?.limited_until && row.limited_until > now
+            ? row.limited_until.getTime()
+            : null;
+    return {
+        charged: false,
+        now,
+        bucketId: bucket.id,
+        used: row?.used ?? bucket.capacity,
+        resumesAt: new Date(
+            Math.max(isFull ? windowEndsAt : now.getTime(), limitedUntil ?? 0),
+        ),
+        isHeldByVendor: limitedUntil !== null,
+    };
+};
+type QueuedTurnRow = { next_call_at: Date; now: Date };
+
+/** Rolls back a charge that a full bucket refused. */
+class BucketFull extends Error {
+    constructor(
+        readonly refusal: Extract<ApiSourceRateCharge, { charged: false }>,
+    ) {
+        super('Rate-limit bucket is full');
+    }
+}
 
 /**
  * Owns all DB access for external connections, their secrets (kept in a
@@ -1775,77 +1850,7 @@ export class ExternalConnectionModel {
             .delete();
     }
 
-    /** Counts one call in the window unless it already holds `limit`; false when it does. */
-    async tryCountApiSourceCall(
-        externalConnectionUuid: string,
-        windowSeconds: number,
-        windowStartedAt: Date,
-        limit: number,
-    ): Promise<boolean> {
-        const rows = await this.database(ApiSourceCallCountersTableName)
-            .insert({
-                external_connection_uuid: externalConnectionUuid,
-                window_seconds: windowSeconds,
-                window_started_at: windowStartedAt,
-                call_count: 1,
-            })
-            .onConflict([
-                'external_connection_uuid',
-                'window_seconds',
-                'window_started_at',
-            ])
-            .merge({
-                call_count: this.database.raw(
-                    `${ApiSourceCallCountersTableName}.call_count + 1`,
-                ) as unknown as number,
-            })
-            .where(`${ApiSourceCallCountersTableName}.call_count`, '<', limit)
-            .returning('call_count');
-        return rows.length > 0;
-    }
-
-    /** Takes a free or expired slot out of `slots`; false when all are held. */
-    async tryAcquireApiSourceCallLease(
-        externalConnectionUuid: string,
-        slots: number,
-        leaseUuid: string,
-        expiresAt: Date,
-    ): Promise<boolean> {
-        /* eslint-disable no-await-in-loop */
-        for (let slot = 0; slot < slots; slot += 1) {
-            const rows = await this.database(ApiSourceCallLeasesTableName)
-                .insert({
-                    external_connection_uuid: externalConnectionUuid,
-                    slot,
-                    lease_uuid: leaseUuid,
-                    expires_at: expiresAt,
-                })
-                .onConflict(['external_connection_uuid', 'slot'])
-                .merge({ lease_uuid: leaseUuid, expires_at: expiresAt })
-                .where(
-                    `${ApiSourceCallLeasesTableName}.expires_at`,
-                    '<',
-                    this.database.fn.now(),
-                )
-                .returning('slot');
-            if (rows.length > 0) return true;
-        }
-        /* eslint-enable no-await-in-loop */
-        return false;
-    }
-
-    async releaseApiSourceCallLease(
-        externalConnectionUuid: string,
-        leaseUuid: string,
-    ): Promise<void> {
-        await this.database(ApiSourceCallLeasesTableName)
-            .where({
-                external_connection_uuid: externalConnectionUuid,
-                lease_uuid: leaseUuid,
-            })
-            .delete();
-    }
-
+    /** The old limiter's tables, kept for one release while servers on the old code drain. */
     async deleteApiSourceCallWindowsBefore(cutoff: Date): Promise<number> {
         const [counters, leases] = await Promise.all([
             this.database(ApiSourceCallCountersTableName)
@@ -1856,6 +1861,220 @@ export class ExternalConnectionModel {
                 .delete(),
         ]);
         return counters + leases;
+    }
+
+    /**
+     * Charges one call to every bucket, or to none. A bucket's window starts
+     * at the first call after its previous window closed. Times are the
+     * database's, so every server agrees on them.
+     */
+    async chargeApiSourceRateBuckets(
+        limitKey: string,
+        buckets: readonly ApiSourceRateBucketLimit[],
+    ): Promise<ApiSourceRateCharge> {
+        try {
+            return await this.database.transaction(async (trx) => {
+                const windows: ApiSourceRateWindow[] = [];
+                let now: Date | null = null;
+                /* eslint-disable no-await-in-loop */
+                for (const bucket of buckets) {
+                    const { rows } = await trx.raw<{
+                        rows: { window_started_at: Date; now: Date }[];
+                    }>(
+                        `INSERT INTO ${ApiSourceRateBucketsTableName} AS b
+                            (limit_key, bucket_id, window_started_at, used, updated_at)
+                        VALUES (:limitKey, :bucketId, ${WINDOW_START}, 1, now())
+                        ON CONFLICT (limit_key, bucket_id) DO UPDATE SET
+                            window_started_at = CASE WHEN ${WINDOW_CLOSED} THEN ${WINDOW_START} ELSE b.window_started_at END,
+                            used = CASE WHEN ${WINDOW_CLOSED} THEN 1 ELSE b.used + 1 END,
+                            updated_at = now()
+                        WHERE (${WINDOW_CLOSED} OR b.used < :capacity)
+                            AND (b.limited_until IS NULL OR b.limited_until <= now())
+                        RETURNING window_started_at, now() AS now`,
+                        {
+                            limitKey,
+                            bucketId: bucket.id,
+                            windowMs: bucket.windowMs,
+                            capacity: bucket.capacity,
+                        },
+                    );
+                    if (rows.length === 0) {
+                        const {
+                            rows: [full],
+                        } = await trx.raw<{ rows: FullBucketRow[] }>(
+                            `SELECT used, window_started_at, limited_until, now() AS now
+                            FROM ${ApiSourceRateBucketsTableName}
+                            WHERE limit_key = :limitKey AND bucket_id = :bucketId`,
+                            { limitKey, bucketId: bucket.id },
+                        );
+                        throw new BucketFull(toBucketRefusal(bucket, full));
+                    }
+                    now = rows[0].now;
+                    windows.push({
+                        bucketId: bucket.id,
+                        windowStartedAt: rows[0].window_started_at,
+                    });
+                }
+                /* eslint-enable no-await-in-loop */
+                return {
+                    charged: true as const,
+                    now: now ?? new Date(),
+                    windows,
+                };
+            });
+        } catch (error) {
+            if (error instanceof BucketFull) return error.refusal;
+            throw error;
+        }
+    }
+
+    /**
+     * Holds buckets after the integration said to slow down: calls charging
+     * them wait until `resumesAt`, or the end of the bucket's window when the
+     * integration didn't say. A hold only ever gets longer.
+     */
+    async holdApiSourceRateBuckets(
+        limitKey: string,
+        buckets: readonly Pick<ApiSourceRateBucketLimit, 'id' | 'windowMs'>[],
+        resumesAt: Date | null,
+    ): Promise<void> {
+        await Promise.all(
+            buckets.map((bucket) =>
+                this.database.raw(
+                    `UPDATE ${ApiSourceRateBucketsTableName}
+                    SET limited_until = greatest(
+                            coalesce(limited_until, now()),
+                            coalesce(
+                                CAST(:resumesAt AS timestamptz),
+                                window_started_at + :windowMs * interval '1 millisecond'
+                            )
+                        ),
+                        updated_at = now()
+                    WHERE limit_key = :limitKey AND bucket_id = :bucketId`,
+                    {
+                        limitKey,
+                        bucketId: bucket.id,
+                        windowMs: bucket.windowMs,
+                        resumesAt,
+                    },
+                ),
+            ),
+        );
+    }
+
+    /** Gives back a charge made in the same windows; a window that has since closed keeps it. */
+    async refundApiSourceRateBuckets(
+        limitKey: string,
+        windows: readonly ApiSourceRateWindow[],
+    ): Promise<void> {
+        if (windows.length === 0) return;
+        await this.database(ApiSourceRateBucketsTableName)
+            .where('limit_key', limitKey)
+            .andWhere('used', '>', 0)
+            .andWhere((query) => {
+                windows.forEach(({ bucketId, windowStartedAt }) => {
+                    void query.orWhere({
+                        bucket_id: bucketId,
+                        window_started_at: windowStartedAt,
+                    });
+                });
+            })
+            .update({
+                used: this.database.raw('used - 1') as unknown as number,
+            });
+    }
+
+    /**
+     * Books the next evenly spaced turn, `gapMs` after the last one, unless
+     * it would come more than `maxWaitMs` from now. Turns go in the order
+     * callers book them, across servers.
+     */
+    async bookApiSourceRateTurn(
+        limitKey: string,
+        gapMs: number,
+        maxWaitMs: number,
+    ): Promise<ApiSourceRateTurn> {
+        const { rows } = await this.database.raw<{
+            rows: { turn_at: Date; now: Date }[];
+        }>(
+            `INSERT INTO ${ApiSourceRatePacingTableName} AS p
+                (limit_key, next_call_at, updated_at)
+            VALUES (:limitKey, now() + :gapMs * interval '1 millisecond', now())
+            ON CONFLICT (limit_key) DO UPDATE SET
+                next_call_at = greatest(p.next_call_at, now()) + :gapMs * interval '1 millisecond',
+                updated_at = now()
+            WHERE greatest(p.next_call_at, now()) <= now() + :maxWaitMs * interval '1 millisecond'
+            RETURNING next_call_at - :gapMs * interval '1 millisecond' AS turn_at, now() AS now`,
+            { limitKey, gapMs, maxWaitMs },
+        );
+        if (rows.length > 0) {
+            return { booked: true, turnAt: rows[0].turn_at, now: rows[0].now };
+        }
+        const {
+            rows: [queued],
+        } = await this.database.raw<{ rows: QueuedTurnRow[] }>(
+            `SELECT next_call_at, now() AS now
+            FROM ${ApiSourceRatePacingTableName}
+            WHERE limit_key = :limitKey`,
+            { limitKey },
+        );
+        return {
+            booked: false,
+            turnAt: queued?.next_call_at ?? new Date(),
+            now: queued?.now ?? new Date(),
+        };
+    }
+
+    /** Takes a free or expired slot out of `slots`, held for `holdMs`; false when all are held. */
+    async tryTakeApiSourceRateSlot(
+        limitKey: string,
+        slots: number,
+        leaseUuid: string,
+        holdMs: number,
+    ): Promise<boolean> {
+        /* eslint-disable no-await-in-loop */
+        for (let slot = 0; slot < slots; slot += 1) {
+            const { rows } = await this.database.raw<{ rows: unknown[] }>(
+                `INSERT INTO ${ApiSourceRateSlotsTableName} AS s
+                    (limit_key, slot, lease_uuid, expires_at, updated_at)
+                VALUES (:limitKey, :slot, :leaseUuid, now() + :holdMs * interval '1 millisecond', now())
+                ON CONFLICT (limit_key, slot) DO UPDATE SET
+                    lease_uuid = EXCLUDED.lease_uuid,
+                    expires_at = EXCLUDED.expires_at,
+                    updated_at = now()
+                WHERE s.expires_at < now()
+                RETURNING slot`,
+                { limitKey, slot, leaseUuid, holdMs },
+            );
+            if (rows.length > 0) return true;
+        }
+        /* eslint-enable no-await-in-loop */
+        return false;
+    }
+
+    async releaseApiSourceRateSlot(
+        limitKey: string,
+        leaseUuid: string,
+    ): Promise<void> {
+        await this.database(ApiSourceRateSlotsTableName)
+            .where({ limit_key: limitKey, lease_uuid: leaseUuid })
+            .delete();
+    }
+
+    /** Deletes rate-limit rows nothing has touched since `cutoff`. */
+    async deleteApiSourceRateLimitsBefore(cutoff: Date): Promise<number> {
+        const counts = await Promise.all(
+            [
+                ApiSourceRateBucketsTableName,
+                ApiSourceRatePacingTableName,
+                ApiSourceRateSlotsTableName,
+            ].map((tableName) =>
+                this.database(tableName)
+                    .where('updated_at', '<', cutoff)
+                    .delete(),
+            ),
+        );
+        return counts.reduce((sum, count) => sum + count, 0);
     }
 
     async insertApiSourceCall(

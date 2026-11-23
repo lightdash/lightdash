@@ -610,12 +610,12 @@ describe('Project model documents on PostgreSQL', () => {
                 organization.organization_uuid,
             ),
         ).rejects.toThrow(ModelDocumentsChangedError);
-        expect(await workspaces.listChanges(owner)).toEqual(
+        expect(await workspaces.listChanges(owner, null)).toEqual(
             expect.arrayContaining([
                 {
                     name: 'Orders revenue',
                     isCheckedOut: false,
-                    models: ['orders'],
+                    models: [{ name: 'orders', editedIn: ['by_hand'] }],
                 },
                 { name: 'Second', isCheckedOut: true, models: [] },
             ]),

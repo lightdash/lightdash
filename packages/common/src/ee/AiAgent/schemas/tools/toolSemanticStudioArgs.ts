@@ -192,7 +192,13 @@ export type ToolReadSemanticModelOutput = z.infer<
 const studioChangeSummarySchema = z.object({
     name: z.string(),
     isCheckedOut: z.boolean(),
-    models: z.array(z.string()),
+    models: z.array(
+        z.object({
+            name: z.string(),
+            // Who made the model's edits: the person in the editor, this chat, or another chat.
+            editedIn: z.array(z.enum(['by_hand', 'this_chat', 'another_chat'])),
+        }),
+    ),
 });
 export type StudioChangeSummary = z.infer<typeof studioChangeSummarySchema>;
 export const toolListChangesArgsSchema = z.object({});

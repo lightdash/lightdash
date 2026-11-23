@@ -38,6 +38,12 @@ const SEARCH_TOOLS = new Set([
     'resolveUrl',
 ]);
 
+const LAYER_CHANGE_TOOLS = new Set([
+    'proposeSemanticLayerChange',
+    'editDbtProject',
+    'write',
+]);
+
 const QUERY_TOOLS = new Set([
     'generateVisualization',
     'runContentQuery',
@@ -71,6 +77,7 @@ export const getActivityTitle = (
         (n) => isComposerQueryToolName(n) || QUERY_TOOLS.has(n),
     );
     const hasRunSql = succeeded((n) => n === 'runSql');
+    const hasLayerChange = succeeded((n) => LAYER_CHANGE_TOOLS.has(n));
     const onlySearches = toolNames.every((n) => SEARCH_TOOLS.has(n));
 
     if (hasDashboard) {
@@ -84,6 +91,10 @@ export const getActivityTitle = (
             title: 'How this content was created',
             icon: IconLayoutDashboard,
         };
+    }
+    // A change to the semantic layer reads the same however it was checked.
+    if (hasLayerChange) {
+        return { title: 'How this change was made', icon: IconRoute };
     }
     if (hasQuery) {
         return { title: 'How this chart was built', icon: IconChartLine };

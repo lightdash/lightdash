@@ -377,11 +377,17 @@ export const buildProjectTree = (project: Project): ProjectTree => {
 
     const simplify = (node: TreeNode): TreeNode => {
         if (node.ref.type !== 'kind') return node;
+        // A live data source always shows as a folder of its explores, so
+        // its name stays visible even with one source or one explore.
+        const isLive = node.ref.kind === 'live';
         const children =
-            node.children.length === 1 && node.ref.kind !== 'modelled'
+            node.children.length === 1 &&
+            node.ref.kind !== 'modelled' &&
+            !isLive
                 ? node.children[0].children
                 : node.children.map((child) =>
                       // A source with one explore shows the explore itself.
+                      !isLive &&
                       child.ref.type === 'source' &&
                       child.children.length === 1 &&
                       child.children[0].ref.type === 'explore'

@@ -8,6 +8,10 @@ import {
 // agent). Kept in a non-component module so both card files can import them
 // without tripping react-refresh's only-export-components rule.
 
+/** The number in a GitHub, GitLab or Bitbucket pull request URL. */
+export const getPullRequestNumber = (prUrl: string): string | null =>
+    prUrl.match(/\/(?:pull|merge_requests|pull-requests)\/(\d+)/)?.[1] ?? null;
+
 /**
  * Summarizes supported pull request URLs as workspace/repository; other hosts
  * fall back to the hostname.

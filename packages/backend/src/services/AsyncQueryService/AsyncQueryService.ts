@@ -615,6 +615,16 @@ export type RunnableCompiledMergeQuery = ApiCompiledMergeQueryResults & {
 
 const SCHEDULED_CHART_DISPATCH_RETRY_MS = 30_000;
 
+// How long a live query waits for the same request already running before
+// calling the integration itself. Covers the slowest integration timeout
+// plus its rate limit waits; a row older than this is treated as stuck.
+const LIVE_IN_FLIGHT_WAIT_MS = 120_000;
+
+/** What a live query can answer from instead of calling its integration. */
+type LiveResultReuse =
+    | { kind: 'stored'; stored: StoredLiveResult }
+    | { kind: 'in_flight'; queryUuid: string };
+
 const isRunnableCompiledMergeQuery = (
     compiled: ApiCompiledMergeQueryResults,
 ): compiled is RunnableCompiledMergeQuery =>
@@ -13161,6 +13171,7 @@ export class AsyncQueryService extends ProjectService {
             account,
             projectUuid,
             apiSource.connectionUuid,
+            context,
         );
         const compiled = compileLiveMetricQuery({
             explore,
@@ -13303,7 +13314,7 @@ export class AsyncQueryService extends ProjectService {
         // results: with it off, every query calls the integration.
         const { cacheEnabled } =
             await this.projectModel.getResultsCacheSettings(projectUuid);
-        const reusable =
+        const reuse =
             invalidateCache || !cacheEnabled
                 ? null
                 : await this.findReusableApiResult(
@@ -13311,6 +13322,7 @@ export class AsyncQueryService extends ProjectService {
                       cacheKey,
                       source,
                   );
+        const reusable = reuse?.kind === 'stored' ? reuse.stored : null;
 
         const queryCreatedAt = new Date();
         const { queryUuid } = await this.createQueryHistory(
@@ -13363,21 +13375,47 @@ export class AsyncQueryService extends ProjectService {
             return { queryUuid, reusable };
         }
 
-        void this.runLiveQuery({
-            account,
-            queryUuid,
-            projectUuid,
-            organizationUuid,
-            source,
-            payload,
-            limit,
-            cacheKey,
-            context,
-            queryCreatedAt,
-            fields: history.fields,
-            exploreName: history.explore?.name ?? null,
-            toResult,
-        }).catch((e) => {
+        const run = () =>
+            this.runLiveQuery({
+                account,
+                queryUuid,
+                projectUuid,
+                organizationUuid,
+                source,
+                payload,
+                limit,
+                cacheKey,
+                context,
+                queryCreatedAt,
+                fields: history.fields,
+                exploreName: history.explore?.name ?? null,
+                toResult,
+            });
+        const answer =
+            reuse?.kind === 'in_flight'
+                ? this.answerAfterInFlightLiveQuery({
+                      inFlightQueryUuid: reuse.queryUuid,
+                      projectUuid,
+                      source,
+                      complete: (stored) =>
+                          this.completeLiveQueryFromStored({
+                              account,
+                              queryUuid,
+                              projectUuid,
+                              organizationUuid,
+                              source,
+                              payload,
+                              limit,
+                              cacheKey,
+                              context,
+                              queryCreatedAt,
+                              fields: history.fields,
+                              stored,
+                          }),
+                      run,
+                  })
+                : run();
+        void answer.catch((e) => {
             this.logger.error(
                 `Async api query ${queryUuid} failed outside its error path: ${getErrorMessage(
                     e,
@@ -13386,6 +13424,41 @@ export class AsyncQueryService extends ProjectService {
         });
 
         return { queryUuid, reusable: null };
+    }
+
+    /**
+     * Waits for the same request already running and answers from its rows,
+     * so tiles loading together make one integration call. Calls the
+     * integration itself when that query fails, is cancelled or outlasts
+     * the wait.
+     */
+    private async answerAfterInFlightLiveQuery({
+        inFlightQueryUuid,
+        projectUuid,
+        source,
+        complete,
+        run,
+    }: {
+        inFlightQueryUuid: string;
+        projectUuid: string;
+        source: MeteredLiveSource;
+        complete: (stored: StoredLiveResult) => Promise<void>;
+        run: () => Promise<void>;
+    }): Promise<void> {
+        const finished = await this.queryHistoryModel
+            .pollForQueryCompletion({
+                queryUuid: inFlightQueryUuid,
+                account: null,
+                projectUuid,
+                timeoutMs: LIVE_IN_FLIGHT_WAIT_MS,
+                throwOnCancelled: false,
+                throwOnError: false,
+            })
+            .catch(() => null);
+        const stored = finished
+            ? toStoredLiveResult(finished, source.cache)
+            : null;
+        return stored ? complete(stored) : run();
     }
 
     /** Answers a live query with rows another query already fetched, without calling the integration. */
@@ -13769,19 +13842,47 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
-    /** The latest result for the same live query, when its rows are fresh enough to reuse. */
+    /**
+     * The latest result for the same live query when its rows are fresh
+     * enough to reuse, otherwise the same request still running.
+     */
     private async findReusableApiResult(
         projectUuid: string,
         cacheKey: string,
         source: MeteredLiveSource,
-    ): Promise<StoredLiveResult | null> {
+    ): Promise<LiveResultReuse | null> {
+        // Only finished rows: a newer running or failed row for the same
+        // request must not hide a fresh result
         const latest = await this.queryHistoryModel.findMostRecentByCacheKey(
             cacheKey,
             projectUuid,
-            { excludeAgentProduced: false },
+            {
+                excludeAgentProduced: false,
+                statuses: [QueryHistoryStatus.READY],
+                requireResultsFile: true,
+            },
         );
-        return latest
+        const stored = latest
             ? toStoredLiveResult(latest.queryHistory, source.cache)
+            : null;
+        if (stored) {
+            return { kind: 'stored', stored };
+        }
+        const running = await this.queryHistoryModel.findMostRecentByCacheKey(
+            cacheKey,
+            projectUuid,
+            {
+                excludeAgentProduced: false,
+                statuses: [
+                    QueryHistoryStatus.PENDING,
+                    QueryHistoryStatus.QUEUED,
+                    QueryHistoryStatus.EXECUTING,
+                ],
+                createdAfter: new Date(Date.now() - LIVE_IN_FLIGHT_WAIT_MS),
+            },
+        );
+        return running
+            ? { kind: 'in_flight', queryUuid: running.queryUuid }
             : null;
     }
 

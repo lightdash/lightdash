@@ -28,9 +28,9 @@ export const nameFromRequest = (request: string | undefined): string => {
 };
 
 /**
- * Keeps the open chat and the server's active workspace in step: another
- * browser's switch opens the same chat here, and a chat that starts changing
- * something gets its workspace without anyone naming it.
+ * Keeps the open chat and the server's active workspace in step: picking a
+ * draft, here or in another browser, opens its chat, and with `syncThread` a
+ * chat that starts changing something gets its workspace without anyone naming it.
  */
 export const useSyncStudioWorkspace = (
     projectUuid: string,
@@ -45,7 +45,6 @@ export const useSyncStudioWorkspace = (
     const followed = useRef<string | null>(null);
     useEffect(() => {
         if (
-            !syncThread ||
             !active?.threadUuid ||
             !active.agentUuid ||
             followed.current === active.workspaceUuid
@@ -59,7 +58,7 @@ export const useSyncStudioWorkspace = (
                 agentUuid: active.agentUuid,
             });
         }
-    }, [syncThread, active, stored, setStored]);
+    }, [active, stored, setStored]);
 
     const { data: thread } = useStudioThread(
         projectUuid,

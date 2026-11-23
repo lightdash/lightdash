@@ -8,6 +8,7 @@ import {
     describeSemanticLayerProposals,
     Explore,
     getErrorMessage,
+    isDbtWriteToolName,
     isSqlApprovalToolCall,
     toolProposeSemanticLayerChangeOutputSchema,
     type AiDeepResearchBudget,
@@ -145,8 +146,10 @@ import { getLoadMcpTools } from '../tools/loadMcpTools';
 import { getLoadProjectContext } from '../tools/loadProjectContext';
 import { getLoadedSkillKeys, getLoadSkill } from '../tools/loadSkill';
 import { getProjectContextSearchEntries } from '../tools/memoryProjectContext';
+import { getRead } from '../tools/read';
 import { getReadAttachments } from '../tools/readAttachments';
 import { getReadContent } from '../tools/readContent';
+import { buildReadLibraries } from '../tools/readLibraries';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
 import { getResolveUrl } from '../tools/resolveUrl';
 import { getRunComposerQueries } from '../tools/runComposerQueries';
@@ -174,6 +177,7 @@ import { type SqlChartSaving } from '../tools/sqlChartApproval';
 import { getSubmitWorkerFindings } from '../tools/submitWorkerFindings';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
 import { getUpdateUserName } from '../tools/updateUserName';
+import { getVerify } from '../tools/verify';
 import { getVisualize } from '../tools/visualize';
 import type {
     AiAgentArgs,
@@ -1399,7 +1403,7 @@ export const getStudioCardResponse = (
         last.toolCalls
             .filter(
                 ({ toolName, input }) =>
-                    toolName === 'editDbtProject' &&
+                    isDbtWriteToolName(toolName) &&
                     !!input &&
                     typeof input === 'object' &&
                     'script' in input,
@@ -2258,6 +2262,13 @@ export const getAgentTools = (
             getEditDbtProject({
                 editDbtProject: dependencies.editDbtProject,
                 acceptsScript: args.semanticStudioCodeMode,
+                name: 'editDbtProject',
+            }),
+        write: () =>
+            getEditDbtProject({
+                editDbtProject: dependencies.editDbtProject,
+                acceptsScript: args.semanticStudioCodeMode,
+                name: 'write',
             }),
         editProjectContext: () =>
             getEditProjectContext({
@@ -2273,6 +2284,19 @@ export const getAgentTools = (
         readSemanticModel: () =>
             getReadSemanticModel({
                 readSemanticModel: dependencies.readSemanticModel,
+            }),
+        read: () =>
+            getRead({
+                read: dependencies.read,
+                libraries: buildReadLibraries((name) =>
+                    loadout.withheldToolNames.has(name)
+                        ? toolBuilders[name]()
+                        : null,
+                ),
+            }),
+        verify: () =>
+            getVerify({
+                verify: dependencies.verify,
             }),
         runMetricQuery: () =>
             getRunMetricQuery({
@@ -2814,7 +2838,9 @@ export const getAgentMessages = (
         canRunSql: args.canRunSql,
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
-        semanticStudioCodeMode: args.semanticStudioCodeMode,
+        semanticStudioHasRepository: args.semanticStudioHasRepository,
+        semanticStudioBuilder: loadout.withheldToolNames.size > 0,
+        semanticStudioProjectMap: args.semanticStudioProjectMap,
         semanticStudioQueriesDraft: loadout.toolNames.has('runMetricQuery'),
         slackLinksOnly: args.slackLinksOnly,
         enableComposerPythonNodes: args.enableComposerQueries,
