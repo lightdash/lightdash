@@ -490,7 +490,7 @@ describe('toHubspotError', () => {
     it('names the scope HubSpot says the call needed', () => {
         const error = toHubspotError(response(MISSING_LEADS_SCOPE, 403));
         expect(error.message).toContain(
-            'This call needs crm.objects.leads.read.',
+            'to make this call. This call needs crm.objects.leads.read.',
         );
     });
 

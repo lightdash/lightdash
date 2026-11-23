@@ -59,7 +59,9 @@ const toError = (response: LiveHttpResponse): Error => {
     const parsed = errorSchema.safeParse(response.body);
     const message = parsed.success ? (parsed.data.message ?? '') : '';
     const requiredScopes = parsed.success ? getRequiredScopes(parsed.data) : [];
-    const detail = message ? `: ${message}` : '';
+    // HubSpot's messages often end with a full stop; ours add their own
+    const trimmed = message.trim().replace(/[.!]+$/, '');
+    const detail = trimmed ? `: ${trimmed}` : '';
     if (response.status === 429) {
         const retryAfterSeconds = getRetryAfterSeconds(response.headers);
         return new TooManyRequestsError(
