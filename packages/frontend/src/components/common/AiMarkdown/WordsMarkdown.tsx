@@ -1,7 +1,7 @@
 import { Box } from '@mantine/core';
 import { createHtmlRenderer } from '@pierre/words/html';
 import clsx from 'clsx';
-import { memo, useMemo, useRef, type FC, type ReactNode } from 'react';
+import { memo, useId, useMemo, useRef, type FC, type ReactNode } from 'react';
 import styles from './AiMarkdown.module.css';
 import {
     WordsContext,
@@ -88,18 +88,23 @@ export const WordsMarkdown: FC<WordsMarkdownProps> = ({
     renderLink = renderPlainLink,
     codeBlocks = NO_CODE_BLOCKS,
 }) => {
+    // Footnote ids are per answer, or a later answer's footnote jumps to the first.
+    const idPrefix = `${useId().replace(/[^\w-]/g, '')}-`;
     const rendererRef = useRef<WordsRenderer | null>(null);
     const stableRef = useRef<StableBlocks>({ revision: -1, chunks: [] });
 
     const { chunks, pending } = useMemo(() => {
-        rendererRef.current ??= createHtmlRenderer(RENDER_OPTIONS);
+        rendererRef.current ??= createHtmlRenderer({
+            ...RENDER_OPTIONS,
+            idPrefix,
+        });
         return renderBlocks(
             rendererRef.current,
             stableRef.current,
             children,
             isStreaming,
         );
-    }, [children, isStreaming]);
+    }, [children, idPrefix, isStreaming]);
     const context = useMemo(
         () => ({ renderLink, codeBlocks }),
         [renderLink, codeBlocks],

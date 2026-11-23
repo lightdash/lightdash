@@ -115,6 +115,26 @@ describe('WordsMarkdown', () => {
         expect(container.querySelector('details li')).toHaveTextContent('item');
     });
 
+    it('gives each answer its own footnote ids', () => {
+        const answer = 'Use dates.[^1]\n\n[^1]: The return timestamp.';
+        const { container } = renderWithProviders(
+            <>
+                <WordsMarkdown isStreaming={false}>{answer}</WordsMarkdown>
+                <WordsMarkdown isStreaming={false}>{answer}</WordsMarkdown>
+            </>,
+        );
+
+        const ids = [...container.querySelectorAll('li[id]')].map(
+            ({ id }) => id,
+        );
+        expect(ids).toHaveLength(2);
+        expect(new Set(ids).size).toBe(2);
+        const refs = [...container.querySelectorAll('sup a')];
+        expect(refs.map((ref) => ref.getAttribute('href'))).toEqual(
+            ids.map((id) => `#${id}`),
+        );
+    });
+
     it('converts emoji shortcodes outside code', () => {
         const { container } = renderWithProviders(
             <WordsMarkdown isStreaming={false}>
