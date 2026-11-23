@@ -479,6 +479,30 @@ describe('amplitudeIntegration run', () => {
             WarehouseQueryError,
             /rejected the request: Invalid e parameter/,
         ],
+        [
+            400,
+            {
+                error: {
+                    http_code: 400,
+                    message: 'Invalid chart definition',
+                    metadata: { details: 'Invalid user property country' },
+                },
+            },
+            WarehouseQueryError,
+            /rejected the request: Invalid user property country\.$/,
+        ],
+        [
+            403,
+            {
+                error: {
+                    http_code: 403,
+                    message: 'Unspecified Error',
+                    metadata: { details: 'Invalid API Key' },
+                },
+            },
+            WarehouseConnectionError,
+            /denied access: Invalid API Key\./,
+        ],
         [500, '<html>oops</html>', UnexpectedServerError, /returned 500\.$/],
     ])('explains a %i response', async (status, body, ErrorType, message) => {
         const { source } = connect(jsonResponse(body, status));

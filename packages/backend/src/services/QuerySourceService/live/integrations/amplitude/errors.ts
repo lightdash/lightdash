@@ -7,10 +7,19 @@ import {
 import { z } from 'zod';
 import { type LiveHttpResponse } from '../../types';
 
-// Amplitude's error bodies differ by endpoint: plain text, or JSON with an
-// `error` or `message`.
+// Amplitude's error bodies differ by endpoint: plain text, an `error` object
+// whose `metadata.details` names the problem, or JSON with an `error` string
+// or a `message`.
 const errorSchema = z.union([
     z.string(),
+    z
+        .object({
+            error: z.object({
+                message: z.string(),
+                metadata: z.object({ details: z.string() }).optional(),
+            }),
+        })
+        .transform(({ error }) => error.metadata?.details ?? error.message),
     z.object({ error: z.string() }).transform(({ error }) => error),
     z.object({ message: z.string() }).transform(({ message }) => message),
 ]);
