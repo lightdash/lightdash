@@ -18,6 +18,7 @@ import { fromSession } from '../../../auth/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { ExternalConnectionService } from './ExternalConnectionService';
 import { serializeStoredOAuthTokens } from './OAuthAuthorizationCodeTokenClient';
+import { runAsSlackPreview } from './slackPreview';
 
 const SITE_URL = 'https://lightdash.example.com';
 const DEADLINE_MS = 30_000;
@@ -527,6 +528,32 @@ describe('Live sources that query with each viewer’s own sign-in', () => {
                 DEADLINE_MS,
             ),
         ).rejects.toBeInstanceOf(ForbiddenError);
+    });
+
+    it('refuses a Slack link preview, which would post one viewer’s data to a channel', async () => {
+        const { service } = buildService();
+        await signInThroughHydra(service, alice);
+
+        await expect(
+            runAsSlackPreview(() =>
+                service.getLiveSourceForExplore(
+                    alice,
+                    'proj-1',
+                    'conn-1',
+                    DEADLINE_MS,
+                ),
+            ),
+        ).rejects.toThrow("so Slack can't preview it");
+    });
+
+    it('lets Slack preview a source with one shared sign-in', async () => {
+        const { service } = buildService({
+            connection: hydraSource({ signInMode: 'shared' }),
+        });
+
+        await expect(
+            runAsSlackPreview(() => readAccount(service, alice)),
+        ).resolves.toMatchObject({ hydraAccount: expect.any(String) });
     });
 
     it('lists the viewer’s sign-ins to per-viewer sources only', async () => {
