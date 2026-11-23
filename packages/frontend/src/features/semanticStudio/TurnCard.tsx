@@ -77,10 +77,10 @@ const Step: FC<{
     </Box>
 );
 
-const RowText: FC<{ row: TurnRow }> = ({ row }) => (
+const RowText: FC<{ row: TurnRow; text: string }> = ({ row, text }) => (
     <>
         <Text span fz="xs" c="dimmed" truncate className={classes.label}>
-            {`${row.action} ${row.label}`}
+            {text}
         </Text>
         {row.detail ? (
             <Text span fz="xs" c="dimmed" flex="none">
@@ -91,7 +91,7 @@ const RowText: FC<{ row: TurnRow }> = ({ row }) => (
 );
 
 /** One change as a short sentence: "Joined to Merchants". */
-const Row: FC<{ row: TurnRow }> = ({ row }) =>
+const Row: FC<{ row: TurnRow; text: string }> = ({ row, text }) =>
     row.onOpen === null ? (
         <UnstyledButton
             component={Link}
@@ -99,7 +99,7 @@ const Row: FC<{ row: TurnRow }> = ({ row }) =>
             className={classes.row}
             title={row.title}
         >
-            <RowText row={row} />
+            <RowText row={row} text={text} />
         </UnstyledButton>
     ) : (
         <UnstyledButton
@@ -107,7 +107,7 @@ const Row: FC<{ row: TurnRow }> = ({ row }) =>
             title={row.title}
             onClick={row.onOpen}
         >
-            <RowText row={row} />
+            <RowText row={row} text={text} />
         </UnstyledButton>
     );
 
@@ -147,7 +147,7 @@ const ModelStep: FC<{ group: TurnGroup }> = ({
             </Text>
         ) : null}
         {rows.map((row) => (
-            <Row key={row.id} row={row} />
+            <Row key={row.id} row={row} text={`${row.action} ${row.label}`} />
         ))}
         {issues.map(({ kind, detail }) => (
             <Group
@@ -215,6 +215,8 @@ export const TurnCard: FC<{
     isGone: boolean;
     /** A turn whose change has left the draft folds like an earlier one, and still offers its links once opened. */
     isSettled?: boolean;
+    /** Each changed file on one line, for a repository where a model is one or two files. */
+    isFileList?: boolean;
     children?: ReactNode;
 }> = ({
     icon,
@@ -227,6 +229,7 @@ export const TurnCard: FC<{
     actions,
     isGone,
     isSettled = false,
+    isFileList = false,
     children,
 }) => {
     const [isOpened, setIsOpened] = useState(false);
@@ -278,9 +281,22 @@ export const TurnCard: FC<{
             )}
             {isOpen && (shown.length > 0 || needsCheck) ? (
                 <Box className={classes.steps}>
-                    {shown.map((group) => (
-                        <ModelStep key={group.model} group={group} />
-                    ))}
+                    {isFileList
+                        ? shown
+                              .flatMap(({ rows }) => rows)
+                              .map((row) => (
+                                  <Box key={row.id} className={classes.step}>
+                                      <Box className={classes.node}>
+                                          {row.icon}
+                                      </Box>
+                                      <Box miw={0} flex={1}>
+                                          <Row row={row} text={row.label} />
+                                      </Box>
+                                  </Box>
+                              ))
+                        : shown.map((group) => (
+                              <ModelStep key={group.model} group={group} />
+                          ))}
                     {safety && needsCheck ? (
                         <Step
                             icon={<TaskIcon state={safety.state} />}

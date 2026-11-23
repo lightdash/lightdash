@@ -496,6 +496,7 @@ export const DbtTurnSummaryCard: FC<{
                 isLatest={isLatestTurn}
                 actions={actions}
                 isGone={state === 'closed'}
+                isFileList={files.length > 0}
             >
                 {ciSection}
             </TurnCard>
