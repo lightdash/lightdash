@@ -16151,6 +16151,7 @@ const models: TsoaRoute.Models = {
             'attio',
             'hubspot',
             'salesforce',
+            'amplitude',
             'hydra',
         ],
     },
@@ -16431,6 +16432,25 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiConnectorType.AMPLITUDE': {
+        dataType: 'refEnum',
+        enums: ['amplitude'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AmplitudeApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                connector: {
+                    ref: 'ApiConnectorType.AMPLITUDE',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'ApiConnectorType.HYDRA': {
         dataType: 'refEnum',
         enums: ['hydra'],
@@ -16565,6 +16585,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'AttioApiSource' },
                 { ref: 'HubspotApiSource' },
                 { ref: 'SalesforceApiSource' },
+                { ref: 'AmplitudeApiSource' },
                 { ref: 'HydraApiSource' },
             ],
             validators: {},

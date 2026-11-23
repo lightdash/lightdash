@@ -1,3 +1,15 @@
+# [3.378.0](https://github.com/lightdash/lightdash/compare/3.377.0...3.378.0) (2026-11-23)
+
+
+### Bug Fixes
+
+* **live-sources:** save a PostHog key with its region and project ([#33282](https://github.com/lightdash/lightdash/issues/33282)) ([a990bc0](https://github.com/lightdash/lightdash/commit/a990bc014a3ae9101c5a31e5ea9b6c5c60401b99)), closes [#33281](https://github.com/lightdash/lightdash/issues/33281)
+
+
+### Features
+
+* **live-sources:** add Amplitude events, users, funnels and retention ([#33261](https://github.com/lightdash/lightdash/issues/33261)) ([6552823](https://github.com/lightdash/lightdash/commit/6552823992816cfe026b31d16320d8719decbc84))
+
 # [3.377.0](https://github.com/lightdash/lightdash/compare/3.376.1...3.377.0) (2026-11-23)
 
 
