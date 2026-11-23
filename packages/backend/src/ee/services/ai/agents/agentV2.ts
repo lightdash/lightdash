@@ -82,6 +82,7 @@ import {
 import { loadoutSpanAttributes } from '../loadout/telemetry';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import {
+    getDeferredToolInstructions,
     getSystemPromptV2,
     type CapabilitySectionArgs,
 } from '../prompts/systemV2';
@@ -217,6 +218,8 @@ import { buildQueryRetryStepOverride } from './queryRetryCap';
 import { createQueryToolCallRepair } from './queryToolCallRepair';
 import {
     createIntentToolGate,
+    getDeferredPromptSections,
+    getIntentToolNames,
     type IntentToolGate,
 } from './referenceToolGating';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
@@ -3056,8 +3059,33 @@ const prepareAgentTurn = async ({
         );
     }
     const turnIntent = preparedContext?.turnIntent ?? null;
-    // Whole toolbox every step and turn: narrowing it by intent rewrote the cached prefix.
-    const intentToolGate = createIntentToolGate(tools, turnIntent, []);
+    // A follow-up keeps the whole toolbox, so the previous turn's cached prefix still matches.
+    const isFollowUp = args.messageHistory.some(
+        (message) => message.role === 'assistant',
+    );
+    const toolIntents = isFollowUp ? [] : (preparedContext?.toolIntents ?? []);
+    const deferredSections = getDeferredPromptSections(
+        getIntentToolNames(tools, toolIntents),
+    );
+    const intentToolGate = createIntentToolGate(
+        tools,
+        turnIntent,
+        toolIntents,
+        getDeferredToolInstructions(
+            getCapabilitySectionArgs(args, loadout, customChartTypeLibrary),
+            deferredSections,
+        ),
+    );
+    if (intentToolGate.tools.loadAgentTools !== tools.loadAgentTools) {
+        Object.assign(
+            intentToolGate.tools,
+            withAgentToolPermissions(
+                { loadAgentTools: intentToolGate.tools.loadAgentTools },
+                dependencies,
+                new Set(),
+            ),
+        );
+    }
     tools = withToolCallLogContext(
         reportEarlyToolProgress
             ? withEarlyToolProgress(
@@ -3082,6 +3110,7 @@ const prepareAgentTurn = async ({
             ? ''
             : preparedSeed,
         !!preparedContext?.projectContextEntryIds.length,
+        deferredSections,
     );
     const turnTranscript =
         args.execution.mode === 'standard'

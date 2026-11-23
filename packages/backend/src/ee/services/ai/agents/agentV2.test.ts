@@ -365,10 +365,99 @@ describe('MCP context preparation at the agent boundary', () => {
                 stepNumber: 0,
                 messages: options.messages,
             });
-            // The whole toolbox is sent, so the cached prompt prefix stays stable.
-            expect(firstStep.activeTools).toBeUndefined();
+            expect(firstStep.activeTools).toContain('loadProjectContext');
+            expect(firstStep.activeTools).toContain('loadAgentTools');
+            expect(firstStep.activeTools).not.toContain(
+                'generateVisualization',
+            );
+            assertToolOperation.mockRejectedValueOnce(
+                new AiAccessRefusedError(
+                    AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                ),
+            );
+            await expect(
+                options.tools.loadAgentTools.execute(
+                    {},
+                    { toolCallId: 'denied-load', messages: options.messages },
+                ),
+            ).resolves.toMatchObject({
+                structuredContent: {
+                    refusal: {
+                        reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    },
+                },
+            });
+            expect(
+                (
+                    await options.prepareStep({
+                        stepNumber: 1,
+                        messages: options.messages,
+                    })
+                ).activeTools,
+            ).not.toContain('generateVisualization');
+            await options.tools.loadAgentTools.execute(
+                {},
+                { toolCallId: 'load', messages: options.messages },
+            );
+            expect(assertToolOperation).toHaveBeenCalledWith(
+                'agent_tool',
+                'loadAgentTools',
+            );
+            const nextStep = await options.prepareStep({
+                stepNumber: 1,
+                messages: options.messages,
+            });
+            expect(nextStep.activeTools).toBeUndefined();
         },
     );
+
+    it('keeps the whole toolbox on a follow-up so the cached prefix matches', async () => {
+        const args = buildAgentArgs();
+        args.messageHistory = [
+            { role: 'user', content: 'Build a dashboard' },
+            { role: 'assistant', content: 'Built it.' },
+            { role: 'user', content: 'What is revenue?' },
+        ];
+        args.decisions = new AiDecisionClient(
+            { apiKey: 'test', model: 'test', timeoutMs: 100 },
+            vi.fn<typeof fetch>().mockResolvedValue(
+                Response.json({
+                    model: 'test',
+                    answers: {
+                        turnIntent: {
+                            type: 'choice',
+                            choice: 'reference_answer',
+                            confidence: 0.99,
+                            probabilities: { reference_answer: 1 },
+                        },
+                    },
+                }),
+            ),
+        );
+        const dependencies = buildAgentDependencies(
+            vi.fn().mockResolvedValue(undefined),
+        );
+        Object.assign(dependencies, {
+            consumePromptSteers: async () => [],
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+        });
+        let options: AnyType;
+        vi.mocked(streamText).mockImplementationOnce(((captured: AnyType) => {
+            options = captured;
+            return {};
+        }) as AnyType);
+        await streamAgentResponse({
+            args,
+            dependencies,
+            mcpToolSetup: mcpToolSetup(),
+        });
+
+        const firstStep = await options.prepareStep({
+            stepNumber: 0,
+            messages: options.messages,
+        });
+        expect(firstStep.activeTools).toBeUndefined();
+    });
 
     it.each(['generate', 'stream'] as const)(
         'activates a selected tool in the first %s step without executing it',
