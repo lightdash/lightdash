@@ -501,16 +501,16 @@ export class SemanticStudioWorkspaceModel {
             });
     }
 
-    /** Records what a workspace's current pull request's provider said about it; a merge finishes the workspace. */
+    /** Records what a workspace's current pull request's provider said about it; a merge finishes the workspace. Returns whether a workspace changed. */
     async recordPullRequestState(
         projectUuid: string,
         url: string,
         state: SemanticStudioWorkspacePullRequestState,
         /** Whether a state other than open ends the workspace; false keeps one whose draft is still there. */
         finishes: boolean,
-    ): Promise<void> {
+    ): Promise<boolean> {
         const now = this.database.fn.now();
-        await this.database(SemanticStudioWorkspacesTableName)
+        const updated = await this.database(SemanticStudioWorkspacesTableName)
             .where('project_uuid', projectUuid)
             // An older pull request of the same conversation must not finish the one in review now.
             .andWhereRaw(
@@ -531,6 +531,7 @@ export class SemanticStudioWorkspaceModel {
                     ? { is_active: false, finished_at: now }
                     : {}),
             });
+        return updated > 0;
     }
 
     /** Asks for a new compile of a change's branch; returns the request a compile must still match to be kept. */

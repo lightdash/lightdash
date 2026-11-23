@@ -21,6 +21,7 @@ import { user } from '../../../services/ProjectService/ProjectService.mock';
 import { type BranchCompile } from '../../models/SemanticStudioWorkspaceModel';
 import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
 import { type ApiCheckout } from '../AiWritebackService/providers/GithubProvider';
+import { saveDbtTryOut } from './dbtTryOut';
 import {
     SemanticStudioCheckoutService,
     type SemanticStudioCheckoutServiceArguments,
@@ -316,6 +317,7 @@ const setup = ({
         service,
         studio,
         aiWritebackService,
+        fileStorageClient,
         workspaceModel,
         setActiveWorkspace: (next: typeof activeWorkspace) => {
             activeWorkspace = next;
@@ -411,9 +413,9 @@ describe('SemanticStudioCheckoutService', () => {
                     PROJECT_UUID,
                 ),
             ).toBeNull();
-            await context.service.saveDbtScriptTryOut(
-                repoWriter,
-                PROJECT_UUID,
+            await saveDbtTryOut(
+                context.fileStorageClient,
+                { projectUuid: PROJECT_UUID, userUuid: repoWriter.userUuid },
                 null,
                 project,
             );
@@ -436,9 +438,9 @@ describe('SemanticStudioCheckoutService', () => {
 
         it("reads the active workspace's own change, not an older one for another pull request", async () => {
             const context = dbt();
-            await context.service.saveDbtScriptTryOut(
-                repoWriter,
-                PROJECT_UUID,
+            await saveDbtTryOut(
+                context.fileStorageClient,
+                { projectUuid: PROJECT_UUID, userUuid: repoWriter.userUuid },
                 null,
                 project,
             );
@@ -452,9 +454,9 @@ describe('SemanticStudioCheckoutService', () => {
                     PROJECT_UUID,
                 ),
             ).toBeNull();
-            await context.service.saveDbtScriptTryOut(
-                repoWriter,
-                PROJECT_UUID,
+            await saveDbtTryOut(
+                context.fileStorageClient,
+                { projectUuid: PROJECT_UUID, userUuid: repoWriter.userUuid },
                 'thread-2',
                 project,
             );
@@ -493,9 +495,9 @@ describe('SemanticStudioCheckoutService', () => {
 
         it('stands in for a preview that has not compiled yet', async () => {
             const context = dbt({ previewExplores: {} });
-            await context.service.saveDbtScriptTryOut(
-                repoWriter,
-                PROJECT_UUID,
+            await saveDbtTryOut(
+                context.fileStorageClient,
+                { projectUuid: PROJECT_UUID, userUuid: repoWriter.userUuid },
                 null,
                 project,
             );
@@ -527,9 +529,12 @@ describe('SemanticStudioCheckoutService', () => {
                     },
                     previewCompile,
                 });
-                await context.service.saveDbtScriptTryOut(
-                    repoWriter,
-                    PROJECT_UUID,
+                await saveDbtTryOut(
+                    context.fileStorageClient,
+                    {
+                        projectUuid: PROJECT_UUID,
+                        userUuid: repoWriter.userUuid,
+                    },
                     null,
                     project,
                 );

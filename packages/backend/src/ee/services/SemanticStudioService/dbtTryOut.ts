@@ -5,19 +5,14 @@ import {
     type SemanticStudioWorkspace,
 } from '@lightdash/common';
 import { text } from 'node:stream/consumers';
-import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import { type SemanticStudioWorkspaceModel } from '../../models/SemanticStudioWorkspaceModel';
+import { type StudioFileStorage } from './checkedExplores';
 
 /** What is stored for a person's latest dbt change: the pull request it went to, and what it compiles to. */
 export type DbtTryOut = {
     prUrl: string | null;
     explores: (Explore | ExploreError)[];
 };
-
-export type DbtTryOutStorage = Pick<
-    FileStorageClient,
-    'isEnabled' | 'uploadTxt' | 'getFileStream' | 'deleteFile'
->;
 
 type TryOutOwner = { projectUuid: string; userUuid: string };
 
@@ -36,7 +31,7 @@ const dbtTryOutFileId = (
 
 /** Keeps what a code-mode change compiled to as the conversation's try-out, until the preview project is built. */
 export const saveDbtTryOut = async (
-    storage: DbtTryOutStorage,
+    storage: StudioFileStorage,
     owner: TryOutOwner,
     threadUuid: string | null,
     tryOut: DbtTryOut,
@@ -49,7 +44,7 @@ export const saveDbtTryOut = async (
 };
 
 const readDbtTryOutFile = async (
-    storage: DbtTryOutStorage,
+    storage: StudioFileStorage,
     fileId: string,
 ): Promise<DbtTryOut | null> => {
     try {
@@ -65,7 +60,7 @@ const readDbtTryOutFile = async (
 
 /** The try-out of the person's active workspace; without one, their latest change from before workspaces. */
 const readDbtTryOut = async (
-    storage: DbtTryOutStorage,
+    storage: StudioFileStorage,
     owner: TryOutOwner,
     active: TryOutWorkspace | null,
 ): Promise<{ fileId: string; tryOut: DbtTryOut } | null> => {
@@ -86,7 +81,7 @@ const readDbtTryOut = async (
 
 /** Forgets this person's try-out once its pull request is merged or closed. */
 export const retireDbtTryOut = async (
-    storage: DbtTryOutStorage,
+    storage: StudioFileStorage,
     owner: TryOutOwner,
     active: TryOutWorkspace | null,
     prUrl: string,
@@ -102,7 +97,7 @@ export const findDbtDraftExplores = async (
         storage,
         workspaceModel,
     }: {
-        storage: DbtTryOutStorage;
+        storage: StudioFileStorage;
         workspaceModel: Pick<
             SemanticStudioWorkspaceModel,
             'findActive' | 'findBranchCompile'

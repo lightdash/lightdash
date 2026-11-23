@@ -43,16 +43,20 @@ import {
     quoteCompileOutput,
     type BranchCompileCheck,
 } from './branchCompileCheck';
+import { type StudioFileStorage } from './checkedExplores';
 import { type DbtScriptChange } from './dbtManifestPatch';
 import {
     findDbtDraftExplores,
     saveDbtTryOut,
     type DbtTryOut,
-    type DbtTryOutStorage,
 } from './dbtTryOut';
 import { type IncrementalDbtCompileService } from './IncrementalDbtCompileService';
 import { type SemanticStudioService } from './SemanticStudioService';
-import { trackStudioActivity, type ModelProject } from './studioProject';
+import {
+    trackStudioActivity,
+    worksAsDbtPullRequests,
+    type ModelProject,
+} from './studioProject';
 
 export type SemanticStudioCheckoutServiceArguments = {
     analytics: Pick<LightdashAnalytics, 'track'>;
@@ -95,7 +99,7 @@ export type SemanticStudioCheckoutServiceArguments = {
         ) => Promise<unknown>;
     };
     projectService: Pick<ProjectService, 'compileExploresFromBranch'>;
-    fileStorageClient: DbtTryOutStorage;
+    fileStorageClient: StudioFileStorage;
     jobModel: Pick<JobModel, 'findLatestCompileStatus'>;
     writebackPreviewService: Pick<
         WritebackPreviewService,
@@ -215,11 +219,9 @@ export class SemanticStudioCheckoutService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<boolean> {
-        const { enabled, appliesAs } = await this.studio.getStatus(
-            user,
-            projectUuid,
+        return worksAsDbtPullRequests(
+            await this.studio.getStatus(user, projectUuid),
         );
-        return enabled && appliesAs === 'dbt_pull_request';
     }
 
     /** Refuses anyone who cannot use Studio here, and with `notDbt` a project that is not a dbt project in a repository. */
@@ -235,21 +237,6 @@ export class SemanticStudioCheckoutService extends BaseService {
         if (appliesAs !== 'dbt_pull_request') {
             throw new ParameterError(notDbt);
         }
-    }
-
-    /** Keeps what a code-mode change compiled to as the conversation's try-out, until the preview project is built. */
-    async saveDbtScriptTryOut(
-        user: SessionUser,
-        projectUuid: string,
-        threadUuid: string | null,
-        tryOut: DbtTryOut,
-    ): Promise<void> {
-        await saveDbtTryOut(
-            this.fileStorageClient,
-            { projectUuid, userUuid: user.userUuid },
-            threadUuid,
-            tryOut,
-        );
     }
 
     /**
@@ -972,10 +959,12 @@ export class SemanticStudioCheckoutService extends BaseService {
             );
         }
         if (threadUuid && saved.explores !== null && saved.result.prUrl) {
-            await this.saveDbtScriptTryOut(user, projectUuid, threadUuid, {
-                prUrl: saved.result.prUrl,
-                explores: saved.explores,
-            }).catch((error: unknown) => {
+            await saveDbtTryOut(
+                this.fileStorageClient,
+                { projectUuid, userUuid: user.userUuid },
+                threadUuid,
+                { prUrl: saved.result.prUrl, explores: saved.explores },
+            ).catch((error: unknown) => {
                 this.logger.warn(
                     `SemanticStudio: failed to keep the try-out of a hand edit: ${getErrorMessage(error)}`,
                 );

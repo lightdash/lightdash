@@ -169,6 +169,7 @@ export class AiWritebackController extends BaseController {
                     projectUuid,
                     prUrl,
                     pullRequestStateOf(results),
+                    false,
                 );
         }
         return {

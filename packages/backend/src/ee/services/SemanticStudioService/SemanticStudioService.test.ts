@@ -403,11 +403,16 @@ const setup = ({
             state: SemanticStudioWorkspacePullRequestState,
             finishes: boolean,
         ) => {
+            let changed = activeWorkspace?.prUrl === url;
             for (const workspace of workspaces) {
-                if (workspace.pullRequest?.url === url) {
+                if (
+                    workspace.pullRequest?.url === url &&
+                    !workspace.finishedAt
+                ) {
                     workspace.pullRequest.state = state;
                     workspace.finishedAt = new Date();
                     workspace.isActive = false;
+                    changed = true;
                 }
             }
             if (
@@ -417,6 +422,7 @@ const setup = ({
             ) {
                 activeWorkspace = null;
             }
+            return changed;
         },
     );
     const args: SemanticStudioServiceArguments = {
@@ -1501,6 +1507,7 @@ dimensions:
                 PROJECT_UUID,
                 'https://github.com/acme/shop/pull/2',
                 'closed',
+                false,
             );
             expect(await findTryOut()).not.toBeNull();
             await context.service.recordPullRequestState(
@@ -1508,6 +1515,7 @@ dimensions:
                 PROJECT_UUID,
                 project.prUrl,
                 'merged',
+                false,
             );
             expect(await findTryOut()).toBeNull();
         });
@@ -2868,6 +2876,7 @@ dimensions:
                 PROJECT_UUID,
                 PULL_REQUEST_URL,
                 'closed',
+                false,
             );
             expect(context.recordPullRequestState).toHaveBeenLastCalledWith(
                 PROJECT_UUID,
@@ -2881,6 +2890,7 @@ dimensions:
                 PROJECT_UUID,
                 PULL_REQUEST_URL,
                 'merged',
+                false,
             );
             expect(context.recordPullRequestState).toHaveBeenLastCalledWith(
                 PROJECT_UUID,
@@ -3270,6 +3280,45 @@ describe('workspace pull request reconciliation', () => {
             }
         },
     );
+
+    it('refreshes the project once when checks first see a merge made elsewhere', async () => {
+        const context = setup();
+        context.workspaces.push(workspace(1));
+        const url = workspace(1).pullRequest?.url ?? '';
+        await context.service.recordPullRequestState(
+            deployer,
+            PROJECT_UUID,
+            url,
+            'merged',
+            false,
+        );
+        await context.service.recordPullRequestState(
+            deployer,
+            PROJECT_UUID,
+            url,
+            'merged',
+            false,
+        );
+        expect(context.scheduleCompileAfterMerge).toHaveBeenCalledTimes(1);
+        expect(context.scheduleCompileAfterMerge).toHaveBeenCalledWith(
+            deployer,
+            PROJECT_UUID,
+            true,
+        );
+    });
+
+    it('does not compile again for a merge made in the app', async () => {
+        const context = setup();
+        context.workspaces.push(workspace(1));
+        await context.service.mergePullRequest(
+            deployer,
+            PROJECT_UUID,
+            workspace(1).pullRequest?.url ?? '',
+            { sha: undefined, incrementalCompile: false },
+        );
+        expect(context.mergePullRequest).toHaveBeenCalledTimes(1);
+        expect(context.scheduleCompileAfterMerge).not.toHaveBeenCalled();
+    });
 
     it('only checks five own unfinished pull requests, active first', async () => {
         const context = setup();

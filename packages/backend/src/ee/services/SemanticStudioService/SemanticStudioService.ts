@@ -81,7 +81,8 @@ import {
 import { type SemanticStudioWorkspaceModel } from '../../models/SemanticStudioWorkspaceModel';
 import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
 import { type AiWritebackService } from '../AiWritebackService/AiWritebackService';
-import { retireDbtTryOut, type DbtTryOutStorage } from './dbtTryOut';
+import { type StudioFileStorage } from './checkedExplores';
+import { retireDbtTryOut } from './dbtTryOut';
 import {
     DraftChecker,
     isModelExplore,
@@ -155,7 +156,7 @@ export type SemanticStudioServiceArguments = {
     validationService: Pick<ValidationService, 'generateValidation'>;
     projectService: Pick<ProjectService, 'setExplores'> &
         DraftCheckerProjectService;
-    fileStorageClient: DbtTryOutStorage;
+    fileStorageClient: StudioFileStorage;
     repoModels: Pick<
         RepoModelSource,
         | 'isInstalled'
@@ -2367,16 +2368,9 @@ export class SemanticStudioService extends BaseService {
                         projectUuid,
                         prUrl,
                         state,
+                        false,
                     );
                     changed = true;
-                    // Merged outside the app, so nothing has refreshed the project with it yet.
-                    if (state === 'merged') {
-                        await this.aiWritebackService.scheduleCompileAfterMerge(
-                            user,
-                            projectUuid,
-                            true,
-                        );
-                    }
                 }
             } catch (error) {
                 this.logger.warn(
@@ -2578,6 +2572,7 @@ export class SemanticStudioService extends BaseService {
                 projectUuid,
                 prUrl,
                 'merged',
+                true,
             );
         }
         return result;
@@ -2587,12 +2582,14 @@ export class SemanticStudioService extends BaseService {
      * Records a pull request's state as its provider reported it to someone allowed to ask. A draft sent as that
      * pull request is settled by its merge, and kept when it closes, so the work can be sent again or discarded;
      * once settled, the asker's try-out of it and the compiles of finished changes are dropped.
+     * The first to record a merge refreshes the project with it, unless the merge already scheduled that compile.
      */
     async recordPullRequestState(
         user: SessionUser,
         projectUuid: string,
         prUrl: string,
         state: SemanticStudioWorkspacePullRequestState,
+        mergeCompileScheduled: boolean,
     ): Promise<void> {
         const drafted =
             state === 'open'
@@ -2610,13 +2607,21 @@ export class SemanticStudioService extends BaseService {
                 ),
             );
         }
-        await this.workspaceModel.recordPullRequestState(
+        const recorded = await this.workspaceModel.recordPullRequestState(
             projectUuid,
             prUrl,
             state,
             // A closed pull request with a draft behind it leaves the workspace open.
             state === 'merged' || drafted.length === 0,
         );
+        // Merged outside the app, so nothing has refreshed the project with it yet.
+        if (state === 'merged' && recorded && !mergeCompileScheduled) {
+            await this.aiWritebackService.scheduleCompileAfterMerge(
+                user,
+                projectUuid,
+                true,
+            );
+        }
         if (state === 'open') return;
         await this.workspaceModel.deleteFinishedBranchCompiles(projectUuid);
         await retireDbtTryOut(

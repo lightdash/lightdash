@@ -30,7 +30,7 @@ import {
     dbtChangeFingerprint,
     keepCheckedExplores,
     takeCheckedExplores,
-    type CheckedExploresStorage,
+    type StudioFileStorage,
 } from './checkedExplores';
 import {
     advanceCompiledManifest,
@@ -66,7 +66,7 @@ export type IncrementalDbtCompileServiceArguments = {
         'compileExploresFromManifest' | 'saveExploresToCacheAndIndexCatalog'
     >;
     checker: Pick<DraftChecker, 'findExploreError'>;
-    fileStorageClient: CheckedExploresStorage;
+    fileStorageClient: StudioFileStorage;
     projectCompileLogModel: Pick<ProjectCompileLogModel, 'findLatestJobUuid'>;
     aiWritebackService: Pick<AiWritebackService, 'openStudioCheckout'>;
 };

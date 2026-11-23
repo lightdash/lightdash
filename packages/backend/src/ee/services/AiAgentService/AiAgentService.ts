@@ -742,9 +742,11 @@ import { type ExternalConnectionService } from '../ExternalConnectionService/Ext
 import { type MobilePushNotificationService } from '../MobilePushNotificationService/MobilePushNotificationService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import { createReviewRemediationAgentWorkGuard } from '../reviewRemediationAgentWork';
+import { saveDbtTryOut } from '../SemanticStudioService/dbtTryOut';
 import { type IncrementalDbtCompileService } from '../SemanticStudioService/IncrementalDbtCompileService';
 import { type SemanticStudioCheckoutService } from '../SemanticStudioService/SemanticStudioCheckoutService';
 import { type SemanticStudioService } from '../SemanticStudioService/SemanticStudioService';
+import { worksAsDbtPullRequests } from '../SemanticStudioService/studioProject';
 import {
     parseAgentSelectionValue,
     resolveAgentSelectionPrompt,
@@ -13652,21 +13654,22 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                             if (saved?.status === 'saved') {
                                 changedModels = saved.changedModels;
                                 if (saved.explores !== null) {
-                                    await this.semanticStudioCheckoutService
-                                        .saveDbtScriptTryOut(
-                                            user,
+                                    await saveDbtTryOut(
+                                        this.fileStorageClient,
+                                        {
                                             projectUuid,
-                                            prompt.threadUuid,
-                                            {
-                                                prUrl: saved.result.prUrl,
-                                                explores: saved.explores,
-                                            },
-                                        )
-                                        .catch((error: unknown) => {
-                                            Logger.warn(
-                                                `AiAgent.runEditDbtProjectPipeline: failed to keep the try-out of run ${aiWritebackRunUuid}: ${getErrorMessage(error)}`,
-                                            );
-                                        });
+                                            userUuid: user.userUuid,
+                                        },
+                                        prompt.threadUuid,
+                                        {
+                                            prUrl: saved.result.prUrl,
+                                            explores: saved.explores,
+                                        },
+                                    ).catch((error: unknown) => {
+                                        Logger.warn(
+                                            `AiAgent.runEditDbtProjectPipeline: failed to keep the try-out of run ${aiWritebackRunUuid}: ${getErrorMessage(error)}`,
+                                        );
+                                    });
                                 }
                                 return saved.result;
                             }
@@ -17562,16 +17565,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     semanticStudioStatus?.appliesAs !== 'live';
                 // Studio saves a dbt change with a script wherever Studio itself is on for the person.
                 const semanticStudioCodeMode =
-                    semanticStudioStatus?.appliesAs === 'dbt_pull_request' &&
-                    semanticStudioStatus.enabled;
+                    semanticStudioStatus !== null &&
+                    worksAsDbtPullRequests(semanticStudioStatus);
                 // A dbt project's layout spares the agent surveying the repository.
-                const semanticStudioProjectMap =
-                    semanticStudioStatus?.appliesAs === 'dbt_pull_request' &&
-                    semanticStudioStatus.enabled
-                        ? await this.incrementalDbtCompileService.getDbtProjectMap(
-                              promptProject.projectUuid,
-                          )
-                        : null;
+                const semanticStudioProjectMap = semanticStudioCodeMode
+                    ? await this.incrementalDbtCompileService.getDbtProjectMap(
+                          promptProject.projectUuid,
+                      )
+                    : null;
                 const semanticStudioDrafts =
                     semanticStudioStatus !== null &&
                     semanticStudioStatus.enabled &&

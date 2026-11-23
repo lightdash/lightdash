@@ -10,7 +10,7 @@ import { type FileStorageClient } from '../../../clients/FileStorage/FileStorage
 import Logger from '../../../logging/logger';
 import { type DbtFileChange } from './dbtManifestPatch';
 
-export type CheckedExploresStorage = Pick<
+export type StudioFileStorage = Pick<
     FileStorageClient,
     'isEnabled' | 'uploadTxt' | 'getFileStream' | 'deleteFile'
 >;
@@ -40,7 +40,7 @@ const checkedExploresFileId = (projectUuid: string, fingerprint: string) =>
 
 /** Keeps what a passed check compiled to, so the compile after the change merges can skip compiling it again. */
 export const keepCheckedExplores = async (
-    storage: CheckedExploresStorage,
+    storage: StudioFileStorage,
     projectUuid: string,
     fingerprint: string,
     explores: (Explore | ExploreError)[],
@@ -61,7 +61,7 @@ export const keepCheckedExplores = async (
 
 /** What a check compiled the same change to, removed once read; null when no check left it. */
 export const takeCheckedExplores = async (
-    storage: CheckedExploresStorage,
+    storage: StudioFileStorage,
     projectUuid: string,
     fingerprint: string,
 ): Promise<(Explore | ExploreError)[] | null> => {
