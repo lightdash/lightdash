@@ -22,7 +22,26 @@ type WordsMarkdownProps = {
     codeBlocks?: WordsCodeBlockRenderer[];
 };
 
-const RENDER_OPTIONS = { controls: false, lineNumbers: false };
+// Raw tags agents use that Streamdown's sanitizer also keeps; Words drops the rest.
+const ALLOWED_HTML = {
+    br: [],
+    sup: [],
+    sub: [],
+    kbd: [],
+    b: [],
+    i: [],
+    s: [],
+    del: [],
+    ins: [],
+    details: ['open'],
+    summary: [],
+};
+
+const RENDER_OPTIONS = {
+    controls: false,
+    lineNumbers: false,
+    allowedHtml: ALLOWED_HTML,
+};
 const NO_CODE_BLOCKS: WordsCodeBlockRenderer[] = [];
 
 const renderPlainLink = ({ attributes, children }: WordsLinkProps) => (

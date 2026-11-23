@@ -4,7 +4,7 @@ import { createElement, type CSSProperties, type ReactNode } from 'react';
 import { CodeBlockSlot, LinkSlot } from './WordsSlots';
 
 const VOID_ELEMENTS = new Set(['br', 'hr', 'img', 'input']);
-const BOOLEAN_ATTRIBUTES = new Set(['checked', 'disabled', 'readonly']);
+const BOOLEAN_ATTRIBUTES = new Set(['checked', 'disabled', 'open', 'readonly']);
 const REACT_ATTRIBUTE_NAMES: Record<string, string> = {
     class: 'className',
     readonly: 'readOnly',

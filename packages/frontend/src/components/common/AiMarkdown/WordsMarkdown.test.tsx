@@ -91,6 +91,29 @@ describe('WordsMarkdown', () => {
         expect(container.querySelectorAll('p')).toHaveLength(2);
     });
 
+    it('keeps allowed raw HTML and drops unsafe markup', () => {
+        const { container } = renderWithProviders(
+            <WordsMarkdown isStreaming={false} renderLink={renderLink}>
+                {[
+                    'line<br>two x<sup>2</sup> <img src=x onerror=alert(1)> [bad](javascript:alert(1))',
+                    '',
+                    '<details open><summary>More</summary>',
+                    '',
+                    '- item',
+                    '',
+                    '</details>',
+                ].join('\n')}
+            </WordsMarkdown>,
+        );
+
+        expect(container.querySelector('p br')).toBeInTheDocument();
+        expect(container.querySelector('sup')).toHaveTextContent('2');
+        expect(container.querySelector('img')).not.toBeInTheDocument();
+        expect(screen.getByTestId('link')).not.toHaveAttribute('data-href');
+        expect(container.querySelector('details')).toHaveAttribute('open');
+        expect(container.querySelector('details li')).toHaveTextContent('item');
+    });
+
     it('converts emoji shortcodes outside code', () => {
         const { container } = renderWithProviders(
             <WordsMarkdown isStreaming={false}>

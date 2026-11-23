@@ -1344,8 +1344,8 @@ importers:
         specifier: 1.0.0
         version: 1.0.0(@pierre/theme@2.0.0)(@shikijs/themes@3.23.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(shiki@3.23.0)
       '@pierre/words':
-        specifier: 0.2.2
-        version: 0.2.2(react@19.3.0)
+        specifier: 0.3.0
+        version: 0.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@popsql/monaco-sql-languages':
         specifier: 0.2.0
         version: 0.2.0(monaco-editor@0.54.0)
@@ -5837,15 +5837,18 @@ packages:
       react-dom:
         optional: true
 
-  '@pierre/words@0.2.2':
-    resolution: {integrity: sha512-gOMolXeQzPK9IVNDimh8pronqzpFISFxp+rhobKT8NYQsTOpDLQKgr0rjwZn3I/kHLF+Sqoe2aIO/R7H71IzwQ==}
+  '@pierre/words@0.3.0':
+    resolution: {integrity: sha512-k38qoYj0eUCr+vGQlXlSer78q5EeG7rSge9b2ADBFvLQ0L+OJH5zAdgdgm1jqkFq2Q6zXUuBkZWB5nQgPy2iUQ==}
     peerDependencies:
       '@pierre/highlights': '>=0.5.1'
       react: ^18.3.1 || ^19.0.0
+      react-dom: ^18.3.1 || ^19.0.0
     peerDependenciesMeta:
       '@pierre/highlights':
         optional: true
       react:
+        optional: true
+      react-dom:
         optional: true
 
   '@playwright/test@1.65.1':
@@ -21154,9 +21157,10 @@ snapshots:
       - '@shikijs/themes'
       - shiki
 
-  '@pierre/words@0.2.2(react@19.3.0)':
+  '@pierre/words@0.3.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     optionalDependencies:
       react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
 
   '@playwright/test@1.65.1':
     dependencies:
