@@ -2294,6 +2294,7 @@ export const getAgentTools = (
         listWorkstreams: () =>
             getListWorkstreams({
                 listWorkstreams: dependencies.listWorkstreams,
+                savesWithWrite: loadout.toolNames.has('write'),
             }),
         closePullRequest: () =>
             getClosePullRequest({

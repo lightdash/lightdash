@@ -160,7 +160,10 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         }),
         exploreRepo: getExploreRepo({ exploreRepo: noop, question: '' }),
         discoverRepos: getDiscoverRepos({ discoverRepos: noop }),
-        listWorkstreams: getListWorkstreams({ listWorkstreams: noop }),
+        listWorkstreams: getListWorkstreams({
+            listWorkstreams: noop,
+            savesWithWrite: false,
+        }),
         closePullRequest: getClosePullRequest({ closePullRequest: noopAsync }),
         getPullRequestDiff: getGetPullRequestDiff({
             getPullRequestDiff: noop,
