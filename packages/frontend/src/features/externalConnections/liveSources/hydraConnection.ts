@@ -18,7 +18,7 @@ export const HYDRA_TOKEN_FORM = {
     account: {
         label: 'Behaviour',
         description:
-            'key=value pairs: latencyMs, errorRate (0 to 1), retryAfterEvery, retryAfterSeconds, failAuth, rowCount, callsPerMinute, callsPerHour',
+            'Keys like latencyMs, failAuth, retryAfterEvery and rowCount',
         placeholder: 'Leave blank for defaults',
         invalidMessage:
             'Use key=value pairs with the keys above, numbers of 0 or more, errorRate up to 1 and failAuth true or false',
