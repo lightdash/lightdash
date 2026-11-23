@@ -1,4 +1,10 @@
-const REPLY_RULES = `- Use listChanges to see the person's open drafts and which one is checked out. Native model edits go to the checked-out draft. On Published, the first successful edit starts a draft. Call the default state Published and a change a draft, never Live.
+/** How the prompt names a lookup: its own tool, or its function inside read. */
+const lookup = (libraries: boolean, tool: string, fn: string) =>
+    libraries ? `${fn} in read` : tool;
+
+const getReplyRules = (
+    libraries: boolean,
+) => `- Use ${lookup(libraries, 'listChanges', 'layer.changes')} to see the person's open drafts and which one is checked out. Native model edits go to the checked-out draft. On Published, the first successful edit starts a draft. Call the default state Published and a change a draft, never Live.
 - Ask at most one question at a time, the one that most changes what you would do next. Leave the rest for later. When askUser is available, ask with it and give the choices as its options; its card is the reply, so write nothing else.
 - An offer to make a change is a question too. Say what you would change and why in at most two sentences, then offer it with askUser when it is available, never as a written question: the first option makes the change and the others are what the person might want instead, each worded as they would say it.
 - When you have several separate additions to suggest, ask one question the person can pick several from, with nothing but one sentence of text before it: one option per addition, labelled with the field's label and described in one sentence that gives the number backing it, strongest first.
@@ -14,6 +20,8 @@ export type SemanticStudioDbtTurn = {
     sections: string[];
     /** The project's layout from its last compile; null when none is stored. */
     projectMap: string | null;
+    /** The lookups live in read's libraries rather than in tools of their own. */
+    libraries: boolean;
 };
 
 const DBT_READ_SURVEY = `- This project's models are built by dbt, so its semantic layer lives in the repository's YAML and SQL. Read before you change: the model's YAML and SQL, how the project lays out its files and names things, and the project and package configuration when a model is not where the default layout would put it.`;
@@ -26,39 +34,55 @@ const DBT_READ_SHARED = `- A model that an installed package provides is not in 
 const getDbtRead = (mapped: boolean) =>
     `${mapped ? DBT_READ_MAPPED : DBT_READ_SURVEY}\n${DBT_READ_SHARED}`;
 
-const DBT_IMPACT = `- Redefining or removing what exists changes numbers people already rely on. Before you change that, check what uses the field with analyzeFieldImpact, and say what you found in the change's note. A field saved charts use should keep its name.`;
+const getDbtImpact = (libraries: boolean) =>
+    `- Redefining or removing what exists changes numbers people already rely on. Before you change that, check what uses the field with ${lookup(libraries, 'analyzeFieldImpact', 'layer.impact')}, and say what you found in the change's note. A field saved charts use should keep its name.`;
 
 const getDbtProposal = (mapped: boolean) => `${getDbtRead(mapped)}
 - Propose the change as a unified diff in a \`\`\`diff block, one block per file with the file's path in its header, built from the file as you read it and following the conventions you read. Keep it to what was asked.
 - You cannot save changes to this repository in this thread. Show the whole proposal again when they ask for more, so the latest diff is the full change.
-${DBT_IMPACT}
+${getDbtImpact(false)}
 - Outside the diff, write at most two short sentences and no list: what it changes and the one thing most worth checking.`;
 
-const DBT_SAVE_RULES = `- When the person asks for a change, read what it touches, then save it in the same turn. Keep it to what was asked. Questions and ideas are not requests: answer them, and when you suggest a change, describe it in a sentence and save it once they say yes.
+const getDbtSaveRules = (
+    libraries: boolean,
+) => `- When the person asks for a change, read what it touches, then save it in the same turn. Keep it to what was asked. Questions and ideas are not requests: answer them, and when you suggest a change, describe it in a sentence and save it once they say yes.
 - Leave prUrl and startNewPullRequest null, so the change joins this draft's branch while it is open and starts one otherwise. requestedBy is user_asked for a change they asked for and offer_accepted for one you suggested and they accepted.
-${DBT_IMPACT} When saved charts use it, ask before you save.
+${getDbtImpact(libraries)} When saved charts use it, ask before you save.
 - Nothing is published until the person publishes the draft, so say "in the draft" until then. Once saved, the draft compiles and the bar above this chat lets them try it and publish it.
 - After saving, the card is your reply, so end the turn without writing anything. The one thing most worth checking goes in the save's note, and an alternative you would offer goes in its options as the person would say it.`;
 
-const getDbtSave = (mapped: boolean) => `${getDbtRead(mapped)}
+const getDbtSave = (
+    mapped: boolean,
+    libraries: boolean,
+) => `${getDbtRead(mapped)}
 - Save with editDbtProject, one call per change, with a request that names the files, the models and fields, and what each becomes.
-${DBT_SAVE_RULES}`;
+${getDbtSaveRules(libraries)}`;
 
-const getDbtSaveCodeMode = (mapped: boolean) => `${getDbtRead(mapped)}
-- Read files with read, several in one script: it sees the changes you saved on the pull request branch, while exploreRepo sees only what is published.
+const READ_FILES = `- Read files with read, several in one script: it sees the changes you saved on the pull request branch, while exploreRepo sees only what is published.`;
+
+const READ_WITH_LIBRARIES = `- Read with read, in one script for everything that does not depend on something else: the files as the pull request branch has them, with your saved changes, and the semantic layer and the warehouse through its layer and warehouse functions. Call help() inside read when you need a function's arguments.`;
+
+const getDbtSaveCodeMode = (
+    mapped: boolean,
+    libraries: boolean,
+) => `${getDbtRead(mapped)}
+${libraries ? READ_WITH_LIBRARIES : READ_FILES}
 - Save with editDbtProject, one call per change, with a script that makes it and a prompt that says the same change in words: the files, the models and fields, and what each becomes.
 - Write the script from the files as you read them: use yaml.set and yaml.push for YAML, so the rest of each file stays as it is, and repo.write only for a whole new file such as a new model's SQL. Put each field where that file already keeps its kind. If the tool says the script failed, fix it from the error and call again; tell the person only if it still fails.
 - Pass a null script only when the change needs dbt itself to run, such as checking new SQL against the warehouse; the slower sandbox makes that change instead.
 - A change to YAML alone is checked when it is saved, but only dbt checks one that adds a model or changes SQL: after saving it, call verify before you end the turn. If it fails, fix it with editDbtProject and check again; tell the person only if it still fails.
-${DBT_SAVE_RULES}`;
+${getDbtSaveRules(libraries)}`;
 
 const getDbtChangeRules = (
     saves: boolean,
     codeMode: boolean,
     mapped: boolean,
+    libraries: boolean,
 ) => {
     if (!saves) return getDbtProposal(mapped);
-    return codeMode ? getDbtSaveCodeMode(mapped) : getDbtSave(mapped);
+    return codeMode
+        ? getDbtSaveCodeMode(mapped, libraries)
+        : getDbtSave(mapped, libraries);
 };
 
 const getDbtSections = ({
@@ -66,6 +90,7 @@ const getDbtSections = ({
     codeMode,
     sections,
     projectMap,
+    libraries,
 }: SemanticStudioDbtTurn): string[] => [
     `## What the person sees
 
@@ -77,8 +102,8 @@ The person sees your text, so write it in their terms and name fields by their l
 
 ## How to change the layer
 
-${getDbtChangeRules(saves, codeMode, projectMap !== null)}
-${REPLY_RULES}
+${getDbtChangeRules(saves, codeMode, projectMap !== null, libraries)}
+${getReplyRules(libraries)}
 
 ## Modelling
 
@@ -108,7 +133,7 @@ The person sees your text, so write it in their terms and name fields by their l
 - A new model can come back ready with advice. Act on it once, in one follow-up proposal, before you reply.${canQueryDraft ? DRAFT_QUERY : ''}
 - Nothing is published until the person publishes the draft, so say "in the draft" until then.
 - After a proposal the card is your reply, so end the turn without writing anything. The one thing most worth checking goes in the proposal's note, and an alternative you would offer goes in its options as the person would say it, never in text. The card already shows the change and its code, so never repeat them or list its fields.
-${REPLY_RULES}
+${getReplyRules(false)}
 
 ## Modelling
 
@@ -134,11 +159,14 @@ const getDraftWarehouseSection = (
         : "## Warehouse\n\nYou cannot query this project's warehouse in this thread, so you cannot look up tables or columns. Ask the person for a table's name and columns before modelling it.";
 
 /** A dbt thread that can run SQL grounds what it suggests in the model's real values. */
-const getDbtWarehouseSection = (warehouse: SemanticStudioWarehouse): string =>
+const getDbtWarehouseSection = (
+    warehouse: SemanticStudioWarehouse,
+    libraries: boolean,
+): string =>
     `## Warehouse
 
 ${getWarehouseIntro(warehouse)}Write every sql in the warehouse's dialect.
-- grepWarehouseColumns finds which tables hold a column, such as a key a model could join on; it reads no rows and needs no approval.
+- ${lookup(libraries, 'grepWarehouseColumns', 'warehouse.columns')} finds which tables hold a column, such as a key a model could join on; it reads no rows and needs no approval.
 - Before you suggest a new metric or dimension, or answer what is worth adding to a model, look at the model's real values with runSql: the distinct values of a column a metric would filter on, how often a column it reads is null, whether its key is unique. Names alone can suggest a filter on a value that never occurs.
 - Every runSql call costs the person an approval click and warehouse time. Make one call that checks every column at once, not one call per column, and a second only when the first leaves the suggestion open. Each query reads a bounded sample rather than the whole table, in this shape:
 \`\`\`sql
@@ -176,7 +204,9 @@ export const getSemanticStudioSystemPrompt = ({
         ...(dbt
             ? [
                   ...getDbtSections(dbt),
-                  warehouse ? getDbtWarehouseSection(warehouse) : '',
+                  warehouse
+                      ? getDbtWarehouseSection(warehouse, dbt.libraries)
+                      : '',
               ]
             : [
                   getDraftSections(canQueryDraft),

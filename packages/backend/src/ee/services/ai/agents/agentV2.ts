@@ -2281,7 +2281,9 @@ export const getAgentTools = (
             getRead({
                 read: dependencies.read,
                 libraries: buildReadLibraries((name) =>
-                    loadout.toolNames.has(name) ? toolBuilders[name]() : null,
+                    loadout.withheldToolNames.has(name)
+                        ? toolBuilders[name]()
+                        : null,
                 ),
             }),
         verify: () =>
@@ -2829,6 +2831,7 @@ export const getAgentMessages = (
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         semanticStudioCodeMode: args.semanticStudioCodeMode,
+        semanticStudioLibraries: loadout.withheldToolNames.size > 0,
         semanticStudioProjectMap: args.semanticStudioProjectMap,
         semanticStudioQueriesDraft: loadout.toolNames.has('runMetricQuery'),
         slackLinksOnly: args.slackLinksOnly,

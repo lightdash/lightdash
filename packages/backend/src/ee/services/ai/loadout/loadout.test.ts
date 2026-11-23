@@ -339,18 +339,25 @@ describe('resolveLoadout', () => {
         expect(dbt.base).toBe('semantic_studio');
         expect(dbt.toolNames.has('proposeSemanticLayerChange')).toBe(false);
         expect(dbt.toolNames.has('readSemanticModel')).toBe(false);
-        expect(dbt.toolNames.has('editDbtProject')).toBe(true);
-        expect(dbt.toolNames.has('exploreRepo')).toBe(true);
-        expect(dbt.toolNames.has('verify')).toBe(true);
-        expect(dbt.toolNames.has('read')).toBe(true);
+        expect([...dbt.toolNames].sort()).toEqual([
+            'askUser',
+            'editDbtProject',
+            'read',
+            'runSql',
+            'verify',
+        ]);
+        expect(dbt.withheldToolNames.has('grepFields')).toBe(true);
+        expect(dbt.withheldToolNames.has('listWarehouseTables')).toBe(true);
+        expect(dbt.withheldToolNames.has('loadProjectContext')).toBe(true);
         expect(dbt.toolNames.has('generateVisualization')).toBe(false);
-        expect(
-            resolveLoadout({
-                ...inputs.semantic_studio,
-                semanticStudioDrafts: false,
-                enableAiWriteback: false,
-            }).toolNames.has('verify'),
-        ).toBe(false);
+        const proposing = resolveLoadout({
+            ...inputs.semantic_studio,
+            semanticStudioDrafts: false,
+            enableAiWriteback: false,
+        });
+        expect(proposing.toolNames.has('verify')).toBe(false);
+        expect(proposing.toolNames.has('exploreRepo')).toBe(true);
+        expect(proposing.withheldToolNames.size).toBe(0);
         expect(resolveLoadout(fullInput).toolNames.has('verify')).toBe(false);
     });
 

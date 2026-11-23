@@ -21,6 +21,10 @@ export const READ_LIBRARIES = {
         describe: 'describeWarehouseTable',
         columns: 'grepWarehouseColumns',
     },
+    pr: {
+        list: 'listWorkstreams',
+        diff: 'getPullRequestDiff',
+    },
 } as const satisfies Record<string, Record<string, AgentToolName>>;
 
 type ReadLibraryToolName = {

@@ -36,6 +36,7 @@ describe('getSemanticStudioSystemPrompt', () => {
                 codeMode: false,
                 projectMap: null,
                 sections: ['## Repository context\nroot hint'],
+                libraries: false,
             },
         });
         expect(prompt).toContain('```diff');
@@ -53,6 +54,7 @@ describe('getSemanticStudioSystemPrompt', () => {
                 codeMode: false,
                 projectMap: null,
                 sections: [],
+                libraries: false,
             },
         });
         expect(prompt).toContain('## Warehouse');
@@ -70,6 +72,7 @@ describe('getSemanticStudioSystemPrompt', () => {
                 codeMode: false,
                 projectMap: null,
                 sections: [],
+                libraries: false,
             },
         });
         expect(prompt).not.toContain('## Warehouse');
@@ -84,6 +87,7 @@ describe('getSemanticStudioSystemPrompt', () => {
                 codeMode: false,
                 projectMap: null,
                 sections: [],
+                libraries: false,
             },
         });
         expect(prompt).toContain('editDbtProject');
@@ -94,7 +98,12 @@ describe('getSemanticStudioSystemPrompt', () => {
     });
 
     it('has a dbt project rely on its layout instead of surveying the repository', () => {
-        const dbt = { saves: true, codeMode: true, sections: [] };
+        const dbt = {
+            saves: true,
+            codeMode: true,
+            sections: [],
+            libraries: false,
+        };
         const mapped = getSemanticStudioSystemPrompt({
             ...base,
             dbt: { ...dbt, projectMap: 'dbt project shop' },
@@ -120,9 +129,32 @@ describe('getSemanticStudioSystemPrompt', () => {
                 codeMode: true,
                 projectMap: null,
                 sections: [],
+                libraries: false,
             },
         });
         expect(prompt).toContain('with a script that makes it');
         expect(prompt).toContain('yaml.set');
+    });
+
+    it('names the lookups as functions inside read when they live there', () => {
+        const prompt = getSemanticStudioSystemPrompt({
+            ...base,
+            warehouse: { type: 'duckdb', schema: 'main' },
+            dbt: {
+                saves: true,
+                codeMode: true,
+                projectMap: null,
+                sections: [],
+                libraries: true,
+            },
+        });
+        expect(prompt).toContain('layer.impact in read');
+        expect(prompt).toContain('warehouse.columns in read');
+        [
+            'exploreRepo',
+            'analyzeFieldImpact',
+            'listChanges',
+            'grepWarehouseColumns',
+        ].forEach((tool) => expect(prompt).not.toContain(tool));
     });
 });
