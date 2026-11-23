@@ -257,6 +257,7 @@ import {
     assertAgentKeepsDocumentMerges,
 } from '../ai/utils/agentMergeGuard';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
+import { getChartFieldErrors } from '../ai/utils/chartFieldErrors';
 import { readWithContentTypeFallback } from '../ai/utils/contentTypeFallback';
 import { getChartTileSize, placeTile } from '../ai/utils/dashboardTileLayout';
 import {
@@ -3922,6 +3923,13 @@ export class AiAgentToolsService extends BaseService {
                                         : undefined,
                                 );
                             }
+                            await this.assertChartFieldsExist(
+                                context,
+                                patchedContent,
+                                currentContent.type === 'chart'
+                                    ? currentContent.content
+                                    : undefined,
+                            );
                             if (
                                 boundDashboard &&
                                 ((currentContent.content as ChartAsCode)
@@ -4161,6 +4169,7 @@ export class AiAgentToolsService extends BaseService {
                             };
                         }
                         case 'chart': {
+                            await this.assertChartFieldsExist(context, content);
                             const promotionChanges =
                                 await this.coderService.upsertChart(
                                     context.user,
@@ -4224,6 +4233,34 @@ export class AiAgentToolsService extends BaseService {
                 }
             },
         );
+    }
+
+    /** Replaces the agent's pre-save query check: unknown or misplaced field ids fail the write with fixes. */
+    private async assertChartFieldsExist(
+        context: AiAgentToolsRuntimeContext,
+        chart: ChartAsCode,
+        // Problems the chart already had are not the edit's to fix.
+        before?: ChartAsCode,
+    ): Promise<void> {
+        const explore = await this.getExploreForRuntime(context, {
+            table: chart.metricQuery.exploreName ?? chart.tableName,
+        }).catch((error: unknown) => {
+            // An edit keeps working on a chart whose explore went away.
+            if (before) return null;
+            throw error;
+        });
+        if (!explore) return;
+        const existing = new Set(
+            before ? getChartFieldErrors(before, explore) : [],
+        );
+        const errors = getChartFieldErrors(chart, explore).filter(
+            (error) => !existing.has(error),
+        );
+        if (errors.length > 0) {
+            throw new ParameterError(
+                `Chart "${chart.slug}" was not saved:\n${errors.join('\n')}`,
+            );
+        }
     }
 
     // A turn's parallel writes run one at a time: a dashboard save snapshots its

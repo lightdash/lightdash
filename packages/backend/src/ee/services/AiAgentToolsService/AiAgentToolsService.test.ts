@@ -9003,6 +9003,7 @@ describe.each(agentActionTestCases)(
                         .mockResolvedValue({ versionUuid: 'version' }),
                 });
                 const service = makeService({
+                    explores: { orders: makeExplore({ name: 'orders' }) },
                     coderService: coderService as unknown as Record<
                         string,
                         unknown
@@ -9937,6 +9938,18 @@ describe('AiAgentToolsService in a thread bound to a dashboard', () => {
                 dashboards: [{ data: { uuid: boundDashboard.uuid } }],
             });
             const service = makeService({
+                explores: {
+                    orders: makeExplore({
+                        name: 'orders',
+                        metrics: {
+                            count: {
+                                name: 'count',
+                                table: 'orders',
+                                fieldType: 'metric',
+                            },
+                        },
+                    }),
+                },
                 dashboardModel: dashboardModel(),
                 dashboardService: {
                     getByIdOrSlug: vi.fn().mockResolvedValue(boundDashboard),
