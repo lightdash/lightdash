@@ -1,5 +1,7 @@
 import {
     assertUnreachable,
+    getDraftChangeUuids,
+    getProposalPhase,
     type SemanticLayerDraft,
     type SemanticLayerDraftImpact,
     type SemanticLayerProposal,
@@ -14,7 +16,7 @@ import {
     IconGitPullRequest,
     IconTable,
 } from '@tabler/icons-react';
-import { lazy, Suspense, useEffect, useState, type FC } from 'react';
+import { lazy, Suspense, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { cannotApply } from '../../../../../../features/semanticStudio/draftState';
@@ -39,7 +41,6 @@ import { TaskIcon } from '../../../../../../features/semanticStudio/TaskRow';
 import { getSemanticStudioUrl } from '../../../../../../features/semanticStudio/urls';
 import {
     usePublishMode,
-    useRefreshSemanticLayerDraft,
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
 } from '../../../../../../features/semanticStudio/useSemanticLayerModel';
@@ -47,6 +48,7 @@ import { useDraftPullRequest } from '../../../../../../features/semanticStudio/u
 import { listTurnIssues } from './proposalIssues';
 import { draftActions, fixAction } from './turnActions';
 import { TurnCard, type Safety } from './TurnCard';
+import { useRefreshUnknownDraftChanges } from './useRefreshUnknownDraftChanges';
 
 // The review and its diff viewer stay out of the chat's bundle until someone publishes from a card.
 const ApplyModal = lazy(() =>
@@ -158,39 +160,37 @@ const getPhase = (
 ): Phase => {
     if (uuids.length === 0) return { kind: 'none' };
     if (!draft) return { kind: 'loading' };
-    const inDraft = draft.changes.filter((c) =>
-        uuids.includes(c.draftChangeUuid),
-    );
-    if (inDraft.length > 0) {
-        const models = groups.map(({ model }) => model);
-        const error =
-            inDraft
-                .flatMap((change) => change.models)
-                .find((entry) => entry.error !== null)?.error ??
-            draft.errors.find((entry) => models.includes(entry.model))
-                ?.message ??
-            null;
-        return { kind: 'draft', error };
+    const phase = getProposalPhase(draft, uuids, {
+        pullRequestFrom: 'latest_applied',
+    });
+    switch (phase.kind) {
+        case 'in_draft': {
+            const models = groups.map(({ model }) => model);
+            const error =
+                phase.changes
+                    .flatMap((change) => change.models)
+                    .find((entry) => entry.error !== null)?.error ??
+                draft.errors.find((entry) => models.includes(entry.model))
+                    ?.message ??
+                null;
+            return { kind: 'draft', error };
+        }
+        case 'pull_request':
+            return { kind: 'pull_request', url: phase.url };
+        case 'applied': {
+            const open = groups.find(({ removed }) => !removed)?.model;
+            return { kind: 'published', model: open ?? null };
+        }
+        // Not in the draft as read yet: the agent added it after the last read.
+        case 'unknown':
+            return { kind: 'loading' };
+        case 'undone':
+            return { kind: 'gone', label: 'Undone' };
+        case 'discarded':
+            return { kind: 'gone', label: 'Discarded' };
+        default:
+            return assertUnreachable(phase, 'Unknown proposal phase');
     }
-    const settled = draft.settled.filter((s) =>
-        uuids.includes(s.draftChangeUuid),
-    );
-    const applied = settled.find(({ status }) => status === 'applied');
-    if (applied?.pullRequestUrl) {
-        return { kind: 'pull_request', url: applied.pullRequestUrl };
-    }
-    if (applied) {
-        const open = groups.find(({ removed }) => !removed)?.model;
-        return { kind: 'published', model: open ?? null };
-    }
-    // Not in the draft as read yet: the agent added it after the last read.
-    if (settled.length === 0) return { kind: 'loading' };
-    return {
-        kind: 'gone',
-        label: settled.every(({ status }) => status === 'undone')
-            ? 'Undone'
-            : 'Discarded',
-    };
 };
 
 /** Whether the draft is safe to try, in one line with its reason. */
@@ -258,23 +258,10 @@ export const TurnSummaryCard: FC<{
 }> = ({ projectUuid, proposals, onAsk, isLatest }) => {
     const { data: draft } = useSemanticLayerDraft(projectUuid);
     const { data: impact } = useSemanticLayerDraftImpact(projectUuid, null);
-    const refresh = useRefreshSemanticLayerDraft(projectUuid);
-    const uuids = proposals.flatMap(({ draftChangeUuid }) =>
-        draftChangeUuid ? [draftChangeUuid] : [],
-    );
+    const uuids = getDraftChangeUuids(proposals);
     const groups = groupByModel(proposals);
     const phase = getPhase(draft, uuids, groups);
-    // The agent adds to the draft on the server, so a new card means it moved.
-    const isUnknown =
-        !!draft &&
-        uuids.some(
-            (uuid) =>
-                !draft.changes.some((c) => c.draftChangeUuid === uuid) &&
-                !draft.settled.some((s) => s.draftChangeUuid === uuid),
-        );
-    useEffect(() => {
-        if (isUnknown) void refresh();
-    }, [isUnknown, refresh]);
+    useRefreshUnknownDraftChanges(projectUuid, draft, uuids);
 
     const studioUrl = getSemanticStudioUrl(projectUuid, { ref: null });
     const reviewUrl = `${studioUrl}?${DRAFT_PARAM}=${DRAFT_REVIEW}`;

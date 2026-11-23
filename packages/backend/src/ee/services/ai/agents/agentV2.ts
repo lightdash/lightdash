@@ -5,12 +5,13 @@ import {
     AnyType,
     assertUnreachable,
     DBT_SAVE_CARD_REPLY,
-    describeSemanticLayerProposals,
+    endsTurnOnCard,
     Explore,
     getErrorMessage,
+    getRunProposals,
+    getStudioCardReply,
     isDbtWriteToolName,
     isSqlApprovalToolCall,
-    toolProposeSemanticLayerChangeOutputSchema,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
     type CustomChartTypeLibrary,
@@ -1358,21 +1359,11 @@ export const withStudioCardReply = (
     steps: ReadonlyArray<FastChartStep>,
 ): string => {
     if (reply.trim()) return reply;
-    const proposals = steps
-        .flatMap((step) => step.toolResults)
-        .flatMap(({ toolName, output }) => {
-            if (toolName !== 'proposeSemanticLayerChange') return [];
-            const parsed =
-                toolProposeSemanticLayerChangeOutputSchema.safeParse(output);
-            return parsed.success &&
-                parsed.data.metadata.status === 'success' &&
-                parsed.data.metadata.draftChangeUuid !== null
-                ? [parsed.data.metadata]
-                : [];
-        });
-    return proposals.length > 0
-        ? describeSemanticLayerProposals(proposals)
-        : reply;
+    return (
+        getStudioCardReply(
+            getRunProposals(steps.flatMap((step) => step.toolResults)),
+        ) ?? reply
+    );
 };
 
 /** A Studio turn ends on its card: once a change joined the draft cleanly, or a save started, there is nothing left to say. */
@@ -1381,23 +1372,9 @@ export const getStudioCardResponse = (
 ): string | null => {
     const last = steps.at(-1);
     if (!last) return null;
-    const proposals = last.toolResults.flatMap(({ toolName, output }) => {
-        if (toolName !== 'proposeSemanticLayerChange') return [];
-        const parsed =
-            toolProposeSemanticLayerChangeOutputSchema.safeParse(output);
-        return parsed.success && parsed.data.metadata.status === 'success'
-            ? [parsed.data.metadata]
-            : [];
-    });
+    const proposals = getRunProposals(last.toolResults);
     if (proposals.length > 0) {
-        // A failed model or advice means the agent still has work to do this turn.
-        const isClean = proposals.every(
-            ({ draftChangeUuid, models, needsFollowUp }) =>
-                draftChangeUuid !== null &&
-                !needsFollowUp &&
-                models.every(({ status }) => status !== 'failed'),
-        );
-        return isClean ? describeSemanticLayerProposals(proposals) : null;
+        return endsTurnOnCard(proposals) ? getStudioCardReply(proposals) : null;
     }
     // Only Studio's save takes a script; the main chat's keeps its own reply.
     const studioSaves = new Set(

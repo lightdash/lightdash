@@ -1,6 +1,10 @@
 import {
+    assertUnreachable,
+    getDraftChangeUuids,
+    getProposalPhase,
     type ModelFragmentChange,
     type SemanticLayerProposal,
+    type SemanticLayerProposalPhase,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -21,7 +25,7 @@ import {
     IconTable,
     IconTrash,
 } from '@tabler/icons-react';
-import { useEffect, type FC, type ReactNode } from 'react';
+import { type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ConfirmDeleteButton } from '../../../../../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
@@ -36,11 +40,11 @@ import { Task } from '../../../../../../features/semanticStudio/TaskRow';
 import { getSemanticStudioUrl } from '../../../../../../features/semanticStudio/urls';
 import {
     useDiscardDraftChange,
-    useRefreshSemanticLayerDraft,
     useSemanticLayerDraft,
 } from '../../../../../../features/semanticStudio/useSemanticLayerModel';
 import { ISSUE_KINDS, listProposalIssues, type Issue } from './proposalIssues';
 import classes from './SemanticLayerProposalCard.module.css';
+import { useRefreshUnknownDraftChanges } from './useRefreshUnknownDraftChanges';
 
 type Diff = SemanticLayerProposal['diffs'][number];
 
@@ -172,10 +176,23 @@ const IssueRow: FC<{ issue: Issue }> = ({ issue: { kind, model, detail } }) => {
     );
 };
 
-const STATUS_LABELS = {
-    applied: 'Published',
-    undone: 'Undone',
-    discarded: 'Discarded',
+const getStatusLabel = (phase: SemanticLayerProposalPhase): string | null => {
+    switch (phase.kind) {
+        case 'in_draft':
+            return 'Draft';
+        case 'applied':
+            return 'Published';
+        case 'pull_request':
+            return 'Pull request';
+        case 'undone':
+            return 'Undone';
+        case 'discarded':
+            return 'Discarded';
+        case 'unknown':
+            return null;
+        default:
+            return assertUnreachable(phase, 'Unknown proposal phase');
+    }
 };
 
 /** A change the agent proposed: what it touches, a peek at its code, and where it stands in the draft. */
@@ -185,29 +202,18 @@ export const SemanticLayerProposalCard: FC<{
 }> = ({ projectUuid, proposal }) => {
     const { data: draft } = useSemanticLayerDraft(projectUuid);
     const discard = useDiscardDraftChange(projectUuid);
-    const refresh = useRefreshSemanticLayerDraft(projectUuid);
     const { draftChangeUuid } = proposal;
-    const inDraft = draft?.changes.some(
-        (change) => change.draftChangeUuid === draftChangeUuid,
-    );
-    const settledChange = draft?.settled.find(
-        (change) => change.draftChangeUuid === draftChangeUuid,
-    );
-    const settled = settledChange?.status;
-    const pullRequestUrl = settledChange?.pullRequestUrl ?? null;
-    // The agent adds to the draft on the server, so a new card means it moved.
-    const isUnknown = !!draftChangeUuid && !!draft && !inDraft && !settled;
-    useEffect(() => {
-        if (isUnknown) void refresh();
-    }, [isUnknown, refresh]);
+    const uuids = getDraftChangeUuids([proposal]);
+    const phase: SemanticLayerProposalPhase = draft
+        ? getProposalPhase(draft, uuids, { pullRequestFrom: 'latest_applied' })
+        : { kind: 'unknown' };
+    useRefreshUnknownDraftChanges(projectUuid, draft, uuids);
     // A model the proposal changes nothing on has no section of its own; what was left out says why.
     const passed = proposal.models.filter(({ status }) => status === 'ready');
     const issues = listProposalIssues(proposal);
-    const settledLabel =
-        settled && (pullRequestUrl ? 'Pull request' : STATUS_LABELS[settled]);
-    const status = settledLabel ? settledLabel : inDraft ? 'Draft' : null;
+    const status = getStatusLabel(phase);
     const getActions = (model: string) => {
-        if (inDraft && draftChangeUuid) {
+        if (phase.kind === 'in_draft' && draftChangeUuid) {
             return (
                 <ConfirmDeleteButton
                     size="sm"
@@ -220,15 +226,14 @@ export const SemanticLayerProposalCard: FC<{
                 </ConfirmDeleteButton>
             );
         }
-        if (settled !== 'applied') return null;
-        if (pullRequestUrl) {
+        if (phase.kind === 'pull_request') {
             return (
                 <Tooltip label="View pull request">
                     <ActionIcon
                         size="sm"
                         aria-label="View pull request"
                         component="a"
-                        href={pullRequestUrl}
+                        href={phase.url}
                         target="_blank"
                         rel="noopener noreferrer"
                     >
@@ -237,6 +242,7 @@ export const SemanticLayerProposalCard: FC<{
                 </Tooltip>
             );
         }
+        if (phase.kind !== 'applied') return null;
         return (
             <Tooltip label="Open model">
                 <ActionIcon
@@ -256,7 +262,7 @@ export const SemanticLayerProposalCard: FC<{
         <Paper
             mt="xs"
             className={classes.card}
-            data-settled={settled === 'undone' || settled === 'discarded'}
+            data-settled={phase.kind === 'undone' || phase.kind === 'discarded'}
         >
             {passed.map(({ model, changes }, index) => (
                 <ModelSection
@@ -274,7 +280,7 @@ export const SemanticLayerProposalCard: FC<{
                     issue={issue}
                 />
             ))}
-            {inDraft ? (
+            {phase.kind === 'in_draft' ? (
                 <Group
                     className={`${classes.section} ${classes.progress}`}
                     gap="sm"

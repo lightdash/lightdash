@@ -143,21 +143,6 @@ export type ToolProposeSemanticLayerChangeOutput = z.infer<
 
 export type SemanticLayerProposal = z.infer<typeof proposalMetadataSchema>;
 
-/** The line kept as the reply when a turn ends on its card with nothing written, so history and copy still read. */
-export const describeSemanticLayerProposals = (
-    proposals: Pick<SemanticLayerProposal, 'models'>[],
-): string => {
-    const ready = proposals.flatMap(({ models }) =>
-        models.filter(({ status }) => status === 'ready'),
-    );
-    if (ready.length === 0) return 'Nothing changed in the draft.';
-    const names = [...new Set(ready.map(({ model }) => model))];
-    const leftOut = ready.some(({ refusals }) => refusals.length > 0)
-        ? ' Some parts were left out.'
-        : '';
-    return `Changed ${names.join(', ')} in the draft.${leftOut}`;
-};
-
 export const isToolProposeSemanticLayerChangeResult =
     makeBuiltInToolResultGuard(
         'proposeSemanticLayerChange',
