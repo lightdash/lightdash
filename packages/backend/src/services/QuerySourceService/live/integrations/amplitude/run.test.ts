@@ -357,6 +357,60 @@ describe('amplitudeIntegration run', () => {
         expect(result.hasMoreRows).toBe(true);
     });
 
+    it('says there were more rows when grouping reaches the group limit', async () => {
+        const labels = Array.from({ length: 1000 }, (_, i) => `City ${i}`);
+        const { source } = connect(
+            jsonResponse({
+                data: {
+                    series: labels.map(() => [1]),
+                    seriesLabels: labels,
+                    seriesCollapsed: labels.map(() => [{ value: 1 }]),
+                    xValues: ['2026-10-01'],
+                },
+            }),
+        );
+        const result = await source.run({
+            query: JSON.stringify({
+                endpoint: 'segmentation',
+                ...RANGE,
+                interval: null,
+                events: ['_all'],
+                metrics: ['totals'],
+                groupBy: 'city',
+            }),
+            limit: 5000,
+        });
+        expect(result.rows).toHaveLength(1000);
+        expect(result.rows[0]).toMatchObject({ event_type: 'All events' });
+        expect(result.hasMoreRows).toBe(true);
+    });
+
+    it('refuses a group without a label instead of merging it', async () => {
+        const { source } = connect(
+            jsonResponse({
+                data: {
+                    series: [[1], [2]],
+                    seriesLabels: ['Spain', {}],
+                    seriesCollapsed: [[{ value: 1 }], [{ value: 2 }]],
+                    xValues: ['2026-10-01'],
+                },
+            }),
+        );
+        await expect(
+            source.run({
+                query: JSON.stringify({
+                    endpoint: 'segmentation',
+                    ...RANGE,
+                    interval: null,
+                    events: ['Purchase'],
+                    metrics: ['totals'],
+                    groupBy: 'country',
+                }),
+                limit: 10,
+            }),
+        ).rejects.toThrow(/without a country label/);
+    });
+
     it('refuses a malformed request before calling', async () => {
         const { send, source } = connect();
         await expect(
@@ -381,6 +435,19 @@ describe('amplitudeIntegration run', () => {
                 limit: 10,
             }),
         ).rejects.toBeInstanceOf(ParameterError);
+        await expect(
+            source.run({
+                query: JSON.stringify({
+                    endpoint: 'segmentation',
+                    ...RANGE,
+                    interval: 1,
+                    events: ['A', 'B', 'C', 'D', 'E', 'F'],
+                    metrics: ['totals', 'uniques', 'average', 'pct_dau'],
+                    groupBy: null,
+                }),
+                limit: 10,
+            }),
+        ).rejects.toThrow(/events × metrics/);
         expect(send).not.toHaveBeenCalled();
     });
 

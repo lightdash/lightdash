@@ -46,13 +46,7 @@ export const amplitudeIntegration = defineLiveIntegration({
         pathPrefixes: Object.values(AMPLITUDE_PATHS),
         methods: ['GET'],
     }),
-    // Amplitude runs 5 Dashboard API queries at once per project and limits
-    // their cost per hour (days × conditions × query type). These stay well
-    // under it and leave room for other clients of the same project.
     limits: {
-        concurrentCalls: 3,
-        callsPerMinute: 60,
-        callsPerHour: 1_000,
         callsPerQuery: AMPLITUDE_CALLS_PER_QUERY,
         timeoutMs: 60_000,
         maxRows: AMPLITUDE_MAX_QUERY_ROWS,
@@ -110,8 +104,11 @@ export const amplitudeIntegration = defineLiveIntegration({
         description:
             'No paging: each call returns every row, up to 1,000 group values by default and 20,000 at most.',
     },
+    // Amplitude runs 5 Dashboard API queries at once per project and limits
+    // their cost per hour (days × conditions × query type). These stay well
+    // under it and leave room for other clients of the same project.
     rateLimits: {
-        concurrentCalls: 5,
+        concurrentCalls: 3,
         callsPerSecond: null,
         buckets: [
             {

@@ -153,6 +153,32 @@ describe('compileAmplitudeQuery', () => {
             ).toThrow(/Add Event to the dimensions/);
         });
 
+        it('refuses more event and metric pairs than one query may call', () => {
+            expect(() =>
+                events.compile(
+                    events.query(
+                        ['event_type'],
+                        [
+                            'event_count',
+                            'unique_users',
+                            'events_per_user',
+                            'percent_of_active_users',
+                        ],
+                        [
+                            events.rule('event_type', FilterOperator.EQUALS, [
+                                'A',
+                                'B',
+                                'C',
+                                'D',
+                                'E',
+                                'F',
+                            ]),
+                        ],
+                    ),
+                ),
+            ).toThrow(/at most 20 pairs/);
+        });
+
         it('refuses two user properties and two date grains', () => {
             expect(() =>
                 events.compile(

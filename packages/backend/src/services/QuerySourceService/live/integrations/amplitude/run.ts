@@ -3,6 +3,7 @@ import {
     ApiConnectorType,
     DimensionType,
     LIVE_INTEGRATION_CATALOG,
+    UnexpectedServerError,
 } from '@lightdash/common';
 import { z } from 'zod';
 import {
@@ -133,7 +134,16 @@ export const amplitudeRequestSchema = z
     ])
     .refine((request) => request.start <= request.end, {
         message: 'The date range starts after it ends',
-    });
+    })
+    .refine(
+        (request) =>
+            request.endpoint !== 'segmentation' ||
+            request.events.length * request.metrics.length <=
+                AMPLITUDE_CALLS_PER_QUERY,
+        {
+            message: `Amplitude reads one event and metric per call: keep events × metrics to ${AMPLITUDE_CALLS_PER_QUERY} or fewer`,
+        },
+    );
 
 export type AmplitudeRequest = z.infer<typeof amplitudeRequestSchema>;
 
@@ -235,10 +245,24 @@ const toGroupLabel = (label: unknown): string | null => {
     return null;
 };
 
-const getGroupLabels = (data: SeriesData) =>
-    data.series.map((_, index) =>
-        toGroupLabel(data.seriesLabels?.[index] ?? data.seriesMeta?.[index]),
-    );
+/**
+ * Each group's label. A group Amplitude doesn't label would merge into
+ * another's row, so that fails instead.
+ */
+const getGroupLabels = (data: SeriesData, groupBy: string | null) => {
+    if (!groupBy) return [];
+    return data.series.map((_, index) => {
+        const label = toGroupLabel(
+            data.seriesLabels?.[index] ?? data.seriesMeta?.[index],
+        );
+        if (label === null) {
+            throw new UnexpectedServerError(
+                `${LABEL} returned a group without a ${groupBy} label`,
+            );
+        }
+        return label;
+    });
+};
 
 const toIsoDate = (value: string): string | null => {
     const iso = value.slice(0, 10);
@@ -294,6 +318,13 @@ export const toRetentionCohortDate = (
         null
     );
 };
+
+/** Amplitude's names for every event, as people read them. */
+const EVENT_LABELS: Record<string, string> = {
+    _all: 'All events',
+    _active: 'Any active event',
+};
+const toEventLabel = (event: string) => EVENT_LABELS[event] ?? event;
 
 export const AMPLITUDE_DATE_COLUMNS = { 1: 'date', 7: 'week', 30: 'month' };
 
@@ -355,10 +386,10 @@ const runSegmentation = async (
     responses.forEach(({ data }, index) => {
         const { event, metric } = pairs[index];
         const column = AMPLITUDE_SEGMENTATION_METRICS[metric];
-        const labels = getGroupLabels(data);
+        const labels = getGroupLabels(data, request.groupBy);
         data.series.forEach((values, seriesIndex) => {
             const base: Row = {
-                event_type: event,
+                event_type: toEventLabel(event),
                 ...(request.groupBy
                     ? { [request.groupBy]: labels[seriesIndex] }
                     : {}),
@@ -381,6 +412,12 @@ const runSegmentation = async (
         });
     });
     return {
+        // Amplitude drops the groups past its limit without saying so
+        truncated:
+            request.groupBy !== null &&
+            responses.some(
+                ({ data }) => data.series.length >= SEGMENTATION_GROUP_LIMIT,
+            ),
         columns: [
             ...(dateColumn
                 ? [{ name: dateColumn, type: DimensionType.DATE }]
@@ -423,7 +460,7 @@ const runUsers = async (
     );
     responses.forEach(({ data }, index) => {
         const column = AMPLITUDE_USER_METRICS[request.metrics[index]];
-        const labels = getGroupLabels(data);
+        const labels = getGroupLabels(data, request.groupBy);
         data.series.forEach((values, seriesIndex) => {
             values.forEach((value, x) => {
                 merged.set(
@@ -607,7 +644,10 @@ const runSessions = async (
     };
 };
 
-const runRequest = (request: AmplitudeRequest, calls: LiveCalls) => {
+const runRequest = (
+    request: AmplitudeRequest,
+    calls: LiveCalls,
+): Promise<{ columns: LiveColumn[]; rows: Row[]; truncated?: boolean }> => {
     switch (request.endpoint) {
         case 'segmentation':
             return runSegmentation(request, calls);
@@ -637,12 +677,12 @@ export const runAmplitudeQuery = async ({
     ApiConnectorType.AMPLITUDE,
     AmplitudeRequest
 >): Promise<LiveRunResult> => {
-    const { columns, rows } = await runRequest(request, calls);
+    const { columns, rows, truncated } = await runRequest(request, calls);
     const rowLimit = Math.min(limit, AMPLITUDE_MAX_QUERY_ROWS);
     return {
         columns,
         rows: rows.slice(0, rowLimit),
-        hasMoreRows: rows.length > rowLimit,
+        hasMoreRows: rows.length > rowLimit || truncated === true,
     };
 };
 

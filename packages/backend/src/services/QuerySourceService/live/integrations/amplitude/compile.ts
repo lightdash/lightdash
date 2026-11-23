@@ -18,6 +18,7 @@ import {
 import { resolveAbsoluteDateRange } from '../../query/dateRange';
 import { isAmplitudeUserProperty } from './explores';
 import {
+    AMPLITUDE_CALLS_PER_QUERY,
     AMPLITUDE_MAX_EVENTS,
     AMPLITUDE_MAX_FUNNEL_STEPS,
     AMPLITUDE_SEGMENTATION_METRICS,
@@ -172,6 +173,12 @@ const toSegmentation = (query: ReadQuery): AmplitudeRequest => {
         throw refuse(
             null,
             "Add Event to the dimensions to compare several events: Amplitude counts unique users per event, and they can't be added together.",
+        );
+    }
+    if (events.length * query.metrics.length > AMPLITUDE_CALLS_PER_QUERY) {
+        throw refuse(
+            null,
+            `Amplitude reads one event and metric per call: pick fewer events or metrics, at most ${AMPLITUDE_CALLS_PER_QUERY} pairs.`,
         );
     }
     return {
