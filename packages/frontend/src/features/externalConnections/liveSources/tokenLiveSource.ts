@@ -13,6 +13,8 @@ import { useForm } from '@mantine/form';
  */
 export type TokenLiveSourceForm = {
     origin: string;
+    /** For APIs on a host of each customer's own, read from the account field. */
+    getOrigin?: (accountId: string) => string;
     /** Null when the token alone decides what the source reads. */
     account: {
         label: string;
@@ -93,7 +95,7 @@ export const toTokenLiveSourceCreatePayload = (
     return {
         name: values.name.trim(),
         type: 'bearer_token',
-        origin: form.origin,
+        origin: form.getOrigin?.(accountId) ?? form.origin,
         secret: values.token.trim(),
         apiSource: form.toApiSource(accountId),
         ...form.getAccess(accountId),
@@ -109,9 +111,11 @@ export const toTokenLiveSourceUpdatePayload = (
     values: TokenLiveSourceValues,
 ): UpdateExternalConnection => {
     const token = values.token.trim();
+    const accountId = normalizeAccountId(form, values.accountId);
     return {
         name: values.name.trim(),
-        apiSource: form.toApiSource(normalizeAccountId(form, values.accountId)),
+        apiSource: form.toApiSource(accountId),
+        ...(form.getOrigin ? { origin: form.getOrigin(accountId) } : {}),
         ...(token ? { secret: token } : {}),
     };
 };

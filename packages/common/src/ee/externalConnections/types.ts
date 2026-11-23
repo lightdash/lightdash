@@ -110,6 +110,13 @@ export type SalesforceApiSource = {
     connector: ApiConnectorType.SALESFORCE;
 };
 
+/** One SQL warehouse of a Databricks workspace; the workspace is the origin. */
+export type DatabricksApiSource = {
+    connector: ApiConnectorType.DATABRICKS;
+    /** The SQL warehouse ID, the last part of its HTTP path. */
+    warehouseId: string;
+};
+
 /** Connector settings of a live source; the server fixes its access rules. */
 export type ExternalConnectionApiSource =
     | PostHogApiSource
@@ -123,7 +130,8 @@ export type ExternalConnectionApiSource =
     | PylonApiSource
     | AttioApiSource
     | HubspotApiSource
-    | SalesforceApiSource;
+    | SalesforceApiSource
+    | DatabricksApiSource;
 
 /** The settings of one integration's sources. */
 export type ApiSourceOf<C extends ApiConnectorType> = Extract<
@@ -154,6 +162,21 @@ export const POSTHOG_REGION_ORIGINS = {
 /** The setup test's HogQL: one cheap read whose answer is worth showing. */
 export const POSTHOG_TEST_QUERY =
     'SELECT count(DISTINCT event) FROM events WHERE timestamp > now() - INTERVAL 7 DAY';
+
+// Workspace hosts on AWS, Azure and Google Cloud
+const DATABRICKS_WORKSPACE_ORIGIN =
+    /^https:\/\/[a-z0-9][a-z0-9-]{0,62}(\.[a-z0-9][a-z0-9-]{0,62})*\.(cloud\.databricks\.com|gcp\.databricks\.com|azuredatabricks\.net)$/;
+
+/** Whether an origin is a Databricks workspace, such as https://dbc-1a2b3c4d-5e6f.cloud.databricks.com. */
+export const isDatabricksWorkspaceOrigin = (origin: string) =>
+    DATABRICKS_WORKSPACE_ORIGIN.test(origin.toLowerCase()) &&
+    !origin.toLowerCase().startsWith('https://accounts.');
+
+export const DATABRICKS_STATEMENTS_PATH = '/api/2.0/sql/statements';
+
+/** The SQL warehouse a source runs on; the setup test reads it. */
+export const getDatabricksWarehousePath = (warehouseId: string) =>
+    `/api/2.0/sql/warehouses/${warehouseId}`;
 
 export const META_ADS_ORIGIN = 'https://graph.facebook.com';
 export const META_ADS_API_VERSION = 'v25.0';

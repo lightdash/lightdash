@@ -54,6 +54,111 @@ exports[`live data source names > Attio explore names and field ids never change
 }
 `;
 
+exports[`live data source names > Databricks explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "databricks_billing_usage_billing_origin_product",
+        "databricks_billing_usage_cloud",
+        "databricks_billing_usage_cluster_id",
+        "databricks_billing_usage_is_serverless",
+        "databricks_billing_usage_job_id",
+        "databricks_billing_usage_list_cost",
+        "databricks_billing_usage_record_type",
+        "databricks_billing_usage_run_as",
+        "databricks_billing_usage_sku_name",
+        "databricks_billing_usage_usage_date",
+        "databricks_billing_usage_usage_month",
+        "databricks_billing_usage_usage_quantity",
+        "databricks_billing_usage_usage_unit",
+        "databricks_billing_usage_usage_week",
+        "databricks_billing_usage_warehouse_id",
+        "databricks_billing_usage_workspace_id",
+      ],
+      "name": "databricks_billing_usage",
+    },
+    {
+      "fieldIds": [
+        "databricks_query_history_avg_duration_ms",
+        "databricks_query_history_avg_waiting_at_capacity_ms",
+        "databricks_query_history_avg_waiting_for_compute_ms",
+        "databricks_query_history_client_application",
+        "databricks_query_history_error_message",
+        "databricks_query_history_executed_by",
+        "databricks_query_history_execution_status",
+        "databricks_query_history_failed_queries",
+        "databricks_query_history_p95_duration_ms",
+        "databricks_query_history_query_count",
+        "databricks_query_history_read_bytes",
+        "databricks_query_history_read_rows",
+        "databricks_query_history_start_date",
+        "databricks_query_history_start_month",
+        "databricks_query_history_start_week",
+        "databricks_query_history_statement_id",
+        "databricks_query_history_statement_type",
+        "databricks_query_history_total_duration_ms",
+        "databricks_query_history_warehouse_id",
+        "databricks_query_history_workspace_id",
+      ],
+      "name": "databricks_query_history",
+    },
+    {
+      "fieldIds": [
+        "databricks_job_runs_failed_runs",
+        "databricks_job_runs_job_id",
+        "databricks_job_runs_result_state",
+        "databricks_job_runs_run_count",
+        "databricks_job_runs_run_date",
+        "databricks_job_runs_run_id",
+        "databricks_job_runs_run_month",
+        "databricks_job_runs_run_seconds",
+        "databricks_job_runs_run_type",
+        "databricks_job_runs_run_week",
+        "databricks_job_runs_trigger_type",
+        "databricks_job_runs_workspace_id",
+      ],
+      "name": "databricks_job_runs",
+    },
+    {
+      "fieldIds": [
+        "databricks_audit_events_action_name",
+        "databricks_audit_events_distinct_users",
+        "databricks_audit_events_event_count",
+        "databricks_audit_events_event_date",
+        "databricks_audit_events_event_month",
+        "databricks_audit_events_event_week",
+        "databricks_audit_events_service_name",
+        "databricks_audit_events_source_ip_address",
+        "databricks_audit_events_status_code",
+        "databricks_audit_events_user_email",
+        "databricks_audit_events_workspace_id",
+      ],
+      "name": "databricks_audit_events",
+    },
+    {
+      "fieldIds": [
+        "databricks_tables_created",
+        "databricks_tables_data_source_format",
+        "databricks_tables_last_altered",
+        "databricks_tables_table_catalog",
+        "databricks_tables_table_count",
+        "databricks_tables_table_name",
+        "databricks_tables_table_owner",
+        "databricks_tables_table_schema",
+        "databricks_tables_table_type",
+      ],
+      "name": "databricks_tables",
+    },
+  ],
+  "reservedExploreNames": [
+    "databricks_clusters",
+    "databricks_warehouse_events",
+    "databricks_table_lineage",
+  ],
+}
+`;
+
 exports[`live data source names > GitHub explore names and field ids never change 1`] = `
 {
   "explores": [

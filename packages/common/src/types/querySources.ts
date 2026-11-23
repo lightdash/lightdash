@@ -75,6 +75,7 @@ export enum ApiConnectorType {
     ATTIO = 'attio',
     HUBSPOT = 'hubspot',
     SALESFORCE = 'salesforce',
+    DATABRICKS = 'databricks',
 }
 
 /**

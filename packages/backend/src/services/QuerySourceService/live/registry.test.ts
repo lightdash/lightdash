@@ -60,6 +60,10 @@ const SAMPLE_SETTINGS: {
     [ApiConnectorType.ATTIO]: { connector: ApiConnectorType.ATTIO },
     [ApiConnectorType.HUBSPOT]: { connector: ApiConnectorType.HUBSPOT },
     [ApiConnectorType.SALESFORCE]: { connector: ApiConnectorType.SALESFORCE },
+    [ApiConnectorType.DATABRICKS]: {
+        connector: ApiConnectorType.DATABRICKS,
+        warehouseId: '1a2b3c4d5e6f7a8b',
+    },
 };
 
 const SERVER_ERROR: LiveHttpResponse = {
