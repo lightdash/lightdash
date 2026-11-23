@@ -1,6 +1,11 @@
 import { Box } from '@mantine/core';
 import { emojify } from 'node-emoji';
-import { createElement, type CSSProperties, type ReactNode } from 'react';
+import {
+    createElement,
+    Fragment,
+    type CSSProperties,
+    type ReactNode,
+} from 'react';
 import { CodeBlockSlot, LinkSlot } from './WordsSlots';
 
 const VOID_ELEMENTS = new Set(['br', 'hr', 'img', 'input']);
@@ -61,6 +66,11 @@ function convertNode(node: Node, key: number, inCode: boolean): ReactNode {
     const isCode = inCode || tag === 'code' || tag === 'pre';
 
     if (tag === 'a') {
+        // Words strips unsafe hrefs; show those links as plain text.
+        if (!node.hasAttribute('href'))
+            return (
+                <Fragment key={key}>{convertChildren(node, isCode)}</Fragment>
+            );
         return (
             <LinkSlot
                 key={key}

@@ -109,7 +109,8 @@ describe('WordsMarkdown', () => {
         expect(container.querySelector('p br')).toBeInTheDocument();
         expect(container.querySelector('sup')).toHaveTextContent('2');
         expect(container.querySelector('img')).not.toBeInTheDocument();
-        expect(screen.getByTestId('link')).not.toHaveAttribute('data-href');
+        expect(screen.queryByTestId('link')).not.toBeInTheDocument();
+        expect(container.querySelector('p')).toHaveTextContent('bad');
         expect(container.querySelector('details')).toHaveAttribute('open');
         expect(container.querySelector('details li')).toHaveTextContent('item');
     });
