@@ -16436,19 +16436,112 @@ const models: TsoaRoute.Models = {
         enums: ['hydra'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HydraRateLimits: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                buckets: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            capacity: { dataType: 'double', required: true },
+                            windowMs: { dataType: 'double', required: true },
+                            id: { dataType: 'string', required: true },
+                        },
+                    },
+                    required: true,
+                },
+                callsPerSecond: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                concurrentCalls: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HydraOnLimit: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                body: { ref: 'Record_string.unknown_' },
+                retryAfterFormat: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['seconds'] },
+                        { dataType: 'enum', enums: ['date'] },
+                        { dataType: 'enum', enums: ['none'] },
+                    ],
+                    required: true,
+                },
+                status: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HydraMockResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                body: { ref: 'Record_string.unknown_' },
+                retryAfterSeconds: { dataType: 'double' },
+                status: { dataType: 'double', required: true },
+                toCall: { dataType: 'double' },
+                fromCall: { dataType: 'double' },
+                call: { dataType: 'double' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HydraApiSource: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                callsPerHour: { dataType: 'double', required: true },
-                callsPerMinute: { dataType: 'double', required: true },
-                rowCount: { dataType: 'double', required: true },
-                failAuth: { dataType: 'boolean', required: true },
-                retryAfterSeconds: { dataType: 'double', required: true },
-                retryAfterEvery: { dataType: 'double', required: true },
-                errorRate: { dataType: 'double', required: true },
-                latencyMs: { dataType: 'double', required: true },
+                mockResponses: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'HydraMockResponse' },
+                },
+                declaredLimits: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['vendor'] },
+                        { ref: 'HydraRateLimits' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                onLimit: { ref: 'HydraOnLimit' },
+                vendorLimits: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'HydraRateLimits' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                failAuth: { dataType: 'boolean' },
+                errorRate: { dataType: 'double' },
+                jitterMs: { dataType: 'double' },
+                latencyMs: { dataType: 'double' },
+                pageSize: { dataType: 'double' },
+                rowCount: { dataType: 'double' },
                 connector: { ref: 'ApiConnectorType.HYDRA', required: true },
             },
             validators: {},

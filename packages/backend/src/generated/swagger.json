@@ -16840,63 +16840,167 @@
                 "enum": ["hydra"],
                 "type": "string"
             },
-            "HydraApiSource": {
+            "HydraRateLimits": {
                 "properties": {
-                    "callsPerHour": {
+                    "buckets": {
+                        "items": {
+                            "properties": {
+                                "capacity": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "windowMs": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "id": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["capacity", "windowMs", "id"],
+                            "type": "object"
+                        },
+                        "type": "array",
+                        "description": "Fixed windows of calls, like a minute or an hour: up to 5, unique ids, \"second\" kept for `callsPerSecond`."
+                    },
+                    "callsPerSecond": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "concurrentCalls": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Calls in flight at once; null for no cap."
+                    }
+                },
+                "required": ["buckets", "callsPerSecond", "concurrentCalls"],
+                "type": "object",
+                "description": "Rate limits, in the shape the rate-limit gate reads."
+            },
+            "HydraOnLimit": {
+                "properties": {
+                    "body": {
+                        "$ref": "#/components/schemas/Record_string.unknown_",
+                        "description": "The body Hydra answers; `{\"code\": \"rate_limited\"}` marks a throttle in a non-429."
+                    },
+                    "retryAfterFormat": {
+                        "type": "string",
+                        "enum": ["seconds", "date", "none"],
+                        "description": "How Retry-After is written: as seconds, as an HTTP date, or left out."
+                    },
+                    "status": {
                         "type": "number",
                         "format": "double"
-                    },
-                    "callsPerMinute": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "The limits Lightdash keeps the source's calls under."
-                    },
-                    "rowCount": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Events seeded per sign-in token, over the last 90 days."
-                    },
-                    "failAuth": {
-                        "type": "boolean",
-                        "description": "Every call answers 401, as a revoked sign-in would."
+                    }
+                },
+                "required": ["retryAfterFormat", "status"],
+                "type": "object"
+            },
+            "HydraMockResponse": {
+                "properties": {
+                    "body": {
+                        "$ref": "#/components/schemas/Record_string.unknown_",
+                        "description": "The error body; error statuses only."
                     },
                     "retryAfterSeconds": {
                         "type": "number",
                         "format": "double",
-                        "description": "The Retry-After those 429s carry, in seconds."
+                        "description": "Sent as Retry-After; error statuses only."
                     },
-                    "retryAfterEvery": {
+                    "status": {
                         "type": "number",
-                        "format": "double",
-                        "description": "Every Nth call answers 429 with Retry-After; 0 never does."
+                        "format": "double"
+                    },
+                    "toCall": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "fromCall": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "call": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["status"],
+                "type": "object",
+                "description": "A fake answer a test sets for one call (`call`) or a range (`fromCall`, and `toCall`\nor every call after). Status 200 answers as usual, skipping `errorRate`;\n400 to 599 is answered as given."
+            },
+            "HydraApiSource": {
+                "properties": {
+                    "mockResponses": {
+                        "items": {
+                            "$ref": "#/components/schemas/HydraMockResponse"
+                        },
+                        "type": "array",
+                        "description": "Fake answers a test sets for given calls, counted per source from 1; the first match wins."
+                    },
+                    "declaredLimits": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/HydraRateLimits"
+                            },
+                            {
+                                "type": "string",
+                                "enum": ["vendor"]
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The limits Lightdash keeps the source's calls under: \"vendor\" copies\n`vendorLimits`, and null declares none."
+                    },
+                    "onLimit": {
+                        "$ref": "#/components/schemas/HydraOnLimit",
+                        "description": "How Hydra refuses a call past `vendorLimits`."
+                    },
+                    "vendorLimits": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/HydraRateLimits"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The limits Hydra's API enforces, refusing calls past them; null enforces none."
+                    },
+                    "failAuth": {
+                        "type": "boolean",
+                        "description": "Every call answers 401, as a revoked sign-in would."
                     },
                     "errorRate": {
                         "type": "number",
                         "format": "double",
                         "description": "Share of calls, 0 to 1, that fail with a 500."
                     },
+                    "jitterMs": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Up to this many milliseconds more, at random, per call."
+                    },
                     "latencyMs": {
                         "type": "number",
                         "format": "double",
                         "description": "Milliseconds each call waits before answering."
                     },
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Rows per call, 10 or more; a bigger report takes several calls. 0 never pages."
+                    },
+                    "rowCount": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Events seeded per sign-in token, over the last 90 days."
+                    },
                     "connector": {
                         "$ref": "#/components/schemas/ApiConnectorType.HYDRA"
                     }
                 },
-                "required": [
-                    "callsPerHour",
-                    "callsPerMinute",
-                    "rowCount",
-                    "failAuth",
-                    "retryAfterSeconds",
-                    "retryAfterEvery",
-                    "errorRate",
-                    "latencyMs",
-                    "connector"
-                ],
+                "required": ["connector"],
                 "type": "object",
-                "description": "Hydra, the test integration: its rows are seeded from the sign-in token,\nand these settings make its fake API slow, fail or rate limit on demand."
+                "description": "Hydra, the test integration: its rows are seeded from the sign-in token,\nand these settings make its fake API slow, fail, page or rate limit.\nEvery setting is optional; one left out takes its default\n(`HYDRA_DEFAULT_SETTINGS`)."
             },
             "ExternalConnectionApiSource": {
                 "anyOf": [
@@ -81434,7 +81538,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.375.0",
+        "version": "3.376.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

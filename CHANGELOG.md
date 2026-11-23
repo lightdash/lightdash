@@ -1,3 +1,10 @@
+# [3.376.0](https://github.com/lightdash/lightdash/compare/3.375.0...3.376.0) (2026-11-23)
+
+
+### Features
+
+* **live-sources:** Hydra enforces vendor limits apart from the limits Lightdash declares ([#33267](https://github.com/lightdash/lightdash/issues/33267)) ([7aea920](https://github.com/lightdash/lightdash/commit/7aea92029a05b04c9647dc20f18abf71b9fff0fc))
+
 # [3.375.0](https://github.com/lightdash/lightdash/compare/3.374.1...3.375.0) (2026-11-23)
 
 
