@@ -1200,9 +1200,6 @@ export class SemanticStudioService extends BaseService {
                 projectUuid,
                 checkQueries: options.checkQueries,
                 status: result?.status ?? 'error',
-                ...(result?.status === 'unsupported'
-                    ? { reason: result.reason }
-                    : {}),
                 exploreCount:
                     result?.status === 'passed' ? result.explores.length : null,
                 ...timings.summary(),
