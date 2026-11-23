@@ -22,6 +22,16 @@ describe('Hydra behaviour', () => {
         );
     });
 
+    it('writes only the keys that differ from the defaults', () => {
+        expect(formatHydraBehaviour(HYDRA_DEFAULT_SETTINGS)).toBe('');
+        expect(
+            formatHydraBehaviour({
+                ...HYDRA_DEFAULT_SETTINGS,
+                latencyMs: 3000,
+            }),
+        ).toBe('latencyMs=3000');
+    });
+
     it.each([
         'speed=1',
         'latencyMs',

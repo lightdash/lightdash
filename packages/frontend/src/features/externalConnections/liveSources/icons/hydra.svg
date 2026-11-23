@@ -1,1 +1,13 @@
-<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="5" fill="#2F9E44"/><path d="M12 20v-6M12 14 7 8M12 14l5-6M12 14V6" stroke="#fff" stroke-width="1.8" stroke-linecap="round" fill="none"/><circle cx="7" cy="7" r="2" fill="#fff"/><circle cx="12" cy="5" r="2" fill="#fff"/><circle cx="17" cy="7" r="2" fill="#fff"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 100 100" role="img" aria-label="Hydra Ripple, six curling arms joined at the center">
+  <g fill="none" stroke="#FF636D">
+    <circle cx="50" cy="50" r="43" stroke-width="2.5" opacity=".38"/>
+    <g stroke-width="6.5" stroke-linecap="round">
+    <path transform="rotate(0 50 50)" d="M50 50 C47 44 47 35 51 29 C54 24 57 22 61 22 C66 22 69 26 68 30"/>
+    <path transform="rotate(60 50 50)" d="M50 50 C47 44 47 35 51 29 C54 24 57 22 61 22 C66 22 69 26 68 30"/>
+    <path transform="rotate(120 50 50)" d="M50 50 C47 44 47 35 51 29 C54 24 57 22 61 22 C66 22 69 26 68 30"/>
+    <path transform="rotate(180 50 50)" d="M50 50 C47 44 47 35 51 29 C54 24 57 22 61 22 C66 22 69 26 68 30"/>
+    <path transform="rotate(240 50 50)" d="M50 50 C47 44 47 35 51 29 C54 24 57 22 61 22 C66 22 69 26 68 30"/>
+    <path transform="rotate(300 50 50)" d="M50 50 C47 44 47 35 51 29 C54 24 57 22 61 22 C66 22 69 26 68 30"/>
+    </g>
+  </g>
+</svg>

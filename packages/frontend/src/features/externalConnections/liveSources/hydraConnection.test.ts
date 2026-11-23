@@ -43,7 +43,7 @@ describe('hydraConnection', () => {
         });
     });
 
-    it('shows a saved source behaviour in full and checks edits', () => {
+    it('shows only the changed keys of a saved source and checks edits', () => {
         const line = HYDRA_TOKEN_FORM.getAccountId({
             apiSource: {
                 ...HYDRA_DEFAULT_SETTINGS,
@@ -51,7 +51,7 @@ describe('hydraConnection', () => {
                 errorRate: 0.5,
             },
         } as Parameters<typeof HYDRA_TOKEN_FORM.getAccountId>[0]);
-        expect(line).toContain('errorRate=0.5');
+        expect(line).toBe('errorRate=0.5');
         expect(HYDRA_TOKEN_FORM.account.isValid(line)).toBe(true);
         expect(HYDRA_TOKEN_FORM.account.isValid('errorRate=2')).toBe(false);
         expect(HYDRA_TOKEN_FORM.account.isValid('speed=fast')).toBe(false);

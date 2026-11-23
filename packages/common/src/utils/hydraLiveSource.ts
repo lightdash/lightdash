@@ -25,7 +25,9 @@ const isKey = (key: string): key is keyof HydraBehaviour =>
 
 /** Hydra's settings as one line of `key=value` pairs, as the setup form shows them. */
 export const formatHydraBehaviour = (settings: HydraApiSource): string =>
-    KEYS.map((key) => `${key}=${settings[key]}`).join(' ');
+    KEYS.filter((key) => settings[key] !== HYDRA_DEFAULT_SETTINGS[key])
+        .map((key) => `${key}=${settings[key]}`)
+        .join(' ');
 
 /**
  * Reads `key=value` pairs separated by spaces or commas; keys left out keep

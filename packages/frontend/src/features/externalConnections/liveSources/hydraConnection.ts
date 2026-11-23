@@ -18,8 +18,8 @@ export const HYDRA_TOKEN_FORM = {
     account: {
         label: 'Behaviour',
         description:
-            'key=value pairs: latencyMs, errorRate (0 to 1), retryAfterEvery, retryAfterSeconds, failAuth, rowCount, callsPerMinute, callsPerHour. Leave blank for the defaults.',
-        placeholder: formatHydraBehaviour(HYDRA_DEFAULT_SETTINGS),
+            'key=value pairs: latencyMs, errorRate (0 to 1), retryAfterEvery, retryAfterSeconds, failAuth, rowCount, callsPerMinute, callsPerHour',
+        placeholder: 'Leave blank for defaults',
         invalidMessage:
             'Use key=value pairs with the keys above, numbers of 0 or more, errorRate up to 1 and failAuth true or false',
         normalize: (value) => {
@@ -29,6 +29,7 @@ export const HYDRA_TOKEN_FORM = {
         isValid: (value) => parseHydraBehaviour(value) !== null,
     },
     tokenLabel: 'Sign-in token',
+    tokenHint: 'Any token works, and each one reads its own rows',
     toApiSource: (behaviour) =>
         parseHydraBehaviour(behaviour) ?? HYDRA_DEFAULT_SETTINGS,
     getAccountId: ({ apiSource }) =>
