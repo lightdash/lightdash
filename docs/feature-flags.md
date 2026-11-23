@@ -690,5 +690,6 @@ permission and flag checks its navbar entry has.
 
 It uses the standard resolver with no custom handler, so user and organization
 Console overrides and the generic ENV lists apply. A change shows after the
-page is reloaded. Phone-width windows and the chart editor opened from a
+page is reloaded. The browser remembers the last answer and draws that layout
+while the flag loads, so the first load after a change starts in the old one. Phone-width windows and the chart editor opened from a
 dashboard keep the top navbar.
