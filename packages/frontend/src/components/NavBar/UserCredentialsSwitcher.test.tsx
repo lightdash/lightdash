@@ -1,5 +1,5 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactNode } from 'react';
@@ -227,6 +227,8 @@ describe('UserCredentialsSwitcher required credentials prompt', () => {
         '/projects/project/apps/app',
         '/projects/project/apps/app/view',
         '/projects/project/apps/app/versions/2/view',
+        '/projects/project/dashboards/dash/edit',
+        '/projects/project/dashboards/dash/edit/tabs/tab',
     ])('opens on %s without credentials', async (path) => {
         renderAt(path);
         expect(
@@ -259,6 +261,71 @@ describe('UserCredentialsSwitcher required credentials prompt', () => {
         await new Promise((resolve) => {
             setTimeout(resolve, 50);
         });
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('offers a connect button that reopens the prompt while setup is incomplete', async () => {
+        const user = userEvent.setup();
+        renderAt('/projects/project/home');
+        await user.click(await screen.findByRole('button', { name: 'Close' }));
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(
+            screen.queryByRole('button', { name: 'Warehouse credentials' }),
+        ).toBeNull();
+
+        await user.click(
+            screen.getByRole('button', { name: 'Connect PostgreSQL' }),
+        );
+        expect(await screen.findByRole('dialog')).toHaveTextContent(
+            'Login to PostgreSQL',
+        );
+    });
+
+    it('keeps the credentials menu once the user has compatible credentials', () => {
+        mocks.credentials = [
+            { uuid: 'mine', name: 'Mine', credentials: postgres },
+        ];
+        renderAt('/projects/project/home');
+        expect(
+            screen.getByRole('button', { name: 'Warehouse credentials' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Connect PostgreSQL' }),
+        ).toBeNull();
+    });
+
+    it('stays closed when an already failed query is invalidated', async () => {
+        const user = userEvent.setup();
+        const Invalidate = () => {
+            const queryClient = useQueryClient();
+            return (
+                <button onClick={() => queryClient.invalidateQueries()}>
+                    Invalidate
+                </button>
+            );
+        };
+        const queryFn = vi
+            .fn()
+            .mockRejectedValueOnce({
+                error: { name: 'MissingWarehouseCredentialsError' },
+            })
+            .mockResolvedValue('rows');
+        const Query = () => {
+            useQuery({ queryKey: ['tile'], queryFn, retry: false });
+            return null;
+        };
+        renderWithProviders(
+            <MemoryRouter initialEntries={['/projects/project/spaces']}>
+                <UserCredentialsSwitcher />
+                <Query />
+                <Invalidate />
+            </MemoryRouter>,
+        );
+        await user.click(await screen.findByRole('button', { name: 'Close' }));
+
+        await user.click(screen.getByRole('button', { name: 'Invalidate' }));
+        await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2));
+
         expect(screen.queryByRole('dialog')).toBeNull();
     });
 

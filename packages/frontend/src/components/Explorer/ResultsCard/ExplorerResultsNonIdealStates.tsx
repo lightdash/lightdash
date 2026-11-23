@@ -13,6 +13,7 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { LD_FIELD_COLORS } from '../../../theme';
 import { SectionName } from '../../../types/Events';
+import { ConnectWarehouseAction } from '../../common/ConnectWarehouseAction';
 import { EmptyState } from '../../common/EmptyState';
 import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
@@ -255,7 +256,9 @@ export const ExploreErrorState = ({
                     )}
                 </Fragment>
             }
-        />
+        >
+            <ConnectWarehouseAction error={errorDetail} />
+        </EmptyState>
     );
 };
 

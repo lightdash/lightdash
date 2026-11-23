@@ -12,6 +12,8 @@ import {
 } from '../../hooks/userWarehouseCredentials/useProjectUserWarehouseCredentialsPreference';
 import { useProjectUserWarehouseCredentials } from '../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import {
+    registerWarehouseCredentialsPrompt,
+    retryAfterWarehouseCredentialsSaved,
     WAREHOUSE_CREDENTIALS_ERROR,
     type WarehouseCredentialsErrorDetail,
 } from '../../hooks/userWarehouseCredentials/warehouseCredentialsError';
@@ -50,10 +52,12 @@ const UserCredentialsSwitcher = () => {
     const { data: preferredCredentials } =
         useProjectUserWarehouseCredentialsPreference(activeProjectUuid);
     const { mutate } = useProjectUserWarehouseCredentialsPreferenceMutation({
-        onSuccess: () => {
+        onSuccess: (_data, { projectUuid }) => {
             if (needsWarehouseCredentials) {
                 // reload page because we can't invalidate the results mutation
                 window.location.reload();
+            } else {
+                retryAfterWarehouseCredentialsSaved(queryClient, projectUuid);
             }
         },
     });
@@ -121,8 +125,10 @@ const UserCredentialsSwitcher = () => {
     // Re-open the credentials modal whenever a query fails on credentials
     useEffect(() => {
         const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
-            if (event.type === 'updated' && event.query.state.error) {
-                handleCredentialsError((event.query.state.error as any)?.error);
+            // Only a fresh failure: an errored query also emits updates when
+            // it is invalidated or refetched after credentials are saved
+            if (event.type === 'updated' && event.action.type === 'error') {
+                handleCredentialsError((event.action.error as any)?.error);
             }
         });
 
@@ -138,8 +144,11 @@ const UserCredentialsSwitcher = () => {
             handleCredentialsError(detail.error);
         };
         window.addEventListener(WAREHOUSE_CREDENTIALS_ERROR, listener);
-        return () =>
+        const unregister = registerWarehouseCredentialsPrompt();
+        return () => {
             window.removeEventListener(WAREHOUSE_CREDENTIALS_ERROR, listener);
+            unregister();
+        };
     }, [activeProjectUuid, handleCredentialsError]);
 
     // Page content that autofocuses on load (the home Ask AI box) would take
@@ -200,59 +209,85 @@ const UserCredentialsSwitcher = () => {
         return null;
     }
 
+    // Nothing to switch between yet, so offer the setup itself
+    const needsSetup =
+        requiresUserCredentials && compatibleCredentials?.length === 0;
+
     return (
         <>
-            <Menu
-                position="bottom-end"
-                arrowOffset={16}
-                offset={-2}
-                zIndex={getDefaultZIndex('max')}
-                {...menuProps}
-            >
-                <Menu.Target>
-                    <Button
-                        aria-label="Warehouse credentials"
-                        variant="default"
-                        size="xs"
-                    >
+            {needsSetup ? (
+                <Button
+                    variant="default"
+                    size="xs"
+                    leftSection={
                         <MantineIcon
                             icon={IconDatabaseCog}
                             color="light-dark(var(--mantine-color-blue-6), var(--mantine-color-blue-4))"
                         />
-                    </Button>
-                </Menu.Target>
+                    }
+                    onClick={() => {
+                        setShowCreateModalOnPageLoad(true);
+                        setIsCreatingCredentials(true);
+                    }}
+                >
+                    Connect{' '}
+                    {getWarehouseLabel(activeProject.warehouseConnection?.type)}
+                </Button>
+            ) : (
+                <Menu
+                    position="bottom-end"
+                    arrowOffset={16}
+                    offset={-2}
+                    zIndex={getDefaultZIndex('max')}
+                    {...menuProps}
+                >
+                    <Menu.Target>
+                        <Button
+                            aria-label="Warehouse credentials"
+                            variant="default"
+                            size="xs"
+                        >
+                            <MantineIcon
+                                icon={IconDatabaseCog}
+                                color="light-dark(var(--mantine-color-blue-6), var(--mantine-color-blue-4))"
+                            />
+                        </Button>
+                    </Menu.Target>
 
-                <Menu.Dropdown>
-                    {(compatibleCredentials || []).map((item) => (
+                    <Menu.Dropdown>
+                        {(compatibleCredentials || []).map((item) => (
+                            <Menu.Item
+                                key={item.uuid}
+                                leftSection={
+                                    <MantineIcon icon={IconDatabaseCog} />
+                                }
+                                rightSection={
+                                    preferredCredentials?.uuid === item.uuid ? (
+                                        <MantineIcon icon={IconCheck} />
+                                    ) : undefined
+                                }
+                                onClick={() => {
+                                    mutate({
+                                        projectUuid: activeProjectUuid,
+                                        userWarehouseCredentialsUuid: item.uuid,
+                                    });
+                                }}
+                            >
+                                {item.name}
+                            </Menu.Item>
+                        ))}
+                        <Menu.Divider />
                         <Menu.Item
-                            key={item.uuid}
-                            leftSection={<MantineIcon icon={IconDatabaseCog} />}
-                            rightSection={
-                                preferredCredentials?.uuid === item.uuid ? (
-                                    <MantineIcon icon={IconCheck} />
-                                ) : undefined
-                            }
+                            leftSection={<MantineIcon icon={IconPlus} />}
                             onClick={() => {
-                                mutate({
-                                    projectUuid: activeProjectUuid,
-                                    userWarehouseCredentialsUuid: item.uuid,
-                                });
+                                setIsCreatingCredentials(true);
                             }}
                         >
-                            {item.name}
+                            Create new
                         </Menu.Item>
-                    ))}
-                    <Menu.Divider />
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconPlus} />}
-                        onClick={() => {
-                            setIsCreatingCredentials(true);
-                        }}
-                    >
-                        Create new
-                    </Menu.Item>
-                </Menu.Dropdown>
-            </Menu>
+                    </Menu.Dropdown>
+                </Menu>
+            )}
             {isCreatingCredentials && (
                 <AppColorSchemeScope>
                     <CreateCredentialsModal
