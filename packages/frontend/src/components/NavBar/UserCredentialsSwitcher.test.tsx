@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { reportWarehouseCredentialsError } from '../../hooks/userWarehouseCredentials/warehouseCredentialsError';
 import { renderWithProviders } from '../../testing/testUtils';
 import UserCredentialsSwitcher from './UserCredentialsSwitcher';
 
@@ -201,5 +202,86 @@ describe('UserCredentialsSwitcher Snowflake sign-in expiry', () => {
         const dialog = await closeThenCreateNew();
         expect(dialog).toHaveTextContent('Login to Snowflake');
         expect(dialog).toHaveTextContent('requires that you login to');
+    });
+});
+
+describe('UserCredentialsSwitcher required credentials prompt', () => {
+    const postgres = { type: WarehouseTypes.POSTGRES };
+    const renderAt = (path: string) =>
+        renderWithProviders(
+            <MemoryRouter initialEntries={[path]}>
+                <UserCredentialsSwitcher />
+            </MemoryRouter>,
+        );
+
+    beforeEach(() => {
+        mocks.credentials = [];
+        mocks.warehouseConnection = {
+            ...postgres,
+            requireUserCredentials: true,
+        };
+    });
+
+    it.each([
+        '/projects/project/home',
+        '/projects/project/apps/app',
+        '/projects/project/apps/app/view',
+        '/projects/project/apps/app/versions/2/view',
+    ])('opens on %s without credentials', async (path) => {
+        renderAt(path);
+        expect(
+            await screen.findByText(/requires that you login to/),
+        ).toBeInTheDocument();
+    });
+
+    it('stays closed on the new-app composer', async () => {
+        renderAt('/projects/project/apps/generate');
+        await new Promise((resolve) => {
+            setTimeout(resolve, 50);
+        });
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('stays closed on home when credentials are not required', async () => {
+        mocks.warehouseConnection = postgres;
+        renderAt('/projects/project/home');
+        await new Promise((resolve) => {
+            setTimeout(resolve, 50);
+        });
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('stays closed on home with compatible credentials', async () => {
+        mocks.credentials = [
+            { uuid: 'mine', name: 'Mine', credentials: postgres },
+        ];
+        renderAt('/projects/project/home');
+        await new Promise((resolve) => {
+            setTimeout(resolve, 50);
+        });
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('opens when a request outside the query cache reports missing credentials', async () => {
+        renderAt('/projects/project/spaces');
+        expect(screen.queryByRole('dialog')).toBeNull();
+        reportWarehouseCredentialsError('project', {
+            name: 'MissingWarehouseCredentialsError',
+        });
+        expect(
+            await screen.findByText(/requires that you login to/),
+        ).toBeInTheDocument();
+    });
+
+    it('ignores reported errors for another project or of another kind', async () => {
+        renderAt('/projects/project/spaces');
+        reportWarehouseCredentialsError('other', {
+            name: 'MissingWarehouseCredentialsError',
+        });
+        reportWarehouseCredentialsError('project', { name: 'ForbiddenError' });
+        await new Promise((resolve) => {
+            setTimeout(resolve, 50);
+        });
+        expect(screen.queryByRole('dialog')).toBeNull();
     });
 });
