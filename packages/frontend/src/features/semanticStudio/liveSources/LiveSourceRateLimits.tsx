@@ -3,107 +3,24 @@
  * integration declares, when each resets, and whether the vendor has paused
  * it. Read once when the page opens.
  */
-import { type ExternalConnectionRateLimitUsage } from '@lightdash/common';
-import { Box, Progress, Text } from '@mantine/core';
+import { Progress, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { useExternalConnectionRateLimitUsage } from '../../externalConnections/hooks/useExternalConnectionRateLimitUsage';
+import {
+    SettingsCard,
+    SettingsRow,
+} from '../../externalConnections/liveSources/LiveSourceSettingsRows';
 import classes from './LiveSources.module.css';
 import {
-    formatPacing,
-    formatResetsAt,
+    capitalize,
     formatUntil,
     formatUsed,
+    isFull,
+    resetsOf,
 } from './rateLimitFormat';
 
-const capitalize = (text: string) =>
-    text.charAt(0).toUpperCase() + text.slice(1);
-
-const LimitRow: FC<{
-    label: string;
-    used: number;
-    capacity: number;
-    detail: string;
-}> = ({ label, used, capacity, detail }) => {
-    const isFull = used >= capacity;
-    return (
-        <Box className={classes.rateRow}>
-            <span className={classes.rateLabel}>{label}</span>
-            <Progress
-                value={
-                    capacity > 0 ? Math.min(100, (used / capacity) * 100) : 0
-                }
-                color={isFull ? 'red' : undefined}
-                size="sm"
-                aria-label={`${label}: ${formatUsed(used, capacity)}`}
-            />
-            <span className={classes.rateCount}>
-                {formatUsed(used, capacity)}
-            </span>
-            <span
-                className={classes.rateDetail}
-                data-limit-reached={isFull || undefined}
-            >
-                {detail}
-            </span>
-        </Box>
-    );
-};
-
-const RateLimitRows: FC<{ usage: ExternalConnectionRateLimitUsage }> = ({
-    usage,
-}) => {
-    const hasLimits = usage.buckets.length > 0 || usage.callsPerSecond !== null;
-    return (
-        <>
-            {usage.callsPerSecond !== null ? (
-                <Box className={classes.rateRow}>
-                    <span className={classes.rateLabel}>Paced</span>
-                    <span className={classes.rateSpan}>
-                        {formatPacing(usage.callsPerSecond)}
-                    </span>
-                </Box>
-            ) : null}
-            {usage.buckets.map((bucket) => {
-                const isFull = bucket.used >= bucket.capacity;
-                const resets = bucket.resetsAt
-                    ? formatResetsAt(bucket.resetsAt, usage.checkedAt)
-                    : 'No calls in this window';
-                return (
-                    <LimitRow
-                        key={bucket.id}
-                        label={capitalize(bucket.label)}
-                        used={bucket.used}
-                        capacity={bucket.capacity}
-                        detail={isFull ? `Limit reached, ${resets}` : resets}
-                    />
-                );
-            })}
-            {!hasLimits ? (
-                <Box className={classes.rateRow}>
-                    <span className={classes.rateLabel}>Limits</span>
-                    <span className={classes.rateSpan}>
-                        No rate limits declared
-                    </span>
-                </Box>
-            ) : null}
-            {usage.limitedUntil ? (
-                <Box className={classes.rateRow}>
-                    <span className={classes.rateLabel}>
-                        {usage.integrationLabel}
-                    </span>
-                    <span className={classes.rateSpan} data-paused>
-                        {`Paused by ${usage.integrationLabel} ${formatUntil(
-                            usage.limitedUntil,
-                            usage.checkedAt,
-                        )}`}
-                    </span>
-                </Box>
-            ) : null}
-        </>
-    );
-};
-
-export const LiveSourceRateLimits: FC<{
+/** One row per declared limit, plus the vendor's pause while it lasts. */
+export const LiveSourceRateLimitsCard: FC<{
     projectUuid: string;
     connectionUuid: string;
 }> = ({ projectUuid, connectionUuid }) => {
@@ -111,21 +28,70 @@ export const LiveSourceRateLimits: FC<{
         projectUuid,
         connectionUuid,
     });
+    if (isError) {
+        return (
+            <SettingsCard title="Rate limits">
+                <SettingsRow
+                    label="Usage"
+                    hint="Couldn't read rate-limit usage. Reload the page to try again."
+                >
+                    {null}
+                </SettingsRow>
+            </SettingsCard>
+        );
+    }
+    if (!usage || (usage.buckets.length === 0 && !usage.limitedUntil)) {
+        return null;
+    }
     return (
-        <Box className={classes.rateLimits} aria-label="Rate limits">
-            <Box className={classes.rateHeader}>
-                <span className={classes.rateTitle}>Rate limits</span>
-            </Box>
-            {usage ? (
-                <RateLimitRows usage={usage} />
-            ) : isError ? (
-                <Text className={classes.rateNote}>
-                    Couldn't read rate-limit usage. Reload the page to try
-                    again.
-                </Text>
-            ) : (
-                <Text className={classes.rateNote}>Loading…</Text>
-            )}
-        </Box>
+        <SettingsCard title="Rate limits">
+            {usage.limitedUntil ? (
+                <SettingsRow
+                    label={`Paused by ${usage.integrationLabel}`}
+                    hint={`Calls resume ${formatUntil(
+                        usage.limitedUntil,
+                        usage.checkedAt,
+                    )}`}
+                >
+                    {null}
+                </SettingsRow>
+            ) : null}
+            {usage.buckets.map((bucket) => {
+                const full = isFull(bucket);
+                const resets = resetsOf(bucket, usage.checkedAt);
+                return (
+                    <SettingsRow
+                        key={bucket.id}
+                        label={capitalize(bucket.label)}
+                        hint={
+                            <span
+                                className={classes.rateDetail}
+                                data-limit-reached={full || undefined}
+                            >
+                                {full ? `Limit reached, ${resets}` : resets}
+                            </span>
+                        }
+                    >
+                        <Progress
+                            w={160}
+                            size="sm"
+                            value={
+                                bucket.capacity > 0
+                                    ? Math.min(
+                                          100,
+                                          (bucket.used / bucket.capacity) * 100,
+                                      )
+                                    : 0
+                            }
+                            color={full ? 'red' : undefined}
+                            aria-label={`${bucket.label}: ${formatUsed(bucket.used, bucket.capacity)}`}
+                        />
+                        <Text className={classes.rateCount}>
+                            {formatUsed(bucket.used, bucket.capacity)}
+                        </Text>
+                    </SettingsRow>
+                );
+            })}
+        </SettingsCard>
     );
 };

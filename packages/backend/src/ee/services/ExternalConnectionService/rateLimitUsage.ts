@@ -51,7 +51,6 @@ export const toRateLimitUsage = ({
     return {
         integrationLabel,
         checkedAt: snapshot.now.toISOString(),
-        callsPerSecond: rateLimits.callsPerSecond,
         buckets,
         limitedUntil:
             limitedUntil === null ? null : new Date(limitedUntil).toISOString(),

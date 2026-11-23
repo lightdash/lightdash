@@ -65,6 +65,7 @@ import {
     toLiveSourceAccessValues,
     type LiveSourceAccessValues,
 } from './liveSourceAccess';
+import { LiveSourceRateLimitsCard } from './LiveSourceRateLimits';
 import {
     formatFreshness,
     getLiveSourceFreshness,
@@ -558,6 +559,11 @@ export const LiveSourceSettings: FC<{
                         )}
                     </SettingsRow>
                 </SettingsCard>
+
+                <LiveSourceRateLimitsCard
+                    projectUuid={projectUuid}
+                    connectionUuid={connection.externalConnectionUuid}
+                />
 
                 <SettingsCard title="Danger zone">
                     <SettingsRow

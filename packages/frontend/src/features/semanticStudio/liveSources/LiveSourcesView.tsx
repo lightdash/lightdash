@@ -24,6 +24,7 @@ import {
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useResultsCacheStatus } from '../../../hooks/useProjectResultsCacheSettings';
 import { useExternalConnectionApiUsage } from '../../externalConnections/hooks/useExternalConnectionApiUsage';
+import { useExternalConnectionRateLimitUsage } from '../../externalConnections/hooks/useExternalConnectionRateLimitUsage';
 import { useExternalConnections } from '../../externalConnections/hooks/useExternalConnections';
 import { useLiveSourceFields } from '../../externalConnections/hooks/useLiveSourceFields';
 import { formatChartCount } from '../../externalConnections/liveSources/liveSourceCatalog';
@@ -37,6 +38,7 @@ import {
     type LiveSourceConnection,
 } from './liveSourceRows';
 import classes from './LiveSources.module.css';
+import { getRateLimitStat } from './rateLimitFormat';
 
 const stopPropagation = (event: MouseEvent) => event.stopPropagation();
 
@@ -245,6 +247,11 @@ export const LiveSourceSummary: FC<{
         connectionUuid: connection.externalConnectionUuid,
     });
     const { data: projectCache } = useResultsCacheStatus(projectUuid);
+    const { data: rateLimits } = useExternalConnectionRateLimitUsage({
+        projectUuid,
+        connectionUuid: connection.externalConnectionUuid,
+    });
+    const rateLimit = getRateLimitStat(rateLimits);
     const isProjectCacheOff = projectCache?.enabled === false;
     const row = toLiveSourceRow(connection, usage);
     const freshness = getLiveSourceFreshness(connection);
@@ -264,11 +271,11 @@ export const LiveSourceSummary: FC<{
                 <Stat label="Explore" value={fields?.exploreName ?? '—'} />
             )}
             <Stat
-                label="Access"
+                label="Fields in use"
                 value={
-                    connection.type === 'oauth_authorization_code'
-                        ? 'Signed in'
-                        : 'API key'
+                    allFields && inUse !== undefined
+                        ? `${inUse.toLocaleString()} of ${allFields.length.toLocaleString()}`
+                        : '—'
                 }
             />
             <Stat
@@ -307,12 +314,10 @@ export const LiveSourceSummary: FC<{
                 }
             />
             <Stat
-                label="Fields in use"
-                value={
-                    allFields && inUse !== undefined
-                        ? `${inUse.toLocaleString()} of ${allFields.length.toLocaleString()}`
-                        : '—'
-                }
+                label="Rate limit"
+                value={rateLimit.value}
+                detail={rateLimit.detail}
+                title={rateLimit.title}
             />
         </Box>
     );

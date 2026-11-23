@@ -130,83 +130,15 @@
     white-space: nowrap;
 }
 
-/* One source's rate limits: one row per limit, under its summary. */
-
-.rateLimits {
-    display: flex;
-    flex-direction: column;
-    flex: none;
-    padding: 10px 14px 12px;
-    background: var(--mantine-color-body);
-    border: 1px solid
-        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
-    border-radius: 12px;
-}
-
-.rateHeader {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    margin-bottom: 4px;
-}
-
-.rateTitle {
-    font-size: 13px;
-    font-weight: 500;
-}
-
-.rateRow {
-    display: grid;
-    grid-template-columns: 120px minmax(80px, 320px) 110px minmax(0, 1fr);
-    align-items: center;
-    gap: 12px;
-    min-height: 28px;
-    font-size: 13px;
-}
-
-.rateLabel {
-    color: var(--mantine-color-dimmed);
-    font-size: 12px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
+/* A source's rate limits in its settings: the count beside each bar. */
 
 .rateCount {
-    white-space: nowrap;
+    min-width: 84px;
+    font-size: 13px;
     font-variant-numeric: tabular-nums;
-}
-
-.rateDetail {
-    font-size: 12px;
-    color: var(--mantine-color-dimmed);
+    white-space: nowrap;
 }
 
 .rateDetail[data-limit-reached] {
     color: var(--mantine-color-red-text);
-}
-
-.rateSpan {
-    grid-column: 2 / -1;
-}
-
-.rateSpan[data-paused] {
-    color: var(--mantine-color-orange-text);
-    font-weight: 500;
-}
-
-.rateNote {
-    margin-top: 4px;
-    font-size: 12px;
-    color: var(--mantine-color-dimmed);
-}
-
-@media (max-width: 900px) {
-    .rateRow {
-        grid-template-columns: 96px minmax(60px, 1fr) 90px;
-    }
-
-    .rateDetail {
-        grid-column: 2 / -1;
-    }
 }

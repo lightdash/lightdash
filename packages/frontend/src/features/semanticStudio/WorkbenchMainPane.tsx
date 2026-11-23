@@ -28,7 +28,6 @@ import {
 import { useManagedExternalSource } from './externalSources/useManagedExternalSource';
 import { JoinDiagram } from './JoinDiagram';
 import { useLiveSourceActions } from './liveSources/liveSourceActions';
-import { LiveSourceRateLimits } from './liveSources/LiveSourceRateLimits';
 import { LiveSourceSettings } from './liveSources/LiveSourceSettings';
 import {
     LiveSourceSummary,
@@ -538,14 +537,6 @@ export const MainPane: FC<{
                             projectUuid={view.project.id}
                             connection={liveConnection}
                             exploreLabels={sourceExploreLabels}
-                        />
-                    ) : null}
-                    {liveConnection ? (
-                        <LiveSourceRateLimits
-                            projectUuid={view.project.id}
-                            connectionUuid={
-                                liveConnection.externalConnectionUuid
-                            }
                         />
                     ) : null}
                     {externalSource ? (

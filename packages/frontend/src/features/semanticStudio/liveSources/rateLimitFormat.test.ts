@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-    formatPacing,
     formatResetsAt,
     formatUntil,
     formatUsed,
+    getRateLimitStat,
 } from './rateLimitFormat';
 
 const CHECKED = '2026-11-23T14:00:00.000Z';
@@ -45,16 +45,55 @@ describe('formatUntil', () => {
     });
 });
 
-describe('formatPacing', () => {
-    it('says calls a second, or seconds between calls', () => {
-        expect(formatPacing(4)).toBe('4 calls a second');
-        expect(formatPacing(1)).toBe('1 call a second');
-        expect(formatPacing(0.5)).toBe('1 call every 2 seconds');
-    });
-});
-
 describe('formatUsed', () => {
     it('groups thousands', () => {
         expect(formatUsed(410, 10_000)).toBe('410 of 10,000');
+    });
+});
+
+describe('getRateLimitStat', () => {
+    const usage = {
+        integrationLabel: 'GitHub',
+        checkedAt: CHECKED,
+        buckets: [
+            {
+                id: 'minute',
+                label: 'per minute',
+                windowMs: 60_000,
+                capacity: 30,
+                used: 30,
+                resetsAt: at(20_000),
+            },
+            {
+                id: 'hour',
+                label: 'per hour',
+                windowMs: 3_600_000,
+                capacity: 5_000,
+                used: 410,
+                resetsAt: at(24 * 60_000),
+            },
+        ],
+        limitedUntil: null,
+    };
+
+    it('shows the longest declared limit', () => {
+        expect(getRateLimitStat(usage)).toEqual({
+            value: '410 of 5,000',
+            detail: 'per hour',
+            title: 'Resets in 24 min',
+        });
+    });
+
+    it('shows a vendor pause over any limit', () => {
+        expect(
+            getRateLimitStat({ ...usage, limitedUntil: at(5 * 60_000) }),
+        ).toMatchObject({
+            value: 'Paused',
+            detail: expect.stringMatching(/^until /),
+        });
+    });
+
+    it('shows a dash when nothing is declared', () => {
+        expect(getRateLimitStat({ ...usage, buckets: [] }).value).toBe('—');
     });
 });

@@ -47,7 +47,6 @@ describe('toRateLimitUsage', () => {
         expect(usage).toEqual({
             integrationLabel: 'HubSpot',
             checkedAt: NOW.toISOString(),
-            callsPerSecond: 4,
             buckets: [
                 {
                     id: 'minute',
@@ -144,7 +143,6 @@ describe('toRateLimitUsage', () => {
         });
 
         expect(usage).toMatchObject({
-            callsPerSecond: null,
             buckets: [],
         });
     });

@@ -794,8 +794,6 @@ export type ExternalConnectionRateLimitUsage = {
     /** The integration's name, such as HubSpot. */
     integrationLabel: string;
     checkedAt: string;
-    /** Even spacing between calls; null when none is declared. */
-    callsPerSecond: number | null;
     /** Shortest window first. */
     buckets: ExternalConnectionRateLimitBucket[];
     /** When the vendor's pause ends, ISO; null when it hasn't paused the integration. */

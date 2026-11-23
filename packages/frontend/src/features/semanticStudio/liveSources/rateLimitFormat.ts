@@ -1,3 +1,8 @@
+import {
+    type ExternalConnectionRateLimitBucket,
+    type ExternalConnectionRateLimitUsage,
+} from '@lightdash/common';
+
 const SECOND = 1_000;
 const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
@@ -38,15 +43,46 @@ export const formatUntil = (until: string, checkedAt: string): string => {
     return `until ${day}, ${timeOf(date)}`;
 };
 
-/** Even spacing between calls, such as "4 calls a second" or "1 call every 2 seconds". */
-export const formatPacing = (callsPerSecond: number): string => {
-    if (callsPerSecond >= 1) {
-        const calls = Number(callsPerSecond.toFixed(1));
-        return `${calls.toLocaleString()} ${calls === 1 ? 'call' : 'calls'} a second`;
-    }
-    return `1 call every ${Math.round(1 / callsPerSecond)} seconds`;
-};
-
 /** Used of capacity, such as "410 of 10,000". */
 export const formatUsed = (used: number, capacity: number): string =>
     `${used.toLocaleString()} of ${capacity.toLocaleString()}`;
+
+export const capitalize = (text: string) =>
+    text.charAt(0).toUpperCase() + text.slice(1);
+
+export const isFull = (bucket: ExternalConnectionRateLimitBucket) =>
+    bucket.used >= bucket.capacity;
+
+export const resetsOf = (
+    bucket: ExternalConnectionRateLimitBucket,
+    checkedAt: string,
+) =>
+    bucket.resetsAt
+        ? formatResetsAt(bucket.resetsAt, checkedAt)
+        : 'No calls in this window';
+
+/** The summary tile: a vendor pause, else the longest declared limit. */
+export const getRateLimitStat = (
+    usage: ExternalConnectionRateLimitUsage | undefined,
+): { value: string; detail: string | null; title?: string } => {
+    if (!usage) return { value: '—', detail: null };
+    if (usage.limitedUntil) {
+        return {
+            value: 'Paused',
+            detail: formatUntil(usage.limitedUntil, usage.checkedAt),
+            title: `${usage.integrationLabel} asked Lightdash to slow down`,
+        };
+    }
+    const longest = usage.buckets.at(-1);
+    if (!longest) {
+        return { value: '—', detail: null, title: 'No limits declared' };
+    }
+    const resets = resetsOf(longest, usage.checkedAt);
+    return {
+        value: formatUsed(longest.used, longest.capacity),
+        detail: longest.label,
+        title: capitalize(
+            isFull(longest) ? `limit reached, ${resets}` : resets,
+        ),
+    };
+};
