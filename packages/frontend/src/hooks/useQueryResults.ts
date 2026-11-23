@@ -6,6 +6,7 @@ import {
     isPreviewWarehouseSignInExpiredMessage,
     LightdashCustomSqlProvenanceChartUuidHeader,
     ParameterError,
+    parseLiveSourceSignInRequiredMessage,
     QueryExecutionContext,
     QueryHistoryStatus,
     sleep,
@@ -89,6 +90,25 @@ const getAsyncQueryErrorType = (
 
 export const getAsyncQueryError = (message: string | null): ApiError => {
     const errorMessage = message || 'Query failed';
+    const signIn = parseLiveSourceSignInRequiredMessage(errorMessage);
+    if (signIn) {
+        // A query that lost its sign-in while running keeps only its message
+        return {
+            status: 'error',
+            error: {
+                name: 'LiveSourceSignInRequiredError',
+                statusCode: 400,
+                message: errorMessage,
+                data: {
+                    liveSourceErrorCode: 'live_source.refused.sign_in_required',
+                    liveSourceErrorCodes: [
+                        'live_source.refused.sign_in_required',
+                    ],
+                    signIn,
+                },
+            },
+        };
+    }
     const { name, statusCode } = getAsyncQueryErrorType(errorMessage);
 
     return {

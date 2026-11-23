@@ -108,7 +108,7 @@ const getDashboardTileErrorMessage = (
     if (error instanceof Error) {
         return error.message;
     }
-    return error.error?.message;
+    return getQueryErrorText(error.error);
 };
 
 import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
@@ -175,7 +175,9 @@ import {
     hasDashboardTileParameterOverrides,
     isSavedDataAppVizDashboardImageExportAvailable,
 } from '../common/ChartDownload/chartDownloadUtils';
+import { ConnectLiveSourceAction } from '../common/ConnectLiveSourceAction';
 import { ConnectWarehouseAction } from '../common/ConnectWarehouseAction';
+import { getQueryErrorText } from '../common/liveSourceSignInError';
 import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
 import PivotColumnLimitWarning from '../common/PivotColumnLimitWarning';
@@ -2296,10 +2298,16 @@ export const GenericDashboardChartTile: FC<
                         'Error running query'
                     }
                     action={
-                        <ConnectWarehouseAction
-                            error={'error' in error ? error.error : null}
-                            mt="xs"
-                        />
+                        <>
+                            <ConnectWarehouseAction
+                                error={'error' in error ? error.error : null}
+                                mt="xs"
+                            />
+                            <ConnectLiveSourceAction
+                                error={'error' in error ? error.error : null}
+                                mt="xs"
+                            />
+                        </>
                     }
                 />
             </TileBase>

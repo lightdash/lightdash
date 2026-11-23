@@ -14,6 +14,7 @@ import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
 import HeadwayMenuItem from './HeadwayMenuItem';
 import HelpMenu from './HelpMenu';
+import LiveSourceSignInReturnListener from './LiveSourceSignInReturnListener';
 import classes from './MainNavBarContent.module.css';
 import { MetricsLink } from './MetricsLink';
 import { NavBarLogo } from './NavBarLogo';
@@ -187,6 +188,7 @@ export const MainNavBarContent: FC<Props> = ({
 
                     <ProjectCredentialsSwitcher />
                     <SharedSignInExpiryListener />
+                    <LiveSourceSignInReturnListener />
                 </NavGroup>
 
                 <UserMenu withLabel={compact} />
