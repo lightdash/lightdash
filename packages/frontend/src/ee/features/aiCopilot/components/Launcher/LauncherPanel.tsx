@@ -79,6 +79,7 @@ import {
 import { LauncherAnalysisTeaser } from './LauncherAnalysisTeaser';
 import { LauncherPanelFrame } from './LauncherPanelFrame';
 import { PanelHeader } from './PanelHeader';
+import { isThreadReadOnly } from './threadReadOnly';
 import {
     useAiAgentLauncherRouter,
     type LauncherRouterCandidate,
@@ -585,15 +586,13 @@ const ExistingThreadPanel: FC<{
                     : null,
         });
 
-    const isThreadFromCurrentUser = thread?.user.uuid === user?.data?.userUuid;
     const isBusy = Boolean(
         isCreatingMessage ||
         isStreaming ||
         isThreadPending ||
         startDeepResearch.isLoading,
     );
-    const isInputDisabled =
-        thread?.createdFrom === 'slack' || !isThreadFromCurrentUser;
+    const isInputDisabled = isThreadReadOnly(thread, user?.data?.userUuid);
     const contentMentionItems = useMemo(
         () => contextItemsToContentMentionSuggestions(threadContext, 'thread'),
         [threadContext],
