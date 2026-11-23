@@ -13,6 +13,19 @@
     padding: 8px var(--mantine-spacing-md);
 }
 
+/* The card's menu shows on hover or focus, so a settled card stays quiet. */
+.headAction {
+    flex: none;
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.card:hover .headAction,
+.headAction:focus-within,
+.headAction:has([aria-expanded='true']) {
+    opacity: 1;
+}
+
 /* The header sits on the page's own tone, a shade off the card. */
 .head {
     background: var(--ld-color-page);

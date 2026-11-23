@@ -389,6 +389,7 @@ export const DbtTurnSummaryCard: FC<{
                         <Button
                             key="open"
                             size="compact-xs"
+                            variant="default"
                             component={Link}
                             to={modelUrl(groups[0].model)}
                         >

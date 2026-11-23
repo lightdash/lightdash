@@ -246,7 +246,7 @@ export const TurnCard: FC<{
                 <Group className={classes.head} gap="xs" wrap="nowrap">
                     {icon ?? <Box className={classes.dot} />}
                     <Box flex={1} miw={0}>
-                        <Text fz="sm" fw={500} truncate>
+                        <Text fz="xs" fw={500} truncate>
                             {status}
                         </Text>
                         {name ? (
@@ -255,7 +255,9 @@ export const TurnCard: FC<{
                             </Text>
                         ) : null}
                     </Box>
-                    {headerAction}
+                    {headerAction ? (
+                        <Box className={classes.headAction}>{headerAction}</Box>
+                    ) : null}
                 </Group>
             ) : (
                 <UnstyledButton
