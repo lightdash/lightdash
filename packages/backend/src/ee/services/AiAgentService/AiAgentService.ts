@@ -15960,7 +15960,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             );
 
         const listChanges = () =>
-            this.semanticStudioService.listChanges(user, projectUuid);
+            this.semanticStudioService.listChanges(
+                user,
+                projectUuid,
+                prompt.threadUuid,
+            );
 
         // Studio queries read the person's draft over what is published, the way trying their changes does.
         const inDraft = <T>(run: () => Promise<T>): Promise<T> => {
