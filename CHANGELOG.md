@@ -1,3 +1,14 @@
+# [3.371.0](https://github.com/lightdash/lightdash/compare/3.370.0...3.371.0) (2026-11-23)
+
+
+### Features
+
+* **semantic-studio:** give the builder agent a read tool for its pull request branch ([#33224](https://github.com/lightdash/lightdash/issues/33224)) ([0799b64](https://github.com/lightdash/lightdash/commit/0799b64a7f7f5560edb900c051f9f3f684b0c683))
+* **semantic-studio:** give the builder write in place of editDbtProject ([#33233](https://github.com/lightdash/lightdash/issues/33233)) ([8117c8a](https://github.com/lightdash/lightdash/commit/8117c8ad1bf33952fe87af28ebde5d1fa99f001f))
+* **semantic-studio:** give the builder's read tool layer and warehouse libraries ([#33228](https://github.com/lightdash/lightdash/issues/33228)) ([bafc479](https://github.com/lightdash/lightdash/commit/bafc479c1c26613ade26f1de76c104154d41f1cd))
+* **semantic-studio:** let the builder agent check its dbt change in the same turn ([#33223](https://github.com/lightdash/lightdash/issues/33223)) ([ca1eae1](https://github.com/lightdash/lightdash/commit/ca1eae12d89b746b923123d6bea0eaa4c6edac2f))
+* **semantic-studio:** offer the dbt builder only read, write, verify and runSql ([#33231](https://github.com/lightdash/lightdash/issues/33231)) ([f9a21e4](https://github.com/lightdash/lightdash/commit/f9a21e4f5d8891b5b7fedab5a0a0afeddd90741d))
+
 # [3.370.0](https://github.com/lightdash/lightdash/compare/3.369.2...3.370.0) (2026-11-23)
 
 

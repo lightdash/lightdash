@@ -36503,6 +36503,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['loadProjectContext'] },
                 { dataType: 'enum', enums: ['loadSkill'] },
                 { dataType: 'enum', enums: ['proposeSemanticLayerChange'] },
+                { dataType: 'enum', enums: ['read'] },
                 { dataType: 'enum', enums: ['readAttachments'] },
                 { dataType: 'enum', enums: ['readContent'] },
                 { dataType: 'enum', enums: ['readPinnedThread'] },
@@ -36519,7 +36520,9 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['submitWorkerFindings'] },
                 { dataType: 'enum', enums: ['syncDbtProject'] },
                 { dataType: 'enum', enums: ['updateUserName'] },
+                { dataType: 'enum', enums: ['verify'] },
                 { dataType: 'enum', enums: ['visualize'] },
+                { dataType: 'enum', enums: ['write'] },
             ],
             validators: {},
         },
@@ -42600,6 +42603,13 @@ const models: TsoaRoute.Models = {
                                                                                                 dataType:
                                                                                                     'enum',
                                                                                                 enums: [
+                                                                                                    'read',
+                                                                                                ],
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'enum',
+                                                                                                enums: [
                                                                                                     'compile',
                                                                                                 ],
                                                                                             },
@@ -42608,13 +42618,6 @@ const models: TsoaRoute.Models = {
                                                                                                     'enum',
                                                                                                 enums: [
                                                                                                     'edit',
-                                                                                                ],
-                                                                                            },
-                                                                                            {
-                                                                                                dataType:
-                                                                                                    'enum',
-                                                                                                enums: [
-                                                                                                    'read',
                                                                                                 ],
                                                                                             },
                                                                                             {
