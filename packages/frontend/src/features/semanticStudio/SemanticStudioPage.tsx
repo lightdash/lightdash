@@ -133,12 +133,11 @@ const SemanticStudioPage: FC = () => {
     // Asked for now, so the change and its chat load alongside the explores and not after them.
     const checkout = useStudioCheckoutState(projectUuid ?? '');
     // A draft just read as empty has nothing to lay over the list, even while the checkout still holds it.
+    // WorkbenchView's marks follow the checkout itself.
     const ownDraft = useSemanticLayerDraft(projectUuid ?? '', !!projectUuid);
     const isDraftGone =
         ownDraft.data?.changes.length === 0 && !ownDraft.isFetching;
-    const checkedOutDraft = isDraftGone
-        ? null
-        : (checkout.shown?.draft ?? null);
+    const listedDraft = isDraftGone ? null : (checkout.shown?.draft ?? null);
     usePrefetchStudioAgent(projectUuid);
 
     const realProject = useMemo(
@@ -146,10 +145,7 @@ const SemanticStudioPage: FC = () => {
             project && explores.data
                 ? buildRealProject({
                       project,
-                      explores: foldDraftExplores(
-                          explores.data,
-                          checkedOutDraft,
-                      ),
+                      explores: foldDraftExplores(explores.data, listedDraft),
                       externalSources: externalSources.data ?? [],
                       liveConnections: liveConnections.data ?? [],
                   })
@@ -157,7 +153,7 @@ const SemanticStudioPage: FC = () => {
         [
             project,
             explores.data,
-            checkedOutDraft,
+            listedDraft,
             externalSources.data,
             liveConnections.data,
         ],

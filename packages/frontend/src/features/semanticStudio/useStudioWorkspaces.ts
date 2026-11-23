@@ -33,12 +33,15 @@ export const useStudioWorkspaces = (projectUuid: string | undefined) => {
 };
 
 /** The workspace your chat writes to, or null when you have none open. */
+export const findActiveWorkspace = (
+    workspaces: SemanticStudioWorkspaces | undefined,
+): SemanticStudioWorkspace | null =>
+    workspaces?.mine.find(({ isActive }) => isActive) ?? null;
+
 export const useActiveStudioWorkspace = (
     projectUuid: string | undefined,
 ): SemanticStudioWorkspace | null =>
-    useStudioWorkspaces(projectUuid).data?.mine.find(
-        ({ isActive }) => isActive,
-    ) ?? null;
+    findActiveWorkspace(useStudioWorkspaces(projectUuid).data);
 
 type Action =
     | { kind: 'start'; body: SemanticStudioWorkspaceStartBody }

@@ -19,6 +19,7 @@ import {
     useSemanticLayerWorkspaceDraft,
 } from './useSemanticLayerModel';
 import {
+    findActiveWorkspace,
     useStudioWorkspaceAction,
     useStudioWorkspaces,
 } from './useStudioWorkspaces';
@@ -47,8 +48,7 @@ export const useStudioCheckoutState = (
 ): StudioCheckoutState => {
     const status = useSemanticLayerStatus(projectUuid);
     const workspaces = useStudioWorkspaces(projectUuid);
-    const active =
-        workspaces.data?.mine.find(({ isActive }) => isActive) ?? null;
+    const active = findActiveWorkspace(workspaces.data);
     const keepsDraft = keepsSemanticLayerDraft(status);
     const draft = useSemanticLayerWorkspaceDraft(
         projectUuid,

@@ -6,6 +6,7 @@ import { useEffect, useRef } from 'react';
 import { useStoredStudioThread } from '../../../../../features/semanticStudio/studioChange';
 import { splitStudioChatCode } from '../../../../../features/semanticStudio/studioChatRefs';
 import {
+    findActiveWorkspace,
     useStudioWorkspaceAction,
     useStudioWorkspaces,
 } from '../../../../../features/semanticStudio/useStudioWorkspaces';
@@ -41,7 +42,7 @@ export const useSyncStudioWorkspace = (
     const [stored, setStored] = useStoredStudioThread(projectUuid);
     const { data: workspaces } = useStudioWorkspaces(projectUuid);
     const action = useStudioWorkspaceAction(projectUuid);
-    const active = workspaces?.mine.find(({ isActive }) => isActive) ?? null;
+    const active = findActiveWorkspace(workspaces);
 
     const followed = useRef<string | null>(null);
     useEffect(() => {
