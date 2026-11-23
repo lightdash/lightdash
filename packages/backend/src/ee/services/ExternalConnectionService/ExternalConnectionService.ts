@@ -229,6 +229,7 @@ import {
     buildSalesforceAuthorizeUrl,
     getSalesforceOAuthRedirectUri,
 } from './salesforceOAuth';
+import { isSlackPreview } from './slackPreview';
 
 type ExternalConnectionServiceArguments = {
     allowedPrivateHostCidrs: AllowedPrivateHostCidrs;
@@ -3950,7 +3951,8 @@ export class ExternalConnectionService extends BaseService {
 
     /**
      * The viewer whose own sign-in a query on this source uses, or null when
-     * the source shares one sign-in. Service accounts are nobody's viewer.
+     * the source shares one sign-in. Service accounts are nobody's viewer,
+     * and a Slack link preview would post one person's data to a channel.
      */
     private getViewerUuid(
         account: RegisteredAccount,
@@ -3960,6 +3962,11 @@ export class ExternalConnectionService extends BaseService {
         if (account.authentication.type === 'service-account') {
             throw new ForbiddenError(
                 `"${connection.name}" queries with each viewer's own sign-in, so service accounts can't query it`,
+            );
+        }
+        if (isSlackPreview()) {
+            throw new ForbiddenError(
+                `"${connection.name}" shows each viewer their own data, so Slack can't preview it. Open it in Lightdash to see your data.`,
             );
         }
         return account.user.id;
