@@ -15,9 +15,12 @@ const WARNING_TEXT = 'var(--mantine-color-orange-text)';
 export const ProjectCacheOffAlert: FC<{
     projectUuid: string;
     message?: string;
+    /** Leave out the inline Turn on link when the row has its own button. */
+    withLink?: boolean;
 }> = ({
     projectUuid,
     message = 'Caching is off for this project, so every query calls the API',
+    withLink = true,
 }) => {
     const { data } = useResultsCacheStatus(projectUuid);
     if (data?.enabled !== false) return null;
@@ -29,15 +32,20 @@ export const ProjectCacheOffAlert: FC<{
                 color={WARNING_TEXT}
             />
             <Text fz="xs" c={WARNING_TEXT}>
-                {message}{' '}
-                <Anchor
-                    component={Link}
-                    to={`/generalSettings/projectManagement/${projectUuid}/caching`}
-                    fz="xs"
-                    fw={500}
-                >
-                    Turn on
-                </Anchor>
+                {message}
+                {withLink ? (
+                    <>
+                        {' '}
+                        <Anchor
+                            component={Link}
+                            to={`/generalSettings/projectManagement/${projectUuid}/caching`}
+                            fz="xs"
+                            fw={500}
+                        >
+                            Turn on
+                        </Anchor>
+                    </>
+                ) : null}
             </Text>
         </Group>
     );

@@ -24,6 +24,7 @@ import {
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import { IconTrash } from '@tabler/icons-react';
 import { useState, type FC, type FormEvent } from 'react';
+import { Link } from 'react-router';
 import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -512,13 +513,23 @@ export const LiveSourceSettings: FC<{
                                 <ProjectCacheOffAlert
                                     projectUuid={projectUuid}
                                     message="Caching is disabled"
+                                    withLink={false}
                                 />
                             ) : (
                                 formatPurgedAt(connection.cachePurgedAt)
                             )
                         }
                     >
-                        {isProjectCacheOff ? null : (
+                        {isProjectCacheOff ? (
+                            <Button
+                                size="xs"
+                                variant="default"
+                                component={Link}
+                                to={`/generalSettings/projectManagement/${projectUuid}/caching`}
+                            >
+                                Turn on
+                            </Button>
+                        ) : (
                             <>
                                 <Select
                                     w={116}
