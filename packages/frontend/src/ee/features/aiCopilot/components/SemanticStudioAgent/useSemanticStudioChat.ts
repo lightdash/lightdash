@@ -202,7 +202,8 @@ export const useCompileFollowUp = ({
                     prompt: followUp.prompt,
                     hidden: true,
                     enableSqlMode,
-                    autoApproveSql: true,
+                    // Nobody typed this prompt, so any query still needs the person's approval.
+                    autoApproveSql: false,
                 });
             })
             .catch(() => {

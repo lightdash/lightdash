@@ -189,7 +189,11 @@ describe('useCompileFollowUp', () => {
         rerender({ isBusy: false });
         await waitFor(() =>
             expect(held.send).toHaveBeenCalledWith(
-                expect.objectContaining({ prompt: 'Fix it', hidden: true }),
+                expect.objectContaining({
+                    prompt: 'Fix it',
+                    hidden: true,
+                    autoApproveSql: false,
+                }),
             ),
         );
         expect(held.claim).toHaveBeenCalledWith({
