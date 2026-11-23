@@ -151,6 +151,7 @@ describe('getSemanticStudioSystemPrompt', () => {
         expect(prompt).toContain('layer.impact in read');
         expect(prompt).toContain('warehouse.columns in read');
         expect(prompt).toContain('Save with write');
+        expect(prompt).toContain('numerator cast to a decimal');
         [
             'editDbtProject',
             'exploreRepo',
