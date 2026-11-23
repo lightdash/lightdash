@@ -167,6 +167,7 @@ import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import {
+    getDraftProjectContext,
     getListChanges,
     getProposeSemanticLayerChange,
     getReadSemanticModel,
@@ -2254,6 +2255,10 @@ export const getAgentTools = (
             getReadSemanticModel({
                 readSemanticModel: dependencies.readSemanticModel,
             }),
+        draftProjectContext: () =>
+            getDraftProjectContext({
+                draftProjectContext: dependencies.draftProjectContext,
+            }),
         read: () =>
             getRead({
                 read: dependencies.read,
@@ -2811,7 +2816,6 @@ export const getAgentMessages = (
         studio: loadout.promptSections.has('semanticStudio')
             ? getSemanticStudioTurn(loadout, {
                   drafts: args.semanticStudioDrafts,
-                  hasRepository: args.semanticStudioHasRepository,
                   projectMap: args.semanticStudioProjectMap,
                   repoFsRoot: args.repoFsRoot,
                   repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,

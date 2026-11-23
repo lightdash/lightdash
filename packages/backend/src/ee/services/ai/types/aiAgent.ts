@@ -51,6 +51,7 @@ import {
     CreateScheduledDeliveryFn,
     DescribeWarehouseTableFn,
     DiscoverReposFn,
+    DraftProjectContextFn,
     EditContentFn,
     EditDbtProjectFn,
     EditProjectContextFn,
@@ -325,6 +326,8 @@ export type AiAgentArgs = AnyAiModel & {
     isSemanticStudioThread: boolean;
     // Whether that thread proposes into a draft; false on a dbt project, where it edits the repository.
     semanticStudioDrafts: boolean;
+    // Whether the project keeps its context on the server, drafted like a model; false when a repository holds it.
+    semanticStudioKeepsContext: boolean;
     // Which GitHub identity a writeback PR would be attributed to (advisory,
     // resolved at prompt-assembly time). null when not applicable/unresolved.
     writebackAttribution: AiWritebackAttribution | null;
@@ -510,6 +513,7 @@ export type AiAgentDependencies = {
     /** Runs a metric query on the person's draft over what is published. */
     runDraftQuery: RunAsyncQueryFn;
     readSemanticModel: ReadSemanticModelFn;
+    draftProjectContext: DraftProjectContextFn;
     verify: VerifyFn;
     read: ReadFn;
     syncDbtProject: SyncDbtProjectFn;

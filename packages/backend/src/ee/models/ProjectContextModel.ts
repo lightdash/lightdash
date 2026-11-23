@@ -1,6 +1,7 @@
 import {
     PROJECT_CONTEXT_FILE_VERSION,
     ProjectContextEntry,
+    upsertProjectContextEntries,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { ProjectContextDocumentTableName } from '../database/entities/projectContext';
@@ -25,17 +26,39 @@ export class ProjectContextModel {
     async replaceEntriesForProject(
         projectUuid: string,
         entries: ProjectContextEntry[],
+        database: Knex = this.database,
     ): Promise<void> {
-        await this.database(ProjectContextDocumentTableName)
+        await database(ProjectContextDocumentTableName)
             .insert({
                 project_uuid: projectUuid,
                 version: PROJECT_CONTEXT_FILE_VERSION,
                 // Stringify: pg serializes a top-level JS array as a Postgres
                 // array literal, not JSON, which a jsonb column rejects.
                 entries: JSON.stringify(entries),
-                updated_at: this.database.fn.now(),
+                updated_at: database.fn.now(),
             })
             .onConflict('project_uuid')
             .merge(['version', 'entries', 'updated_at']);
+    }
+
+    /** Puts each entry in place of the one with its id, or adds it; one writer at a time per project, so concurrent publishes keep each other's entries. */
+    async upsertEntries(
+        projectUuid: string,
+        entries: ProjectContextEntry[],
+    ): Promise<ProjectContextEntry[]> {
+        return this.database.transaction(async (trx) => {
+            await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
+                `project-context:${projectUuid}`,
+            ]);
+            const row = await trx(ProjectContextDocumentTableName)
+                .where('project_uuid', projectUuid)
+                .first();
+            const merged = upsertProjectContextEntries(
+                row ? (row.entries as ProjectContextEntry[]) : [],
+                entries,
+            );
+            await this.replaceEntriesForProject(projectUuid, merged, trx);
+            return merged;
+        });
     }
 }

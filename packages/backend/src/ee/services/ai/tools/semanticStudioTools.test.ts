@@ -1,12 +1,14 @@
 import {
     describeSemanticLayerProposals,
     toolProposeSemanticLayerChangeArgsSchema,
+    toolDraftProjectContextOutputSchema,
     toolProposeSemanticLayerChangeOutputSchema,
     toolReadSemanticModelOutputSchema,
     type StudioChangeSummary,
 } from '@lightdash/common';
 import type { ProposeSemanticLayerChangeFn } from '../types/aiAgentDependencies';
 import {
+    getDraftProjectContext,
     getListChanges,
     getProposeSemanticLayerChange,
     getReadSemanticModel,
@@ -313,5 +315,47 @@ describe('getReadSemanticModel', () => {
 
     it('names the models when the name is unknown', async () => {
         expect((await read(null)).result).toContain('orders, customers');
+    });
+});
+
+describe('getDraftProjectContext', () => {
+    const entry = {
+        op: 'create' as const,
+        id: null,
+        kind: 'definition' as const,
+        content: '"Active" means ordered in the last 30 days.',
+        terms: ['active'],
+        objects: [],
+    };
+
+    it('passes the entry to the draft and says when agents read it', async () => {
+        const draftProjectContext = vi.fn(async () => ({
+            entryId: 'active',
+            op: 'create' as const,
+            draftChangeUuid: 'draft-1',
+            startedChange: { workspaceUuid: 'workspace-1', name: 'Context' },
+        }));
+        const tool = getDraftProjectContext({ draftProjectContext });
+        const output = toolDraftProjectContextOutputSchema.parse(
+            await tool.execute?.(entry, callOptions),
+        );
+        expect(draftProjectContext).toHaveBeenCalledWith(entry, null);
+        expect(output.structuredContent).toEqual({
+            entryId: 'active',
+            op: 'create',
+            draftChangeUuid: 'draft-1',
+        });
+        expect(output.result).toContain('Added project context entry "active"');
+        expect(output.result).toContain('Started draft "Context"');
+    });
+
+    it('reports a refusal as an error and drafts nothing', async () => {
+        const tool = getDraftProjectContext({
+            draftProjectContext: async () => {
+                throw new Error('kept in the repository');
+            },
+        });
+        const output = await tool.execute?.(entry, callOptions);
+        expect(output).toMatchObject({ metadata: { status: 'error' } });
     });
 });

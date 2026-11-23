@@ -44,8 +44,8 @@ export type SemanticStudioTurn =
           kind: 'draft';
           /** Whether the thread can run a metric query, which reads the person's draft. */
           canQueryDraft: boolean;
-          /** False only for a project with no repository, which has nowhere to keep project context. */
-          hasRepository: boolean;
+          /** Whether the thread can add project context to the draft, which only a project with no repository keeps here. */
+          canDraftContext: boolean;
       }
     | {
           /** A dbt project, which keeps no draft and is changed in its repository. */
@@ -65,19 +65,19 @@ export const getSemanticStudioTurn = (
     loadout: Pick<Loadout, 'toolNames' | 'promptSections'>,
     args: {
         drafts: boolean;
-        hasRepository: boolean;
         projectMap: string | null;
         repoFsRoot: string | null;
         repoFsSupportsCodeSearch: boolean;
     },
 ): SemanticStudioTurn => {
     const { promptSections } = loadout;
-    const { builder, canRunMetrics } = getStudioAbilities(loadout);
+    const { builder, canRunMetrics, canDraftContext } =
+        getStudioAbilities(loadout);
     if (args.drafts) {
         return {
             kind: 'draft',
             canQueryDraft: canRunMetrics,
-            hasRepository: args.hasRepository,
+            canDraftContext,
         };
     }
     return {
@@ -154,12 +154,12 @@ const DRAFT_QUERY = `
 - runMetricQuery reads the draft, so it runs a metric as your proposals leave it, with no approval. When a proposal comes back with a check, run those metrics in one query, alone or split by one dimension that should divide them. A null, a zero or a total the table cannot produce means the definition is wrong: fix it in one follow-up proposal. A number that looks right needs no comment.
 - To say what a metric returns, run it; do not work it out from its sql.`;
 
-const NO_REPOSITORY = `
-- You change models only. This project has no repository, so project context (lightdash.project_context.yml) cannot be kept here yet; never send the person to a file or repository. When they ask for project context, say that in one sentence, ask what they want agents to know if they have not said, and offer to put it in the description of the model or field it is about, which agents read.`;
+const DRAFT_CONTEXT = `
+- When the person asks to add or change project context, or states a durable fact about their data that is not a model change, such as what a term means or which model answers a kind of question, add it with draftProjectContext. It joins the draft as lightdash.project_context.yml and agents read it once the draft is published. To change an entry, pass its id as loadProjectContext shows it.`;
 
 const getDraftSections = (
     canQueryDraft: boolean,
-    hasRepository: boolean,
+    canDraftContext: boolean,
 ): string =>
     `## What the person sees
 
@@ -173,7 +173,7 @@ ${SEES} They can read the same YAML you read in the Code tab. Each change you pr
 ${getImpact('analyzeFieldImpact')}
 - When a model fails its checks, fix the cause the error reports and propose again.
 - A new model can come back ready with advice. Act on it once, in one follow-up proposal, before you reply.${canQueryDraft ? DRAFT_QUERY : ''}
-${IN_DRAFT}${hasRepository ? '' : NO_REPOSITORY}
+${IN_DRAFT}${canDraftContext ? DRAFT_CONTEXT : ''}
 ${getCardIsReply('After a proposal', "proposal's note")} The card already shows the change and its code, so never repeat them or list its fields.
 - Use listChanges to see the person's open drafts and which one is checked out. Each model says where its edits were made: by_hand means the person edited it in the Code tab, this_chat means you did, another_chat means another conversation did; say so plainly rather than guessing. Native model edits go to the checked-out draft. On Published, the first successful edit starts a draft.
 ${REPLY_STYLE}
@@ -239,7 +239,7 @@ export const getSemanticStudioSystemPrompt = ({
                 return [
                     getDraftSections(
                         studio.canQueryDraft,
-                        studio.hasRepository,
+                        studio.canDraftContext,
                     ),
                     getDraftWarehouseSection(warehouse),
                 ];

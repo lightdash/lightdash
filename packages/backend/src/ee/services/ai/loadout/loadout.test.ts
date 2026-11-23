@@ -82,6 +82,7 @@ const fullInput: LoadoutInput = {
     enableEditProjectContext: true,
     isSemanticStudioThread: false,
     semanticStudioDrafts: false,
+    semanticStudioKeepsContext: false,
     enableReadAttachments: true,
     enableReadPinnedThread: true,
     enableAskUser: true,
@@ -117,6 +118,7 @@ const minimalInput: LoadoutInput = {
     enableEditProjectContext: false,
     isSemanticStudioThread: false,
     semanticStudioDrafts: false,
+    semanticStudioKeepsContext: false,
     enableReadAttachments: false,
     enableReadPinnedThread: false,
     enableAskUser: false,
@@ -158,6 +160,7 @@ const inputs: Record<LoadoutBase, LoadoutInput> = {
         ...fullInput,
         isSemanticStudioThread: true,
         semanticStudioDrafts: true,
+        semanticStudioKeepsContext: true,
     },
     composer: { ...fullInput, enableComposerQueries: true },
     no_data_access: {
@@ -370,6 +373,7 @@ describe('resolveLoadout', () => {
         const dbt = resolveLoadout({
             ...inputs.semantic_studio,
             semanticStudioDrafts: false,
+            semanticStudioKeepsContext: false,
         });
         expect(dbt.base).toBe('semantic_studio');
         expect(dbt.toolNames.has('proposeSemanticLayerChange')).toBe(false);
@@ -388,6 +392,7 @@ describe('resolveLoadout', () => {
         const proposing = resolveLoadout({
             ...inputs.semantic_studio,
             semanticStudioDrafts: false,
+            semanticStudioKeepsContext: false,
             enableAiWriteback: false,
         });
         expect(proposing.toolNames.has('verify')).toBe(false);

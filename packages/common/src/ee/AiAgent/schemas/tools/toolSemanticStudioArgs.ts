@@ -10,6 +10,7 @@ import {
     structuredToolOutputSchema,
 } from '../outputMetadata';
 import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
+import { toolEditProjectContextArgsSchema } from './toolEditProjectContextArgs';
 
 const SEMANTIC_LAYER_FRAGMENT_GUIDE = [
     "Each entry of `models` names one model and gives a YAML fragment of what to add or patch on it. A model that does not exist yet needs `sql_from` (its table, or a single SELECT for a derived model) and `dimensions`. A dimension needs `name`, `type` (string, number, date, timestamp or boolean) and `sql`, written as ${TABLE}.column. A metric that aggregates one column goes in `metrics` under that dimension, with a `type` (count, count_distinct, sum, average, min, max, median) and optional `filters`, a list of single `field: value` pairs. A metric over an expression goes in top-level `metrics` with its own `sql` in this warehouse's SQL dialect; one that combines other metrics uses `type: number` and ${metric_name}. A derived dimension goes in `additional_dimensions` under its dimension. A join goes in `joins` with `join` (the other model) and `sql_on`, written as ${model.field} = ${other_model.field}.",
@@ -180,6 +181,31 @@ export const toolReadSemanticModelOutputSchema = structuredToolOutputSchema({
 
 export type ToolReadSemanticModelOutput = z.infer<
     typeof toolReadSemanticModelOutputSchema
+>;
+
+export const TOOL_DRAFT_PROJECT_CONTEXT_DESCRIPTION = [
+    "Add or replace one entry of this project's context (`lightdash.project_context.yml`) in the person's draft: the definitions and routing facts agents read before answering. It joins the draft like a model change and agents read it once the person publishes the draft.",
+    'Use it for a durable, project-specific fact: a definition or acronym, which model answers a kind of question, or a note about one model or field. It does not change any model.',
+].join(' ');
+
+export const toolDraftProjectContextArgsSchema =
+    toolEditProjectContextArgsSchema;
+
+export type ToolDraftProjectContextArgs = z.infer<
+    typeof toolDraftProjectContextArgsSchema
+>;
+
+export const toolDraftProjectContextOutputSchema = structuredToolOutputSchema({
+    metadata: baseOutputMetadataSchema,
+    structuredContent: z.object({
+        entryId: z.string(),
+        op: z.enum(['create', 'update']),
+        draftChangeUuid: z.string(),
+    }),
+});
+
+export type ToolDraftProjectContextOutput = z.infer<
+    typeof toolDraftProjectContextOutputSchema
 >;
 
 // Who made a model's edits: the person in the editor, this chat, or another chat.

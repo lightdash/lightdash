@@ -1,5 +1,9 @@
 /** The person's draft of the semantic layer: its review page, and the check before it goes live. */
-import { type SemanticLayerDraft } from '@lightdash/common';
+import {
+    SEMANTIC_STUDIO_PROJECT_CONTEXT_FILE,
+    type SemanticLayerDraft,
+    type SemanticLayerDraftProjectContext,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -469,6 +473,30 @@ const usePublishedUnderNotice = (draft: SemanticLayerDraft | undefined) => {
     }, [draft, showToastInfo, showToastWarning, setSearchParams]);
 };
 
+/** The project context file as the draft leaves it, read like a model's file. */
+export const ProjectContextDraftFile: FC<{
+    change: SemanticLayerDraftProjectContext;
+    variant: 'full' | 'whole';
+}> = ({ change, variant }) => (
+    <Box component="section" className={classes.model}>
+        <Group className={classes.modelHead} gap="xs" wrap="nowrap">
+            <MantineIcon icon={IconFileCode} color="dimmed" />
+            <Text component="h3" fz="sm" fw={500} truncate flex={1} miw={0}>
+                {SEMANTIC_STUDIO_PROJECT_CONTEXT_FILE}.yml
+                <Text span inherit fw={400} c="dimmed">
+                    {' · What agents read before they answer'}
+                </Text>
+            </Text>
+            <LineCounts counts={countChangedLines(change)} />
+        </Group>
+        <ChangeDiff
+            modelName={SEMANTIC_STUDIO_PROJECT_CONTEXT_FILE}
+            change={change}
+            variant={variant}
+        />
+    </Box>
+);
+
 /** A draft in the toolbar: what it changes, the way to its review and back, and publishing it. */
 export const DraftDevelopmentBar: FC<{
     projectUuid: string;
@@ -488,6 +516,8 @@ export const DraftDevelopmentBar: FC<{
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
     const check = useCheckSemanticLayerDraftImpact(projectUuid);
     const isEmpty = !draft || draft.changes.length === 0;
+    const hasPublishable =
+        !!draft && (draft.models.length > 0 || draft.projectContext !== null);
     usePublishedUnderNotice(draft);
     // Once nothing is in development there is nothing to preview.
     useEffect(() => {
@@ -498,7 +528,7 @@ export const DraftDevelopmentBar: FC<{
     const blocked = cannotApply(draft, null);
     const conflicts = countConflicts(draft, null);
     // A removed model has nothing to open.
-    const showsPublish = conflicts === 0 && draft.models.length > 0;
+    const showsPublish = conflicts === 0 && hasPublishable;
     const tryModel =
         draft.models.find((entry) => getChangeKind(entry) !== 'removed')
             ?.model ?? null;
@@ -558,7 +588,7 @@ export const DraftDevelopmentBar: FC<{
         <>
             <DevelopmentBar
                 summary={
-                    draft.models.length > 0 ? null : (
+                    hasPublishable ? null : (
                         <Text fz="xs" c="dimmed" truncate>
                             Nothing new to publish
                         </Text>
@@ -722,6 +752,12 @@ export const DraftReview: FC<DraftReviewProps> = ({
                 poolOptions={PIERRE_POOL_OPTIONS}
                 highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
             >
+                {draft.projectContext ? (
+                    <ProjectContextDraftFile
+                        change={draft.projectContext}
+                        variant="full"
+                    />
+                ) : null}
                 {models.map((modelChange) => {
                     const fields = listPublishedParts(draft, modelChange);
                     return (

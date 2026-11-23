@@ -105,6 +105,7 @@ describe('Project model documents on PostgreSQL', () => {
             workspaceUuid: null,
             promptUuid: null,
             baseVersions,
+            projectContextEntries: null,
             models: models.map((name) => ({
                 name,
                 yaml: 'label: Drafted\n',
@@ -576,6 +577,7 @@ describe('Project model documents on PostgreSQL', () => {
             ...owner,
             workspaceUuid: null,
             baseVersions: null,
+            projectContextEntries: null,
             promptUuid: null,
             changeName: 'Orders revenue',
             models: [
@@ -734,6 +736,7 @@ describe('Project model documents on PostgreSQL', () => {
                 workspaceUuid,
                 promptUuid: null,
                 baseVersions: null,
+                projectContextEntries: null,
                 models: [
                     {
                         name,

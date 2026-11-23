@@ -33,7 +33,7 @@ const base = {
 const draft = {
     kind: 'draft',
     canQueryDraft: false,
-    hasRepository: false,
+    canDraftContext: false,
 } satisfies SemanticStudioTurn;
 
 const proposing = {
@@ -58,6 +58,7 @@ const studioInput: LoadoutInput = {
     enableEditProjectContext: false,
     isSemanticStudioThread: true,
     semanticStudioDrafts: true,
+    semanticStudioKeepsContext: false,
     enableReadAttachments: false,
     enableReadPinnedThread: false,
     enableAskUser: true,
@@ -84,6 +85,10 @@ const NAMED_TOOLS = AGENT_TOOL_NAMES.filter((name) => /[A-Z]/.test(name));
 describe('Semantic Studio prompt names only what its loadout offers', () => {
     it.each<[string, Partial<LoadoutInput>]>([
         ['a draft project', {}],
+        [
+            'a draft project with no repository',
+            { semanticStudioKeepsContext: true },
+        ],
         ['a draft project without data access', { enableDataAccess: false }],
         ['a draft project without SQL', { canRunSql: false }],
         ['the dbt builder', { semanticStudioDrafts: false }],
@@ -115,7 +120,6 @@ describe('Semantic Studio prompt names only what its loadout offers', () => {
             repoFsRoot: '.',
             studio: getSemanticStudioTurn(loadout, {
                 drafts: { ...studioInput, ...overrides }.semanticStudioDrafts,
-                hasRepository: true,
                 projectMap: null,
                 repoFsRoot: '.',
                 repoFsSupportsCodeSearch: true,
@@ -159,16 +163,16 @@ describe('getSemanticStudioSystemPrompt', () => {
         ).toContain('runMetricQuery');
     });
 
-    it('says project context has nowhere to live only on a project with no repository', () => {
+    it('explains drafting project context only when the thread can', () => {
         expect(
             getSemanticStudioSystemPrompt({ ...base, studio: draft }),
-        ).toContain('This project has no repository');
+        ).not.toContain('draftProjectContext');
         expect(
             getSemanticStudioSystemPrompt({
                 ...base,
-                studio: { ...draft, hasRepository: true },
+                studio: { ...draft, canDraftContext: true },
             }),
-        ).not.toContain('This project has no repository');
+        ).toContain('add it with draftProjectContext');
     });
 
     it('leaves out the published explore list, since models are read from the draft or the repository', () => {

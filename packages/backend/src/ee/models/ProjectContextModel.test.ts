@@ -51,4 +51,36 @@ describe('ProjectContextModel', () => {
         // rejects for jsonb, so it must NOT be passed through unstringified.
         expect(tracker.history.insert[0].bindings).not.toContainEqual(entries);
     });
+
+    test('upserts entries by id onto the stored document under a per-project lock', async () => {
+        const kept: ProjectContextEntry = {
+            id: 'kept',
+            kind: 'context',
+            content: 'Kept as it was.',
+            terms: [],
+            objects: [],
+        };
+        const replaced: ProjectContextEntry = {
+            id: 'hr',
+            kind: 'definition',
+            content: '"HR" = high-risk cohort.',
+            terms: ['HR'],
+            objects: [],
+        };
+        const updated = { ...replaced, content: '"HR" = hours.' };
+        const added = { ...kept, id: 'new', content: 'Added.' };
+        tracker.on.any(/pg_advisory_xact_lock/).responseOnce([]);
+        tracker.on
+            .select(ProjectContextDocumentTableName)
+            .responseOnce([{ entries: [kept, replaced] }]);
+        tracker.on.insert(ProjectContextDocumentTableName).responseOnce([]);
+
+        expect(
+            await model.upsertEntries(PROJECT_UUID, [updated, added]),
+        ).toEqual([kept, updated, added]);
+        expect(tracker.history.any[0].sql).toContain('pg_advisory_xact_lock');
+        expect(tracker.history.insert[0].bindings).toContain(
+            JSON.stringify([kept, updated, added]),
+        );
+    });
 });

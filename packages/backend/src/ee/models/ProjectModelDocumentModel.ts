@@ -1,5 +1,6 @@
 import {
     NotFoundError,
+    type ProjectContextEntry,
     type SemanticLayerDraftModelInput,
     type SemanticLayerModelChange,
     type SemanticLayerModelCode,
@@ -47,6 +48,8 @@ export type StoredDraftChange = {
     models: SemanticLayerDraftModelInput[];
     /** The version each model was at when the change was made; null when that was not recorded. */
     baseVersions: Record<string, number | null> | null;
+    /** Project context entries the change adds or replaces by id; null when it touches none. */
+    projectContextEntries: ProjectContextEntry[] | null;
 };
 
 export type ChangeSet = {
@@ -69,6 +72,7 @@ type NewDraftChange = DraftOwner & {
     promptUuid: string | null;
     models: SemanticLayerDraftModelInput[];
     baseVersions: Record<string, number | null> | null;
+    projectContextEntries: ProjectContextEntry[] | null;
 };
 
 /** One workspace's draft alone, without changes from before drafts had workspaces. */
@@ -268,6 +272,7 @@ export class ProjectModelDocumentModel {
                 createdAt: `${ProjectModelDraftChangesTableName}.created_at`,
                 models: `${ProjectModelDraftChangesTableName}.models`,
                 baseVersions: `${ProjectModelDraftChangesTableName}.base_versions`,
+                projectContextEntries: `${ProjectModelDraftChangesTableName}.project_context_entries`,
             })
             .orderBy(`${ProjectModelDraftChangesTableName}.created_at`, 'asc');
     }
@@ -677,6 +682,7 @@ export class ProjectModelDocumentModel {
             promptUuid,
             models,
             baseVersions,
+            projectContextEntries,
         }: NewDraftChange,
         database: Knex = this.database,
     ): Promise<string> {
@@ -692,6 +698,10 @@ export class ProjectModelDocumentModel {
                         baseVersions === null
                             ? null
                             : JSON.stringify(baseVersions),
+                    project_context_entries:
+                        projectContextEntries === null
+                            ? null
+                            : JSON.stringify(projectContextEntries),
                 })
                 .returning('project_model_draft_change_uuid');
         return draftChangeUuid;

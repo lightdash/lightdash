@@ -13,6 +13,7 @@ import {
     ParameterError,
     ProjectType,
     SupportedDbtAdapter,
+    upsertProjectContextEntries,
     ValidationErrorType,
     ValidationSourceType,
     WarehouseTypes,
@@ -23,6 +24,7 @@ import {
     type LightdashModelFragment,
     type PossibleAbilities,
     type Project,
+    type ProjectContextEntry,
     type SemanticLayerModelChange,
     type SemanticStudioWorkspace,
     type SemanticStudioWorkspacePullRequestState,
@@ -164,6 +166,7 @@ const setup = ({
         name: `explore_${index}`,
         type,
     })),
+    liveContext = [],
 }: {
     stored?: { name: string; content: string; version?: number }[];
     otherDrafters?: {
@@ -203,7 +206,19 @@ const setup = ({
         type?: ExploreType;
         baseTable?: string;
     }[];
+    /** The project context agents read now. */
+    liveContext?: ProjectContextEntry[];
 } = {}) => {
+    let projectContext = liveContext;
+    const upsertEntries = vi.fn(
+        async (_projectUuid: string, entries: ProjectContextEntry[]) => {
+            projectContext = upsertProjectContextEntries(
+                projectContext,
+                entries,
+            );
+            return projectContext;
+        },
+    );
     const track = vi.fn();
     const upsert = vi.fn(
         (
@@ -427,6 +442,10 @@ const setup = ({
     );
     const args: SemanticStudioServiceArguments = {
         analytics: { track },
+        projectContextModel: {
+            getDocument: async () => projectContext,
+            upsertEntries,
+        },
         aiWritebackService: {
             mergePullRequest,
             scheduleCompileAfterMerge,
@@ -560,6 +579,7 @@ const setup = ({
                 changeName,
                 models,
                 baseVersions,
+                projectContextEntries,
             }) => {
                 const draftChangeUuid = `draft-${drafts.length + 1}`;
                 const started = !activeWorkspace;
@@ -576,6 +596,7 @@ const setup = ({
                     createdAt: new Date(),
                     models,
                     baseVersions,
+                    projectContextEntries,
                 });
                 const checkedOut =
                     workspaceUuid ?? workspaceOf(activeWorkspace.threadUuid);
@@ -689,6 +710,8 @@ const setup = ({
     return {
         service,
         workspaces,
+        projectContext: () => projectContext,
+        upsertEntries,
         getPullRequestState,
         recordPullRequestState,
         fileStorageClient: args.fileStorageClient,
@@ -1973,6 +1996,7 @@ dimensions:
             context.drafts.push({
                 draftChangeUuid: 'draft-2',
                 baseVersions: null,
+                projectContextEntries: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
@@ -1994,6 +2018,7 @@ dimensions:
             context.drafts.push({
                 draftChangeUuid: 'draft-1',
                 baseVersions: null,
+                projectContextEntries: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
@@ -2024,6 +2049,7 @@ dimensions:
             context.drafts.push({
                 draftChangeUuid: 'draft-1',
                 baseVersions: null,
+                projectContextEntries: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
@@ -2054,6 +2080,7 @@ dimensions:
             context.drafts.push({
                 draftChangeUuid: 'draft-1',
                 baseVersions: null,
+                projectContextEntries: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
@@ -2317,6 +2344,7 @@ dimensions:
             context.drafts.push({
                 draftChangeUuid: 'legacy',
                 baseVersions: null,
+                projectContextEntries: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
@@ -2978,6 +3006,7 @@ dimensions:
             context.drafts.push({
                 draftChangeUuid: 'draft-1',
                 baseVersions: null,
+                projectContextEntries: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
@@ -3375,5 +3404,141 @@ describe('workspace pull request reconciliation', () => {
         context.getPullRequestState.mockResolvedValue('open');
         await context.service.listWorkspaces(deployer, PROJECT_UUID);
         expect(context.recordPullRequestState).not.toHaveBeenCalled();
+    });
+});
+
+describe('project context in the draft', () => {
+    const hr: ProjectContextEntry = {
+        id: 'hr',
+        kind: 'definition',
+        content: '"HR" = the high-risk cohort.',
+        terms: ['HR'],
+        objects: [],
+    };
+    const active = {
+        op: 'create' as const,
+        id: null,
+        kind: 'definition' as const,
+        content: '"Active" means ordered in the last 30 days.',
+        terms: ['active'],
+        objects: [],
+    };
+
+    it('drafts an entry, shows the file with its diff, and makes it live on publish', async () => {
+        const context = setup({ liveContext: [hr] });
+        const drafted = await context.service.draftProjectContextEntry(
+            deployer,
+            PROJECT_UUID,
+            active,
+            null,
+            'Active customers',
+        );
+        expect(drafted).toMatchObject({ entryId: 'active', op: 'create' });
+        expect(drafted.startedChange?.name).toBe('Active customers');
+        expect(context.projectContext()).toEqual([hr]);
+
+        const draft = await context.service.getDraft(deployer, PROJECT_UUID);
+        expect(draft.models).toEqual([]);
+        expect(draft.changes[0].projectContextEntries).toEqual(['active']);
+        expect(draft.projectContext?.contentBefore).toContain('high-risk');
+        expect(draft.projectContext?.contentBefore).not.toContain('Active');
+        expect(draft.projectContext?.contentAfter).toContain(
+            '"Active" means ordered in the last 30 days.',
+        );
+
+        const published = await context.service.applyDraft(
+            deployer,
+            PROJECT_UUID,
+            null,
+        );
+        expect(published.failures).toEqual([]);
+        expect(context.projectContext()).toEqual([
+            hr,
+            {
+                id: 'active',
+                kind: 'definition',
+                content: active.content,
+                terms: ['active'],
+                objects: [],
+            },
+        ]);
+        expect(context.drafts).toEqual([]);
+    });
+
+    it('replaces an entry by id on top of an earlier draft of it', async () => {
+        const context = setup({ liveContext: [hr] });
+        await context.service.draftProjectContextEntry(
+            deployer,
+            PROJECT_UUID,
+            { ...active, op: 'update', id: 'hr', content: 'First.' },
+            null,
+            null,
+        );
+        await context.service.draftProjectContextEntry(
+            deployer,
+            PROJECT_UUID,
+            { ...active, op: 'update', id: 'hr', content: 'Second.' },
+            null,
+            null,
+        );
+        const draft = await context.service.getDraft(deployer, PROJECT_UUID);
+        expect(draft.projectContext?.contentAfter).toContain('Second.');
+        expect(draft.projectContext?.contentAfter).not.toContain('First.');
+        await context.service.applyDraft(deployer, PROJECT_UUID, null);
+        expect(context.projectContext()).toEqual([
+            { ...hr, content: 'Second.', terms: ['active'] },
+        ]);
+    });
+
+    it('leaves the context out of a publish of one model', async () => {
+        const context = setup();
+        await context.service.draftProjectContextEntry(
+            deployer,
+            PROJECT_UUID,
+            active,
+            null,
+            null,
+        );
+        await context.service.proposeDraftChange(
+            deployer,
+            PROJECT_UUID,
+            [toDraftModel({ name: 'orders', label: 'All orders' })],
+            null,
+            null,
+        );
+        await context.service.applyDraft(deployer, PROJECT_UUID, 'orders');
+        expect(context.upsertEntries).not.toHaveBeenCalled();
+        expect(
+            (await context.service.getDraft(deployer, PROJECT_UUID))
+                .projectContext,
+        ).not.toBeNull();
+    });
+
+    it('refuses on a project whose context lives in its repository', async () => {
+        const context = setup({ dbtConnection: DBT_IN_GITHUB });
+        await expect(
+            context.service.draftProjectContextEntry(
+                deployer,
+                PROJECT_UUID,
+                active,
+                null,
+                null,
+            ),
+        ).rejects.toThrow(ParameterError);
+        expect(context.drafts).toEqual([]);
+    });
+
+    it('refuses an entry the project context schema rejects', async () => {
+        const context = setup();
+        await expect(
+            context.service.draftProjectContextEntry(
+                deployer,
+                PROJECT_UUID,
+                { ...active, content: '' },
+                null,
+                null,
+            ),
+        ).rejects.toThrow(/Invalid lightdash.project_context.yml/);
+        expect(context.drafts).toEqual([]);
     });
 });
