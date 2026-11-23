@@ -1217,6 +1217,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 repository,
                 utils,
                 clients,
+                prometheusMetrics,
             }) =>
                 new ExternalConnectionService({
                     allowedPrivateHostCidrs:
@@ -1252,6 +1253,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                     .externalConnectionAllowedPrivateHostCidrs,
                         }),
                     lightdashConfig: context.lightdashConfig,
+                    prometheusMetrics,
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
                         featureFlagModel: models.getFeatureFlagModel(),

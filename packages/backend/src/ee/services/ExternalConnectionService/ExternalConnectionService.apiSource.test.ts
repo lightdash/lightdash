@@ -110,9 +110,19 @@ const buildService = ({
         create: vi.fn().mockResolvedValue(connections[0]),
         update: vi.fn().mockResolvedValue(connections[0]),
         softDelete: vi.fn().mockResolvedValue(undefined),
-        tryAcquireApiSourceCallLease: vi.fn().mockResolvedValue(true),
-        tryCountApiSourceCall: vi.fn().mockResolvedValue(true),
-        releaseApiSourceCallLease: vi.fn().mockResolvedValue(undefined),
+        chargeApiSourceRateBuckets: vi.fn().mockResolvedValue({
+            charged: true,
+            now: new Date(),
+            windows: [],
+        }),
+        refundApiSourceRateBuckets: vi.fn().mockResolvedValue(undefined),
+        bookApiSourceRateTurn: vi.fn().mockImplementation(async () => ({
+            booked: true,
+            turnAt: new Date(),
+            now: new Date(),
+        })),
+        tryTakeApiSourceRateSlot: vi.fn().mockResolvedValue(true),
+        releaseApiSourceRateSlot: vi.fn().mockResolvedValue(undefined),
         insertApiSourceCall: vi.fn().mockResolvedValue(undefined),
         setLiveSourceCacheTtl: vi.fn().mockResolvedValue(undefined),
         purgeLiveSourceCache: vi.fn().mockResolvedValue(undefined),
@@ -612,7 +622,7 @@ describe('ExternalConnectionService api source schema scans', () => {
         });
         expect(mockSecureFetch).toHaveBeenCalledTimes(2);
         expect(
-            externalConnectionModel.tryCountApiSourceCall,
+            externalConnectionModel.chargeApiSourceRateBuckets,
         ).toHaveBeenCalled();
         expect(externalConnectionModel.setApiSourceSchema).toHaveBeenCalledWith(
             'conn-1',

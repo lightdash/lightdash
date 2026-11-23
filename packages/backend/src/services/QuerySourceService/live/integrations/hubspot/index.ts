@@ -52,12 +52,7 @@ export const hubspotIntegration = defineLiveIntegration({
         // Records are searched with POST, properties read with GET
         methods: ['GET', 'POST'],
     }),
-    // HubSpot allows about 5 searches a second per account, and private
-    // apps 100 to 190 calls per 10 seconds by plan.
     limits: {
-        concurrentCalls: 2,
-        callsPerMinute: 240,
-        callsPerHour: 10_000,
         callsPerQuery: HUBSPOT_MAX_PAGES,
         timeoutMs: 30_000,
         maxRows: HUBSPOT_MAX_ROWS,
@@ -102,6 +97,8 @@ export const hubspotIntegration = defineLiveIntegration({
         description:
             'Search returns up to 200 records a page and stops at 10,000 results.',
     },
+    // HubSpot allows about 5 searches a second per account, and private
+    // apps 100 to 190 calls per 10 seconds by plan.
     rateLimits: {
         concurrentCalls: 5,
         callsPerSecond: 4,
