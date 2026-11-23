@@ -109,9 +109,30 @@ export const googleAdsIntegration = defineLiveIntegration({
         description:
             'GAQL search returns results in pages of up to 10,000 rows.',
     },
-    rateLimiting: {
-        description:
-            'Daily operations per developer token, shared by every account it serves (2,880 at Explorer access).',
+    rateLimits: {
+        concurrentCalls: 5,
+        callsPerSecond: null,
+        buckets: [
+            {
+                id: 'minute',
+                label: 'per minute',
+                windowMs: 60_000,
+                capacity: 60,
+            },
+            {
+                id: 'hour',
+                label: 'per hour',
+                windowMs: 3_600_000,
+                capacity: 1_000,
+            },
+            {
+                id: 'day',
+                label: 'per day',
+                windowMs: 86_400_000,
+                capacity: 1_000,
+            },
+        ],
+        note: 'Daily operations count against our developer token, shared by every customer (2,880 at Explorer access).',
     },
     useCases: googleAdsUseCases,
     validate: ({ customerId, loginCustomerId }) => {

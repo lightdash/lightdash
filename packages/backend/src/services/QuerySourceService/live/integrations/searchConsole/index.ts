@@ -89,9 +89,23 @@ export const searchConsoleIntegration = defineLiveIntegration({
         description:
             'One call returns up to 25,000 rows; startRow pages beyond that.',
     },
-    rateLimiting: {
-        description:
-            'Search Analytics: 1,200 queries a minute per site and per user.',
+    rateLimits: {
+        concurrentCalls: 5,
+        callsPerSecond: null,
+        buckets: [
+            {
+                id: 'minute',
+                label: 'per minute',
+                windowMs: 60_000,
+                capacity: 600,
+            },
+            {
+                id: 'hour',
+                label: 'per hour',
+                windowMs: 3_600_000,
+                capacity: 20_000,
+            },
+        ],
     },
     useCases: searchConsoleUseCases,
     validate: ({ siteUrl }) => {

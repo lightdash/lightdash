@@ -97,9 +97,23 @@ export const youtubeAnalyticsIntegration = defineLiveIntegration({
         description:
             'One report call; startIndex and maxResults page larger results.',
     },
-    rateLimiting: {
-        description:
-            'Google publishes no per-minute figure for YouTube Analytics.',
+    rateLimits: {
+        concurrentCalls: 5,
+        callsPerSecond: null,
+        buckets: [
+            {
+                id: 'minute',
+                label: 'per minute',
+                windowMs: 60_000,
+                capacity: 60,
+            },
+            {
+                id: 'hour',
+                label: 'per hour',
+                windowMs: 3_600_000,
+                capacity: 1_000,
+            },
+        ],
     },
     useCases: youtubeAnalyticsUseCases,
     validate: ({ channelId }) => {

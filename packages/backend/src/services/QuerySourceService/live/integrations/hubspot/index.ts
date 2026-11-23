@@ -102,9 +102,17 @@ export const hubspotIntegration = defineLiveIntegration({
         description:
             'Search returns up to 200 records a page and stops at 10,000 results.',
     },
-    rateLimiting: {
-        description:
-            'About 5 searches a second per account; private apps 100 to 190 calls per 10 seconds by plan.',
+    rateLimits: {
+        concurrentCalls: 5,
+        callsPerSecond: 4,
+        buckets: [
+            {
+                id: 'hour',
+                label: 'per hour',
+                windowMs: 3_600_000,
+                capacity: 10_000,
+            },
+        ],
     },
     useCases: hubspotUseCases,
     validate: () => {},
