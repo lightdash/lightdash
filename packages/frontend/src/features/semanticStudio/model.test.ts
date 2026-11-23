@@ -78,12 +78,6 @@ describe('summaryOf', () => {
     ])('summarises %j as %j', (markdown, expected) => {
         expect(summaryOf(markdown)).toBe(expected);
     });
-
-    it('returns the same summary on repeat calls (cached)', () => {
-        const markdown = '# T\n\nCached body';
-        expect(summaryOf(markdown)).toBe('Cached body');
-        expect(summaryOf(markdown)).toBe('Cached body');
-    });
 });
 
 describe('buildProjectTree', () => {

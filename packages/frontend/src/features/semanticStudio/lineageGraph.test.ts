@@ -1,7 +1,7 @@
 import { type CompiledTable, type Explore } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { toJoinGraph } from './joinGraph';
-import { relatedModels, toModelLineage, withLineage } from './lineageGraph';
+import { toModelLineage, withLineage } from './lineageGraph';
 
 const model = (name: string) => ({ name, type: 'model' as const });
 
@@ -85,19 +85,39 @@ describe('toModelLineage', () => {
     });
 });
 
-describe('relatedModels', () => {
-    it('collects everything upstream and downstream, not siblings', () => {
-        const links = [
-            { id: '1', source: 'raw', target: 'stg' },
-            { id: '2', source: 'stg', target: 'orders' },
-            { id: '3', source: 'orders', target: 'summary' },
-            { id: '4', source: 'stg', target: 'sibling' },
-        ];
-        expect([...relatedModels(links, 'orders')].sort()).toEqual([
+describe('related models', () => {
+    // raw -> stg -> orders, and stg -> sibling
+    const upstream = { stg: [model('raw')], raw: [] };
+    const source = explore(
+        [
+            table('orders', {
+                lineageGraph: { orders: [model('stg')], ...upstream },
+            }),
+            table('sibling', {
+                lineageGraph: { sibling: [model('stg')], ...upstream },
+            }),
+        ],
+        ['sibling'],
+    );
+    const { relatedTo } = withLineage(
+        toJoinGraph(source),
+        toModelLineage(source),
+    );
+
+    it('collects everything upstream, not siblings', () => {
+        expect([...relatedTo('orders')].sort()).toEqual([
+            'dbt:raw',
+            'dbt:stg',
             'orders',
-            'raw',
-            'stg',
-            'summary',
+        ]);
+    });
+
+    it('collects everything downstream', () => {
+        expect([...relatedTo('dbt:stg')].sort()).toEqual([
+            'dbt:raw',
+            'dbt:stg',
+            'orders',
+            'sibling',
         ]);
     });
 });

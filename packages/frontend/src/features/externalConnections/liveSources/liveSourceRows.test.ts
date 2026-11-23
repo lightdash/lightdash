@@ -6,7 +6,6 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
     formatFreshness,
-    formatCacheHits,
     getLiveSourceFreshness,
     toLiveSourceRows,
     type LiveSourceConnection,
@@ -79,13 +78,13 @@ describe('toLiveSourceRows', () => {
             [usage('used'), usage('other', { apiCalls: 9 })],
         );
         expect(used.usage).toEqual({
-            dataRead: expect.stringMatching(/KB|kB/),
+            dataRead: '361 KB',
             apiCalls: (1234).toLocaleString(),
             cacheHitsLabel: '56 hits',
             medianLatency: '600ms',
         });
         expect(unused.usage).toEqual({
-            dataRead: expect.any(String),
+            dataRead: '0 B',
             apiCalls: '0',
             cacheHitsLabel: '0 hits',
             medianLatency: null,
@@ -103,14 +102,17 @@ describe('toLiveSourceRows', () => {
     });
 });
 
-describe('formatCacheHits', () => {
+describe('cache hits', () => {
     it.each([
-        [0, '0 hits'],
         [1, '1 hit'],
         [2, '2 hits'],
         [1_204, `${(1_204).toLocaleString()} hits`],
-    ])('describes %s as %s', (count, label) => {
-        expect(formatCacheHits(count)).toBe(label);
+    ])('describes %s as %s', (cacheHits, label) => {
+        const [row] = toLiveSourceRows(
+            [connection({})],
+            [usage('uuid', { cacheHits })],
+        );
+        expect(row.usage.cacheHitsLabel).toBe(label);
     });
 });
 

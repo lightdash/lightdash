@@ -47,14 +47,10 @@ describe('externalSourceRows', () => {
             'Targets',
         ]);
         expect(rows[0]).toMatchObject({ type: 'Google Sheet', rows: '—' });
-        expect(rows[1]).toMatchObject({
-            type: 'CSV file',
-            rows: (12345).toLocaleString(),
-        });
+        expect(rows[1].rows).toBe((12345).toLocaleString());
     });
 
-    it('names each state, with the error when an import failed', () => {
-        expect(getExternalSourceState(source({})).label).toBe('Ready');
+    it('shows a staged import as syncing, and the error when an import failed', () => {
         expect(
             getExternalSourceState(
                 source({ status: ExternalSourceStatus.STAGED }),

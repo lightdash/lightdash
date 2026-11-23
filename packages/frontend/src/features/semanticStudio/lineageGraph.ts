@@ -42,10 +42,7 @@ const adjacency = (links: readonly JoinLink[], from: 'source' | 'target') => {
 };
 
 /** The models upstream and downstream of `id`, and `id` itself. */
-export const relatedModels = (
-    links: readonly JoinLink[],
-    id: string,
-): Set<string> =>
+const relatedModels = (links: readonly JoinLink[], id: string): Set<string> =>
     new Set([
         id,
         ...reachable([id], adjacency(links, 'target')),

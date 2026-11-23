@@ -48,7 +48,7 @@ const LOADING_USAGE: LiveSourceUsage = {
 };
 
 /** A count of cache hits in words: "1 hit", "1,204 hits". */
-export const formatCacheHits = (count: number): string =>
+const formatCacheHits = (count: number): string =>
     `${count.toLocaleString()} ${count === 1 ? 'hit' : 'hits'}`;
 
 const formatLiveSourceUsage = (
