@@ -10,7 +10,9 @@ import {
     type StudioCheckoutState,
 } from './useStudioCheckout';
 
-vi.mock('./pierreEditor', () => ({ createEditor: () => null }));
+vi.mock('./pierreEditor', () => ({
+    createTrackedEditor: () => () => null,
+}));
 vi.mock('@pierre/diffs/react', () => ({
     WorkerPoolContextProvider: ({ children }: PropsWithChildren) => children,
     EditProvider: ({ children }: PropsWithChildren) => children,
@@ -108,19 +110,18 @@ describe('ModelCodeView', () => {
         );
         expect(screen.getByTestId('code')).toHaveTextContent('orders in B');
 
+        // Published has nothing to mark, so it opens ready to edit.
         rerender(codeOf(on(null), 'orders'));
-        expect(screen.getByTestId('code')).toHaveTextContent('live orders');
-        expect(screen.getByTestId('code')).not.toHaveAttribute('data-marked');
+        expect(screen.getByTestId('editor')).toHaveValue('live orders');
     });
 
-    it('shows a model the change adds, and says when it removes one', () => {
+    it('opens a model the change adds ready to edit, and says when it removes one', () => {
         const change = on('A', [
             draftModel('payments', null, 'payments in A'),
             draftModel('orders', 'live orders', null),
         ]);
         const { rerender } = renderWithProviders(codeOf(change, 'payments'));
-        expect(screen.getByTestId('code')).toHaveTextContent('payments in A');
-        expect(screen.getByTestId('code')).not.toHaveAttribute('data-marked');
+        expect(screen.getByTestId('editor')).toHaveValue('payments in A');
 
         rerender(codeOf(change, 'orders'));
         expect(
@@ -129,16 +130,18 @@ describe('ModelCodeView', () => {
 
         rerender(codeOf(on(null), 'payments'));
         expect(screen.queryByTestId('code')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
     });
 
     it('edits Published and saves it as a new draft, from what the edit started on', async () => {
         saveModel.mockReset();
         const user = userEvent.setup();
         renderWithProviders(codeOf(on(null), 'orders'));
-        await user.click(screen.getByRole('button', { name: 'Edit' }));
+        expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Redo' })).toBeDisabled();
         expect(
-            screen.getByRole('button', { name: 'Done' }),
-        ).toBeInTheDocument();
+            screen.queryByRole('button', { name: 'Discard' }),
+        ).not.toBeInTheDocument();
         type('edited orders');
         expect(
             screen.getByRole('button', { name: 'Discard' }),
@@ -164,7 +167,8 @@ describe('ModelCodeView', () => {
                 'orders',
             ),
         );
-        await user.click(screen.getByRole('button', { name: 'Edit' }));
+        // The draft's marked lines read first; clicking them starts editing.
+        await user.click(screen.getByTestId('code'));
         type('edited orders');
         await user.click(screen.getByRole('button', { name: 'Save' }));
         expect(screen.getByText('Not today.')).toBeInTheDocument();
@@ -178,8 +182,9 @@ describe('ModelCodeView', () => {
         expect(
             screen.getByText('Only Ana can edit this draft.'),
         ).toBeInTheDocument();
+        expect(screen.getByTestId('code')).toHaveTextContent('live orders');
         expect(
-            screen.queryByRole('button', { name: 'Edit' }),
+            screen.queryByRole('button', { name: 'Undo' }),
         ).not.toBeInTheDocument();
     });
 
@@ -191,7 +196,7 @@ describe('ModelCodeView', () => {
                 'orders',
             ),
         );
-        await user.click(screen.getByRole('button', { name: 'Edit' }));
+        await user.click(screen.getByTestId('code'));
         type('my orders');
         rerender(
             codeOf(

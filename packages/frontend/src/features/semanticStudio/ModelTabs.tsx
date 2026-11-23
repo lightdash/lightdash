@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     Accordion,
+    ActionIcon,
     Alert,
     Badge,
     Box,
@@ -22,9 +23,20 @@ import {
     File,
     WorkerPoolContextProvider,
 } from '@pierre/diffs/react';
-import { IconFileCode, IconPencil } from '@tabler/icons-react';
+import {
+    IconArrowBackUp,
+    IconArrowForwardUp,
+    IconFileCode,
+} from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
 import { useSearchParams } from 'react-router';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -48,7 +60,7 @@ import {
 } from './modelCode';
 import { ModelPreAggregates } from './ModelPreAggregates';
 import classes from './ModelTabs.module.css';
-import { createEditor } from './pierreEditor';
+import { createTrackedEditor, type StudioEditor } from './pierreEditor';
 import {
     useSemanticLayerModel,
     useAppliesAsPullRequest,
@@ -75,14 +87,14 @@ const saveErrorText = ({ error }: ApiError) =>
         ? error.message
         : 'This model could not be saved. Try again in a moment.';
 
-/** A model's YAML as the checked-out change leaves it; your own draft's, or Published's, can be edited and saved into the draft. */
+/** A model's YAML as the checked-out change leaves it; your own draft's, or Published's, opens ready to edit and saves into the draft. */
 export const ModelCodeView: FC<{
     projectUuid: string;
     modelName: string;
     fieldName: string | null;
     /** Why the code is read and not edited, as a sentence; null when it can be edited. */
     readOnlyReason: string | null;
-    /** Opens straight into editing, as the overview's pencil asks. */
+    /** Skips the marked view and opens straight into editing, as the overview's pencil asks. */
     startsEditing: boolean;
 }> = ({ projectUuid, modelName, fieldName, readOnlyReason, startsEditing }) => {
     const colorScheme = useComputedColorScheme('light');
@@ -105,6 +117,16 @@ export const ModelCodeView: FC<{
     const shownContent = isShowingSaved ? justSaved.content : content;
     // Pierre owns the document while editing: it starts from `startedFrom` and reports each change into `text`.
     const [isEditing, setIsEditing] = useState(startsEditing);
+    const editorInstance = useRef<StudioEditor | null>(null);
+    const [history, setHistory] = useState({ canUndo: false, canRedo: false });
+    const editorFactory = useMemo(
+        () =>
+            createTrackedEditor((created) => {
+                editorInstance.current = created;
+                setHistory({ canUndo: false, canRedo: false });
+            }),
+        [],
+    );
     const [startedFrom, setStartedFrom] = useState<string | null>(null);
     const [text, setText] = useState<string | null>(null);
     const [revision, setRevision] = useState(0);
@@ -112,27 +134,28 @@ export const ModelCodeView: FC<{
     const canEdit =
         readOnlyReason === null && shown !== null && shownContent !== null;
     const isDirty = text !== null && text !== startedFrom;
-    const editing = canEdit && (isEditing || isDirty);
+    const fieldBlock =
+        fieldName && shownContent
+            ? findFieldBlock(shownContent, fieldName)
+            : null;
+    // A field asked for, or the draft's marked lines, read first; clicking the code edits it.
+    const hasReadView =
+        fieldBlock !== null ||
+        (drafted !== null && drafted.contentBefore !== null && !isShowingSaved);
+    const editing = canEdit && (isEditing || isDirty || !hasReadView);
     // Unsaved text stays when the model changes under it; saving it then is refused.
     const changedUnder = isDirty && startedFrom !== shownContent;
     // With nothing typed yet, editing follows the model as it changes.
     useEffect(() => {
-        if (!isEditing || isDirty || startedFrom === shownContent) return;
+        if (!editing || isDirty || startedFrom === shownContent) return;
         setStartedFrom(shownContent);
         setText(null);
         setRevision((current) => current + 1);
-    }, [isEditing, isDirty, startedFrom, shownContent]);
-    const block =
-        fieldName && shownContent && !editing
-            ? findFieldBlock(shownContent, fieldName)
-            : null;
+    }, [editing, isDirty, startedFrom, shownContent]);
+    const block = editing ? null : fieldBlock;
     const line = block?.start ?? null;
     // A changed file shows the draft's lines marked; a new one would be marked whole, and a field asked for is shown alone.
-    const marksDraft =
-        drafted !== null &&
-        drafted.contentBefore !== null &&
-        block === null &&
-        !isShowingSaved;
+    const marksDraft = !editing && hasReadView && block === null;
     const editor = useRef<HTMLDivElement>(null);
     // The viewer marks the line but does not bring it into view, and it renders after this does.
     useEffect(() => {
@@ -153,6 +176,12 @@ export const ModelCodeView: FC<{
         return () => cancelAnimationFrame(frame);
     }, [line, modelName]);
 
+    const startEditing = () => {
+        if (!canEdit) return;
+        setStartedFrom(shownContent);
+        setIsEditing(true);
+        setRevision((current) => current + 1);
+    };
     const stopEditing = () => {
         setIsEditing(false);
         setStartedFrom(null);
@@ -213,46 +242,30 @@ export const ModelCodeView: FC<{
                             {readOnlyReason}
                         </Text>
                     ) : null
-                ) : editing ? null : (
-                    <Tooltip
-                        label={
-                            where
-                                ? `Saves to ${where}`
-                                : 'Saving starts a draft. Published stays as it is.'
-                        }
-                    >
-                        <Button
-                            size="compact-xs"
-                            variant="default"
-                            leftSection={
-                                <MantineIcon icon={IconPencil} size={12} />
-                            }
-                            onClick={() => {
-                                track({
-                                    name: EventName.SEMANTIC_STUDIO_EDIT_STARTED,
-                                    properties: {
-                                        projectId: projectUuid,
-                                        kind: 'model',
-                                    },
-                                });
-                                setStartedFrom(shownContent);
-                                setIsEditing(true);
-                                setRevision((current) => current + 1);
-                            }}
-                        >
-                            Edit
-                        </Button>
-                    </Tooltip>
-                )}
-                {editing && !isDirty ? (
-                    <Button
-                        size="compact-xs"
-                        variant="subtle"
-                        color="gray"
-                        onClick={stopEditing}
-                    >
-                        Done
-                    </Button>
+                ) : null}
+                {editing ? (
+                    <>
+                        <Tooltip label="Undo (⌘Z)">
+                            <ActionIcon
+                                aria-label="Undo"
+                                className={classes.history}
+                                disabled={!history.canUndo}
+                                onClick={() => editorInstance.current?.undo()}
+                            >
+                                <MantineIcon icon={IconArrowBackUp} />
+                            </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label="Redo (⇧⌘Z)">
+                            <ActionIcon
+                                aria-label="Redo"
+                                className={classes.history}
+                                disabled={!history.canRedo}
+                                onClick={() => editorInstance.current?.redo()}
+                            >
+                                <MantineIcon icon={IconArrowForwardUp} />
+                            </ActionIcon>
+                        </Tooltip>
+                    </>
                 ) : null}
                 {editing && isDirty ? (
                     <>
@@ -341,7 +354,7 @@ export const ModelCodeView: FC<{
                         poolOptions={PIERRE_POOL_OPTIONS}
                         highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
                     >
-                        <EditProvider createEditor={createEditor}>
+                        <EditProvider createEditor={editorFactory}>
                             <File
                                 key={`${modelName}:${revision}`}
                                 className={classes.codeHost}
@@ -351,42 +364,69 @@ export const ModelCodeView: FC<{
                                 }}
                                 options={options}
                                 edit={!save.isLoading}
-                                onEditChange={(event) =>
-                                    setText(event.file.contents)
-                                }
+                                onEditChange={(event) => {
+                                    if (text === null) {
+                                        track({
+                                            name: EventName.SEMANTIC_STUDIO_EDIT_STARTED,
+                                            properties: {
+                                                projectId: projectUuid,
+                                                kind: 'model',
+                                            },
+                                        });
+                                    }
+                                    setText(event.file.contents);
+                                    setHistory({
+                                        canUndo:
+                                            editorInstance.current?.canUndo ??
+                                            false,
+                                        canRedo:
+                                            editorInstance.current?.canRedo ??
+                                            false,
+                                    });
+                                }}
                                 onEditComplete={() => 'accept'}
                             />
                         </EditProvider>
                     </WorkerPoolContextProvider>
-                ) : marksDraft ? (
-                    <WorkerPoolContextProvider
-                        poolOptions={PIERRE_POOL_OPTIONS}
-                        highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
+                ) : marksDraft && drafted ? (
+                    <Box
+                        className={canEdit ? classes.clickToEdit : undefined}
+                        onClick={startEditing}
                     >
-                        <ChangeDiff
-                            modelName={modelName}
-                            change={drafted}
-                            variant="whole"
-                        />
-                    </WorkerPoolContextProvider>
+                        <WorkerPoolContextProvider
+                            poolOptions={PIERRE_POOL_OPTIONS}
+                            highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
+                        >
+                            <ChangeDiff
+                                modelName={modelName}
+                                change={drafted}
+                                variant="whole"
+                            />
+                        </WorkerPoolContextProvider>
+                    </Box>
                 ) : (
-                    <WorkerPoolContextProvider
-                        poolOptions={PIERRE_POOL_OPTIONS}
-                        highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
+                    <Box
+                        className={canEdit ? classes.clickToEdit : undefined}
+                        onClick={startEditing}
                     >
-                        <File
-                            className={classes.codeHost}
-                            file={{
-                                name: `${modelName}.yml`,
-                                contents: shownContent,
-                            }}
-                            selectedLines={block}
-                            options={{
-                                ...options,
-                                unsafeCSS: block ? ISOLATE_BLOCK_CSS : '',
-                            }}
-                        />
-                    </WorkerPoolContextProvider>
+                        <WorkerPoolContextProvider
+                            poolOptions={PIERRE_POOL_OPTIONS}
+                            highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
+                        >
+                            <File
+                                className={classes.codeHost}
+                                file={{
+                                    name: `${modelName}.yml`,
+                                    contents: shownContent,
+                                }}
+                                selectedLines={block}
+                                options={{
+                                    ...options,
+                                    unsafeCSS: block ? ISOLATE_BLOCK_CSS : '',
+                                }}
+                            />
+                        </WorkerPoolContextProvider>
+                    </Box>
                 )}
             </Box>
         </Box>

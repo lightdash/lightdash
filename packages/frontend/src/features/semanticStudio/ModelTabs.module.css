@@ -72,3 +72,14 @@
 .undo {
     flex: none;
 }
+
+/* Reading the draft's marks or a field: a click starts editing. */
+.clickToEdit {
+    cursor: text;
+}
+
+.history:disabled,
+.history[data-disabled] {
+    background: transparent;
+    opacity: 0.4;
+}
