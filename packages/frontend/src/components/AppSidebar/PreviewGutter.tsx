@@ -26,6 +26,8 @@ type Props = {
     previewName: string;
     expiresAt: Date | null;
     upstreamProject: UpstreamProject | null;
+    /** The project selector names the parent project; the gutter does when the selector is out of sight. */
+    showUpstreamName: boolean;
 };
 
 /** The strip above the page that says this is a preview, and of which project. */
@@ -33,6 +35,7 @@ export const PreviewGutter: FC<Props> = ({
     previewName,
     expiresAt,
     upstreamProject,
+    showUpstreamName,
 }) => {
     const handleBackToUpstream = useBackToUpstreamProject(upstreamProject);
 
@@ -44,25 +47,27 @@ export const PreviewGutter: FC<Props> = ({
         >
             <Box className={classes.path}>
                 {upstreamProject && (
-                    <>
-                        <Text fz="xs" c="dimmed" truncate miw={0}>
-                            {upstreamProject.name}
-                        </Text>
-                        <MantineIcon
-                            icon={IconChevronRight}
-                            size="xs"
-                            color="dimmed"
-                            className={classes.fixed}
-                        />
-                    </>
+                    <Box
+                        className={classes.upstream}
+                        data-visible={showUpstreamName}
+                        aria-hidden={!showUpstreamName}
+                    >
+                        <Box className={classes.upstreamContent}>
+                            <Text fz="sm" truncate maw={200}>
+                                {upstreamProject.name}
+                            </Text>
+                            <MantineIcon
+                                icon={IconChevronRight}
+                                size="sm"
+                                color="dimmed"
+                                className={classes.fixed}
+                            />
+                        </Box>
+                    </Box>
                 )}
-                <MantineIcon
-                    icon={IconTools}
-                    size="sm"
-                    className={classes.previewIcon}
-                />
+                <MantineIcon icon={IconTools} className={classes.previewIcon} />
                 <Text
-                    fz="xs"
+                    fz="sm"
                     fw={600}
                     truncate
                     miw={0}

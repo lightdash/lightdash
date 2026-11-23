@@ -8,6 +8,7 @@ import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
 import { PAGE_SCROLLER_ID } from '../../utils/pageScroller';
 import {
+    APP_PREVIEW_GUTTER_HEIGHT,
     APP_SIDEBAR_COLLAPSE_THRESHOLD,
     APP_SIDEBAR_MAX_WIDTH,
     APP_SIDEBAR_MIN_WIDTH,
@@ -101,13 +102,24 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
                 breakpoint: 0,
                 collapsed: { desktop: isFullscreen, mobile: isFullscreen },
             }}
-            header={{ height: hasBanner ? BANNER_HEIGHT : 0 }}
+            header={{
+                height: previewNotice
+                    ? APP_PREVIEW_GUTTER_HEIGHT
+                    : hasBanner
+                      ? BANNER_HEIGHT
+                      : 0,
+            }}
             // Animating the offset would re-measure every chart on each frame.
             transitionDuration={0}
             resize={resize}
         >
             <AppShell.Header withBorder={false} className={classes.gutter}>
-                {previewNotice && <PreviewGutter {...previewNotice} />}
+                {previewNotice && (
+                    <PreviewGutter
+                        {...previewNotice}
+                        showUpstreamName={isCollapsed}
+                    />
+                )}
                 <NavBarRoot hasVisibleFixedNavbar={false} hasBanner={hasBanner}>
                     {!previewNotice && banner}
                     <SharedSignInExpiryListener />
