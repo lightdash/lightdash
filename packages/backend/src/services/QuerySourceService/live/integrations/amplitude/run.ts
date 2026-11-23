@@ -194,8 +194,18 @@ const seriesResponseSchema = z.object({
         series: z.array(z.array(numberSchema)),
         seriesLabels: z.array(z.unknown()).optional(),
         seriesMeta: z.array(z.unknown()).optional(),
+        // Segmentation collapses to [{ value }]; /users to bare numbers
         seriesCollapsed: z
-            .array(z.array(z.object({ value: numberSchema })))
+            .array(
+                z.array(
+                    z.union([
+                        z
+                            .object({ value: numberSchema })
+                            .transform(({ value }) => value),
+                        numberSchema,
+                    ]),
+                ),
+            )
             .optional(),
         xValues: z.array(z.string()),
     }),
@@ -217,12 +227,16 @@ const funnelResponseSchema = z.object({
 const retentionEntrySchema = z.object({
     count: numberSchema,
     outof: numberSchema,
+    /** The period hasn't ended yet, so its count is partial. */
+    incomplete: z.boolean().optional(),
 });
 const retentionResponseSchema = z.object({
     data: z.object({
         series: z.array(
             z.object({
                 dates: z.array(z.string()).optional(),
+                /** Each cohort's ISO start date, in the order of `dates`. */
+                datetimes: z.array(z.string()).optional(),
                 values: z
                     .record(z.string(), z.array(retentionEntrySchema))
                     .optional(),
@@ -246,16 +260,20 @@ const toGroupLabel = (label: unknown): string | null => {
 };
 
 /**
- * Each group's label. A group Amplitude doesn't label would merge into
- * another's row, so that fails instead.
+ * Each group's label, or null for the unlabeled all-zero series Amplitude
+ * returns when there is nothing to group. Any other group without a label
+ * would merge into another's row, so that fails instead.
  */
-const getGroupLabels = (data: SeriesData, groupBy: string | null) => {
+const getGroupLabels = (
+    data: SeriesData,
+    groupBy: string | null,
+): (string | null)[] => {
     if (!groupBy) return [];
-    return data.series.map((_, index) => {
+    return data.series.map((values, index) => {
         const label = toGroupLabel(
             data.seriesLabels?.[index] ?? data.seriesMeta?.[index],
         );
-        if (label === null) {
+        if (label === null && values.some((value) => value)) {
             throw new UnexpectedServerError(
                 `${LABEL} returned a group without a ${groupBy} label`,
             );
@@ -263,6 +281,20 @@ const getGroupLabels = (data: SeriesData, groupBy: string | null) => {
         return label;
     });
 };
+
+/** Whether a grouped series is Amplitude's placeholder for no groups. */
+const isEmptyGroup = (labels: (string | null)[], index: number) =>
+    labels.length > 0 && labels[index] === null;
+
+/**
+ * Runs calls one after another: Amplitude limits the cost of the queries
+ * running at once per project, and a few long ranges in parallel exceed it.
+ */
+const inSequence = <T>(tasks: (() => Promise<T>)[]): Promise<T[]> =>
+    tasks.reduce<Promise<T[]>>(
+        async (done, task) => [...(await done), await task()],
+        Promise.resolve([]),
+    );
 
 const toIsoDate = (value: string): string | null => {
     const iso = value.slice(0, 10);
@@ -291,7 +323,8 @@ const addDays = (date: string, days: number) => {
 };
 
 /**
- * Retention labels its cohorts like "Aug 15", without a year: the year is
+ * A cohort's start date from its label, for responses without `datetimes`:
+ * "Oct 20, 2026", "Nov 2026", or "Aug 15" without a year, where the year is
  * the one that puts the cohort inside the queried range.
  */
 export const toRetentionCohortDate = (
@@ -301,12 +334,17 @@ export const toRetentionCohortDate = (
 ): string | null => {
     const iso = toIsoDate(label);
     if (iso) return iso;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const monthOnly = /^([A-Z][a-z]{2})\s+(\d{4})$/.exec(label.trim());
+    if (monthOnly) {
+        const index = MONTHS.indexOf(monthOnly[1]);
+        return index < 0 ? null : `${monthOnly[2]}-${pad(index + 1)}-01`;
+    }
     const match = /^([A-Z][a-z]{2})\s+(\d{1,2})(?:,?\s+(\d{4}))?$/.exec(
         label.trim(),
     );
     const month = match ? MONTHS.indexOf(match[1]) : -1;
     if (!match || month < 0) return null;
-    const pad = (n: number) => String(n).padStart(2, '0');
     const toDate = (year: number) =>
         `${year}-${pad(month + 1)}-${pad(Number(match[2]))}`;
     if (match[3]) return toDate(Number(match[3]));
@@ -356,31 +394,35 @@ const runSegmentation = async (
     const pairs = request.events.flatMap((event) =>
         request.metrics.map((metric) => ({ event, metric })),
     );
-    const responses = await Promise.all(
-        pairs.map(({ event, metric }) =>
-            get(
-                calls,
-                AMPLITUDE_PATHS.segmentation,
-                [
-                    [
-                        'e',
-                        JSON.stringify(toEventObject(event, request.groupBy)),
-                    ],
-                    ['m', metric],
-                    ...rangeParams(request),
-                    // Without a date grain, read daily and keep the collapsed totals
-                    ['i', request.interval ?? 1],
-                    ...(request.groupBy
-                        ? [
-                              ['limit', SEGMENTATION_GROUP_LIMIT] as [
-                                  string,
-                                  number,
-                              ],
-                          ]
-                        : []),
-                ],
-                seriesResponseSchema,
-            ),
+    const responses = await inSequence(
+        pairs.map(
+            ({ event, metric }) =>
+                () =>
+                    get(
+                        calls,
+                        AMPLITUDE_PATHS.segmentation,
+                        [
+                            [
+                                'e',
+                                JSON.stringify(
+                                    toEventObject(event, request.groupBy),
+                                ),
+                            ],
+                            ['m', metric],
+                            ...rangeParams(request),
+                            // Without a date grain, read daily and keep the collapsed totals
+                            ['i', request.interval ?? 1],
+                            ...(request.groupBy
+                                ? [
+                                      ['limit', SEGMENTATION_GROUP_LIMIT] as [
+                                          string,
+                                          number,
+                                      ],
+                                  ]
+                                : []),
+                        ],
+                        seriesResponseSchema,
+                    ),
         ),
     );
     responses.forEach(({ data }, index) => {
@@ -388,6 +430,7 @@ const runSegmentation = async (
         const column = AMPLITUDE_SEGMENTATION_METRICS[metric];
         const labels = getGroupLabels(data, request.groupBy);
         data.series.forEach((values, seriesIndex) => {
+            if (isEmptyGroup(labels, seriesIndex)) return;
             const base: Row = {
                 event_type: toEventLabel(event),
                 ...(request.groupBy
@@ -398,7 +441,7 @@ const runSegmentation = async (
                 merged.set(
                     base,
                     column,
-                    data.seriesCollapsed?.[seriesIndex]?.[0]?.value ?? null,
+                    data.seriesCollapsed?.[seriesIndex]?.[0] ?? null,
                 );
                 return;
             }
@@ -441,27 +484,29 @@ const runUsers = async (
 ) => {
     const dateColumn = AMPLITUDE_DATE_COLUMNS[request.interval];
     const merged = mergeRows();
-    const responses = await Promise.all(
-        request.metrics.map((metric) =>
-            get(
-                calls,
-                AMPLITUDE_PATHS.users,
-                [
-                    ['m', metric],
-                    ...rangeParams(request),
-                    ['i', request.interval],
-                    ...(request.groupBy
-                        ? [['g', request.groupBy] as [string, string]]
-                        : []),
-                ],
-                seriesResponseSchema,
-            ),
+    const responses = await inSequence(
+        request.metrics.map(
+            (metric) => () =>
+                get(
+                    calls,
+                    AMPLITUDE_PATHS.users,
+                    [
+                        ['m', metric],
+                        ...rangeParams(request),
+                        ['i', request.interval],
+                        ...(request.groupBy
+                            ? [['g', request.groupBy] as [string, string]]
+                            : []),
+                    ],
+                    seriesResponseSchema,
+                ),
         ),
     );
     responses.forEach(({ data }, index) => {
         const column = AMPLITUDE_USER_METRICS[request.metrics[index]];
         const labels = getGroupLabels(data, request.groupBy);
         data.series.forEach((values, seriesIndex) => {
+            if (isEmptyGroup(labels, seriesIndex)) return;
             values.forEach((value, x) => {
                 merged.set(
                     {
@@ -549,16 +594,21 @@ const toRetentionRows = (
     entries: z.infer<typeof retentionEntrySchema>[],
     base: Row,
 ): Row[] =>
-    entries.slice(1).map(({ count, outof }, period) => ({
-        ...base,
-        period,
-        retained_users: count,
-        cohort_users: outof,
-        retention_rate:
-            count !== null && outof !== null && outof > 0
-                ? count / outof
-                : null,
-    }));
+    entries
+        .slice(1)
+        .map((entry, period) => ({ ...entry, period }))
+        // A period still running would chart as a drop to its partial count
+        .filter(({ incomplete }) => incomplete !== true)
+        .map(({ count, outof, period }) => ({
+            ...base,
+            period,
+            retained_users: count,
+            cohort_users: outof,
+            retention_rate:
+                count !== null && outof !== null && outof > 0
+                    ? count / outof
+                    : null,
+        }));
 
 const runRetention = async (
     request: Extract<AmplitudeRequest, { endpoint: 'retention' }>,
@@ -580,14 +630,21 @@ const runRetention = async (
     const cohortColumn = AMPLITUDE_DATE_COLUMNS[request.interval];
     const rows = request.byCohort
         ? Object.entries(series?.values ?? {})
-              .map(([label, entries]) => ({
-                  cohort: toRetentionCohortDate(
-                      label,
-                      request.start,
-                      request.end,
-                  ),
-                  entries,
-              }))
+              .map(([label, entries]) => {
+                  const index = series?.dates?.indexOf(label) ?? -1;
+                  const datetime =
+                      index >= 0 ? series?.datetimes?.[index] : undefined;
+                  return {
+                      cohort:
+                          (datetime && toIsoDate(datetime)) ||
+                          toRetentionCohortDate(
+                              label,
+                              request.start,
+                              request.end,
+                          ),
+                      entries,
+                  };
+              })
               .sort((a, b) => (a.cohort ?? '').localeCompare(b.cohort ?? ''))
               .flatMap(({ cohort, entries }) =>
                   toRetentionRows(entries, { [cohortColumn]: cohort }),
@@ -610,16 +667,17 @@ const runSessions = async (
     calls: LiveCalls,
 ) => {
     const merged = mergeRows();
-    const responses = await Promise.all(
-        request.metrics.map((metric) =>
-            get(
-                calls,
-                metric === 'average'
-                    ? AMPLITUDE_PATHS.sessionLength
-                    : AMPLITUDE_PATHS.sessionsPerUser,
-                rangeParams(request),
-                seriesResponseSchema,
-            ),
+    const responses = await inSequence(
+        request.metrics.map(
+            (metric) => () =>
+                get(
+                    calls,
+                    metric === 'average'
+                        ? AMPLITUDE_PATHS.sessionLength
+                        : AMPLITUDE_PATHS.sessionsPerUser,
+                    rangeParams(request),
+                    seriesResponseSchema,
+                ),
         ),
     );
     responses.forEach(({ data }, index) => {

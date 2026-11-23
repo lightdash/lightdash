@@ -232,18 +232,23 @@ describe('amplitudeIntegration run', () => {
         ]);
     });
 
-    it('reads retention cohorts, skipping the cohort size at index 0', async () => {
-        const entries = (counts: number[], outof: number) =>
-            counts.map((count) => ({ count, outof, incomplete: false }));
+    it('reads retention cohorts by their datetimes, skipping the cohort size and running periods', async () => {
+        const entries = (counts: number[], outof: number, running = 0) =>
+            counts.map((count, index) => ({
+                count,
+                outof,
+                incomplete: index >= counts.length - running,
+            }));
         const { source } = connect(
             jsonResponse({
                 data: {
                     series: [
                         {
-                            dates: ['Oct 2', 'Oct 1'],
+                            dates: ['Oct 02, 2026', 'Oct 01, 2026'],
+                            datetimes: ['2026-10-02', '2026-10-01'],
                             values: {
-                                'Oct 2': entries([50, 50, 10], 50),
-                                'Oct 1': entries([40, 40, 20], 40),
+                                'Oct 02, 2026': entries([50, 50, 10, 0], 50, 1),
+                                'Oct 01, 2026': entries([40, 40, 20], 40),
                             },
                             combined: entries([90, 90, 30], 90),
                         },
@@ -383,6 +388,31 @@ describe('amplitudeIntegration run', () => {
         expect(result.rows).toHaveLength(1000);
         expect(result.rows[0]).toMatchObject({ event_type: 'All events' });
         expect(result.hasMoreRows).toBe(true);
+    });
+
+    it('reads an empty grouped report as no rows', async () => {
+        const { source } = connect(
+            jsonResponse({
+                data: {
+                    series: [[0, 0]],
+                    seriesCollapsed: [[0]],
+                    seriesLabels: [0],
+                    seriesMeta: [{ segmentIndex: 0 }],
+                    xValues: ['2026-09-01', '2026-10-01'],
+                },
+            }),
+        );
+        const result = await source.run({
+            query: JSON.stringify({
+                endpoint: 'users',
+                ...RANGE,
+                interval: 30,
+                metrics: ['new'],
+                groupBy: 'country',
+            }),
+            limit: 10,
+        });
+        expect(result.rows).toEqual([]);
     });
 
     it('refuses a group without a label instead of merging it', async () => {
@@ -548,6 +578,12 @@ describe('toRetentionCohortDate', () => {
         expect(
             toRetentionCohortDate('2026-10-01', '2026-10-01', '2026-10-31'),
         ).toBe('2026-10-01');
+        expect(
+            toRetentionCohortDate('Oct 20, 2026', '2026-10-01', '2026-10-31'),
+        ).toBe('2026-10-20');
+        expect(
+            toRetentionCohortDate('Nov 2026', '2026-08-01', '2026-11-23'),
+        ).toBe('2026-11-01');
         expect(
             toRetentionCohortDate('Week 4', '2026-10-01', '2026-10-31'),
         ).toBe(null);

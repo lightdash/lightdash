@@ -104,11 +104,12 @@ export const amplitudeIntegration = defineLiveIntegration({
         description:
             'No paging: each call returns every row, up to 1,000 group values by default and 20,000 at most.',
     },
-    // Amplitude runs 5 Dashboard API queries at once per project and limits
-    // their cost per hour (days × conditions × query type). These stay well
-    // under it and leave room for other clients of the same project.
+    // Amplitude limits the cost of the queries running at once per project
+    // (a 61-day segmentation costs 600, and four of them were refused) and
+    // their cost per hour (days × conditions × query type). One call at a
+    // time stays under the first and leaves room for other clients.
     rateLimits: {
-        concurrentCalls: 3,
+        concurrentCalls: 1,
         callsPerSecond: null,
         buckets: [
             {
