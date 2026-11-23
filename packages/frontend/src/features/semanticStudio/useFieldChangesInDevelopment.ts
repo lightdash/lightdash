@@ -1,4 +1,4 @@
-import { type ApiError, type Explore } from '@lightdash/common';
+import { isApiError, type ApiError, type Explore } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import {
@@ -18,6 +18,7 @@ export const modelVersionQuery = (
     enabled = true,
 ) => ({
     queryKey: ['semantic-studio-model-version', projectUuid, model, headers],
+    // A model with no such version is a value, so a refetch never drops back to loading with nothing.
     queryFn: () =>
         lightdashApi<Explore>({
             version: 'v1',
@@ -25,6 +26,10 @@ export const modelVersionQuery = (
             method: 'GET',
             body: undefined,
             headers,
+        }).catch((error: unknown) => {
+            if (isApiError(error) && error.error.statusCode === 404)
+                return null;
+            throw error;
         }),
     enabled,
     retry: false,
@@ -37,7 +42,7 @@ export const useModelVersion = (
     enabled = true,
 ) => {
     const lightdashApi = useLightdashApi();
-    return useQuery<Explore, ApiError>(
+    return useQuery<Explore | null, ApiError>(
         modelVersionQuery(lightdashApi, projectUuid, model, headers, enabled),
     );
 };

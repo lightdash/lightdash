@@ -4,7 +4,7 @@ import {
     getFaces,
     project,
     type Solid,
-} from '../../../../../components/Explorer/ResultsCard/isometric';
+} from '../../components/Explorer/ResultsCard/isometric';
 import classes from './StudioDraftIllustration.module.css';
 
 type Piece = Solid & {
@@ -123,11 +123,13 @@ const PieceShape: FC<{ piece: Piece; index: number }> = ({ piece, index }) => {
 };
 
 /** A building whose top storey is still a draft, apart from the published ones. */
-export const StudioDraftIllustration: FC = () => (
+export const StudioDraftIllustration: FC<{ width?: number }> = ({
+    width = 200,
+}) => (
     <Box
         component="svg"
         viewBox="0 -14 240 170"
-        w={200}
+        w={width}
         className={classes.root}
         aria-hidden
     >

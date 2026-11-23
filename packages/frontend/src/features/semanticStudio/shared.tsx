@@ -61,9 +61,15 @@ import { Link } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { ItemDetailMarkdown } from '../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
 import dbtLogo from '../../components/ProjectConnection/ProjectConnectFlow/Assets/dbt.svg';
-import { WarehouseTypeLabels } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
+import {
+    getWarehouseIcon,
+    getWarehouseLabel,
+    WarehouseTypeLabels,
+} from '../../components/ProjectConnection/ProjectConnectFlow/utils';
 import { WarehouseLogoStack } from '../../components/ProjectConnection/ProjectConnectFlow/WarehouseLogoStack';
+import { AgentChatInput } from '../../ee/features/aiCopilot/components/ChatElements/AgentChatInput';
 import { useDefaultAiAgent } from '../../ee/features/aiCopilot/components/Launcher/useDefaultAiAgent';
+import { useStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import {
     getLiveSource,
     getLiveSourceIconClass,
@@ -72,6 +78,7 @@ import useHealth from '../../hooks/health/useHealth';
 import { useProject } from '../../hooks/useProject';
 import googleSheetsLogo from '../../svgs/google-sheets.svg';
 import { useUpdateLiveSourceFields } from '../externalConnections/hooks/useLiveSourceFields';
+import { useTables } from '../sqlRunner/hooks/useTables';
 import { useExternalSourceActions } from './externalSources/externalSourceActions';
 import { isSameDraft, toFieldChange, toFieldDraft } from './fieldDraft';
 import { KindTypeIcon } from './KindTypeIcon';
@@ -93,9 +100,9 @@ import {
 } from './model';
 import { CHANGE_KIND_LABELS } from './modelCode';
 import { usePageVirtualizer } from './pageScroll';
-import { SemanticLayerPreview } from './SemanticLayerPreview';
 import classes from './shared.module.css';
 import { startStudioChatRefDrag, useAddToStudioChat } from './studioChatRefs';
+import { StudioDraftIllustration } from './StudioDraftIllustration';
 import { STUDIO_STARTERS } from './studioStarters';
 import { useCanEditSemanticLayer } from './useSemanticLayerModel';
 import {
@@ -1714,31 +1721,26 @@ const StartFromLiveSource: FC<{ view: ViewModel }> = ({ view }) => {
 };
 
 /** A warehouse with nothing modelled yet: what a semantic layer is, and the way in. */
-const FirstRequest: FC<{ onAsk: (prompt: string) => void }> = ({ onAsk }) => {
-    const [request, setRequest] = useState('');
-    const ask = () => {
-        if (request.trim()) onAsk(request.trim());
-    };
+const FirstRequest: FC<{
+    view: ViewModel;
+    onAsk: (prompt: string) => void;
+}> = ({ view, onAsk }) => {
+    const { agent } = useStudioAgent(view.project.id);
     return (
         <Stack gap="sm" w="100%" maw={520}>
-            <Box className={classes.firstRequest}>
-                <Textarea
-                    variant="unstyled"
-                    autosize
-                    minRows={2}
-                    maxRows={6}
-                    autoFocus
-                    placeholder="What should I build first?"
-                    value={request}
-                    onChange={(event) => setRequest(event.currentTarget.value)}
-                    onKeyDown={getHotkeyHandler([['Enter', ask]])}
-                />
-                <Group justify="flex-end">
-                    <Button size="xs" disabled={!request.trim()} onClick={ask}>
-                        Ask
-                    </Button>
-                </Group>
-            </Box>
+            {/* The chat's own composer, so asking here feels the same as asking there. */}
+            <AgentChatInput
+                allowAttachments={false}
+                accessCalloutVariant="inline"
+                showSuggestions={false}
+                onSubmit={({ message }) => {
+                    if (message.trim()) onAsk(message.trim());
+                }}
+                placeholder="What should I build first?"
+                projectUuid={view.project.id}
+                agentUuid={agent?.uuid}
+                fullWidth
+            />
             <Group gap="xs" justify="center">
                 {STUDIO_STARTERS.map(({ label, prompt }) => (
                     <Button
@@ -1755,35 +1757,65 @@ const FirstRequest: FC<{ onAsk: (prompt: string) => void }> = ({ onAsk }) => {
     );
 };
 
+/** What the agent will read from, so an empty page still shows the project is connected. */
+const WarehouseLine: FC<{
+    view: ViewModel;
+    onAsk: ((prompt: string) => void) | null;
+}> = ({ view, onAsk }) => {
+    const { data: project } = useProject(view.project.id);
+    const { data: catalog } = useTables({ projectUuid: view.project.id });
+    const type = project?.warehouseConnection?.type;
+    if (!type || !catalog) return null;
+    const schemas = Object.entries(catalog).flatMap(([, database]) =>
+        Object.entries(database),
+    );
+    const tableCount = schemas.reduce(
+        (sum, [, tables]) => sum + Object.keys(tables).length,
+        0,
+    );
+    if (tableCount === 0) return null;
+    const where = schemas.length === 1 ? ` in ${schemas[0][0]}` : '';
+    const text = `${getWarehouseLabel(type) ?? 'Warehouse'} · ${tableCount} ${tableCount === 1 ? 'table' : 'tables'}${where}`;
+    const icon = getWarehouseIcon(type, 16);
+    return onAsk ? (
+        <Button
+            size="xs"
+            variant="subtle"
+            color="gray"
+            leftSection={icon}
+            onClick={() => onAsk(STUDIO_STARTERS[0].prompt)}
+        >
+            {text}
+        </Button>
+    ) : (
+        <Group gap={6} c="dimmed" fz="xs">
+            {icon}
+            {text}
+        </Group>
+    );
+};
+
 export const BuildFirstModel: FC<{
     view: ViewModel;
     /** Left out while the chat is already open beside this. */
     onAsk: ((prompt: string) => void) | null;
-}> = ({ view, onAsk }) => {
-    const { data: project } = useProject(view.project.id);
-    return (
-        <Box className={classes.starter}>
-            <Stack align="center" gap="lg" w="100%" maw={640}>
-                <Box w="100%">
-                    <SemanticLayerPreview
-                        warehouseType={
-                            project?.warehouseConnection?.type ?? null
-                        }
-                    />
-                </Box>
-                <Stack gap="xs" align="center" ta="center" maw={480}>
-                    <Title order={3}>Build your semantic layer</Title>
-                    <Text c="dimmed" fz="sm">
-                        Define your metrics once, and every chart, dashboard and
-                        answer calculates them the same way.
-                    </Text>
-                </Stack>
-                {onAsk ? <FirstRequest onAsk={onAsk} /> : null}
-                <StartFromLiveSource view={view} />
+}> = ({ view, onAsk }) => (
+    <Box className={classes.starter}>
+        <Stack align="center" gap="lg" w="100%" maw={640}>
+            <StudioDraftIllustration width={280} />
+            <Stack gap="xs" align="center" ta="center" maw={480}>
+                <Title order={3}>Build your semantic layer</Title>
+                <Text c="dimmed" fz="sm">
+                    Define your metrics once, and every chart, dashboard and
+                    answer calculates them the same way.
+                </Text>
             </Stack>
-        </Box>
-    );
-};
+            <WarehouseLine view={view} onAsk={onAsk} />
+            {onAsk ? <FirstRequest view={view} onAsk={onAsk} /> : null}
+            <StartFromLiveSource view={view} />
+        </Stack>
+    </Box>
+);
 
 export const EmptyProject: FC<{ view: ViewModel }> = ({ view }) => {
     const { options, pathOf } = useAddSource(view);

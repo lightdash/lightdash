@@ -1,6 +1,7 @@
 /** Sources: the project's YAML and SQL as code, like an IDE: edit, see what the change does, ask the agent. */
 import { lintDbtYaml, type ApiError } from '@lightdash/common';
 import {
+    ActionIcon,
     Alert,
     Badge,
     Box,
@@ -31,8 +32,8 @@ import { type FileTreeIconConfig } from '@pierre/trees';
 import { FileTree, useFileTree } from '@pierre/trees/react';
 import {
     IconCheck,
-    IconChevronDown,
     IconGitCompare,
+    IconLock,
     IconListDetails,
     IconPencil,
     IconSearch,
@@ -746,7 +747,8 @@ export const SourcePane: FC<{
           ? { label: isSaving ? 'Saving' : 'Proposed', color: 'violet' }
           : change.isNew
             ? { label: 'Added', color: 'green' }
-            : { label: 'Modified', color: 'yellow' };
+            : // The line counts already say a file changed.
+              null;
     // Like a pull request's compare: what the diff starts from, and what it shows.
     const comparison = `${!target.canEdit ? 'Before' : isChangedFile || !target.prUrl ? 'Published' : 'This draft'} → ${
         proposedFrom !== null
@@ -827,9 +829,24 @@ export const SourcePane: FC<{
                 </Group>
                 <Group gap="xs" wrap="nowrap" flex="none">
                     {!target.canEdit ? (
-                        <Text fz="xs" c="dimmed" truncate maw={320}>
-                            {target.readOnlyReason ?? 'Read only'}
-                        </Text>
+                        <Tooltip
+                            label={target.readOnlyReason ?? 'Read only'}
+                            multiline
+                            maw={280}
+                        >
+                            <Box
+                                className={classes.readOnly}
+                                aria-label={
+                                    target.readOnlyReason ?? 'Read only'
+                                }
+                            >
+                                <MantineIcon
+                                    icon={IconLock}
+                                    size={14}
+                                    color="dimmed"
+                                />
+                            </Box>
+                        </Tooltip>
                     ) : isEditing ? null : (
                         <Tooltip
                             label={
@@ -874,29 +891,31 @@ export const SourcePane: FC<{
                     ) : null}
                     {compare !== null ? (
                         <Menu position="bottom-end" width={240}>
-                            <Menu.Target>
-                                <Button
-                                    size="compact-xs"
-                                    variant="subtle"
-                                    color="gray"
-                                    leftSection={
+                            <Tooltip
+                                label={
+                                    shownLayout === 'code'
+                                        ? 'Not comparing'
+                                        : comparison
+                                }
+                            >
+                                <Menu.Target>
+                                    <ActionIcon
+                                        size="sm"
+                                        variant="subtle"
+                                        color="gray"
+                                        aria-label={`Compare: ${
+                                            shownLayout === 'code'
+                                                ? 'Not comparing'
+                                                : comparison
+                                        }`}
+                                    >
                                         <MantineIcon
                                             icon={IconGitCompare}
                                             size={14}
                                         />
-                                    }
-                                    rightSection={
-                                        <MantineIcon
-                                            icon={IconChevronDown}
-                                            size={12}
-                                        />
-                                    }
-                                >
-                                    {shownLayout === 'code'
-                                        ? 'Not comparing'
-                                        : comparison}
-                                </Button>
-                            </Menu.Target>
+                                    </ActionIcon>
+                                </Menu.Target>
+                            </Tooltip>
                             <Menu.Dropdown>
                                 <Menu.Label>Compare</Menu.Label>
                                 <Menu.Item

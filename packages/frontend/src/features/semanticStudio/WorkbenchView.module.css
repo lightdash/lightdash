@@ -556,6 +556,11 @@
     font-variant-numeric: tabular-nums;
 }
 
+.readOnly {
+    display: flex;
+    align-items: center;
+}
+
 .unsavedDot {
     flex: none;
     width: 8px;

@@ -129,7 +129,11 @@ const groupByModel = (proposals: SemanticLayerProposal[]): ModelGroup[] => {
             subtitle: describeWholeModel(subtitle),
             change: span === null ? 'changed' : getChangeKind(span),
             removed: span !== null && getChangeKind(span) === 'removed',
-            fields: [...fields.values()],
+            // A new model's subtitle already counts what it was created with.
+            fields:
+                span !== null && getChangeKind(span) === 'new'
+                    ? []
+                    : [...fields.values()],
         };
     });
 };
