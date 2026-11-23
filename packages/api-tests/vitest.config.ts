@@ -26,6 +26,9 @@ const serialFiles = [
     'tests/resultsCacheSettings.test.ts',
     // Turns the seed project's results cache on for live results.
     'tests/hydraLiveSource.test.ts',
+    // Toggle the shared per-viewer flag and the seed project's results cache.
+    'tests/hydraUserSignIn.test.ts',
+    'tests/hydraUserSignInSecurity.test.ts',
     'tests/contentAsCode.test.ts',
 ];
 

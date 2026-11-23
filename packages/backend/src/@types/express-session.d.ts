@@ -21,6 +21,12 @@ declare module 'express-session' {
         agentConnectAttempts?: Record<string, AgentConnectAttempt>;
         /** Kept apart from `oauth`, which other sign-ins reset. */
         pendingGoogleLiveSource?: PendingGoogleLiveSource;
+        /**
+         * Viewers' sign-ins to live sources waiting for the integration, by
+         * state, so sign-ins in several tabs don't undo each other. Kept apart
+         * from `oauth`, which other sign-ins reset.
+         */
+        liveSourceUserSignIns?: Record<string, LiveSourceUserSignInSession>;
         oauth: {
             inviteCode?: string | undefined;
             returnTo?: string | undefined;
@@ -48,7 +54,6 @@ declare module 'express-session' {
             salesforce?: SalesforceOAuthSession;
             googleLiveSource?: GoogleOAuthSession;
             liveSourceReturnTo?: LiveSourceReturnTo;
-            liveSourceUserSignIn?: LiveSourceUserSignInSession;
             isPopup?: boolean | undefined;
             databricks?: {
                 projectUuid?: string | undefined;
