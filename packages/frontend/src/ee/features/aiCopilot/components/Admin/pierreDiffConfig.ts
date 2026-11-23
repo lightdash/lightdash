@@ -8,8 +8,14 @@ import DiffsWorkerUrl from '@pierre/diffs/worker/worker.js?worker&url';
 
 // Tokenize with both Pierre themes; diffs render via CSS `light-dark()` and
 // hosts pin `color-scheme` to Mantine's computed scheme.
+const PIERRE_THEMES = { dark: 'pierre-dark', light: 'pierre-light' } as const;
+
+/** Pierre's themes, with its colour scheme pinned to the app's rather than the system's. */
+export const pierreThemeFor = (colorScheme: 'light' | 'dark') =>
+    ({ theme: PIERRE_THEMES, themeType: colorScheme }) as const;
+
 export const PIERRE_HIGHLIGHTER_OPTIONS: WorkerInitializationRenderOptions = {
-    theme: { dark: 'pierre-dark', light: 'pierre-light' },
+    theme: PIERRE_THEMES,
     langs: ['yaml', 'sql', 'markdown', 'json'],
     preferredHighlighter: 'shiki-wasm',
 };

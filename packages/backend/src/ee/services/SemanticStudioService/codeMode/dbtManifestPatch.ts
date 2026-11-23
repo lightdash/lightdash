@@ -366,6 +366,7 @@ export const advanceCompiledManifest = async (
           status: 'advanced';
           compiled: CompiledDbtManifest;
           changedModels: string[];
+          changes: DbtFileChange[];
           files: number;
       }
     | { status: 'unsupported'; reason: string }
@@ -377,16 +378,14 @@ export const advanceCompiledManifest = async (
             reason: 'The branch cannot be compared with the compiled commit',
         };
     }
-    const patch = patchManifest(
-        compiled.manifest,
-        await Promise.all(
-            since.map(async (path) => ({
-                path,
-                base: await branch.readAt(path, compiled.commitSha),
-                next: await branch.readAt(path, commitSha),
-            })),
-        ),
+    const changes = await Promise.all(
+        since.map(async (path) => ({
+            path,
+            base: await branch.readAt(path, compiled.commitSha),
+            next: await branch.readAt(path, commitSha),
+        })),
     );
+    const patch = patchManifest(compiled.manifest, changes);
     if (patch.status === 'unsupported') return patch;
     return {
         status: 'advanced',
@@ -396,6 +395,7 @@ export const advanceCompiledManifest = async (
             exploresJobUuid: null,
         },
         changedModels: patch.changedModels,
+        changes,
         files: since.length,
     };
 };

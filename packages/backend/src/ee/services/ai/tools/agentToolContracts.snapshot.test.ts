@@ -156,6 +156,12 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         editDbtProject: getEditDbtProject({
             editDbtProject: noop,
             acceptsScript: false,
+            name: 'editDbtProject',
+        }),
+        write: getEditDbtProject({
+            editDbtProject: noop,
+            acceptsScript: true,
+            name: 'write',
         }),
         editProjectContext: getEditProjectContext({
             editProjectContext: noop,

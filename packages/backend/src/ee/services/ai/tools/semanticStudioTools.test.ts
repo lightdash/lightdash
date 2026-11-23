@@ -2,6 +2,7 @@ import {
     describeSemanticLayerProposals,
     toolProposeSemanticLayerChangeOutputSchema,
     toolReadSemanticModelOutputSchema,
+    type StudioChangeSummary,
 } from '@lightdash/common';
 import {
     findMetricsToRun,
@@ -54,8 +55,12 @@ const propose = async (
 };
 
 it('lists changes with their checkout and touched models', async () => {
-    const changes = [
-        { name: 'Revenue', isCheckedOut: true, models: ['orders'] },
+    const changes: StudioChangeSummary[] = [
+        {
+            name: 'Revenue',
+            isCheckedOut: true,
+            models: [{ name: 'orders', editedIn: ['by_hand'] }],
+        },
     ];
     const list = getListChanges(async () => changes);
     expect(await list.execute?.({}, callOptions)).toMatchObject({

@@ -46,6 +46,35 @@ export type CodeModeRepo = {
     validateYaml: (path: string, text: string) => string | null;
 };
 
+/** A host function a script calls as `lib.fn(args)`, with its own help text. */
+export type CodeModeLibraryFunction = {
+    description: string;
+    schema: () => Promise<unknown>;
+    run: (args: unknown) => Promise<unknown>;
+};
+
+export type CodeModeLibraries = Record<
+    string,
+    Record<string, CodeModeLibraryFunction>
+>;
+
+const RESERVED_GLOBALS = new Set(['repo', 'yaml', 'dbt', 'console', 'help']);
+const IDENTIFIER = /^[a-z][A-Za-z0-9]*$/;
+
+const libraryPrelude = (libraries: CodeModeLibraries) =>
+    Object.entries(libraries)
+        .map(
+            ([lib, fns]) =>
+                `globalThis.${lib} = Object.freeze({ ${Object.keys(fns)
+                    .map(
+                        (fn) =>
+                            `${fn}: (args) => call(__lib_${lib}_${fn}, args)`,
+                    )
+                    .join(', ')} });`,
+        )
+        .concat('globalThis.help = (name) => call(__help, name);')
+        .join('\n');
+
 /** A step into YAML: a mapping key, a list index, or the list item with this `name`. */
 type Segment = string | number | { name: string };
 
@@ -297,8 +326,20 @@ const yamlEdits = {
 export const runCodeMode = async (
     script: string,
     repo: CodeModeRepo,
-    { timeoutMs = 3000 }: { timeoutMs?: number } = {},
+    {
+        timeoutMs = 3000,
+        libraries = {},
+    }: { timeoutMs?: number; libraries?: CodeModeLibraries } = {},
 ): Promise<CodeModeResult> => {
+    Object.entries(libraries).forEach(([lib, fns]) => {
+        if (RESERVED_GLOBALS.has(lib) || !IDENTIFIER.test(lib)) {
+            throw new Error(`${lib} cannot be a library name`);
+        }
+        Object.keys(fns).forEach((fn) => {
+            if (!IDENTIFIER.test(fn))
+                throw new Error(`${fn} cannot be a function name`);
+        });
+    });
     const files = new Map<
         string,
         { before: string | null; text: string | null }
@@ -384,6 +425,32 @@ export const runCodeMode = async (
             const found = await repo.findModel(String(name));
             return found ? { ...found, keys: ['models', { name }] } : null;
         },
+        ...Object.fromEntries(
+            Object.entries(libraries).flatMap(([lib, fns]) =>
+                Object.entries(fns).map(([fn, { run }]) => [
+                    `__lib_${lib}_${fn}`,
+                    (args: unknown) => run(args),
+                ]),
+            ),
+        ),
+        __help: async (name) => {
+            const all = Object.entries(libraries).flatMap(([lib, fns]) =>
+                Object.entries(fns).map(
+                    ([fn, entry]) => [`${lib}.${fn}`, entry] as const,
+                ),
+            );
+            if (name === null) {
+                return all
+                    .map(
+                        ([path, { description }]) =>
+                            `${path}: ${description.split('\n')[0]}`,
+                    )
+                    .join('\n');
+            }
+            const entry = all.find(([path]) => path === name)?.[1];
+            if (!entry) throw new Error(`${name} is not a library function`);
+            return `${entry.description}\nArguments (JSON schema): ${JSON.stringify(await entry.schema())}`;
+        },
     };
 
     // The heap limit covers the script only; what it hands the host is capped too.
@@ -424,7 +491,11 @@ export const runCodeMode = async (
                 logs.push(vm.getString(h).slice(0, 2000));
         }).consume((fn) => vm.setProp(vm.global, '__log', fn));
 
-        const result = await vm.evalCodeAsync(`${PRELUDE}\n${script}`);
+        const prelude =
+            Object.keys(libraries).length > 0
+                ? `${PRELUDE}\n${libraryPrelude(libraries)}`
+                : PRELUDE;
+        const result = await vm.evalCodeAsync(`${prelude}\n${script}`);
         if (result.error) {
             const error = vm.dump(result.error);
             result.error.dispose();

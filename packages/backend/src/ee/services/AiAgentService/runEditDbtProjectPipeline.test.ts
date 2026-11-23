@@ -494,6 +494,7 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
             expect.objectContaining({ userUuid: 'user-1' }),
             PAYLOAD.projectUuid,
             WRITEBACK_RESULT.prUrl,
+            'agent',
         );
     });
 

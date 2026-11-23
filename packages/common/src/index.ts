@@ -422,6 +422,7 @@ export * from './utils/accessors';
 export * from './utils/additionalMetrics';
 export * from './utils/api';
 export * from './utils/apiSourceQuery';
+export * from './utils/hydraLiveSource';
 export * from './utils/liveSourceIntegrations';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/bigNumber';

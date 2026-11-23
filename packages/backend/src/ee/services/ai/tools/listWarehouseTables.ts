@@ -22,6 +22,8 @@ type Dependencies = {
 
 const toolDefinition = listWarehouseTablesToolDefinition.for('agent');
 
+const MAX_NAMED_DATABASES = 10;
+
 export const getListWarehouseTables = ({
     listWarehouseTables,
     decisions,
@@ -140,10 +142,15 @@ export const getListWarehouseTables = ({
                 matches = matches.slice(0, limit);
 
                 if (matches.length === 0) {
+                    const databases = Object.keys(all);
+                    const covered =
+                        databases.length > MAX_NAMED_DATABASES
+                            ? `${databases.slice(0, MAX_NAMED_DATABASES).join(', ')} and ${databases.length - MAX_NAMED_DATABASES} more databases`
+                            : databases.join(', ') || 'no databases';
                     return {
                         result: `No tables matched. Filters: schema=${
                             schema ?? '(none)'
-                        }, search=${search ?? '(none)'}. Try a broader search.`,
+                        }, search=${search ?? '(none)'}. Try a broader search. This list only covers ${covered} and can miss tables created since it was saved. For a table elsewhere whose name you know, such as a dbt source, call describeWarehouseTable with its database and schema.`,
                         metadata: { status: 'success' },
                         structuredContent: {
                             matchCount: 0,

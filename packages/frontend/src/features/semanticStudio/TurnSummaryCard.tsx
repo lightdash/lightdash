@@ -19,6 +19,7 @@ import { Link } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { cannotApply } from './draftState';
 import { FieldChangeIcon } from './KindTypeIcon';
+import { MetricPreview, type MetricPreviewModel } from './MetricPreview';
 import {
     describeModelChange,
     DRAFT_PARAM,
@@ -29,6 +30,7 @@ import {
     getModelCodeSearch,
     listFieldChanges,
     type FieldChange,
+    VIEW_PARAM,
 } from './modelCode';
 import { listTurnIssues } from './proposalIssues';
 import { TaskIcon } from './TaskRow';
@@ -129,7 +131,11 @@ const groupByModel = (proposals: SemanticLayerProposal[]): ModelGroup[] => {
             subtitle: describeWholeModel(subtitle),
             change: span === null ? 'changed' : getChangeKind(span),
             removed: span !== null && getChangeKind(span) === 'removed',
-            fields: [...fields.values()],
+            // A new model's subtitle already counts what it was created with.
+            fields:
+                span !== null && getChangeKind(span) === 'new'
+                    ? []
+                    : [...fields.values()],
         };
     });
 };
@@ -281,13 +287,51 @@ export const TurnSummaryCard: FC<{
         return modelUrl(model);
     };
     const issues = listTurnIssues(proposals);
+    // The latest clean draft shows its metrics working, so trying it needs no Explore.
+    const previews: MetricPreviewModel[] =
+        isLatest && phase.kind === 'draft' && !phase.error
+            ? groups.flatMap(
+                  ({
+                      model,
+                      change,
+                      removed,
+                      fields,
+                  }): MetricPreviewModel[] => {
+                      if (removed) return [];
+                      if (change === 'new') {
+                          return [{ model, isNew: true, metrics: null }];
+                      }
+                      const metrics = fields
+                          .filter(
+                              (field) =>
+                                  field.kind === 'metric' &&
+                                  field.change !== 'removed',
+                          )
+                          .map(({ name, change: kind }) => ({
+                              name,
+                              isNew: kind === 'new',
+                          }));
+                      return metrics.length > 0
+                          ? [{ model, isNew: false, metrics }]
+                          : [];
+                  },
+              )
+            : [];
     const isDraft = phase.kind === 'draft';
     const conflicts = (draft?.models ?? []).filter(
         ({ reconciliation }) => reconciliation?.state === 'conflict',
     ).length;
     const safety = isDraft ? getSafety(phase.error, impact, conflicts) : null;
     const [publishing, setPublishing] = useState(false);
-    const asPullRequest = usePublishMode(projectUuid) === 'pull_request';
+    const publishMode = usePublishMode(projectUuid);
+    const asPullRequest = publishMode === 'pull_request';
+    // With no repository the change reads as the models it touches; code is one tab away.
+    const changesUrl =
+        publishMode !== 'live'
+            ? reviewUrl
+            : groups.length === 1
+              ? modelUrl(groups[0].model)
+              : `${studioUrl}?${VIEW_PARAM}=models`;
     const isSent = useDraftPullRequest() !== null;
     // A clean draft can go out from where it was made, as the toolbar's button would send it.
     const canPublish =
@@ -310,7 +354,7 @@ export const TurnSummaryCard: FC<{
                 return [
                     ...draftActions({
                         error: phase.error,
-                        reviewTo: reviewUrl,
+                        reviewTo: changesUrl,
                         onAsk,
                     }),
                     phase.error ? null : fixFailure,
@@ -480,6 +524,7 @@ export const TurnSummaryCard: FC<{
                             .filter(Boolean)
                             .join(' · '),
                         to: fieldUrl(model, field),
+                        onOpen: null,
                     })),
                     issues: issues.filter((issue) => issue.model === model),
                 }),
@@ -487,6 +532,17 @@ export const TurnSummaryCard: FC<{
             safety={safety}
             isLatest={isLatest}
             actions={actions}
+            preview={
+                previews.length > 0 && draft ? (
+                    <MetricPreview
+                        projectUuid={projectUuid}
+                        models={previews}
+                        cacheKey={draft.changes
+                            .map(({ draftChangeUuid }) => draftChangeUuid)
+                            .join()}
+                    />
+                ) : null
+            }
             isGone={phase.kind === 'gone'}
             isSettled={
                 phase.kind === 'published' ||

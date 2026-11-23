@@ -17,7 +17,6 @@ import {
     type AvailableLiveSource,
     getLiveSourceIconClass,
 } from './liveSourceCatalog';
-import { ProjectCacheOffAlert } from './ProjectCacheOffAlert';
 
 const CUSTOM_LIVE_SOURCE_ID = 'custom';
 
@@ -28,6 +27,8 @@ type Props = {
     canUseGoogle: boolean;
     canUseLinkedInAds: boolean;
     canUseSalesforce: boolean;
+    /** Hydra, the test integration, only where the server registers it. */
+    canUseHydra: boolean;
     onPick: (connector: ApiConnectorType) => void;
 };
 
@@ -56,6 +57,7 @@ export const AddLiveSourceModal: FC<Props> = ({
     canUseGoogle,
     canUseLinkedInAds,
     canUseSalesforce,
+    canUseHydra,
     onPick,
 }) => {
     const { user } = useApp();
@@ -68,6 +70,7 @@ export const AddLiveSourceModal: FC<Props> = ({
         if (connector === ApiConnectorType.LINKEDIN_ADS)
             return canUseLinkedInAds;
         if (connector === ApiConnectorType.SALESFORCE) return canUseSalesforce;
+        if (connector === ApiConnectorType.HYDRA) return canUseHydra;
         return true;
     };
     const entries = LIVE_SOURCE_CATALOG.filter(isAvailableLiveSource).filter(
@@ -103,7 +106,6 @@ export const AddLiveSourceModal: FC<Props> = ({
             cancelLabel={false}
         >
             <Stack gap="sm">
-                <ProjectCacheOffAlert projectUuid={projectUuid} />
                 <SimpleGrid cols={{ base: 1, xs: 2, sm: 3 }} spacing="sm">
                     {entries.map((entry) => (
                         <UnstyledButton

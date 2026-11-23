@@ -124,6 +124,7 @@ import {
 } from './toolEditContentArgs';
 import {
     TOOL_EDIT_DBT_PROJECT_DESCRIPTION,
+    TOOL_WRITE_DESCRIPTION,
     toolEditDbtProjectArgsSchema,
     toolEditDbtProjectOutputSchema,
 } from './toolEditDbtProjectArgs';
@@ -312,6 +313,11 @@ import {
     mcpRunSqlStructuredOutputSchema,
 } from './toolQueryResultSchemas';
 import {
+    TOOL_READ_DESCRIPTION,
+    toolReadArgsSchema,
+    toolReadOutputSchema,
+} from './toolReadArgs';
+import {
     TOOL_READ_ATTACHMENTS_DESCRIPTION,
     toolReadAttachmentsArgsSchema,
     toolReadAttachmentsOutputSchema,
@@ -399,6 +405,11 @@ import {
     toolUpdateUserNameArgsSchema,
     toolUpdateUserNameOutputSchema,
 } from './toolUpdateUserNameArgs';
+import {
+    TOOL_VERIFY_DESCRIPTION,
+    toolVerifyArgsSchema,
+    toolVerifyOutputSchema,
+} from './toolVerifyArgs';
 import {
     TOOL_VISUALIZE_DESCRIPTION,
     toolVisualizeArgsSchema,
@@ -1307,6 +1318,20 @@ export const editDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolEditDbtProjectOutputSchema },
 });
 
+export const writeToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'write',
+    typeof toolEditDbtProjectArgsSchema,
+    typeof toolEditDbtProjectArgsSchema,
+    typeof toolEditDbtProjectOutputSchema
+> = defineTool({
+    name: 'write',
+    title: 'Save dbt change',
+    description: TOOL_WRITE_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolEditDbtProjectArgsSchema,
+    agent: { outputSchema: toolEditDbtProjectOutputSchema },
+});
+
 export const editProjectContextToolDefinition: ToolDefinitionWithoutMcpOutput<
     'editProjectContext',
     typeof toolEditProjectContextArgsSchema,
@@ -1344,7 +1369,7 @@ export const listChangesToolDefinition: ToolDefinitionWithoutMcpOutput<
     name: 'listChanges',
     title: 'List changes',
     description:
-        'List your open changes in this project, the current checkout and the native models drafted in each change.',
+        'List your open changes in this project, the current checkout and the native models drafted in each change, with whether each model was edited by hand, in this chat or in another chat.',
     availability: ['agent'],
     inputSchema: toolListChangesArgsSchema,
     agent: { outputSchema: toolListChangesOutputSchema },
@@ -1488,6 +1513,34 @@ export const grepWarehouseColumnsToolDefinition: ToolDefinitionWithoutMcpOutput<
     availability: ['agent'],
     inputSchema: toolGrepWarehouseColumnsArgsSchema,
     agent: { outputSchema: toolGrepWarehouseColumnsOutputSchema },
+});
+
+export const readToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'read',
+    typeof toolReadArgsSchema,
+    typeof toolReadArgsSchema,
+    typeof toolReadOutputSchema
+> = defineTool({
+    name: 'read',
+    title: 'Read project files',
+    description: TOOL_READ_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolReadArgsSchema,
+    agent: { outputSchema: toolReadOutputSchema },
+});
+
+export const verifyToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'verify',
+    typeof toolVerifyArgsSchema,
+    typeof toolVerifyArgsSchema,
+    typeof toolVerifyOutputSchema
+> = defineTool({
+    name: 'verify',
+    title: 'Check dbt change',
+    description: TOOL_VERIFY_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolVerifyArgsSchema,
+    agent: { outputSchema: toolVerifyOutputSchema },
 });
 
 export const describeWarehouseTableToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -2062,6 +2115,7 @@ type AgentToolDefinitionsByName = {
     listDataAppThemes: typeof listDataAppThemesToolDefinition;
     listDataAppConnections: typeof listDataAppConnectionsToolDefinition;
     editDbtProject: typeof editDbtProjectToolDefinition;
+    write: typeof writeToolDefinition;
     editProjectContext: typeof editProjectContextToolDefinition;
     proposeSemanticLayerChange: typeof proposeSemanticLayerChangeToolDefinition;
     listChanges: typeof listChangesToolDefinition;
@@ -2077,6 +2131,8 @@ type AgentToolDefinitionsByName = {
     listWarehouseTables: typeof listWarehouseTablesToolDefinition;
     describeWarehouseTable: typeof describeWarehouseTableToolDefinition;
     grepWarehouseColumns: typeof grepWarehouseColumnsToolDefinition;
+    verify: typeof verifyToolDefinition;
+    read: typeof readToolDefinition;
     listKnowledgeDocuments: typeof listKnowledgeDocumentsToolDefinition;
     getKnowledgeDocumentContent: typeof getKnowledgeDocumentContentToolDefinition;
     readPinnedThread: typeof readPinnedThreadToolDefinition;
@@ -2128,6 +2184,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     listDataAppThemes: listDataAppThemesToolDefinition,
     listDataAppConnections: listDataAppConnectionsToolDefinition,
     editDbtProject: editDbtProjectToolDefinition,
+    write: writeToolDefinition,
     editProjectContext: editProjectContextToolDefinition,
     proposeSemanticLayerChange: proposeSemanticLayerChangeToolDefinition,
     listChanges: listChangesToolDefinition,
@@ -2143,6 +2200,8 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     listWarehouseTables: listWarehouseTablesToolDefinition,
     describeWarehouseTable: describeWarehouseTableToolDefinition,
     grepWarehouseColumns: grepWarehouseColumnsToolDefinition,
+    verify: verifyToolDefinition,
+    read: readToolDefinition,
     listKnowledgeDocuments: listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContent: getKnowledgeDocumentContentToolDefinition,
     readPinnedThread: readPinnedThreadToolDefinition,
@@ -2201,6 +2260,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     listDataAppThemesToolDefinition,
     listDataAppConnectionsToolDefinition,
     editDbtProjectToolDefinition,
+    writeToolDefinition,
     editProjectContextToolDefinition,
     proposeSemanticLayerChangeToolDefinition,
     listChangesToolDefinition,
@@ -2216,6 +2276,8 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     listWarehouseTablesToolDefinition,
     describeWarehouseTableToolDefinition,
     grepWarehouseColumnsToolDefinition,
+    verifyToolDefinition,
+    readToolDefinition,
     listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContentToolDefinition,
     readPinnedThreadToolDefinition,

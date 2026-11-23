@@ -37,13 +37,17 @@ export const buildLoadout = (
         definition.accepts.filter((name) => addOnNames.includes(name)),
     );
     const addOns = definition.accepts.filter((name) => implied.includes(name));
+    const withheldToolNames = new Set(definition.withheldTools);
     return {
         base,
         addOns: new Set(addOns),
-        toolNames: new Set([
-            ...definition.tools,
-            ...addOns.flatMap((name) => ADD_ONS[name].tools),
-        ]),
+        toolNames: new Set(
+            [
+                ...definition.tools,
+                ...addOns.flatMap((name) => ADD_ONS[name].tools),
+            ].filter((name) => !withheldToolNames.has(name)),
+        ),
+        withheldToolNames,
         promptSections: new Set([
             ...definition.sections,
             ...addOns.flatMap((name) => {
