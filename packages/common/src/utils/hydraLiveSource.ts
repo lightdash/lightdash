@@ -115,13 +115,7 @@ const mockResponseSchema = z
         'must not set retryAfterSeconds or body with status 200',
     );
 
-/**
- * What a Hydra source accepts. Stored sources carry the engine's own keys too
- * (sourceName, fields, lastScan), so reading one strips unknown keys; the API
- * and the setup form check input with HYDRA_INPUT_SCHEMA, which refuses them.
- */
-export const HYDRA_SETTINGS_SCHEMA = z.object({
-    connector: z.literal(ApiConnectorType.HYDRA),
+const SETTING_SCHEMAS = {
     rowCount: z.number().int().min(0).max(100_000).optional(),
     // At least 10, so the row cap fits in a query's 51 calls
     pageSize: z
@@ -152,9 +146,31 @@ export const HYDRA_SETTINGS_SCHEMA = z.object({
         .array(mockResponseSchema)
         .max(MAX_MOCK_RESPONSES)
         .optional(),
-});
+};
 
-const HYDRA_INPUT_SCHEMA = HYDRA_SETTINGS_SCHEMA.strict();
+/** What the API accepts for a Hydra source; anything else is refused. */
+const HYDRA_INPUT_SCHEMA = z
+    .object({
+        connector: z.literal(ApiConnectorType.HYDRA),
+        ...SETTING_SCHEMAS,
+    })
+    .strict();
+
+/**
+ * How a stored Hydra source reads. It also holds the engine's own keys
+ * (sourceName, fields, lastScan), which are stripped, and a setting saved in
+ * an older shape takes its default, so the source still loads.
+ */
+export const HYDRA_SETTINGS_SCHEMA = z.object({
+    connector: z.literal(ApiConnectorType.HYDRA),
+    // Each setting is optional, so catching to undefined keeps its type
+    ...(Object.fromEntries(
+        Object.entries(SETTING_SCHEMAS).map(([key, schema]) => [
+            key,
+            (schema as z.ZodType).catch(undefined),
+        ]),
+    ) as unknown as typeof SETTING_SCHEMAS),
+});
 
 const unwrap = (field: z.ZodType): z.ZodType =>
     field instanceof z.ZodOptional
@@ -192,9 +208,9 @@ export const getHydraSettingsProblem = (value: unknown): string | null => {
     }
     const field =
         issue.path.length === 1
-            ? (HYDRA_SETTINGS_SCHEMA.shape[
-                  path as keyof typeof HYDRA_SETTINGS_SCHEMA.shape
-              ] as z.ZodType | undefined)
+            ? (SETTING_SCHEMAS[path as keyof typeof SETTING_SCHEMAS] as
+                  | z.ZodType
+                  | undefined)
             : undefined;
     const allowed = field ? describeAllowed(field) : null;
     return allowed ? `${path} must be ${allowed}` : `${path}: ${issue.message}`;

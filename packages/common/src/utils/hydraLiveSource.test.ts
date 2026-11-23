@@ -3,6 +3,7 @@ import {
     getHydraSettingsProblem,
     HYDRA_DEFAULT_SETTINGS,
     HYDRA_DEFAULT_SOURCE,
+    HYDRA_SETTINGS_SCHEMA,
     withHydraDefaults,
 } from './hydraLiveSource';
 
@@ -26,6 +27,21 @@ describe('Hydra settings', () => {
         expect(
             getHydraSettingsProblem(hydra({ ...HYDRA_DEFAULT_SETTINGS })),
         ).toBeNull();
+    });
+
+    it('reads a stored source saved in an older shape, defaulting what no longer fits', () => {
+        const stored = hydra({
+            latencyMs: 500,
+            script: [],
+            onLimit: { status: 429, retryAfter: 'seconds', body: null },
+            sourceName: 'hydra',
+            lastScan: { fields: [], scannedAt: '2026-11-23' },
+        });
+        expect(HYDRA_SETTINGS_SCHEMA.parse(stored)).toEqual(
+            hydra({ latencyMs: 500 }),
+        );
+        // The API still refuses the same shape
+        expect(getHydraSettingsProblem(stored)).not.toBeNull();
     });
 
     it.each([
