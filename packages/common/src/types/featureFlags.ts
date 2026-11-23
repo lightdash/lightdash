@@ -309,6 +309,12 @@ export enum FeatureFlags {
      * @lightdash/sdk < 3.245.0 (first with PR #32548): older SDKs crash the whole embed.
      */
     ComposerCharts = 'composer-charts',
+    /**
+     * Spike, off by default: pressing Visualize on an untouched Explore query
+     * applies a chart picked from the result shape instead of opening the
+     * chart type chooser. Saved charts and configured charts are untouched.
+     */
+    ExploreAutoChart = 'explore-auto-chart',
 }
 
 export type FeatureFlag = {

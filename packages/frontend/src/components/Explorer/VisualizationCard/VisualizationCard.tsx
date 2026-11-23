@@ -1,9 +1,13 @@
 import {
+    ChartKind,
+    FeatureFlags,
+    getChartType,
     getHiddenTableFields,
     getPivotConfig,
     NotFoundError,
     type ApiErrorDetail,
     type ChartConfig,
+    type ChartRecommendation,
     ChartType,
     type EChartsSeries,
     type FieldId,
@@ -59,6 +63,7 @@ import {
 import { resolveMergeColumnOrder } from '../../../features/mergeQuery/utils/resolveMergeColumnOrder';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useExplore } from '../../../hooks/useExplore';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useFullscreen from '../../../providers/Fullscreen/useFullscreen';
@@ -87,6 +92,8 @@ import { ExplorerHint } from '../onboarding';
 import ExploreIdleIllustration from '../ResultsCard/ExploreIdleIllustration';
 import StaleResultsPrompt from '../StaleResultsPrompt';
 import { useIsResultsStale } from '../useIsResultsStale';
+import ChartRecommendationApplier from './ChartRecommendationApplier';
+import ChartRecommendationNote from './ChartRecommendationNote';
 import ChartTypeSummary from './ChartTypeSummary';
 import DroppedFieldPlacer from './DroppedFieldPlacer';
 import { SeriesContextMenu } from './SeriesContextMenu';
@@ -335,11 +342,43 @@ const VisualizationCard: FC<Props> = memo((props) => {
         }
     }, [dispatch, hasSavedChart]);
 
+    const autoChartFlag = useServerFeatureFlag(FeatureFlags.ExploreAutoChart);
+    const isAutoChartEnabled = autoChartFlag.data?.enabled === true;
+    const [isRecommendingChart, setIsRecommendingChart] = useState(false);
+    const [recommendation, setRecommendation] =
+        useState<ChartRecommendation | null>(null);
+
     // Visualize lands on the chart types: nobody keeps the default as is
     const handleVisualizeClick = useCallback(() => {
         toggleSection();
-        handleConfigureClick();
-    }, [toggleSection, handleConfigureClick]);
+        const isUntouchedChart =
+            !hasSavedChart && chartType === ChartType.TABLE && !isPivotedTable;
+        if (isAutoChartEnabled && isUntouchedChart) {
+            setIsRecommendingChart(true);
+        } else {
+            handleConfigureClick();
+        }
+    }, [
+        toggleSection,
+        handleConfigureClick,
+        isAutoChartEnabled,
+        hasSavedChart,
+        chartType,
+        isPivotedTable,
+    ]);
+
+    const handleRecommendationApplied = useCallback(
+        (applied: ChartRecommendation) => {
+            setIsRecommendingChart(false);
+            setRecommendation(applied);
+            if (applied.kind === ChartKind.TABLE) handleConfigureClick();
+        },
+        [handleConfigureClick],
+    );
+    const shownRecommendation =
+        recommendation && getChartType(recommendation.kind) === chartType
+            ? recommendation
+            : null;
 
     // Deep link (e.g. the removed-chart-type recovery hint): arrive in edit
     // mode with the config sidebar already open, then drop the param.
@@ -571,7 +610,13 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                 </>
                             )
                         ) : (
-                            <Group gap="xs" wrap="nowrap">
+                            <Group gap="xs" wrap="nowrap" miw={0}>
+                                {shownRecommendation && isEditMode && (
+                                    <ChartRecommendationNote
+                                        recommendation={shownRecommendation}
+                                        onChangeChartType={handleConfigureClick}
+                                    />
+                                )}
                                 {/* One sort chip on screen: Results shows it when open */}
                                 {sorts.length > 0 && !isResultsOpen && (
                                     <SortButton
@@ -689,6 +734,11 @@ const VisualizationCard: FC<Props> = memo((props) => {
                             title="Try a few chart types"
                             body="Click through the types to see your data each way, then configure the one you like."
                             position="left-start"
+                        />
+                    )}
+                    {isRecommendingChart && (
+                        <ChartRecommendationApplier
+                            onApplied={handleRecommendationApplied}
                         />
                     )}
                     {droppedField && (
