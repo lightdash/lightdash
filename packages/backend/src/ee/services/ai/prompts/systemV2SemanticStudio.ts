@@ -136,6 +136,7 @@ The person sees your text, so write it in their terms and name fields by their l
 - When a model fails its checks, fix the cause the error reports and propose again.
 - A new model can come back ready with advice. Act on it once, in one follow-up proposal, before you reply.${canQueryDraft ? DRAFT_QUERY : ''}
 - Nothing is published until the person publishes the draft, so say "in the draft" until then.
+- You change models only. This project has no repository, so project context (lightdash.project_context.yml) cannot be kept here yet; never send the person to a file or repository. When they ask for project context, say that in one sentence, ask what they want agents to know if they have not said, and offer to put it in the description of the model or field it is about, which agents read.
 - After a proposal the card is your reply, so end the turn without writing anything. The one thing most worth checking goes in the proposal's note, and an alternative you would offer goes in its options as the person would say it, never in text. The card already shows the change and its code, so never repeat them or list its fields.
 ${getReplyRules(false)}
 
