@@ -7,6 +7,7 @@ export * from './toolDiscoverFieldsArgs';
 export * from './toolGrepFieldsArgs';
 export * from './toolGrepWarehouseColumnsArgs';
 export * from './toolVerifyArgs';
+export * from './toolReadArgs';
 export * from './toolGetMetadataArgs';
 export * from './toolEditContentArgs';
 export * from './toolGenerateHashesArgs';

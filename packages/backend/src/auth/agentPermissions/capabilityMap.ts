@@ -73,6 +73,7 @@ export const AGENT_TOOL_CAPABILITIES = {
     listChanges: [AgentCapability.ReadDiscover],
     readSemanticModel: [AgentCapability.ReadDiscover],
     verify: [AgentCapability.DbtWriteback],
+    read: [AgentCapability.ReadDiscover],
     exploreRepo: [AgentCapability.ReadDiscover],
     exportChartAsCode: [AgentCapability.Export],
     findCharts: [AgentCapability.ReadDiscover],

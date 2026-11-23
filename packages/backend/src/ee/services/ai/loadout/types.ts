@@ -67,6 +67,7 @@ export const AGENT_TOOL_NAMES = [
     'listChanges',
     'readSemanticModel',
     'verify',
+    'read',
     'runMetricQuery',
     'syncDbtProject',
     'exploreRepo',

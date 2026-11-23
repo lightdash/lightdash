@@ -131,6 +131,7 @@ export const DISTILL_TOOL_POLICIES = {
     listChanges: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     readSemanticModel: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     verify: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
+    read: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     updateUserName: { result: keep },
     askUser: { result: keep },
     submitResearchReport: { result: truncate(RESEARCH_REPORT_RESULT_LIMIT) },

@@ -312,6 +312,11 @@ import {
     mcpRunSqlStructuredOutputSchema,
 } from './toolQueryResultSchemas';
 import {
+    TOOL_READ_DESCRIPTION,
+    toolReadArgsSchema,
+    toolReadOutputSchema,
+} from './toolReadArgs';
+import {
     TOOL_READ_ATTACHMENTS_DESCRIPTION,
     toolReadAttachmentsArgsSchema,
     toolReadAttachmentsOutputSchema,
@@ -1495,6 +1500,20 @@ export const grepWarehouseColumnsToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolGrepWarehouseColumnsOutputSchema },
 });
 
+export const readToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'read',
+    typeof toolReadArgsSchema,
+    typeof toolReadArgsSchema,
+    typeof toolReadOutputSchema
+> = defineTool({
+    name: 'read',
+    title: 'Read project files',
+    description: TOOL_READ_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolReadArgsSchema,
+    agent: { outputSchema: toolReadOutputSchema },
+});
+
 export const verifyToolDefinition: ToolDefinitionWithoutMcpOutput<
     'verify',
     typeof toolVerifyArgsSchema,
@@ -2097,6 +2116,7 @@ type AgentToolDefinitionsByName = {
     describeWarehouseTable: typeof describeWarehouseTableToolDefinition;
     grepWarehouseColumns: typeof grepWarehouseColumnsToolDefinition;
     verify: typeof verifyToolDefinition;
+    read: typeof readToolDefinition;
     listKnowledgeDocuments: typeof listKnowledgeDocumentsToolDefinition;
     getKnowledgeDocumentContent: typeof getKnowledgeDocumentContentToolDefinition;
     readPinnedThread: typeof readPinnedThreadToolDefinition;
@@ -2164,6 +2184,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     describeWarehouseTable: describeWarehouseTableToolDefinition,
     grepWarehouseColumns: grepWarehouseColumnsToolDefinition,
     verify: verifyToolDefinition,
+    read: readToolDefinition,
     listKnowledgeDocuments: listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContent: getKnowledgeDocumentContentToolDefinition,
     readPinnedThread: readPinnedThreadToolDefinition,
@@ -2238,6 +2259,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     describeWarehouseTableToolDefinition,
     grepWarehouseColumnsToolDefinition,
     verifyToolDefinition,
+    readToolDefinition,
     listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContentToolDefinition,
     readPinnedThreadToolDefinition,

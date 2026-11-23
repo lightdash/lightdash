@@ -102,9 +102,10 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             ]),
             ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
             ...onlyIf(input.canRunSql, ['runSql', 'grepWarehouseColumns']),
-            // A dbt draft is a pull request whose branch compiles after a save; this waits for that compile.
+            // A dbt draft is a pull request: read sees its branch, verify waits for its compile.
             ...onlyIf(!input.semanticStudioDrafts && input.enableAiWriteback, [
                 'verify',
+                'read',
             ]),
         ],
         sections: ['semanticStudio'],

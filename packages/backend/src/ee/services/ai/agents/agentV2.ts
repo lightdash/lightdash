@@ -145,6 +145,7 @@ import { getLoadMcpTools } from '../tools/loadMcpTools';
 import { getLoadProjectContext } from '../tools/loadProjectContext';
 import { getLoadedSkillKeys, getLoadSkill } from '../tools/loadSkill';
 import { getProjectContextSearchEntries } from '../tools/memoryProjectContext';
+import { getRead } from '../tools/read';
 import { getReadAttachments } from '../tools/readAttachments';
 import { getReadContent } from '../tools/readContent';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
@@ -2275,6 +2276,7 @@ export const getAgentTools = (
             getReadSemanticModel({
                 readSemanticModel: dependencies.readSemanticModel,
             }),
+        read: () => getRead({ read: dependencies.read }),
         verify: () =>
             getVerify({
                 verify: dependencies.verify,

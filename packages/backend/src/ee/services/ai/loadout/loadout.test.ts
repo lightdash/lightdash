@@ -330,6 +330,7 @@ describe('resolveLoadout', () => {
         expect(drafts.has('editDbtProject')).toBe(false);
         expect(drafts.has('exploreRepo')).toBe(false);
         expect(drafts.has('verify')).toBe(false);
+        expect(drafts.has('read')).toBe(false);
 
         const dbt = resolveLoadout({
             ...inputs.semantic_studio,
@@ -341,6 +342,7 @@ describe('resolveLoadout', () => {
         expect(dbt.toolNames.has('editDbtProject')).toBe(true);
         expect(dbt.toolNames.has('exploreRepo')).toBe(true);
         expect(dbt.toolNames.has('verify')).toBe(true);
+        expect(dbt.toolNames.has('read')).toBe(true);
         expect(dbt.toolNames.has('generateVisualization')).toBe(false);
         expect(
             resolveLoadout({
