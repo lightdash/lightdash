@@ -21,7 +21,7 @@ Finds the most relevant Fields (Metrics & Dimensions) within Explores, returning
 
 Usage tips:
 - Use "${findExplores}" first to discover available Explores and their field labels.
-- Use full field labels in search terms (e.g. "Total Revenue", "Order Date").
+- Use full field labels in search terms (e.g. "Total <Measure>", "<Event> Date").
 - Pass all needed fields in one request.
 - Fields are sorted by relevance, with a maximum score of 1 and a minimum of 0, so the top results are the most relevant.
 - If results aren't relevant, retry with clearer or more specific terms.

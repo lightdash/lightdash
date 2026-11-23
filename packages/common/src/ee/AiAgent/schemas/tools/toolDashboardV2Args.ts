@@ -16,13 +16,13 @@ import {
 
 export const TOOL_DASHBOARD_V2_DESCRIPTION = `Generate a dashboard of visualizations on one theme in a single call.
 
-Design a summary dashboard for monitoring a topic at a glance (e.g. Support, Revenue Performance, Sales Operations), ordering the kinds of visualization that fit the data like this:
+Design a summary dashboard for monitoring a topic at a glance, ordering the kinds of visualization that fit the data like this:
 1. KPI tables with the overall summary metrics.
 2. Line or area charts for how metrics trend over time.
 3. Bar or horizontal bar charts comparing metrics across categories.
-4. Pie charts for part-to-whole relationships (e.g. revenue by segment).
+4. Pie charts for part-to-whole relationships (e.g. <metric> by segment).
 5. Scatter plots for relationships between two metrics.
-6. Funnel charts for sequential conversion (e.g. a sales funnel).
+6. Funnel charts for sequential conversion through stages.
 7. Detail tables with the line items that move the metrics most.`;
 
 // Dashboard visualization schema - use generateVisualization format for each

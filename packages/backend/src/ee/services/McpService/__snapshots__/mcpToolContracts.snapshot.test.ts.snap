@@ -718,8 +718,8 @@ Call this for the explores and fields you intend to use whose full detail you do
 
 Inputs:
 Each entry in \`requests\` is one of:
-- \`{ "type": "explore", "exploreIds": ["orders", "customers"] }\` for whole explores.
-- \`{ "type": "field", "fields": [{ "exploreId": "orders", "fieldId": "orders_status" }] }\` for specific fields.
+- \`{ "type": "explore", "exploreIds": ["<explore>", "<other explore>"] }\` for whole explores.
+- \`{ "type": "field", "fields": [{ "exploreId": "<explore>", "fieldId": "<table>_<field>" }] }\` for specific fields.
 
 Applying the result:
 Use a metric's default time dimension unless the user asks for a different one.
@@ -777,7 +777,7 @@ Use a metric's default time dimension unless the user asks for a different one.
                             "type": "string",
                           },
                           "fieldId": {
-                            "description": "The fieldId, e.g. \`orders_status\`.",
+                            "description": "The fieldId, e.g. \`<table>_<field>\`.",
                             "minLength": 1,
                             "type": "string",
                           },
@@ -1278,11 +1278,11 @@ Usage tips:
             "type": "string",
           },
           "searchQueries": {
-            "description": "Searches run together; pass several to cover different topics at once (e.g. "monthly revenue" and "user acquisition trends").",
+            "description": "Searches run together; pass several to cover different topics at once (e.g. "monthly <metric>" and "<topic> trends").",
             "items": {
               "properties": {
                 "label": {
-                  "description": "The user's full request or its relevant part ("revenue based on campaigns", not just "campaigns"): the search understands natural language, so more context matches better.",
+                  "description": "The user's full request or its relevant part ("<metric> based on <dimension>", not just "<dimension>"): the search understands natural language, so more context matches better.",
                   "type": "string",
                 },
               },
@@ -7143,10 +7143,10 @@ Example B — "Revenue by month with year-over-year comparison"
                   },
                 ],
                 "default": null,
-                "description": "Lightdash parameter values for this query, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.",
+                "description": "Lightdash parameter values for this query, keyed by parameter name exactly as shown in the explore metadata (e.g. {"<model>.<parameter>": "<value>"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.",
               },
               "sorts": {
-                "description": "Sort configuration for the query. Every sorted field must also be selected in dimensions, metrics or tableCalculations: to order by one field (e.g. \`order_date_month_num\`) while displaying another (\`order_date_month_name\`), select both as dimensions.",
+                "description": "Sort configuration for the query. Every sorted field must also be selected in dimensions, metrics or tableCalculations: to order by one field (e.g. \`<date>_month_num\`) while displaying another (\`<date>_month_name\`), select both as dimensions.",
                 "items": {
                   "properties": {
                     "descending": {
@@ -7785,7 +7785,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
       "description": "Tool: search_field_values
 
 Purpose:
-Validate or disambiguate a candidate value for a specific dimension (e.g. a product name or status) before filtering on it. Returns up to 100 unique values matching the query.
+Validate or disambiguate a candidate value for a specific dimension (e.g. a name or status) before filtering on it. Returns up to 100 unique values matching the query.
 
 Usage Tips:
 - Search only when the value is uncertain: when the user or field metadata already gives the exact value, filter on it directly
@@ -10989,7 +10989,7 @@ Returns every row of the terminal node, other submitted nodes' columns and first
                                     "type": "null",
                                   },
                                 ],
-                                "description": "Aggregates only the rows this flat AND expression over dimensions matches, in the node filter grammar, e.g. \`orders_status equals="completed"\`. Null aggregates every row.",
+                                "description": "Aggregates only the rows this flat AND expression over dimensions matches, in the node filter grammar, e.g. \`<table>_<dimension> equals="<value>"\`. Null aggregates every row.",
                               },
                               "label": {
                                 "description": "Column label shown to users.",
@@ -11036,7 +11036,7 @@ Returns every row of the terminal node, other submitted nodes' columns and first
                       "description": "Metrics the explore lacks, each an aggregation over one of its dimensions, computed in this query.",
                     },
                     "description": {
-                      "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums completed order revenue per month over the last year." Shown as the node's heading in the pipeline list.",
+                      "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums <metric> per month over the last year, counting only <status> rows." Shown as the node's heading in the pipeline list.",
                       "type": "string",
                     },
                     "dimensions": {
@@ -11146,7 +11146,7 @@ Returns every row of the terminal node, other submitted nodes' columns and first
                           "type": "null",
                         },
                       ],
-                      "description": "Parameter values for this node, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.",
+                      "description": "Parameter values for this node, keyed by parameter name exactly as shown in the explore metadata (e.g. {"<model>.<parameter>": "<value>"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.",
                     },
                     "periodComparisons": {
                       "anyOf": [
@@ -11181,7 +11181,7 @@ Returns every row of the terminal node, other submitted nodes' columns and first
                           "type": "null",
                         },
                       ],
-                      "description": "Each adds a column holding a metric shifted back in time, next to that metric, e.g. revenue the same month last year. The warehouse reads the earlier period even when the filters exclude it. The column id is generated; read it from the result columns.",
+                      "description": "Each adds a column holding a metric shifted back in time, next to that metric, e.g. <metric> the same month last year. The warehouse reads the earlier period even when the filters exclude it. The column id is generated; read it from the result columns.",
                     },
                     "sorts": {
                       "anyOf": [
@@ -11210,14 +11210,14 @@ Returns every row of the terminal node, other submitted nodes' columns and first
                         },
                       ],
                       "default": null,
-                      "description": "Sorts by fields this node also selects in dimensions, metrics or customMetrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].",
+                      "description": "Sorts by fields this node also selects in dimensions, metrics or customMetrics, e.g. [{"fieldId": "<table>_<date>", "descending": true}].",
                     },
                     "sourceType": {
                       "const": "semanticLayer",
                       "type": "string",
                     },
                     "title": {
-                      "description": "Short label a reader understands without seeing the query, two to five words, e.g. "Revenue by month". Shown to users instead of the node id.",
+                      "description": "Short label a reader understands without seeing the query, two to five words, e.g. "<Metric> by month". Shown to users instead of the node id.",
                       "type": "string",
                     },
                   },
@@ -11235,7 +11235,7 @@ Returns every row of the terminal node, other submitted nodes' columns and first
                 {
                   "properties": {
                     "description": {
-                      "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums completed order revenue per month over the last year." Shown as the node's heading in the pipeline list.",
+                      "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums <metric> per month over the last year, counting only <status> rows." Shown as the node's heading in the pipeline list.",
                       "type": "string",
                     },
                     "limit": {
@@ -11259,7 +11259,7 @@ Returns every row of the terminal node, other submitted nodes' columns and first
                       "type": "string",
                     },
                     "title": {
-                      "description": "Short label a reader understands without seeing the query, two to five words, e.g. "Revenue by month". Shown to users instead of the node id.",
+                      "description": "Short label a reader understands without seeing the query, two to five words, e.g. "<Metric> by month". Shown to users instead of the node id.",
                       "type": "string",
                     },
                   },
@@ -11275,7 +11275,7 @@ Returns every row of the terminal node, other submitted nodes' columns and first
                 {
                   "properties": {
                     "description": {
-                      "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums completed order revenue per month over the last year." Shown as the node's heading in the pipeline list.",
+                      "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums <metric> per month over the last year, counting only <status> rows." Shown as the node's heading in the pipeline list.",
                       "type": "string",
                     },
                     "limit": {
@@ -11321,7 +11321,7 @@ Returns every row of the terminal node, other submitted nodes' columns and first
                       "type": "string",
                     },
                     "title": {
-                      "description": "Short label a reader understands without seeing the query, two to five words, e.g. "Revenue by month". Shown to users instead of the node id.",
+                      "description": "Short label a reader understands without seeing the query, two to five words, e.g. "<Metric> by month". Shown to users instead of the node id.",
                       "type": "string",
                     },
                   },
@@ -11338,7 +11338,7 @@ Returns every row of the terminal node, other submitted nodes' columns and first
                 {
                   "properties": {
                     "description": {
-                      "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums completed order revenue per month over the last year." Shown as the node's heading in the pipeline list.",
+                      "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums <metric> per month over the last year, counting only <status> rows." Shown as the node's heading in the pipeline list.",
                       "type": "string",
                     },
                     "limit": {
@@ -11382,7 +11382,7 @@ Returns every row of the terminal node, other submitted nodes' columns and first
                       "description": "External tables this node reads: an array of table names (each exposed under its name), or a map of {sqlAlias: tableNameOrTableUuid}. Prefer table UUIDs from attached-source context so renames cannot break the query.",
                     },
                     "title": {
-                      "description": "Short label a reader understands without seeing the query, two to five words, e.g. "Revenue by month". Shown to users instead of the node id.",
+                      "description": "Short label a reader understands without seeing the query, two to five words, e.g. "<Metric> by month". Shown to users instead of the node id.",
                       "type": "string",
                     },
                   },
@@ -11399,7 +11399,7 @@ Returns every row of the terminal node, other submitted nodes' columns and first
                 {
                   "properties": {
                     "description": {
-                      "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums completed order revenue per month over the last year." Shown as the node's heading in the pipeline list.",
+                      "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums <metric> per month over the last year, counting only <status> rows." Shown as the node's heading in the pipeline list.",
                       "type": "string",
                     },
                     "joinKey": {
@@ -11407,7 +11407,7 @@ Returns every row of the terminal node, other submitted nodes' columns and first
                       "items": {
                         "properties": {
                           "fields": {
-                            "description": "One dimension per source, the same value at the same grain (both a month, both a customer id).",
+                            "description": "One dimension per source, the same value at the same grain (both a month, both an <entity> id).",
                             "items": {
                               "properties": {
                                 "fieldId": {
@@ -11508,7 +11508,7 @@ Returns every row of the terminal node, other submitted nodes' columns and first
                           },
                           "repeatValues": {
                             "default": null,
-                            "description": "true repeats this node's values on every row of the one source that keeps a dimension outside the join key, e.g. a monthly target beside daily sales. Every source but that one sets it. null otherwise.",
+                            "description": "true repeats this node's values on every row of the one source that keeps a dimension outside the join key, e.g. a monthly target beside daily actuals. Every source but that one sets it. null otherwise.",
                             "type": [
                               "boolean",
                               "null",
@@ -11578,10 +11578,10 @@ Returns every row of the terminal node, other submitted nodes' columns and first
                                   },
                                 ],
                                 "default": null,
-                                "description": "How the column displays, matching the metrics it is built from: money stays money, so a revenue change or revenue per customer is currency in the revenue metric's currency; a share or growth rate is percent. null shows a plain number.",
+                                "description": "How the column displays, matching the metrics it is built from: money stays money, so a change in a currency metric, or that metric per <entity>, is currency in that metric's currency; a share or growth rate is percent. null shows a plain number.",
                               },
                               "formula": {
-                                "description": "Spreadsheet formula over merged columns by id: \`<source nodeId>_<fieldId>\` for a source's column, \`merge_<name>\` for a join key. Sources \`weekly_orders\` and \`weekly_sessions\` give \`weekly_orders_orders_total_revenue / weekly_sessions_sessions_count\`. It supports: arithmetic across sources (dividing by zero gives blank); a blank-safe sum, \`COALESCE(a, 0) + COALESCE(b, 0)\`; SUM, AVG, MIN, MAX and COUNT over all rows, so \`a / SUM(a)\` is a share of total, and \`SUM(a) OVER (PARTITION BY merge_<name>)\` a group's total; LAG, LEAD, RUNNING_TOTAL, MOVING_AVG and RANK, each naming its order, as in \`a / LAG(a, PARTITION BY merge_category, ORDER BY merge_year) - 1\` for year on year; conditions with IF, ISNULL, comparisons and AND/OR between them, as in \`IF(YEAR(merge_year) = 2025, "Full year", "Partial year")\` for a label; YEAR, MONTH and DATE_TRUNC on a date key; ROUND and ABS.",
+                                "description": "Spreadsheet formula over merged columns by id: \`<source nodeId>_<fieldId>\` for a source's column, \`merge_<name>\` for a join key. Source nodes \`<nodeA>\` and \`<nodeB>\` give \`<nodeA>_<table>_<metric> / <nodeB>_<table>_<metric>\`. It supports: arithmetic across sources (dividing by zero gives blank); a blank-safe sum, \`COALESCE(a, 0) + COALESCE(b, 0)\`; SUM, AVG, MIN, MAX and COUNT over all rows, so \`a / SUM(a)\` is a share of total, and \`SUM(a) OVER (PARTITION BY merge_<name>)\` a group's total; LAG, LEAD, RUNNING_TOTAL, MOVING_AVG and RANK, each naming its order, as in \`a / LAG(a, PARTITION BY merge_category, ORDER BY merge_year) - 1\` for year on year; conditions with IF, ISNULL, comparisons and AND/OR between them, as in \`IF(YEAR(merge_year) = 2025, "Full year", "Partial year")\` for a label; YEAR, MONTH and DATE_TRUNC on a date key; ROUND and ABS.",
                                 "type": "string",
                               },
                               "name": {
@@ -11607,7 +11607,7 @@ Returns every row of the terminal node, other submitted nodes' columns and first
                       "description": "Every calculation over the merged columns: ratios, year on year, shares of total, conditional labels. null for none.",
                     },
                     "title": {
-                      "description": "Short label a reader understands without seeing the query, two to five words, e.g. "Revenue by month". Shown to users instead of the node id.",
+                      "description": "Short label a reader understands without seeing the query, two to five words, e.g. "<Metric> by month". Shown to users instead of the node id.",
                       "type": "string",
                     },
                   },
@@ -11630,17 +11630,17 @@ Returns every row of the terminal node, other submitted nodes' columns and first
 import pandas as pd
 
 def run(inputs, params):
-    df = inputs["orders"]                           # one DataFrame per reference, columns already typed
+    df = inputs["source"]                           # one DataFrame per reference, columns already typed
     cutoff = pd.Timestamp("2026-01-01")             # all datetimes are tz-naive UTC wall clock; never tz_localize/tz_convert
-    out = df[df["created_at"] >= cutoff].groupby("customer_id", as_index=False)["revenue"].sum()
-    return out                                      # unique snake_case column names, letter first, max 63 chars (revenue_2024, not "Revenue 2024" or 2024); flatten pivot/unstack columns; index dropped
+    out = df[df["created_at"] >= cutoff].groupby("category", as_index=False)["value"].sum()
+    return out                                      # unique snake_case column names, letter first, max 63 chars (value_2024, not "Value 2024" or 2024); flatten pivot/unstack columns; index dropped
 
 Imports aside, all code inside run(). Read columns as df["col"], never df.col. Check df.dtypes before sum/astype.
 Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, polars 1.44. No network, no installs.",
                       "type": "string",
                     },
                     "description": {
-                      "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums completed order revenue per month over the last year." Shown as the node's heading in the pipeline list.",
+                      "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums <metric> per month over the last year, counting only <status> rows." Shown as the node's heading in the pipeline list.",
                       "type": "string",
                     },
                     "limit": {
@@ -11682,7 +11682,7 @@ Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, po
                       "type": "string",
                     },
                     "title": {
-                      "description": "Short label a reader understands without seeing the query, two to five words, e.g. "Revenue by month". Shown to users instead of the node id.",
+                      "description": "Short label a reader understands without seeing the query, two to five words, e.g. "<Metric> by month". Shown to users instead of the node id.",
                       "type": "string",
                     },
                   },
@@ -12821,7 +12821,7 @@ Important:
             "description": "External connections to link to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). A data app calls an outside API only through a linked connection; naming one in the brief does not link it. Omit when the app uses no outside API.",
           },
           "name": {
-            "description": "Display name: a headline-short title in title case naming what the app shows ("Revenue Overview"). It also sets the app's permanent slug, so pick the final name now.",
+            "description": "Display name: a headline-short title in title case naming what the app shows ("<Topic> Overview"). It also sets the app's permanent slug, so pick the final name now.",
             "type": "string",
           },
           "projectUuid": {
@@ -14666,10 +14666,10 @@ Example B — "Revenue by month with year-over-year comparison"
               },
             ],
             "default": null,
-            "description": "Lightdash parameter values for this query, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.",
+            "description": "Lightdash parameter values for this query, keyed by parameter name exactly as shown in the explore metadata (e.g. {"<model>.<parameter>": "<value>"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.",
           },
           "sorts": {
-            "description": "Sort configuration for the query. Every sorted field must also be selected in dimensions, metrics or tableCalculations: to order by one field (e.g. \`order_date_month_num\`) while displaying another (\`order_date_month_name\`), select both as dimensions.",
+            "description": "Sort configuration for the query. Every sorted field must also be selected in dimensions, metrics or tableCalculations: to order by one field (e.g. \`<date>_month_num\`) while displaying another (\`<date>_month_name\`), select both as dimensions.",
             "items": {
               "properties": {
                 "descending": {
@@ -14905,7 +14905,7 @@ exports[`MCP tool contracts > matches the filter-expression search_field_values 
   "description": "Tool: search_field_values
 
 Purpose:
-Validate or disambiguate a candidate value for a specific dimension (e.g. a product name or status) before filtering on it. Returns up to 100 unique values matching the query.
+Validate or disambiguate a candidate value for a specific dimension (e.g. a name or status) before filtering on it. Returns up to 100 unique values matching the query.
 
 Usage Tips:
 - Search only when the value is uncertain: when the user or field metadata already gives the exact value, filter on it directly

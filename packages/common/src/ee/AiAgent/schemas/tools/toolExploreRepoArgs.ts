@@ -7,7 +7,7 @@ export const TOOL_EXPLORE_REPO_DESCRIPTION = [
     'Commands: `ls`, `cat`, `head`, `tail`, `find`, `tree`, `wc`, `stat`, `grep`/`egrep` (incl. `-r`, `-l`, `-E`, `--include=GLOB`), `rg`, `sed`, `awk`, `cut`, `sort`, `uniq`, `tr`, `jq`, `diff`, `xargs`, with pipes, `&&`/`||`, quoting, globs and `2>/dev/null`.',
     "`search <term> [path]` lists the files that contain a term, using the host's code search; the path picks one repository (`/dbt`, `/owner/repo`), a subdirectory, or every repository of an owner (`/owner`, one request each). It matches terms, not regular expressions, and indexes only default branches and files under a size cap: locate files with it, and use `grep`/`rg` for a regex, a non-default branch or matching lines in a known directory.",
     "Walks download what they touch (`grep -r` and `rg` every file, `find`, `ls -R` and `tree` every repository they enter), so one across repositories or over a whole large repository exhausts the provider's rate limit for the rest of the conversation, and the server stops a command that reads too many files. Keep walks inside one repository and directory, and find which files or repositories mention a string with `search`.",
-    'Use as few commands as possible: locate files with one scoped command (e.g. `find /dbt -name "*.yml" | xargs grep -l orders`) and read them all with one `cat a b c`.',
+    'Use as few commands as possible: locate files with one scoped command (e.g. `find /dbt -name "*.yml" | xargs grep -l <model>`) and read them all with one `cat a b c`.',
 ].join(' ');
 
 export const toolExploreRepoArgsSchema = z.object({
@@ -20,7 +20,7 @@ export const toolExploreRepoArgsSchema = z.object({
         .string()
         .nullable()
         .describe(
-            'Starting directory as a repository "owner/repo" (e.g. "acme/analytics"), which starts the command in `/owner/repo`; null starts it in `/dbt`, or `/` without it. Absolute paths reach any mount whatever the target, so one command can read named files from several repositories (e.g. `diff /dbt/models/orders.sql /acme/analytics/models/orders.sql`).',
+            'Starting directory as a repository "owner/repo" (e.g. "acme/analytics"), which starts the command in `/owner/repo`; null starts it in `/dbt`, or `/` without it. Absolute paths reach any mount whatever the target, so one command can read named files from several repositories (e.g. `diff /dbt/models/<model>.sql /acme/analytics/models/<model>.sql`).',
         ),
 });
 

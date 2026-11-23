@@ -14,7 +14,7 @@ export const toolReadAttachmentsArgsSchema = z.object({
     command: z
         .string()
         .describe(
-            'A single read-only bash command to run against the attachment filesystem, e.g. `ls -la /attachments`, `cat /attachments/notes.md`, or `grep -n -i "revenue" /attachments/*.md | head -n 30`.',
+            'A single read-only bash command to run against the attachment filesystem, e.g. `ls -la /attachments`, `cat /attachments/notes.md`, or `grep -n -i "<term>" /attachments/*.md | head -n 30`.',
         ),
 });
 

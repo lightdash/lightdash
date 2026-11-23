@@ -115,7 +115,7 @@ const DOCUMENT_MARKDOWN_DESCRIPTION =
 const documentChartsSchema = z
     .record(z.string(), mcpDocumentChartSchema)
     .describe(
-        'Full chart definitions by key, as chart as code (see the developing-in-lightdash skill): a chart stores its query and visualization, never result rows or query UUIDs. Use a new key (e.g. "revenue") for a new chart; the server assigns it the next cN id. Pass an existing id to replace that chart. Omit charts you keep unchanged. Use {} when there are none.',
+        'Full chart definitions by key, as chart as code (see the developing-in-lightdash skill): a chart stores its query and visualization, never result rows or query UUIDs. Use a new key (e.g. "<chart_key>") for a new chart; the server assigns it the next cN id. Pass an existing id to replace that chart. Omit charts you keep unchanged. Use {} when there are none.',
     );
 
 const baseVersionUuidSchema = z
@@ -165,7 +165,7 @@ export const mcpDocumentEditSchema = z.discriminatedUnion('type', [
             patch: z
                 .array(z.unknown())
                 .describe(
-                    'RFC6902 operations applied to that chart ({ source, chart }) as read with its chartId, e.g. [{ "op": "replace", "path": "/chart/name", "value": "Revenue" }].',
+                    'RFC6902 operations applied to that chart ({ source, chart }) as read with its chartId, e.g. [{ "op": "replace", "path": "/chart/name", "value": "<new name>" }].',
                 ),
         })
         .strict(),

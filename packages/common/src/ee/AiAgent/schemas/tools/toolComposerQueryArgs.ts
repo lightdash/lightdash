@@ -84,10 +84,10 @@ const PYTHON_CODE_DESCRIPTION = `Python defining run(inputs, params) -> pandas.D
 import pandas as pd
 
 def run(inputs, params):
-    df = inputs["orders"]                           # one DataFrame per reference, columns already typed
+    df = inputs["source"]                           # one DataFrame per reference, columns already typed
     cutoff = pd.Timestamp("2026-01-01")             # all datetimes are tz-naive UTC wall clock; never tz_localize/tz_convert
-    out = df[df["created_at"] >= cutoff].groupby("customer_id", as_index=False)["revenue"].sum()
-    return out                                      # unique snake_case column names, letter first, max 63 chars (revenue_2024, not "Revenue 2024" or 2024); flatten pivot/unstack columns; index dropped
+    out = df[df["created_at"] >= cutoff].groupby("category", as_index=False)["value"].sum()
+    return out                                      # unique snake_case column names, letter first, max 63 chars (value_2024, not "Value 2024" or 2024); flatten pivot/unstack columns; index dropped
 
 Imports aside, all code inside run(). Read columns as df["col"], never df.col. Check df.dtypes before sum/astype.
 Libraries: ${PYTHON_SANDBOX_LIBRARIES_DESCRIPTION}. No network, no installs.`;
@@ -171,13 +171,13 @@ const nodeIdSchema = z
 const nodeTitleSchema = z
     .string()
     .describe(
-        'Short label a reader understands without seeing the query, two to five words, e.g. "Revenue by month". Shown to users instead of the node id.',
+        'Short label a reader understands without seeing the query, two to five words, e.g. "<Metric> by month". Shown to users instead of the node id.',
     );
 
 const nodeDescriptionSchema = z
     .string()
     .describe(
-        'One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums completed order revenue per month over the last year." Shown as the node\'s heading in the pipeline list.',
+        'One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums <metric> per month over the last year, counting only <status> rows." Shown as the node\'s heading in the pipeline list.',
     );
 
 // Calls persisted before the description was required may carry null or none.
@@ -242,7 +242,7 @@ const composerCustomMetricSchema = z.object({
     filter: filterExpressionInputSchema
         .nullish()
         .describe(
-            'Aggregates only the rows this flat AND expression over dimensions matches, in the node filter grammar, e.g. `orders_status equals="completed"`. Null aggregates every row.',
+            'Aggregates only the rows this flat AND expression over dimensions matches, in the node filter grammar, e.g. `<table>_<dimension> equals="<value>"`. Null aggregates every row.',
         ),
 });
 
@@ -375,7 +375,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
             .nullish()
             .default(null)
             .describe(
-                'Sorts by fields this node also selects in dimensions, metrics or customMetrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].',
+                'Sorts by fields this node also selects in dimensions, metrics or customMetrics, e.g. [{"fieldId": "<table>_<date>", "descending": true}].',
             ),
         customMetrics: z
             .array(composerCustomMetricSchema)
@@ -387,13 +387,13 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
             .array(composerPeriodComparisonSchema)
             .nullish()
             .describe(
-                'Each adds a column holding a metric shifted back in time, next to that metric, e.g. revenue the same month last year. The warehouse reads the earlier period even when the filters exclude it. The column id is generated; read it from the result columns.',
+                'Each adds a column holding a metric shifted back in time, next to that metric, e.g. <metric> the same month last year. The warehouse reads the earlier period even when the filters exclude it. The column id is generated; read it from the result columns.',
             ),
         parameters: z
             .record(z.string(), parameterValueSchema)
             .nullish()
             .describe(
-                'Parameter values for this node, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.',
+                'Parameter values for this node, keyed by parameter name exactly as shown in the explore metadata (e.g. {"<model>.<parameter>": "<value>"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.',
             ),
         limit: limitSchema,
     });
@@ -440,7 +440,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
                         .nullish()
                         .default(null)
                         .describe(
-                            "true repeats this node's values on every row of the one source that keeps a dimension outside the join key, e.g. a monthly target beside daily sales. Every source but that one sets it. null otherwise.",
+                            "true repeats this node's values on every row of the one source that keeps a dimension outside the join key, e.g. a monthly target beside daily actuals. Every source but that one sets it. null otherwise.",
                         ),
                 }),
             )
@@ -471,7 +471,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
                         )
                         .min(2)
                         .describe(
-                            'One dimension per source, the same value at the same grain (both a month, both a customer id).',
+                            'One dimension per source, the same value at the same grain (both a month, both an <entity> id).',
                         ),
                 }),
             )
@@ -498,7 +498,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
                     formula: z
                         .string()
                         .describe(
-                            'Spreadsheet formula over merged columns by id: `<source nodeId>_<fieldId>` for a source\'s column, `merge_<name>` for a join key. Sources `weekly_orders` and `weekly_sessions` give `weekly_orders_orders_total_revenue / weekly_sessions_sessions_count`. It supports: arithmetic across sources (dividing by zero gives blank); a blank-safe sum, `COALESCE(a, 0) + COALESCE(b, 0)`; SUM, AVG, MIN, MAX and COUNT over all rows, so `a / SUM(a)` is a share of total, and `SUM(a) OVER (PARTITION BY merge_<name>)` a group\'s total; LAG, LEAD, RUNNING_TOTAL, MOVING_AVG and RANK, each naming its order, as in `a / LAG(a, PARTITION BY merge_category, ORDER BY merge_year) - 1` for year on year; conditions with IF, ISNULL, comparisons and AND/OR between them, as in `IF(YEAR(merge_year) = 2025, "Full year", "Partial year")` for a label; YEAR, MONTH and DATE_TRUNC on a date key; ROUND and ABS.',
+                            'Spreadsheet formula over merged columns by id: `<source nodeId>_<fieldId>` for a source\'s column, `merge_<name>` for a join key. Source nodes `<nodeA>` and `<nodeB>` give `<nodeA>_<table>_<metric> / <nodeB>_<table>_<metric>`. It supports: arithmetic across sources (dividing by zero gives blank); a blank-safe sum, `COALESCE(a, 0) + COALESCE(b, 0)`; SUM, AVG, MIN, MAX and COUNT over all rows, so `a / SUM(a)` is a share of total, and `SUM(a) OVER (PARTITION BY merge_<name>)` a group\'s total; LAG, LEAD, RUNNING_TOTAL, MOVING_AVG and RANK, each naming its order, as in `a / LAG(a, PARTITION BY merge_category, ORDER BY merge_year) - 1` for year on year; conditions with IF, ISNULL, comparisons and AND/OR between them, as in `IF(YEAR(merge_year) = 2025, "Full year", "Partial year")` for a label; YEAR, MONTH and DATE_TRUNC on a date key; ROUND and ABS.',
                         ),
                     format: (persisted
                         ? persistedMergeCalculationFormatSchema
@@ -507,7 +507,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
                         .nullish()
                         .default(null)
                         .describe(
-                            "How the column displays, matching the metrics it is built from: money stays money, so a revenue change or revenue per customer is currency in the revenue metric's currency; a share or growth rate is percent. null shows a plain number.",
+                            "How the column displays, matching the metrics it is built from: money stays money, so a change in a currency metric, or that metric per <entity>, is currency in that metric's currency; a share or growth rate is percent. null shows a plain number.",
                         ),
                 }),
             )

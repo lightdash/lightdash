@@ -115,7 +115,7 @@ export const discoverFieldsResultUnionSchema = z.discriminatedUnion('status', [
         suggestedQuestion: z
             .string()
             .describe(
-                "A clarification question the parent can echo to the user (e.g. 'Did you mean revenue from the orders explore or the payments explore?').",
+                "A clarification question the parent can echo to the user (e.g. 'Did you mean <metric> from the <explore> explore or the <other explore> explore?').",
             ),
     }),
     z.object({

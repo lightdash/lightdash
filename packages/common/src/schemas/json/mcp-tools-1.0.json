@@ -831,11 +831,11 @@
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
                     "searchQueries": {
-                        "description": "Searches run together; pass several to cover different topics at once (e.g. \"monthly revenue\" and \"user acquisition trends\").",
+                        "description": "Searches run together; pass several to cover different topics at once (e.g. \"monthly <metric>\" and \"<topic> trends\").",
                         "items": {
                             "properties": {
                                 "label": {
-                                    "description": "The user's full request or its relevant part (\"revenue based on campaigns\", not just \"campaigns\"): the search understands natural language, so more context matches better.",
+                                    "description": "The user's full request or its relevant part (\"<metric> based on <dimension>\", not just \"<dimension>\"): the search understands natural language, so more context matches better.",
                                     "type": "string"
                                 }
                             },
@@ -1217,7 +1217,7 @@
                         "description": "External connections to link to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). A data app calls an outside API only through a linked connection; naming one in the brief does not link it. Omit when the app uses no outside API."
                     },
                     "name": {
-                        "description": "Display name: a headline-short title in title case naming what the app shows (\"Revenue Overview\"). It also sets the app's permanent slug, so pick the final name now.",
+                        "description": "Display name: a headline-short title in title case naming what the app shows (\"<Topic> Overview\"). It also sets the app's permanent slug, so pick the final name now.",
                         "type": "string"
                     },
                     "prompt": {
@@ -1648,7 +1648,7 @@
                 "readOnlyHint": true,
                 "title": "Get metadata"
             },
-            "description": "Tool: get_metadata\n\nPurpose:\nGet the full metadata for explores and fields whose IDs you already know, typically from grep_fields: an explore's joined tables, table filters, required filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table.\n\nWhen to use:\nCall this for the explores and fields you intend to use whose full detail you do not already have. Batch every explore and field you need into one call. Descriptions and hints truncated elsewhere (\"...(truncated)\") are returned here in full.\n\nInputs:\nEach entry in `requests` is one of:\n- `{ \"type\": \"explore\", \"exploreIds\": [\"orders\", \"customers\"] }` for whole explores.\n- `{ \"type\": \"field\", \"fields\": [{ \"exploreId\": \"orders\", \"fieldId\": \"orders_status\" }] }` for specific fields.\n\nApplying the result:\nUse a metric's default time dimension unless the user asks for a different one.\n",
+            "description": "Tool: get_metadata\n\nPurpose:\nGet the full metadata for explores and fields whose IDs you already know, typically from grep_fields: an explore's joined tables, table filters, required filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table.\n\nWhen to use:\nCall this for the explores and fields you intend to use whose full detail you do not already have. Batch every explore and field you need into one call. Descriptions and hints truncated elsewhere (\"...(truncated)\") are returned here in full.\n\nInputs:\nEach entry in `requests` is one of:\n- `{ \"type\": \"explore\", \"exploreIds\": [\"<explore>\", \"<other explore>\"] }` for whole explores.\n- `{ \"type\": \"field\", \"fields\": [{ \"exploreId\": \"<explore>\", \"fieldId\": \"<table>_<field>\" }] }` for specific fields.\n\nApplying the result:\nUse a metric's default time dimension unless the user asks for a different one.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -1687,7 +1687,7 @@
                                                         "type": "string"
                                                     },
                                                     "fieldId": {
-                                                        "description": "The fieldId, e.g. `orders_status`.",
+                                                        "description": "The fieldId, e.g. `<table>_<field>`.",
                                                         "minLength": 1,
                                                         "type": "string"
                                                     }
@@ -3581,7 +3581,7 @@
                                                                         "type": "null"
                                                                     }
                                                                 ],
-                                                                "description": "Aggregates only the rows this flat AND expression over dimensions matches, in the node filter grammar, e.g. `orders_status equals=\"completed\"`. Null aggregates every row."
+                                                                "description": "Aggregates only the rows this flat AND expression over dimensions matches, in the node filter grammar, e.g. `<table>_<dimension> equals=\"<value>\"`. Null aggregates every row."
                                                             },
                                                             "label": {
                                                                 "description": "Column label shown to users.",
@@ -3628,7 +3628,7 @@
                                             "description": "Metrics the explore lacks, each an aggregation over one of its dimensions, computed in this query."
                                         },
                                         "description": {
-                                            "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. \"Sums completed order revenue per month over the last year.\" Shown as the node's heading in the pipeline list.",
+                                            "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. \"Sums <metric> per month over the last year, counting only <status> rows.\" Shown as the node's heading in the pipeline list.",
                                             "type": "string"
                                         },
                                         "dimensions": {
@@ -3738,7 +3738,7 @@
                                                     "type": "null"
                                                 }
                                             ],
-                                            "description": "Parameter values for this node, keyed by parameter name exactly as shown in the explore metadata (e.g. {\"orders.metric\": \"active_users\"}). Set them whenever a selected field is marked \"requires parameters\" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct."
+                                            "description": "Parameter values for this node, keyed by parameter name exactly as shown in the explore metadata (e.g. {\"<model>.<parameter>\": \"<value>\"}). Set them whenever a selected field is marked \"requires parameters\" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct."
                                         },
                                         "periodComparisons": {
                                             "anyOf": [
@@ -3773,7 +3773,7 @@
                                                     "type": "null"
                                                 }
                                             ],
-                                            "description": "Each adds a column holding a metric shifted back in time, next to that metric, e.g. revenue the same month last year. The warehouse reads the earlier period even when the filters exclude it. The column id is generated; read it from the result columns."
+                                            "description": "Each adds a column holding a metric shifted back in time, next to that metric, e.g. <metric> the same month last year. The warehouse reads the earlier period even when the filters exclude it. The column id is generated; read it from the result columns."
                                         },
                                         "sorts": {
                                             "anyOf": [
@@ -3802,14 +3802,14 @@
                                                 }
                                             ],
                                             "default": null,
-                                            "description": "Sorts by fields this node also selects in dimensions, metrics or customMetrics, e.g. [{\"fieldId\": \"orders_order_date\", \"descending\": true}]."
+                                            "description": "Sorts by fields this node also selects in dimensions, metrics or customMetrics, e.g. [{\"fieldId\": \"<table>_<date>\", \"descending\": true}]."
                                         },
                                         "sourceType": {
                                             "const": "semanticLayer",
                                             "type": "string"
                                         },
                                         "title": {
-                                            "description": "Short label a reader understands without seeing the query, two to five words, e.g. \"Revenue by month\". Shown to users instead of the node id.",
+                                            "description": "Short label a reader understands without seeing the query, two to five words, e.g. \"<Metric> by month\". Shown to users instead of the node id.",
                                             "type": "string"
                                         }
                                     },
@@ -3827,7 +3827,7 @@
                                 {
                                     "properties": {
                                         "description": {
-                                            "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. \"Sums completed order revenue per month over the last year.\" Shown as the node's heading in the pipeline list.",
+                                            "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. \"Sums <metric> per month over the last year, counting only <status> rows.\" Shown as the node's heading in the pipeline list.",
                                             "type": "string"
                                         },
                                         "limit": {
@@ -3851,7 +3851,7 @@
                                             "type": "string"
                                         },
                                         "title": {
-                                            "description": "Short label a reader understands without seeing the query, two to five words, e.g. \"Revenue by month\". Shown to users instead of the node id.",
+                                            "description": "Short label a reader understands without seeing the query, two to five words, e.g. \"<Metric> by month\". Shown to users instead of the node id.",
                                             "type": "string"
                                         }
                                     },
@@ -3867,7 +3867,7 @@
                                 {
                                     "properties": {
                                         "description": {
-                                            "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. \"Sums completed order revenue per month over the last year.\" Shown as the node's heading in the pipeline list.",
+                                            "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. \"Sums <metric> per month over the last year, counting only <status> rows.\" Shown as the node's heading in the pipeline list.",
                                             "type": "string"
                                         },
                                         "limit": {
@@ -3913,7 +3913,7 @@
                                             "type": "string"
                                         },
                                         "title": {
-                                            "description": "Short label a reader understands without seeing the query, two to five words, e.g. \"Revenue by month\". Shown to users instead of the node id.",
+                                            "description": "Short label a reader understands without seeing the query, two to five words, e.g. \"<Metric> by month\". Shown to users instead of the node id.",
                                             "type": "string"
                                         }
                                     },
@@ -3930,7 +3930,7 @@
                                 {
                                     "properties": {
                                         "description": {
-                                            "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. \"Sums completed order revenue per month over the last year.\" Shown as the node's heading in the pipeline list.",
+                                            "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. \"Sums <metric> per month over the last year, counting only <status> rows.\" Shown as the node's heading in the pipeline list.",
                                             "type": "string"
                                         },
                                         "limit": {
@@ -3974,7 +3974,7 @@
                                             "description": "External tables this node reads: an array of table names (each exposed under its name), or a map of {sqlAlias: tableNameOrTableUuid}. Prefer table UUIDs from attached-source context so renames cannot break the query."
                                         },
                                         "title": {
-                                            "description": "Short label a reader understands without seeing the query, two to five words, e.g. \"Revenue by month\". Shown to users instead of the node id.",
+                                            "description": "Short label a reader understands without seeing the query, two to five words, e.g. \"<Metric> by month\". Shown to users instead of the node id.",
                                             "type": "string"
                                         }
                                     },
@@ -3991,7 +3991,7 @@
                                 {
                                     "properties": {
                                         "description": {
-                                            "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. \"Sums completed order revenue per month over the last year.\" Shown as the node's heading in the pipeline list.",
+                                            "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. \"Sums <metric> per month over the last year, counting only <status> rows.\" Shown as the node's heading in the pipeline list.",
                                             "type": "string"
                                         },
                                         "joinKey": {
@@ -3999,7 +3999,7 @@
                                             "items": {
                                                 "properties": {
                                                     "fields": {
-                                                        "description": "One dimension per source, the same value at the same grain (both a month, both a customer id).",
+                                                        "description": "One dimension per source, the same value at the same grain (both a month, both an <entity> id).",
                                                         "items": {
                                                             "properties": {
                                                                 "fieldId": {
@@ -4089,7 +4089,7 @@
                                                     },
                                                     "repeatValues": {
                                                         "default": null,
-                                                        "description": "true repeats this node's values on every row of the one source that keeps a dimension outside the join key, e.g. a monthly target beside daily sales. Every source but that one sets it. null otherwise.",
+                                                        "description": "true repeats this node's values on every row of the one source that keeps a dimension outside the join key, e.g. a monthly target beside daily actuals. Every source but that one sets it. null otherwise.",
                                                         "type": [
                                                             "boolean",
                                                             "null"
@@ -4161,10 +4161,10 @@
                                                                     }
                                                                 ],
                                                                 "default": null,
-                                                                "description": "How the column displays, matching the metrics it is built from: money stays money, so a revenue change or revenue per customer is currency in the revenue metric's currency; a share or growth rate is percent. null shows a plain number."
+                                                                "description": "How the column displays, matching the metrics it is built from: money stays money, so a change in a currency metric, or that metric per <entity>, is currency in that metric's currency; a share or growth rate is percent. null shows a plain number."
                                                             },
                                                             "formula": {
-                                                                "description": "Spreadsheet formula over merged columns by id: `<source nodeId>_<fieldId>` for a source's column, `merge_<name>` for a join key. Sources `weekly_orders` and `weekly_sessions` give `weekly_orders_orders_total_revenue / weekly_sessions_sessions_count`. It supports: arithmetic across sources (dividing by zero gives blank); a blank-safe sum, `COALESCE(a, 0) + COALESCE(b, 0)`; SUM, AVG, MIN, MAX and COUNT over all rows, so `a / SUM(a)` is a share of total, and `SUM(a) OVER (PARTITION BY merge_<name>)` a group's total; LAG, LEAD, RUNNING_TOTAL, MOVING_AVG and RANK, each naming its order, as in `a / LAG(a, PARTITION BY merge_category, ORDER BY merge_year) - 1` for year on year; conditions with IF, ISNULL, comparisons and AND/OR between them, as in `IF(YEAR(merge_year) = 2025, \"Full year\", \"Partial year\")` for a label; YEAR, MONTH and DATE_TRUNC on a date key; ROUND and ABS.",
+                                                                "description": "Spreadsheet formula over merged columns by id: `<source nodeId>_<fieldId>` for a source's column, `merge_<name>` for a join key. Source nodes `<nodeA>` and `<nodeB>` give `<nodeA>_<table>_<metric> / <nodeB>_<table>_<metric>`. It supports: arithmetic across sources (dividing by zero gives blank); a blank-safe sum, `COALESCE(a, 0) + COALESCE(b, 0)`; SUM, AVG, MIN, MAX and COUNT over all rows, so `a / SUM(a)` is a share of total, and `SUM(a) OVER (PARTITION BY merge_<name>)` a group's total; LAG, LEAD, RUNNING_TOTAL, MOVING_AVG and RANK, each naming its order, as in `a / LAG(a, PARTITION BY merge_category, ORDER BY merge_year) - 1` for year on year; conditions with IF, ISNULL, comparisons and AND/OR between them, as in `IF(YEAR(merge_year) = 2025, \"Full year\", \"Partial year\")` for a label; YEAR, MONTH and DATE_TRUNC on a date key; ROUND and ABS.",
                                                                 "type": "string"
                                                             },
                                                             "name": {
@@ -4190,7 +4190,7 @@
                                             "description": "Every calculation over the merged columns: ratios, year on year, shares of total, conditional labels. null for none."
                                         },
                                         "title": {
-                                            "description": "Short label a reader understands without seeing the query, two to five words, e.g. \"Revenue by month\". Shown to users instead of the node id.",
+                                            "description": "Short label a reader understands without seeing the query, two to five words, e.g. \"<Metric> by month\". Shown to users instead of the node id.",
                                             "type": "string"
                                         }
                                     },
@@ -9341,10 +9341,10 @@
                                     }
                                 ],
                                 "default": null,
-                                "description": "Lightdash parameter values for this query, keyed by parameter name exactly as shown in the explore metadata (e.g. {\"orders.metric\": \"active_users\"}). Set them whenever a selected field is marked \"requires parameters\" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct."
+                                "description": "Lightdash parameter values for this query, keyed by parameter name exactly as shown in the explore metadata (e.g. {\"<model>.<parameter>\": \"<value>\"}). Set them whenever a selected field is marked \"requires parameters\" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct."
                             },
                             "sorts": {
-                                "description": "Sort configuration for the query. Every sorted field must also be selected in dimensions, metrics or tableCalculations: to order by one field (e.g. `order_date_month_num`) while displaying another (`order_date_month_name`), select both as dimensions.",
+                                "description": "Sort configuration for the query. Every sorted field must also be selected in dimensions, metrics or tableCalculations: to order by one field (e.g. `<date>_month_num`) while displaying another (`<date>_month_name`), select both as dimensions.",
                                 "items": {
                                     "properties": {
                                         "descending": {
@@ -9648,7 +9648,7 @@
                 "readOnlyHint": true,
                 "title": "Search field values"
             },
-            "description": "Tool: search_field_values\n\nPurpose:\nValidate or disambiguate a candidate value for a specific dimension (e.g. a product name or status) before filtering on it. Returns up to 100 unique values matching the query.\n\nUsage Tips:\n- Search only when the value is uncertain: when the user or field metadata already gives the exact value, filter on it directly\n- Omit filters when the search does not need additional filters\n\nReading the result: the values describe observed data, not the permitted filter literals.\n",
+            "description": "Tool: search_field_values\n\nPurpose:\nValidate or disambiguate a candidate value for a specific dimension (e.g. a name or status) before filtering on it. Returns up to 100 unique values matching the query.\n\nUsage Tips:\n- Search only when the value is uncertain: when the user or field metadata already gives the exact value, filter on it directly\n- Omit filters when the search does not need additional filters\n\nReading the result: the values describe observed data, not the permitted filter literals.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {

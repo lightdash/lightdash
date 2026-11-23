@@ -101,7 +101,7 @@ export const toolGenerateDataAppArgsSchema = z.object({
     name: z
         .string()
         .describe(
-            'Display name: a headline-short title in title case naming what the app shows ("Revenue Overview"). It also sets the app\'s permanent slug, so pick the final name now.',
+            'Display name: a headline-short title in title case naming what the app shows ("<Topic> Overview"). It also sets the app\'s permanent slug, so pick the final name now.',
         ),
     prompt: z
         .string()

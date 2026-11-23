@@ -55,7 +55,7 @@ const queryMetricsSchema = z
 const querySortsSchema = z
     .array(sortFieldSchema)
     .describe(
-        'Sort configuration for the query. Every sorted field must also be selected in dimensions, metrics or tableCalculations: to order by one field (e.g. `order_date_month_num`) while displaying another (`order_date_month_name`), select both as dimensions.',
+        'Sort configuration for the query. Every sorted field must also be selected in dimensions, metrics or tableCalculations: to order by one field (e.g. `<date>_month_num`) while displaying another (`<date>_month_name`), select both as dimensions.',
     )
     .meta({ id: 'QuerySorts' });
 
@@ -80,7 +80,7 @@ export const queryConfigBaseSchema = z.object({
         .nullable()
         .default(null)
         .describe(
-            'Lightdash parameter values for this query, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.',
+            'Lightdash parameter values for this query, keyed by parameter name exactly as shown in the explore metadata (e.g. {"<model>.<parameter>": "<value>"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.',
         ),
 });
 

@@ -56,12 +56,12 @@ export const toolFindContentArgsSchema = createToolSchema()
                     label: z
                         .string()
                         .describe(
-                            'The user\'s full request or its relevant part ("revenue based on campaigns", not just "campaigns"): the search understands natural language, so more context matches better.',
+                            'The user\'s full request or its relevant part ("<metric> based on <dimension>", not just "<dimension>"): the search understands natural language, so more context matches better.',
                         ),
                 }),
             )
             .describe(
-                'Searches run together; pass several to cover different topics at once (e.g. "monthly revenue" and "user acquisition trends").',
+                'Searches run together; pass several to cover different topics at once (e.g. "monthly <metric>" and "<topic> trends").',
             ),
         spaceSlug: z
             .string()

@@ -16,7 +16,7 @@ const repoFsRootHint = (root: string | null): string => {
 const repoFsSearchCaveat = (supportsCodeSearch: boolean): string =>
     supportsCodeSearch
         ? ''
-        : `\`search\` is unavailable for this project's repositories: the host has no server-side code search. Find strings with \`grep\`/\`rg\` inside one repository (e.g. \`grep -rln "orders" /dbt\`), without mentioning the missing search to the user.`;
+        : `\`search\` is unavailable for this project's repositories: the host has no server-side code search. Find strings with \`grep\`/\`rg\` inside one repository (e.g. \`grep -rln "<model>" /dbt\`), without mentioning the missing search to the user.`;
 
 const DATA_QUESTIONS = `\`exploreRepo\` reads the dbt implementation and other code; questions about data, metrics or fields go to the semantic-layer tools (\`grepFields\`, \`getMetadata\`, \`searchSemanticLayer\`), which show what users can query, while the repository can hold models Lightdash does not expose.`;
 
