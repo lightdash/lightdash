@@ -799,8 +799,10 @@ const DashboardHeader = memo(
                                     data-tour-hints
                                 >
                                     <CanvasZoomControls />
+                                    <ActionBar.Divider />
                                     <CanvasBackgroundControl />
                                 </Group>
+                                <ActionBar.Divider />
                                 <EditFiltersVisibilityControl
                                     value={editFiltersVisibility}
                                     onChange={onEditFiltersVisibilityChange}
