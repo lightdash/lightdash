@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
 import { Button, getDefaultZIndex, Menu } from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import {
     IconBook,
@@ -40,6 +41,8 @@ const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
     const { show: showIntercom } = useIntercom();
 
     const helpMenuUrl = health.data?.helpMenuUrl;
+    const version = health.data?.version;
+    const clipboard = useClipboard({ timeout: 1500 });
 
     // If helpMenuUrl is set, render a button that opens the URL in a new tab
     if (helpMenuUrl) {
@@ -167,6 +170,23 @@ const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                         description="Share a detailed report with Lightdash support"
                         icon={IconSos}
                     />
+                )}
+
+                {Trigger && version && (
+                    <>
+                        <Menu.Divider />
+                        <Menu.Item
+                            closeMenuOnClick={false}
+                            fz="xs"
+                            c="dimmed"
+                            aria-label={`Copy version ${version}`}
+                            onClick={() => clipboard.copy(version)}
+                        >
+                            {clipboard.copied
+                                ? 'Copied to clipboard'
+                                : `Version ${version}`}
+                        </Menu.Item>
+                    </>
                 )}
             </Menu.Dropdown>
         </Menu>
