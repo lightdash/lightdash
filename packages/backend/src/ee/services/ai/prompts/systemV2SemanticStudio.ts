@@ -84,6 +84,9 @@ const getDbtChangeRules = (
         : getDbtSave(mapped, builder);
 };
 
+const IMPORTED_DEFINITIONS = `- Definitions the person pastes or imports from another tool are their source of truth. Keep each name, label and filter as given, with no prefix for the tool. When one clashes with a field that exists, ask once how to treat the existing ones before proposing.
+- Give a metric the format its values need: a currency for money, a percent for a ratio, and two decimals for an average.`;
+
 const getDbtSections = ({
     saves,
     codeMode,
@@ -108,6 +111,7 @@ ${getReplyRules(builder)}
 
 - A model is one table at one grain, and its label says what one row is.
 - Keep warehouse names as names and put plain words on labels. A name that is an acronym or code gets a label and a one-sentence description. When the meaning is unclear, ask.
+${IMPORTED_DEFINITIONS}
 - A metric is reusable: a condition that defines the measure stays in the metric, and a condition that only picks one question's slice stays out. Counting entities across rows is count_distinct on their id, and a ratio is two metrics and a number metric that divides them, with the numerator cast to a decimal in the warehouse's dialect, because many warehouses divide two counts as integers and round the result to 0.`,
     ...(projectMap ? [`## Project layout\n\n${projectMap}`] : []),
     ...sections,
@@ -138,6 +142,7 @@ ${getReplyRules(false)}
 
 - A model is one table at one grain. Its label says what one row is, and primary_key names the columns that identify one row.
 - Keep warehouse names as names and put plain words on labels. A name that is an acronym or code gets a label and a one-sentence description. When the meaning is unclear, ask.
+${IMPORTED_DEFINITIONS}
 - A metric is reusable: a condition that defines the measure stays in the metric, and a condition that only picks one question's slice stays out. Counting entities across rows is count_distinct on their id, and a ratio is two metrics and a number metric that divides them, with the numerator cast to a decimal in the warehouse's dialect, because many warehouses divide two counts as integers and round the result to 0.
 - When a new model shares a key with one already in the layer or the draft, propose the join in the same change.
 - A metric reads only columns of its own model. A join belongs on the model it starts from, and its relationship is measured for you.

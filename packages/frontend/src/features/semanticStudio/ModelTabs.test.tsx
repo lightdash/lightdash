@@ -64,7 +64,6 @@ const on = (
         : { workspace: null, draft: null },
     isSwitching: false,
     error: null,
-    isPicking: { current: false },
 });
 
 const codeOf = (

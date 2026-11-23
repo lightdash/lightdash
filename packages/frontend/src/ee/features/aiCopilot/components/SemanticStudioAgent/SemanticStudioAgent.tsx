@@ -2,6 +2,7 @@ import {
     type AiAgentSummary,
     type AiPromptContext,
     type AiPromptContextInput,
+    friendlyName,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -30,6 +31,7 @@ import {
     type FC,
 } from 'react';
 import { Provider } from 'react-redux';
+import { Link, useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SidebarPosition } from '../../../../../components/common/Page/types';
 import {
@@ -58,7 +60,8 @@ import {
     QuietCardsContext,
     StudioAskContext,
 } from '../ChatElements/ToolCalls/quietCards';
-import { getClosedChange } from './closedChange';
+import { usePendingPrompt } from '../PendingPromptContext/PendingPromptContext';
+import { getClosedChange, type ClosedChange } from './closedChange';
 import classes from './SemanticStudioAgent.module.css';
 import { StudioChatEmptyState } from './StudioChatEmptyState';
 import { StudioChatRefChips } from './StudioChatRefChips';
@@ -260,16 +263,64 @@ const NewThread: FC<
 };
 
 /** Where the composer was once a change is out: the chat is done, and the next request starts a new one. */
-const ChangeClosed: FC<{ onStartNew: () => void }> = ({ onStartNew }) => (
-    <Group gap="xs" p="md" justify="space-between" wrap="nowrap">
-        <Text fz="sm" c="dimmed">
-            Done
-        </Text>
-        <Button size="xs" onClick={onStartNew}>
-            Start a new chat
-        </Button>
-    </Group>
-);
+/** What to do with a change once it is live: ask about it or open it in Explore. */
+const ChangeClosed: FC<{
+    projectUuid: string;
+    closed: ClosedChange;
+    onStartNew: () => void;
+}> = ({ projectUuid, closed, onStartNew }) => {
+    const navigate = useNavigate();
+    const { setPendingPrompt } = usePendingPrompt();
+    const isLive = closed.pullRequestUrl === null;
+    const names = closed.models.map(friendlyName);
+    return (
+        <Stack gap="xs" p="md">
+            <Text fz="sm" c="dimmed">
+                {isLive
+                    ? 'Published. Try it where people ask questions.'
+                    : 'Sent for review.'}
+            </Text>
+            <Group gap="xs">
+                {isLive && names.length > 0 ? (
+                    <>
+                        <Button
+                            size="xs"
+                            onClick={() => {
+                                setPendingPrompt(
+                                    `What can I learn from ${names.join(' and ')}?`,
+                                );
+                                void navigate(
+                                    `/projects/${projectUuid}/ai-agents`,
+                                );
+                            }}
+                        >
+                            Ask a question
+                        </Button>
+                        {closed.models.slice(0, 2).map((model, index) => (
+                            <Button
+                                key={model}
+                                size="xs"
+                                variant="default"
+                                component={Link}
+                                to={`/projects/${projectUuid}/tables/${model}`}
+                            >
+                                Explore {names[index]}
+                            </Button>
+                        ))}
+                    </>
+                ) : null}
+                <Button
+                    size="xs"
+                    variant="subtle"
+                    color="gray"
+                    onClick={onStartNew}
+                >
+                    Start a new chat
+                </Button>
+            </Group>
+        </Stack>
+    );
+};
 
 const ExistingThread: FC<
     OpenModel &
@@ -373,7 +424,11 @@ const ExistingThread: FC<
                     </Text>
                 ) : null}
                 {closed ? (
-                    <ChangeClosed onStartNew={onStartNew} />
+                    <ChangeClosed
+                        projectUuid={projectUuid}
+                        closed={closed}
+                        onStartNew={onStartNew}
+                    />
                 ) : (
                     <>
                         <StudioChatRefChips

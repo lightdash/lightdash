@@ -34,15 +34,15 @@ export const ModelMark: FC<{ model: string }> = ({ model }) => {
             </Tooltip>
         );
     }
-    const fields = published.get(model);
-    return fields ? (
+    const mark = published.get(model);
+    return mark ? (
         <Tooltip
             multiline
             maw={320}
-            label={`You published this. ${describeFieldChanges(fields)}`.trim()}
+            label={`You published this. ${mark.kind === 'new' ? '' : describeFieldChanges(mark.fields)}`.trim()}
         >
-            <Badge flex="none" color="green">
-                Updated
+            <Badge flex="none" color="green" variant="light">
+                {mark.kind === 'new' ? 'New' : 'Updated'}
             </Badge>
         </Tooltip>
     ) : null;

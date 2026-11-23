@@ -29,6 +29,7 @@ import {
 import {
     useChangeSet,
     type ChangedField,
+    withOneGrainPerDate,
 } from '../../../../../features/semanticStudio/useModelFieldChanges';
 import { useSemanticLayerFieldUsage } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import { useExplorerQueryEffects } from '../../../../../hooks/useExplorerQueryEffects';
@@ -48,7 +49,15 @@ const KINDS: Record<ChangedField['kind'], { label: string; color: string }> = {
 
 const buildState = (model: string, fields: ChangedField[]) => {
     const state = buildInitialExplorerState({ isEditMode: true });
-    const tried = fields.filter(({ kind }) => kind !== 'removed');
+    const tried = withOneGrainPerDate(
+        fields.filter(({ kind }) => kind !== 'removed'),
+    );
+    const metrics = tried.filter(({ isMetric }) => isMetric);
+    // Metrics open by one date; a change with no metric shows its dimensions.
+    const dimensions =
+        metrics.length > 0
+            ? tried.filter(({ date }) => date !== null).slice(0, 1)
+            : tried.filter(({ isMetric }) => !isMetric);
     return buildInitialExplorerState({
         isEditMode: true,
         initialState: {
@@ -63,12 +72,8 @@ const buildState = (model: string, fields: ChangedField[]) => {
                 metricQuery: {
                     ...state.unsavedChartVersion.metricQuery,
                     exploreName: model,
-                    dimensions: tried
-                        .filter(({ isMetric }) => !isMetric)
-                        .map(({ fieldId }) => fieldId),
-                    metrics: tried
-                        .filter(({ isMetric }) => isMetric)
-                        .map(({ fieldId }) => fieldId),
+                    dimensions: dimensions.map(({ fieldId }) => fieldId),
+                    metrics: metrics.map(({ fieldId }) => fieldId),
                 },
             },
         },
@@ -177,9 +182,13 @@ const FieldChips: FC<{
     fields: ChangedField[];
     chartsOf: (field: ChangedField) => number;
 }> = ({ fields, chartsOf }) => {
+    const shown = withOneGrainPerDate(fields);
     const ordered = [
-        ...fields.filter(({ kind }) => kind !== 'removed'),
-        ...fields.filter(({ kind }) => kind === 'removed'),
+        ...shown.filter(({ kind, isMetric }) => kind !== 'removed' && isMetric),
+        ...shown.filter(
+            ({ kind, isMetric }) => kind !== 'removed' && !isMetric,
+        ),
+        ...shown.filter(({ kind }) => kind === 'removed'),
     ];
     return (
         <>

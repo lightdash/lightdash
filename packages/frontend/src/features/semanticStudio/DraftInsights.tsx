@@ -63,6 +63,7 @@ import {
     useMoveDraftChange,
     useTakeLiveDraftPart,
     useSemanticLayerDraftUsage,
+    usePublishMode,
 } from './useSemanticLayerModel';
 import { LineCounts } from './WorkbenchRail';
 
@@ -987,6 +988,8 @@ export const PublishSummary: FC<{
     model: string | null;
 }> = ({ projectUuid, draft, model }) => {
     const { data: usage } = useSemanticLayerDraftUsage(projectUuid);
+    // Line counts mean something only to people who read the files.
+    const showsLines = usePublishMode(projectUuid) !== 'live';
     const models = draft.models.filter(
         (entry) => model === null || entry.model === model,
     );
@@ -1013,7 +1016,9 @@ export const PublishSummary: FC<{
                                     </Text>
                                 ) : null}
                             </Text>
-                            <LineCounts counts={countChangedLines(entry)} />
+                            {showsLines ? (
+                                <LineCounts counts={countChangedLines(entry)} />
+                            ) : null}
                         </Group>
                         {parts.map((part) => {
                             const used = usage?.fields.find(

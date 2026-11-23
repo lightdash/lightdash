@@ -106,6 +106,8 @@ type Props = {
     submitDisabled?: boolean;
     /** Caller-specific TipTap extensions — mention/pill nodes, suggestions. */
     extensions?: AnyExtension[];
+    /** Allows code blocks, so pasted code keeps its lines and indentation. */
+    codeBlocks?: boolean;
     /** Enter (without Shift). Receives the editor's plain-text serialization. */
     onSubmit?: (text: string) => void;
     onEmptyChange?: (isEmpty: boolean) => void;
@@ -144,6 +146,7 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
             disabled = false,
             submitDisabled = false,
             extensions = [],
+            codeBlocks = false,
             onSubmit,
             onEmptyChange,
             onValueChange,
@@ -188,7 +191,7 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                     bulletList: false,
                     orderedList: false,
                     blockquote: false,
-                    codeBlock: false,
+                    codeBlock: codeBlocks ? {} : false,
                     horizontalRule: false,
                     link: false,
                     underline: false,

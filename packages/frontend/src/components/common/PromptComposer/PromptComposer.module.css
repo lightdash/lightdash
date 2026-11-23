@@ -208,6 +208,17 @@
         padding: 0;
     }
 
+    :global(.ProseMirror pre) {
+        margin: rem(4px) 0;
+        padding: rem(8px) rem(10px);
+        border-radius: var(--mantine-radius-sm);
+        background: var(--mantine-color-default-hover);
+        font-family: var(--mantine-font-family-monospace);
+        font-size: var(--mantine-font-size-xs);
+        white-space: pre;
+        overflow-x: auto;
+    }
+
     :global(p.is-empty.is-editor-empty::before) {
         content: attr(data-placeholder);
         float: left;

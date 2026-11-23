@@ -29,6 +29,7 @@ import {
     getModelCodeSearch,
     listFieldChanges,
     type FieldChange,
+    VIEW_PARAM,
 } from './modelCode';
 import { listTurnIssues } from './proposalIssues';
 import { TaskIcon } from './TaskRow';
@@ -291,7 +292,15 @@ export const TurnSummaryCard: FC<{
     ).length;
     const safety = isDraft ? getSafety(phase.error, impact, conflicts) : null;
     const [publishing, setPublishing] = useState(false);
-    const asPullRequest = usePublishMode(projectUuid) === 'pull_request';
+    const publishMode = usePublishMode(projectUuid);
+    const asPullRequest = publishMode === 'pull_request';
+    // With no repository the change reads as the models it touches; code is one tab away.
+    const changesUrl =
+        publishMode !== 'live'
+            ? reviewUrl
+            : groups.length === 1
+              ? modelUrl(groups[0].model)
+              : `${studioUrl}?${VIEW_PARAM}=models`;
     const isSent = useDraftPullRequest() !== null;
     // A clean draft can go out from where it was made, as the toolbar's button would send it.
     const canPublish =
@@ -314,7 +323,7 @@ export const TurnSummaryCard: FC<{
                 return [
                     ...draftActions({
                         error: phase.error,
-                        reviewTo: reviewUrl,
+                        reviewTo: changesUrl,
                         onAsk,
                     }),
                     phase.error ? null : fixFailure,

@@ -202,17 +202,21 @@ export const ApplyModal: FC<{
                 new Map(
                     scoped.map((entry) => [
                         entry.model,
-                        listFieldChanges(
-                            entry.model,
-                            draft.changes.flatMap((change) =>
-                                change.models
-                                    .filter(
-                                        (part) => part.model === entry.model,
-                                    )
-                                    .flatMap((part) => part.changes),
+                        {
+                            kind: getChangeKind(entry),
+                            fields: listFieldChanges(
+                                entry.model,
+                                draft.changes.flatMap((change) =>
+                                    change.models
+                                        .filter(
+                                            (part) =>
+                                                part.model === entry.model,
+                                        )
+                                        .flatMap((part) => part.changes),
+                                ),
+                                entry,
                             ),
-                            entry,
-                        ),
+                        },
                     ]),
                 ),
             );
