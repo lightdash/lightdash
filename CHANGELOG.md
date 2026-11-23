@@ -1,3 +1,10 @@
+## [3.374.1](https://github.com/lightdash/lightdash/compare/3.374.0...3.374.1) (2026-11-23)
+
+
+### Bug Fixes
+
+* **semantic-studio:** smoother flow for projects without a repository ([#33254](https://github.com/lightdash/lightdash/issues/33254)) ([baaac51](https://github.com/lightdash/lightdash/commit/baaac51c1ddb438d2a84cdda6680d56b2466a523))
+
 # [3.374.0](https://github.com/lightdash/lightdash/compare/3.373.0...3.374.0) (2026-11-23)
 
 
