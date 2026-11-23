@@ -375,6 +375,34 @@ describe('ExternalConnectionModel', () => {
                 JSON.stringify(['read:data']),
             );
         });
+
+        it('keeps a copied source asking each viewer to sign in', async () => {
+            tracker.on
+                .select(ExternalConnectionsTableName)
+                .responseOnce([makeDbConnection({ sign_in_mode: 'per_user' })]);
+            tracker.on
+                .insert(ExternalConnectionsTableName)
+                .responseOnce([
+                    { external_connection_uuid: 'cloned-conn-uuid' },
+                ]);
+            tracker.on
+                .select(ExternalConnectionSecretsTableName)
+                .responseOnce([]);
+            tracker.on
+                .select(ExternalConnectionSamplesTableName)
+                .responseOnce([]);
+
+            await model.copyConnectionsToProject(
+                PROJECT_UUID,
+                'target-project-uuid',
+            );
+
+            const cloneInsert = tracker.history.insert.find((q) =>
+                q.sql.includes(ExternalConnectionsTableName),
+            );
+            expect(cloneInsert?.sql).toContain('"sign_in_mode"');
+            expect(cloneInsert?.bindings).toContain('per_user');
+        });
     });
 
     describe('findByUuid', () => {
