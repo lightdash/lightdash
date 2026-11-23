@@ -16571,6 +16571,34 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.string-Array_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: {
+                dataType: 'array',
+                array: { dataType: 'string' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    LiveSourceAccessRule: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                any: { ref: 'Record_string.string-Array_', required: true },
+                required: {
+                    ref: 'Record_string.string-Array_',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExternalConnection: {
         dataType: 'refAlias',
         type: {
@@ -16595,6 +16623,13 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 hasSecret: { dataType: 'boolean', required: true },
+                accessRule: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'LiveSourceAccessRule' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 cachePurgedAt: {
                     dataType: 'union',
                     subSchemas: [
@@ -20795,19 +20830,6 @@ const models: TsoaRoute.Models = {
     PreAggregateSort: {
         dataType: 'refAlias',
         type: { ref: 'Pick_SortField.fieldId-or-descending_', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.string-Array_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            additionalProperties: {
-                dataType: 'array',
-                array: { dataType: 'string' },
-            },
-            validators: {},
-        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     UserAttributeValueMap: {
@@ -32687,7 +32709,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_':
+    'Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-liveSourceUuids-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_':
         {
             dataType: 'refAlias',
             type: {
@@ -32731,6 +32753,17 @@ const models: TsoaRoute.Models = {
                         required: true,
                     },
                     tags: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'array',
+                                array: { dataType: 'string' },
+                            },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    liveSourceUuids: {
                         dataType: 'union',
                         subSchemas: [
                             {
@@ -32856,7 +32889,7 @@ const models: TsoaRoute.Models = {
     AiAgentSummary: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_',
+            ref: 'Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-liveSourceUuids-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_',
             validators: {},
         },
     },
@@ -33842,7 +33875,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_':
+    'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-liveSourceUuids-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_':
         {
             dataType: 'refAlias',
             type: {
@@ -33886,6 +33919,17 @@ const models: TsoaRoute.Models = {
                         required: true,
                     },
                     tags: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'array',
+                                array: { dataType: 'string' },
+                            },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    liveSourceUuids: {
                         dataType: 'union',
                         subSchemas: [
                             {
@@ -34011,7 +34055,7 @@ const models: TsoaRoute.Models = {
     AiAgent: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_',
+            ref: 'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-liveSourceUuids-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_',
             validators: {},
         },
     },
@@ -34911,6 +34955,16 @@ const models: TsoaRoute.Models = {
                                 { dataType: 'enum', enums: [null] },
                             ],
                         },
+                        liveSourceUuids: {
+                            dataType: 'union',
+                            subSchemas: [
+                                {
+                                    dataType: 'array',
+                                    array: { dataType: 'string' },
+                                },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
                         mcpServerUuids: {
                             dataType: 'array',
                             array: { dataType: 'string' },
@@ -35124,6 +35178,16 @@ const models: TsoaRoute.Models = {
                             dataType: 'union',
                             subSchemas: [
                                 { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
+                        liveSourceUuids: {
+                            dataType: 'union',
+                            subSchemas: [
+                                {
+                                    dataType: 'array',
+                                    array: { dataType: 'string' },
+                                },
                                 { dataType: 'enum', enums: [null] },
                             ],
                         },
@@ -114089,6 +114153,13 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                liveSourceUuids: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 tags: {
                     dataType: 'union',
                     subSchemas: [
