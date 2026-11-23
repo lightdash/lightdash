@@ -1,3 +1,10 @@
+## [3.371.4](https://github.com/lightdash/lightdash/compare/3.371.3...3.371.4) (2026-11-23)
+
+
+### Bug Fixes
+
+* **semantic-studio:** quieter merged drafts and an in-page first ask ([#33247](https://github.com/lightdash/lightdash/issues/33247)) ([534f0bf](https://github.com/lightdash/lightdash/commit/534f0bf1295abe7cc34ceb6f19219730d2f89808))
+
 ## [3.371.3](https://github.com/lightdash/lightdash/compare/3.371.2...3.371.3) (2026-11-23)
 
 
