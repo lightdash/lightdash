@@ -277,6 +277,11 @@ export const LiveSourceSettings: FC<{
             return;
         }
         form.setInitialValues({ ...next, token: '' });
+        // Another card's save leaves a key typed into Access in place
+        if (!keys.includes('token')) {
+            form.setValues(changed);
+            return;
+        }
         form.setValues({ ...changed, token: '' });
         setIsReplacingToken(false);
     };
