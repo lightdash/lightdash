@@ -745,6 +745,16 @@ export class ExternalConnectionService extends BaseService {
 
         // A stored secret is valid only for its current auth type and credential
         // destinations. Changing one requires the caller to supply a new one.
+        if (
+            originChanged &&
+            !typeChanged &&
+            data.secret === undefined &&
+            existing.hasSecret
+        ) {
+            throw new ParameterError(
+                'Re-enter the secret to change the origin: a saved secret is never sent to a new origin',
+            );
+        }
         let hasSecretAfter: boolean;
         if (data.secret === null) {
             hasSecretAfter = false;
