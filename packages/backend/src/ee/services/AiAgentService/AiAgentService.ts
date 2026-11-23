@@ -633,6 +633,7 @@ import {
     StoreToolResultsFn,
     UpdateProgressFn,
     UpdateSlackMessageFn,
+    VerifyDbtChangeFn,
 } from '../ai/types/aiAgentDependencies';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import {
@@ -15995,6 +15996,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 name,
             );
 
+        const verifyDbtChange: VerifyDbtChangeFn = () =>
+            this.semanticStudioService.waitForBranchCompile(user, projectUuid, {
+                threadUuid: prompt.threadUuid,
+                isSaving: () =>
+                    this.aiWritebackService.hasRunInProgress(prompt.threadUuid),
+                timeoutMs: 60_000,
+            });
+
         // Deterministic project_context.yml writeback (no sandbox). Only wired
         // into review-remediation work threads; the source thread is linked
         // from the PR body so a reviewer can trace the entry.
@@ -16129,6 +16138,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             getDraftExplore,
             runDraftQuery,
             readSemanticModel,
+            verifyDbtChange,
             exploreRepo,
             readAttachments,
             discoverRepos,
@@ -18546,6 +18556,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     getDraftExplore,
                     runDraftQuery,
                     readSemanticModel,
+                    verifyDbtChange,
                     exploreRepo,
                     readAttachments,
                     discoverRepos,
@@ -19077,6 +19088,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     getDraftExplore,
                     runDraftQuery,
                     readSemanticModel,
+                    verifyDbtChange,
                     exploreRepo,
                     readAttachments,
                     discoverRepos,
@@ -21053,6 +21065,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     return 'Listing your changes...';
                 case 'readSemanticModel':
                     return 'Reading the model...';
+                case 'verifyDbtChange':
+                    return 'Checking the change...';
                 case 'closePullRequest':
                 case 'editContent':
                 case 'createContent':

@@ -4922,6 +4922,15 @@ export class AiWritebackService extends BaseService {
         };
     }
 
+    /** Whether a save on this chat thread is still opening or updating its pull request. */
+    async hasRunInProgress(aiThreadUuid: string): Promise<boolean> {
+        const runs =
+            await this.aiWritebackRunModel.listInProgressByAiThreadUuid(
+                aiThreadUuid,
+            );
+        return runs.length > 0;
+    }
+
     /**
      * Read-only: the pull requests (workstreams) a chat thread has opened with
      * the coding agent, newest first, optionally scoped to one repo. Backs the

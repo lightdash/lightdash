@@ -21,6 +21,7 @@ const TOOLS_WITHOUT_DESCRIPTION = [
     'proposeSemanticLayerChange',
     'listChanges',
     'readSemanticModel',
+    'verifyDbtChange',
     'editRepo',
     'updateUserName',
     'askUser',
