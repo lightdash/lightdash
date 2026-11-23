@@ -41,6 +41,11 @@
     color: var(--mantine-color-dimmed);
 }
 
+.testOutcomeIcon {
+    flex: none;
+    margin-top: 3px;
+}
+
 .settingsCode {
     font-size: 12px;
 }

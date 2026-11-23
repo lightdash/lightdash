@@ -4,7 +4,7 @@
  * source and changing its settings use the same ones.
  */
 import { type ExternalConnectionTestResponse } from '@lightdash/common';
-import { Box, Group, Stack, Tooltip } from '@mantine/core';
+import { Box, Group, Stack } from '@mantine/core';
 import {
     IconAlertCircleFilled,
     IconCircleCheckFilled,
@@ -49,29 +49,35 @@ export const SettingsCard: FC<{
     </Stack>
 );
 
-/** A test's outcome in one quiet line, in place of the row's hint. */
+/**
+ * A test's outcome in one quiet line, in place of the row's hint. A failure
+ * shows the integration's own message, which names what to change (a missing
+ * scope, the wrong region), rather than the generic summary.
+ */
 export const TestOutcome: FC<{ response: ExternalConnectionTestResponse }> = ({
     response,
 }) => {
-    const ok = response.liveCheck?.ok ?? response.status < 300;
-    const summary =
-        response.liveCheck?.summary ??
-        (ok ? 'Works' : `Failed with status ${response.status}`);
+    const check = response.liveCheck;
+    const ok = check?.ok ?? response.status < 300;
+    const message = ok
+        ? (check?.summary ?? 'Works')
+        : (check?.detail ??
+          check?.summary ??
+          `Failed with status ${response.status}`);
     return (
-        <Tooltip
-            label={response.liveCheck?.detail}
-            disabled={!response.liveCheck?.detail}
-            multiline
-            maw={320}
-            withinPortal
+        <Group
+            gap={4}
+            wrap="nowrap"
+            align="flex-start"
+            role="status"
+            c={ok ? 'green' : 'red'}
         >
-            <Group gap={4} wrap="nowrap" role="status" c={ok ? 'green' : 'red'}>
-                <MantineIcon
-                    icon={ok ? IconCircleCheckFilled : IconAlertCircleFilled}
-                    size={12}
-                />
-                <span>{summary}</span>
-            </Group>
-        </Tooltip>
+            <MantineIcon
+                icon={ok ? IconCircleCheckFilled : IconAlertCircleFilled}
+                size={12}
+                className={classes.testOutcomeIcon}
+            />
+            <span>{message}</span>
+        </Group>
     );
 };
