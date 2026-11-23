@@ -33,7 +33,7 @@ import {
 import { ModelFieldChanges } from '../../../../../../features/semanticStudio/ModelFieldChanges';
 import { TaskIcon } from '../../../../../../features/semanticStudio/TaskRow';
 import { getSemanticStudioUrl } from '../../../../../../features/semanticStudio/urls';
-import { useDraftCheckout } from '../../../../../../features/semanticStudio/useSemanticLayerModel';
+import { useCheckoutCompile } from '../../../../../../features/semanticStudio/useStudioCheckout';
 import { useStudioWorkspaces } from '../../../../../../features/semanticStudio/useStudioWorkspaces';
 import {
     getModelOfFile,
@@ -258,14 +258,13 @@ export const DbtTurnSummaryCard: FC<{
     const [isDiffOpen, setIsDiffOpen] = useState(false);
     const pullRequest = useStudioPullRequest(projectUuid, null);
     const { data: workspaces } = useStudioWorkspaces(projectUuid);
-    const { data: checkout } = useDraftCheckout(projectUuid);
+    const compile = useCheckoutCompile(projectUuid, prUrl);
     const { data: diff } = usePullRequestDiff(
         projectUuid,
         prUrl,
         commitSha,
         !isBitbucket,
     );
-    const compile = checkout?.branchCompile ?? null;
 
     const draft = [
         ...(workspaces?.mine ?? []),
@@ -279,12 +278,8 @@ export const DbtTurnSummaryCard: FC<{
             ciChecks,
         );
     // Only the latest save of the draft you have checked out has a compile to follow.
-    const isLatest =
-        !!current &&
-        current.commitSha === commitSha &&
-        !!draft &&
-        checkout?.workspaceUuid === draft.workspaceUuid;
-    const latestCompile = isLatest ? compile : null;
+    const latestCompile =
+        current && current.commitSha === commitSha ? compile : null;
     const error =
         latestCompile?.status === 'failed'
             ? (latestCompile.error ?? 'the latest compile failed')

@@ -162,3 +162,9 @@ export const getNewAgentUrl = (projectUuid: string): string =>
 
 export const pullRequestNumberOf = (url: string | null | undefined) =>
     /\/(\d+)\/?$/.exec(url ?? '')?.[1] ?? null;
+
+/** A dbt draft named after its pull request, such as "Draft #12"; null when the url has no number. */
+export const draftNameOfPullRequest = (url: string | null | undefined) => {
+    const number = pullRequestNumberOf(url);
+    return number ? `Draft #${number}` : null;
+};

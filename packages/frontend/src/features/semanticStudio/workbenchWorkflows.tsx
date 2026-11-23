@@ -141,7 +141,7 @@ export const DBT_WORKFLOW: WorkbenchWorkflow = {
         pendingChange,
         proposal,
     }): WorkflowFacts => {
-        const development = pullRequest?.isOpen ? pullRequest : null;
+        const development = pullRequest?.state === 'open' ? pullRequest : null;
         return {
             // A dbt project's files are read through GitHub; another host has no Code tab to show.
             hasCodeView: isGithubProject,

@@ -97,9 +97,7 @@ export type SourcesTarget = {
     startThread: StartStudioThread;
     /** What the change is called, or null on live. */
     changeName: string | null;
-    /** False on someone else's change or one that is merged or closed: it is read, not edited. */
-    canEdit: boolean;
-    /** Why it is read and not edited, as a sentence; null when it can be edited. */
+    /** Why it is read and not edited, as a sentence, such as on someone else's change or one that ended; null when it can be edited. */
     readOnlyReason: string | null;
 };
 
@@ -384,6 +382,7 @@ export const SourcePane: FC<{
     isSaving: boolean;
 }> = ({ target, onSaved, onAddToChat, proposal, isSaving }) => {
     const colorScheme = useComputedColorScheme('light');
+    const canEdit = target.readOnlyReason === null;
     const [path] = useOpenFile();
     const { data: sources } = useStudioSources(
         target.projectUuid,
@@ -411,11 +410,11 @@ export const SourcePane: FC<{
         target.projectUuid,
         null,
         null,
-        isChangedFile && target.canEdit ? path : null,
+        isChangedFile && canEdit ? path : null,
     );
     // A change you only read is shown against itself, since live may have moved on since.
     const before =
-        !target.canEdit && change && path && file?.content
+        !canEdit && change && path && file?.content
             ? change.isNew
                 ? ''
                 : fileBefore(change.patch, path, file.content)
@@ -454,7 +453,7 @@ export const SourcePane: FC<{
     // Code is read until the person asks to edit it; unsaved text keeps it in editing.
     const [editingKey, setEditingKey] = useState<string | null>(null);
     const { track } = useTracking();
-    const isEditing = target.canEdit && (isDirty || editingKey === editKey);
+    const isEditing = canEdit && (isDirty || editingKey === editKey);
     // A proposal shown in the editor is the agent's until the person types over it.
     const hasOwnEdits = isDirty && text !== offered;
     const isBeingSaved = isSaving && isDirty && !hasOwnEdits;
@@ -523,13 +522,7 @@ export const SourcePane: FC<{
         setRevision((current) => current + 1);
     };
     const submit = () => {
-        if (
-            !path ||
-            !isDirty ||
-            isBeingSaved ||
-            save.isLoading ||
-            !target.canEdit
-        )
+        if (!path || !isDirty || isBeingSaved || save.isLoading || !canEdit)
             return;
         // The save may land after another file is opened; it then leaves that file alone.
         const savedKey = editKey;
@@ -655,7 +648,7 @@ export const SourcePane: FC<{
         );
     }
     const compare = isChangedFile
-        ? target.canEdit
+        ? canEdit
             ? (live?.content ?? null)
             : before
         : proposedFrom;
@@ -681,7 +674,7 @@ export const SourcePane: FC<{
             : // The line counts already say a file changed.
               null;
     // Like a pull request's compare: what the diff starts from, and what it shows.
-    const comparison = `${!target.canEdit ? 'Before' : isChangedFile || !target.prUrl ? 'Published' : 'This draft'} → ${
+    const comparison = `${!canEdit ? 'Before' : isChangedFile || !target.prUrl ? 'Published' : 'This draft'} → ${
         proposedFrom !== null
             ? isSaving
                 ? 'Being saved'
@@ -759,7 +752,7 @@ export const SourcePane: FC<{
                     ) : null}
                 </Group>
                 <Group gap="xs" wrap="nowrap" flex="none">
-                    {!target.canEdit ? (
+                    {!canEdit ? (
                         <Tooltip
                             label={target.readOnlyReason ?? 'Read only'}
                             multiline

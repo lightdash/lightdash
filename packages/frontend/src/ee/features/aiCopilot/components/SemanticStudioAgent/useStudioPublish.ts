@@ -1,10 +1,9 @@
 import { CiMergeState, DbtProjectType, type CiChecks } from '@lightdash/common';
 import { canWriteProjectBranch } from '../../../../../features/semanticStudio/permissions';
+import { HAS_CONFLICTS } from '../../../../../features/semanticStudio/studioRuns';
 import { pullRequestNumberOf } from '../../../../../features/semanticStudio/urls';
-import {
-    describeBranchCompile,
-    useDraftCheckout,
-} from '../../../../../features/semanticStudio/useSemanticLayerModel';
+import { describeBranchCompile } from '../../../../../features/semanticStudio/useSemanticLayerModel';
+import { useCheckoutCompile } from '../../../../../features/semanticStudio/useStudioCheckout';
 import { isMergeable } from '../../../../../features/writeback/pullRequestActions';
 import { useProject } from '../../../../../hooks/useProject';
 import useApp from '../../../../../providers/App/useApp';
@@ -24,7 +23,7 @@ const BLOCKED: Record<CiMergeState, { label: string; reason: string }> = {
         reason: 'A required check failed or a review is missing.',
     },
     [CiMergeState.CONFLICTS]: {
-        label: 'Has conflicts',
+        label: HAS_CONFLICTS,
         reason: 'The draft has conflicts to resolve first.',
     },
     [CiMergeState.BEHIND]: {
@@ -59,7 +58,6 @@ export const useStudioPublish = (
 ) => {
     const { data: project } = useProject(projectUuid);
     const { user } = useApp();
-    const { data: checkout } = useDraftCheckout(projectUuid);
     const number = pullRequestNumberOf(prUrl);
     const name = number ? `pull request #${number}` : 'the pull request';
     const branch =
@@ -73,7 +71,7 @@ export const useStudioPublish = (
             user.data.organizationUuid,
             projectUuid,
         );
-    const compile = checkout?.branchCompile ?? null;
+    const compile = useCheckoutCompile(projectUuid, prUrl);
     // Checks are read, and pull requests merged, on GitHub only.
     const mergesHere = project?.dbtConnection.type === DbtProjectType.GITHUB;
     const destination = `${name}${branch ? ` into ${branch}` : ''}`;

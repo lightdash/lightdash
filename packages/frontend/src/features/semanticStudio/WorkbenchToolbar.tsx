@@ -14,11 +14,12 @@ import {
 import { DraftPickerMenu, StudioCheckoutPicker } from './StudioCheckoutPicker';
 import { type StudioStage } from './studioStage';
 import { StudioStageLine } from './StudioStageLine';
+import { type DbtToolbarSelection } from './useDbtChangeSelection';
 import {
     describeBranchCompile,
     useCompileCheckout,
-    useDraftCheckout,
 } from './useSemanticLayerModel';
+import { useCheckoutCompile } from './useStudioCheckout';
 import classes from './WorkbenchView.module.css';
 import { type Pane } from './workbenchWorkflows';
 
@@ -28,23 +29,18 @@ export type ToolbarProps = {
     stage: StudioStage | null;
     changeUrl: string | null;
     canEditModels: boolean;
-    isChangeInSources: boolean;
-    isOnMyChange: boolean;
     development: StudioPullRequest | null;
     saving: StudioPendingChange | null;
     shownWorkspace: SemanticStudioWorkspace | null;
     myWorkspaces: SemanticStudioWorkspace[];
-    sourcesPrUrl: string | null;
-    sourcesChangeName: string | null;
     changeName: string | undefined;
     changeLinks: ReactNode;
     /** The saving and review bars of a change made by pull request. */
     changeActions: ReactNode;
     onShowChanges: (() => void) | null;
     startNewThread: () => void;
-    startNewChange: () => void;
-    pickLive: () => void;
-    pickChange: (workspace: SemanticStudioWorkspace) => void;
+    /** Read by the dbt toolbar only. */
+    dbt: DbtToolbarSelection;
     /** The bar's own buttons, after the change's. */
     children: ReactNode;
 };
@@ -125,32 +121,32 @@ export const DbtToolbar: FC<ToolbarProps> = ({
     pane,
     stage,
     changeUrl,
-    isChangeInSources,
-    isOnMyChange,
     development,
     saving,
     shownWorkspace,
     myWorkspaces,
-    sourcesPrUrl,
-    sourcesChangeName,
     changeName,
     changeLinks,
     changeActions,
     onShowChanges,
-    startNewChange,
-    pickLive,
-    pickChange,
+    dbt: {
+        isChangeInSources,
+        isOnMyChange,
+        sourcesPrUrl,
+        sourcesChangeName,
+        startNewChange,
+        pickLive,
+        pickChange,
+    },
     children,
 }) => {
-    const { data: draftCheckout } = useDraftCheckout(projectUuid);
     const compileAgain = useCompileCheckout(projectUuid);
     const myOpenChanges = myWorkspaces.filter(isOpenWorkspace);
     // The compile belongs to the server checkout, so it shows only on that draft.
-    const branchCompile =
-        isOnMyChange &&
-        draftCheckout?.workspaceUuid === shownWorkspace?.workspaceUuid
-            ? (draftCheckout?.branchCompile ?? null)
-            : null;
+    const branchCompile = useCheckoutCompile(
+        projectUuid,
+        isOnMyChange ? (shownWorkspace?.pullRequest?.url ?? null) : null,
+    );
     const compileDescription = branchCompile
         ? describeBranchCompile(branchCompile)
         : null;

@@ -122,7 +122,6 @@ export const useStudioPullRequest = (
         previewProjectUuid: findPreviewProjectUuid(metadata?.previewUrl),
         ciChecks: ciChecks ?? null,
         state,
-        isOpen: state === 'open',
         isMine: workspace?.isMine ?? true,
     };
 };

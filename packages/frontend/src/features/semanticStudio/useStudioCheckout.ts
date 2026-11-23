@@ -6,6 +6,7 @@ import {
     type ApiExploresResults,
     type SemanticLayerDraft,
     type SemanticLayerDraftModel,
+    type SemanticStudioBranchCompile,
     type SemanticStudioWorkspace,
     type SummaryExplore,
 } from '@lightdash/common';
@@ -16,6 +17,7 @@ import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { PUBLISHED_HEADERS, PUBLISHED_VIEW } from './developmentView';
 import {
     keepsSemanticLayerDraft,
+    useDraftCheckout,
     useSemanticLayerStatus,
     useSemanticLayerWorkspaceDraft,
 } from './useSemanticLayerModel';
@@ -199,4 +201,21 @@ export const useDraftPullRequest = (): string | null => {
     const pullRequest =
         useStudioCheckout().shown?.workspace?.pullRequest ?? null;
     return isPullRequestOpen(pullRequest) ? pullRequest.url : null;
+};
+
+/** The checked-out draft's branch compile, only when that draft is the one with this pull request: a compile belongs to the checkout alone. */
+export const useCheckoutCompile = (
+    projectUuid: string,
+    prUrl: string | null,
+): SemanticStudioBranchCompile | null => {
+    const { data: checkout } = useDraftCheckout(projectUuid);
+    const { data: workspaces } = useStudioWorkspaces(projectUuid);
+    if (!checkout || prUrl === null) return null;
+    const checkedOut = [
+        ...(workspaces?.mine ?? []),
+        ...(workspaces?.recent ?? []),
+    ].find(({ workspaceUuid }) => workspaceUuid === checkout.workspaceUuid);
+    return checkedOut?.pullRequest?.url === prUrl
+        ? checkout.branchCompile
+        : null;
 };
