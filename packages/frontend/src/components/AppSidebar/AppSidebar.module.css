@@ -13,7 +13,7 @@
     flex-direction: column;
     gap: var(--mantine-spacing-md);
     height: 100%;
-    padding: rem(8px) var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    padding: rem(6px) var(--mantine-spacing-xs) var(--mantine-spacing-sm);
     overflow: hidden auto;
 }
 
@@ -29,12 +29,12 @@
     align-items: center;
     justify-content: center;
     width: rem(32px);
-    height: rem(32px);
+    height: rem(28px);
 
     & :is(svg, img) {
-        width: rem(24px);
-        height: rem(24px);
-        border-radius: rem(6px);
+        width: rem(20px);
+        height: rem(20px);
+        border-radius: rem(5px);
         object-fit: contain;
     }
 }

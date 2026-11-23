@@ -236,7 +236,7 @@ const SidebarTarget = forwardRef<HTMLButtonElement, SidebarTargetProps>(
                             ref={truncatedRef}
                             truncate
                             fw={600}
-                            fz="sm"
+                            fz="xs"
                             miw={0}
                         >
                             {projectName}
@@ -245,6 +245,7 @@ const SidebarTarget = forwardRef<HTMLButtonElement, SidebarTargetProps>(
                 </Box>
                 <MantineIcon
                     icon={IconSelector}
+                    size="sm"
                     color="dimmed"
                     className={classes.sidebarSelector}
                 />
