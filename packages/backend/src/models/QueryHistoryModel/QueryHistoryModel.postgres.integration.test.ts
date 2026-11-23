@@ -196,6 +196,72 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
         expect(await cancel([])).toEqual([]);
     });
 
+    describe('latest run for a cache key, by state', () => {
+        const insertRun = async (
+            status: QueryHistoryStatus,
+            resultsFileName: string | null,
+            createdAt: Date,
+        ) => {
+            const queryUuid = randomUUID();
+            await tx<Record<string, unknown>>('query_history').insert({
+                query_uuid: queryUuid,
+                project_uuid: projectUuid,
+                status,
+                created_by_user_uuid: account.user.id,
+                context: QueryExecutionContext.DASHBOARD,
+                cache_key: 'live-key',
+                request_parameters: {},
+                results_file_name: resultsFileName,
+                created_at: createdAt,
+            });
+            return queryUuid;
+        };
+        const at = (secondsAgo: number) =>
+            new Date(Date.now() - secondsAgo * 1000);
+
+        it('finds the newest finished run behind newer running and failed runs', async () => {
+            const finished = await insertRun(
+                QueryHistoryStatus.READY,
+                'results.jsonl',
+                at(30),
+            );
+            await insertRun(QueryHistoryStatus.READY, null, at(20));
+            await insertRun(QueryHistoryStatus.ERROR, null, at(10));
+            await insertRun(QueryHistoryStatus.PENDING, null, at(1));
+
+            await expect(
+                model.findMostRecentByCacheKey('live-key', projectUuid, {
+                    excludeAgentProduced: false,
+                    statuses: [QueryHistoryStatus.READY],
+                    requireResultsFile: true,
+                }),
+            ).resolves.toMatchObject({ queryUuid: finished });
+        });
+
+        it('finds a running run only inside the window', async () => {
+            await insertRun(QueryHistoryStatus.EXECUTING, null, at(300));
+            const findRunning = () =>
+                model.findMostRecentByCacheKey('live-key', projectUuid, {
+                    excludeAgentProduced: false,
+                    statuses: [
+                        QueryHistoryStatus.PENDING,
+                        QueryHistoryStatus.EXECUTING,
+                    ],
+                    createdAfter: at(120),
+                });
+            await expect(findRunning()).resolves.toBeUndefined();
+
+            const running = await insertRun(
+                QueryHistoryStatus.PENDING,
+                null,
+                at(5),
+            );
+            await expect(findRunning()).resolves.toMatchObject({
+                queryUuid: running,
+            });
+        });
+    });
+
     describe('retention cleanup', () => {
         const cutoff = new Date('2026-01-31T00:00:00Z');
         const expired = new Date('2026-01-01T00:00:00Z');
