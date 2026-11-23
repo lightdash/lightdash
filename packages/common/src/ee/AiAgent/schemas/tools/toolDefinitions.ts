@@ -1369,7 +1369,7 @@ export const listChangesToolDefinition: ToolDefinitionWithoutMcpOutput<
     name: 'listChanges',
     title: 'List changes',
     description:
-        'List your open changes in this project, the current checkout and the native models drafted in each change.',
+        'List your open changes in this project, the current checkout and the native models drafted in each change, with whether each model was edited by hand, in this chat or in another chat.',
     availability: ['agent'],
     inputSchema: toolListChangesArgsSchema,
     agent: { outputSchema: toolListChangesOutputSchema },

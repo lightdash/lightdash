@@ -10,7 +10,7 @@
 .head,
 .foot,
 .section {
-    padding: 8px var(--mantine-spacing-md);
+    padding: 8px var(--mantine-spacing-sm);
 }
 
 /* The card's menu shows on hover or focus, so a settled card stays quiet. */
@@ -44,7 +44,7 @@
 .steps {
     display: flex;
     flex-direction: column;
-    padding: 8px var(--mantine-spacing-md);
+    padding: 8px var(--mantine-spacing-sm);
 }
 
 .step {
@@ -113,7 +113,7 @@
     align-items: center;
     gap: 6px;
     width: 100%;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
 }
 
 .fold:hover,

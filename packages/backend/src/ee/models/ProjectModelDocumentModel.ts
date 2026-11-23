@@ -642,6 +642,27 @@ export class ProjectModelDocumentModel {
         );
     }
 
+    /** A draft keeps the chat that first changed it, so opening the draft opens that chat; a chat already kept by another draft stays there. */
+    private static async attachPromptThread(
+        trx: Knex.Transaction,
+        workspaceUuid: string,
+        promptUuid: string,
+    ) {
+        const prompt = await trx(AiPromptTableName)
+            .select('ai_thread_uuid')
+            .where('ai_prompt_uuid', promptUuid)
+            .first();
+        if (!prompt) return;
+        const taken = await trx(SemanticStudioWorkspacesTableName)
+            .where('ai_thread_uuid', prompt.ai_thread_uuid)
+            .first();
+        if (taken) return;
+        await trx(SemanticStudioWorkspacesTableName)
+            .where('semantic_studio_workspace_uuid', workspaceUuid)
+            .whereNull('ai_thread_uuid')
+            .update({ ai_thread_uuid: prompt.ai_thread_uuid });
+    }
+
     async createCheckedOutDraftChange(
         /** `changeName` names the change this starts when the person is on Live. */
         input: NewDraftChange & { changeName: string },
@@ -678,6 +699,13 @@ export class ProjectModelDocumentModel {
                         .returning(['semantic_studio_workspace_uuid', 'name'])
                 )[0];
             const workspaceUuid = workspace.semantic_studio_workspace_uuid;
+            if (input.promptUuid && !active?.ai_thread_uuid) {
+                await ProjectModelDocumentModel.attachPromptThread(
+                    trx,
+                    workspaceUuid,
+                    input.promptUuid,
+                );
+            }
             const draftChangeUuid = await this.createDraftChange(
                 { ...input, workspaceUuid },
                 trx,

@@ -3821,12 +3821,16 @@ export class SemanticStudioService extends BaseService {
         };
     }
 
-    async listChanges(user: SessionUser, projectUuid: string) {
+    async listChanges(
+        user: SessionUser,
+        projectUuid: string,
+        threadUuid: string | null,
+    ) {
         await this.assertCanUseStudio(user, projectUuid);
-        return this.workspaceModel.listChanges({
-            projectUuid,
-            userUuid: user.userUuid,
-        });
+        return this.workspaceModel.listChanges(
+            { projectUuid, userUuid: user.userUuid },
+            threadUuid,
+        );
     }
 
     async listWorkspaces(

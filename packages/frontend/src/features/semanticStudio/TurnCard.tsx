@@ -217,6 +217,8 @@ export const TurnCard: FC<{
     isSettled?: boolean;
     /** Each changed file on one line, for a repository where a model is one or two files. */
     isFileList?: boolean;
+    /** What the change does to the numbers, between its fields and its buttons. */
+    preview?: ReactNode;
     children?: ReactNode;
 }> = ({
     icon,
@@ -230,6 +232,7 @@ export const TurnCard: FC<{
     isGone,
     isSettled = false,
     isFileList = false,
+    preview = null,
     children,
 }) => {
     const [isOpened, setIsOpened] = useState(false);
@@ -317,6 +320,7 @@ export const TurnCard: FC<{
                     ) : null}
                 </Box>
             ) : null}
+            {isOpen ? preview : null}
             {isLatest && isOpen && actions.some(Boolean) ? (
                 <Group className={classes.foot} gap="xs" justify="flex-end">
                     {actions}

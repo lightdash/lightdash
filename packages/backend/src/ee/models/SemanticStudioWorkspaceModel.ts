@@ -145,7 +145,11 @@ export class SemanticStudioWorkspaceModel {
             : null;
     }
 
-    async listChanges({ projectUuid, userUuid }: Owner) {
+    /** Open drafts and their models, each with who edited it; `threadUuid` is the chat asking. */
+    async listChanges(
+        { projectUuid, userUuid }: Owner,
+        threadUuid: string | null,
+    ) {
         return this.database(`${SemanticStudioWorkspacesTableName} as w`)
             .where({
                 'w.project_uuid': projectUuid,
@@ -156,12 +160,20 @@ export class SemanticStudioWorkspaceModel {
             .select<StudioChangeSummary[]>(
                 'w.name',
                 'w.is_active as isCheckedOut',
-                this.database
-                    .raw(`ARRAY(SELECT DISTINCT m->>'name' FROM project_model_draft_changes d
+                this.database.raw(
+                    `COALESCE((SELECT jsonb_agg(jsonb_build_object('name', name, 'editedIn', edited_in) ORDER BY name) FROM (
+                    SELECT m->>'name' AS name, array_agg(DISTINCT CASE
+                        WHEN d.prompt_uuid IS NULL THEN 'by_hand'
+                        WHEN p.ai_thread_uuid = ? THEN 'this_chat'
+                        ELSE 'another_chat' END) AS edited_in
+                    FROM project_model_draft_changes d
                     CROSS JOIN LATERAL jsonb_array_elements(d.models::jsonb) m
+                    LEFT JOIN ai_prompt p ON p.ai_prompt_uuid = d.prompt_uuid
                     WHERE d.workspace_uuid = w.semantic_studio_workspace_uuid AND d.status <> 'discarded'
                     AND d.created_by_user_uuid = w.created_by_user_uuid AND d.project_uuid = w.project_uuid
-                    ORDER BY 1) AS models`),
+                    GROUP BY 1) per_model), '[]'::jsonb) AS models`,
+                    [threadUuid],
+                ),
             );
     }
 

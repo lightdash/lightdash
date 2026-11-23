@@ -223,7 +223,7 @@ const ExploreBody: FC<{
             (loaded ?? []).map((field) => {
                 const change = field.draftState
                     ? undefined
-                    : published?.find(
+                    : published?.fields.find(
                           ({ kind, name }) =>
                               name === field.name && kind === field.fieldKind,
                       );

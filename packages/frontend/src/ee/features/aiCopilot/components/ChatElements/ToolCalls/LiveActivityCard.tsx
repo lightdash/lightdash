@@ -22,7 +22,7 @@ import {
     IconNotes,
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
-import { useContext, useState, type FC } from 'react';
+import { useContext, useState, type FC, type ReactNode } from 'react';
 import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { type ComposerQueryNodeStatus } from '../../../../../../features/composerCharts/lineage/composerNodeStatus';
@@ -93,6 +93,8 @@ type Props = {
     };
     /** Rendered as the first item of the card body. */
     reasoning?: { texts: string[]; isLive: boolean };
+    /** Rendered as the last item of the card body, e.g. results the steps produced. */
+    extra?: ReactNode;
 };
 
 const REASONING_PREVIEW_LENGTH = 140;
@@ -689,6 +691,7 @@ export const LiveActivityCard: FC<Props> = ({
     stepProgressMessages = [],
     approval,
     reasoning,
+    extra,
 }) => {
     const getUiString = useUiStrings();
     const quiet = useContext(QuietCardsContext);
@@ -734,7 +737,7 @@ export const LiveActivityCard: FC<Props> = ({
     const hasReasoning = (reasoning?.texts.length ?? 0) > 0;
 
     if (toolGroups.length === 0) {
-        if (!reasoning || !hasReasoning) return null;
+        if (!reasoning || !hasReasoning) return extra ? <>{extra}</> : null;
         return (
             <Box
                 className={styles.card}
@@ -1078,6 +1081,7 @@ export const LiveActivityCard: FC<Props> = ({
                         if (renderableCalls.length === 0) return null;
                         return <Stack gap={4}>{renderableCalls}</Stack>;
                     })()}
+                    {extra}
                 </Stack>
             </Collapse>
         </Box>

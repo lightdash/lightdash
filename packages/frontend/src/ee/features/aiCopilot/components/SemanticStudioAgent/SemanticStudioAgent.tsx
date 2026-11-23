@@ -8,6 +8,7 @@ import {
     Box,
     Button,
     Center,
+    Divider,
     Group,
     Loader,
     Stack,
@@ -260,15 +261,21 @@ const NewThread: FC<
 };
 
 /** Where the composer was once a change is out: the chat is done, and the next request starts a new one. */
+/** Where a chat ends once its change has left the draft: a line under it, and a way to start the next one. */
 const ChangeClosed: FC<{ onStartNew: () => void }> = ({ onStartNew }) => (
-    <Group gap="xs" p="md" justify="space-between" wrap="nowrap">
-        <Text fz="sm" c="dimmed">
-            Done
-        </Text>
-        <Button size="xs" onClick={onStartNew}>
-            Start a new chat
-        </Button>
-    </Group>
+    <Divider
+        label={
+            <Button
+                size="compact-xs"
+                variant="subtle"
+                color="gray"
+                leftSection={<MantineIcon icon={IconMessagePlus} size={14} />}
+                onClick={onStartNew}
+            >
+                New chat
+            </Button>
+        }
+    />
 );
 
 const ExistingThread: FC<
@@ -365,6 +372,9 @@ const ExistingThread: FC<
                 onChoiceSelect={
                     isBusy ? undefined : (message) => send({ message })
                 }
+                afterMessages={
+                    closed ? <ChangeClosed onStartNew={onStartNew} /> : null
+                }
             >
                 {thread.messages.length === 0 && !isBusy ? (
                     <Text fz="xs" c="dimmed" ta="center" px="md" pb="xs">
@@ -372,9 +382,7 @@ const ExistingThread: FC<
                         publish it when it is ready.
                     </Text>
                 ) : null}
-                {closed ? (
-                    <ChangeClosed onStartNew={onStartNew} />
-                ) : (
+                {closed ? null : (
                     <>
                         <StudioChatRefChips
                             refs={attached}
