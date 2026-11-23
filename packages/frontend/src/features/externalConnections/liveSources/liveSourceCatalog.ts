@@ -6,9 +6,11 @@ import {
     type LiveIntegrationCatalogEntry,
 } from '@lightdash/common';
 import { ATTIO_TOKEN_FORM } from './attioConnection';
+import { DATABRICKS_TOKEN_FORM } from './databricksConnection';
 import { GITHUB_TOKEN_FORM } from './githubConnection';
 import { HUBSPOT_TOKEN_FORM } from './hubspotConnection';
 import attioIcon from './icons/attio.svg';
+import databricksIcon from './icons/databricks.svg';
 import githubIcon from './icons/github.svg';
 import googleAdsIcon from './icons/google-ads.svg';
 import googleAnalyticsIcon from './icons/google-analytics.svg';
@@ -70,6 +72,7 @@ const ICONS: Record<string, string> = {
     [ApiConnectorType.ATTIO]: attioIcon,
     [ApiConnectorType.HUBSPOT]: hubspotIcon,
     [ApiConnectorType.SALESFORCE]: salesforceIcon,
+    [ApiConnectorType.DATABRICKS]: databricksIcon,
     shopify: shopifyIcon,
     stripe: stripeIcon,
     mixpanel: mixpanelIcon,
@@ -96,6 +99,7 @@ const DISPLAY_ORDER = [
     ApiConnectorType.ATTIO,
     ApiConnectorType.HUBSPOT,
     ApiConnectorType.SALESFORCE,
+    ApiConnectorType.DATABRICKS,
 ] as const satisfies readonly ApiConnectorType[];
 
 /** The form of each integration connected with an account id and a token. */
@@ -105,6 +109,7 @@ const TOKEN_FORMS: Partial<Record<ApiConnectorType, TokenLiveSourceForm>> = {
     [ApiConnectorType.PYLON]: PYLON_TOKEN_FORM,
     [ApiConnectorType.ATTIO]: ATTIO_TOKEN_FORM,
     [ApiConnectorType.HUBSPOT]: HUBSPOT_TOKEN_FORM,
+    [ApiConnectorType.DATABRICKS]: DATABRICKS_TOKEN_FORM,
 };
 
 const toSetup = (entry: LiveIntegrationCatalogEntry): LiveSourceSetup => {

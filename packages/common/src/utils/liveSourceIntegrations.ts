@@ -220,6 +220,20 @@ export const LIVE_INTEGRATION_CATALOG: {
         }),
         getTarget: () => 'Salesforce org',
     },
+    [ApiConnectorType.DATABRICKS]: {
+        id: 'databricks',
+        label: 'Databricks',
+        defaultName: 'Databricks',
+        messageLabel: 'Databricks',
+        agentLabel: 'Databricks Unity Catalog',
+        description: 'Spend, query history, job runs, audit and tables',
+        setup: 'token',
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.DATABRICKS),
+            warehouseId: z.string(),
+        }),
+        getTarget: ({ warehouseId }) => `SQL warehouse ${warehouseId}`,
+    },
 };
 
 /** One integration's catalog entry, for a source of any connector. */

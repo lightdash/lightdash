@@ -61,6 +61,10 @@ describe('live integration specs', () => {
               "rating": "easy",
               "score": 7,
             },
+            "databricks": {
+              "rating": "easy",
+              "score": 7,
+            },
             "ga4": {
               "rating": "medium",
               "score": 5,

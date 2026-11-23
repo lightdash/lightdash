@@ -3,6 +3,14 @@
 exports[`connector capability declarations > the summable tags 1`] = `
 {
   "attio": {},
+  "databricks": {
+    "list_cost": {
+      "aggregation": "additive",
+    },
+    "usage_quantity": {
+      "aggregation": "additive",
+    },
+  },
   "ga4": {
     "active_users": {
       "aggregation": "non_additive",

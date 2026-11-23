@@ -1,0 +1,143 @@
+import {
+    DimensionType,
+    FilterOperator,
+    flattenFilterGroup,
+    getItemId,
+    UnitOfTime,
+    type Explore,
+    type FieldId,
+    type FilterRule,
+    type MetricQuery,
+    type WarehouseSqlBuilder,
+} from '@lightdash/common';
+import { compileMetricQuery } from '../../../../queryCompiler';
+import { MetricQueryBuilder } from '../../../../utils/QueryBuilder/MetricQueryBuilder';
+import {
+    getLiveExplore,
+    type LiveCompiledRequest,
+} from '../explores/definition';
+
+/**
+ * The explore's date and timestamp fields. A filter on any of them, such as
+ * the month of the date, already bounds the history read.
+ */
+const getDateFieldIds = (explore: Explore): Set<string> =>
+    new Set(
+        Object.values(explore.tables[explore.baseTable]?.dimensions ?? {})
+            .filter(
+                ({ type }) =>
+                    type === DimensionType.DATE ||
+                    type === DimensionType.TIMESTAMP,
+            )
+            .map(getItemId),
+    );
+
+const withDefaultDateRange = (
+    explore: Explore,
+    metricQuery: MetricQuery,
+    dateRange: { fieldId: FieldId; defaultDays: number },
+): MetricQuery => {
+    const { dimensions } = metricQuery.filters;
+    const dateFieldIds = getDateFieldIds(explore);
+    const isDateFiltered = (
+        dimensions ? flattenFilterGroup(dimensions) : []
+    ).some(
+        (rule) =>
+            !rule.disabled &&
+            (rule.target.fieldId === dateRange.fieldId ||
+                dateFieldIds.has(rule.target.fieldId)),
+    );
+    if (isDateFiltered) {
+        return metricQuery;
+    }
+    const defaultRule: FilterRule = {
+        id: 'live-data-source-default-date-range',
+        target: { fieldId: dateRange.fieldId },
+        operator: FilterOperator.IN_THE_PAST,
+        values: [dateRange.defaultDays],
+        settings: { unitOfTime: UnitOfTime.days, completed: false },
+    };
+    return {
+        ...metricQuery,
+        filters: {
+            ...metricQuery.filters,
+            dimensions: dimensions
+                ? {
+                      id: 'live-data-source-filters',
+                      and: [defaultRule, dimensions],
+                  }
+                : { id: 'live-data-source-filters', and: [defaultRule] },
+        },
+    };
+};
+
+/**
+ * Compiles a metric query on the explore of a SQL API (HogQL, Databricks
+ * SQL) into one query, using the same SQL builder as warehouse explores in
+ * the API's dialect. Without a date filter it reads the last `defaultDays`,
+ * so a question never scans the whole history; a filter on any date field
+ * counts as a date filter.
+ */
+export const compileSqlQuery = ({
+    explore,
+    metricQuery,
+    warehouseSqlBuilder,
+    timezone,
+}: {
+    explore: Explore;
+    metricQuery: MetricQuery;
+    warehouseSqlBuilder: WarehouseSqlBuilder;
+    timezone: string;
+}): LiveCompiledRequest => {
+    const apiSource = getLiveExplore(explore);
+    const query = apiSource.dateRange
+        ? withDefaultDateRange(explore, metricQuery, apiSource.dateRange)
+        : metricQuery;
+    const { query: selectSql } = new MetricQueryBuilder({
+        explore,
+        compiledMetricQuery: compileMetricQuery({
+            explore,
+            metricQuery: query,
+            warehouseSqlBuilder,
+            availableParameters: [],
+        }),
+        warehouseSqlBuilder,
+        parameterDefinitions: {},
+        intrinsicUserAttributes: {},
+        timezone,
+    }).compileQuery({ excludeOrderByAndLimit: true });
+
+    // Field ids can outgrow the connector's column names, so columns are
+    // renamed by position; sorting happens here, the connector adds the limit.
+    const quote = warehouseSqlBuilder.getFieldQuoteChar();
+    // Table calculations are columns of the inner query, named by name
+    const fieldIds = [
+        ...query.dimensions,
+        ...query.metrics,
+        ...query.tableCalculations.map(({ name }) => name),
+    ];
+    const columnByFieldId = new Map(
+        fieldIds.map((fieldId, index) => [fieldId, `c${index}`]),
+    );
+    const orderBy = query.sorts.flatMap(({ fieldId, descending }) => {
+        const column = columnByFieldId.get(fieldId);
+        return column ? [`${column} ${descending ? 'DESC' : 'ASC'}`] : [];
+    });
+    const hogql = [
+        `SELECT ${fieldIds
+            .map(
+                (fieldId) =>
+                    `${quote}${fieldId}${quote} AS ${columnByFieldId.get(fieldId)}`,
+            )
+            .join(', ')}`,
+        `FROM (\n${selectSql}\n) AS live_query`,
+        ...(orderBy.length > 0 ? [`ORDER BY ${orderBy.join(', ')}`] : []),
+    ].join('\n');
+
+    return {
+        query: hogql,
+        fieldIdsByColumn: Object.fromEntries(
+            [...columnByFieldId].map(([fieldId, column]) => [column, fieldId]),
+        ),
+    };
+};

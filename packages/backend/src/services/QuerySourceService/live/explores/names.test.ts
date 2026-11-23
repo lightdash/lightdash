@@ -188,6 +188,14 @@ const SOURCES: {
             },
         },
     },
+    {
+        name: 'Databricks',
+        apiSource: {
+            connector: ApiConnectorType.DATABRICKS,
+            warehouseId: '1a2b3c4d5e6f7a8b',
+        },
+        scan: {},
+    },
 ];
 
 describe('live data source names', () => {

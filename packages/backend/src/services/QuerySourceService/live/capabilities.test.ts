@@ -134,6 +134,19 @@ const SOURCES = [
         },
         date: 'created_at',
     },
+    {
+        apiSource: {
+            connector: ApiConnectorType.DATABRICKS,
+            warehouseId: '1a2b3c4d5e6f7a8b',
+        },
+        // The first explore is billable usage
+        fields: {
+            dimension: 'sku_name',
+            other: 'workspace_id',
+            metric: 'usage_quantity',
+        },
+        date: 'usage_date',
+    },
 ] as const;
 
 const CONNECTORS: ApiConnectorType[] = SOURCES.map(
@@ -251,12 +264,16 @@ const wherever = (
 const isFlatAnd = ({ filters }: LiveCapabilities) => !filters.or;
 const needsDateRange = ({ dates }: LiveCapabilities) => dates.rangeRequired;
 
-// Report APIs refuse what PostHog compiles into HogQL; PostHog explores
+// SQL APIs compile into a statement what report APIs refuse; their explores
 // cached before capabilities still refuse it until they are refreshed
+const SQL_CONNECTORS: ApiConnectorType[] = [
+    ApiConnectorType.POSTHOG,
+    ApiConnectorType.DATABRICKS,
+];
 const reportApisOnly = (message: string) => ({
     expected: Object.fromEntries(
         CONNECTORS.filter(
-            (connector) => connector !== ApiConnectorType.POSTHOG,
+            (connector) => !SQL_CONNECTORS.includes(connector),
         ).map((connector) => [connector, [message]]),
     ),
     stale: everywhere(message),
@@ -623,14 +640,17 @@ describe('live data source capabilities keep their refusals', () => {
                     ).toEqual(messages.map(() => code));
                 }
                 // Explores cached before capabilities refuse the same, or
-                // more where a connector learned something since
-                expect(
-                    getMessages(
-                        withoutCapabilities(explore),
-                        metricQuery,
-                        context,
-                    ),
-                ).toEqual(stale?.[connector] ?? messages);
+                // more where a connector learned something since. Databricks
+                // shipped with capabilities, so it has no such explores.
+                if (connector !== ApiConnectorType.DATABRICKS) {
+                    expect(
+                        getMessages(
+                            withoutCapabilities(explore),
+                            metricQuery,
+                            context,
+                        ),
+                    ).toEqual(stale?.[connector] ?? messages);
+                }
                 // Every entry point throws the same joined message
                 if (messages.length > 0) {
                     expect(() =>

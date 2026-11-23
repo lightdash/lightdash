@@ -24,6 +24,9 @@ export const LIVE_SOURCE_DEFAULT_CACHE_TTL_SECONDS: Record<
     [ApiConnectorType.HUBSPOT]: DEFAULT_CACHE_TTL_SECONDS,
     // Calls count against the org's daily API limit, shared with its other apps
     [ApiConnectorType.SALESFORCE]: DEFAULT_CACHE_TTL_SECONDS,
+    // Each query runs on a SQL warehouse the customer pays for, and system
+    // tables lag by an hour or more anyway
+    [ApiConnectorType.DATABRICKS]: DEFAULT_CACHE_TTL_SECONDS,
 };
 
 /** 0 makes every query call the integration. */
