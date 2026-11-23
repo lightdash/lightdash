@@ -123,7 +123,8 @@ export const hubspotIntegration = defineLiveIntegration({
             );
         }
     },
-    describeTarget: () => 'HubSpot CRM: deals, contacts and companies',
+    describeTarget: () =>
+        'HubSpot CRM: deals, contacts, companies, tickets and leads',
     parseRequest: jsonRequest(`${LABEL} search`, hubspotRequestSchema),
     compile: ({ explore, metricQuery, now }) =>
         compileHubspotQuery({
@@ -142,7 +143,7 @@ export const hubspotIntegration = defineLiveIntegration({
                 readHubspotProperties(scan.hubspotProperties, definition.name),
             ),
         isInternalField: isInternalHubspotField,
-        // Deals is the first explore; contacts and companies are scanned too
+        // Deals is the first explore; the other objects are scanned too
         models: HUBSPOT_OBJECTS.slice(1),
     },
 });

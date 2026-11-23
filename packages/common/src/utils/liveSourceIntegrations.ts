@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+    getHubspotReadScopes,
     HUBSPOT_OBJECTS,
     type ApiSourceOf,
     type ExternalConnectionApiSource,
@@ -196,12 +197,10 @@ export const LIVE_INTEGRATION_CATALOG: {
         defaultName: 'HubSpot',
         messageLabel: 'HubSpot',
         agentLabel: 'HubSpot',
-        description: 'Deals, contacts and companies from your CRM',
+        description:
+            'Deals, contacts, companies, tickets and leads from your CRM',
         setup: 'token',
-        scopes: HUBSPOT_OBJECTS.flatMap((object) => [
-            `crm.objects.${object}.read`,
-            `crm.schemas.${object}.read`,
-        ]),
+        scopes: HUBSPOT_OBJECTS.flatMap(getHubspotReadScopes),
         settings: z.object({
             connector: z.literal(ApiConnectorType.HUBSPOT),
         }),

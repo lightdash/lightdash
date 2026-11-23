@@ -15,6 +15,7 @@ import {
     type LiveRunResult,
     type LiveScanResult,
 } from '../../types';
+import { isUnreadableObjectError } from './errors';
 import {
     HUBSPOT_BUILT_IN_COLUMNS,
     HUBSPOT_MAX_FILTERS,
@@ -139,7 +140,8 @@ const toPropertyName = (name: string, object: HubspotObject): string => {
         case 'id':
             return 'hs_object_id';
         case 'createdAt':
-            return 'createdate';
+            // Leads only have HubSpot's newer name for it
+            return object === 'leads' ? 'hs_createdate' : 'createdate';
         case 'updatedAt':
             // Contacts kept their original name for it
             return object === 'contacts'
@@ -329,14 +331,17 @@ export const runHubspotQuery = async ({
 
 /**
  * Reads each object's properties, which become its explore's fields: one
- * call per object. The private app needs read access to all three.
+ * call per object. An object the token can't read is left out, so the others
+ * still build and querying it says which scope is missing. Any other
+ * failure, such as a timeout or rate limit, fails the scan and keeps the
+ * last one.
  */
 export const scanHubspotProperties = async ({
     calls,
 }: {
     calls: LiveCalls;
 }): Promise<LiveScanResult> => {
-    const lists = await Promise.all(
+    const lists = await Promise.allSettled(
         HUBSPOT_OBJECTS.map((object) =>
             calls.fetch(
                 {
@@ -348,9 +353,21 @@ export const scanHubspotProperties = async ({
             ),
         ),
     );
+    const rejected = lists.flatMap((list) =>
+        list.status === 'rejected' ? [list.reason as unknown] : [],
+    );
+    const failure = rejected.find((error) => !isUnreadableObjectError(error));
+    if (failure !== undefined || rejected.length === lists.length) {
+        throw failure ?? rejected[0];
+    }
     return {
         hubspotProperties: Object.fromEntries(
-            HUBSPOT_OBJECTS.map((object, index) => [object, lists[index]]),
+            HUBSPOT_OBJECTS.flatMap((object, index) => {
+                const list = lists[index];
+                return list.status === 'fulfilled'
+                    ? [[object, list.value]]
+                    : [];
+            }),
         ),
     };
 };

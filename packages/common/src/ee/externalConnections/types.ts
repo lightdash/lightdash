@@ -88,8 +88,30 @@ export type AttioApiSource = {
 };
 
 /** The HubSpot CRM objects a source reads, one explore each. */
-export const HUBSPOT_OBJECTS = ['deals', 'contacts', 'companies'] as const;
+export const HUBSPOT_OBJECTS = [
+    'deals',
+    'contacts',
+    'companies',
+    'tickets',
+    'leads',
+] as const;
 export type HubspotObject = (typeof HUBSPOT_OBJECTS)[number];
+
+/**
+ * The private app scopes that read one object's records and properties.
+ * Tickets predate HubSpot's granular scopes; leads need Sales Hub
+ * Professional or Enterprise.
+ */
+export const getHubspotReadScopes = (object: HubspotObject): string[] => {
+    switch (object) {
+        case 'tickets':
+            return ['tickets'];
+        case 'leads':
+            return ['crm.objects.leads.read'];
+        default:
+            return [`crm.objects.${object}.read`, `crm.schemas.${object}.read`];
+    }
+};
 
 /** The private app's token picks the HubSpot account, so nothing else is set. */
 export type HubspotApiSource = {
