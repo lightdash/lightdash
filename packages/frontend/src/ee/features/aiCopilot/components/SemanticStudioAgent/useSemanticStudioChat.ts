@@ -12,6 +12,7 @@ import {
     useDraftCheckout,
 } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import {
+    findThreadWorkspace,
     useActiveStudioWorkspace,
     useStudioWorkspaceAction,
     useStudioWorkspaces,
@@ -112,11 +113,10 @@ export const useStudioThreadSwitch = (
     // Switching chats switches workspaces: the one you talk in is the one your changes go to.
     const follow = (next: StoredThread | null) => {
         if (!chatFollowsWorkspace) return;
-        const workspace = next
-            ? workspaces?.mine.find(
-                  ({ threadUuid }) => threadUuid === next.threadUuid,
-              )
-            : undefined;
+        const workspace = findThreadWorkspace(
+            workspaces?.mine ?? [],
+            next?.threadUuid ?? null,
+        );
         workspaceAction.mutate(
             workspace
                 ? { kind: 'activate', workspaceUuid: workspace.workspaceUuid }

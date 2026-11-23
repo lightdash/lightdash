@@ -5,10 +5,10 @@ import {
 } from '@lightdash/common';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { useStartStudioThread } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStartStudioThread';
 import { VIEW_PARAM, type StudioParams, type StudioView } from './modelCode';
 import { type SourcesTarget } from './SourcesView';
 import {
+    type StartStudioThread,
     type StoredThread,
     type StudioPendingChange,
     type StudioPullRequest,
@@ -47,6 +47,7 @@ type DbtChangeSelectionInput = {
     storedThread: StoredThread | null;
     setStoredThread: (thread: StoredThread | null) => void;
     studioAgentUuid: string | null;
+    startThread: StartStudioThread;
     startNewThread: () => void;
     setIsTryingChanges: (isTrying: boolean) => void;
     setIsChatOpen: (isOpen: boolean) => void;
@@ -78,6 +79,7 @@ export const useDbtChangeSelection = ({
     storedThread,
     setStoredThread,
     studioAgentUuid,
+    startThread,
     startNewThread,
     setIsTryingChanges,
     setIsChatOpen,
@@ -88,7 +90,6 @@ export const useDbtChangeSelection = ({
 }: DbtChangeSelectionInput) => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const startStudioThread = useStartStudioThread(projectUuid);
     const [isOnLive, setIsOnLive] = useState(false);
     // Opening a change's page, from anywhere, puts you on that change.
     useEffect(() => {
@@ -155,7 +156,7 @@ export const useDbtChangeSelection = ({
         threadUuid: isOnMyChange ? (storedThread?.threadUuid ?? null) : null,
         newChangeAgentUuid:
             !isOnMyChange || !storedThread ? studioAgentUuid : null,
-        startThread: startStudioThread,
+        startThread,
         changeName: sourcesPrUrl
             ? (changeName ?? draftNameOfPullRequest(sourcesPrUrl) ?? 'Draft #')
             : null,

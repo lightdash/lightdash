@@ -230,11 +230,8 @@ export class SemanticStudioCheckoutService extends BaseService {
         projectUuid: string,
         notDbt: string,
     ): Promise<void> {
-        const { appliesAs } = await this.studio.assertCanUseStudio(
-            user,
-            projectUuid,
-        );
-        if (appliesAs !== 'dbt_pull_request') {
+        const status = await this.studio.assertCanUseStudio(user, projectUuid);
+        if (!worksAsDbtPullRequests(status)) {
             throw new ParameterError(notDbt);
         }
     }
@@ -327,10 +324,9 @@ export class SemanticStudioCheckoutService extends BaseService {
             userUuid: user.userUuid,
         });
         if (!active) return null;
-        const compile =
-            status.appliesAs === 'dbt_pull_request'
-                ? await this.findOrStartBranchCompile(user, active)
-                : null;
+        const compile = worksAsDbtPullRequests(status)
+            ? await this.findOrStartBranchCompile(user, active)
+            : null;
         return {
             workspaceUuid: active.workspaceUuid,
             name: active.name,

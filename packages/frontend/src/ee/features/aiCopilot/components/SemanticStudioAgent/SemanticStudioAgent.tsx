@@ -440,8 +440,6 @@ type AgentProps = OpenModel &
         showStarters: boolean;
         /** The project keeps its changes as a draft here, not as a pull request. */
         keepsDraft: boolean;
-        /** Switching chats moves the active workspace too. */
-        chatFollowsWorkspace: boolean;
         onAttach: (ref: StudioChatRef) => void;
     };
 
@@ -457,7 +455,6 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
     onPromptTaken,
     showStarters,
     keepsDraft,
-    chatFollowsWorkspace,
     attached,
     onAttach,
     onDetach,
@@ -468,7 +465,10 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
     const { isEnabled, agent, thread, isLoadingAgents, setStored } =
         useStudioAgent(projectUuid);
     const { startNewThread, previousThread, returnToPreviousThread } =
-        useStudioThreadSwitch(projectUuid, { chatFollowsWorkspace });
+        // Switching chats moves the active workspace too, unless changes are kept as a draft.
+        useStudioThreadSwitch(projectUuid, {
+            chatFollowsWorkspace: !keepsDraft,
+        });
     const [isOpen, setIsOpen] = useChatOpen(projectUuid);
 
     const { sidebarRef, sidebarWidth, isResizing, startResizing } =

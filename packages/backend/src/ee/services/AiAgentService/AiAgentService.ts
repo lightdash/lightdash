@@ -17576,7 +17576,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 const semanticStudioDrafts =
                     semanticStudioStatus !== null &&
                     semanticStudioStatus.enabled &&
-                    semanticStudioStatus.appliesAs !== 'dbt_pull_request';
+                    !semanticStudioCodeMode;
                 let aiWritebackEnabled = hasTrustedPromptUserIdentity;
                 if (!aiWritebackEnabled) {
                     this.logger.info(

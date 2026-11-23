@@ -62,6 +62,7 @@ import {
     useStudioAgent,
     useStudioThreadSwitch,
 } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
+import { useStartStudioThread } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStartStudioThread';
 import {
     useStudioPendingChange,
     useStudioProposal,
@@ -137,6 +138,7 @@ import {
 import { useCheckOut, useStudioCheckout } from './useStudioCheckout';
 import { modelNameOfSourcePath, SOURCE_PARAM } from './useStudioSources';
 import {
+    findThreadWorkspace,
     useStudioWorkspaceAction,
     useStudioWorkspaces,
 } from './useStudioWorkspaces';
@@ -479,11 +481,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         hasChanges || !!saving,
         chatFollowsWorkspace,
     );
-    const threadWorkspace =
-        allWorkspaces.find(
-            ({ threadUuid, isMine }) =>
-                isMine && threadUuid === storedThread?.threadUuid,
-        ) ?? null;
+    const threadWorkspace = findThreadWorkspace(
+        allWorkspaces,
+        storedThread?.threadUuid ?? null,
+    );
     const chatWorkspace = workflow.chatWorkspace({
         active: activeWorkspace,
         thread: threadWorkspace,
@@ -653,6 +654,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     };
 
     const changeName = shownWorkspace?.name ?? workspace?.name;
+    const startStudioThread = useStartStudioThread(view.project.id);
     const dbt = useDbtChangeSelection({
         projectUuid: view.project.id,
         routeWorkspaceUuid,
@@ -671,6 +673,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         storedThread,
         setStoredThread,
         studioAgentUuid: studioAgent?.uuid ?? null,
+        startThread: startStudioThread,
         startNewThread,
         setIsTryingChanges,
         setIsChatOpen,
@@ -1152,7 +1155,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                     onPromptTaken={() => setAskedPrompt(null)}
                                     showStarters={canBuildFirstModel}
                                     keepsDraft={keepsDraft}
-                                    chatFollowsWorkspace={chatFollowsWorkspace}
                                 />
                             )}
                             <Box className={classes.workspace}>

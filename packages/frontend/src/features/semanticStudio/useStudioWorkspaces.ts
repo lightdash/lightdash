@@ -38,6 +38,18 @@ export const findActiveWorkspace = (
 ): SemanticStudioWorkspace | null =>
     workspaces?.mine.find(({ isActive }) => isActive) ?? null;
 
+/** Your workspace for this chat thread, among the ones given. */
+export const findThreadWorkspace = (
+    workspaces: SemanticStudioWorkspace[],
+    threadUuid: string | null,
+): SemanticStudioWorkspace | null =>
+    threadUuid === null
+        ? null
+        : (workspaces.find(
+              (workspace) =>
+                  workspace.isMine && workspace.threadUuid === threadUuid,
+          ) ?? null);
+
 export const useActiveStudioWorkspace = (
     projectUuid: string | undefined,
 ): SemanticStudioWorkspace | null =>

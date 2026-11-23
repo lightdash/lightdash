@@ -10,7 +10,10 @@ import {
     type StudioPendingChange,
     type StudioPullRequest,
 } from '../../../../../features/semanticStudio/studioChange';
-import { useStudioWorkspaces } from '../../../../../features/semanticStudio/useStudioWorkspaces';
+import {
+    findThreadWorkspace,
+    useStudioWorkspaces,
+} from '../../../../../features/semanticStudio/useStudioWorkspaces';
 import { findPreviewProjectUuid } from '../../../../../features/semanticStudio/useTryInExplore';
 import {
     getModelsOfFiles,
@@ -54,11 +57,10 @@ export const useStudioPullRequest = (
     const { data: workspaces } = useStudioWorkspaces(projectUuid);
     const workspace =
         shown ??
-        [
-            ...(workspaces?.mine ?? []),
-            ...(workspaces?.recent ?? []).filter((item) => item.isMine),
-        ].find(({ threadUuid }) => threadUuid === thread?.threadUuid) ??
-        null;
+        findThreadWorkspace(
+            [...(workspaces?.mine ?? []), ...(workspaces?.recent ?? [])],
+            thread?.threadUuid ?? null,
+        );
     const isChatOfChange =
         !workspace || workspace.threadUuid === thread?.threadUuid;
     const results = getDbtSaves(
