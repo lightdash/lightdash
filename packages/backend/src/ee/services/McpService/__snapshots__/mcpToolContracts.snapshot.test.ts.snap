@@ -310,7 +310,7 @@ When no field matches literally, the result lists the closest catalog matches (f
             "type": "string",
           },
           "patterns": {
-            "description": "Up to 5 case-insensitive keyword patterns, not full regexes, matched against field names, labels, descriptions, hints and tags. Use \`|\` to OR synonyms ("revenue|sales") and a space or \`.*\` between words to require all of them ("order.*status"). Use short keywords: long natural-language phrases do not match. The patterns run together, so cover every angle of the question in one call (e.g. ["revenue|sales", "country|region", "segment|tier"]).",
+            "description": "Up to 5 case-insensitive keyword patterns, not full regexes, matched against field names, labels, descriptions, hints and tags. Use \`|\` to OR synonyms ("<term>|<synonym>") and a space or \`.*\` between words to require all of them ("<word>.*<word>"). Use short keywords: long natural-language phrases do not match. The patterns run together, so cover every angle of the question in one call (e.g. ["<measure>|<synonym>", "<dimension>|<synonym>", "<filter>|<synonym>"]).",
             "items": {
               "minLength": 1,
               "type": "string",

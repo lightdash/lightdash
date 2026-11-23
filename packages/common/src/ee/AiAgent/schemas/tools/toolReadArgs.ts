@@ -11,7 +11,7 @@ Use it to read the files you are about to change or just changed, several in one
 
 API (synchronous, values are plain JSON, paths relative to the dbt project): repo.list(prefix?) -> file paths; repo.read(path) -> the file's text, or null; yaml.get(path, keys) -> the value at keys, e.g. yaml.get(m.yml, [...m.keys, 'columns']); dbt.model(name) -> { yml, sql, keys } | null, where yml and sql are file PATHS, so read them with repo.read. It cannot change files: save a change with editDbtProject.
 
-Libraries, each a tool you may have under a shorter name, taking the same arguments and returning the same text: layer.fields (grepFields), layer.explore (getMetadata), layer.search (searchSemanticLayer), layer.impact (analyzeFieldImpact), layer.changes (listChanges), layer.values (searchFieldValues), layer.context (loadProjectContext), warehouse.tables (listWarehouseTables), warehouse.describe (describeWarehouseTable), warehouse.columns (grepWarehouseColumns). help() lists the ones this conversation has; help('layer.fields') shows one's arguments. A failed call throws. Use them to batch lookups with file reads in one script.`;
+Lookups, each taking one object of arguments and returning text, named here with the tool it runs, which its text may mention: layer.fields (grepFields: find fields), layer.explore (getMetadata: an explore's fields and joins), layer.search (searchSemanticLayer), layer.impact (analyzeFieldImpact: what uses a field), layer.changes (listChanges: open drafts), layer.values (searchFieldValues: a field's values), layer.context (loadProjectContext: the project's curated context), warehouse.tables (listWarehouseTables), warehouse.describe (describeWarehouseTable: a table's columns), warehouse.columns (grepWarehouseColumns: which tables hold a column), pr.list (listWorkstreams: this conversation's pull requests), pr.diff (getPullRequestDiff: a pull request's diff). Only the ones this conversation has exist: help() lists them and help('layer.fields') shows one's arguments. A failed call throws. Batch lookups and file reads that do not depend on each other into one script.`;
 
 export const toolReadArgsSchema = createToolSchema()
     .extend({
@@ -19,7 +19,7 @@ export const toolReadArgsSchema = createToolSchema()
             .string()
             .min(1)
             .describe(
-                "JavaScript that reads files and prints what you need, e.g. const m = dbt.model('orders'); console.log(repo.read(m.sql));",
+                "JavaScript that reads files and prints what you need, e.g. const m = dbt.model('<model name>'); console.log(repo.read(m.sql));",
             ),
     })
     .build();

@@ -211,6 +211,7 @@ export const getSystemPromptV2 = (
         repoFsSupportsCodeSearch?: boolean;
         // Semantic Studio saves its change with a code mode script.
         semanticStudioCodeMode?: boolean;
+        semanticStudioLibraries?: boolean;
         // A Studio dbt project's layout from its last compile.
         semanticStudioProjectMap?: string | null;
         // Semantic Studio can run a metric query, which reads the person's draft.
@@ -239,6 +240,7 @@ export const getSystemPromptV2 = (
         repoFsRoot = null,
         repoFsSupportsCodeSearch = true,
         semanticStudioCodeMode = false,
+        semanticStudioLibraries = false,
         semanticStudioProjectMap = null,
         semanticStudioQueriesDraft = false,
         promptSections = NO_PROMPT_SECTIONS,
@@ -334,11 +336,14 @@ export const getSystemPromptV2 = (
     let projectContextContent =
         'No project context has been configured for this project.';
     if (promptSections.has('projectContext') && args.hasProjectContext) {
+        const contextTool = semanticStudioLibraries
+            ? '`layer.context` in read'
+            : '`loadProjectContext`';
         const projectContextDefinition =
             'This project has curated business context: acronyms, definitions, rules and conventions that are not in the field metadata.';
         projectContextContent = args.projectContextPreloaded
-            ? `${projectContextDefinition} The entries relevant to this request are already preloaded: apply them before discovery, as authoritative over your own assumptions. They are a partial selection: load more with \`loadProjectContext\` for missing definitions, additional scope or conflicting rules, not to reload the preloaded entries.`
-            : `${projectContextDefinition} Load it with \`loadProjectContext\` before discovery, since it can change which explore, field or filter value you use, and treat it as authoritative over your own assumptions.`;
+            ? `${projectContextDefinition} The entries relevant to this request are already preloaded: apply them before discovery, as authoritative over your own assumptions. They are a partial selection: load more with ${contextTool} for missing definitions, additional scope or conflicting rules, not to reload the preloaded entries.`
+            : `${projectContextDefinition} Load it with ${contextTool} before discovery, since it can change which explore, field or filter value you use, and treat it as authoritative over your own assumptions.`;
     }
 
     const AVAILABLE_EXPLORES_INLINE_LIMIT = 15;
@@ -390,6 +395,7 @@ export const getSystemPromptV2 = (
                         ? {
                               saves: promptSections.has('aiWriteback'),
                               codeMode: semanticStudioCodeMode,
+                              libraries: semanticStudioLibraries,
                               projectMap: semanticStudioProjectMap,
                               sections: [
                                   ...(promptSections.has('aiWriteback')
