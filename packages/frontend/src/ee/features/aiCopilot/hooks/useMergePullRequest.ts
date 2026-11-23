@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type LightdashApi } from '../../../../api';
-import { PULL_REQUEST_CI_CHECKS_KEY } from '../../../../features/semanticStudio/studioQueryKeys';
+import { PULL_REQUEST_CI_CHECKS_KEY } from '../../../../features/writeback/writebackQueryKeys';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 

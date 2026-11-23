@@ -6,7 +6,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
-import { WRITEBACK_RUN_STATUS_KEY } from './studioQueryKeys';
+import { WRITEBACK_RUN_STATUS_KEY } from './writebackQueryKeys';
 
 const POLL_INTERVAL_MS = 3_000;
 const endedRuns = new Set<string>();

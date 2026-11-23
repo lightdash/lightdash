@@ -1,11 +1,11 @@
 import { CiMergeState, DbtProjectType, type CiChecks } from '@lightdash/common';
 import { canWriteProjectBranch } from '../../../../../features/semanticStudio/permissions';
-import { isMergeable } from '../../../../../features/semanticStudio/pullRequestActions';
 import { pullRequestNumberOf } from '../../../../../features/semanticStudio/urls';
 import {
     describeBranchCompile,
     useDraftCheckout,
 } from '../../../../../features/semanticStudio/useSemanticLayerModel';
+import { isMergeable } from '../../../../../features/writeback/pullRequestActions';
 import { useProject } from '../../../../../hooks/useProject';
 import useApp from '../../../../../providers/App/useApp';
 
@@ -40,13 +40,11 @@ const BLOCKED: Record<CiMergeState, { label: string; reason: string }> = {
 const blockedOf = (ciChecks: CiChecks | null) =>
     BLOCKED[ciChecks?.mergeState ?? CiMergeState.UNKNOWN];
 
-const COMPILE_PENDING = 'Publish once the latest edit compiles.';
-
 export const onlyWritersCanPublish = (branch: string | null) =>
     `Only people who can write to ${branch ?? "the project's branch"} can publish.`;
 
 /** The step a draft is on towards being published, as its button: compile, then checks, then publish. */
-export type PublishStep = {
+type PublishStep = {
     label: string;
     hint: string;
     /** What a click does; null while there is nothing to do but wait or fix it elsewhere. */
@@ -78,14 +76,6 @@ export const useStudioPublish = (
     const compile = checkout?.branchCompile ?? null;
     // Checks are read, and pull requests merged, on GitHub only.
     const mergesHere = project?.dbtConnection.type === DbtProjectType.GITHUB;
-    // Publishing merges straight into the branch, so it waits on the right to write there and on a passing compile.
-    const blocker = !canWriteBranch
-        ? `${onlyWritersCanPublish(branch)} Open ${name} for review.`
-        : compile?.status !== 'ready'
-          ? ((compile && describeBranchCompile(compile)) ?? COMPILE_PENDING)
-          : isMergeable(ciChecks)
-            ? null
-            : blockedOf(ciChecks).reason;
     const destination = `${name}${branch ? ` into ${branch}` : ''}`;
     const step = ((): PublishStep => {
         if (!compile) {
@@ -98,7 +88,7 @@ export const useStudioPublish = (
         if (compile.status === 'compiling') {
             return {
                 label: 'Compiling',
-                hint: describeBranchCompile(compile) ?? COMPILE_PENDING,
+                hint: describeBranchCompile(compile) ?? '',
                 action: null,
             };
         }
@@ -126,7 +116,6 @@ export const useStudioPublish = (
         name,
         destination,
         compile,
-        blocker,
         canWriteBranch: canWriteBranch && mergesHere,
         mergesHere,
         branch,

@@ -5,9 +5,9 @@ import {
     type CiChecks,
     type SemanticStudioWorkspace,
 } from '@lightdash/common';
-import { isMergeable } from './pullRequestActions';
+import { isMergeable } from '../writeback/pullRequestActions';
+import { WRITEBACK_STEPS } from '../writeback/writebackProgress';
 import { pullRequestNumberOf } from './urls';
-import { WRITEBACK_STEPS } from './writebackProgress';
 
 /** Where one of your workspaces stands right now. */
 export type StudioRun =

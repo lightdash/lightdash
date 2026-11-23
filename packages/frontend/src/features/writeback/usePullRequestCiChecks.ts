@@ -7,7 +7,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { type LightdashApi } from '../../api';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
-import { PULL_REQUEST_CI_CHECKS_KEY } from './studioQueryKeys';
+import { PULL_REQUEST_CI_CHECKS_KEY } from './writebackQueryKeys';
 
 const getPullRequestCiChecks = (
     lightdashApi: LightdashApi,

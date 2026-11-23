@@ -1,10 +1,6 @@
-/* The live data sources table and summary, with external sources' columns. */
+/* External sources' columns, on the shared source table. */
 
 .row {
-    composes: row from '../../externalConnections/liveSources/LiveSources.module.css';
+    composes: row from '../../../components/common/sourceTable.module.css';
     grid-template-columns: minmax(0, 1fr) 120px 96px 128px 88px 28px;
-}
-
-.summary {
-    composes: summary from '../../externalConnections/liveSources/LiveSources.module.css';
 }

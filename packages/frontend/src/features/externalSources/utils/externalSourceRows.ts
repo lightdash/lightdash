@@ -18,7 +18,7 @@ export type ExternalSourceState = {
     message: string | null;
 };
 
-export type ExternalSourceRow = {
+type ExternalSourceRow = {
     source: ExternalSource;
     /** The table's label, as it shows in the Explorer. */
     label: string;

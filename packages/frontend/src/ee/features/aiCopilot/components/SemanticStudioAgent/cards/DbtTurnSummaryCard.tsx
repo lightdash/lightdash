@@ -31,35 +31,31 @@ import {
     VIEW_PARAM,
 } from '../../../../../../features/semanticStudio/modelCode';
 import { ModelFieldChanges } from '../../../../../../features/semanticStudio/ModelFieldChanges';
+import { TaskIcon } from '../../../../../../features/semanticStudio/TaskRow';
+import { getSemanticStudioUrl } from '../../../../../../features/semanticStudio/urls';
+import { useDraftCheckout } from '../../../../../../features/semanticStudio/useSemanticLayerModel';
+import { useStudioWorkspaces } from '../../../../../../features/semanticStudio/useStudioWorkspaces';
 import {
     getModelOfFile,
     getModelsOfFiles,
     splitPatchIntoFiles,
     type DiffFile,
-} from '../../../../../../features/semanticStudio/splitPatch';
-import { TaskIcon } from '../../../../../../features/semanticStudio/TaskRow';
-import { getSemanticStudioUrl } from '../../../../../../features/semanticStudio/urls';
-import { usePullRequestDiff } from '../../../../../../features/semanticStudio/usePullRequestDiff';
-import { useDraftCheckout } from '../../../../../../features/semanticStudio/useSemanticLayerModel';
-import { useStudioWorkspaces } from '../../../../../../features/semanticStudio/useStudioWorkspaces';
-import { draftActions } from '../../SemanticStudioAgent/cards/turnActions';
-import {
-    TurnCard,
-    type Safety,
-    type TurnGroup,
-} from '../../SemanticStudioAgent/cards/TurnCard';
-import classes from '../../SemanticStudioAgent/cards/TurnSummaryCard.module.css';
-import { resolveStudioPullRequestState } from '../../SemanticStudioAgent/studioPullRequestState';
-import { useStudioPublish } from '../../SemanticStudioAgent/useStudioPublish';
-import { useStudioPullRequest } from '../../SemanticStudioAgent/useStudioPullRequest';
+} from '../../../../../../features/writeback/splitPatch';
+import { usePullRequestDiff } from '../../../../../../features/writeback/usePullRequestDiff';
 import {
     getPullRequestNumber,
     isBitbucketPullRequest,
-} from './pullRequestCardUtils';
-import { PullRequestCiChecks } from './PullRequestCiChecks';
-import { PullRequestViewMenu } from './PullRequestViewMenu';
-import { StudioAskContext } from './quietCards';
-import { WritebackDiffModal } from './WritebackDiffModal';
+} from '../../ChatElements/ToolCalls/pullRequestCardUtils';
+import { PullRequestCiChecks } from '../../ChatElements/ToolCalls/PullRequestCiChecks';
+import { PullRequestViewMenu } from '../../ChatElements/ToolCalls/PullRequestViewMenu';
+import { StudioAskContext } from '../../ChatElements/ToolCalls/studioChatContext';
+import { WritebackDiffModal } from '../../ChatElements/ToolCalls/WritebackDiffModal';
+import { resolveStudioPullRequestState } from '../studioPullRequestState';
+import { useStudioPullRequest } from '../useStudioPullRequest';
+import classes from './DbtTurnSummaryCard.module.css';
+import { draftActions } from './turnActions';
+import { TurnCard, type Safety, type TurnGroup } from './TurnCard';
+import turnClasses from './TurnCard.module.css';
 
 const FILE_ACTIONS: Record<ChangeKind, string> = {
     new: 'Added the file',
@@ -67,8 +63,8 @@ const FILE_ACTIONS: Record<ChangeKind, string> = {
     removed: 'Removed the file',
 };
 
-const changeOfFile = ({ patch }: DiffFile): ChangeKind => {
-    if (/^new file mode/m.test(patch)) return 'new';
+const changeOfFile = ({ patch, isNew }: DiffFile): ChangeKind => {
+    if (isNew) return 'new';
     if (/^deleted file mode/m.test(patch)) return 'removed';
     return 'changed';
 };
@@ -123,7 +119,7 @@ const DraftTurnCard: FC<{
     // A draft that does not compile shows why without being asked.
     const isOpen = isOpened || isFailing;
     return (
-        <Paper mt="xs" className={classes.card}>
+        <Paper mt="xs" className={turnClasses.card}>
             <UnstyledButton
                 className={classes.compactHead}
                 aria-expanded={isOpen}
@@ -132,7 +128,7 @@ const DraftTurnCard: FC<{
                 {isFailing ? (
                     <TaskIcon state="failed" />
                 ) : (
-                    <Box className={classes.dot} />
+                    <Box className={turnClasses.dot} />
                 )}
                 <Text fz="xs" fw={500} flex="none">
                     {isFailing ? "Draft doesn't compile" : 'Draft'}
@@ -167,7 +163,7 @@ const DraftTurnCard: FC<{
                 ))}
                 {note ? (
                     <Group gap={6} wrap="nowrap" align="flex-start">
-                        <Box className={classes.node} w={16}>
+                        <Box className={turnClasses.node} w={16}>
                             <MantineIcon
                                 icon={IconInfoCircle}
                                 size={14}
@@ -185,7 +181,7 @@ const DraftTurnCard: FC<{
                     </Group>
                 ) : null}
                 {isFailing && safety.why ? (
-                    <Text fz="xs" c="dimmed" className={classes.wrap}>
+                    <Text fz="xs" c="dimmed" className={turnClasses.wrap}>
                         {safety.why}
                     </Text>
                 ) : null}
@@ -199,7 +195,7 @@ const DraftTurnCard: FC<{
                                     key={file.key}
                                     component={Link}
                                     to={changesUrl}
-                                    className={classes.row}
+                                    className={turnClasses.row}
                                     title={file.path}
                                 >
                                     <Text
@@ -207,7 +203,7 @@ const DraftTurnCard: FC<{
                                         fz="xs"
                                         c="dimmed"
                                         truncate
-                                        className={classes.label}
+                                        className={turnClasses.label}
                                     >
                                         {file.path}
                                     </Text>
@@ -260,7 +256,7 @@ export const DbtTurnSummaryCard: FC<{
     const isBitbucket = isBitbucketPullRequest(prUrl);
     const prNumber = getPullRequestNumber(prUrl);
     const [isDiffOpen, setIsDiffOpen] = useState(false);
-    const pullRequest = useStudioPullRequest(projectUuid);
+    const pullRequest = useStudioPullRequest(projectUuid, null);
     const { data: workspaces } = useStudioWorkspaces(projectUuid);
     const { data: checkout } = useDraftCheckout(projectUuid);
     const { data: diff } = usePullRequestDiff(
@@ -269,7 +265,7 @@ export const DbtTurnSummaryCard: FC<{
         commitSha,
         !isBitbucket,
     );
-    const { compile } = useStudioPublish(projectUuid, prUrl, ciChecks);
+    const compile = checkout?.branchCompile ?? null;
 
     const draft = [
         ...(workspaces?.mine ?? []),
@@ -446,7 +442,7 @@ export const DbtTurnSummaryCard: FC<{
 
     const ciSection =
         state === 'open' && !isBitbucket && ciChecks?.checks.length ? (
-            <Box className={classes.section}>
+            <Box className={turnClasses.section}>
                 <PullRequestCiChecks
                     prUrl={prUrl}
                     ciChecks={ciChecks}

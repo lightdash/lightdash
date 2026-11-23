@@ -24,13 +24,12 @@ import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import MaterializationDetailDrawer from '../../components/PreAggregateMaterializations/MaterializationDetailDrawer';
 import { useExploreByProjectUuid } from '../../hooks/useExplore';
-import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
+import { stringifyCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { usePreAggregateMaterializations } from '../../hooks/usePreAggregateMaterializations';
 import { useRefreshPreAggregateByDefinitionName } from '../../hooks/usePreAggregateRefresh';
 import { usePreAggregateStats } from '../../hooks/usePreAggregateStats';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
 import { formatDuration, formatFileSize } from '../../utils/formatters';
-import { VIEW_PARAM } from './modelCode';
 import { PreAggregateSample, UsageByDayChart } from './PreAggregateInsights';
 import classes from './PreAggregateInsights.module.css';
 import {
@@ -61,14 +60,13 @@ const exploreHref = (
     summary: PreAggregateMaterializationSummary,
     baseTable: string,
 ) => {
-    const { pathname, search } = getExplorerUrlFromCreateSavedChartVersion(
-        projectUuid,
-        getPreAggregateQuery(summary, baseTable),
-    );
-    // The link builder keeps this page's own search params, which mean nothing to Explore.
-    const params = new URLSearchParams(search);
-    params.delete(VIEW_PARAM);
-    return `${pathname}?${params.toString()}`;
+    const query = getPreAggregateQuery(summary, baseTable);
+    // Not the shared link builder: it keeps this page's own search params, which mean nothing to Explore.
+    const params = new URLSearchParams({
+        create_saved_chart_version: stringifyCreateSavedChartVersion(query),
+        isExploreFromHere: 'true',
+    });
+    return `/projects/${projectUuid}/tables/${query.tableName}?${params.toString()}`;
 };
 
 const BuiltAgo: FC<{ date: Date | string }> = ({ date }) => {

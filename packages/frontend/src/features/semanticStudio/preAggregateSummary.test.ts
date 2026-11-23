@@ -11,7 +11,6 @@ import {
     getPreAggregateStatus,
     summariseUsage,
     usageByDay,
-    type LabelledExplore,
 } from './preAggregateSummary';
 
 const summary = (
@@ -52,7 +51,7 @@ describe('getPreAggregateStatus', () => {
 });
 
 describe('getFieldLabel', () => {
-    const explore: LabelledExplore = {
+    const explore = {
         baseTable: 'orders',
         tables: {
             orders: {

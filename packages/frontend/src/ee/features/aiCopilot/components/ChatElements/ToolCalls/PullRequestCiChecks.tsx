@@ -31,7 +31,7 @@ import {
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../../../components/common/PolymorphicGroupButton';
-import { isMergeable } from '../../../../../../features/semanticStudio/pullRequestActions';
+import { isMergeable } from '../../../../../../features/writeback/pullRequestActions';
 import styles from './PullRequestCiChecks.module.css';
 
 type StateStyle = {

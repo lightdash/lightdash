@@ -33,7 +33,7 @@ export const getPreAggregateStatus = (
 
 type Labelled = Record<string, { label: string }>;
 /** The part of an explore that names its fields. */
-export type LabelledExplore = {
+type LabelledExplore = {
     baseTable: string;
     tables: Record<string, { dimensions: Labelled; metrics: Labelled }>;
 };

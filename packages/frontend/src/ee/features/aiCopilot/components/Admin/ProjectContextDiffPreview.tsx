@@ -8,7 +8,7 @@ import { type CSSProperties, type FC } from 'react';
 import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
-} from '../../../../../features/semanticStudio/pierreDiffConfig';
+} from '../../../../../features/writeback/pierreDiffConfig';
 import classes from './ProjectContextDiffPreview.module.css';
 
 type ProjectContextDiffPreviewProps = {

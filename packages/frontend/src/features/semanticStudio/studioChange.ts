@@ -3,6 +3,12 @@ import { useLocalStorage } from '@mantine/hooks';
 
 export type StoredThread = { threadUuid: string; agentUuid: string };
 
+/** Starts a Studio conversation with an agent, told what started it. */
+export type StartStudioThread = (
+    agentUuid: string,
+    threadContext: string,
+) => Promise<StoredThread>;
+
 /** The chat this browser has open; it follows the active workspace, see useSyncStudioWorkspace. */
 export const useStoredStudioThread = (projectUuid: string) =>
     useLocalStorage<StoredThread | null>({

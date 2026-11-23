@@ -59,6 +59,7 @@ import {
     describeFieldChanges,
     getModelCodeSearch,
     VIEW_PARAM,
+    type ModelTab,
 } from './modelCode';
 import { ModelMark } from './ModelMark';
 import { ModelTabs, SourceTabs } from './ModelTabs';
@@ -77,7 +78,7 @@ import {
 } from './useSemanticLayerModel';
 import { type ViewModel } from './useSemanticStudio';
 import { findCheckedOutModel, useStudioCheckout } from './useStudioCheckout';
-import classes from './WorkbenchView.module.css';
+import classes from './WorkbenchMainPane.module.css';
 
 /** Opens the source's existing settings page; labelled, never a bare gear. */
 const SettingsLink: FC<{
@@ -409,7 +410,7 @@ const Crumbs: FC<{
 );
 
 /** The `view` of a live data source's page that shows its settings. */
-const SETTINGS_VIEW = 'settings';
+const SETTINGS_VIEW: ModelTab = 'settings';
 
 export const MainPane: FC<{
     view: ViewModel;

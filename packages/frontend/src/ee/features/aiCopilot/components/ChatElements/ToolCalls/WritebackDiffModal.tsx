@@ -24,8 +24,8 @@ import MantineModal from '../../../../../../components/common/MantineModal';
 import {
     recountHunks,
     splitPatchIntoFiles,
-} from '../../../../../../features/semanticStudio/splitPatch';
-import { usePullRequestDiff } from '../../../../../../features/semanticStudio/usePullRequestDiff';
+} from '../../../../../../features/writeback/splitPatch';
+import { usePullRequestDiff } from '../../../../../../features/writeback/usePullRequestDiff';
 import classes from './WritebackDiffModal.module.css';
 
 // Tokenize with both Pierre themes; the diff renders via CSS `light-dark()`.

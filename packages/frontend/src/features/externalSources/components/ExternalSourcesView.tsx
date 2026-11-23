@@ -39,9 +39,9 @@ import {
 } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
+import tableClasses from '../../../components/common/sourceTable.module.css';
 import useHealth from '../../../hooks/health/useHealth';
 import googleSheetsLogo from '../../../svgs/google-sheets.svg';
-import liveClasses from '../../externalConnections/liveSources/LiveSources.module.css';
 import { useExternalSourceActions } from '../hooks/externalSourceActions';
 import {
     useExternalSources,
@@ -259,11 +259,11 @@ export const ExternalSourcesTable: FC<{
             }
         };
     return (
-        <Box className={liveClasses.table} role="table">
+        <Box className={tableClasses.table} role="table">
             <Box className={classes.row} data-head role="row">
                 <span role="columnheader">Name</span>
                 <span role="columnheader">Type</span>
-                <span role="columnheader" className={liveClasses.number}>
+                <span role="columnheader" className={tableClasses.number}>
                     Rows
                 </span>
                 <span role="columnheader">Last refreshed</span>
@@ -283,14 +283,14 @@ export const ExternalSourcesTable: FC<{
                     >
                         <Group gap={8} wrap="nowrap" miw={0} role="cell">
                             <SourceIcon source={source} />
-                            <Text className={liveClasses.name} truncate>
+                            <Text className={tableClasses.name} truncate>
                                 {label}
                             </Text>
                         </Group>
                         <Text span role="cell" fz={13} c="dimmed" truncate>
                             {type}
                         </Text>
-                        <span role="cell" className={liveClasses.number}>
+                        <span role="cell" className={tableClasses.number}>
                             {rowCount}
                         </span>
                         <Text
@@ -323,10 +323,10 @@ const Stat: FC<{ label: string; value: ReactNode; title?: string }> = ({
     value,
     title,
 }) => (
-    <Box className={liveClasses.stat}>
-        <span className={liveClasses.statLabel}>{label}</span>
+    <Box className={tableClasses.stat}>
+        <span className={tableClasses.statLabel}>{label}</span>
         <span
-            className={liveClasses.statValue}
+            className={tableClasses.statValue}
             title={title ?? (typeof value === 'string' ? value : undefined)}
         >
             {value}
@@ -342,7 +342,7 @@ export const ExternalSourceSummary: FC<{ source: ExternalSource }> = ({
     const refreshed = lastRefreshed(source);
     const state = getExternalSourceState(source);
     return (
-        <Box className={classes.summary} aria-label="External source">
+        <Box className={tableClasses.summary} aria-label="External source">
             <Stat label="Type" value={row.type} />
             <Stat label="Rows" value={row.rows} />
             <Stat

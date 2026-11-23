@@ -5,23 +5,15 @@ import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { developmentHeadersFor, PUBLISHED_HEADERS } from './developmentView';
 import { FieldUsage } from './DraftInsights';
 import { describeShift } from './metricComparison';
+import { CHANGE_KIND_STYLE } from './modelCode';
 import { findTouchedFields, type FieldChange } from './modelFieldDiff';
 import { modelVersionQuery } from './useFieldChangesInDevelopment';
-import { LIVE_HEADERS, useTotals } from './useMetricTotals';
+import { useMetricShift } from './useMetricTotals';
 import {
-    findChangedFieldIds,
+    describeChangedFields,
     useModelFieldChanges,
 } from './useModelFieldChanges';
 import { useSemanticLayerFieldUsage } from './useSemanticLayerModel';
-
-const KINDS: Record<
-    FieldChange['kind'],
-    { label: string; sign: string; color: string }
-> = {
-    new: { label: 'New', sign: '+', color: 'green' },
-    changed: { label: 'Changed', sign: '~', color: 'orange' },
-    removed: { label: 'Removed', sign: '−', color: 'red' },
-};
 
 /** What the person's changes do to this model's fields, in plain words, with each new or changed metric's total next to it. */
 export const ModelFieldChanges: FC<{
@@ -34,40 +26,35 @@ export const ModelFieldChanges: FC<{
     /** Until the draft compiles its fields are the old ones, so an empty diff says nothing yet. */
     isCompiled: boolean;
 }> = ({ projectUuid, model, previewProjectUuid, cacheKey, isCompiled }) => {
-    const { live, mine, changes } = useModelFieldChanges(
+    const { live, changes } = useModelFieldChanges(
         projectUuid,
         model,
         previewProjectUuid,
     );
-    const metricIds = useMemo(() => {
-        if (!mine || !changes) return new Map<string, string>();
-        return new Map(
-            [...findChangedFieldIds(mine, changes)]
-                .filter(([, { isMetric }]) => isMetric)
-                .map(([key, { id }]) => [key, id]),
-        );
-    }, [mine, changes]);
+    const metricIds = useMemo(
+        () =>
+            new Map(
+                describeChangedFields(changes ?? [], {
+                    keepsHiddenMetrics: true,
+                })
+                    .filter(
+                        ({ kind, isMetric }) => isMetric && kind !== 'removed',
+                    )
+                    .map(({ key, fieldId }) => [key, fieldId]),
+            ),
+        [changes],
+    );
     const ids = [...metricIds.values()];
     // Asking live for a metric it does not have fails the whole query.
     const liveIds = (changes ?? [])
         .filter(({ key, kind }) => kind === 'changed' && metricIds.has(key))
         .map(({ key }) => metricIds.get(key) ?? key);
-    const after = useTotals(
-        projectUuid,
-        model,
+    const { after, before } = useMetricShift(projectUuid, model, {
         ids,
-        developmentHeadersFor(previewProjectUuid),
-        ids.length > 0,
-        cacheKey,
-    );
-    const before = useTotals(
-        projectUuid,
-        model,
         liveIds,
-        LIVE_HEADERS,
-        liveIds.length > 0,
+        headers: developmentHeadersFor(previewProjectUuid),
         cacheKey,
-    );
+    });
     if (!changes) return null;
     if (changes.length === 0) {
         return (
@@ -125,10 +112,12 @@ export const ModelFieldChanges: FC<{
                         w={16}
                         ta="center"
                         flex="none"
-                        c={`${KINDS[kind].color}.7`}
+                        c={`${CHANGE_KIND_STYLE[kind].color}.7`}
                     >
-                        <span aria-hidden>{KINDS[kind].sign}</span>
-                        <VisuallyHidden>{KINDS[kind].label}</VisuallyHidden>
+                        <span aria-hidden>{CHANGE_KIND_STYLE[kind].glyph}</span>
+                        <VisuallyHidden>
+                            {CHANGE_KIND_STYLE[kind].label}
+                        </VisuallyHidden>
                     </Text>
                     <Text fz="xs" fw={500} truncate>
                         {label}

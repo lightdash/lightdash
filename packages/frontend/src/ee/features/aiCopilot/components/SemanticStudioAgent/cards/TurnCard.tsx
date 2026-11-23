@@ -26,7 +26,7 @@ import {
     type TaskState,
 } from '../../../../../../features/semanticStudio/TaskRow';
 import { ISSUE_KINDS, type Issue } from './proposalIssues';
-import classes from './TurnSummaryCard.module.css';
+import classes from './TurnCard.module.css';
 
 /** One changed part of a model, linking to where it can be looked at. */
 export type TurnRow = {

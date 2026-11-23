@@ -1,4 +1,7 @@
-import { type SemanticStudioWorkspace } from '@lightdash/common';
+import {
+    isPullRequestOpen,
+    type SemanticStudioWorkspace,
+} from '@lightdash/common';
 import { pullRequestNumberOf } from './urls';
 
 /** Where a workspace's changes stand, from first proposed to live. */
@@ -24,10 +27,11 @@ export const STUDIO_STEPS = [
 export const stageOfWorkspace = (
     workspace: SemanticStudioWorkspace | null,
 ): StudioStage | null => {
-    if (workspace?.pullRequest?.state === 'open') {
+    const pullRequest = workspace?.pullRequest ?? null;
+    if (isPullRequestOpen(pullRequest)) {
         return {
             step: 'in_review',
-            pullRequestNumber: pullRequestNumberOf(workspace.pullRequest.url),
+            pullRequestNumber: pullRequestNumberOf(pullRequest.url),
         };
     }
     if (

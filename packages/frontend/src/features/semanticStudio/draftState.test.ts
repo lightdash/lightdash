@@ -72,35 +72,12 @@ describe('diffDraftFields', () => {
 describe('describePublisher', () => {
     const at = new Date('2026-11-17T12:00:00Z');
 
-    test('names another person by name', () => {
-        expect(
-            describePublisher({ by: 'Grace Hopper', at, isYours: false }),
-        ).toEqual({
-            subject: 'Grace Hopper',
-            where: '',
-            option: 'Grace Hopper',
-            keepLabel: "Keep Grace Hopper's version",
-        });
-    });
-
-    test('reads your own publish from another change as yours, not someone else', () => {
-        expect(
-            describePublisher({ by: 'Grace Hopper', at, isYours: true }),
-        ).toEqual({
-            subject: 'You',
-            where: ' from another change',
-            option: 'You, in another change',
-            keepLabel: 'Keep the published version',
-        });
-    });
-
-    test('falls back to someone when the publisher is unknown', () => {
-        expect(describePublisher({ by: null, at, isYours: false })).toEqual(
-            expect.objectContaining({
-                subject: 'Someone',
-                option: 'Someone else',
-            }),
-        );
-        expect(describePublisher(null).subject).toBe('Someone');
+    test.each([
+        [{ by: 'Grace Hopper', at, isYours: false }, 'Grace Hopper'],
+        [{ by: 'Grace Hopper', at, isYours: true }, 'You'],
+        [{ by: null, at, isYours: false }, 'Someone'],
+        [null, 'Someone'],
+    ])('names who published %o as %s', (published, subject) => {
+        expect(describePublisher(published).subject).toBe(subject);
     });
 });

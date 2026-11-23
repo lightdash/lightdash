@@ -5,7 +5,25 @@ export type DiffFile = {
     patch: string;
     additions: number;
     deletions: number;
+    isNew: boolean;
 };
+
+/** The lines a patch adds (`+`) or removes (`-`), not counting its file headers. */
+export const countPatchLines = (patch: string, sign: '+' | '-') =>
+    patch
+        .split('\n')
+        .filter(
+            (line) => line.startsWith(sign) && !line.startsWith(sign.repeat(3)),
+        ).length;
+
+/** The file a patch is for, from its `+++` line. */
+export const patchPathOf = (patch: string) =>
+    /^\+\+\+ (?:b\/)?(\S+)/m.exec(patch)?.[1] ?? null;
+
+/** Whether a repository path is the project path, which may sit below the repository root. */
+export const isSameFile = (repositoryPath: string, projectPath: string) =>
+    repositoryPath === projectPath ||
+    repositoryPath.endsWith(`/${projectPath}`);
 
 // `PatchDiff` renders exactly one file, so a multi-file PR diff is split into
 // its per-file sections (each starts with a `diff --git` line). We also tally
@@ -20,21 +38,13 @@ export const splitPatchIntoFiles = (patch: string): DiffFile[] =>
         .map((section, index) => {
             const path =
                 section.match(/^diff --git a\/.+? b\/(.+)$/m)?.[1] ?? 'file';
-            let additions = 0;
-            let deletions = 0;
-            for (const line of section.split('\n')) {
-                if (line.startsWith('+') && !line.startsWith('+++')) {
-                    additions += 1;
-                } else if (line.startsWith('-') && !line.startsWith('---')) {
-                    deletions += 1;
-                }
-            }
             return {
                 key: `${path}-${index}`,
                 path,
                 patch: section,
-                additions,
-                deletions,
+                additions: countPatchLines(section, '+'),
+                deletions: countPatchLines(section, '-'),
+                isNew: section.includes('\nnew file mode'),
             };
         });
 

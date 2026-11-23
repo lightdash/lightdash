@@ -33,6 +33,10 @@ import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
+import {
+    PIERRE_HIGHLIGHTER_OPTIONS,
+    PIERRE_POOL_OPTIONS,
+} from '../writeback/pierreDiffConfig';
 import { ChangeDiff } from './ChangeDiff';
 import { DevelopmentBar } from './DevelopmentBar';
 import { useDevelopmentView } from './developmentView';
@@ -60,10 +64,6 @@ import {
     listPublishedParts,
     refusalText,
 } from './modelCode';
-import {
-    PIERRE_HIGHLIGHTER_OPTIONS,
-    PIERRE_POOL_OPTIONS,
-} from './pierreDiffConfig';
 import classes from './SemanticLayerDraft.module.css';
 import { getSemanticStudioUrl } from './urls';
 import {

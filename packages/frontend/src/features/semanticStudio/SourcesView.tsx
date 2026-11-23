@@ -46,32 +46,44 @@ import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import tabClasses from './ModelTabs.module.css';
 import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
     pierreThemeFor,
-} from './pierreDiffConfig';
+} from '../writeback/pierreDiffConfig';
+import {
+    countPatchLines,
+    isSameFile,
+    patchPathOf,
+    splitPatchIntoFiles,
+} from '../writeback/splitPatch';
+import { useWholePullRequestDiff } from '../writeback/usePullRequestDiff';
+import tabClasses from './ModelTabs.module.css';
 import {
     createEditor,
     editorOptionsFor,
     readSelection,
     type Attached,
 } from './pierreEditor';
-import { applyProposal, fileBefore, proposedPathOf } from './proposedFile';
+import { applyProposal, fileBefore } from './proposedFile';
 import classes from './SourcesView.module.css';
-import { splitPatchIntoFiles } from './splitPatch';
-import { type StoredThread } from './studioChange';
+import { type StartStudioThread, type StoredThread } from './studioChange';
 import { type StudioChatRef } from './studioChatRefs';
-import { keepUnsaved, unsavedEditKey, unsavedEdits } from './unsavedEdits';
-import { useWholePullRequestDiff } from './usePullRequestDiff';
 import {
+    dropUnsaved,
+    findUnsaved,
+    keepUnsaved,
+    moveUnsaved,
+    unsavedEditKey,
+} from './unsavedEdits';
+import {
+    modelNameOfSourcePath,
     SOURCE_PARAM,
     useSaveStudioSource,
     useStudioSourceFile,
     useStudioSources,
 } from './useStudioSources';
-import workbenchClasses from './WorkbenchView.module.css';
+import railClasses from './WorkbenchRail.module.css';
 
 /** Where the code view reads from and saves to: a change's pull request, or live. */
 export type SourcesTarget = {
@@ -82,6 +94,7 @@ export type SourcesTarget = {
     threadUuid: string | null;
     /** On live, the agent a save's new change talks to. */
     newChangeAgentUuid: string | null;
+    startThread: StartStudioThread;
     /** What the change is called, or null on live. */
     changeName: string | null;
     /** False on someone else's change or one that is merged or closed: it is read, not edited. */
@@ -108,13 +121,6 @@ const ancestorsOf = (path: string | null) =>
         .slice(0, -1)
         .map((_, index, parts) => `${parts.slice(0, index + 1).join('/')}/`);
 
-const countLines = (patch: string, sign: '+' | '-') =>
-    patch
-        .split('\n')
-        .filter(
-            (line) => line.startsWith(sign) && !line.startsWith(sign.repeat(3)),
-        ).length;
-
 /** The files this change touches, by their path in the project, then those the agent proposes on top. */
 const useChangedFiles = (
     { projectUuid, prUrl, head }: SourcesTarget,
@@ -126,17 +132,14 @@ const useChangedFiles = (
         () =>
             prUrl && data?.diff
                 ? splitPatchIntoFiles(data.diff).map(
-                      ({ path, patch, additions, deletions }) => ({
+                      ({ path, patch, additions, deletions, isNew }) => ({
                           // The diff is by repository path; files are by project path.
                           path:
-                              files.find(
-                                  (file) =>
-                                      path === file ||
-                                      path.endsWith(`/${file}`),
-                              ) ?? path,
+                              files.find((file) => isSameFile(path, file)) ??
+                              path,
                           additions,
                           deletions,
-                          isNew: patch.includes('\nnew file mode'),
+                          isNew,
                           isProposed: false,
                           patch,
                       }),
@@ -148,13 +151,13 @@ const useChangedFiles = (
         () => [
             ...changed,
             ...proposal.flatMap((code) => {
-                const path = proposedPathOf(code);
+                const path = patchPathOf(code);
                 return path && !changed.some((change) => change.path === path)
                     ? [
                           {
                               path,
-                              additions: countLines(code, '+'),
-                              deletions: countLines(code, '-'),
+                              additions: countPatchLines(code, '+'),
+                              deletions: countPatchLines(code, '-'),
                               isNew: false,
                               isProposed: true,
                               patch: code,
@@ -282,8 +285,8 @@ export const SourcesRail: FC<{
     );
     const [search, setSearch] = useState('');
     return (
-        <Box className={workbenchClasses.rail}>
-            <Box className={workbenchClasses.railHeader}>
+        <Box className={railClasses.rail}>
+            <Box className={railClasses.railHeader}>
                 <TextInput
                     size="xs"
                     flex={1}
@@ -417,7 +420,7 @@ export const SourcePane: FC<{
                 ? ''
                 : fileBefore(change.patch, path, file.content)
             : null;
-    const save = useSaveStudioSource(target.projectUuid);
+    const save = useSaveStudioSource(target.projectUuid, target.startThread);
     const [layout, setLayout] = useState<Layout>('diff');
     // Pierre owns the document while editing: it starts from `base` and reports each change into `text`.
     const [base, setBase] = useState<string | null>(null);
@@ -463,11 +466,11 @@ export const SourcePane: FC<{
         if (shownKey.current === editKey) {
             if (hasOwnEdits && text !== null)
                 keepUnsaved(editKey, text, sourceRevision.current);
-            else unsavedEdits.delete(editKey);
+            else dropUnsaved(editKey);
             return;
         }
         shownKey.current = editKey;
-        const kept = unsavedEdits.get(editKey) ?? null;
+        const kept = findUnsaved(editKey);
         setBase(kept?.text ?? null);
         setText(kept?.text ?? null);
         if (kept) sourceRevision.current = kept.revision;
@@ -557,29 +560,25 @@ export const SourcePane: FC<{
                         content: value,
                         revision: result.revision,
                     });
-                    unsavedEdits.delete(savedKey);
+                    dropUnsaved(savedKey);
                     // A save from live moves to its new change, and what is typed in another live file comes along.
                     const liveKey = unsavedEditKey(
                         target.projectUuid,
                         null,
                         open.current.path,
                     );
-                    const typed = unsavedEdits.get(open.current.key);
                     if (
                         target.prUrl === null &&
                         open.current.key === liveKey &&
-                        !isStillOpen() &&
-                        typed !== undefined
+                        !isStillOpen()
                     ) {
-                        unsavedEdits.delete(open.current.key);
-                        keepUnsaved(
+                        moveUnsaved(
+                            open.current.key,
                             unsavedEditKey(
                                 target.projectUuid,
                                 result.prUrl,
                                 open.current.path,
                             ),
-                            typed.text,
-                            typed.revision,
                         );
                     }
                     if (isStillOpen()) {
@@ -607,7 +606,7 @@ export const SourcePane: FC<{
         const picked = readSelection(codeRef.current);
         if (!path || !picked) return;
         onAddToChat({
-            modelName: fileName(path).replace(/\.(ya?ml|sql)$/, ''),
+            modelName: modelNameOfSourcePath(path),
             fieldName: null,
             modelLabel: fileName(path),
             fieldLabel: null,

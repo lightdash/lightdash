@@ -10,14 +10,14 @@ import { PUBLISHED_HEADERS } from './developmentView';
 type Totals = Record<string, { raw: unknown; formatted: string }>;
 
 /** Reads the models as published, whatever the app is switched to. */
-export const LIVE_HEADERS = {
+const LIVE_HEADERS = {
     ...PUBLISHED_HEADERS,
     // Also clears a preview project the client would otherwise send.
     [DEVELOPMENT_PREVIEW_HEADER]: '',
 };
 
 /** Each metric's total over every row of the model, as the given headers read it. */
-export const useTotals = (
+const useTotals = (
     projectUuid: string,
     exploreName: string,
     metricIds: string[],
@@ -68,3 +68,38 @@ export const useTotals = (
         staleTime: 60_000,
     });
 };
+
+/** Each metric's total with the person's changes, and live for those that are live already. */
+export const useMetricShift = (
+    projectUuid: string,
+    model: string,
+    {
+        ids,
+        liveIds,
+        headers,
+        cacheKey,
+    }: {
+        ids: string[];
+        liveIds: string[];
+        /** Where the person's changes are read from. */
+        headers: Record<string, string>;
+        cacheKey: string;
+    },
+) => ({
+    after: useTotals(
+        projectUuid,
+        model,
+        ids,
+        headers,
+        ids.length > 0,
+        cacheKey,
+    ),
+    before: useTotals(
+        projectUuid,
+        model,
+        liveIds,
+        LIVE_HEADERS,
+        liveIds.length > 0,
+        cacheKey,
+    ),
+});

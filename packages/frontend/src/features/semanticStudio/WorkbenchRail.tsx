@@ -38,7 +38,7 @@ import { NodeIcon } from './shared';
 import { useAddToStudioChat, startStudioChatRefDrag } from './studioChatRefs';
 import { useProjectSearch } from './useProjectSearch';
 import { type ViewModel } from './useSemanticStudio';
-import classes from './WorkbenchView.module.css';
+import classes from './WorkbenchRail.module.css';
 
 const ROW_HEIGHT = 28;
 
@@ -85,11 +85,11 @@ const ModelLabel: FC<{ model: string; label: string }> = ({ model, label }) =>
 const Tree: FC<{
     view: ViewModel;
     expanded: Set<string>;
-    /** Models this person's draft touches. */
-    drafted: Set<string>;
     onToggle: (key: string) => void;
     onSelect: (node: TreeNode) => void;
-}> = ({ view, expanded, drafted, onToggle, onSelect }) => {
+}> = ({ view, expanded, onToggle, onSelect }) => {
+    // Models this person's draft touches.
+    const drafted = useContext(DraftMarksContext).kinds;
     const canDrag = useAddToStudioChat() !== null;
     const parentRef = useRef<HTMLDivElement>(null);
     const rows = useMemo(
@@ -220,10 +220,9 @@ const Tree: FC<{
 export const Rail: FC<{
     view: ViewModel;
     expanded: Set<string>;
-    drafted: Set<string>;
     onToggle: (key: string) => void;
     onOpen: (ref: NodeRef) => void;
-}> = ({ view, expanded, drafted, onToggle, onOpen }) => {
+}> = ({ view, expanded, onToggle, onOpen }) => {
     const search = useProjectSearch(view.project, view.tree);
     const [activeResult, setActiveResult] = useState(0);
     const { results } = search.results;
@@ -296,7 +295,6 @@ export const Rail: FC<{
                 <Tree
                     view={view}
                     expanded={expanded}
-                    drafted={drafted}
                     onToggle={onToggle}
                     onSelect={(node) => view.select(node.ref)}
                 />

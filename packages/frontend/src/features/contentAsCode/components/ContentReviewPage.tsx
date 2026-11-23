@@ -37,7 +37,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
-} from '../../semanticStudio/pierreDiffConfig';
+} from '../../writeback/pierreDiffConfig';
 import {
     useContentDraftReview,
     useDraftStaleness,

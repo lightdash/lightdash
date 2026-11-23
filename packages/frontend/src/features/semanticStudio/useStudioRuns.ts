@@ -4,10 +4,10 @@ import {
 } from '@lightdash/common';
 import { useQueries } from '@tanstack/react-query';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
+import { pullRequestCiChecksQuery } from '../writeback/usePullRequestCiChecks';
+import { useWritebackProgress } from '../writeback/useWritebackProgress';
 import { type StudioPendingChange } from './studioChange';
 import { toStudioRun, type StudioRun } from './studioRuns';
-import { pullRequestCiChecksQuery } from './usePullRequestCiChecks';
-import { useWritebackProgress } from './useWritebackProgress';
 
 export type StudioRunRow = {
     workspace: SemanticStudioWorkspace;

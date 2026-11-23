@@ -7,14 +7,14 @@ import {
     ModelFieldChanges,
     PullRequestUsage,
 } from '../../../../../features/semanticStudio/ModelFieldChanges';
+import { type StudioPullRequest } from '../../../../../features/semanticStudio/studioChange';
+import { MODEL_VERSION_KEY } from '../../../../../features/semanticStudio/studioQueryKeys';
 import {
     getModelOfFile,
     splitPatchIntoFiles,
     type DiffFile,
-} from '../../../../../features/semanticStudio/splitPatch';
-import { type StudioPullRequest } from '../../../../../features/semanticStudio/studioChange';
-import { MODEL_VERSION_KEY } from '../../../../../features/semanticStudio/studioQueryKeys';
-import { useWholePullRequestDiff } from '../../../../../features/semanticStudio/usePullRequestDiff';
+} from '../../../../../features/writeback/splitPatch';
+import { useWholePullRequestDiff } from '../../../../../features/writeback/usePullRequestDiff';
 import {
     DiffWorkers,
     FileDiff,

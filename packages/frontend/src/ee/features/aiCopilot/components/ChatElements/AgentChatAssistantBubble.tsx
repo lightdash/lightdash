@@ -142,8 +142,11 @@ import {
     LiveActivityCard,
     type LiveActivityToolGroup,
 } from './ToolCalls/LiveActivityCard';
-import { QuietCardsContext, StudioAskContext } from './ToolCalls/quietCards';
 import { toReasoningTexts } from './ToolCalls/reasoningHelpers';
+import {
+    InStudioChatContext,
+    StudioAskContext,
+} from './ToolCalls/studioChatContext';
 import { getRunSqlLinkStateFromArgs } from './ToolCalls/utils/runSqlLinkState';
 import {
     getPendingApprovalIds,
@@ -632,7 +635,7 @@ const AssistantBubbleContent: FC<{
         return { metadata: liveOutput.metadata };
     })();
 
-    const quietCards = useContext(QuietCardsContext);
+    const inStudioChat = useContext(InStudioChatContext);
     const askStudio = useContext(StudioAskContext);
     // Persisted once the turn is saved; until then the stream carries them.
     const persistedProposals = getSavedProposals(message.toolResults);
@@ -809,7 +812,7 @@ const AssistantBubbleContent: FC<{
                         }));
                     // Studio runs SQL unasked, so it never shows the prompt.
                     const pendingApprovalIds =
-                        streamingState && !quietCards
+                        streamingState && !inStudioChat
                             ? getPendingApprovalIds(streamingState)
                             : [];
                     const textSegments = segments.filter(
@@ -882,9 +885,9 @@ const AssistantBubbleContent: FC<{
                                         streamingState?.decidedToolCallIds ??
                                         [],
                                 }}
-                                extra={quietCards ? artifactSlot : null}
+                                extra={inStudioChat ? artifactSlot : null}
                             />
-                            {quietCards ? null : artifactSlot}
+                            {inStudioChat ? null : artifactSlot}
                             {latestTextSeg ? (
                                 <Box
                                     className={styles.streamPart}
@@ -917,7 +920,7 @@ const AssistantBubbleContent: FC<{
                     projectUuid,
                     agentUuid,
                     threadUuid: message.threadUuid,
-                    pendingToolCallIds: quietCards
+                    pendingToolCallIds: inStudioChat
                         ? []
                         : getPendingPersistedApprovalIds(message),
                     decidedToolCallIds: [],
@@ -931,7 +934,7 @@ const AssistantBubbleContent: FC<{
                           : null;
                 const hasAnswerText =
                     messageContent.length > 0 &&
-                    !(quietCards && messageContent.trim() === cardReply);
+                    !(inStudioChat && messageContent.trim() === cardReply);
                 return (
                     <>
                         <LiveActivityCard
@@ -952,9 +955,9 @@ const AssistantBubbleContent: FC<{
                                 ),
                                 isLive: isStreaming,
                             }}
-                            extra={quietCards ? artifactSlot : null}
+                            extra={inStudioChat ? artifactSlot : null}
                         />
-                        {quietCards ? null : artifactSlot}
+                        {inStudioChat ? null : artifactSlot}
                         {hasAnswerText ? (
                             <Box
                                 // Walkthrough: the answer in words (persisted).
@@ -1012,8 +1015,8 @@ const AssistantBubbleContent: FC<{
                 message={message}
                 streamParts={streamingState?.parts}
             />
-            {quietCards && isProposing ? <TurnCardSkeleton /> : null}
-            {quietCards
+            {inStudioChat && isProposing ? <TurnCardSkeleton /> : null}
+            {inStudioChat
                 ? showsTurnSummary && (
                       <AiMarkdownErrorBoundary
                           fallback={
@@ -1107,7 +1110,7 @@ export const AssistantBubble: FC<Props> = memo(
         mcpServers,
         onDashboardLinkClick,
     }) => {
-        const quietCards = useContext(QuietCardsContext);
+        const inStudioChat = useContext(InStudioChatContext);
         const artifact = useAiAgentStoreSelector(selectArtifactPreview);
         const dispatch = useAiAgentStoreDispatch();
         const writingSummaryLabel = useUiString(
@@ -1412,7 +1415,7 @@ export const AssistantBubble: FC<Props> = memo(
                         className={styles.messageActions}
                         // Earlier answers reveal their actions on hover or focus; in a narrow side chat every answer does.
                         data-persistent={
-                            !quietCards && (isLastMessage || hasRating)
+                            !inStudioChat && (isLastMessage || hasRating)
                         }
                         // Walkthrough: rating the answer feeds the Issues loop.
                         // See scripts/scope-tours.
@@ -1434,7 +1437,7 @@ export const AssistantBubble: FC<Props> = memo(
                         />
 
                         {/* A narrow side chat keeps only copy; rating and timing belong to the full thread. */}
-                        {!quietCards && (!hasRating || upVoted) && (
+                        {!inStudioChat && (!hasRating || upVoted) && (
                             <ActionIcon
                                 color="ldGray.9"
                                 aria-label="upvote"
@@ -1457,7 +1460,7 @@ export const AssistantBubble: FC<Props> = memo(
                             </ActionIcon>
                         )}
 
-                        {!quietCards && (!hasRating || downVoted) && (
+                        {!inStudioChat && (!hasRating || downVoted) && (
                             <Popover
                                 width={500}
                                 position="top-start"
@@ -1579,7 +1582,7 @@ export const AssistantBubble: FC<Props> = memo(
                                 decision={message.jevDecision}
                             />
                         )}
-                        {canViewDebugInfo && !quietCards && (
+                        {canViewDebugInfo && !inStudioChat && (
                             <MessageTimingIndicator
                                 responseTiming={message.responseTiming}
                                 isWinner={battle.isWinner}

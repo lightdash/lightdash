@@ -57,9 +57,9 @@ import { AiAgentThreadStreamAbortControllerContextProvider } from '../../streami
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
 import {
-    QuietCardsContext,
+    InStudioChatContext,
     StudioAskContext,
-} from '../ChatElements/ToolCalls/quietCards';
+} from '../ChatElements/ToolCalls/studioChatContext';
 import { getClosedChange } from './closedChange';
 import classes from './SemanticStudioAgent.module.css';
 import { StudioChatEmptyState } from './StudioChatEmptyState';
@@ -487,7 +487,7 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
     }
     if (!isOpen) return null;
     return (
-        <QuietCardsContext.Provider value>
+        <InStudioChatContext.Provider value>
             <Box
                 ref={sidebarRef}
                 className={classes.panel}
@@ -600,7 +600,7 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
                     )}
                 </Box>
             </Box>
-        </QuietCardsContext.Provider>
+        </InStudioChatContext.Provider>
     );
 };
 

@@ -1,4 +1,8 @@
-import { TimeFrames } from '@lightdash/common';
+import {
+    TimeFrames,
+    type CompiledDimension,
+    type CompiledMetric,
+} from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { withOneGrainPerDate, type ChangedField } from './useModelFieldChanges';
 
@@ -8,11 +12,15 @@ const field = (
     isMetric = false,
 ): ChangedField => ({
     key: `orders.${name}`,
+    table: 'orders',
+    name,
     label: name,
     kind: 'new',
     attributes: [],
     fieldId: `orders_${name}`,
-    isMetric,
+    ...(isMetric
+        ? { isMetric: true, field: { name } as CompiledMetric }
+        : { isMetric: false, field: { name } as CompiledDimension }),
     date,
 });
 
