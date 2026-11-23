@@ -141,7 +141,7 @@ describe('databricksIntegration run', () => {
                     result: {
                         data_array: [['2026-10-01', 'a', '1']],
                         next_chunk_internal_link:
-                            '/api/2.0/sql/statements/statement-1/result/chunks/1',
+                            '/api/2.0/sql/statements/statement-1/result/chunks/1?row_offset=1',
                     },
                 }),
             ),
@@ -156,6 +156,7 @@ describe('databricksIntegration run', () => {
             '/api/2.0/sql/statements/statement-1',
             '/api/2.0/sql/statements/statement-1/result/chunks/1',
         ]);
+        expect(send.mock.calls[3][0].query).toEqual({ row_offset: '1' });
         expect(result.rows).toEqual([
             { c0: '2026-10-01', c1: 'a', c2: 1 },
             { c0: '2026-10-02', c1: 'b', c2: 2 },

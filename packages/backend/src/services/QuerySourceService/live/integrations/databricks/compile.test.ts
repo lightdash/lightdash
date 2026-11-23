@@ -99,6 +99,26 @@ describe('compileDatabricksQuery', () => {
         );
     });
 
+    it('counts a filter on the month as a date filter', () => {
+        const monthRule: FilterRule = {
+            id: 'month',
+            target: { fieldId: billing('usage_month') },
+            operator: FilterOperator.IN_THE_PAST,
+            values: [6],
+            settings: { unitOfTime: 'months', completed: false },
+        };
+        const { query: sql } = compile(
+            DATABRICKS_BILLING_USAGE_EXPLORE,
+            query(DATABRICKS_BILLING_USAGE_EXPLORE, {
+                metrics: [billing('usage_quantity')],
+                filters: { dimensions: { id: 'root', and: [monthRule] } },
+            }),
+        );
+        expect(sql).not.toContain(
+            'CAST(`databricks_billing_usage`.usage_date AS DATE)) >=',
+        );
+    });
+
     it('keeps a date filter the query has', () => {
         const dateRule: FilterRule = {
             id: 'date',
@@ -188,6 +208,11 @@ describe('parseDatabricksQuery', () => {
                 "SELECT 'drop table x' AS note, created FROM system.information_schema.tables",
             ),
         ).toContain('drop table');
+        expect(
+            parseDatabricksQuery(
+                "SELECT 'it''s; -- not a comment' AS a, `delete` FROM t -- a 'comment'",
+            ),
+        ).toContain('not a comment');
     });
 
     it.each([
@@ -197,6 +222,9 @@ describe('parseDatabricksQuery', () => {
         'SELECT 1; DROP TABLE main.default.orders',
         'GRANT SELECT ON TABLE main.default.orders TO `everyone`',
         'SET spark.sql.ansi.enabled = false',
+        "WITH x AS (SELECT 1 -- '\n) INSERT INTO t SELECT * FROM x -- '",
+        "SELECT 1 /* ' */ ; DROP TABLE t",
+        "SELECT 'it\\'s' AS a; DROP TABLE t",
     ])('refuses %j', (sql) => {
         expect(() => parseDatabricksQuery(sql)).toThrow();
     });

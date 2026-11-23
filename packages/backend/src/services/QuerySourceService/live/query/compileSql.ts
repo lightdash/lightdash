@@ -1,6 +1,8 @@
 import {
+    DimensionType,
     FilterOperator,
     flattenFilterGroup,
+    getItemId,
     UnitOfTime,
     type Explore,
     type FieldId,
@@ -15,15 +17,35 @@ import {
     type LiveCompiledRequest,
 } from '../explores/definition';
 
+/**
+ * The explore's date and timestamp fields. A filter on any of them, such as
+ * the month of the date, already bounds the history read.
+ */
+const getDateFieldIds = (explore: Explore): Set<string> =>
+    new Set(
+        Object.values(explore.tables[explore.baseTable]?.dimensions ?? {})
+            .filter(
+                ({ type }) =>
+                    type === DimensionType.DATE ||
+                    type === DimensionType.TIMESTAMP,
+            )
+            .map(getItemId),
+    );
+
 const withDefaultDateRange = (
+    explore: Explore,
     metricQuery: MetricQuery,
     dateRange: { fieldId: FieldId; defaultDays: number },
 ): MetricQuery => {
     const { dimensions } = metricQuery.filters;
+    const dateFieldIds = getDateFieldIds(explore);
     const isDateFiltered = (
         dimensions ? flattenFilterGroup(dimensions) : []
     ).some(
-        (rule) => !rule.disabled && rule.target.fieldId === dateRange.fieldId,
+        (rule) =>
+            !rule.disabled &&
+            (rule.target.fieldId === dateRange.fieldId ||
+                dateFieldIds.has(rule.target.fieldId)),
     );
     if (isDateFiltered) {
         return metricQuery;
@@ -53,7 +75,8 @@ const withDefaultDateRange = (
  * Compiles a metric query on the explore of a SQL API (HogQL, Databricks
  * SQL) into one query, using the same SQL builder as warehouse explores in
  * the API's dialect. Without a date filter it reads the last `defaultDays`,
- * so a question never scans the whole history.
+ * so a question never scans the whole history; a filter on any date field
+ * counts as a date filter.
  */
 export const compileSqlQuery = ({
     explore,
@@ -68,7 +91,7 @@ export const compileSqlQuery = ({
 }): LiveCompiledRequest => {
     const apiSource = getLiveExplore(explore);
     const query = apiSource.dateRange
-        ? withDefaultDateRange(metricQuery, apiSource.dateRange)
+        ? withDefaultDateRange(explore, metricQuery, apiSource.dateRange)
         : metricQuery;
     const { query: selectSql } = new MetricQueryBuilder({
         explore,

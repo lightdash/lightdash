@@ -138,16 +138,61 @@ const toResultValue = (value: string | null, type: DimensionType): unknown => {
     return value;
 };
 
+/**
+ * The statement with string literals, quoted identifiers and comments
+ * blanked in one pass, so a quote inside a comment, or a comment marker
+ * inside a string, cannot hide the rest from the read-only check. An
+ * unterminated literal or comment swallows the rest, like Databricks would.
+ */
+const QUOTES = new Set(["'", '"', '`']);
+
+export const stripLiterals = (sql: string): string => {
+    const closers: Record<string, string> = {
+        "'": "'",
+        '"': '"',
+        '`': '`',
+        '--': '\n',
+        '/*': '*/',
+    };
+    // Strings escape with a backslash; identifiers and comments don't
+    const isEscaped = (at: number, opener: string) => {
+        if (opener !== "'" && opener !== '"') return false;
+        const backslashes = /\\*$/.exec(sql.slice(0, at))?.[0].length ?? 0;
+        return backslashes % 2 === 1;
+    };
+    const findEnd = (opener: string, from: number): number => {
+        const closer = closers[opener];
+        let at = sql.indexOf(closer, from);
+        while (at !== -1 && isEscaped(at, opener)) {
+            at = sql.indexOf(closer, at + 1);
+        }
+        return at === -1 ? sql.length : at + closer.length;
+    };
+    const parts: string[] = [];
+    let index = 0;
+    while (index < sql.length) {
+        const two = sql.slice(index, index + 2);
+        const char = sql[index];
+        const comment = two === '--' || two === '/*' ? two : null;
+        const opener = comment ?? (QUOTES.has(char) ? char : null);
+        if (opener) {
+            parts.push(opener.length === 1 ? `${opener}${opener}` : ' ');
+            index = findEnd(opener, index + opener.length);
+        } else {
+            parts.push(char);
+            index += 1;
+        }
+    }
+    return parts.join('');
+};
+
 /** Reads one read-only statement, dropping trailing semicolons. */
 export const parseDatabricksQuery = (query: string): string => {
     const sql = query.trim().replace(/;+\s*$/, '');
     if (sql.length === 0) {
         throw new ParameterError('The Databricks SQL statement is empty');
     }
-    const outsideStrings = sql
-        .replace(/'(?:[^'\\]|\\.)*'/g, "''")
-        .replace(/--[^\n]*/g, '')
-        .replace(/\/\*[\s\S]*?\*\//g, '');
+    const outsideStrings = stripLiterals(sql);
     if (
         !READ_STATEMENT.test(outsideStrings) ||
         WRITE_STATEMENT.test(outsideStrings) ||
@@ -241,8 +286,15 @@ const readRows = async (
         if (chunks >= DATABRICKS_MAX_CHUNKS) {
             return { rows: all, hasMoreChunks: true };
         }
+        // The link is relative to the workspace and carries row_offset
+        const link = new URL(next, 'https://workspace.invalid');
         const following = await calls.fetch(
-            { method: 'GET', path: next, body: null },
+            {
+                method: 'GET',
+                path: link.pathname,
+                query: Object.fromEntries(link.searchParams),
+                body: null,
+            },
             chunkSchema,
         );
         return read(following, all, chunks + 1);

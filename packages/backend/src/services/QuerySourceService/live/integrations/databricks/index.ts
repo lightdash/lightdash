@@ -139,7 +139,7 @@ export const databricksIntegration = defineLiveIntegration({
         }
         if (type !== 'bearer_token') {
             throw new ParameterError(
-                'Databricks connections authenticate with a personal access token or a service principal',
+                'Databricks integrations authenticate with a personal access token or a service principal',
             );
         }
     },
