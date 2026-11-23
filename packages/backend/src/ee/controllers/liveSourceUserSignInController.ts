@@ -28,7 +28,18 @@ import {
 import { BaseController } from '../../controllers/baseController';
 import Logger from '../../logging/logger';
 import { ExternalConnectionService } from '../services/ExternalConnectionService/ExternalConnectionService';
-import { parseLiveSourceReturnPath } from '../services/ExternalConnectionService/liveSourceUserSignIn';
+import {
+    parseLiveSourceReturnPath,
+    type LiveSourceUserSignInSession,
+} from '../services/ExternalConnectionService/liveSourceUserSignIn';
+
+/** Sign-ins a session waits on at once; the oldest are dropped past it. */
+const MAX_PENDING_SIGN_INS = 5;
+
+const keepLatestSignIns = (
+    pending: Record<string, LiveSourceUserSignInSession>,
+): Record<string, LiveSourceUserSignInSession> =>
+    Object.fromEntries(Object.entries(pending).slice(-MAX_PENDING_SIGN_INS));
 
 /**
  * Each viewer's own sign-in to live data sources that query with it, so the
@@ -87,7 +98,10 @@ export class LiveSourceUserSignInController extends BaseController {
                 connectionUuid,
                 parseLiveSourceReturnPath(returnTo, `/projects/${projectUuid}`),
             );
-        req.session.oauth = { state, liveSourceUserSignIn: session };
+        req.session.liveSourceUserSignIns = keepLatestSignIns({
+            ...req.session.liveSourceUserSignIns,
+            [state]: session,
+        });
         this.setStatus(302);
         this.setHeader('Location', authorizeUrl);
     }
@@ -108,11 +122,24 @@ export class LiveSourceUserSignInController extends BaseController {
         @Query() error?: string,
     ): Promise<void> {
         assertRegisteredAccount(req.account);
-        const session = req.session.oauth?.liveSourceUserSignIn;
-        if (!session || !state || state !== req.session.oauth?.state) {
-            throw new ParameterError('Sign-in state does not match');
+        const pending = req.session.liveSourceUserSignIns ?? {};
+        const session =
+            state && Object.hasOwn(pending, state) ? pending[state] : undefined;
+        if (!state || !session) {
+            // Already used, expired with the session, or never started here
+            this.setStatus(302);
+            this.setHeader(
+                'Location',
+                this.getService().getUserSignInReturnUrl('/', {
+                    error: 'failed',
+                }),
+            );
+            return;
         }
-        req.session.oauth = {};
+        // Each sign-in is answered once
+        req.session.liveSourceUserSignIns = Object.fromEntries(
+            Object.entries(pending).filter(([key]) => key !== state),
+        );
 
         const service = this.getService();
         let result: { connectionUuid: string } | { error: string };

@@ -101,6 +101,14 @@ const runChart = async (
 const locationOf = (resp: { headers: Headers }) =>
     new URL(resp.headers.get('location') ?? '');
 
+/** A callback that sends the person back with only a failure code. */
+const expectFailedReturn = (resp: { status: number; headers: Headers }) => {
+    expect(resp.status).toBe(302);
+    expect(locationOf(resp).searchParams.get('liveSourceSignInError')).toBe(
+        'failed',
+    );
+};
+
 /** Starts a sign-in and returns the consent screen's address. */
 const startSignIn = async (client: ApiClient, source: Source) => {
     const start = await client.get(
@@ -265,7 +273,7 @@ describe('Hydra sign-in for each viewer refuses what a careful vendor refuses', 
 
         const replay = await follow(editor, callbackUrl);
 
-        expect(replay.status).toBe(400);
+        expectFailedReturn(replay);
         expect(await isSignedIn(editor, source)).toBe(true);
     });
 
@@ -275,7 +283,7 @@ describe('Hydra sign-in for each viewer refuses what a careful vendor refuses', 
         const callbackUrl = locationOf(consent);
         callbackUrl.searchParams.set('state', 'forged');
 
-        expect((await follow(editor, callbackUrl)).status).toBe(400);
+        expectFailedReturn(await follow(editor, callbackUrl));
         expect(await isSignedIn(editor, source)).toBe(false);
     });
 
@@ -290,9 +298,31 @@ describe('Hydra sign-in for each viewer refuses what a careful vendor refuses', 
 
         const callback = await follow(editor, locationOf(viewerConsent));
 
-        expect(callback.status).toBe(400);
+        expectFailedReturn(callback);
         expect(await isSignedIn(editor, source)).toBe(false);
         expect(await isSignedIn(viewer, source)).toBe(false);
+    });
+
+    it('keeps sign-ins started in two tabs apart', async () => {
+        const first = await createSource('tab_one');
+        const second = await createSource('tab_two');
+        const firstConsent = await follow(
+            editor,
+            await startSignIn(editor, first),
+        );
+        const secondConsent = await follow(
+            editor,
+            await startSignIn(editor, second),
+        );
+
+        expect((await follow(editor, locationOf(firstConsent))).status).toBe(
+            302,
+        );
+        expect((await follow(editor, locationOf(secondConsent))).status).toBe(
+            302,
+        );
+        expect(await isSignedIn(editor, first)).toBe(true);
+        expect(await isSignedIn(editor, second)).toBe(true);
     });
 
     it('refuses a consent request for another callback', async () => {

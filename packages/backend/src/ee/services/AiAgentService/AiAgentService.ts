@@ -14978,7 +14978,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     appName: metadata.name,
                     authUserUuid: prompt.createdByUserUuid,
                     organizationUuid: prompt.organizationUuid,
-                    context: ScreenshotContext.SLACK,
+                    context: ScreenshotContext.AI_AGENT_SLACK,
                     contextId: prompt.promptUuid,
                 });
             await deliveryGuard.assert();

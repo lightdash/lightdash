@@ -40,6 +40,13 @@ describe('slackPreviewMiddleware', () => {
                     ScreenshotContext.SCHEDULED_DELIVERY,
             }),
         ).toBe(false);
+        // A data app the AI agent captures runs as the person who asked
+        expect(
+            seenBy({
+                [HEADLESS_BROWSER_CONTEXT_HEADER]:
+                    ScreenshotContext.AI_AGENT_SLACK,
+            }),
+        ).toBe(false);
         expect(seenBy({})).toBe(false);
         expect(isSlackPreview()).toBe(false);
     });
