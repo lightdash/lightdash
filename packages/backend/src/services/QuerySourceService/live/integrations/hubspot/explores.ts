@@ -160,9 +160,6 @@ export const HUBSPOT_EXPLORES = HUBSPOT_OBJECTS.map(toObjectExplore) as [
     ...LiveExploreDefinition[],
 ];
 
-/** Why a scan couldn't read an object's properties, kept in place of the list. */
-const unreadSchema = z.object({ error: z.string() });
-
 /** One object's property list from a scan; anything else reads as none. */
 export const readHubspotProperties = (
     scanned: unknown,
@@ -322,13 +319,6 @@ export const withHubspotPropertyFields = (
     definition: LiveExploreDefinition,
     properties: unknown,
 ): LiveExploreDefinition => {
-    const unread = unreadSchema.safeParse(properties);
-    if (unread.success) {
-        return {
-            ...definition,
-            description: `${definition.description} Unavailable: the last scan couldn't read ${definition.name}. ${unread.data.error}`,
-        };
-    }
     const parsed = propertiesSchema.safeParse(properties);
     if (!parsed.success) {
         return definition;

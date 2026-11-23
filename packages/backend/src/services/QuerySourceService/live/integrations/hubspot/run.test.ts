@@ -354,7 +354,7 @@ describe('hubspotIntegration scan and test', () => {
         ]);
     });
 
-    it('keeps why an object is unreadable and still scans the others', async () => {
+    it('leaves out an object the token can’t read and still scans the others', async () => {
         const { source } = connect(
             'deals',
             response(HUBSPOT_DEAL_PROPERTIES),
@@ -366,12 +366,11 @@ describe('hubspotIntegration scan and test', () => {
 
         const scan = await source.scan();
 
-        expect(scan.hubspotProperties).toMatchObject({
+        expect(scan.hubspotProperties).toEqual({
             deals: HUBSPOT_DEAL_PROPERTIES,
+            contacts: { results: [] },
+            companies: { results: [] },
             tickets: { results: [] },
-            leads: {
-                error: expect.stringContaining('crm.objects.leads.read'),
-            },
         });
     });
 
@@ -400,6 +399,14 @@ describe('hubspotIntegration scan and test', () => {
         await expect(source.scan()).rejects.toBeInstanceOf(
             TooManyRequestsError,
         );
+    });
+
+    it('fails the scan when one object’s call times out, keeping the last one', async () => {
+        const { source, send } = connect('deals');
+        send.mockResolvedValueOnce(response(HUBSPOT_DEAL_PROPERTIES))
+            .mockRejectedValueOnce(new Error('HubSpot timed out'))
+            .mockResolvedValue(response({ results: [] }));
+        await expect(source.scan()).rejects.toThrow('HubSpot timed out');
     });
 
     it.each([

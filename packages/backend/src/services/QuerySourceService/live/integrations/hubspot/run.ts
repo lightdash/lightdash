@@ -1,12 +1,9 @@
 import {
     ApiConnectorType,
     DimensionType,
-    getErrorMessage,
     getHubspotPropertiesPath,
     getHubspotSearchPath,
     HUBSPOT_OBJECTS,
-    TooManyRequestsError,
-    UnexpectedServerError,
     type HubspotObject,
 } from '@lightdash/common';
 import { z } from 'zod';
@@ -18,6 +15,7 @@ import {
     type LiveRunResult,
     type LiveScanResult,
 } from '../../types';
+import { isUnreadableObjectError } from './errors';
 import {
     HUBSPOT_BUILT_IN_COLUMNS,
     HUBSPOT_MAX_FILTERS,
@@ -332,18 +330,11 @@ export const runHubspotQuery = async ({
 };
 
 /**
- * Errors that say the object can't be read with this token or portal, as
- * opposed to HubSpot being briefly unavailable.
- */
-const isObjectUnavailable = (error: unknown) =>
-    !(error instanceof TooManyRequestsError) &&
-    !(error instanceof UnexpectedServerError);
-
-/**
  * Reads each object's properties, which become its explore's fields: one
- * call per object. An object the token can't read (a missing scope, or
- * leads without Sales Hub Professional) keeps why in place of its list, so
- * the others still build; the scan fails only when none can be read.
+ * call per object. An object the token can't read is left out, so the others
+ * still build and querying it says which scope is missing. Any other
+ * failure, such as a timeout or rate limit, fails the scan and keeps the
+ * last one.
  */
 export const scanHubspotProperties = async ({
     calls,
@@ -362,23 +353,20 @@ export const scanHubspotProperties = async ({
             ),
         ),
     );
-    const failure = lists.find(
-        (list): list is PromiseRejectedResult =>
-            list.status === 'rejected' && !isObjectUnavailable(list.reason),
+    const rejected = lists.flatMap((list) =>
+        list.status === 'rejected' ? [list.reason as unknown] : [],
     );
-    if (failure || lists.every((list) => list.status === 'rejected')) {
-        throw (failure ?? (lists[0] as PromiseRejectedResult)).reason;
+    const failure = rejected.find((error) => !isUnreadableObjectError(error));
+    if (failure !== undefined || rejected.length === lists.length) {
+        throw failure ?? rejected[0];
     }
     return {
         hubspotProperties: Object.fromEntries(
-            HUBSPOT_OBJECTS.map((object, index) => {
+            HUBSPOT_OBJECTS.flatMap((object, index) => {
                 const list = lists[index];
-                return [
-                    object,
-                    list.status === 'fulfilled'
-                        ? list.value
-                        : { error: getErrorMessage(list.reason) },
-                ];
+                return list.status === 'fulfilled'
+                    ? [[object, list.value]]
+                    : [];
             }),
         ),
     };

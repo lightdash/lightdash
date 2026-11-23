@@ -45,8 +45,17 @@ const getRetryAfterSeconds = (headers: Record<string, string>) => {
     return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : null;
 };
 
-/** Turns a HubSpot error response into an error that says what to change. */
-export const toHubspotError = (response: LiveHttpResponse): Error => {
+/**
+ * Errors that say this token or portal can't read an object: a missing scope,
+ * or leads without Sales Hub Professional or Enterprise.
+ */
+const UNREADABLE_STATUSES = new Set([400, 403, 404]);
+const unreadableErrors = new WeakSet<Error>();
+
+export const isUnreadableObjectError = (error: unknown) =>
+    error instanceof Error && unreadableErrors.has(error);
+
+const toError = (response: LiveHttpResponse): Error => {
     const parsed = errorSchema.safeParse(response.body);
     const message = parsed.success ? (parsed.data.message ?? '') : '';
     const requiredScopes = parsed.success ? getRequiredScopes(parsed.data) : [];
@@ -84,4 +93,13 @@ export const toHubspotError = (response: LiveHttpResponse): Error => {
     return new UnexpectedServerError(
         `HubSpot returned ${response.status}${detail}`,
     );
+};
+
+/** Turns a HubSpot error response into an error that says what to change. */
+export const toHubspotError = (response: LiveHttpResponse): Error => {
+    const error = toError(response);
+    if (UNREADABLE_STATUSES.has(response.status)) {
+        unreadableErrors.add(error);
+    }
+    return error;
 };

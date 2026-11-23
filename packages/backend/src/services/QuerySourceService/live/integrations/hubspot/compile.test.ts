@@ -168,17 +168,6 @@ describe('HubSpot fields', () => {
         expect(stage.description).not.toContain('more');
     });
 
-    it('says why an explore is unavailable when its scan failed', () => {
-        const leads = HUBSPOT_EXPLORES.find(({ name }) => name === 'leads')!;
-        const definition = withHubspotPropertyFields(leads, {
-            error: 'The HubSpot private app is missing a scope.',
-        });
-        expect(definition.dimensions).toEqual(leads.dimensions);
-        expect(definition.description).toContain(
-            "Unavailable: the last scan couldn't read leads. The HubSpot private app is missing a scope.",
-        );
-    });
-
     it('keeps the built-in fields when the list is unreadable', () => {
         expect(withHubspotPropertyFields(DEALS_EXPLORE, {})).toBe(
             DEALS_EXPLORE,
