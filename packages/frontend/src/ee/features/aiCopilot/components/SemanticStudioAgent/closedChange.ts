@@ -4,7 +4,7 @@ import {
     type SemanticLayerDraft,
 } from '@lightdash/common';
 
-export type ClosedChange = { pullRequestUrl: string | null; models: string[] };
+export type ClosedChange = { pullRequestUrl: string | null };
 
 /** The chat's change once it has left the draft, published or sent as a pull request; null while there is still work in it. */
 export const getClosedChange = (
@@ -32,6 +32,5 @@ export const getClosedChange = (
         pullRequestUrl:
             applied.find(({ pullRequestUrl }) => pullRequestUrl)
                 ?.pullRequestUrl ?? null,
-        models: [...new Set(applied.flatMap(({ models }) => models))],
     };
 };

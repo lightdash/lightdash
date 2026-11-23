@@ -2,13 +2,13 @@ import {
     type AiAgentSummary,
     type AiPromptContext,
     type AiPromptContextInput,
-    friendlyName,
 } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
     Button,
     Center,
+    Divider,
     Group,
     Loader,
     Stack,
@@ -31,7 +31,6 @@ import {
     type FC,
 } from 'react';
 import { Provider } from 'react-redux';
-import { Link, useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SidebarPosition } from '../../../../../components/common/Page/types';
 import {
@@ -60,8 +59,7 @@ import {
     QuietCardsContext,
     StudioAskContext,
 } from '../ChatElements/ToolCalls/quietCards';
-import { usePendingPrompt } from '../PendingPromptContext/PendingPromptContext';
-import { getClosedChange, type ClosedChange } from './closedChange';
+import { getClosedChange } from './closedChange';
 import classes from './SemanticStudioAgent.module.css';
 import { StudioChatEmptyState } from './StudioChatEmptyState';
 import { StudioChatRefChips } from './StudioChatRefChips';
@@ -263,63 +261,22 @@ const NewThread: FC<
 };
 
 /** Where the composer was once a change is out: the chat is done, and the next request starts a new one. */
-/** What to do with a change once it is live: ask about it or open it in Explore. */
-const ChangeClosed: FC<{
-    projectUuid: string;
-    closed: ClosedChange;
-    onStartNew: () => void;
-}> = ({ projectUuid, closed, onStartNew }) => {
-    const navigate = useNavigate();
-    const { setPendingPrompt } = usePendingPrompt();
-    const isLive = closed.pullRequestUrl === null;
-    const names = closed.models.map(friendlyName);
-    // The first model is the one the change was about; a join it added elsewhere needs no button.
-    const [model] = closed.models;
-    return (
-        <Stack gap="xs" p="md">
-            <Text fz="sm" c="dimmed">
-                {isLive
-                    ? 'Published. Everyone on this project can use it now.'
-                    : 'Sent for review.'}
-            </Text>
-            <Group gap="xs" wrap="nowrap">
-                {isLive && model ? (
-                    <>
-                        <Button
-                            size="xs"
-                            onClick={() => {
-                                setPendingPrompt(
-                                    `What can I learn from ${names.join(' and ')}?`,
-                                );
-                                void navigate(
-                                    `/projects/${projectUuid}/ai-agents`,
-                                );
-                            }}
-                        >
-                            Ask a question
-                        </Button>
-                        <Button
-                            size="xs"
-                            variant="default"
-                            component={Link}
-                            to={`/projects/${projectUuid}/tables/${model}`}
-                        >
-                            Explore {names[0]}
-                        </Button>
-                    </>
-                ) : null}
-                <Button
-                    size="xs"
-                    variant="subtle"
-                    color="gray"
-                    onClick={onStartNew}
-                >
-                    New chat
-                </Button>
-            </Group>
-        </Stack>
-    );
-};
+/** Where a chat ends once its change has left the draft: a line under it, and a way to start the next one. */
+const ChangeClosed: FC<{ onStartNew: () => void }> = ({ onStartNew }) => (
+    <Divider
+        label={
+            <Button
+                size="compact-xs"
+                variant="subtle"
+                color="gray"
+                leftSection={<MantineIcon icon={IconMessagePlus} size={14} />}
+                onClick={onStartNew}
+            >
+                New chat
+            </Button>
+        }
+    />
+);
 
 const ExistingThread: FC<
     OpenModel &
@@ -415,6 +372,9 @@ const ExistingThread: FC<
                 onChoiceSelect={
                     isBusy ? undefined : (message) => send({ message })
                 }
+                afterMessages={
+                    closed ? <ChangeClosed onStartNew={onStartNew} /> : null
+                }
             >
                 {thread.messages.length === 0 && !isBusy ? (
                     <Text fz="xs" c="dimmed" ta="center" px="md" pb="xs">
@@ -422,13 +382,7 @@ const ExistingThread: FC<
                         publish it when it is ready.
                     </Text>
                 ) : null}
-                {closed ? (
-                    <ChangeClosed
-                        projectUuid={projectUuid}
-                        closed={closed}
-                        onStartNew={onStartNew}
-                    />
-                ) : (
+                {closed ? null : (
                     <>
                         <StudioChatRefChips
                             refs={attached}
