@@ -5,7 +5,7 @@ import {
     XAxisSort,
     type ChartRecommendation,
 } from '@lightdash/common';
-import { useEffect, useRef, useState, type FC } from 'react';
+import { useEffect, useRef, type FC } from 'react';
 import {
     explorerActions,
     selectChartConfig,
@@ -50,7 +50,7 @@ const ChartRecommendationApplier: FC<Props> = ({ onApplied }) => {
     const layout = useVisualizationSelector(selectCartesianLayout);
     const explorerDispatch = useExplorerDispatch();
     const picked = useRef<ChartRecommendation | null>(null);
-    const [isAwaitingGroupedQuery, setIsAwaitingGroupedQuery] = useState(false);
+    const isAwaitingGroupedQuery = useRef(false);
     const explorerXField = useExplorerSelector((state) => {
         const chartConfig = selectChartConfig(state);
         return chartConfig.type === ChartType.CARTESIAN
@@ -99,8 +99,6 @@ const ChartRecommendationApplier: FC<Props> = ({ onApplied }) => {
             explorerDispatch(
                 explorerActions.setSortFields([recommendation.sort]),
             );
-        }
-        if (recommendation.sort) {
             explorerDispatch(explorerActions.requestQueryExecution());
         }
         // Runs once, when results are first loaded
@@ -111,8 +109,9 @@ const ChartRecommendationApplier: FC<Props> = ({ onApplied }) => {
         const recommendation = picked.current;
         if (!recommendation || !isCartesian) return;
         if (recommendation.xField) setXField(recommendation.xField);
+        const placedYFields = new Set(layout?.yField);
         recommendation.yFields
-            .filter((yField) => !layout?.yField?.includes(yField))
+            .filter((yField) => !placedYFields.has(yField))
             .forEach((yField) => addSingleSeries(yField));
         if (recommendation.groupBy) setStacking(false);
         if (
@@ -129,7 +128,7 @@ const ChartRecommendationApplier: FC<Props> = ({ onApplied }) => {
             });
         }
         if (recommendation.groupBy) {
-            setIsAwaitingGroupedQuery(true);
+            isAwaitingGroupedQuery.current = true;
         } else {
             onApplied(recommendation);
         }
@@ -138,18 +137,20 @@ const ChartRecommendationApplier: FC<Props> = ({ onApplied }) => {
     }, [isCartesian]);
 
     // A grouped query is built from the chart's x-axis, so it can only run
-    // once the editor's layout has reached the explorer
+    // once the editor's layout has reached the explorer. Declared after the
+    // effect above so it also checks in the same commit.
     useEffect(() => {
         const recommendation = picked.current;
         if (
-            !isAwaitingGroupedQuery ||
+            !isAwaitingGroupedQuery.current ||
             !recommendation ||
             explorerXField !== recommendation.xField
         )
             return;
+        isAwaitingGroupedQuery.current = false;
         explorerDispatch(explorerActions.requestQueryExecution());
         onApplied(recommendation);
-    }, [isAwaitingGroupedQuery, explorerXField, explorerDispatch, onApplied]);
+    }, [isCartesian, explorerXField, explorerDispatch, onApplied]);
 
     return null;
 };
