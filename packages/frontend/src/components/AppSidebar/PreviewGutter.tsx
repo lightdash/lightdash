@@ -26,8 +26,8 @@ type Props = {
     previewName: string;
     expiresAt: Date | null;
     upstreamProject: UpstreamProject | null;
-    /** The project selector names the parent project; the gutter does when the selector is out of sight. */
-    showUpstreamName: boolean;
+    /** Collapsed, the project selector is out of sight and the gutter says what it would have. */
+    isSidebarCollapsed: boolean;
 };
 
 /** The strip above the page that says this is a preview, and of which project. */
@@ -35,9 +35,13 @@ export const PreviewGutter: FC<Props> = ({
     previewName,
     expiresAt,
     upstreamProject,
-    showUpstreamName,
+    isSidebarCollapsed,
 }) => {
     const handleBackToUpstream = useBackToUpstreamProject(upstreamProject);
+    // A preview whose parent is gone is named by the selector itself, so
+    // beside it the gutter only says what kind of project this is.
+    const label =
+        upstreamProject || isSidebarCollapsed ? previewName : 'Preview';
 
     return (
         <Box
@@ -49,8 +53,8 @@ export const PreviewGutter: FC<Props> = ({
                 {upstreamProject && (
                     <Box
                         className={classes.upstream}
-                        data-visible={showUpstreamName}
-                        aria-hidden={!showUpstreamName}
+                        data-visible={isSidebarCollapsed}
+                        aria-hidden={!isSidebarCollapsed}
                     >
                         <Box className={classes.upstreamContent}>
                             <Text fz="xs" truncate maw={200}>
@@ -78,7 +82,7 @@ export const PreviewGutter: FC<Props> = ({
                         miw={0}
                         className={classes.previewName}
                     >
-                        {previewName}
+                        {label}
                     </Text>
                     {expiresAt && (
                         <Tooltip

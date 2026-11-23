@@ -117,7 +117,7 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
                 {previewNotice && (
                     <PreviewGutter
                         {...previewNotice}
-                        showUpstreamName={isCollapsed}
+                        isSidebarCollapsed={isCollapsed}
                     />
                 )}
                 <NavBarRoot hasVisibleFixedNavbar={false} hasBanner={hasBanner}>
