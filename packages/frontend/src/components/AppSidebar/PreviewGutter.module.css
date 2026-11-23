@@ -60,13 +60,21 @@
     color: var(--mantine-color-anchor);
 }
 
+/* The expiry is set smaller than the name, so the two share a baseline
+   rather than a centre line. */
+.label {
+    display: flex;
+    align-items: baseline;
+    min-width: 0;
+}
+
 .previewName {
     color: var(--mantine-color-anchor);
 }
 
 .expiry {
     flex: none;
-    margin-left: rem(6px);
+    margin-left: var(--mantine-spacing-sm);
     font-size: rem(11px);
     white-space: nowrap;
 }
