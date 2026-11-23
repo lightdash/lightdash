@@ -13,6 +13,7 @@ import {
 import { useProjectUserWarehouseCredentials } from '../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import {
     registerWarehouseCredentialsPrompt,
+    retryAfterWarehouseCredentialsSaved,
     WAREHOUSE_CREDENTIALS_ERROR,
     type WarehouseCredentialsErrorDetail,
 } from '../../hooks/userWarehouseCredentials/warehouseCredentialsError';
@@ -51,10 +52,12 @@ const UserCredentialsSwitcher = () => {
     const { data: preferredCredentials } =
         useProjectUserWarehouseCredentialsPreference(activeProjectUuid);
     const { mutate } = useProjectUserWarehouseCredentialsPreferenceMutation({
-        onSuccess: () => {
+        onSuccess: (_data, { projectUuid }) => {
             if (needsWarehouseCredentials) {
                 // reload page because we can't invalidate the results mutation
                 window.location.reload();
+            } else {
+                retryAfterWarehouseCredentialsSaved(queryClient, projectUuid);
             }
         },
     });

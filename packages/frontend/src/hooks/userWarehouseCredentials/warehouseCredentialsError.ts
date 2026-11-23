@@ -1,3 +1,4 @@
+import { type QueryClient } from '@tanstack/react-query';
 import { useSyncExternalStore } from 'react';
 
 export const WAREHOUSE_CREDENTIALS_ERROR = 'warehouse-credentials-error';
@@ -32,6 +33,30 @@ export const reportWarehouseCredentialsError = (
                 },
             },
         ),
+    );
+};
+
+export const WAREHOUSE_CREDENTIALS_CONNECTED =
+    'warehouse-credentials-connected';
+
+const isCredentialsError = (error: unknown) => {
+    const name = (error as { error?: { name?: unknown } } | null)?.error?.name;
+    return typeof name === 'string' && CREDENTIAL_ERROR_NAMES.has(name);
+};
+
+// For pages that must not reload after credentials are saved (unsaved edits):
+// re-run what failed on credentials and let non-query runners retry
+export const retryAfterWarehouseCredentialsSaved = (
+    queryClient: QueryClient,
+    projectUuid: string,
+) => {
+    void queryClient.refetchQueries({
+        predicate: (query) => isCredentialsError(query.state.error),
+    });
+    window.dispatchEvent(
+        new CustomEvent(WAREHOUSE_CREDENTIALS_CONNECTED, {
+            detail: projectUuid,
+        }),
     );
 };
 

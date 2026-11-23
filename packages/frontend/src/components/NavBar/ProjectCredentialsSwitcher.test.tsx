@@ -1,4 +1,5 @@
 import { type Project } from '@lightdash/common';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -48,9 +49,11 @@ const serveProject = (connectionRoute: Project['connectionRoute']) =>
 
 const renderAt = (path: string) =>
     render(
-        <MemoryRouter initialEntries={[path]}>
-            <ProjectCredentialsSwitcher />
-        </MemoryRouter>,
+        <QueryClientProvider client={new QueryClient()}>
+            <MemoryRouter initialEntries={[path]}>
+                <ProjectCredentialsSwitcher />
+            </MemoryRouter>
+        </QueryClientProvider>,
     );
 
 describe('ProjectCredentialsSwitcher', () => {
@@ -104,6 +107,10 @@ describe('ProjectCredentialsSwitcher', () => {
         ['/projects/project-uuid/tables/orders', 1],
         ['/projects/project-uuid/sqlRunner', 1],
         ['/projects/project-uuid/dashboards/dash-uuid/view/tabs/tab-uuid', 1],
+        ['/projects/project-uuid/dashboards/dash-uuid', 1],
+        ['/projects/project-uuid/dashboards/dash-uuid/edit', 0],
+        ['/projects/project-uuid/dashboards/dash-uuid/edit/tabs/tab-uuid', 0],
+        ['/projects/project-uuid/sql-runner', 0],
         ['/projects/project-uuid/home', 0],
         ['/projects/project-uuid/apps/app-uuid', 1],
         ['/projects/project-uuid/apps/generate', 0],

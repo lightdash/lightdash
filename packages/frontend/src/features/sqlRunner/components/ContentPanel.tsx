@@ -77,6 +77,7 @@ import {
     useSqlQueryCostEstimate,
 } from '../../../hooks/useQueryCostEstimate';
 import { SHARED_SIGN_IN_RECONNECTED } from '../../../hooks/useReconnectSharedSignIn';
+import { WAREHOUSE_CREDENTIALS_CONNECTED } from '../../../hooks/userWarehouseCredentials/warehouseCredentialsError';
 import useApp from '../../../providers/App/useApp';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { Parameters, useParameters } from '../../parameters';
@@ -491,11 +492,14 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                 void dispatch(prepareAndFetchChartData({ forceRefresh: true }));
             }
         };
-        window.addEventListener(SHARED_SIGN_IN_RECONNECTED, retryFailedRun);
+        const events = [
+            SHARED_SIGN_IN_RECONNECTED,
+            WAREHOUSE_CREDENTIALS_CONNECTED,
+        ];
+        events.forEach((name) => window.addEventListener(name, retryFailedRun));
         return () =>
-            window.removeEventListener(
-                SHARED_SIGN_IN_RECONNECTED,
-                retryFailedRun,
+            events.forEach((name) =>
+                window.removeEventListener(name, retryFailedRun),
             );
     }, [dispatch, projectUuid]);
 

@@ -3,17 +3,20 @@ import { matchPath, matchRoutes, type Location } from 'react-router';
 const routesThatNeedWarehouseCredentials = [
     '/projects/:projectUuid/tables/:tableId',
     '/projects/:projectUuid/saved/:savedQueryUuid/:mode?',
-    '/projects/:projectUuid/dashboards/:dashboardUuid/:mode?',
-    '/projects/:projectUuid/dashboards/:dashboardUuid/:mode/tabs/:tabUuid?',
+    '/projects/:projectUuid/dashboards/:dashboardUuid/view?',
+    '/projects/:projectUuid/dashboards/:dashboardUuid/view/tabs/:tabUuid?',
     '/projects/:projectUuid/sqlRunner',
     '/projects/:projectUuid/apps/:appUuid',
     '/projects/:projectUuid/apps/:appUuid/view',
     '/projects/:projectUuid/apps/:appUuid/versions/:version/view',
 ];
 
-// Home runs no warehouse queries, so it prompts without reloading on save
+// These prompt without reloading on save: home runs no warehouse queries, and
+// a reload would discard unsaved dashboard edits
 const routesThatPromptForWarehouseCredentials = [
     ...routesThatNeedWarehouseCredentials,
+    '/projects/:projectUuid/dashboards/:dashboardUuid/edit',
+    '/projects/:projectUuid/dashboards/:dashboardUuid/edit/tabs/:tabUuid?',
     '/projects/:projectUuid/home',
 ];
 

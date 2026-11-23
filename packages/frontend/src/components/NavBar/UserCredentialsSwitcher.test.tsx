@@ -227,6 +227,8 @@ describe('UserCredentialsSwitcher required credentials prompt', () => {
         '/projects/project/apps/app',
         '/projects/project/apps/app/view',
         '/projects/project/apps/app/versions/2/view',
+        '/projects/project/dashboards/dash/edit',
+        '/projects/project/dashboards/dash/edit/tabs/tab',
     ])('opens on %s without credentials', async (path) => {
         renderAt(path);
         expect(
