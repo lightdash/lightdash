@@ -76,6 +76,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     listChanges: 'list_changes',
     readSemanticModel: 'read_semantic_model',
     verify: 'verify',
+    read: 'read_project_files',
     editRepo: 'edit_repo',
     syncDbtProject: 'sync_dbt_project',
     exploreRepo: 'explore_repo',

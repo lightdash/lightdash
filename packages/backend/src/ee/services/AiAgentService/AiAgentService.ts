@@ -620,6 +620,7 @@ import {
     ListWorkstreamsFn,
     ProposeSemanticLayerChangeFn,
     ReadAttachmentsFn,
+    ReadFn,
     ReadSemanticModelFn,
     RecordMcpToolCallFn,
     RecordPromptDecisionFn,
@@ -15996,6 +15997,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 name,
             );
 
+        const read: ReadFn = (script) =>
+            this.aiWritebackService.readWithScript(
+                { user, projectUuid, aiThreadUuid: prompt.threadUuid },
+                script,
+            );
+
         const verify: VerifyFn = () =>
             this.semanticStudioService.waitForBranchCompile(user, projectUuid, {
                 threadUuid: prompt.threadUuid,
@@ -16139,6 +16146,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             runDraftQuery,
             readSemanticModel,
             verify,
+            read,
             exploreRepo,
             readAttachments,
             discoverRepos,
@@ -18557,6 +18565,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     runDraftQuery,
                     readSemanticModel,
                     verify,
+                    read,
                     exploreRepo,
                     readAttachments,
                     discoverRepos,
@@ -19089,6 +19098,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     runDraftQuery,
                     readSemanticModel,
                     verify,
+                    read,
                     exploreRepo,
                     readAttachments,
                     discoverRepos,
@@ -21067,6 +21077,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     return 'Reading the model...';
                 case 'verify':
                     return 'Checking the change...';
+                case 'read':
+                    return 'Reading the project files...';
                 case 'closePullRequest':
                 case 'editContent':
                 case 'createContent':

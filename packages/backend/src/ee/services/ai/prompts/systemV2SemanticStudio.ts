@@ -45,6 +45,7 @@ const getDbtSave = (mapped: boolean) => `${getDbtRead(mapped)}
 ${DBT_SAVE_RULES}`;
 
 const getDbtSaveCodeMode = (mapped: boolean) => `${getDbtRead(mapped)}
+- Read files with read, several in one script: it sees the changes you saved on the pull request branch, while exploreRepo sees only what is published.
 - Save with editDbtProject, one call per change, with a script that makes it and a prompt that says the same change in words: the files, the models and fields, and what each becomes.
 - Write the script from the files as you read them: use yaml.set and yaml.push for YAML, so the rest of each file stays as it is, and repo.write only for a whole new file such as a new model's SQL. Put each field where that file already keeps its kind. If the tool says the script failed, fix it from the error and call again; tell the person only if it still fails.
 - Pass a null script only when the change needs dbt itself to run, such as checking new SQL against the warehouse; the slower sandbox makes that change instead.

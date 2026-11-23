@@ -22,6 +22,7 @@ const TOOLS_WITHOUT_DESCRIPTION = [
     'listChanges',
     'readSemanticModel',
     'verify',
+    'read',
     'editRepo',
     'updateUserName',
     'askUser',

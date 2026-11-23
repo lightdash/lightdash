@@ -211,6 +211,14 @@ const WRITEBACK_WORKSPACE: PersistentWorkspace = {
 // hard timeout so an in-flight or just-timing-out run is never falsely errored.
 const STALE_RUN_THRESHOLD_MINUTES = 45;
 
+/** What a read-only script printed, and which branch it read. */
+export type ScriptRead = {
+    branch: string;
+    onPullRequest: boolean;
+    logs: string[];
+    error: string | null;
+};
+
 export type ScriptSave =
     | { status: 'script_failed'; error: string; logs: string[] }
     /** A dry run's change as a unified diff per file, bounded in size. */
@@ -1907,6 +1915,85 @@ export class AiWritebackService extends BaseService {
         };
     }
 
+    /** Where a model's YAML and SQL live, from the project's compiled explores. */
+    private async findModelFiles(
+        projectUuid: string,
+        name: string,
+    ): Promise<{ yml: string | null; sql: string | null } | null> {
+        const explore = await this.projectModel.findExploreByTableName(
+            projectUuid,
+            name,
+        );
+        const table =
+            explore && !isExploreError(explore)
+                ? explore.tables[explore.baseTable]
+                : undefined;
+        return table
+            ? { yml: table.ymlPath ?? null, sql: table.sqlPath ?? null }
+            : null;
+    }
+
+    /** Runs a read-only script over the files of this chat's pull request, or what is published when it has none. */
+    async readWithScript(
+        args: { user: SessionUser; projectUuid: string; aiThreadUuid: string },
+        script: string,
+    ): Promise<ScriptRead> {
+        const { user, projectUuid, aiThreadUuid } = args;
+        const prUrl =
+            await this.aiWritebackRunModel.findLatestPrUrlByThread(
+                aiThreadUuid,
+            );
+        const open = (url: string | null) =>
+            this.openStudioCheckout(user, projectUuid, url);
+        // A merged or closed pull request has no branch left to read.
+        const { checkout, root } = await (
+            prUrl ? open(prUrl) : open(null)
+        ).catch((error: unknown) => {
+            if (prUrl && error instanceof ParameterError) return open(null);
+            throw error;
+        });
+        const startedAt = performance.now();
+        let listing: Promise<string[]> | null = null;
+        const ran = await runCodeMode(
+            script,
+            {
+                list: () => {
+                    listing ??= checkout
+                        .listFiles()
+                        .then((paths) =>
+                            paths
+                                .filter((path) => path.startsWith(root))
+                                .map((path) => path.slice(root.length)),
+                        );
+                    return listing;
+                },
+                read: (path) => checkout.readFile(`${root}${path}`),
+                findModel: (name) => this.findModelFiles(projectUuid, name),
+                validateYaml: () => null,
+            },
+            { timeoutMs: 20000 },
+        );
+        const error =
+            ran.error ??
+            (ran.edits.length > 0
+                ? 'read cannot change files, so nothing was saved. Save the change with editDbtProject.'
+                : null);
+        this.logger.info('AI writeback read script ran', {
+            event: 'ai_writeback.script.read',
+            projectUuid,
+            onPullRequest: checkout.prUrl !== null,
+            ok: error === null,
+            logLines: ran.logs.length,
+            durationMs: Math.round(performance.now() - startedAt),
+        });
+        return {
+            branch: checkout.branch,
+            onPullRequest: checkout.prUrl !== null,
+            logs: ran.logs,
+            error,
+        };
+    }
+
     /** The branch of an open pull request in the project's own repository, read as the app. */
     async findPullRequestBranch(
         organizationUuid: string,
@@ -2075,20 +2162,8 @@ export class AiWritebackService extends BaseService {
                 },
                 read: (path) => checkout.readFile(`${root}${path}`),
                 findModel: async (name) => {
-                    const explore =
-                        await this.projectModel.findExploreByTableName(
-                            projectUuid,
-                            name,
-                        );
-                    const table =
-                        explore && !isExploreError(explore)
-                            ? explore.tables[explore.baseTable]
-                            : undefined;
-                    if (!table) return null;
-                    const found = {
-                        yml: table.ymlPath ?? null,
-                        sql: table.sqlPath ?? null,
-                    };
+                    const found = await this.findModelFiles(projectUuid, name);
+                    if (!found) return null;
                     [found.yml, found.sql].forEach((path) => {
                         if (path) touchedTables.set(path, name);
                     });

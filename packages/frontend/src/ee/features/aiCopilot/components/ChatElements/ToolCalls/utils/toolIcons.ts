@@ -75,6 +75,7 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
         listChanges: IconTerminal2,
         readSemanticModel: IconTerminal2,
         verify: IconTerminal2,
+        read: IconTerminal2,
         editRepo: IconPencil,
         updateUserName: IconUserEdit,
         askUser: IconMessages,

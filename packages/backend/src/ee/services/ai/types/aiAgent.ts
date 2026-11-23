@@ -92,6 +92,7 @@ import {
     ProposeSemanticLayerChangeFn,
     ReadAttachmentsFn,
     ReadContentFn,
+    ReadFn,
     ReadPinnedThreadFn,
     ReadSemanticModelFn,
     RecordMcpToolCallFn,
@@ -508,6 +509,7 @@ export type AiAgentDependencies = {
     runDraftQuery: RunAsyncQueryFn;
     readSemanticModel: ReadSemanticModelFn;
     verify: VerifyFn;
+    read: ReadFn;
     syncDbtProject: SyncDbtProjectFn;
     exploreRepo: ExploreRepoFn;
     discoverRepos: DiscoverReposFn;
