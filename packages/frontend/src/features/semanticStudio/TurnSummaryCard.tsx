@@ -480,6 +480,7 @@ export const TurnSummaryCard: FC<{
                             .filter(Boolean)
                             .join(' · '),
                         to: fieldUrl(model, field),
+                        onOpen: null,
                     })),
                     issues: issues.filter((issue) => issue.model === model),
                 }),

@@ -33,6 +33,8 @@ export type TurnRow = {
     detail: string | null;
     title: string;
     to: string;
+    /** When set, clicking the row runs this instead of following its link. */
+    onOpen: (() => void) | null;
 };
 
 export type TurnGroup = {
@@ -75,14 +77,8 @@ const Step: FC<{
     </Box>
 );
 
-/** One change as a short sentence: "Joined to Merchants". */
-const Row: FC<{ row: TurnRow }> = ({ row }) => (
-    <UnstyledButton
-        component={Link}
-        to={row.to}
-        className={classes.row}
-        title={row.title}
-    >
+const RowText: FC<{ row: TurnRow }> = ({ row }) => (
+    <>
         <Text span fz="xs" c="dimmed" truncate className={classes.label}>
             {`${row.action} ${row.label}`}
         </Text>
@@ -91,8 +87,29 @@ const Row: FC<{ row: TurnRow }> = ({ row }) => (
                 {row.detail}
             </Text>
         ) : null}
-    </UnstyledButton>
+    </>
 );
+
+/** One change as a short sentence: "Joined to Merchants". */
+const Row: FC<{ row: TurnRow }> = ({ row }) =>
+    row.onOpen === null ? (
+        <UnstyledButton
+            component={Link}
+            to={row.to}
+            className={classes.row}
+            title={row.title}
+        >
+            <RowText row={row} />
+        </UnstyledButton>
+    ) : (
+        <UnstyledButton
+            className={classes.row}
+            title={row.title}
+            onClick={row.onOpen}
+        >
+            <RowText row={row} />
+        </UnstyledButton>
+    );
 
 const ModelStep: FC<{ group: TurnGroup }> = ({
     group: { model, change, title, subtitle, rows, issues },
@@ -220,16 +237,6 @@ export const TurnCard: FC<{
             rows.length > 0 || issues.length > 0 || subtitle !== null,
     );
     const needsCheck = safety !== null && safety.state !== 'done';
-    const tally = (['new', 'changed', 'removed'] as const)
-        .map((change) => ({
-            change,
-            count: shown.filter(
-                (group) =>
-                    group.change === change &&
-                    (group.rows.length > 0 || group.subtitle !== null),
-            ).length,
-        }))
-        .filter(({ count }) => count > 0);
     return (
         <Paper mt="xs" className={classes.card} data-gone={isGone}>
             {!isFolded ? (
@@ -245,14 +252,6 @@ export const TurnCard: FC<{
                             </Text>
                         ) : null}
                     </Box>
-                    <Text fz="xs" ff="monospace" className={classes.tally}>
-                        {tally
-                            .map(
-                                ({ change, count }) =>
-                                    `${count} ${CHANGE_KIND_LABELS[change].toLowerCase()}`,
-                            )
-                            .join(' · ')}
-                    </Text>
                     {headerAction}
                 </Group>
             ) : (

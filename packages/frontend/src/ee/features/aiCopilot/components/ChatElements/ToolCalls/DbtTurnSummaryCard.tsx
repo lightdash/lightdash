@@ -17,9 +17,9 @@ import {
     IconChevronRight,
     IconCircleCheck,
     IconCircleMinus,
+    IconExternalLink,
     IconFileCode,
     IconGitBranch,
-    IconGitPullRequest,
     IconInfoCircle,
     IconTable,
 } from '@tabler/icons-react';
@@ -46,7 +46,10 @@ import { usePullRequestDiff } from '../../../hooks/usePullRequestDiff';
 import { resolveStudioPullRequestState } from '../../SemanticStudioAgent/studioPullRequestState';
 import { useStudioPublish } from '../../SemanticStudioAgent/useStudioPublish';
 import { useStudioPullRequest } from '../../SemanticStudioAgent/useStudioPullRequest';
-import { isBitbucketPullRequest } from './pullRequestCardUtils';
+import {
+    getPullRequestNumber,
+    isBitbucketPullRequest,
+} from './pullRequestCardUtils';
 import { PullRequestCiChecks } from './PullRequestCiChecks';
 import { PullRequestViewMenu } from './PullRequestViewMenu';
 import { StudioAskContext } from './quietCards';
@@ -56,6 +59,7 @@ import {
     splitPatchIntoFiles,
     type DiffFile,
 } from './splitPatch';
+import { WritebackDiffModal } from './WritebackDiffModal';
 
 const FILE_ACTIONS: Record<ChangeKind, string> = {
     new: 'Added the file',
@@ -253,6 +257,8 @@ export const DbtTurnSummaryCard: FC<{
 }) => {
     const onAsk = useContext(StudioAskContext);
     const isBitbucket = isBitbucketPullRequest(prUrl);
+    const prNumber = getPullRequestNumber(prUrl);
+    const [isDiffOpen, setIsDiffOpen] = useState(false);
     const pullRequest = useStudioPullRequest(projectUuid);
     const { data: workspaces } = useStudioWorkspaces(projectUuid);
     const { data: checkout } = useDraftCheckout(projectUuid);
@@ -316,6 +322,7 @@ export const DbtTurnSummaryCard: FC<{
                               icon: (
                                   <MantineIcon
                                       icon={IconFileCode}
+                                      size={14}
                                       color="dimmed"
                                   />
                               ),
@@ -323,6 +330,11 @@ export const DbtTurnSummaryCard: FC<{
                               detail: `+${file.additions} −${file.deletions}`,
                               title: file.path,
                               to: isModel ? modelUrl(model) : changesUrl,
+                              // Once the draft is published or discarded, the turn's own diff is what is left to read.
+                              onOpen:
+                                  state === 'open'
+                                      ? null
+                                      : () => setIsDiffOpen(true),
                           };
                       }),
               }))
@@ -337,11 +349,18 @@ export const DbtTurnSummaryCard: FC<{
                           id: model,
                           change: 'changed',
                           action: 'Changed the model',
-                          icon: <MantineIcon icon={IconTable} color="dimmed" />,
+                          icon: (
+                              <MantineIcon
+                                  icon={IconTable}
+                                  size={14}
+                                  color="dimmed"
+                              />
+                          ),
                           label: model,
                           detail: null,
                           title: model,
                           to: modelUrl(model),
+                          onOpen: null,
                       },
                   ],
               }));
@@ -360,11 +379,11 @@ export const DbtTurnSummaryCard: FC<{
                         href={prUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        leftSection={
-                            <MantineIcon icon={IconGitPullRequest} size={12} />
+                        rightSection={
+                            <MantineIcon icon={IconExternalLink} size={12} />
                         }
                     >
-                        View pull request
+                        {prNumber ? `#${prNumber}` : 'Pull request'}
                     </Button>,
                     groups[0] ? (
                         <Button
@@ -455,28 +474,38 @@ export const DbtTurnSummaryCard: FC<{
         );
     }
     return (
-        <TurnCard
-            icon={header.icon}
-            status={header.status}
-            name={draft?.name ?? null}
-            headerAction={
-                // An open draft's links and discard are in the toolbar.
-                state === 'open' ? null : (
-                    <PullRequestViewMenu
-                        projectUuid={projectUuid}
-                        prUrl={prUrl}
-                        previewUrl={previewUrl}
-                        commitSha={commitSha}
-                    />
-                )
-            }
-            groups={groups}
-            safety={state === 'open' ? getSafety(latestCompile) : null}
-            isLatest={isLatestTurn}
-            actions={actions}
-            isGone={state === 'closed'}
-        >
-            {ciSection}
-        </TurnCard>
+        <>
+            <TurnCard
+                icon={header.icon}
+                status={header.status}
+                // The card sits in the conversation that made the draft, whose title already names it.
+                name={null}
+                headerAction={
+                    // An open draft's links and discard are in the toolbar.
+                    state === 'open' ? null : (
+                        <PullRequestViewMenu
+                            projectUuid={projectUuid}
+                            prUrl={prUrl}
+                            previewUrl={previewUrl}
+                            commitSha={commitSha}
+                        />
+                    )
+                }
+                groups={groups}
+                safety={state === 'open' ? getSafety(latestCompile) : null}
+                isLatest={isLatestTurn}
+                actions={actions}
+                isGone={state === 'closed'}
+            >
+                {ciSection}
+            </TurnCard>
+            <WritebackDiffModal
+                projectUuid={projectUuid}
+                prUrl={prUrl}
+                commitSha={commitSha}
+                opened={isDiffOpen}
+                onClose={() => setIsDiffOpen(false)}
+            />
+        </>
     );
 };
