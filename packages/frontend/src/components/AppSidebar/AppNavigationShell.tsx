@@ -22,6 +22,7 @@ import { useNavBarState } from '../NavBar/useNavBarState';
 import { AppSidebar } from './AppSidebar';
 import classes from './AppSidebar.module.css';
 import { APP_SIDEBAR_ID } from './appSidebarNavigation';
+import { PreviewGutter } from './PreviewGutter';
 import { useAppSidebarCollapse } from './useAppSidebarCollapse';
 
 const APP_SIDEBAR_WIDTH_STORAGE_KEY = 'app-sidebar:width';
@@ -54,6 +55,7 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
         isLoadingActiveProject,
         hasBanner,
         banner,
+        previewNotice,
     } = useNavBarState();
     const { isCollapsed, setIsCollapsed } = useAppSidebarCollapse();
     const [storedWidth, setStoredWidth] = useLocalStorage<number>({
@@ -86,6 +88,9 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
             data-left-navigation
             data-sidebar-collapsed={isCollapsed}
             data-rounded-page={!isFullscreen}
+            // A preview is named in a gutter above the page only, so the
+            // sidebar runs the full height beside it.
+            layout={previewNotice ? 'alt' : 'default'}
             onPointerUpCapture={blurResizeEdge}
             classNames={{ resizeHandle: classes.resizeHandle }}
             // The sidebar never turns into Mantine's full-width mobile
@@ -100,9 +105,10 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
             transitionDuration={0}
             resize={resize}
         >
-            <AppShell.Header withBorder={false}>
+            <AppShell.Header withBorder={false} className={classes.gutter}>
+                {previewNotice && <PreviewGutter {...previewNotice} />}
                 <NavBarRoot hasVisibleFixedNavbar={false} hasBanner={hasBanner}>
-                    {banner}
+                    {!previewNotice && banner}
                     <SharedSignInExpiryListener />
                 </NavBarRoot>
             </AppShell.Header>
@@ -113,7 +119,7 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
                 projectUrlIdentifier={projectUrlIdentifier}
                 isCollapsed={isCollapsed}
             />
-            <AppShell.Main>{children}</AppShell.Main>
+            <AppShell.Main className={classes.main}>{children}</AppShell.Main>
         </AppShell>
     );
 };

@@ -26,6 +26,7 @@ import {
     IconPlus,
     IconSearch,
     IconSelector,
+    IconTools,
     IconX,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
@@ -231,6 +232,13 @@ const SidebarTarget = forwardRef<HTMLButtonElement, SidebarTargetProps>(
                             className={classes.breadcrumbSeparator}
                         />
                     )}
+                    {isPreview && (
+                        <MantineIcon
+                            icon={IconTools}
+                            size="sm"
+                            className={classes.previewIcon}
+                        />
+                    )}
                     <Tooltip
                         label={activeProjectName}
                         position="right"
@@ -246,11 +254,6 @@ const SidebarTarget = forwardRef<HTMLButtonElement, SidebarTargetProps>(
                             {activeProjectName}
                         </Text>
                     </Tooltip>
-                    {isPreview && (
-                        <Badge size="xs" flex="none" className={classes.badge}>
-                            Preview
-                        </Badge>
-                    )}
                 </Box>
                 <MantineIcon
                     icon={IconSelector}

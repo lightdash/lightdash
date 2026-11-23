@@ -150,3 +150,8 @@
     flex: none;
     margin-left: auto;
 }
+
+.previewIcon {
+    flex: none;
+    color: var(--mantine-color-dimmed);
+}

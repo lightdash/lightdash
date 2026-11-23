@@ -1,0 +1,44 @@
+.gutter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-md);
+    height: 100%;
+    padding-inline: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+}
+
+.path {
+    display: flex;
+    align-items: center;
+    gap: rem(6px);
+    min-width: 0;
+}
+
+.fixed {
+    flex: none;
+}
+
+.previewIcon {
+    flex: none;
+    color: var(--mantine-color-anchor);
+}
+
+.previewName {
+    color: var(--mantine-color-anchor);
+}
+
+.expiry {
+    flex: none;
+    font-size: rem(11px);
+    margin-left: rem(6px);
+    white-space: nowrap;
+}
+
+.backLink {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: rem(4px);
+    white-space: nowrap;
+    font-family: inherit;
+}
