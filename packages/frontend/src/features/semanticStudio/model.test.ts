@@ -264,7 +264,10 @@ describe('refs', () => {
     it('sends a folded source to its only explore', () => {
         const withViews = project(
             [warehouse, virtualViews],
-            [explore('orders', 'warehouse'), explore('big_orders', 'virtual-views')],
+            [
+                explore('orders', 'warehouse'),
+                explore('big_orders', 'virtual-views'),
+            ],
         );
         expect(
             resolveRef(withViews, buildProjectTree(withViews).nodes, {
