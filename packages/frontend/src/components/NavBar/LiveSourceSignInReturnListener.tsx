@@ -4,6 +4,8 @@ import useToaster from '../../hooks/toaster/useToaster';
 
 const SIGNED_IN = 'liveSourceSignedIn';
 const SIGN_IN_ERROR = 'liveSourceSignInError';
+// One toast per return, even when the effect runs again before the address clears
+const TOAST_KEY = 'live-source-sign-in-return';
 
 /**
  * A viewer coming back from signing in to a live source: says how it went,
@@ -23,13 +25,14 @@ const LiveSourceSignInReturnListener: FC = () => {
         if (error !== null) {
             // Only fixed copy: the address can be anyone's link
             showToastError({
+                key: TOAST_KEY,
                 title:
                     error === 'cancelled'
                         ? 'Sign-in was cancelled'
                         : "Couldn't connect your account. Try again.",
             });
         } else {
-            showToastSuccess({ title: 'Account connected' });
+            showToastSuccess({ key: TOAST_KEY, title: 'Account connected' });
         }
         params.delete(SIGNED_IN);
         params.delete(SIGN_IN_ERROR);
