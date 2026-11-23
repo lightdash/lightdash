@@ -20,7 +20,6 @@
 .header {
     display: flex;
     align-items: center;
-    gap: rem(4px);
 }
 
 .logo {
