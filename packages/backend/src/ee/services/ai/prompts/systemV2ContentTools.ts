@@ -42,7 +42,7 @@ export const getContentToolsSection = ({
 - The shapes below cover dashboards and big number, bar, line, pie and table charts. For other chart types and options, load the matching developing-in-lightdash skill resource.${getCustomSqlLines(customSqlPermissions)}
 - Before creating a composer chart, read composer-chart-reference in the developing-in-lightdash skill: it says when to create one.
 - Save a chart without a test query: createContent and editContent check every field id against the explore and refuse unknown ones, naming the closest ids.
-- Create a new dashboard and all its charts in one response: the dashboard createContent call first (tiles: []), then one call per chart with dashboardSlug set. Calls run in that order and each chart gets a tile in rows that fill the grid, so the layout needs no edit.
+- Create a new dashboard and all its charts in the same response, without waiting for the dashboard's result: the dashboard createContent call first (tiles: []), then one call per chart with dashboardSlug set to the dashboard's slug. Calls run in that order, a chart follows its dashboard if the slug had to change, and each chart gets a tile in rows that fill the grid, so the layout needs no edit.
 - Put every change to one chart or dashboard in a single editContent call; edit a chart and its dashboard in the same response when both change.
 - After saving, reply in one or two sentences with the link the tool returned; the user sees the charts there.
 

@@ -59,7 +59,7 @@ Rules:
 ### Edit Dashboards
 
 1. Call `readContent` unless the dashboard's current text is already in the conversation.
-2. For tabs, filters, non-chart tiles or layout rules you have not seen, read the `dashboard-reference` resource.
+2. For tabs, non-chart tiles, filter settings beyond a plain dimension filter, or layout rules, read the `dashboard-reference` resource.
 3. Call `editContent` with the smallest text edits, all changes to the dashboard in one call.
 
 To add or retarget a dashboard filter, take each tile's explore and field ids from its read-only `chartQuery` in the dashboard JSON (see `Per-Tile Filter Targeting` in `dashboard-reference`). Do not read every chart on the dashboard for that. A dimension filter is added to `/filters/dimensions` with this shape; `target` and `tileTargets` values are objects with `fieldId` and `tableName`, never bare field id strings:
@@ -106,7 +106,7 @@ For a weekly chart of "the last 12 weeks up to today" where every week starts on
 ### Create Dashboards
 
 1. Use `grepFields`, then `getMetadata` if needed, to find the fields for each chart. When the user leaves the charts open, `dashboard-best-practices` has design guidance.
-2. In one response, create the dashboard without chart tiles, then each chart with `dashboardSlug` set to it. Calls run in order; each chart is placed as a tile in rows that fill the grid, so edit the dashboard only to change that layout or add non-chart tiles, tabs or filters (`dashboard-reference`).
+2. In one response, without waiting for results, create the dashboard without chart tiles, then each chart with `dashboardSlug` set to its slug. Calls run in order and a chart follows its dashboard if the slug had to change; each chart is placed as a tile in rows that fill the grid, so edit the dashboard only to change that layout or add non-chart tiles, tabs or filters (`dashboard-reference`).
 
 ### Create and Edit SQL Charts
 

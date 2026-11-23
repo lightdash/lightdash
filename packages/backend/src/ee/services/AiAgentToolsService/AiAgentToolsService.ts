@@ -4144,6 +4144,12 @@ export class AiAgentToolsService extends BaseService {
                             const finalSlug =
                                 promotionChanges.dashboards[0]?.data.slug ??
                                 content.slug;
+                            if (finalSlug !== content.slug) {
+                                this.createdDashboardSlugs(context).set(
+                                    content.slug,
+                                    finalSlug,
+                                );
+                            }
                             const uuid =
                                 promotionChanges.dashboards[0]?.data.uuid;
                             if (!uuid) {
@@ -4169,13 +4175,17 @@ export class AiAgentToolsService extends BaseService {
                             };
                         }
                         case 'chart': {
-                            await this.assertChartFieldsExist(context, content);
+                            const chart = this.withCreatedDashboardSlug(
+                                context,
+                                content,
+                            );
+                            await this.assertChartFieldsExist(context, chart);
                             const promotionChanges =
                                 await this.coderService.upsertChart(
                                     context.user,
                                     context.projectUuid,
-                                    content.slug,
-                                    content,
+                                    chart.slug,
+                                    chart,
                                     {
                                         mode: 'create',
                                         authorization: 'space_access',
@@ -4184,19 +4194,19 @@ export class AiAgentToolsService extends BaseService {
                                 );
                             const finalSlug =
                                 promotionChanges.charts[0]?.data.slug ??
-                                content.slug;
+                                chart.slug;
                             const uuid = promotionChanges.charts[0]?.data.uuid;
                             if (!uuid) {
                                 throw new NotFoundError(
                                     `Created chart "${finalSlug}" was not found`,
                                 );
                             }
-                            if (content.dashboardSlug) {
+                            if (chart.dashboardSlug) {
                                 await this.placeChartOnDashboard(context, {
-                                    dashboardSlug: content.dashboardSlug,
+                                    dashboardSlug: chart.dashboardSlug,
                                     chartSlug: finalSlug,
-                                    chartName: content.name,
-                                    chartType: content.chartConfig.type,
+                                    chartName: chart.name,
+                                    chartType: chart.chartConfig.type,
                                 });
                             }
                             const createdContent = await this.readContentAsCode(
@@ -4261,6 +4271,32 @@ export class AiAgentToolsService extends BaseService {
                 `Chart "${chart.slug}" was not saved:\n${errors.join('\n')}`,
             );
         }
+    }
+
+    // Dashboards created this turn whose requested slug was taken: requested -> saved.
+    private readonly dashboardSlugRenames = new WeakMap<
+        AiAgentToolsRuntimeContext,
+        Map<string, string>
+    >();
+
+    private createdDashboardSlugs(
+        context: AiAgentToolsRuntimeContext,
+    ): Map<string, string> {
+        const renames =
+            this.dashboardSlugRenames.get(context) ?? new Map<string, string>();
+        this.dashboardSlugRenames.set(context, renames);
+        return renames;
+    }
+
+    /** A chart created in the same response as its dashboard follows that dashboard's saved slug. */
+    private withCreatedDashboardSlug(
+        context: AiAgentToolsRuntimeContext,
+        chart: ChartAsCode,
+    ): ChartAsCode {
+        const saved =
+            chart.dashboardSlug &&
+            this.dashboardSlugRenames.get(context)?.get(chart.dashboardSlug);
+        return saved ? { ...chart, dashboardSlug: saved } : chart;
     }
 
     // A turn's parallel writes run one at a time: a dashboard save snapshots its
