@@ -1,3 +1,10 @@
+## [3.367.3](https://github.com/lightdash/lightdash/compare/3.367.2...3.367.3) (2026-11-23)
+
+
+### Bug Fixes
+
+* **semantic-studio:** one line for a live data source's cache when project caching is off ([#33196](https://github.com/lightdash/lightdash/issues/33196)) ([2ee5f8b](https://github.com/lightdash/lightdash/commit/2ee5f8b4d2e2790882182aa3f9a73f678f89dee5))
+
 ## [3.367.2](https://github.com/lightdash/lightdash/compare/3.367.1...3.367.2) (2026-11-23)
 
 
