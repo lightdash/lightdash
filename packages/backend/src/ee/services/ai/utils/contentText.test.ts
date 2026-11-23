@@ -10,6 +10,7 @@ const chart = {
     slug: 'monthly-revenue',
     updatedAt: '2026-11-23T00:00:00.000Z',
     contentType: 'chart',
+    parameters: undefined,
     chartConfig: {
         type: 'cartesian',
         config: {

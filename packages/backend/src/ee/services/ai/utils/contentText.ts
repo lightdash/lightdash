@@ -23,10 +23,28 @@ const HIDDEN_KEYS = new Set([
 
 const MAX_HINT_LINES = 12;
 
+// JSON values only: undefined keys and Dates would otherwise diff as edits.
+const toJsonValue = (value: unknown): unknown => {
+    if (value instanceof Date) return value.toISOString();
+    if (Array.isArray(value)) return value.map(toJsonValue);
+    if (value !== null && typeof value === 'object') {
+        return Object.fromEntries(
+            Object.entries(value)
+                .filter(([, child]) => child !== undefined)
+                .map(([key, child]) => [key, toJsonValue(child)]),
+        );
+    }
+    return value;
+};
+
 /** The view of content the model reads and edits: content minus read-only keys. */
 export const toContentView = (content: object): Record<string, unknown> =>
     Object.fromEntries(
-        Object.entries(content).filter(([key]) => !HIDDEN_KEYS.has(key)),
+        Object.entries(content)
+            .filter(
+                ([key, value]) => !HIDDEN_KEYS.has(key) && value !== undefined,
+            )
+            .map(([key, value]) => [key, toJsonValue(value)]),
     );
 
 /** Stable YAML for a content view: the exact text edits match against. */
