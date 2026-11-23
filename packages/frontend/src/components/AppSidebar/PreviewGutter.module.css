@@ -4,7 +4,7 @@
     justify-content: space-between;
     gap: var(--mantine-spacing-md);
     height: 100%;
-    padding-inline: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    padding-inline: rem(6px) var(--mantine-spacing-md);
 }
 
 .path {
@@ -18,6 +18,43 @@
     flex: none;
 }
 
+/* The parent project's name joins the path when the sidebar, and with it the
+   project selector, folds to the rail. Its column opens rather than the
+   preview's name jumping sideways. */
+.upstream {
+    display: grid;
+    flex: none;
+    grid-template-columns: 0fr;
+    opacity: 0;
+    transition:
+        grid-template-columns 200ms cubic-bezier(0.23, 1, 0.32, 1),
+        opacity 150ms ease;
+
+    &[data-visible='true'] {
+        grid-template-columns: 1fr;
+        opacity: 1;
+    }
+}
+
+.upstreamContent {
+    display: flex;
+    align-items: center;
+    gap: rem(6px);
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.upstream[data-visible='true'] .upstreamContent {
+    padding-inline: rem(4px) rem(2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .upstream {
+        transition: none;
+    }
+}
+
 .previewIcon {
     flex: none;
     color: var(--mantine-color-anchor);
@@ -29,8 +66,8 @@
 
 .expiry {
     flex: none;
-    font-size: rem(11px);
     margin-left: rem(6px);
+    font-size: rem(11px);
     white-space: nowrap;
 }
 

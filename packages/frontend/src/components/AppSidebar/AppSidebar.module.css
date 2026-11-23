@@ -13,7 +13,7 @@
     flex-direction: column;
     gap: var(--mantine-spacing-md);
     height: 100%;
-    padding: rem(6px) var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    padding: rem(8px) var(--mantine-spacing-xs) var(--mantine-spacing-sm);
     overflow: hidden auto;
 }
 
