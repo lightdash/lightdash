@@ -12,7 +12,7 @@ Use it to test anything live data sources do (adding a source, charts, dashboard
 
 ## Add a source
 
-- **UI:** Semantic Layer → Live data sources → Add live data source → Hydra. Any sign-in token works. Leave Behaviour blank for the defaults. Test shows `Connected to Hydra account hydra-<id>`.
+- **UI:** Semantic Layer → Live data sources → Add live data source → Hydra. Any sign-in token works. A source made in the UI takes the default settings, and saving it in the UI resets them; set others through the API. Test shows `Connected to Hydra account hydra-<id>`.
 - **API:** `POST /api/v1/ee/projects/<projectUuid>/external-connections`:
 
   ```json
@@ -39,9 +39,9 @@ Use it to test anything live data sources do (adding a source, charts, dashboard
 - `rowCount` events and `max(10, rowCount / 10)` users, seeded from the token. The same token always returns the same totals, and another token returns other totals, which shows per-viewer sign-in at work.
 - One query returns at most 500 rows. Asking for more is refused before any call.
 
-## Behaviour
+## Settings
 
-The UI's Behaviour field takes `key=value` pairs for the simple keys, or a JSON object of any settings; keys left out keep their defaults. Through the API, set them in `apiSource`.
+Set these in `apiSource` through the API; keys left out keep their defaults.
 
 | Key | Default | Effect | What a query shows |
 | --- | --- | --- | --- |

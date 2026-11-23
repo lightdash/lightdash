@@ -1,10 +1,8 @@
 import { ApiConnectorType } from '../types/querySources';
 import {
-    formatHydraBehaviour,
     getHydraSettingsProblem,
     HYDRA_DEFAULT_SETTINGS,
     HYDRA_DEFAULT_SOURCE,
-    parseHydraBehaviour,
     withHydraDefaults,
 } from './hydraLiveSource';
 
@@ -102,56 +100,5 @@ describe('Hydra settings', () => {
         ])('refuses %#', (settings, problem) => {
             expect(getHydraSettingsProblem(hydra(settings))).toEqual(problem);
         });
-    });
-});
-
-describe('Hydra behaviour', () => {
-    it('reads blank as a source that sets nothing', () => {
-        expect(parseHydraBehaviour('  ')).toEqual(HYDRA_DEFAULT_SOURCE);
-    });
-
-    it('reads key=value pairs into only those settings, and writes them back', () => {
-        const source = parseHydraBehaviour(
-            'latencyMs=250, errorRate=0.25 failAuth=true',
-        );
-        expect(source).toEqual(
-            hydra({ latencyMs: 250, errorRate: 0.25, failAuth: true }),
-        );
-        expect(formatHydraBehaviour(source!)).toBe(
-            'latencyMs=250 errorRate=0.25 failAuth=true',
-        );
-    });
-
-    it('writes and reads JSON once a setting needs it', () => {
-        const source = hydra({
-            latencyMs: 100,
-            declaredLimits: null,
-            mockResponses: [{ call: 2, status: 429, retryAfterSeconds: 3 }],
-        });
-        const text = formatHydraBehaviour(source as never);
-        expect(JSON.parse(text)).toEqual({
-            latencyMs: 100,
-            declaredLimits: null,
-            mockResponses: [{ call: 2, status: 429, retryAfterSeconds: 3 }],
-        });
-        expect(parseHydraBehaviour(text)).toEqual(source);
-    });
-
-    it.each([
-        'speed=1',
-        'latencyMs',
-        'latencyMs=-1',
-        'latencyMs=1.5',
-        'errorRate=1.5',
-        'failAuth=yes',
-        'vendorLimits=1',
-        'latencyMs=999999',
-        'rowCount=a=b',
-        '{"speed": 1}',
-        '{"mockResponses": [{"call": 0, "status": 200}]}',
-        '[1]',
-        '{not json',
-    ])('refuses %s', (text) => {
-        expect(parseHydraBehaviour(text)).toBeNull();
     });
 });
