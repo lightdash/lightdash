@@ -624,6 +624,11 @@ type AiAgentToolsServiceDependencies = {
     };
 };
 
+type TileSlot = {
+    run: (place: () => Promise<void>) => Promise<void>;
+    release: () => void;
+};
+
 export class AiAgentToolsService extends BaseService {
     private readonly agentPermissionService: AiAgentToolsServiceDependencies['agentPermissionService'];
     private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
@@ -4037,156 +4042,179 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.createContent`,
             { slug: content.slug, type },
             async () => {
-                this.aiAgentContentValidation.validateNewContent(type, content);
-                if (context.source === 'ai_agent' && type === 'chart') {
-                    assertAgentKeepsChartMerge(content, undefined);
-                }
-                const bound = await this.getBoundResource(context);
-                if (bound?.type === 'chart') {
-                    await this.refuseOutsideThreadBinding(context, {
-                        objectType: type,
-                        action: 'create',
-                        bound,
-                        reason: 'New content cannot be created here. Edit that chart instead.',
-                    });
-                }
-                if (bound?.type === 'dashboard') {
-                    switch (type) {
-                        case 'dashboard':
-                            await this.refuseOutsideThreadBinding(context, {
-                                objectType: 'dashboard',
-                                action: 'create',
-                                bound,
-                                reason: 'New dashboards cannot be created here. Edit that dashboard instead.',
-                            });
-                            break;
-                        case 'chart':
-                            if (
-                                (content as ChartAsCode).dashboardSlug !==
-                                bound.slug
-                            ) {
+                // Reserved before any await, so parallel creates place tiles in call order.
+                const tileSlot =
+                    type === 'chart' && content.dashboardSlug
+                        ? this.reserveTileSlot(content.dashboardSlug)
+                        : null;
+                try {
+                    this.aiAgentContentValidation.validateNewContent(
+                        type,
+                        content,
+                    );
+                    if (context.source === 'ai_agent' && type === 'chart') {
+                        assertAgentKeepsChartMerge(content, undefined);
+                    }
+                    const bound = await this.getBoundResource(context);
+                    if (bound?.type === 'chart') {
+                        await this.refuseOutsideThreadBinding(context, {
+                            objectType: type,
+                            action: 'create',
+                            bound,
+                            reason: 'New content cannot be created here. Edit that chart instead.',
+                        });
+                    }
+                    if (bound?.type === 'dashboard') {
+                        switch (type) {
+                            case 'dashboard':
                                 await this.refuseOutsideThreadBinding(context, {
-                                    objectType: 'chart',
+                                    objectType: 'dashboard',
                                     action: 'create',
                                     bound,
-                                    reason: `New charts must be saved in it. Set dashboardSlug to "${bound.slug}".`,
+                                    reason: 'New dashboards cannot be created here. Edit that dashboard instead.',
                                 });
-                            }
-                            break;
-                        case 'sql_chart':
-                            await this.refuseOutsideThreadBinding(context, {
-                                objectType: 'sql_chart',
-                                action: 'create',
-                                bound,
-                                reason: 'SQL charts cannot be saved in a dashboard, so they cannot be created here.',
-                            });
-                            break;
-                        default:
-                            assertUnreachable(type, 'Invalid content type');
+                                break;
+                            case 'chart':
+                                if (
+                                    (content as ChartAsCode).dashboardSlug !==
+                                    bound.slug
+                                ) {
+                                    await this.refuseOutsideThreadBinding(
+                                        context,
+                                        {
+                                            objectType: 'chart',
+                                            action: 'create',
+                                            bound,
+                                            reason: `New charts must be saved in it. Set dashboardSlug to "${bound.slug}".`,
+                                        },
+                                    );
+                                }
+                                break;
+                            case 'sql_chart':
+                                await this.refuseOutsideThreadBinding(context, {
+                                    objectType: 'sql_chart',
+                                    action: 'create',
+                                    bound,
+                                    reason: 'SQL charts cannot be saved in a dashboard, so they cannot be created here.',
+                                });
+                                break;
+                            default:
+                                assertUnreachable(type, 'Invalid content type');
+                        }
                     }
-                }
-                await this.assertContentSpaceInScope(
-                    context,
-                    content.spaceSlug,
-                    `Space "${content.spaceSlug}" was not found`,
-                    'create',
-                );
+                    await this.assertContentSpaceInScope(
+                        context,
+                        content.spaceSlug,
+                        `Space "${content.spaceSlug}" was not found`,
+                        'create',
+                    );
 
-                switch (type) {
-                    case 'dashboard': {
-                        const promotionChanges =
-                            await this.coderService.upsertDashboard(
-                                context.user,
-                                context.projectUuid,
-                                content.slug,
-                                content,
+                    switch (type) {
+                        case 'dashboard': {
+                            const promotionChanges =
+                                await this.coderService.upsertDashboard(
+                                    context.user,
+                                    context.projectUuid,
+                                    content.slug,
+                                    content,
+                                    {
+                                        mode: 'create',
+                                        authorization: 'space_access',
+                                        syncEnabled: false,
+                                    },
+                                );
+                            const finalSlug =
+                                promotionChanges.dashboards[0]?.data.slug ??
+                                content.slug;
+                            const uuid =
+                                promotionChanges.dashboards[0]?.data.uuid;
+                            if (!uuid) {
+                                throw new NotFoundError(
+                                    `Created dashboard "${finalSlug}" was not found`,
+                                );
+                            }
+                            const createdContent = await this.readContentAsCode(
+                                context,
                                 {
-                                    mode: 'create',
-                                    authorization: 'space_access',
-                                    syncEnabled: false,
+                                    slug: finalSlug,
+                                    type,
                                 },
                             );
-                        const finalSlug =
-                            promotionChanges.dashboards[0]?.data.slug ??
-                            content.slug;
-                        const uuid = promotionChanges.dashboards[0]?.data.uuid;
-                        if (!uuid) {
-                            throw new NotFoundError(
-                                `Created dashboard "${finalSlug}" was not found`,
-                            );
-                        }
-                        const createdContent = await this.readContentAsCode(
-                            context,
-                            {
-                                slug: finalSlug,
-                                type,
-                            },
-                        );
-                        return {
-                            ...createdContent,
-                            uuid,
-                            href: AiAgentToolsService.getContentUrl(
-                                context,
-                                'dashboard',
+                            return {
+                                ...createdContent,
                                 uuid,
-                            ),
-                        };
-                    }
-                    case 'chart': {
-                        const promotionChanges =
-                            await this.coderService.upsertChart(
-                                context.user,
-                                context.projectUuid,
-                                content.slug,
-                                content,
+                                href: AiAgentToolsService.getContentUrl(
+                                    context,
+                                    'dashboard',
+                                    uuid,
+                                ),
+                            };
+                        }
+                        case 'chart': {
+                            const promotionChanges =
+                                await this.coderService.upsertChart(
+                                    context.user,
+                                    context.projectUuid,
+                                    content.slug,
+                                    content,
+                                    {
+                                        mode: 'create',
+                                        authorization: 'space_access',
+                                        syncEnabled: false,
+                                    },
+                                );
+                            const finalSlug =
+                                promotionChanges.charts[0]?.data.slug ??
+                                content.slug;
+                            const uuid = promotionChanges.charts[0]?.data.uuid;
+                            if (!uuid) {
+                                throw new NotFoundError(
+                                    `Created chart "${finalSlug}" was not found`,
+                                );
+                            }
+                            if (tileSlot && content.dashboardSlug) {
+                                await this.placeChartOnDashboard(
+                                    context,
+                                    tileSlot,
+                                    {
+                                        dashboardSlug: content.dashboardSlug,
+                                        chartSlug: finalSlug,
+                                        chartName: content.name,
+                                        chartType: content.chartConfig.type,
+                                    },
+                                );
+                            }
+                            const createdContent = await this.readContentAsCode(
+                                context,
                                 {
-                                    mode: 'create',
-                                    authorization: 'space_access',
-                                    syncEnabled: false,
+                                    slug: finalSlug,
+                                    type,
                                 },
                             );
-                        const finalSlug =
-                            promotionChanges.charts[0]?.data.slug ??
-                            content.slug;
-                        const uuid = promotionChanges.charts[0]?.data.uuid;
-                        if (!uuid) {
-                            throw new NotFoundError(
-                                `Created chart "${finalSlug}" was not found`,
-                            );
-                        }
-                        if (content.dashboardSlug) {
-                            await this.placeChartOnDashboard(context, {
-                                dashboardSlug: content.dashboardSlug,
-                                chartSlug: finalSlug,
-                                chartName: content.name,
-                                chartType: content.chartConfig.type,
-                            });
-                        }
-                        const createdContent = await this.readContentAsCode(
-                            context,
-                            {
-                                slug: finalSlug,
-                                type,
-                            },
-                        );
-                        return {
-                            ...createdContent,
-                            uuid,
-                            href: AiAgentToolsService.getContentUrl(
-                                context,
-                                'chart',
+                            return {
+                                ...createdContent,
                                 uuid,
-                            ),
-                        };
+                                href: AiAgentToolsService.getContentUrl(
+                                    context,
+                                    'chart',
+                                    uuid,
+                                ),
+                            };
+                        }
+                        case 'sql_chart':
+                            return await this.createSqlChart(
+                                context,
+                                content,
+                                args.approveSql,
+                            );
+                        default:
+                            return assertUnreachable(
+                                type,
+                                'Invalid content type',
+                            );
                     }
-                    case 'sql_chart':
-                        return this.createSqlChart(
-                            context,
-                            content,
-                            args.approveSql,
-                        );
-                    default:
-                        return assertUnreachable(type, 'Invalid content type');
+                } finally {
+                    tileSlot?.release();
                 }
             },
         );
@@ -4195,9 +4223,33 @@ export class AiAgentToolsService extends BaseService {
     // Serializes tile placement per dashboard: parallel chart creates read and write the same tiles.
     private readonly dashboardTileQueues = new Map<string, Promise<void>>();
 
+    private reserveTileSlot(dashboardSlug: string): TileSlot {
+        const previous =
+            this.dashboardTileQueues.get(dashboardSlug) ?? Promise.resolve();
+        let release = () => {};
+        const done = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const tail = previous.then(() => done);
+        this.dashboardTileQueues.set(dashboardSlug, tail);
+        void tail.then(() => {
+            if (this.dashboardTileQueues.get(dashboardSlug) === tail) {
+                this.dashboardTileQueues.delete(dashboardSlug);
+            }
+        });
+        return {
+            run: async (place) => {
+                await previous;
+                await place();
+            },
+            release,
+        };
+    }
+
     /** A chart saved in a dashboard gets a tile there, laid out by the server. */
     private async placeChartOnDashboard(
         context: AiAgentToolsRuntimeContext,
+        tileSlot: TileSlot,
         {
             dashboardSlug,
             chartSlug,
@@ -4266,23 +4318,14 @@ export class AiAgentToolsService extends BaseService {
                 },
             );
         };
-        const previous =
-            this.dashboardTileQueues.get(dashboardSlug) ?? Promise.resolve();
-        const placed = previous.then(place);
-        const tail = placed.catch(() => undefined);
-        this.dashboardTileQueues.set(dashboardSlug, tail);
         try {
-            await placed;
+            await tileSlot.run(place);
         } catch (error) {
             throw new ParameterError(
                 `Chart "${chartSlug}" was saved but not placed on dashboard "${dashboardSlug}": ${
                     error instanceof Error ? error.message : String(error)
                 }. Add its tile with editContent.`,
             );
-        } finally {
-            if (this.dashboardTileQueues.get(dashboardSlug) === tail) {
-                this.dashboardTileQueues.delete(dashboardSlug);
-            }
         }
     }
 
