@@ -103,6 +103,7 @@ describe('ProjectCredentialsSwitcher', () => {
     it.each([
         ['/projects/project-uuid/tables/orders', 1],
         ['/projects/project-uuid/sqlRunner', 1],
+        ['/projects/project-uuid/dashboards/dash-uuid/view/tabs/tab-uuid', 1],
         ['/projects/project-uuid/home', 0],
         ['/projects/project-uuid/apps/app-uuid', 1],
         ['/projects/project-uuid/apps/generate', 0],

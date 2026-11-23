@@ -1,3 +1,5 @@
+import { useSyncExternalStore } from 'react';
+
 export const WAREHOUSE_CREDENTIALS_ERROR = 'warehouse-credentials-error';
 
 export type WarehouseCredentialsErrorDetail = {
@@ -32,3 +34,26 @@ export const reportWarehouseCredentialsError = (
         ),
     );
 };
+
+// Pages without the navbar prompt (minimal, embed, multi-connection projects)
+// have nothing to open, so actions that request it hide themselves
+let mountedPrompts = 0;
+const promptSubscribers = new Set<() => void>();
+
+export const registerWarehouseCredentialsPrompt = () => {
+    mountedPrompts += 1;
+    promptSubscribers.forEach((notify) => notify());
+    return () => {
+        mountedPrompts -= 1;
+        promptSubscribers.forEach((notify) => notify());
+    };
+};
+
+export const useHasWarehouseCredentialsPrompt = () =>
+    useSyncExternalStore(
+        (notify) => {
+            promptSubscribers.add(notify);
+            return () => promptSubscribers.delete(notify);
+        },
+        () => mountedPrompts > 0,
+    );

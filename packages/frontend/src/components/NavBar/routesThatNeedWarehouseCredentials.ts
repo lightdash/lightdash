@@ -4,6 +4,7 @@ const routesThatNeedWarehouseCredentials = [
     '/projects/:projectUuid/tables/:tableId',
     '/projects/:projectUuid/saved/:savedQueryUuid/:mode?',
     '/projects/:projectUuid/dashboards/:dashboardUuid/:mode?',
+    '/projects/:projectUuid/dashboards/:dashboardUuid/:mode/tabs/:tabUuid?',
     '/projects/:projectUuid/sqlRunner',
     '/projects/:projectUuid/apps/:appUuid',
     '/projects/:projectUuid/apps/:appUuid/view',

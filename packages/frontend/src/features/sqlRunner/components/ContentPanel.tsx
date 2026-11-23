@@ -54,6 +54,7 @@ import {
     type ReactNode,
 } from 'react';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
+import { ConnectWarehouseAction } from '../../../components/common/ConnectWarehouseAction';
 import MantineIcon from '../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../components/common/ResizableSplitter';
 import { updateChartSortBy } from '../../../components/DataViz/store/actions/commonChartActions';
@@ -197,9 +198,10 @@ const EmptyResultsHints: FC = () => {
 
 const QueryErrorBlock: FC<{
     message: string;
+    error: { name?: string };
     position: MonacoHighlightChar | undefined;
     onReveal: (position: MonacoHighlightChar) => void;
-}> = ({ message, position, onReveal }) => (
+}> = ({ message, error, position, onReveal }) => (
     <Stack gap="xs" className={styles.errorBlock}>
         <Group gap="xs" wrap="nowrap" align="flex-start">
             <MantineIcon icon={IconAlertCircle} color="red" />
@@ -225,6 +227,7 @@ const QueryErrorBlock: FC<{
                     </Button>
                 )}
             </CopyButton>
+            <ConnectWarehouseAction error={error} />
         </Group>
     </Stack>
 );
@@ -1199,6 +1202,7 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                                 )}
                                 {queryError && !isLoadingSqlQuery && (
                                     <QueryErrorBlock
+                                        error={queryError}
                                         message={
                                             queryError.message ??
                                             'Unknown error'

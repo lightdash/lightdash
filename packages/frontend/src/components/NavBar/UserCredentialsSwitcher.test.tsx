@@ -262,6 +262,36 @@ describe('UserCredentialsSwitcher required credentials prompt', () => {
         expect(screen.queryByRole('dialog')).toBeNull();
     });
 
+    it('offers a connect button that reopens the prompt while setup is incomplete', async () => {
+        const user = userEvent.setup();
+        renderAt('/projects/project/home');
+        await user.click(await screen.findByRole('button', { name: 'Close' }));
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(
+            screen.queryByRole('button', { name: 'Warehouse credentials' }),
+        ).toBeNull();
+
+        await user.click(
+            screen.getByRole('button', { name: 'Connect PostgreSQL' }),
+        );
+        expect(await screen.findByRole('dialog')).toHaveTextContent(
+            'Login to PostgreSQL',
+        );
+    });
+
+    it('keeps the credentials menu once the user has compatible credentials', () => {
+        mocks.credentials = [
+            { uuid: 'mine', name: 'Mine', credentials: postgres },
+        ];
+        renderAt('/projects/project/home');
+        expect(
+            screen.getByRole('button', { name: 'Warehouse credentials' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Connect PostgreSQL' }),
+        ).toBeNull();
+    });
+
     it('opens when a request outside the query cache reports missing credentials', async () => {
         renderAt('/projects/project/spaces');
         expect(screen.queryByRole('dialog')).toBeNull();
