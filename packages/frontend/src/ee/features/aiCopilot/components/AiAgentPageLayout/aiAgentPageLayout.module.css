@@ -130,7 +130,9 @@
     flex: 1;
     min-height: 0;
     overflow: hidden;
-    height: calc(100dvh - var(--navbar-height));
+    height: calc(
+        100dvh - var(--navbar-height) - var(--app-shell-header-offset, 0rem)
+    );
     background-color: var(--mantine-color-body);
 }
 

@@ -19,6 +19,13 @@ import { ImpersonationBanner } from './ImpersonationBanner';
 import { PreviewBanner } from './PreviewBanner';
 import { SampleDataBanner } from './SampleDataBanner';
 import { TrialWarningBanner } from './TrialWarningBanner';
+import { type UpstreamProject } from './useBackToUpstreamProject';
+
+type PreviewNotice = {
+    previewName: string;
+    expiresAt: Date | null;
+    upstreamProject: UpstreamProject | null;
+};
 
 type NavBarState = {
     activeProjectUuid: string | undefined;
@@ -26,6 +33,8 @@ type NavBarState = {
     isLoadingActiveProject: boolean;
     hasBanner: boolean;
     banner: ReactNode;
+    /** Set when the notice on screen is the preview one, for layouts that draw it themselves. */
+    previewNotice: PreviewNotice | null;
 };
 
 export const useNavBarState = (): NavBarState => {
@@ -85,20 +94,27 @@ export const useNavBarState = (): NavBarState => {
 
     const showPreviewBanner = isCurrentProjectPreview && !isTrainingCopy;
 
+    const previewNotice: PreviewNotice | null =
+        showPreviewBanner && !isImpersonating && project
+            ? {
+                  previewName: project.name,
+                  expiresAt: project.expiresAt ?? null,
+                  upstreamProject: upstreamProject
+                      ? {
+                            projectUuid: upstreamProject.projectUuid,
+                            slug: upstreamProject.slug,
+                            name: upstreamProject.name,
+                        }
+                      : null,
+              }
+            : null;
+
     const banner = isImpersonating ? (
         <ImpersonationBanner />
     ) : showPreviewBanner ? (
         <PreviewBanner
             expiresAt={project?.expiresAt ?? null}
-            upstreamProject={
-                upstreamProject
-                    ? {
-                          projectUuid: upstreamProject.projectUuid,
-                          slug: upstreamProject.slug,
-                          name: upstreamProject.name,
-                      }
-                    : null
-            }
+            upstreamProject={previewNotice?.upstreamProject ?? null}
         />
     ) : showSampleDataBanner ? (
         <SampleDataBanner />
@@ -118,5 +134,6 @@ export const useNavBarState = (): NavBarState => {
             showSampleDataBanner ||
             showTrialWarning,
         banner,
+        previewNotice,
     };
 };

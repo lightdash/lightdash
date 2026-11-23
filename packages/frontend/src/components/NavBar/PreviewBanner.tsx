@@ -1,12 +1,13 @@
 import { Anchor, Center, Group, Text } from '@mantine/core';
 import { IconArrowLeft, IconTool } from '@tabler/icons-react';
-import { useCallback, type FC } from 'react';
-import { useNavigate } from 'react-router';
-import { useUpdateActiveProjectMutation } from '../../hooks/useActiveProject';
-import { getProjectUrlIdentifier } from '../../utils/projectUrl';
+import { type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import { BANNER_HEIGHT } from '../common/Page/constants';
 import classes from './PreviewBanner.module.css';
+import {
+    useBackToUpstreamProject,
+    type UpstreamProject,
+} from './useBackToUpstreamProject';
 
 const formatExpirationSuffix = (expiresAt: Date): string => {
     const expiresAtDate = new Date(expiresAt);
@@ -23,22 +24,9 @@ const formatExpirationSuffix = (expiresAt: Date): string => {
 
 export const PreviewBanner: FC<{
     expiresAt: Date | null;
-    upstreamProject: {
-        projectUuid: string;
-        slug?: string;
-        name: string;
-    } | null;
+    upstreamProject: UpstreamProject | null;
 }> = ({ expiresAt, upstreamProject }) => {
-    const navigate = useNavigate();
-    const { mutate: setActiveProject } = useUpdateActiveProjectMutation();
-
-    const handleBackToUpstream = useCallback(() => {
-        if (!upstreamProject) return;
-        setActiveProject(upstreamProject.projectUuid);
-        void navigate(
-            `/projects/${getProjectUrlIdentifier(upstreamProject)}/home`,
-        );
-    }, [navigate, setActiveProject, upstreamProject]);
+    const handleBackToUpstream = useBackToUpstreamProject(upstreamProject);
 
     return (
         <Center
