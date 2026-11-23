@@ -6,6 +6,7 @@ import { type FC, type ReactNode } from 'react';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
+import { PAGE_SCROLLER_ID } from '../../utils/pageScroller';
 import {
     APP_SIDEBAR_COLLAPSE_THRESHOLD,
     APP_SIDEBAR_MAX_WIDTH,
@@ -119,7 +120,9 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
                 projectUrlIdentifier={projectUrlIdentifier}
                 isCollapsed={isCollapsed}
             />
-            <AppShell.Main className={classes.main}>{children}</AppShell.Main>
+            <AppShell.Main id={PAGE_SCROLLER_ID} className={classes.main}>
+                {children}
+            </AppShell.Main>
         </AppShell>
     );
 };
