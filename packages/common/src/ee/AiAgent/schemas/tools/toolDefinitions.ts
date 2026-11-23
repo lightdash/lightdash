@@ -127,6 +127,7 @@ import {
     TOOL_WRITE_DESCRIPTION,
     toolEditDbtProjectArgsSchema,
     toolEditDbtProjectOutputSchema,
+    toolWriteArgsSchema,
 } from './toolEditDbtProjectArgs';
 import {
     TOOL_EDIT_PROJECT_CONTEXT_DESCRIPTION,
@@ -1319,15 +1320,15 @@ export const editDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
 
 export const writeToolDefinition: ToolDefinitionWithoutMcpOutput<
     'write',
-    typeof toolEditDbtProjectArgsSchema,
-    typeof toolEditDbtProjectArgsSchema,
+    typeof toolWriteArgsSchema,
+    typeof toolWriteArgsSchema,
     typeof toolEditDbtProjectOutputSchema
 > = defineTool({
     name: 'write',
     title: 'Save dbt change',
     description: TOOL_WRITE_DESCRIPTION,
     availability: ['agent'],
-    inputSchema: toolEditDbtProjectArgsSchema,
+    inputSchema: toolWriteArgsSchema,
     agent: { outputSchema: toolEditDbtProjectOutputSchema },
 });
 

@@ -21,6 +21,10 @@ import { toolsForIntent } from '../agents/referenceToolGating';
 import { AiDecisionClient } from '../decisions/AiDecisionClient';
 import { TURN_INTENTS } from '../decisions/prepareContext';
 import { getSystemPromptV2 } from '../prompts/systemV2';
+import {
+    getSemanticStudioTurn,
+    type SemanticStudioTurn,
+} from '../prompts/systemV2SemanticStudio';
 import { BuiltInSkills } from '../skills/builtInSkills';
 
 const SKILL = {
@@ -202,7 +206,11 @@ const contract = (loadout: Loadout) =>
     )}\n`;
 
 // Wording flags stay at their defaults; composer renders with the data access it requires and SQL access when sqlCatalog is on.
-const renderPrompt = (loadout: Loadout, input: LoadoutInput) =>
+const renderPrompt = (
+    loadout: Loadout,
+    input: LoadoutInput,
+    studio?: SemanticStudioTurn,
+) =>
     getSystemPromptV2({
         availableExplores: [],
         date: '2026-08-27',
@@ -214,6 +222,8 @@ const renderPrompt = (loadout: Loadout, input: LoadoutInput) =>
             loadout.toolNames.has('listWarehouseTables'),
         canRunQuery: loadout.toolNames.has('runQuery'),
         repoFsRoot: '.',
+        studio,
+        projectContextInRead: studio?.kind === 'dbt' && studio.mode === 'build',
     }).content;
 
 const fixture = (name: string) =>
@@ -321,6 +331,30 @@ describe('loadout contracts', () => {
             );
         },
     );
+
+    test('semantic studio builder with every add-on renders its prompt', async () => {
+        const builder = {
+            ...inputs.semantic_studio,
+            semanticStudioDrafts: false,
+            enableAiWriteback: true,
+        };
+        const loadout = buildLoadout('semantic_studio', builder, ADD_ON_NAMES);
+        await expect(contract(loadout)).toMatchFileSnapshot(
+            '__snapshots__/bases-with-add-ons/semantic_studio.builder.json.snap',
+        );
+        const studio = getSemanticStudioTurn(loadout, {
+            drafts: false,
+            hasRepository: true,
+            projectMap: null,
+            repoFsRoot: '.',
+            repoFsSupportsCodeSearch: true,
+        });
+        await expect(
+            renderPrompt(loadout, builder, studio),
+        ).toMatchFileSnapshot(
+            '__snapshots__/bases-with-add-ons/semantic_studio.builder.prompt.txt',
+        );
+    });
 });
 
 describe('resolveLoadout', () => {

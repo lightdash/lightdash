@@ -17,7 +17,7 @@ import { getCreateScheduledDelivery } from './createScheduledDelivery';
 import { getDescribeWarehouseTable } from './describeWarehouseTable';
 import { getDiscoverRepos } from './discoverRepos';
 import { getEditContent } from './editContent';
-import { getEditDbtProject } from './editDbtProject';
+import { getEditDbtProject, getWrite } from './editDbtProject';
 import { getEditProjectContext } from './editProjectContext';
 import { getExploreRepo } from './exploreRepo';
 import { getExportChartAsCode } from './exportChartAsCode';
@@ -153,16 +153,8 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         listDataAppConnections: getListDataAppConnections({
             listDataAppConnections: noop,
         }),
-        editDbtProject: getEditDbtProject({
-            editDbtProject: noop,
-            acceptsScript: false,
-            name: 'editDbtProject',
-        }),
-        write: getEditDbtProject({
-            editDbtProject: noop,
-            acceptsScript: true,
-            name: 'write',
-        }),
+        editDbtProject: getEditDbtProject({ editDbtProject: noop }),
+        write: getWrite({ editDbtProject: noop }),
         editProjectContext: getEditProjectContext({
             editProjectContext: noop,
         }),

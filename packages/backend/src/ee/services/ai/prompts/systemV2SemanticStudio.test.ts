@@ -117,7 +117,6 @@ describe('Semantic Studio prompt names only what its loadout offers', () => {
                 drafts: { ...studioInput, ...overrides }.semanticStudioDrafts,
                 hasRepository: true,
                 projectMap: null,
-                siteUrl: '',
                 repoFsRoot: '.',
                 repoFsSupportsCodeSearch: true,
             }),

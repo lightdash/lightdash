@@ -4,7 +4,6 @@ import {
     readLibraryPath,
     type ReadLibraryToolName,
 } from '../tools/readLibraries';
-import { getAiWritebackSection } from './systemV2AiWriteback';
 import { getRepoFsSection } from './systemV2RepoFs';
 
 /** How the prompt names a lookup: its own tool, or, for the builder that saves, its function inside read. */
@@ -68,7 +67,6 @@ export const getSemanticStudioTurn = (
         drafts: boolean;
         hasRepository: boolean;
         projectMap: string | null;
-        siteUrl: string;
         repoFsRoot: string | null;
         repoFsSupportsCodeSearch: boolean;
     },
@@ -87,16 +85,6 @@ export const getSemanticStudioTurn = (
         mode: builder ? 'build' : 'propose',
         projectMap: args.projectMap,
         sections: [
-            ...(promptSections.has('aiWriteback')
-                ? [
-                      getAiWritebackSection({
-                          // The pull request card offers linking, so the reply stays short.
-                          attribution: null,
-                          siteUrl: args.siteUrl,
-                          canEditContent: false,
-                      }),
-                  ]
-                : []),
             ...(promptSections.has('repoFs')
                 ? [
                       getRepoFsSection({
@@ -131,7 +119,6 @@ const getDbtSave = (mapped: boolean) => `${getDbtRead(mapped)}
 - Pass a null script only when the change needs dbt itself to run, such as checking new SQL against the warehouse; the slower sandbox makes that change instead.
 - A change to YAML alone is checked when it is saved, but only dbt checks one that adds a model or changes SQL: after saving it, call verify before you end the turn. If it fails, fix it with write and check again; tell the person only if it still fails.
 - When the person asks for a change, read what it touches, then save it in the same turn. Keep it to what was asked. Questions and ideas are not requests: answer them, and when you suggest a change, describe it in a sentence and save it once they say yes.
-- Leave prUrl and startNewPullRequest null, so the change joins this draft's branch while it is open and starts one otherwise. requestedBy is user_asked for a change they asked for and offer_accepted for one you suggested and they accepted.
 ${getImpact(lookup(true, 'analyzeFieldImpact'))} When saved charts use it, ask before you save.
 ${IN_DRAFT} Once saved, the draft compiles and the bar above this chat lets them try it and publish it.
 ${getCardIsReply('After saving,', "save's note")}`;

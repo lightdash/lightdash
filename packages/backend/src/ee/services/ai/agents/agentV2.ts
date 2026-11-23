@@ -113,7 +113,7 @@ import { getDelegateResearchTask } from '../tools/delegateResearchTask';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getDiscoverRepos } from '../tools/discoverRepos';
 import { getEditContent } from '../tools/editContent';
-import { getEditDbtProject } from '../tools/editDbtProject';
+import { getEditDbtProject, getWrite } from '../tools/editDbtProject';
 import { getEditProjectContext } from '../tools/editProjectContext';
 import { getExploreRepo } from '../tools/exploreRepo';
 import { getExportChartAsCode } from '../tools/exportChartAsCode';
@@ -2237,15 +2237,8 @@ export const getAgentTools = (
         editDbtProject: () =>
             getEditDbtProject({
                 editDbtProject: dependencies.editDbtProject,
-                acceptsScript: args.semanticStudioCodeMode,
-                name: 'editDbtProject',
             }),
-        write: () =>
-            getEditDbtProject({
-                editDbtProject: dependencies.editDbtProject,
-                acceptsScript: args.semanticStudioCodeMode,
-                name: 'write',
-            }),
+        write: () => getWrite({ editDbtProject: dependencies.editDbtProject }),
         editProjectContext: () =>
             getEditProjectContext({
                 editProjectContext: dependencies.editProjectContext,
@@ -2819,7 +2812,6 @@ export const getAgentMessages = (
                   drafts: args.semanticStudioDrafts,
                   hasRepository: args.semanticStudioHasRepository,
                   projectMap: args.semanticStudioProjectMap,
-                  siteUrl: args.siteUrl,
                   repoFsRoot: args.repoFsRoot,
                   repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
               })

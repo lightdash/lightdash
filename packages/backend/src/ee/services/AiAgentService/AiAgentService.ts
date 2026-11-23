@@ -17573,12 +17573,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 // Only a project with no repository has nowhere to keep project context.
                 const semanticStudioHasRepository =
                     semanticStudioStatus?.appliesAs !== 'live';
-                // Studio saves a dbt change with a script wherever Studio itself is on for the person.
-                const semanticStudioCodeMode =
+                // A dbt project's Studio thread works on pull requests where Studio is on for the person.
+                const semanticStudioWorksAsDbt =
                     semanticStudioStatus !== null &&
                     worksAsDbtPullRequests(semanticStudioStatus);
                 // A dbt project's layout spares the agent surveying the repository.
-                const semanticStudioProjectMap = semanticStudioCodeMode
+                const semanticStudioProjectMap = semanticStudioWorksAsDbt
                     ? await this.incrementalDbtCompileService.getDbtProjectMap(
                           promptProject.projectUuid,
                       )
@@ -17586,7 +17586,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 const semanticStudioDrafts =
                     semanticStudioStatus !== null &&
                     semanticStudioStatus.enabled &&
-                    !semanticStudioCodeMode;
+                    !semanticStudioWorksAsDbt;
                 let aiWritebackEnabled = hasTrustedPromptUserIdentity;
                 if (!aiWritebackEnabled) {
                     this.logger.info(
@@ -18111,7 +18111,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     enableEditProjectContext: isReviewRemediationWorkThread,
                     isSemanticStudioThread: isStudioThread,
                     semanticStudioDrafts,
-                    semanticStudioCodeMode,
                     semanticStudioHasRepository,
                     semanticStudioProjectMap,
                     writebackAttribution,

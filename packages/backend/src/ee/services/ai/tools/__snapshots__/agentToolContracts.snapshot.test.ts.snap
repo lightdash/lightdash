@@ -12182,46 +12182,20 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
           "maxItems": 2,
           "type": "array",
         },
-        "prUrl": {
-          "description": "Full URL of an existing pull request to update instead (e.g. 'https://github.com/owner/repo/pull/123'): one the user pasted, or one of several this conversation opened (from listWorkstreams or an earlier editDbtProject result). It must be in this project's repository. Otherwise null.",
-          "type": [
-            "string",
-            "null",
-          ],
-        },
         "prompt": {
-          "description": "A self-contained instruction, written as a direct task: the target model or file when you know it, and the literal change (field names, types, descriptions, SQL). The sandbox does not see this conversation, so include every detail it needs. When the project has more than one dbt source, name the source or its owner/repo verbatim, or you will be asked to choose one.",
-          "type": "string",
-        },
-        "requestedBy": {
-          "description": "Who asked for this repository change: user_asked when the user asked for it in the repository, offer_accepted when the user said yes to a change you offered, agent_initiated when you decided it alone. An agent_initiated change is not opened: the tool tells you to make what the user asked for with the content tools and offer the repository change instead.",
-          "enum": [
-            "user_asked",
-            "offer_accepted",
-            "agent_initiated",
-          ],
+          "description": "The change in words: a one-line summary under 72 characters, like a commit subject, which becomes the pull request title; then the models and fields and what each becomes. With a null script the sandbox makes the change from this alone, so include every detail.",
           "type": "string",
         },
         "script": {
-          "description": "JavaScript that makes the change, run against the repository before the pull request is opened. Paths are relative to the dbt project. Nothing is written unless the whole script succeeds and every changed YAML file passes the semantic layer schema; on failure the tool returns the error, so fix the script and call again. API (synchronous, values are plain JSON): dbt.model(name) -> { yml, sql, keys } | null, where keys is the YAML path of that model; yaml.get(path, keys), yaml.set(path, keys, value), yaml.push(path, keys, value) to append to a list, yaml.remove(path, keys); keys is a list of mapping keys, list indexes, or { name } to pick the list item with that name, e.g. [...m.keys, 'columns', { name: '<column>' }, 'config', 'meta', 'metrics', '<metric>']; set creates missing mappings, and edits keep comments and the rest of the file as it is; repo.list(prefix?), repo.read(path), repo.write(path, text), repo.remove(path) for whole files such as a new model SQL; console.log(...) is returned with errors. Follow where the file already keeps things (e.g. config.meta rather than meta when it uses that). Null when the change needs dbt to run, such as checking new SQL against the warehouse. With a script, start prompt with a one-line summary under 72 characters, like a commit subject: it becomes the pull request title.",
+          "description": "JavaScript that makes the change, run against the repository before the pull request is opened. Paths are relative to the dbt project. Nothing is written unless the whole script succeeds and every changed YAML file passes the semantic layer schema; on failure the tool returns the error, so fix the script and call again. API (synchronous, values are plain JSON): dbt.model(name) -> { yml, sql, keys } | null, where keys is the YAML path of that model; yaml.get(path, keys), yaml.set(path, keys, value), yaml.push(path, keys, value) to append to a list, yaml.remove(path, keys); keys is a list of mapping keys, list indexes, or { name } to pick the list item with that name, e.g. [...m.keys, 'columns', { name: '<column>' }, 'config', 'meta', 'metrics', '<metric>']; set creates missing mappings, and edits keep comments and the rest of the file as it is; repo.list(prefix?), repo.read(path), repo.write(path, text), repo.remove(path) for whole files such as a new model SQL; console.log(...) is returned with errors. Follow where the file already keeps things (e.g. config.meta rather than meta when it uses that). Null when the change needs dbt to run, such as checking new SQL against the warehouse.",
           "type": [
             "string",
-            "null",
-          ],
-        },
-        "startNewPullRequest": {
-          "description": "true opens a new pull request in this conversation for a change unrelated to the open one; null continues the most recent pull request. Ignored when prUrl is set.",
-          "type": [
-            "boolean",
             "null",
           ],
         },
       },
       "required": [
         "prompt",
-        "prUrl",
-        "startNewPullRequest",
-        "requestedBy",
         "script",
         "note",
         "options",
