@@ -905,8 +905,9 @@ const AssistantBubbleContent: FC<{
                                         streamingState?.decidedToolCallIds ??
                                         [],
                                 }}
+                                extra={quietCards ? artifactSlot : null}
                             />
-                            {artifactSlot}
+                            {quietCards ? null : artifactSlot}
                             {latestTextSeg ? (
                                 <Box
                                     className={styles.streamPart}
@@ -974,8 +975,9 @@ const AssistantBubbleContent: FC<{
                                 ),
                                 isLive: isStreaming,
                             }}
+                            extra={quietCards ? artifactSlot : null}
                         />
-                        {artifactSlot}
+                        {quietCards ? null : artifactSlot}
                         {hasAnswerText ? (
                             <Box
                                 // Walkthrough: the answer in words (persisted).
