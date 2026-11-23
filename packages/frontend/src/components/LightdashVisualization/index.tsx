@@ -12,8 +12,10 @@ import {
     useRef,
     useState,
 } from 'react';
+import { ConnectLiveSourceAction } from '../common/ConnectLiveSourceAction';
 import { ConnectWarehouseAction } from '../common/ConnectWarehouseAction';
 import { EmptyState } from '../common/EmptyState';
+import { getQueryErrorText } from '../common/liveSourceSignInError';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import CustomVisualization from '../CustomVisualization';
@@ -146,7 +148,8 @@ const LightdashVisualization = memo(
                             description={
                                 <Fragment>
                                     <Text className={classes.errorMessage}>
-                                        {apiErrorDetail.message || ''}
+                                        {getQueryErrorText(apiErrorDetail) ||
+                                            ''}
                                     </Text>
                                     {apiErrorDetail.data.documentationUrl && (
                                         <Fragment>
@@ -169,6 +172,7 @@ const LightdashVisualization = memo(
                             }
                         >
                             <ConnectWarehouseAction error={apiErrorDetail} />
+                            <ConnectLiveSourceAction error={apiErrorDetail} />
                         </EmptyState>
                     </div>
                 );
