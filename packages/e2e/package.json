@@ -19,7 +19,7 @@
     },
     "dependencies": {
         "@lightdash/common": "workspace:*",
-        "@playwright/test": "1.65.1",
+        "@playwright/test": "npm:flashwright-test@1.64.1-flashwright.12",
         "dayjs": "1.11.10",
         "js-yaml": "4.3.2"
     },

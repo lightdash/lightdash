@@ -1198,8 +1198,8 @@ importers:
         specifier: workspace:*
         version: link:../common
       '@playwright/test':
-        specifier: 1.65.1
-        version: 1.65.1
+        specifier: npm:flashwright-test@1.64.1-flashwright.12
+        version: flashwright-test@1.64.1-flashwright.12
       dayjs:
         specifier: 1.11.10
         version: 1.11.10
@@ -10552,6 +10552,21 @@ packages:
 
   flairup@1.0.0:
     resolution: {integrity: sha512-IKlE+pNvL2R+kVL1kEhUYqRxVqeFnjiIvHWDMLFXNaqyUdFXQM2wte44EfMYJNHkW16X991t2Zg8apKkhv7OBA==}
+
+  flashwright-core@1.64.1-flashwright.12:
+    resolution: {integrity: sha512-iuK+eMGQufE4BjzsPQeLMrE35pgrJt1th63zzDHfogw0mVtwAzIXHazeBQv2RetMIiUUFtrPQTYuvJ19bDr85A==}
+    engines: {node: '>=22.18.0'}
+    hasBin: true
+
+  flashwright-test@1.64.1-flashwright.12:
+    resolution: {integrity: sha512-s++qu9esGJKFscRU2BuEX7QJdYtaLDpibUfEnjPLosKxjhGqECLQ11B/g/LMRpJtbxnFehnr+2o0eUvF4LJAHg==}
+    engines: {node: '>=22.18.0'}
+    hasBin: true
+
+  flashwright@1.64.1-flashwright.12:
+    resolution: {integrity: sha512-uHVbEdcIcMz+/4kvfqYXE5oOMo9EObjQ/AN8yJystNDN6oY5eKa9aRkfwHWaPdlND5V+J/W5qoVQYzxNy3Q8xg==}
+    engines: {node: '>=22.18.0'}
+    hasBin: true
 
   flat-cache@3.0.4:
     resolution: {integrity: sha512-dm9s5Pw7Jc0GvMYbshN6zchCA9RgQlzzEZX3vylR9IqFfS8XciblUXOKfW6SiuJ0e13eDYZoZV5wdrev7P3Nwg==}
@@ -26803,6 +26818,16 @@ snapshots:
   finity@0.5.4: {}
 
   flairup@1.0.0: {}
+
+  flashwright-core@1.64.1-flashwright.12: {}
+
+  flashwright-test@1.64.1-flashwright.12:
+    dependencies:
+      playwright: flashwright@1.64.1-flashwright.12
+
+  flashwright@1.64.1-flashwright.12:
+    dependencies:
+      playwright-core: flashwright-core@1.64.1-flashwright.12
 
   flat-cache@3.0.4:
     dependencies:
