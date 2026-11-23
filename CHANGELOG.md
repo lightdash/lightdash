@@ -1,3 +1,10 @@
+## [3.371.3](https://github.com/lightdash/lightdash/compare/3.371.2...3.371.3) (2026-11-23)
+
+
+### Bug Fixes
+
+* **semantic-studio:** find the dbt project's layout on manifests from dbt before 1.6 ([#33238](https://github.com/lightdash/lightdash/issues/33238)) ([9aec897](https://github.com/lightdash/lightdash/commit/9aec89740a301e72e41d2ce03ff1667c6c787bcf))
+
 ## [3.371.2](https://github.com/lightdash/lightdash/compare/3.371.1...3.371.2) (2026-11-23)
 
 
