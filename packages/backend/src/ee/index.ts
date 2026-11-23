@@ -119,11 +119,11 @@ import { ContentReviewRequestService } from './services/ContentReviewRequestServ
 import { DataAppAnalysisService } from './services/DataAppAnalysisService/DataAppAnalysisService';
 import { EmbedService } from './services/EmbedService/EmbedService';
 import { ExternalConnectionCoderService } from './services/ExternalConnectionCoderService/ExternalConnectionCoderService';
+import { borrowedIdentityMiddleware } from './services/ExternalConnectionService/borrowedIdentity';
 import { ExternalConnectionService } from './services/ExternalConnectionService/ExternalConnectionService';
 import { GoogleServiceAccountTokenProvider } from './services/ExternalConnectionService/GoogleServiceAccountTokenProvider';
 import { OAuthAuthorizationCodeTokenClient } from './services/ExternalConnectionService/OAuthAuthorizationCodeTokenClient';
 import { OAuthClientCredentialsTokenProvider } from './services/ExternalConnectionService/OAuthClientCredentialsTokenProvider';
-import { slackPreviewMiddleware } from './services/ExternalConnectionService/slackPreview';
 import { ExternalQuerySource } from './services/ExternalSourceService/ExternalQuerySource';
 import { ExternalSourceService } from './services/ExternalSourceService/ExternalSourceService';
 import { HomepageRecommendedActionSkipsService } from './services/HomepageRecommendedActionSkipsService';
@@ -1947,7 +1947,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 expressApp.use(developmentViewMiddleware);
             },
             (expressApp: Express) => {
-                expressApp.use(slackPreviewMiddleware);
+                expressApp.use(borrowedIdentityMiddleware);
             },
         ],
         schedulerWorkerFactory: (context) =>

@@ -749,6 +749,7 @@ import { createWritebackAgentDeliveryGuard } from '../AiWritebackService/writeba
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import type { AppGenerateService } from '../AppGenerateService/AppGenerateService';
 import { resolveRenderableDataAppVizVersion } from '../AppGenerateService/dataAppVizRender';
+import { runWithBorrowedIdentity } from '../ExternalConnectionService/borrowedIdentity';
 import { type ExternalConnectionService } from '../ExternalConnectionService/ExternalConnectionService';
 import { type MobilePushNotificationService } from '../MobilePushNotificationService/MobilePushNotificationService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
@@ -21661,10 +21662,27 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         if (slackPrompt === undefined) {
             throw new Error('Prompt not found');
         }
-        await this.generateSlackPromptReply(
-            promptUuid,
-            slackPrompt,
-            slackAppId,
+        const reply = () =>
+            this.generateSlackPromptReply(promptUuid, slackPrompt, slackAppId);
+        // The whole reply (queries, charts, exports) answers as the installer
+        // unless Slack signs people in, so sources that show each viewer their
+        // own data refuse it
+        await ((await this.hasTrustedSlackPromptIdentity(slackPrompt))
+            ? reply()
+            : runWithBorrowedIdentity('slack_agent', reply));
+    }
+
+    /** Whether a Slack prompt runs as the person who asked, not the installer. */
+    private async hasTrustedSlackPromptIdentity(
+        prompt: SlackPrompt,
+    ): Promise<boolean> {
+        const installation =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                prompt.organizationUuid,
+            );
+        return (
+            !!installation?.aiRequireOAuth ||
+            this.isSlackChannelServiceAccountPrompt(prompt)
         );
     }
 

@@ -172,6 +172,7 @@ import {
     validateApiSourceConnection,
     withApiSourceAccessRules,
 } from './apiSourceConnection';
+import { getBorrowedIdentity, type BorrowedIdentity } from './borrowedIdentity';
 import { getExternalConnectionSubject } from './externalConnectionAuthz';
 import {
     validateExternalConnectionConfig,
@@ -229,7 +230,6 @@ import {
     buildSalesforceAuthorizeUrl,
     getSalesforceOAuthRedirectUri,
 } from './salesforceOAuth';
-import { isSlackPreview } from './slackPreview';
 
 type ExternalConnectionServiceArguments = {
     allowedPrivateHostCidrs: AllowedPrivateHostCidrs;
@@ -276,6 +276,14 @@ export const parseLiveSourceReturnTo = (
 ): LiveSourceReturnTo => (value === 'onboarding' ? 'onboarding' : 'settings');
 // How many numbered alternatives to try when suggesting a free explore prefix.
 const MAX_EXPLORE_PREFIX_SUGGESTIONS = 20;
+/** Why each kind of borrowed identity can't read a per-viewer source. */
+const BORROWED_IDENTITY_REFUSALS: Record<BorrowedIdentity, string> = {
+    slack_preview:
+        "Slack can't preview it. Open it in Lightdash to see your data.",
+    slack_agent:
+        "the agent can't query it from Slack until this workspace signs people in to Lightdash. Ask in Lightdash to see your data.",
+    embed: "it can't be queried from an embed.",
+};
 const LINKEDIN_AD_ACCOUNT_ID = /^\d{1,20}$/;
 
 /** What the sign-in callback needs from the request that started it. */
@@ -3952,7 +3960,9 @@ export class ExternalConnectionService extends BaseService {
     /**
      * The viewer whose own sign-in a query on this source uses, or null when
      * the source shares one sign-in. Service accounts are nobody's viewer,
-     * and a Slack link preview would post one person's data to a channel.
+     * and work that runs as one person to answer another (a Slack link
+     * preview, the Slack agent as the installer, an embed) would show that
+     * person's data to someone else.
      */
     private getViewerUuid(
         account: RegisteredAccount,
@@ -3964,9 +3974,10 @@ export class ExternalConnectionService extends BaseService {
                 `"${connection.name}" queries with each viewer's own sign-in, so service accounts can't query it`,
             );
         }
-        if (isSlackPreview()) {
+        const borrowed = getBorrowedIdentity();
+        if (borrowed !== null) {
             throw new ForbiddenError(
-                `"${connection.name}" shows each viewer their own data, so Slack can't preview it. Open it in Lightdash to see your data.`,
+                `"${connection.name}" shows each viewer their own data, so ${BORROWED_IDENTITY_REFUSALS[borrowed]}`,
             );
         }
         return account.user.id;

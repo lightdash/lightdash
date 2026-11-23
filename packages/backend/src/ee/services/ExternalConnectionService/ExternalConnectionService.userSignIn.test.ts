@@ -16,9 +16,9 @@ import {
 import { z } from 'zod';
 import { fromSession } from '../../../auth/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
+import { runWithBorrowedIdentity } from './borrowedIdentity';
 import { ExternalConnectionService } from './ExternalConnectionService';
 import { serializeStoredOAuthTokens } from './OAuthAuthorizationCodeTokenClient';
-import { runAsSlackPreview } from './slackPreview';
 
 const SITE_URL = 'https://lightdash.example.com';
 const DEADLINE_MS = 30_000;
@@ -535,7 +535,7 @@ describe('Live sources that query with each viewer’s own sign-in', () => {
         await signInThroughHydra(service, alice);
 
         await expect(
-            runAsSlackPreview(() =>
+            runWithBorrowedIdentity('slack_preview', () =>
                 service.getLiveSourceForExplore(
                     alice,
                     'proj-1',
@@ -546,13 +546,37 @@ describe('Live sources that query with each viewer’s own sign-in', () => {
         ).rejects.toThrow("so Slack can't preview it");
     });
 
+    it.each([
+        ['slack_agent', "the agent can't query it from Slack"],
+        ['embed', "it can't be queried from an embed"],
+    ] as const)(
+        'refuses %s, which answers someone other than the account it runs as',
+        async (who, refusal) => {
+            const { service } = buildService();
+            await signInThroughHydra(service, alice);
+
+            await expect(
+                runWithBorrowedIdentity(who, () =>
+                    service.getLiveSourceForExplore(
+                        alice,
+                        'proj-1',
+                        'conn-1',
+                        DEADLINE_MS,
+                    ),
+                ),
+            ).rejects.toThrow(refusal);
+        },
+    );
+
     it('lets Slack preview a source with one shared sign-in', async () => {
         const { service } = buildService({
             connection: hydraSource({ signInMode: 'shared' }),
         });
 
         await expect(
-            runAsSlackPreview(() => readAccount(service, alice)),
+            runWithBorrowedIdentity('slack_preview', () =>
+                readAccount(service, alice),
+            ),
         ).resolves.toMatchObject({ hydraAccount: expect.any(String) });
     });
 
