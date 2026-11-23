@@ -1,5 +1,10 @@
 import { type Knex } from 'knex';
 
+export const classification = {
+    kind: 'safe',
+    reason: "Adds a column with a constant default and creates an empty table for viewers' sign-ins without touching existing data",
+} as const;
+
 const ExternalConnectionsTableName = 'external_connections';
 const UserCredentialsTableName = 'external_connection_user_credentials';
 

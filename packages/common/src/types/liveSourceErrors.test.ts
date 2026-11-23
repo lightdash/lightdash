@@ -37,4 +37,12 @@ describe('live source sign-in messages', () => {
             ),
         ).toBeNull();
     });
+
+    it('reads nothing from a link whose source is not a uuid', () => {
+        expect(
+            parseLiveSourceSignInRequiredMessage(
+                'X shows each person their own Y data. Connect your Y account to see it. Connect it here: https://x//evil.example.com/live-sources/a/user-sign-in/start',
+            ),
+        ).toBeNull();
+    });
 });

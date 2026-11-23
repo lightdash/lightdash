@@ -143,7 +143,9 @@ const SIGN_IN_MESSAGE_PATTERNS: {
     },
 ];
 
-const CONNECT_PATH_PATTERN = /\/live-sources\/([^/]+)\/user-sign-in\/start$/;
+// Only a source's uuid is read from the link; the app builds its own from it
+const CONNECT_PATH_PATTERN =
+    /\/live-sources\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/user-sign-in\/start$/i;
 
 /**
  * Reads a sign-in prompt back from a stored error message: a query that

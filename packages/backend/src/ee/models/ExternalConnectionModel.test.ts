@@ -766,10 +766,13 @@ describe('ExternalConnectionModel', () => {
     });
 
     describe('softDelete', () => {
-        it('deletes the secret and call log but keeps the connection row', async () => {
+        it("deletes the secret, viewers' sign-ins and call log but keeps the connection row", async () => {
             tracker.on.update(ExternalConnectionsTableName).response(1);
             tracker.on.delete(AppExternalConnectionsTableName).response(0);
             tracker.on.delete(ExternalConnectionSecretsTableName).response(1);
+            tracker.on
+                .delete(ExternalConnectionUserCredentialsTableName)
+                .response(2);
             tracker.on.delete(ApiSourceCallsTableName).response(3);
 
             await model.softDelete(CONNECTION_UUID);
@@ -782,6 +785,7 @@ describe('ExternalConnectionModel', () => {
             expect(deletedTables).toEqual([
                 AppExternalConnectionsTableName,
                 ExternalConnectionSecretsTableName,
+                ExternalConnectionUserCredentialsTableName,
                 ApiSourceCallsTableName,
             ]);
             expect(

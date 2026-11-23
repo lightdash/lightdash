@@ -1454,6 +1454,10 @@ export class ExternalConnectionModel {
             // The row stays only to keep its slug and, for a live source, its
             // name and field edits for reattach.
             await ExternalConnectionModel.deleteSecret(trx, uuid);
+            // Every viewer's own sign-in goes with the source's
+            await trx(ExternalConnectionUserCredentialsTableName)
+                .where('external_connection_uuid', uuid)
+                .delete();
             await trx(ApiSourceCallsTableName)
                 .where('external_connection_uuid', uuid)
                 .delete();
