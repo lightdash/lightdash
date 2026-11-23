@@ -67793,6 +67793,7 @@ const models: TsoaRoute.Models = {
                 },
                 { dataType: 'enum', enums: ['cleanMcpToolCalls'] },
                 { dataType: 'enum', enums: ['cleanRateCounters'] },
+                { dataType: 'enum', enums: ['cleanApiSourceRateLimits'] },
                 {
                     dataType: 'enum',
                     enums: ['rebuildOutdatedApiSourceExplores'],
