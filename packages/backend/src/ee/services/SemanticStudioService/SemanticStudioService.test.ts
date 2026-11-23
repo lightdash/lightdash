@@ -4497,6 +4497,83 @@ describe('compiling a dbt change on its branch', () => {
         });
     });
 
+    describe('checking a change in the same turn', () => {
+        const check = (
+            context: ReturnType<typeof setup>,
+            {
+                threadUuid = 'thread',
+                saving = false,
+            }: { threadUuid?: string; saving?: boolean } = {},
+        ) =>
+            context.service.waitForBranchCompile(repoWriter, PROJECT_UUID, {
+                threadUuid,
+                isSaving: async () => saving,
+                timeoutMs: 0,
+            });
+        const queue = (context: ReturnType<typeof setup>) =>
+            context.service.queueBranchCompile(
+                repoWriter,
+                PROJECT_UUID,
+                OWN_PULL_REQUEST,
+                'agent',
+            );
+
+        it('gives the compile error and does not send it again after the turn', async () => {
+            const context = onChange();
+            context.threadPrompts.push({
+                prompt: 'Add a margin metric',
+                hidden: false,
+                created_at: new Date(Date.now() - 60_000),
+                responded_at: new Date(Date.now() - 30_000),
+            });
+            await queue(context);
+            context.compileExploresFromBranch.mockRejectedValueOnce(
+                new Error('Compilation Error in model orders'),
+            );
+            await runQueued(context);
+            expect(await check(context)).toEqual({
+                status: 'failed',
+                error: 'Compilation Error in model orders',
+            });
+            expect(
+                await context.service.claimBranchCompileFollowUp(
+                    repoWriter,
+                    PROJECT_UUID,
+                    { compileRequestUuid: 'request-1', threadUuid: 'thread' },
+                ),
+            ).toBeNull();
+        });
+
+        it('lists the models that compiled but failed to load', async () => {
+            const context = onChange();
+            await queue(context);
+            await runQueued(context);
+            expect(await check(context)).toEqual({
+                status: 'ready',
+                exploreErrors: [
+                    expect.objectContaining({ name: BRANCH_EXPLORE.name }),
+                ],
+            });
+        });
+
+        it('says what is still running when the wait ends', async () => {
+            const context = onChange();
+            await queue(context);
+            expect(await check(context, { saving: true })).toEqual({
+                status: 'saving',
+            });
+            expect(await check(context)).toEqual({ status: 'compiling' });
+        });
+
+        it('has nothing to check for another chat or before a save', async () => {
+            const context = onChange();
+            expect(await check(context, { threadUuid: 'other' })).toEqual({
+                status: 'nothing_saved',
+            });
+            expect(await check(context)).toEqual({ status: 'nothing_saved' });
+        });
+    });
+
     it('tells the person which change they are on and where its compile stands', async () => {
         const context = onChange();
         expect(
