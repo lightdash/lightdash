@@ -113,7 +113,9 @@ const SignInModeRow: FC<{
     const saved: LiveSourceSignInMode = connection.signInMode ?? 'shared';
     /** The mode being saved; the saved one shows otherwise. */
     const [pending, setPending] = useState<LiveSourceSignInMode | null>(null);
-    const [isConfirmingShared, setIsConfirmingShared] = useState(false);
+    /** The mode last asked about; it stays while the dialog closes. */
+    const [asked, setAsked] = useState<LiveSourceSignInMode>('shared');
+    const [isConfirming, setIsConfirming] = useState(false);
     const mode = pending ?? saved;
     const integration = getLiveIntegrationCatalogEntry(
         connection.apiSource.connector,
@@ -133,9 +135,9 @@ const SignInModeRow: FC<{
         const next: LiveSourceSignInMode =
             value === 'per_user' ? 'per_user' : 'shared';
         if (next === mode) return;
-        // Going back to one sign-in forgets every viewer's
-        if (next === 'shared') setIsConfirmingShared(true);
-        else save(next);
+        // Either way changes whose data people and deliveries get
+        setAsked(next);
+        setIsConfirming(true);
     };
     return (
         <>
@@ -160,15 +162,27 @@ const SignInModeRow: FC<{
                 />
             </SettingsRow>
             <MantineModal
-                opened={isConfirmingShared}
-                onClose={() => setIsConfirmingShared(false)}
-                title="Use one shared sign-in?"
+                opened={isConfirming}
+                onClose={() => setIsConfirming(false)}
+                title={
+                    asked === 'per_user'
+                        ? 'Have each viewer sign in?'
+                        : 'Use one shared sign-in?'
+                }
                 role="alertdialog"
-                description={`Everyone will see what this source's ${integration} sign-in sees, and every viewer's own sign-in is forgotten.`}
-                confirmLabel="Use shared sign-in"
+                description={
+                    asked === 'per_user'
+                        ? `Everyone connects their own ${integration} account before they see data from this source. Scheduled deliveries fail until their creator connects, and service accounts and Slack link previews stop getting data.`
+                        : `Everyone will see what this source's ${integration} sign-in sees, and every viewer's own sign-in is forgotten.`
+                }
+                confirmLabel={
+                    asked === 'per_user'
+                        ? 'Have each viewer sign in'
+                        : 'Use shared sign-in'
+                }
                 onConfirm={() => {
-                    setIsConfirmingShared(false);
-                    save('shared');
+                    setIsConfirming(false);
+                    save(asked);
                 }}
             />
         </>
