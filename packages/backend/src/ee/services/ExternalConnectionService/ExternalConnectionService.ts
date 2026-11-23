@@ -2484,20 +2484,22 @@ export class ExternalConnectionService extends BaseService {
         );
     }
 
-    /** What the rate-limit gate limits for a live source: its integration's declared limits. */
+    /** What the rate-limit gate limits for a live source: the limits its integration declares for it. */
     private static getRateLimitTarget(
         connection: Pick<
             ExternalConnection,
             'externalConnectionUuid' | 'timeoutMs'
         >,
-        { connector }: Pick<ExternalConnectionApiSource, 'connector'>,
+        apiSource: ExternalConnectionApiSource,
     ): RateLimitTarget {
-        const integration = getLiveIntegration(connector);
+        const integration = getLiveIntegration(apiSource.connector);
         return {
             limitKey: connection.externalConnectionUuid,
-            integration: connector,
+            integration: apiSource.connector,
             label: integration.label,
-            rateLimits: integration.rateLimits,
+            rateLimits:
+                integration.rateLimitsFor?.(apiSource) ??
+                integration.rateLimits,
             timeoutMs: connection.timeoutMs,
         };
     }
@@ -2528,7 +2530,7 @@ export class ExternalConnectionService extends BaseService {
         let callsThisQuery = 0;
         const integration = getLiveIntegration(apiSource.connector);
         const { label } = integration;
-        const limits = integration.limitsFor?.(apiSource) ?? integration.limits;
+        const { limits } = integration;
         const usage: LiveCallUsage = {
             apiCalls: 0,
             responseBytes: 0,

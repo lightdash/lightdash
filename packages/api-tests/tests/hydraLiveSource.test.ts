@@ -1,13 +1,14 @@
 import {
+    ApiConnectorType,
     FeatureFlags,
     HYDRA_ACCOUNT_PATH,
-    HYDRA_DEFAULT_SETTINGS,
     HYDRA_ORIGIN,
     HYDRA_REPORT_PATH,
     SEED_PROJECT,
     type ApiExecuteAsyncMetricQueryResults,
     type CreateExternalConnection,
     type ExternalConnection,
+    type ExternalConnectionApiUsage,
     type HealthState,
     type HydraApiSource,
     type ResultsCacheProjectSettings,
@@ -19,7 +20,9 @@ import { pollUntil } from '../helpers/polling';
 
 // Hydra is the test integration the shared live data source engine is
 // tested through: its API answers in-process, from rows seeded by the
-// sign-in token, and its settings make it slow, fail or rate limit.
+// sign-in token, and its settings make it slow, fail, page or rate limit.
+// Hydra counts calls per backend process, so these tests check what queries
+// return, not Hydra's call counts; a new source starts at call 1.
 
 const projectUuid = SEED_PROJECT.project_uuid;
 const connectionsUrl = `/api/v1/ee/projects/${projectUuid}/external-connections`;
@@ -36,16 +39,36 @@ type QueryOutcome = {
     error: string | null;
 };
 
+type HydraSettingsInput = Omit<HydraApiSource, 'connector'>;
+
+/** A Hydra source's settings; any left out take their defaults. */
+const hydra = (settings: HydraSettingsInput = {}): HydraApiSource => ({
+    connector: ApiConnectorType.HYDRA,
+    ...settings,
+});
+
+/** The calls Lightdash sent a source, retries included, across logged queries. */
+const getApiCalls = async (admin: ApiClient, connectionUuid: string) => {
+    const resp = await admin.get<Body<ExternalConnectionApiUsage[]>>(
+        `${connectionsUrl}/api-usage`,
+    );
+    return (
+        resp.body.results.find(
+            (usage) => usage.externalConnectionUuid === connectionUuid,
+        )?.apiCalls ?? 0
+    );
+};
+
 const hydraSourceBody = (
     name: string,
     token: string,
-    settings: Partial<HydraApiSource> = {},
+    settings: HydraSettingsInput = {},
 ): CreateExternalConnection => ({
     name: `Hydra ${name} ${runId}`,
     type: 'bearer_token',
     origin: HYDRA_ORIGIN,
     secret: token,
-    apiSource: { ...HYDRA_DEFAULT_SETTINGS, ...settings },
+    apiSource: hydra(settings),
     allowedMethods: ['GET', 'POST'],
     allowedPathPrefixes: [HYDRA_REPORT_PATH, HYDRA_ACCOUNT_PATH],
     allowedContentTypes: ['application/json'],
@@ -56,7 +79,7 @@ const createHydraSource = async (
     admin: ApiClient,
     name: string,
     token: string,
-    settings: Partial<HydraApiSource> = {},
+    settings: HydraSettingsInput = {},
 ) => {
     const resp = await admin.post<Body<ExternalConnection>>(
         connectionsUrl,
@@ -148,9 +171,9 @@ describe('Hydra, the test integration', () => {
     let clearFlag = false;
     let restoreCache: boolean | null = null;
 
-    const setBehaviour = async (settings: Partial<HydraApiSource>) => {
+    const setBehaviour = async (settings: HydraSettingsInput) => {
         const resp = await admin.patch(`${connectionsUrl}/${source.uuid}`, {
-            apiSource: { ...HYDRA_DEFAULT_SETTINGS, ...settings },
+            apiSource: hydra(settings),
         });
         expect(resp.status).toBe(200);
     };
@@ -304,48 +327,121 @@ describe('Hydra, the test integration', () => {
 
         const updated = await admin.patch<{ error: { message: string } }>(
             `${connectionsUrl}/${source.uuid}`,
-            { apiSource: { ...HYDRA_DEFAULT_SETTINGS, ...invalid } },
+            { apiSource: hydra(invalid) },
             { failOnStatusCode: false },
         );
         expect(updated.status).toBe(400);
         expect(updated.body.error.message).toBe(message);
     });
 
-    it('passes on a 429 with its Retry-After', async () => {
-        await setBehaviour({ retryAfterEvery: 1, retryAfterSeconds: 3 });
-        try {
-            const result = await runQuery(admin, source.events, {
-                invalidateCache: true,
-            });
-            expect(result.status).toBe('error');
-            expect(result.error).toMatch(/Hydra rate limit reached.*3 seconds/);
-        } finally {
-            await setBehaviour({});
-        }
+    // Each test below uses a new source, so its calls count from 1 and
+    // its API calls are its own
+
+    it.each([
+        ['a 429 with Retry-After', { status: 429, retryAfterSeconds: 2 }],
+        [
+            'a 403 whose body says it is a throttle',
+            {
+                status: 403,
+                retryAfterSeconds: 1,
+                body: { code: 'rate_limited', message: 'Slow down' },
+            },
+        ],
+    ])('waits out %s and retries the call', async (_name, mock) => {
+        const limited = await createHydraSource(
+            admin,
+            `retry${mock.status}`,
+            'erin',
+            { mockResponses: [{ call: 1, ...mock }] },
+        );
+        created.push(limited.uuid);
+        const result = await runQuery(admin, limited.events, {
+            invalidateCache: true,
+        });
+        expect(result.status).toBe('ready');
+        // The refused call, then the retry
+        expect(await getApiCalls(admin, limited.uuid)).toBe(2);
     });
 
-    it("refuses calls past the source's per-minute limit", async () => {
-        const limited = await createHydraSource(admin, 'limited', 'carol', {
-            callsPerMinute: 1,
+    it('gives up after its retries while Hydra keeps refusing', async () => {
+        const limited = await createHydraSource(admin, 'refusing', 'frank', {
+            mockResponses: [{ fromCall: 1, status: 429, retryAfterSeconds: 1 }],
         });
         created.push(limited.uuid);
-        const results = [];
-        for (let call = 0; call < 3; call += 1) {
-            // eslint-disable-next-line no-await-in-loop
-            results.push(
-                await runQuery(admin, limited.events, {
-                    invalidateCache: true,
-                }),
-            );
-        }
-        // Three calls a few seconds apart cross at most one minute boundary
-        expect(results[0].status).toBe('ready');
-        expect(
-            results
-                .slice(1)
-                .some(({ error }) =>
-                    /limit of 1 calls per minute/.test(error ?? ''),
-                ),
-        ).toBe(true);
+        const result = await runQuery(admin, limited.events, {
+            invalidateCache: true,
+        });
+        expect(result.status).not.toBe('ready');
+        expect(result.error).toMatch(/Hydra rate limit reached/);
+        // The first call and two retries
+        expect(await getApiCalls(admin, limited.uuid)).toBe(3);
+    });
+
+    it("shows the vendor's refusal when Lightdash declares no limits to hold", async () => {
+        const limited = await createHydraSource(admin, 'undeclared', 'grace', {
+            vendorLimits: {
+                concurrentCalls: null,
+                callsPerSecond: null,
+                buckets: [{ id: 'hour', windowMs: 3_600_000, capacity: 1 }],
+            },
+            declaredLimits: null,
+        });
+        created.push(limited.uuid);
+        const first = await runQuery(admin, limited.events, {
+            invalidateCache: true,
+        });
+        expect(first.status).toBe('ready');
+        const second = await runQuery(admin, limited.events, {
+            invalidateCache: true,
+        });
+        expect(second.status).not.toBe('ready');
+        expect(second.error).toMatch(/Hydra rate limit reached/);
+        // Nothing declared holds, so the refusal is not retried
+        expect(await getApiCalls(admin, limited.uuid)).toBe(2);
+    });
+
+    it('keeps calls under declared limits a little stricter than the vendor, so it never refuses', async () => {
+        // The gate's window opens when it charges a call, a moment before the
+        // call reaches Hydra, so the declared window keeps a margin
+        const limited = await createHydraSource(admin, 'paced', 'heidi', {
+            vendorLimits: {
+                concurrentCalls: 1,
+                callsPerSecond: null,
+                buckets: [{ id: 'burst', windowMs: 2_500, capacity: 1 }],
+            },
+            declaredLimits: {
+                concurrentCalls: 1,
+                callsPerSecond: null,
+                buckets: [{ id: 'burst', windowMs: 3_000, capacity: 1 }],
+            },
+        });
+        created.push(limited.uuid);
+        const startedAt = Date.now();
+        const results = await Promise.all(
+            [0, 1].map(() =>
+                runQuery(admin, limited.events, { invalidateCache: true }),
+            ),
+        );
+        expect(results.map(({ status }) => status)).toEqual(['ready', 'ready']);
+        // The gate held the second call for the window instead of sending it
+        expect(Date.now() - startedAt).toBeGreaterThanOrEqual(2_500);
+        expect(await getApiCalls(admin, limited.uuid)).toBe(2);
+    });
+
+    it('reads a big report a page at a time', async () => {
+        // 1,000 events seed 100 users, enough for 61 rows
+        const paged = await createHydraSource(admin, 'paged', 'alice', {
+            pageSize: 20,
+        });
+        created.push(paged.uuid);
+        const result = await runQuery(admin, paged.events, {
+            dimensions: [`${paged.events}_user_id`],
+            limit: 60,
+            invalidateCache: true,
+        });
+        expect(result.status).toBe('ready');
+        expect(result.rows).toHaveLength(60);
+        // 61 rows asked for, 20 a page
+        expect(await getApiCalls(admin, paged.uuid)).toBe(4);
     });
 });
