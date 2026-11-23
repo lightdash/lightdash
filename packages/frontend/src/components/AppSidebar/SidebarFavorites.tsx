@@ -1,6 +1,6 @@
 import { getResourceViewItemName } from '@lightdash/common';
 import { Box, NavLink, Text, Tooltip } from '@mantine/core';
-import { type FC } from 'react';
+import { useRef, type FC } from 'react';
 import { Link } from 'react-router';
 import { useFavorites } from '../../hooks/favorites/useFavorites';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
@@ -58,6 +58,14 @@ export const SidebarFavorites: FC<Props> = ({
     activeFavoriteUuid,
 }) => {
     const { data: favorites } = useFavorites(projectUuid);
+    // Favorites already there when the list first loads just appear; only
+    // the ones starred afterwards open into place.
+    const initialFavorites = useRef<Set<string> | null>(null);
+    if (favorites && initialFavorites.current === null) {
+        initialFavorites.current = new Set(
+            favorites.map((item) => item.data.uuid),
+        );
+    }
     if (!favorites || favorites.length === 0) return null;
 
     return (
@@ -69,6 +77,8 @@ export const SidebarFavorites: FC<Props> = ({
                 items={favorites.map((item) => ({
                     key: item.data.uuid,
                     isActive: item.data.uuid === activeFavoriteUuid,
+                    animatesIn:
+                        initialFavorites.current?.has(item.data.uuid) === false,
                     element: (
                         <SidebarFavorite
                             name={getResourceViewItemName(item)}

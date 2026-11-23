@@ -2,7 +2,7 @@ import { Box, Collapse, UnstyledButton } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { IconChevronDown } from '@tabler/icons-react';
 import { clsx } from 'clsx';
-import { type FC, type ReactNode } from 'react';
+import { useEffect, useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import classes from './AppSidebar.module.css';
 
@@ -12,7 +12,31 @@ export type SidebarSectionItem = {
     key: string;
     /** The page being viewed stays in sight when its section is folded. */
     isActive: boolean;
+    /** Added while the sidebar is on screen, so it opens into place. */
+    animatesIn: boolean;
     element: ReactNode;
+};
+
+const SectionItem: FC<{ item: SidebarSectionItem; isSectionOpen: boolean }> = ({
+    item,
+    isSectionOpen,
+}) => {
+    const [hasEntered, setHasEntered] = useState(!item.animatesIn);
+    useEffect(() => {
+        // Opening starts from the closed state, which has to be painted first.
+        const frame = requestAnimationFrame(() => setHasEntered(true));
+        return () => cancelAnimationFrame(frame);
+    }, []);
+
+    return (
+        <Collapse
+            expanded={hasEntered && (isSectionOpen || item.isActive)}
+            transitionDuration={hasEntered && item.animatesIn ? 200 : 150}
+            transitionTimingFunction="cubic-bezier(0.23, 1, 0.32, 1)"
+        >
+            {item.element}
+        </Collapse>
+    );
 };
 
 type Props = {
@@ -60,13 +84,11 @@ export const SidebarSection: FC<Props> = ({
                 />
             </UnstyledButton>
             {items.map((item) => (
-                <Collapse
+                <SectionItem
                     key={item.key}
-                    expanded={isOpen || item.isActive}
-                    transitionDuration={150}
-                >
-                    {item.element}
-                </Collapse>
+                    item={item}
+                    isSectionOpen={isOpen}
+                />
             ))}
         </Box>
     );

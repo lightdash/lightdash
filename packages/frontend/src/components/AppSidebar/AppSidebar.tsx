@@ -146,6 +146,7 @@ export const AppSidebar: FC<Props> = ({
                         const items = section.items.map((item) => ({
                             key: item.key,
                             isActive: item.key === activeItem,
+                            animatesIn: false,
                             element: (
                                 <Tooltip
                                     key={item.key}
