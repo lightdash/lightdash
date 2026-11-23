@@ -89,6 +89,7 @@ import {
 } from '../../../services/ProjectService/ProjectService';
 import { type ValidationService } from '../../../services/ValidationService/ValidationService';
 import { runWithConcurrency } from '../../../utils/runWithConcurrency';
+import { startStepTimings } from '../../../utils/stepTimings';
 import {
     ModelDocumentsChangedError,
     type ChangeSetSource,
@@ -1180,7 +1181,38 @@ export class SemanticStudioService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         change: DbtScriptChange,
+        options: { checkQueries: boolean },
+    ): Promise<DbtScriptCheck> {
+        const timings = startStepTimings();
+        let result: DbtScriptCheck | null = null;
+        try {
+            result = await this.runDbtScriptCheck(
+                user,
+                projectUuid,
+                change,
+                options,
+                timings.mark,
+            );
+            return result;
+        } finally {
+            this.logger.info('Semantic Studio dbt script check timed', {
+                event: 'semantic_studio.check.timed',
+                projectUuid,
+                checkQueries: options.checkQueries,
+                status: result?.status ?? 'error',
+                exploreCount:
+                    result?.status === 'passed' ? result.explores.length : null,
+                ...timings.summary(),
+            });
+        }
+    }
+
+    private async runDbtScriptCheck(
+        user: SessionUser,
+        projectUuid: string,
+        change: DbtScriptChange,
         { checkQueries }: { checkQueries: boolean },
+        mark: (step: string) => void,
     ): Promise<DbtScriptCheck> {
         const stored = await readCompiledDbtManifest(
             this.fileStorageClient,
@@ -1192,6 +1224,7 @@ export class SemanticStudioService extends BaseService {
                 reason: 'The project has no compiled manifest to check against',
             };
         }
+        mark('manifestRead');
         const compiled =
             change.headCommitSha === null ||
             change.headCommitSha === stored.commitSha
@@ -1202,6 +1235,7 @@ export class SemanticStudioService extends BaseService {
                       change.headCommitSha,
                       change,
                   );
+        mark('manifestAdvance');
         const since = await change.listChangedSince(compiled.commitSha);
         if (since === null) {
             return {
@@ -1219,7 +1253,9 @@ export class SemanticStudioService extends BaseService {
                     : await change.readHead(path),
             })),
         );
+        mark('diffRead');
         const patch = patchManifest(compiled.manifest, files);
+        mark('patch');
         if (patch.status === 'unsupported') return patch;
         if (patch.changedModels.length === 0) {
             return { status: 'passed', changedModels: [], explores: [] };
@@ -1251,6 +1287,7 @@ export class SemanticStudioService extends BaseService {
             explores.map(({ name }) => name),
         );
         const broken = findNewCompileErrors(explores, live);
+        mark('compile');
         if (broken.length > 0) {
             return {
                 status: 'failed',
@@ -1288,6 +1325,7 @@ export class SemanticStudioService extends BaseService {
                         return `${explore.name}: ${error}`;
                     }),
             );
+            mark('plan');
             const found = errors.filter((error) => error !== null);
             if (found.length > 0) {
                 return { status: 'failed', error: found.join('. ') };

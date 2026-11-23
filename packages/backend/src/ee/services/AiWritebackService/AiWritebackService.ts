@@ -70,6 +70,7 @@ import { BaseService } from '../../../services/BaseService';
 import type { CiService } from '../../../services/CiService/CiService';
 import type { GithubAppService } from '../../../services/GithubAppService/GithubAppService';
 import type { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { startStepTimings } from '../../../utils/stepTimings';
 import type { DbAiWritebackRun } from '../../database/entities/ai';
 import type { AiWritebackRunModel } from '../../models/AiWritebackRunModel';
 import type {
@@ -1963,15 +1964,28 @@ export class AiWritebackService extends BaseService {
             prUrl: args.prUrl,
             startNewPullRequest: args.startNewPullRequest,
         });
-        if (prepared.kind !== 'run') return null;
+        const fallBack = (
+            reason: 'not_runnable' | 'not_github' | 'agent_pull_request',
+        ) => {
+            this.logger.info('AI writeback script fell back to the sandbox', {
+                event: 'ai_writeback.script.fallback',
+                projectUuid,
+                aiThreadUuid: args.aiThreadUuid ?? null,
+                dryRun,
+                reason,
+            });
+            return null;
+        };
+        if (prepared.kind !== 'run') return fallBack('not_runnable');
         const { turn } = prepared;
-        if (turn.provider !== this.githubProvider) return null;
+        if (turn.provider !== this.githubProvider)
+            return fallBack('not_github');
         // A change the agent opened takes hand saves on its own pull request; its next turn syncs them in.
         if (
             turn.existingRow &&
             (!args.prUrl || args.prUrl !== turn.existingRow.pr_url)
         ) {
-            return null;
+            return fallBack('agent_pull_request');
         }
         const setStage = (stage: AiWritebackFailureStage) => {
             if (dryRun || !aiWritebackRunUuid) return;
@@ -1984,6 +1998,13 @@ export class AiWritebackService extends BaseService {
                 });
         };
         const startedAt = performance.now();
+        const timings = startStepTimings();
+        let outcome:
+            | 'saved'
+            | 'checked'
+            | 'script_failed'
+            | 'check_unsupported'
+            | 'error' = 'error';
         let stage: AiWritebackFailureStage = 'clone';
         try {
             setStage('clone');
@@ -2083,9 +2104,11 @@ export class AiWritebackService extends BaseService {
                     }),
             };
 
+            timings.mark('checkout');
             stage = 'agent';
             setStage('agent');
             const ran = await runCodeMode(script, repo, { timeoutMs: 20000 });
+            timings.mark('script');
             const denied = findDeniedCommitPaths(
                 ran.edits.map(({ path }) => `${root}${path}`),
             );
@@ -2106,6 +2129,7 @@ export class AiWritebackService extends BaseService {
                 durationMs: Math.round(performance.now() - startedAt),
             });
             if (error !== null) {
+                outcome = 'script_failed';
                 return { status: 'script_failed', error, logs: ran.logs };
             }
             let check: DbtScriptCheck | null = null;
@@ -2130,6 +2154,7 @@ export class AiWritebackService extends BaseService {
                     headCommitSha:
                         checkout.prUrl === null ? checkout.headSha : null,
                 });
+                timings.mark('check');
                 this.logger.info('AI writeback script checked', {
                     event: 'ai_writeback.script.checked',
                     projectUuid,
@@ -2140,8 +2165,12 @@ export class AiWritebackService extends BaseService {
                         : {}),
                     durationMs: Math.round(performance.now() - startedAt),
                 });
-                if (check.status === 'unsupported') return null;
+                if (check.status === 'unsupported') {
+                    outcome = 'check_unsupported';
+                    return null;
+                }
                 if (check.status === 'failed') {
+                    outcome = 'script_failed';
                     return {
                         status: 'script_failed',
                         error: check.error,
@@ -2150,6 +2179,7 @@ export class AiWritebackService extends BaseService {
                 }
             }
             if (dryRun) {
+                outcome = 'checked';
                 return { status: 'checked', diffs: unifiedDiffs(ran.edits) };
             }
 
@@ -2263,9 +2293,11 @@ export class AiWritebackService extends BaseService {
                     prUrl: committed.prUrl,
                 });
             }
+            timings.mark('commit');
             const diff = ran.edits.map(({ before, after }) =>
                 diffLineCounts(before, after),
             );
+            outcome = 'saved';
             return {
                 status: 'saved',
                 changedModels:
@@ -2316,6 +2348,16 @@ export class AiWritebackService extends BaseService {
                     .catch(() => false);
             }
             throw error;
+        } finally {
+            this.logger.info('AI writeback script timed', {
+                event: 'ai_writeback.script.timed',
+                projectUuid,
+                aiThreadUuid: args.aiThreadUuid ?? null,
+                dryRun,
+                outcome,
+                stage,
+                ...timings.summary(),
+            });
         }
     }
 
