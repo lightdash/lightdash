@@ -122,3 +122,31 @@
 .draftIcon {
     flex-shrink: 0;
 }
+
+.sidebarTarget {
+    display: flex;
+    align-items: center;
+    gap: rem(6px);
+    flex: 1;
+    min-width: 0;
+    height: rem(32px);
+    padding-inline: var(--mantine-spacing-xs) rem(6px);
+    border-radius: var(--mantine-radius-sm);
+
+    &:hover,
+    &[aria-expanded='true'] {
+        background-color: var(--mantine-color-default-hover);
+    }
+}
+
+.sidebarLabel {
+    display: flex;
+    align-items: center;
+    gap: rem(6px);
+    min-width: 0;
+}
+
+.sidebarSelector {
+    flex: none;
+    margin-left: auto;
+}
