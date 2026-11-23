@@ -1,3 +1,10 @@
+# [3.367.0](https://github.com/lightdash/lightdash/compare/3.366.0...3.367.0) (2026-11-23)
+
+
+### Features
+
+* **explorer:** enable undo and redo for everyone ([#33066](https://github.com/lightdash/lightdash/issues/33066)) ([becb2f7](https://github.com/lightdash/lightdash/commit/becb2f7e6f6968e8e8475455001cefa99c2b0c1a))
+
 # [3.366.0](https://github.com/lightdash/lightdash/compare/3.365.0...3.366.0) (2026-11-22)
 
 
