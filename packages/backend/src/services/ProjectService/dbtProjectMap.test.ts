@@ -1,4 +1,5 @@
 import { type DbtManifest } from '@lightdash/common';
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { describeDbtProjectMap } from './dbtProjectMap';
 
@@ -101,6 +102,25 @@ describe('describeDbtProjectMap', () => {
                 ...base,
                 metadata: { ...base.metadata, project_name: '' },
             }),
+        ).toBeNull();
+    });
+
+    it('finds the project from project_id when dbt wrote no project name', () => {
+        const base = manifest();
+        const withId = (projectId: string) =>
+            describeDbtProjectMap({
+                ...base,
+                metadata: {
+                    ...base.metadata,
+                    project_name: undefined,
+                    project_id: projectId,
+                },
+            });
+        expect(withId(createHash('md5').update('shop').digest('hex'))).toMatch(
+            /^dbt project shop,/,
+        );
+        expect(
+            withId(createHash('md5').update('other').digest('hex')),
         ).toBeNull();
     });
 });
