@@ -3891,7 +3891,13 @@ describe('compiling after a merge', () => {
             explore('customers'),
             explore('payments'),
         ],
+        checked = null,
     }: {
+        /** What a check of the pull request saw changed and compiled to, before it merged. */
+        checked?: {
+            changes: Record<string, string>;
+            explores: (Explore | ExploreError)[];
+        } | null;
         changes?: Record<string, string>;
         latestCompileJob?: string | null;
         exploreSummaries?: {
@@ -3913,6 +3919,26 @@ describe('compiling after a merge', () => {
             PROJECT_UUID,
             STORED,
         );
+        if (checked) {
+            context.compileExploresFromManifest.mockResolvedValueOnce(
+                checked.explores,
+            );
+            const pullRequest = branchWith(checked.changes);
+            await context.service.checkDbtScriptChange(
+                repoWriter,
+                PROJECT_UUID,
+                {
+                    edits: new Map(),
+                    readHead: (path) => pullRequest.readFile(path),
+                    readAt: (path, commitSha) =>
+                        pullRequest.readFileAt(path, commitSha),
+                    listChangedSince: () =>
+                        pullRequest.listFilesChangedSince(''),
+                    headCommitSha: null,
+                },
+                { checkQueries: false },
+            );
+        }
         const result = await context.service.compileAfterMerge(
             repoWriter,
             PROJECT_UUID,
@@ -3960,6 +3986,40 @@ describe('compiling after a merge', () => {
         });
         expect(stored?.manifest.nodes['model.shop.customers']).toMatchObject({
             description: 'Who buys',
+        });
+    });
+
+    it('saves what the merged change was checked to compile to, without compiling it again', async () => {
+        const checkedExplores = [
+            { ...explore('orders'), label: 'Checked orders' },
+            { ...explore('customers'), label: 'Checked customers' },
+            explore('payments'),
+        ];
+        const { context, result } = await compileAfterMerge({
+            checked: { changes: DESCRIBED, explores: checkedExplores },
+        });
+        // Once for the check; the compile after the merge reuses it.
+        expect(context.compileExploresFromManifest).toHaveBeenCalledTimes(1);
+        expect(
+            context.saveExploresToCacheAndIndexCatalog.mock.calls[0][0],
+        ).toMatchObject({ explores: checkedExplores.slice(0, 2) });
+        expect(result).toMatchObject({ total: 2 });
+    });
+
+    it('compiles again when the merged change differs from the checked one', async () => {
+        const { context } = await compileAfterMerge({
+            checked: {
+                changes: {
+                    'models/customers.yml': `${schemaOf('models/customers.yml')}    description: Older\n`,
+                },
+                explores: [explore('orders'), explore('customers')],
+            },
+        });
+        expect(context.compileExploresFromManifest).toHaveBeenCalledTimes(2);
+        expect(
+            context.saveExploresToCacheAndIndexCatalog.mock.calls[0][0],
+        ).toMatchObject({
+            explores: [explore('orders'), explore('customers')],
         });
     });
 
