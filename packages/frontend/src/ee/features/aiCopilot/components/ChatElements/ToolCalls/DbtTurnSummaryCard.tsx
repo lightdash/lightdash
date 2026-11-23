@@ -162,6 +162,7 @@ const DraftTurnCard: FC<{
                         model={model}
                         previewProjectUuid={previewProjectUuid}
                         cacheKey={cacheKey}
+                        isCompiled={safety?.state === 'done'}
                     />
                 ))}
                 {note ? (

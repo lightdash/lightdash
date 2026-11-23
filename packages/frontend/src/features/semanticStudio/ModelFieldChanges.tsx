@@ -35,7 +35,9 @@ export const ModelFieldChanges: FC<{
     previewProjectUuid: string | null;
     /** The pull request's latest commit, so totals are read again after it moves. */
     cacheKey: string;
-}> = ({ projectUuid, model, previewProjectUuid, cacheKey }) => {
+    /** Until the draft compiles its fields are the old ones, so an empty diff says nothing yet. */
+    isCompiled: boolean;
+}> = ({ projectUuid, model, previewProjectUuid, cacheKey, isCompiled }) => {
     const { live, mine, changes } = useModelFieldChanges(
         projectUuid,
         model,
@@ -74,7 +76,9 @@ export const ModelFieldChanges: FC<{
     if (changes.length === 0) {
         return (
             <Text fz="xs" c="dimmed">
-                No field is added, changed or removed.
+                {isCompiled
+                    ? 'No field is added, changed or removed.'
+                    : 'Fields show here once the draft compiles.'}
             </Text>
         );
     }
