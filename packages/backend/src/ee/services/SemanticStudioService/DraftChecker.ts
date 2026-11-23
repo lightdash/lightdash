@@ -26,7 +26,7 @@ import { fromSession } from '../../../auth/account';
 import { type ProjectService } from '../../../services/ProjectService/ProjectService';
 import { type WarehouseSqlBuilderSettings } from '../../../services/ProjectService/warehouseSqlBuilderSettings';
 import { toModelPath, withWrites } from './draftFold';
-import { findChangedFields, findColumnError } from './draftLint';
+import { findChangedFields, findColumnError, PLAIN_COLUMN } from './draftLint';
 import {
     findCatalogTable,
     getRowCountSql,
@@ -90,9 +90,6 @@ const POST_CALCULATION_METRICS = new Set<MetricType>([
 
 // A few whole compiles kept per process; shrink or add a TTL if large projects weigh on memory.
 const MAX_KEPT_COMPILES = 4;
-
-// A dimension that reads a column as it is, so the column's type is its type.
-const PLAIN_COLUMN = /^\s*\$\{TABLE\}\.\w+\s*$/;
 
 // A fixed cap on the rows a key check reads; make it a setting if admins need to tune cost.
 const MAX_KEY_CHECK_ROWS = 1_000_000;

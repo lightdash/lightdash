@@ -7,6 +7,7 @@
 import {
     assertUnreachable,
     DbtProjectType,
+    isOpenWorkspace,
     type SemanticLayerBlocker,
 } from '@lightdash/common';
 import {
@@ -131,11 +132,7 @@ import {
     useSemanticStudio,
     type SemanticStudioProps,
 } from './useSemanticStudio';
-import {
-    isOpenWorkspace,
-    useCheckOut,
-    useStudioCheckout,
-} from './useStudioCheckout';
+import { useCheckOut, useStudioCheckout } from './useStudioCheckout';
 import { SOURCE_PARAM } from './useStudioSources';
 import {
     useStudioWorkspaceAction,
@@ -662,7 +659,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         );
     }, [changeToAddress, navigate, view.project.id]);
     // The workspace the conversation made, named for where its changes stand.
-    const pullRequestNumber = /\/(\d+)\/?$/.exec(development?.prUrl ?? '')?.[1];
+    const pullRequestNumber = pullRequestNumberOf(development?.prUrl);
     const workspace = saving
         ? { name: 'New draft', hint: 'The draft is being saved.' }
         : development
@@ -819,10 +816,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         }
     };
     const isMyOpenWorkspace =
-        !!shownWorkspace?.isMine &&
-        !shownWorkspace.finishedAt &&
-        shownWorkspace.pullRequest?.state !== 'merged' &&
-        shownWorkspace.pullRequest?.state !== 'closed';
+        !!shownWorkspace?.isMine && isOpenWorkspace(shownWorkspace);
     const isOnMyChange =
         !isOnLive &&
         !(routeWorkspace && !routeWorkspace.isMine) &&
@@ -951,10 +945,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             shownWorkspace.threadUuid === storedThread?.threadUuid)
             ? proposal
             : [];
-    const myOpenChanges = (workspaces?.mine ?? []).filter(
-        ({ finishedAt, pullRequest: pr }) =>
-            !finishedAt && pr?.state !== 'merged' && pr?.state !== 'closed',
-    );
+    const myOpenChanges = (workspaces?.mine ?? []).filter(isOpenWorkspace);
     const isSourcesView = pane === 'sources' || pane === 'code';
     const showSources = () =>
         keepsDraft

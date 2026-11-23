@@ -11,10 +11,10 @@ import { useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { TryIt } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/TryItButton';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
+import { developmentHeadersFor } from './developmentView';
 import classes from './MetricPreview.module.css';
 import { useModelVersion } from './useFieldChangesInDevelopment';
 import { LIVE_HEADERS, useTotals } from './useMetricTotals';
-import { developmentHeadersFor } from './useModelFieldChanges';
 
 /** A model a turn touched and the metrics to show from it; null shows every metric of a new model. */
 export type MetricPreviewModel = {

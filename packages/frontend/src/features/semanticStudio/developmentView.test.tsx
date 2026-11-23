@@ -1,3 +1,7 @@
+import {
+    DEVELOPMENT_PREVIEW_HEADER,
+    DEVELOPMENT_VIEW_HEADER,
+} from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
@@ -5,8 +9,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../../providers/ReactQuery/createQueryClient';
 import {
     clearDevelopmentView,
-    DEVELOPMENT_PREVIEW_HEADER,
-    DEVELOPMENT_VIEW_HEADER,
     getDevelopmentViewHeaders,
     pinDevelopmentView,
     PUBLISHED_VIEW,

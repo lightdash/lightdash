@@ -1,16 +1,18 @@
-import { type ApiError, type ApiQueryResults } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
-import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import {
     DEVELOPMENT_PREVIEW_HEADER,
-    DEVELOPMENT_VIEW_HEADER,
-} from './developmentView';
+    type ApiError,
+    type ApiQueryResults,
+} from '@lightdash/common';
+import { useQuery } from '@tanstack/react-query';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
+import { PUBLISHED_HEADERS } from './developmentView';
 
 type Totals = Record<string, { raw: unknown; formatted: string }>;
 
 /** Reads the models as published, whatever the app is switched to. */
 export const LIVE_HEADERS = {
-    [DEVELOPMENT_VIEW_HEADER]: 'false',
+    ...PUBLISHED_HEADERS,
+    // Also clears a preview project the client would otherwise send.
     [DEVELOPMENT_PREVIEW_HEADER]: '',
 };
 

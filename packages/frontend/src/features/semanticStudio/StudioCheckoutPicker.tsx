@@ -1,3 +1,4 @@
+import { isOpenWorkspace } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -17,11 +18,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
-import {
-    isOpenWorkspace,
-    useCheckOut,
-    useStudioCheckout,
-} from './useStudioCheckout';
+import { useCheckOut, useStudioCheckout } from './useStudioCheckout';
 import { useStudioWorkspaces } from './useStudioWorkspaces';
 import classes from './WorkbenchView.module.css';
 

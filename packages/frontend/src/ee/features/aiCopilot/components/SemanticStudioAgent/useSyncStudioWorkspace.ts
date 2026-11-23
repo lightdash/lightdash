@@ -1,4 +1,7 @@
-import { type AiAgentMessageUser } from '@lightdash/common';
+import {
+    UNTITLED_WORKSPACE_NAME,
+    type AiAgentMessageUser,
+} from '@lightdash/common';
 import { useEffect, useRef } from 'react';
 import { splitStudioChatCode } from '../../../../../features/semanticStudio/studioChatRefs';
 import {
@@ -20,7 +23,7 @@ export const nameFromRequest = (request: string | undefined): string => {
             .split('\n')
             .map((text) => text.trim())
             .find((text) => text && !/, lines \d+ to \d+:$/.test(text)) ?? '';
-    if (!line) return 'Untitled';
+    if (!line) return UNTITLED_WORKSPACE_NAME;
     const named = line.charAt(0).toUpperCase() + line.slice(1);
     return named.length > NAME_LENGTH
         ? `${named.slice(0, NAME_LENGTH - 1).trimEnd()}…`
@@ -108,7 +111,7 @@ export const useSyncStudioWorkspace = (
         // A workspace the server started before the chat had a title is named for no request.
         if (
             own.name !== nameFromRequest(firstRequest?.message) &&
-            own.name !== nameFromRequest(undefined)
+            own.name !== UNTITLED_WORKSPACE_NAME
         ) {
             return;
         }

@@ -1,6 +1,7 @@
 import {
     askUserToolDefinition,
     formatAskUserQuestions,
+    isSemanticStudioThread,
     isSlackPrompt,
     parseAskUserCall,
     type AiWebAppPrompt,
@@ -31,7 +32,7 @@ export const canOfferAskUser = (
 ): boolean =>
     !isSlackPrompt(prompt) &&
     (prompt.threadCreatedFrom === 'web_app' ||
-        prompt.threadCreatedFrom === 'semantic_studio') &&
+        isSemanticStudioThread(prompt.threadCreatedFrom)) &&
     prompt.threadEmbedSpaceUuid === null &&
     prompt.threadEmbedOwnerIdentifier === null &&
     prompt.externalUserId === null &&

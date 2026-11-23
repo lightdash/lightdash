@@ -1,5 +1,6 @@
 import {
     NotFoundError,
+    STUDIO_EDITED_IN,
     type SemanticStudioWorkspace,
     type SemanticStudioWorkspacePullRequestState,
     type StudioChangeSummary,
@@ -150,6 +151,7 @@ export class SemanticStudioWorkspaceModel {
         { projectUuid, userUuid }: Owner,
         threadUuid: string | null,
     ) {
+        const [byHand, thisChat, anotherChat] = STUDIO_EDITED_IN;
         return this.database(`${SemanticStudioWorkspacesTableName} as w`)
             .where({
                 'w.project_uuid': projectUuid,
@@ -163,16 +165,23 @@ export class SemanticStudioWorkspaceModel {
                 this.database.raw(
                     `COALESCE((SELECT jsonb_agg(jsonb_build_object('name', name, 'editedIn', edited_in) ORDER BY name) FROM (
                     SELECT m->>'name' AS name, array_agg(DISTINCT CASE
-                        WHEN d.prompt_uuid IS NULL THEN 'by_hand'
-                        WHEN p.ai_thread_uuid = ? THEN 'this_chat'
-                        ELSE 'another_chat' END) AS edited_in
-                    FROM project_model_draft_changes d
+                        WHEN d.prompt_uuid IS NULL THEN ?::text
+                        WHEN p.ai_thread_uuid = ? THEN ?::text
+                        ELSE ?::text END) AS edited_in
+                    FROM ?? d
                     CROSS JOIN LATERAL jsonb_array_elements(d.models::jsonb) m
-                    LEFT JOIN ai_prompt p ON p.ai_prompt_uuid = d.prompt_uuid
+                    LEFT JOIN ?? p ON p.ai_prompt_uuid = d.prompt_uuid
                     WHERE d.workspace_uuid = w.semantic_studio_workspace_uuid AND d.status <> 'discarded'
                     AND d.created_by_user_uuid = w.created_by_user_uuid AND d.project_uuid = w.project_uuid
                     GROUP BY 1) per_model), '[]'::jsonb) AS models`,
-                    [threadUuid],
+                    [
+                        byHand,
+                        threadUuid,
+                        thisChat,
+                        anotherChat,
+                        ProjectModelDraftChangesTableName,
+                        AiPromptTableName,
+                    ],
                 ),
             );
     }

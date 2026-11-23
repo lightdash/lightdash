@@ -5,6 +5,7 @@ import {
     type CiChecks,
 } from '@lightdash/common';
 import { canWriteProjectBranch } from '../../../../../features/semanticStudio/permissions';
+import { pullRequestNumberOf } from '../../../../../features/semanticStudio/urls';
 import {
     describeBranchCompile,
     useDraftCheckout,
@@ -73,7 +74,7 @@ export const useStudioPublish = (
     const { data: project } = useProject(projectUuid);
     const { user } = useApp();
     const { data: checkout } = useDraftCheckout(projectUuid);
-    const number = /\/(\d+)\/?$/.exec(prUrl)?.[1];
+    const number = pullRequestNumberOf(prUrl);
     const name = number ? `pull request #${number}` : 'the pull request';
     const branch =
         project?.dbtConnection && 'branch' in project.dbtConnection

@@ -23,7 +23,14 @@ const getModelValidator = (): ModelValidator => {
     }
     return modelValidator;
 };
-const modelTypes = new Set(['model', 'model/v1beta', 'model/v1']);
+/** The `type` values that make a YAML file a native model. */
+export const NATIVE_MODEL_TYPES = ['model', 'model/v1beta', 'model/v1'];
+
+/** Where a native project's models live, in the order they are looked for. */
+export const NATIVE_MODEL_DIRECTORIES = ['models', 'lightdash/models'];
+
+export const isNativeModelType = (type: string): boolean =>
+    NATIVE_MODEL_TYPES.includes(type);
 
 async function readYaml(filePath: string): Promise<unknown> {
     try {
@@ -51,10 +58,9 @@ export async function loadLightdashModel(
 export async function findLightdashModelFiles(
     projectDir: string,
 ): Promise<string[]> {
-    const possibleDirs = [
-        path.join(projectDir, 'models'),
-        path.join(projectDir, 'lightdash', 'models'),
-    ];
+    const possibleDirs = NATIVE_MODEL_DIRECTORIES.map((dir) =>
+        path.join(projectDir, dir),
+    );
     let modelsDir: string | undefined;
     for await (const dir of possibleDirs) {
         try {
@@ -104,7 +110,7 @@ export async function findLightdashModelFiles(
                     typeof parsed === 'object' &&
                     'type' in parsed &&
                     typeof parsed.type === 'string' &&
-                    modelTypes.has(parsed.type)
+                    isNativeModelType(parsed.type)
                 )
                     files.push(filePath);
             }
