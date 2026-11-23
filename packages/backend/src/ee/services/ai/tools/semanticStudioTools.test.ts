@@ -327,8 +327,9 @@ describe('getDraftProjectContext', () => {
         terms: ['active'],
         objects: [],
     };
+    const args = { ...entry, changeName: 'Define active' };
 
-    it('passes the entry to the draft and says when agents read it', async () => {
+    it('passes the entry and the change name to the draft and says when agents read it', async () => {
         const draftProjectContext = vi.fn(async () => ({
             entryId: 'active',
             op: 'create' as const,
@@ -337,9 +338,12 @@ describe('getDraftProjectContext', () => {
         }));
         const tool = getDraftProjectContext({ draftProjectContext });
         const output = toolDraftProjectContextOutputSchema.parse(
-            await tool.execute?.(entry, callOptions),
+            await tool.execute?.(args, callOptions),
         );
-        expect(draftProjectContext).toHaveBeenCalledWith(entry, null);
+        expect(draftProjectContext).toHaveBeenCalledWith(
+            entry,
+            'Define active',
+        );
         expect(output.structuredContent).toEqual({
             entryId: 'active',
             op: 'create',
@@ -355,7 +359,7 @@ describe('getDraftProjectContext', () => {
                 throw new Error('kept in the repository');
             },
         });
-        const output = await tool.execute?.(entry, callOptions);
+        const output = await tool.execute?.(args, callOptions);
         expect(output).toMatchObject({ metadata: { status: 'error' } });
     });
 });

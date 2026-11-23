@@ -958,7 +958,7 @@ export class SemanticStudioService extends BaseService {
     }> {
         await this.assertCanEditModels(user, projectUuid);
         const { dbtConnection } = await this.projectModel.get(projectUuid);
-        if (dbtConnection.type !== DbtProjectType.NONE) {
+        if (applyModeOf(dbtConnection) !== 'live') {
             throw new ParameterError(
                 "This project's context lives in lightdash.project_context.yml in its repository, so it is changed there",
             );

@@ -189,7 +189,9 @@ export const TOOL_DRAFT_PROJECT_CONTEXT_DESCRIPTION = [
 ].join(' ');
 
 export const toolDraftProjectContextArgsSchema =
-    toolEditProjectContextArgsSchema;
+    toolEditProjectContextArgsSchema.extend({
+        changeName: toolProposeSemanticLayerChangeArgsSchema.shape.changeName,
+    });
 
 export type ToolDraftProjectContextArgs = z.infer<
     typeof toolDraftProjectContextArgsSchema

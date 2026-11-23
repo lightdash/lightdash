@@ -483,9 +483,6 @@ export const ProjectContextDraftFile: FC<{
             <MantineIcon icon={IconFileCode} color="dimmed" />
             <Text component="h3" fz="sm" fw={500} truncate flex={1} miw={0}>
                 {SEMANTIC_STUDIO_PROJECT_CONTEXT_FILE}.yml
-                <Text span inherit fw={400} c="dimmed">
-                    {' · What agents read before they answer'}
-                </Text>
             </Text>
             <LineCounts counts={countChangedLines(change)} />
         </Group>

@@ -210,11 +210,12 @@ export const getDraftProjectContext = ({
             content,
             terms,
             objects,
+            changeName,
         }): Promise<ToolDraftProjectContextOutput> => {
             try {
                 const drafted = await draftProjectContext(
                     { op, id, kind, content, terms, objects },
-                    null,
+                    changeName,
                 );
                 return {
                     result: [
