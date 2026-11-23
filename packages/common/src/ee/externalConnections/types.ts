@@ -773,6 +773,44 @@ export type ApiExternalConnectionApiUsageResponse = {
     results: ExternalConnectionApiUsage[];
 };
 
+/** One of an integration's declared limits, with Lightdash's calls in its current window. */
+export type ExternalConnectionRateLimitBucket = {
+    id: string;
+    /** As declared, such as "per hour". */
+    label: string;
+    windowMs: number;
+    capacity: number;
+    /** Calls in the current window; 0 when no window is open. */
+    used: number;
+    /** When the current window ends, ISO; null when no window is open. */
+    resetsAt: string | null;
+};
+
+/**
+ * Lightdash's own calls against an integration's declared rate limits, as of
+ * `checkedAt`. Other apps on the same vendor account aren't counted.
+ */
+export type ExternalConnectionRateLimitUsage = {
+    /** The integration's name, such as HubSpot. */
+    integrationLabel: string;
+    checkedAt: string;
+    /** Calls in flight now, out of how many may run at once. */
+    concurrent: { used: number; limit: number };
+    /** Even spacing between calls; null when none is declared. */
+    callsPerSecond: number | null;
+    /** Shortest window first. */
+    buckets: ExternalConnectionRateLimitBucket[];
+    /** When the vendor's pause ends, ISO; null when it hasn't paused the integration. */
+    limitedUntil: string | null;
+    /** What the numbers can't say, such as limits that roll or count tokens. */
+    note: string | null;
+};
+
+export type ApiExternalConnectionRateLimitUsageResponse = {
+    status: 'ok';
+    results: ExternalConnectionRateLimitUsage;
+};
+
 export type ApiSourceSchemaEvent = {
     name: string;
     count: number;
