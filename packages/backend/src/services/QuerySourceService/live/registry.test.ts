@@ -60,6 +60,9 @@ const SAMPLE_SETTINGS: {
         owner: 'lightdash',
         repo: 'lightdash',
     },
+    [ApiConnectorType.AMPLITUDE]: {
+        connector: ApiConnectorType.AMPLITUDE,
+    },
     [ApiConnectorType.PYLON]: {
         connector: ApiConnectorType.PYLON,
     },

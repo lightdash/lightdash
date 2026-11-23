@@ -14,7 +14,8 @@ export type LiveSourceSetupKind =
     | 'posthog'
     | 'token'
     | 'linkedin_ads'
-    | 'salesforce';
+    | 'salesforce'
+    | 'amplitude';
 
 type LiveIntegrationCatalogFields<C extends ApiConnectorType> = {
     /** Stable id, sent with analytics events. */
@@ -219,6 +220,19 @@ export const LIVE_INTEGRATION_CATALOG: {
             connector: z.literal(ApiConnectorType.SALESFORCE),
         }),
         getTarget: () => 'Salesforce org',
+    },
+    [ApiConnectorType.AMPLITUDE]: {
+        id: 'amplitude',
+        label: 'Amplitude',
+        defaultName: 'Amplitude',
+        messageLabel: 'Amplitude',
+        agentLabel: 'Amplitude',
+        description: 'Events, active users, funnels, retention and sessions',
+        setup: 'amplitude',
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.AMPLITUDE),
+        }),
+        getTarget: () => 'Amplitude project',
     },
     [ApiConnectorType.HYDRA]: {
         id: 'hydra',
