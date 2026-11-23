@@ -7,10 +7,12 @@ import { attioIntegration } from './integrations/attio';
 import { ga4Integration } from './integrations/ga4';
 import { githubIntegration } from './integrations/github';
 import { googleAdsIntegration } from './integrations/googleAds';
+import { hubspotIntegration } from './integrations/hubspot';
 import { linkedInAdsIntegration } from './integrations/linkedInAds';
 import { metaAdsIntegration } from './integrations/metaAds';
 import { postHogIntegration } from './integrations/postHog';
 import { pylonIntegration } from './integrations/pylon';
+import { salesforceIntegration } from './integrations/salesforce';
 import { searchConsoleIntegration } from './integrations/searchConsole';
 import { youtubeAnalyticsIntegration } from './integrations/youtubeAnalytics';
 import { type LiveIntegration } from './types';
@@ -29,6 +31,8 @@ const LIVE_INTEGRATIONS: {
     [ApiConnectorType.GITHUB]: githubIntegration,
     [ApiConnectorType.PYLON]: pylonIntegration,
     [ApiConnectorType.ATTIO]: attioIntegration,
+    [ApiConnectorType.HUBSPOT]: hubspotIntegration,
+    [ApiConnectorType.SALESFORCE]: salesforceIntegration,
 };
 
 export const getLiveIntegration = (

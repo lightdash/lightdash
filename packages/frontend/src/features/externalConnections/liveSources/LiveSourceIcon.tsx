@@ -1,9 +1,9 @@
 import { type ApiConnectorType } from '@lightdash/common';
-import { Image } from '@mantine/core';
+import { Group, Image } from '@mantine/core';
 import { IconApi } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { getLiveSource } from './liveSourceCatalog';
+import { getLiveSource, getLiveSourceIconClass } from './liveSourceCatalog';
 import { useLiveSourceConnection } from './useLiveSourceConnection';
 
 type Props = {
@@ -17,6 +17,7 @@ export const LiveSourceIcon: FC<Props> = ({ connector, size = 16 }) =>
         <Image
             src={getLiveSource(connector).icon}
             alt=""
+            className={getLiveSourceIconClass(getLiveSource(connector).icon)}
             w={size}
             h={size}
             fit="contain"
@@ -36,3 +37,14 @@ export const LiveSourceConnectionIcon: FC<{
         <LiveSourceIcon connector={connection?.connector ?? null} size={size} />
     );
 };
+
+/** A dialog title led by the integration's logo. */
+export const LiveSourceTitle: FC<{
+    connector: ApiConnectorType;
+    children: ReactNode;
+}> = ({ connector, children }) => (
+    <Group gap="sm" wrap="nowrap">
+        <LiveSourceIcon connector={connector} size={20} />
+        <span>{children}</span>
+    </Group>
+);

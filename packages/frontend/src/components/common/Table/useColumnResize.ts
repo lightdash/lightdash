@@ -21,6 +21,12 @@ export const useColumnResize = ({
         startWidth: number;
         thElement: HTMLElement;
         handleElement: HTMLElement;
+        windowedTable?: {
+            element: HTMLTableElement;
+            startWidth: number;
+            width: string;
+            minWidth: string;
+        };
     } | null>(null);
 
     const onColumnWidthChangeRef = useRef(onColumnWidthChange);
@@ -44,22 +50,34 @@ export const useColumnResize = ({
             state.thElement.style.width = widthPx;
             state.thElement.style.minWidth = widthPx;
             state.thElement.style.maxWidth = widthPx;
+            if (state.windowedTable) {
+                const { element, startWidth } = state.windowedTable;
+                const tableWidth = `${startWidth + newWidth - state.startWidth}px`;
+                element.style.width = tableWidth;
+                element.style.minWidth = tableWidth;
+            }
 
             const tableEl = state.thElement.closest('table');
             if (tableEl) {
                 const colIndex =
                     (state.thElement as HTMLTableCellElement).cellIndex + 1;
+                const logicalIndex =
+                    state.thElement.getAttribute('aria-colindex');
 
                 // Update <col> element if table uses <colgroup> (table-layout: fixed)
                 const colEl = tableEl.querySelector<HTMLElement>(
-                    `colgroup col:nth-child(${colIndex})`,
+                    logicalIndex
+                        ? `colgroup col[data-column-index="${logicalIndex}"]`
+                        : `colgroup col:nth-child(${colIndex})`,
                 );
                 if (colEl) {
                     colEl.style.width = widthPx;
                 }
 
                 const cells = tableEl.querySelectorAll<HTMLElement>(
-                    `thead th:nth-child(${colIndex}), tbody td:nth-child(${colIndex}), tbody th:nth-child(${colIndex}), tfoot td:nth-child(${colIndex}), tfoot th:nth-child(${colIndex})`,
+                    logicalIndex
+                        ? `td[aria-colindex="${logicalIndex}"], th[aria-colindex="${logicalIndex}"]`
+                        : `thead th:nth-child(${colIndex}), tbody td:nth-child(${colIndex}), tbody th:nth-child(${colIndex}), tfoot td:nth-child(${colIndex}), tfoot th:nth-child(${colIndex})`,
                 );
                 for (const cell of cells) {
                     if (cell === state.thElement) continue;
@@ -81,6 +99,11 @@ export const useColumnResize = ({
                 MIN_COLUMN_WIDTH,
             );
 
+            if (state.windowedTable) {
+                const { element, width, minWidth } = state.windowedTable;
+                element.style.width = width;
+                element.style.minWidth = minWidth;
+            }
             onColumnWidthChangeRef.current?.(state.columnId, newWidth);
 
             state.handleElement.classList.remove(
@@ -113,12 +136,23 @@ export const useColumnResize = ({
         if (!thElement) return;
 
         const startWidth = thElement.getBoundingClientRect().width;
+        const windowedTable = thElement.closest<HTMLTableElement>(
+            'table[aria-colcount]',
+        );
         resizeRef.current = {
             columnId,
             startX: e.clientX,
             startWidth,
             thElement,
             handleElement,
+            windowedTable: windowedTable
+                ? {
+                      element: windowedTable,
+                      startWidth: windowedTable.getBoundingClientRect().width,
+                      width: windowedTable.style.width,
+                      minWidth: windowedTable.style.minWidth,
+                  }
+                : undefined,
         };
 
         handleElement.classList.add(resizeHandleStyles.resizeHandleActive);

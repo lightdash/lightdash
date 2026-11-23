@@ -9,14 +9,16 @@ const FILE_ID = 'test-nanoid-123456789';
 const setup = ({
     s3Key,
     contentDisposition,
+    stream = Readable.from(['hello,world\n']),
 }: {
     s3Key: string;
     contentDisposition: string | null;
+    stream?: Readable;
 }) => {
     const services = {
         getPersistentDownloadFileService: () => ({
             getFileStream: vi.fn(async () => ({
-                stream: Readable.from(['hello,world\n']),
+                stream,
                 fileType: 'csv',
                 s3Key,
                 contentDisposition,
@@ -39,7 +41,7 @@ const setup = ({
         headers: {},
     } as unknown as express.Request;
 
-    return { controller: new FileController(services), req, headers };
+    return { controller: new FileController(services), req, res, headers };
 };
 
 describe('FileController', () => {
@@ -123,6 +125,19 @@ describe('FileController', () => {
             await controller.getFile(FILE_ID, req);
 
             expect(headers['Content-Disposition']).toBe(stored);
+        });
+
+        it('destroys the body when the client disconnected before streaming', async () => {
+            const stream = new PassThrough();
+            const { controller, req, res } = setup({
+                s3Key: 'results.csv',
+                contentDisposition: null,
+                stream,
+            });
+            res.destroy();
+
+            await expect(controller.getFile(FILE_ID, req)).rejects.toThrow();
+            expect(stream.destroyed).toBe(true);
         });
     });
 });

@@ -16,6 +16,7 @@ import {
 } from '../../credentials';
 import { loadManifest, LoadManifestArgs } from '../../dbt/manifest';
 import GlobalState from '../../globalState';
+import { DBT1060_META_HINT, isDbt1060MetaError } from './fusionMeta';
 import { getDbtVersion } from './getDbtVersion';
 
 export type DbtCompileOptions = {
@@ -93,7 +94,8 @@ const dbtCompile = async (options: DbtCompileOptions) => {
         console.error(stderr);
     } catch (e: unknown) {
         const msg = getErrorMessage(e);
-        throw new ParseError(`Failed to run dbt compile:\n  ${msg}`);
+        const hint = isDbt1060MetaError(msg) ? `${DBT1060_META_HINT}\n` : '';
+        throw new ParseError(`${hint}Failed to run dbt compile:\n  ${msg}`);
     }
 };
 
@@ -208,7 +210,9 @@ export async function dbtList(options: DbtCompileOptions): Promise<string[]> {
     } catch (e: unknown) {
         const msg = getErrorMessage(e);
         throw new ParseError(
-            `Error executing 'dbt ls':\n  ${msg}\nEnsure you're on the latest patch version. '--use-dbt-list' is true by default; if you encounter issues, try using '--use-dbt-list=false`,
+            isDbt1060MetaError(msg)
+                ? `${DBT1060_META_HINT}\nError executing 'dbt ls':\n  ${msg}`
+                : `Error executing 'dbt ls':\n  ${msg}\nEnsure you're on the latest patch version. '--use-dbt-list' is true by default; if you encounter issues, try using '--use-dbt-list=false`,
         );
     }
 }

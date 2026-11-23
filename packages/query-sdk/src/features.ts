@@ -354,6 +354,13 @@ export const SDK_FIXES: SdkFix[] = [
             'Tells the app up front when a viewer cannot use shared values, so comment and commentary controls can be turned off instead of failing when used.',
         appliesTo: ['data_app'],
     },
+    {
+        key: 'faster-large-results',
+        label: 'Faster loading for large results',
+        description:
+            'Loads queries that return thousands of rows in larger batches fetched side by side, so tables and charts built on them appear much sooner.',
+        appliesTo: ['data_app'],
+    },
 ];
 
 export const SDK_FIX_KEYS: string[] = SDK_FIXES.map((fix) => fix.key);

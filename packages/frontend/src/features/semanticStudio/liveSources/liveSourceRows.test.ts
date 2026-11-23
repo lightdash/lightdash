@@ -28,6 +28,7 @@ const usage = (
     overrides: Partial<ExternalConnectionApiUsage> = {},
 ): ExternalConnectionApiUsage => ({
     externalConnectionUuid,
+    windowDays: 32,
     apiCalls: 1234,
     cacheHits: 56,
     responseBytes: 361_113,
@@ -80,14 +81,12 @@ describe('toLiveSourceRows', () => {
         expect(used.usage).toEqual({
             dataRead: expect.stringMatching(/KB|kB/),
             apiCalls: (1234).toLocaleString(),
-            cacheHits: '56',
             cacheHitsLabel: '56 hits',
             medianLatency: '600ms',
         });
         expect(unused.usage).toEqual({
             dataRead: expect.any(String),
             apiCalls: '0',
-            cacheHits: '0',
             cacheHitsLabel: '0 hits',
             medianLatency: null,
         });
@@ -98,7 +97,6 @@ describe('toLiveSourceRows', () => {
         expect(row.usage).toEqual({
             dataRead: '—',
             apiCalls: '—',
-            cacheHits: '—',
             cacheHitsLabel: null,
             medianLatency: null,
         });
@@ -128,28 +126,22 @@ describe('live source freshness', () => {
         expect(formatFreshness(seconds)).toBe(label);
     });
 
-    it('uses the integration default until an admin sets a window', () => {
+    it('uses the integration window until an admin sets one', () => {
         const posthog = {
             apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '1' },
         } as LiveSourceConnection;
         expect(getLiveSourceFreshness(posthog)).toMatchObject({
             seconds: 3_600,
-            isDefault: true,
-            label: '1 hour (default)',
         });
         expect(
             getLiveSourceFreshness({ ...posthog, cacheTtlSeconds: 300 }),
         ).toMatchObject({
             seconds: 300,
-            isDefault: false,
-            label: '5 min',
         });
         expect(
             getLiveSourceFreshness({ ...posthog, cacheTtlSeconds: 0 }),
         ).toMatchObject({
             seconds: 0,
-            isDefault: false,
-            label: 'Always fetch',
         });
     });
 });

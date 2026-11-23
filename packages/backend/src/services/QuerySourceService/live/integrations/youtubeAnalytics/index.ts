@@ -26,6 +26,7 @@ import {
     YOUTUBE_ANALYTICS_REPORTS_PATH,
     youtubeAnalyticsRequestSchema,
 } from './run';
+import { youtubeAnalyticsUseCases } from './useCases';
 
 const YOUTUBE_CHANNEL_ID = /^UC[A-Za-z0-9_-]{22}$/;
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.YOUTUBE_ANALYTICS];
@@ -80,6 +81,41 @@ export const youtubeAnalyticsIntegration = defineLiveIntegration({
         'revenue',
         'audience_retention',
     ],
+    level: {
+        value: 3,
+        description: 'Reports return totals per dimension and day.',
+    },
+    auth: {
+        description:
+            'Needs Google verification of the scope; unverified apps show a warning screen and are capped at 100 users.',
+        testWith: 'real_account',
+        needs: ['gmail', 'invite'],
+        token: false,
+        oauth: 'needs_review',
+    },
+    paging: {
+        description:
+            'One report call; startIndex and maxResults page larger results.',
+    },
+    rateLimits: {
+        concurrentCalls: 5,
+        callsPerSecond: null,
+        buckets: [
+            {
+                id: 'minute',
+                label: 'per minute',
+                windowMs: 60_000,
+                capacity: 60,
+            },
+            {
+                id: 'hour',
+                label: 'per hour',
+                windowMs: 3_600_000,
+                capacity: 1_000,
+            },
+        ],
+    },
+    useCases: youtubeAnalyticsUseCases,
     validate: ({ channelId }) => {
         if (!YOUTUBE_CHANNEL_ID.test(channelId)) {
             throw new ParameterError(

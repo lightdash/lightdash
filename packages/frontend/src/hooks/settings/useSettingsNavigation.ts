@@ -107,7 +107,6 @@ export const useSettingsNavigation = (
         dataAppsFlag,
         isChartStudioAvailable,
         isApiQuerySourcesEnabled,
-        isMobileSettingsEnabled,
         isResultsCacheAvailable,
         isGitProject,
         isContentReviewAvailable,
@@ -207,16 +206,14 @@ export const useSettingsNavigation = (
             });
         }
 
-        if (isMobileSettingsEnabled) {
-            yourSettings.push({
-                label: MOBILE_STRINGS.navLabel,
-                to: '/generalSettings/mobile',
-                icon: IconDeviceMobile,
-                keywords: ['phone', 'app', 'ios', 'android', 'iphone'],
-                children: [],
-                exact: true,
-            });
-        }
+        yourSettings.push({
+            label: MOBILE_STRINGS.navLabel,
+            to: '/generalSettings/mobile',
+            icon: IconDeviceMobile,
+            keywords: ['phone', 'app', 'ios', 'android', 'iphone'],
+            children: [],
+            exact: true,
+        });
 
         const organizationItems: SettingsNavigationItem[] = [];
 
@@ -1424,7 +1421,6 @@ export const useSettingsNavigation = (
         isChartStudioAvailable,
         isApiQuerySourcesEnabled,
         isExternalSourcesEnabled,
-        isMobileSettingsEnabled,
         isResultsCacheAvailable,
         isGitProject,
         isContentReviewAvailable,

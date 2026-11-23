@@ -219,6 +219,7 @@ beforeEach(() => {
     vi.mocked(compileProject).mockResolvedValue({
         explores: [],
         isProjectComplete: true,
+        fusionEmptyMeta: null,
     });
     vi.spyOn(console, 'error').mockImplementation(() => {});
     spinner = ora();
@@ -267,6 +268,20 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('startPreviewHandler credential refresh', () => {
+    it('keeps stored credentials when the profile cannot supply persistent credentials', async () => {
+        vi.mocked(loadWarehouseCredentialsFromProfiles).mockResolvedValue({
+            credentials: null,
+            targetName: 'dev',
+            dbtVersionOption: SupportedDbtVersions.V1_10,
+            isDbtCloudCLI: false,
+        });
+
+        await startPreviewHandler(options);
+
+        expect(credentialWrites()).toEqual([]);
+        expect(deploy).toHaveBeenCalled();
+    });
+
     it('refreshes the selected source extra connection without writing the primary', async () => {
         await startPreviewHandler(options);
 

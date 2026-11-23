@@ -1,6 +1,8 @@
 import {
     ApiConnectorType,
+    ATTIO_OBJECTS,
     ATTIO_ORIGIN,
+    ATTIO_WORKSPACE_MEMBERS_PATH,
     getAttioAttributesPath,
     getAttioRecordsQueryPath,
     LIVE_INTEGRATION_CATALOG,
@@ -23,28 +25,32 @@ import {
 import { compileAttioQuery } from './compile';
 import { toAttioError } from './errors';
 import {
+    ATTIO_EXPLORES,
     ATTIO_MAX_PAGES,
     ATTIO_MAX_RECORDS,
-    ATTIO_RECORDS_EXPLORE,
+    ATTIO_SCANNED_MODELS,
+    readAttioAttributes,
+    toAttioObject,
     withAttioAttributeFields,
 } from './explores';
 import { attioRequestSchema, runAttioQuery, scanAttioAttributes } from './run';
+import { attioUseCases } from './useCases';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.ATTIO];
 const LABEL = CATALOG.messageLabel;
-// A slug like companies or deals, or the object's id
-const ATTIO_OBJECT =
-    /^(?:[a-z0-9_]{1,64}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 
 export const attioIntegration = defineLiveIntegration({
     connector: ApiConnectorType.ATTIO,
     label: LABEL,
     settings: CATALOG.settings,
     origins: [ATTIO_ORIGIN],
-    access: ({ object }) => ({
+    access: () => ({
         pathPrefixes: [
-            getAttioAttributesPath(object),
-            getAttioRecordsQueryPath(object),
+            ...ATTIO_OBJECTS.flatMap((object) => [
+                getAttioAttributesPath(object),
+                getAttioRecordsQueryPath(object),
+            ]),
+            ATTIO_WORKSPACE_MEMBERS_PATH,
         ],
         // Records are read with POST, attributes with GET
         methods: ['GET', 'POST'],
@@ -55,7 +61,8 @@ export const attioIntegration = defineLiveIntegration({
         concurrentCalls: 3,
         callsPerMinute: 600,
         callsPerHour: 20_000,
-        callsPerQuery: ATTIO_MAX_PAGES,
+        // The record pages, plus one call for owner names when they're selected
+        callsPerQuery: ATTIO_MAX_PAGES + 1,
         timeoutMs: 30_000,
         maxRows: ATTIO_MAX_RECORDS,
     },
@@ -82,15 +89,41 @@ export const attioIntegration = defineLiveIntegration({
         },
         pushdown: ALL_PUSHDOWN_REFUSED,
     },
-    explores: [ATTIO_RECORDS_EXPLORE],
+    explores: ATTIO_EXPLORES,
     plannedModelNames: [],
-    validate: ({ object }) => {
-        if (!ATTIO_OBJECT.test(object)) {
-            throw new ParameterError(
-                "The Attio object must be its slug, like companies or deals, as shown in Attio's workspace settings under Objects",
-            );
-        }
+    level: {
+        value: 2,
+        description: 'Attio has no aggregates; it returns records only.',
     },
+    auth: {
+        description: 'No vendor review is needed.',
+        testWith: 'test_account',
+        needs: ['gmail'],
+        token: true,
+        oauth: 'no_review',
+    },
+    paging: { description: 'Up to 500 records a page, with limit and offset.' },
+    rateLimits: {
+        concurrentCalls: 3,
+        callsPerSecond: 50,
+        buckets: [
+            {
+                id: 'minute',
+                label: 'per minute',
+                windowMs: 60_000,
+                capacity: 600,
+            },
+            {
+                id: 'hour',
+                label: 'per hour',
+                windowMs: 3_600_000,
+                capacity: 20_000,
+            },
+        ],
+        note: 'List queries are also scored by their filters and sorts over 10 seconds; Attio publishes no threshold.',
+    },
+    useCases: attioUseCases,
+    validate: () => {},
     checkAuth: ({ type }) => {
         if (type !== 'bearer_token') {
             throw new ParameterError(
@@ -98,7 +131,8 @@ export const attioIntegration = defineLiveIntegration({
             );
         }
     },
-    describeTarget: ({ settings: { object } }) => `Attio object ${object}`,
+    describeTarget: () =>
+        'Attio workspace: companies, people, deals, users and workspaces',
     parseRequest: jsonRequest(LABEL, attioRequestSchema),
     compile: ({ explore, metricQuery, now }) =>
         compileAttioQuery({
@@ -107,13 +141,19 @@ export const attioIntegration = defineLiveIntegration({
             today: getIsoDateInTimeZone(now, 'UTC'),
         }),
     run: runAttioQuery,
-    toError: (response, settings) => toAttioError(response, settings),
+    toError: (response) => toAttioError(response),
     scan: {
         read: scanAttioAttributes,
         withScannedFields: (definition, scan) =>
-            scan.attioAttributes
-                ? withAttioAttributeFields(definition, scan.attioAttributes)
-                : definition,
+            withAttioAttributeFields(
+                definition,
+                readAttioAttributes(
+                    scan.attioAttributes,
+                    toAttioObject(definition.name),
+                ),
+            ),
         isInternalField: isInternalAttioField,
+        // Companies is the first explore; the other objects are scanned too
+        models: ATTIO_SCANNED_MODELS,
     },
 });

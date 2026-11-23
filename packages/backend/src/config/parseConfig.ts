@@ -1946,6 +1946,11 @@ export type LightdashConfig = {
             oauthClientId: string | undefined;
             oauthClientSecret: string | undefined;
         };
+        /** The consumer key and secret of a Salesforce Connected App. */
+        salesforce: {
+            oauthClientId: string | undefined;
+            oauthClientSecret: string | undefined;
+        };
     };
     contentAsCode: {
         maxDownloads: number;
@@ -2074,6 +2079,8 @@ export type LightdashConfig = {
         /** Max memory DuckDB can use for caching parquet data and query intermediates on the shared query instance (e.g. '256MB', '1GB', '2GB'). Only affects pre-aggregate reads, not materializations which use isolated instances. */
         duckdbQueryMemoryLimit: string | null;
         duckdbWriteMemoryLimit: string;
+        /** How long the scheduler polls a materialization query before giving up, in ms. */
+        materializationTimeout: number;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
     externalSources: {
@@ -4227,6 +4234,12 @@ export const parseConfig = (): LightdashConfig => {
                 oauthClientSecret:
                     process.env.LINKEDIN_ADS_OAUTH_CLIENT_SECRET || undefined,
             },
+            salesforce: {
+                oauthClientId:
+                    process.env.SALESFORCE_OAUTH_CLIENT_ID || undefined,
+                oauthClientSecret:
+                    process.env.SALESFORCE_OAUTH_CLIENT_SECRET || undefined,
+            },
         },
         contentAsCode: {
             maxDownloads:
@@ -4314,6 +4327,11 @@ export const parseConfig = (): LightdashConfig => {
             duckdbQueryMemoryLimit:
                 process.env.PRE_AGGREGATE_DUCKDB_QUERY_MEMORY_LIMIT ?? null,
             duckdbWriteMemoryLimit: parsePreAggregateDuckdbWriteMemoryLimit(),
+            materializationTimeout: getPositiveIntegerFromEnvironmentVariable(
+                'PRE_AGGREGATE_MATERIALIZATION_TIMEOUT_MS',
+                30 * 60 * 1000,
+                MAX_TIMER_MS,
+            ),
             s3: preAggregatesS3,
         },
         externalSources: {

@@ -29,13 +29,23 @@ export type LiveSourceField = {
     lastEdit: LiveSourceFieldEditor | null;
 };
 
+/** The fields of one explore of a live data source. */
+export type LiveSourceExploreFields = {
+    exploreName: string;
+    label: string;
+    fields: LiveSourceField[];
+};
+
 export type LiveSourceFields = {
+    /** The first explore, which `fields` lists. */
     exploreName: string;
     /** Saved charts on any of the source's explores, each counted once. */
     usedByChartCount: number;
     /** ISO timestamp of the last scan, or null when the source was never scanned. */
     scannedAt: string | null;
     fields: LiveSourceField[];
+    /** Every explore whose fields can be curated, the first one included. */
+    explores: LiveSourceExploreFields[];
 };
 
 export type ApiLiveSourceFieldsResponse = {
@@ -46,6 +56,8 @@ export type ApiLiveSourceFieldsResponse = {
 /** One field change; unset keys stay as they are, null clears an override. */
 export type LiveSourceFieldChange = {
     name: string;
+    /** The explore the field belongs to; omitted, the source's first explore. */
+    exploreName?: string;
     inUse?: boolean;
     label?: string | null;
     description?: string | null;

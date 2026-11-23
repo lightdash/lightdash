@@ -2699,3 +2699,538 @@ describe('flat export of stored pivot results', () => {
         ]);
     });
 });
+
+describe('chart image xlsx export', () => {
+    type ImageWithExt = { range: { ext?: { width: number; height: number } } };
+    const loadWorkbook = async (buffer: Buffer | ArrayBuffer) => {
+        const workbook = new (await import('exceljs')).Workbook();
+        const arrayBuffer =
+            buffer instanceof ArrayBuffer
+                ? buffer
+                : buffer.buffer.slice(
+                      buffer.byteOffset,
+                      buffer.byteOffset + buffer.byteLength,
+                  );
+        await workbook.xlsx.load(arrayBuffer as ArrayBuffer);
+        return workbook;
+    };
+
+    // Smallest valid PNG header: 8-byte signature, IHDR length/type, then
+    // width and height as big-endian uint32. Body bytes are irrelevant here.
+    const createPngBuffer = (width: number, height: number) => {
+        const buffer = Buffer.alloc(64);
+        Buffer.from('89504e470d0a1a0a', 'hex').copy(buffer, 0);
+        buffer.writeUInt32BE(13, 8);
+        buffer.write('IHDR', 12, 'ascii');
+        buffer.writeUInt32BE(width, 16);
+        buffer.writeUInt32BE(height, 20);
+        return buffer;
+    };
+
+    it('reads width and height from the PNG header', () => {
+        expect(
+            ExcelService.getPngDimensions(createPngBuffer(1400, 768)),
+        ).toEqual({ width: 1400, height: 768 });
+        expect(
+            ExcelService.getPngDimensions(Buffer.from('not a png at all')),
+        ).toBeNull();
+    });
+
+    it('embeds the chart image on a single sheet named after the chart', async () => {
+        const imageBuffer = createPngBuffer(1400, 768);
+        const excelBuffer = await ExcelService.buildChartImageWorkbook({
+            imageBuffer,
+            sheetName: 'Revenue: by / month ? really long name over thirty one',
+        });
+
+        const workbook = await loadWorkbook(excelBuffer);
+
+        expect(workbook.worksheets).toHaveLength(1);
+        const [worksheet] = workbook.worksheets;
+        expect(worksheet.name).toBe('Revenue_ by _ month _ really lo');
+        expect(worksheet.rowCount).toBe(0);
+
+        const images = worksheet.getImages();
+        expect(images).toHaveLength(1);
+        expect(images[0].range.tl.nativeCol).toBe(0);
+        expect(images[0].range.tl.nativeRow).toBe(0);
+        // 1400px wide screenshots shrink to 1000px, keeping the aspect ratio
+        expect((images[0] as ImageWithExt).range.ext).toEqual({
+            width: 1000,
+            height: 549,
+        });
+
+        const stored = workbook.getImage(Number(images[0].imageId));
+        expect(stored.extension).toBe('png');
+        expect(Buffer.from(stored.buffer!).equals(imageBuffer)).toBe(true);
+    });
+
+    it('keeps images narrower than the cap at their own size', async () => {
+        const excelBuffer = await ExcelService.buildChartImageWorkbook({
+            imageBuffer: createPngBuffer(768, 500),
+            sheetName: 'Big number',
+        });
+        const workbook = await loadWorkbook(excelBuffer);
+        expect(
+            (workbook.worksheets[0].getImages()[0] as ImageWithExt).range.ext,
+        ).toEqual({ width: 768, height: 500 });
+    });
+
+    it('rejects buffers that are not PNGs', async () => {
+        await expect(
+            ExcelService.buildChartImageWorkbook({
+                imageBuffer: Buffer.from('GIF89a'),
+                sheetName: 'chart',
+            }),
+        ).rejects.toThrow('not a PNG');
+    });
+
+    it('uploads the workbook to the exports bucket under an xlsx file id', async () => {
+        let uploaded: Buffer | undefined;
+        let uploadedName: string | undefined;
+        let uploadedDownloadName: string | undefined;
+        const result = await ExcelService.downloadChartImageXlsx({
+            imageBuffer: createPngBuffer(1400, 768),
+            chartName: 'Orders over time',
+            attachmentDownloadName: 'Orders over time_2026-11-09',
+            exportsStorageClient: {
+                uploadExcel: async (
+                    stream: Readable,
+                    name: string,
+                    downloadName?: string,
+                ) => {
+                    const chunks: Buffer[] = [];
+                    for await (const chunk of stream) {
+                        chunks.push(Buffer.from(chunk));
+                    }
+                    uploaded = Buffer.concat(chunks);
+                    uploadedName = name;
+                    uploadedDownloadName = downloadName;
+                    return 'https://exports/chart.xlsx';
+                },
+            } as unknown as import('../../clients/FileStorage/FileStorageClient').FileStorageClient,
+        });
+
+        expect(result).toEqual({
+            fileUrl: 'https://exports/chart.xlsx',
+            truncated: false,
+            s3Key: uploadedName,
+        });
+        expect(uploadedName).toMatch(
+            /^xlsx-Orders over time_2026-11-09-.*\.xlsx$/,
+        );
+        expect(uploadedDownloadName).toBe('Orders over time_2026-11-09.xlsx');
+
+        const workbook = await loadWorkbook(uploaded!);
+        expect(workbook.worksheets[0].name).toBe('Orders over time');
+        expect(workbook.worksheets[0].getImages()).toHaveLength(1);
+    });
+});
+
+describe('ExcelService field urls as hyperlinks in xlsx export', () => {
+    const customerIdField = {
+        ...mockItemMapWithFormats.number_without_format,
+        fieldType: FieldType.DIMENSION,
+        name: 'customer_id',
+        table: 'customers',
+        label: 'Customer id',
+    } as ItemsMap[string];
+    const firstNameField = {
+        ...mockItemMapWithFormats.string_column,
+        name: 'first_name',
+        table: 'customers',
+        label: 'First name',
+        urls: [
+            {
+                label: 'URL from value',
+                url: 'https://example.com/company/${value.formatted | url_encode }',
+            },
+            {
+                label: 'URL from row value',
+                url: 'https://example.com/customers/${row.customers.customer_id.raw}',
+            },
+        ],
+    } as ItemsMap[string];
+    const lastNameField = {
+        ...mockItemMapWithFormats.string_column,
+        name: 'last_name',
+        table: 'customers',
+        label: 'Last name',
+        urls: [
+            {
+                label: 'URL from row value',
+                url: 'https://example.com/customers/${row.customers.customer_id.raw}',
+            },
+        ],
+    } as ItemsMap[string];
+    const plainField = {
+        ...mockItemMapWithFormats.string_column,
+        name: 'email',
+        table: 'customers',
+        label: 'Email',
+    } as ItemsMap[string];
+    const fields: ItemsMap = {
+        customers_customer_id: customerIdField,
+        customers_first_name: firstNameField,
+        customers_last_name: lastNameField,
+        customers_email: plainField,
+    };
+    const stringFieldWithUrl = (url: string): ItemsMap =>
+        ({
+            customers_first_name: {
+                ...firstNameField,
+                urls: [{ label: 'Open', url }],
+            },
+        }) as ItemsMap;
+
+    const { streamJsonlToExcelFile } = ExcelService as unknown as {
+        streamJsonlToExcelFile: (
+            resultsStream: Readable,
+            tempFilePath: string,
+            headers: string[],
+            fields: ItemsMap,
+            onlyRaw: boolean,
+            sortedFieldIds: string[],
+            timezone?: string,
+            conditionalFormattings?: ReturnType<
+                typeof createConditionalFormattingConfigWithSingleColor
+            >[],
+        ) => Promise<{ truncated: boolean }>;
+    };
+
+    const writeAndReadBack = async (
+        rows: Record<string, unknown>[],
+        sortedFieldIds: string[],
+        {
+            onlyRaw = false,
+            itemsMap = fields,
+            conditionalFormattings,
+        }: {
+            onlyRaw?: boolean;
+            itemsMap?: ItemsMap;
+            conditionalFormattings?: ReturnType<
+                typeof createConditionalFormattingConfigWithSingleColor
+            >[];
+        } = {},
+    ) => {
+        const tempFilePath = path.join(
+            os.tmpdir(),
+            `excel-urls-test-${process.pid}-${Math.random()
+                .toString(36)
+                .slice(2)}.xlsx`,
+        );
+        await streamJsonlToExcelFile(
+            Readable.from([rows.map((row) => JSON.stringify(row)).join('\n')]),
+            tempFilePath,
+            sortedFieldIds,
+            itemsMap,
+            onlyRaw,
+            sortedFieldIds,
+            undefined,
+            conditionalFormattings,
+        );
+        const workbook = new (await import('exceljs')).Workbook();
+        await workbook.xlsx.readFile(tempFilePath);
+        fs.unlinkSync(tempFilePath);
+        return workbook.getWorksheet('Sheet1')!;
+    };
+
+    it('writes a dimension with urls as a hyperlink cell using the first url', async () => {
+        const worksheet = await writeAndReadBack(
+            [{ customers_first_name: 'Ann Lee', customers_customer_id: 7 }],
+            ['customers_first_name', 'customers_customer_id'],
+        );
+        const cell = worksheet.getRow(2).getCell(1);
+        expect(cell.value).toEqual({
+            text: 'Ann Lee',
+            hyperlink: 'https://example.com/company/Ann+Lee',
+        });
+        // the id column has no urls and stays a plain numeric cell
+        expect(worksheet.getRow(2).getCell(2).value).toBe(7);
+    });
+
+    it('styles hyperlink cells as blue underlined links', async () => {
+        const worksheet = await writeAndReadBack(
+            [{ customers_first_name: 'Ann' }],
+            ['customers_first_name'],
+        );
+        expect(worksheet.getRow(2).getCell(1).font).toMatchObject({
+            underline: true,
+            color: { argb: 'FF0563C1' },
+        });
+    });
+
+    it('keeps conditional formatting colours on a linked cell', async () => {
+        const config = createConditionalFormattingConfigWithSingleColor(
+            '#ff0000',
+            { fieldId: 'customers_first_name' },
+        );
+        config.rules = [
+            { id: 'is-ann', operator: FilterOperator.EQUALS, values: ['Ann'] },
+        ];
+        const worksheet = await writeAndReadBack(
+            [{ customers_first_name: 'Ann' }],
+            ['customers_first_name'],
+            { conditionalFormattings: [config] },
+        );
+        const cell = worksheet.getRow(2).getCell(1);
+        expect(cell.value).toMatchObject({
+            hyperlink: 'https://example.com/company/Ann',
+        });
+        expect(cell.fill).toMatchObject({ fgColor: { argb: 'FFFF0000' } });
+        expect(cell.font?.underline).toBe(true);
+        expect(cell.font?.color?.argb).not.toBe('FF0563C1');
+    });
+
+    it('percent-encodes a template that renders a space', async () => {
+        const worksheet = await writeAndReadBack(
+            [{ customers_first_name: 'Ann Lee' }],
+            ['customers_first_name'],
+            {
+                itemsMap: stringFieldWithUrl(
+                    'https://example.com/company/${value.formatted}',
+                ),
+            },
+        );
+        expect(worksheet.getRow(2).getCell(1).value).toEqual({
+            text: 'Ann Lee',
+            hyperlink: 'https://example.com/company/Ann%20Lee',
+        });
+    });
+
+    it('keeps plain text when the rendered url is longer than Excel allows', async () => {
+        const longValue = 'a'.repeat(2100);
+        const worksheet = await writeAndReadBack(
+            [{ customers_first_name: longValue }],
+            ['customers_first_name'],
+            {
+                itemsMap: stringFieldWithUrl(
+                    'https://example.com/${value.raw}',
+                ),
+            },
+        );
+        expect(worksheet.getRow(2).getCell(1).value).toBe(longValue);
+    });
+
+    it.each([
+        // eslint-disable-next-line no-script-url
+        'javascript:alert(1)',
+        'data:text/html,hello',
+        '/customers/${value.raw}',
+        '//example.com/customers/${value.raw}',
+    ])('keeps plain text for the non-http(s) url %s', async (url) => {
+        const worksheet = await writeAndReadBack(
+            [{ customers_first_name: 'Ann' }],
+            ['customers_first_name'],
+            { itemsMap: stringFieldWithUrl(url) },
+        );
+        expect(worksheet.getRow(2).getCell(1).value).toBe('Ann');
+    });
+
+    it('resolves a url template that references another field in the row', async () => {
+        const worksheet = await writeAndReadBack(
+            [{ customers_last_name: 'Lee', customers_customer_id: 42 }],
+            ['customers_last_name', 'customers_customer_id'],
+        );
+        expect(worksheet.getRow(2).getCell(1).value).toEqual({
+            text: 'Lee',
+            hyperlink: 'https://example.com/customers/42',
+        });
+    });
+
+    it('uses hidden fields from the results row to resolve row references', async () => {
+        const worksheet = await writeAndReadBack(
+            [{ customers_last_name: 'Lee', customers_customer_id: 42 }],
+            ['customers_last_name'],
+        );
+        expect(worksheet.getRow(2).getCell(1).value).toEqual({
+            text: 'Lee',
+            hyperlink: 'https://example.com/customers/42',
+        });
+    });
+
+    it('keeps plain text when the template references a field missing from the row', async () => {
+        const worksheet = await writeAndReadBack(
+            [{ customers_last_name: 'Lee' }],
+            ['customers_last_name'],
+        );
+        expect(worksheet.getRow(2).getCell(1).value).toBe('Lee');
+    });
+
+    it('leaves fields without urls untouched and skips null values', async () => {
+        const worksheet = await writeAndReadBack(
+            [{ customers_email: 'a@example.com', customers_first_name: null }],
+            ['customers_email', 'customers_first_name'],
+        );
+        expect(worksheet.getRow(2).getCell(1).value).toBe('a@example.com');
+        expect(worksheet.getRow(2).getCell(2).value).toBeNull();
+    });
+
+    it('links a raw value that is itself a url, like the results table does', async () => {
+        const worksheet = await writeAndReadBack(
+            [{ customers_email: 'https://example.com/profile/1' }],
+            ['customers_email'],
+        );
+        expect(worksheet.getRow(2).getCell(1).value).toEqual({
+            text: 'https://example.com/profile/1',
+            hyperlink: 'https://example.com/profile/1',
+        });
+    });
+
+    it('keeps numeric dimensions with urls as plain numbers', async () => {
+        const worksheet = await writeAndReadBack(
+            [{ customers_customer_id: 12345 }],
+            ['customers_customer_id'],
+            {
+                itemsMap: {
+                    customers_customer_id: {
+                        ...customerIdField,
+                        format: '#,##0',
+                        urls: [
+                            {
+                                label: 'Open',
+                                url: 'https://example.com/customers/${value.raw}',
+                            },
+                        ],
+                    } as ItemsMap[string],
+                },
+            },
+        );
+        expect(worksheet.getRow(2).getCell(1).value).toBe(12345);
+    });
+
+    it('keeps date dimensions with urls as plain dates', async () => {
+        const worksheet = await writeAndReadBack(
+            [{ customers_signup_date: '2024-01-02' }],
+            ['customers_signup_date'],
+            {
+                itemsMap: {
+                    customers_signup_date: {
+                        ...mockItemMapWithFormats.date_column,
+                        name: 'signup_date',
+                        table: 'customers',
+                        urls: [
+                            {
+                                label: 'Open',
+                                url: 'https://example.com/day/${value.raw}',
+                            },
+                        ],
+                    } as ItemsMap[string],
+                },
+            },
+        );
+        expect(worksheet.getRow(2).getCell(1).value).toBeInstanceOf(Date);
+    });
+
+    it('keeps the raw value as link text in raw export mode', async () => {
+        const worksheet = await writeAndReadBack(
+            [{ customers_first_name: 'Ann', customers_customer_id: 7 }],
+            ['customers_first_name', 'customers_customer_id'],
+            { onlyRaw: true },
+        );
+        expect(worksheet.getRow(2).getCell(1).value).toEqual({
+            text: 'Ann',
+            hyperlink: 'https://example.com/company/Ann',
+        });
+    });
+
+    it('stops linking once the sheet reaches the Excel hyperlink cap', async () => {
+        const cap = 65_530;
+        const rows = Array.from({ length: cap + 5 }, (_, i) => ({
+            customers_first_name: `n${i}`,
+        }));
+        const worksheet = await writeAndReadBack(rows, [
+            'customers_first_name',
+        ]);
+        let linked = 0;
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber === 1) return;
+            const { value } = row.getCell(1);
+            if (typeof value === 'object' && value && 'hyperlink' in value) {
+                linked += 1;
+            }
+        });
+        expect(linked).toBe(cap);
+        expect(worksheet.getRow(cap + 2).getCell(1).value).toBe(`n${cap}`);
+    }, 60_000);
+
+    it.each([
+        ['legacy', false],
+        ['improved-dates', true],
+    ])(
+        'writes hyperlinks for index dimensions in the %s pivot writer',
+        async (_writer, enableImprovedExcelDates) => {
+            const pivotDimension = 'orders_status';
+            const metric = 'number_without_format';
+            const completedColumn = `${metric}_any_completed`;
+            const itemMap: ItemsMap = {
+                ...mockItemMapWithFormats,
+                customers_first_name: firstNameField,
+                customers_customer_id: customerIdField,
+                [pivotDimension]: {
+                    ...mockItemMapWithFormats.string_column,
+                    name: 'orders_status',
+                    label: 'Status',
+                },
+            };
+            const buffer = await ExcelService.downloadPivotTableXlsx({
+                rows: [
+                    {
+                        customers_first_name: 'Ann',
+                        customers_customer_id: 7,
+                        [completedColumn]: 3,
+                    },
+                ],
+                itemMap,
+                pivotConfig: {
+                    pivotDimensions: [pivotDimension],
+                    metricsAsRows: false,
+                },
+                onlyRaw: false,
+                customLabels: undefined,
+                pivotDetails: {
+                    totalColumnCount: 1,
+                    valuesColumns: [
+                        {
+                            aggregation: VizAggregationOptions.ANY,
+                            pivotValues: [
+                                {
+                                    value: 'completed',
+                                    referenceField: pivotDimension,
+                                },
+                            ],
+                            referenceField: metric,
+                            pivotColumnName: completedColumn,
+                        },
+                    ],
+                    indexColumn: [
+                        {
+                            type: VizIndexType.CATEGORY,
+                            reference: 'customers_first_name',
+                        },
+                        {
+                            type: VizIndexType.CATEGORY,
+                            reference: 'customers_customer_id',
+                        },
+                    ],
+                    groupByColumns: [{ reference: pivotDimension }],
+                    sortBy: [],
+                    originalColumns: {},
+                },
+                enableImprovedExcelDates,
+            });
+
+            const workbook = new (await import('exceljs')).Workbook();
+            // @ts-ignore - Buffer type mismatch between exceljs and Node 20
+            await workbook.xlsx.load(buffer);
+            const row = workbook.getWorksheet('Pivot Table')!.getRow(3);
+            expect(row.getCell(1).value).toEqual({
+                text: 'Ann',
+                hyperlink: 'https://example.com/company/Ann',
+            });
+            expect(row.getCell(1).font).toMatchObject({ underline: true });
+            expect(row.getCell(2).value).toBe(7);
+            expect(row.getCell(3).value).toBe(3);
+        },
+    );
+});

@@ -1,6 +1,7 @@
 import { ApiConnectorType, DimensionType } from '@lightdash/common';
 import { z } from 'zod';
 import { assertMaxRows } from '../../integration';
+import { refuseLiveQuery } from '../../query/refuse';
 import { type LiveRunArgs, type LiveRunResult } from '../../types';
 
 export const SEARCH_CONSOLE_ORIGIN = 'https://searchconsole.googleapis.com';
@@ -12,7 +13,14 @@ export const SEARCH_CONSOLE_SITES_PATH = '/webmasters/v3/sites/';
  */
 export const SEARCH_CONSOLE_MAX_QUERY_ROWS = 24_999;
 
-const DIMENSIONS = ['date', 'query', 'page', 'country', 'device'] as const;
+const DIMENSIONS = [
+    'date',
+    'query',
+    'page',
+    'country',
+    'device',
+    'searchAppearance',
+] as const;
 const METRICS = ['clicks', 'impressions', 'ctr', 'position'] as const;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -109,6 +117,18 @@ export const runSearchConsoleQuery = async ({
         },
         responseSchema,
     );
+    // Compile reads every row it can only when it sorts on our side, which a
+    // date grouping forces for any sort: the API returns those rows by date
+    if (
+        dimensions.includes('date') &&
+        rowLimit === SEARCH_CONSOLE_MAX_QUERY_ROWS &&
+        rows.length > rowLimit
+    ) {
+        throw refuseLiveQuery(
+            'live_source.refused.row_limit',
+            'Search Console returns rows grouped by date in date order, so sorting them has to read every row, and this query has more than 24,999. Narrow the date range or filters, remove the date to get the top rows by clicks in one call, or get the top pages first and then query those pages by day.',
+        );
+    }
     return {
         columns: [
             ...dimensions.map((name) => ({
@@ -116,6 +136,7 @@ export const runSearchConsoleQuery = async ({
                 type:
                     name === 'date' ? DimensionType.DATE : DimensionType.STRING,
             })),
+            { name: 'search_type', type: DimensionType.STRING },
             ...METRICS.map((name) => ({ name, type: DimensionType.NUMBER })),
         ],
         rows: rows.slice(0, rowLimit).map((row) => ({
@@ -125,6 +146,8 @@ export const runSearchConsoleQuery = async ({
                     row.keys?.[index] ?? null,
                 ]),
             ),
+            // Not an API dimension: every row has the type the request read
+            search_type: request.type ?? 'web',
             clicks: row.clicks,
             impressions: row.impressions,
             ctr: row.ctr,

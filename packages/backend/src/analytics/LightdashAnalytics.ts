@@ -27,10 +27,9 @@ import {
     LightdashPage,
     LightdashRequestMethodHeader,
     LightdashUser,
+    LiveSourceErrorCode,
     LiveSourceErrorOrigin,
-    LiveSourceInternalErrorCode,
     LiveSourceRefusalCode,
-    LiveSourceUpstreamErrorCode,
     MergeJoinType,
     MergeQueryErrorKind,
     MobileAppPlatform,
@@ -86,6 +85,7 @@ import {
     type PlaygroundProjectTrigger,
     type PullRequestProvider,
     type ResultsCacheStatsDays,
+    type SemanticLayerApplyMode,
     type SemanticQueryUsage,
     type SqlApprovalToolName,
     type WarehousePhaseTimings,
@@ -834,7 +834,7 @@ export type QueryCompletedEvent = BaseTrack & {
         integration?: ApiConnectorType;
         apiQueryOutcome?: LiveQueryOutcome;
         /** Set only when a live_source query failed. */
-        errorCode?: LiveSourceInternalErrorCode | LiveSourceUpstreamErrorCode;
+        errorCode?: LiveSourceErrorCode;
         errorOrigin?: LiveSourceErrorOrigin;
         truncated?: boolean;
     };
@@ -2995,6 +2995,75 @@ export type AiWritebackEvent =
     | AiWritebackCompletedEvent
     | AiWritebackFailedEvent
     | AiWritebackMergedEvent;
+
+/** How a Studio change was made: by hand in the editor, or proposed by the chat. */
+export type SemanticStudioChangeSource = 'hand' | 'chat';
+
+export type SemanticStudioChangeFailureReason =
+    | 'stale'
+    | 'invalid'
+    | 'renamed'
+    | 'no_change'
+    | 'check_failed'
+    | 'unsupported_part';
+
+/** One Studio action each; counts and enums only, never model names, YAML, SQL or message text. */
+export type SemanticStudioActivity =
+    | {
+          event: 'semantic_studio.draft_started';
+          properties: { trigger: 'explicit' | 'first_change' | 'file_edit' };
+      }
+    | {
+          event: 'semantic_studio.draft_switched';
+          properties: { to: 'draft' | 'live' };
+      }
+    | {
+          event: 'semantic_studio.change_saved';
+          properties: {
+              source: SemanticStudioChangeSource;
+              // Null for a file edit, which is not split into models.
+              modelCount: number | null;
+              failedModelCount: number;
+              startedDraft: boolean;
+          };
+      }
+    | {
+          event: 'semantic_studio.change_failed';
+          properties: {
+              source: SemanticStudioChangeSource;
+              reason: SemanticStudioChangeFailureReason;
+              modelCount: number | null;
+          };
+      }
+    | {
+          event: 'semantic_studio.draft_published';
+          properties: {
+              outcome: 'live' | 'pull_request' | 'merged';
+              scope: 'draft' | 'model';
+          };
+      }
+    | {
+          event: 'semantic_studio.publish_failed';
+          properties: {
+              reason: 'check_failed' | 'merge_refused';
+              scope: 'draft' | 'model';
+          };
+      }
+    | {
+          event: 'semantic_studio.draft_discarded';
+          properties: { scope: 'draft' | 'change' | 'model' };
+      };
+
+export type SemanticStudioEvent = BaseTrack & {
+    event: SemanticStudioActivity['event'];
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        // Where the project's models live: kept here, a YAML repo, or a dbt repo.
+        appliesAs: SemanticLayerApplyMode;
+    } & SemanticStudioActivity['properties'];
+};
 
 export type CommentsEvent = BaseTrack & {
     event:
@@ -5186,6 +5255,7 @@ type TypedEvent =
     | DataAppEvent
     | ExternalConnectionEvent
     | AiWritebackEvent
+    | SemanticStudioEvent
     | PinnedListUpdated
     | FavoriteToggled
     | DownloadCsv

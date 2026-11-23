@@ -156,7 +156,6 @@ const buildFakeWriteDatabase = ({
 
 describe('FeatureFlagModel', () => {
     describe.each([
-        FeatureFlags.MobileQrSignIn,
         FeatureFlags.DbtPartialParse,
         FeatureFlags.AgentIdentity,
         FeatureFlags.BigqueryWorkloadIdentityAuth,
@@ -273,6 +272,46 @@ describe('FeatureFlagModel', () => {
                     featureFlagId: 'telemetry-flag',
                 }),
             ).resolves.toEqual({ id: 'telemetry-flag', enabled: false });
+        });
+    });
+
+    describe('ai-thread-images needs an uploads bucket', () => {
+        const organizationOn = buildFakeDatabase({
+            flag: { default_enabled: false },
+            orgOverride: { enabled: true },
+        });
+        const args = {
+            user: dbUser,
+            featureFlagId: FeatureFlags.AiThreadImages,
+        };
+        it('is off without a bucket even when the organization has it on', async () => {
+            const model = buildModel({ uploads: { s3: null } }, organizationOn);
+            await expect(model.get(args)).resolves.toEqual({
+                id: FeatureFlags.AiThreadImages,
+                enabled: false,
+            });
+        });
+        it('follows the stored flag once a bucket is configured', async () => {
+            const uploads = {
+                s3: {
+                    endpoint: 'http://localhost:9000',
+                    bucket: 'uploads',
+                    region: 'us-east-1',
+                    expirationTime: 259200,
+                },
+            };
+            await expect(
+                buildModel({ uploads }, organizationOn).get(args),
+            ).resolves.toEqual({
+                id: FeatureFlags.AiThreadImages,
+                enabled: true,
+            });
+            await expect(
+                buildModel({ uploads }, buildFakeDatabase({})).get(args),
+            ).resolves.toEqual({
+                id: FeatureFlags.AiThreadImages,
+                enabled: false,
+            });
         });
     });
 
@@ -828,7 +867,7 @@ describe('FeatureFlagModel', () => {
     });
 });
 
-describe('mobile QR deployment defaults', () => {
+describe('organization flag deployment defaults', () => {
     it.each([false, true])(
         'uses the deployment database default: %s',
         async (enabled) => {
@@ -837,8 +876,10 @@ describe('mobile QR deployment defaults', () => {
                 buildFakeDatabase({ flag: { default_enabled: enabled } }),
             );
             expect(
-                await model.get({ featureFlagId: FeatureFlags.MobileQrSignIn }),
-            ).toEqual({ id: FeatureFlags.MobileQrSignIn, enabled });
+                await model.get({
+                    featureFlagId: FeatureFlags.DbtPartialParse,
+                }),
+            ).toEqual({ id: FeatureFlags.DbtPartialParse, enabled });
         },
     );
 
@@ -860,7 +901,7 @@ describe('mobile QR deployment defaults', () => {
         );
         const get = (organizationUuid = dbUser.organizationUuid) =>
             model.get({
-                featureFlagId: FeatureFlags.MobileQrSignIn,
+                featureFlagId: FeatureFlags.DbtPartialParse,
                 user: { organizationUuid },
             });
         expect((await get()).enabled).toBe(true);
@@ -877,7 +918,7 @@ describe('mobile QR deployment defaults', () => {
         );
         const get = () =>
             model.get({
-                featureFlagId: FeatureFlags.MobileQrSignIn,
+                featureFlagId: FeatureFlags.DbtPartialParse,
                 user: { organizationUuid: dbUser.organizationUuid },
             });
         expect((await get()).enabled).toBe(true);

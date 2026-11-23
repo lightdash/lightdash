@@ -33,6 +33,7 @@ import {
 import express from 'express';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import { pipeS3BodyToResponse } from '../clients/Aws/s3Streams';
 import { createContentDispositionHeader } from '../utils/FileDownloadUtils/FileDownloadUtils';
 import {
     allowApiKeyAuthentication,
@@ -431,10 +432,6 @@ export class OrganizationDesignController extends BaseController {
             'Content-Disposition',
             `inline; filename="${encodeURIComponent(filename)}"`,
         );
-        body.pipe(res);
-        await new Promise<void>((resolve, reject) => {
-            res.on('finish', () => resolve());
-            res.on('error', (err) => reject(err));
-        });
+        await pipeS3BodyToResponse(body, res);
     }
 }

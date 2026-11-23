@@ -84,3 +84,32 @@ describe('toDraftEdit', () => {
         });
     });
 });
+
+describe('foldDraft', () => {
+    it('moves a metric to a new dimension in one item', () => {
+        const { writes, results } = foldDraft(new Map([['orders', current]]), [
+            [
+                {
+                    name: 'orders',
+                    yaml: 'dimensions:\n  - name: status\n    type: string\n    sql: ${TABLE}.status\n    metrics:\n      order_count:\n        type: count\n',
+                    remove: ['dimensions.amount.metrics.order_count'],
+                    removeModel: false,
+                },
+            ],
+        ]);
+        expect(results[0][0]).toMatchObject({
+            status: 'ready',
+            changes: [
+                {
+                    path: 'dimensions.amount.metrics.order_count',
+                    action: 'removed',
+                },
+                { path: 'dimensions.status', action: 'added' },
+            ],
+            refusals: [],
+        });
+        expect(writes.get('orders')).toMatch(
+            /name: status[\s\S]*order_count:\n\s+type: count/,
+        );
+    });
+});

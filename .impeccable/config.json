@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [
+      ".agents/**",
+      ".claude/**",
+      "docs/**",
+      "examples/**",
+      "sandboxes/**",
+      "scripts/**",
+      "skills/**",
+      "static/**",
+      "packages/{api-tests,backend,cli,common,e2e,formula,formula-tests,iframe-test-app,query-sdk,sdk-next-test-app,sdk-test-app,visualization,warehouses}/**"
+    ],
+    "ignoreValues": []
+  }
+}

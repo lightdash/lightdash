@@ -4,6 +4,7 @@ import {
     getItemMap,
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
+import { OPPORTUNITY_DESCRIBE } from '../integrations/salesforce/salesforce.fixtures';
 import { type LiveScanResult } from '../types';
 import {
     buildLiveExplores,
@@ -11,7 +12,7 @@ import {
     getLiveReservedExploreNames,
     toScannedLiveSourceFields,
 } from './build';
-import { type LiveSourceFieldEdits } from './fields';
+import { getLiveFieldEditKey, type LiveSourceFieldEdits } from './fields';
 
 /**
  * Locks every live data source explore name and field id. Saved charts,
@@ -114,15 +115,76 @@ const SOURCES: {
     },
     {
         name: 'Attio',
-        apiSource: { connector: ApiConnectorType.ATTIO, object: 'deals' },
+        apiSource: { connector: ApiConnectorType.ATTIO },
         scan: {
             attioAttributes: {
-                data: [
-                    { api_slug: 'name', title: 'Deal name', type: 'text' },
-                    { api_slug: 'stage', title: 'Stage', type: 'status' },
-                    { api_slug: 'value', title: 'Value', type: 'currency' },
-                    { api_slug: 'count', title: 'Count', type: 'number' },
-                ],
+                deals: {
+                    data: [
+                        { api_slug: 'name', title: 'Deal name', type: 'text' },
+                        { api_slug: 'stage', title: 'Stage', type: 'status' },
+                        { api_slug: 'value', title: 'Value', type: 'currency' },
+                        { api_slug: 'count', title: 'Count', type: 'number' },
+                    ],
+                },
+                people: {
+                    data: [
+                        {
+                            api_slug: 'email_addresses',
+                            title: 'Email addresses',
+                            type: 'email-address',
+                        },
+                    ],
+                },
+            },
+        },
+    },
+    {
+        name: 'HubSpot',
+        apiSource: { connector: ApiConnectorType.HUBSPOT },
+        scan: {
+            hubspotProperties: {
+                deals: {
+                    results: [
+                        {
+                            name: 'dealname',
+                            label: 'Deal Name',
+                            type: 'string',
+                        },
+                        {
+                            name: 'dealstage',
+                            label: 'Stage',
+                            type: 'enumeration',
+                        },
+                        { name: 'amount', label: 'Amount', type: 'number' },
+                        { name: 'count', label: 'Count', type: 'number' },
+                    ],
+                },
+                contacts: {
+                    results: [
+                        { name: 'email', label: 'Email', type: 'string' },
+                    ],
+                },
+            },
+        },
+    },
+    {
+        name: 'Salesforce',
+        apiSource: { connector: ApiConnectorType.SALESFORCE },
+        scan: {
+            salesforceDescribe: {
+                Opportunity: OPPORTUNITY_DESCRIBE,
+                Lead: {
+                    name: 'Lead',
+                    fields: [
+                        {
+                            name: 'Company',
+                            label: 'Company',
+                            type: 'string',
+                            groupable: true,
+                            filterable: true,
+                        },
+                    ],
+                },
             },
         },
     },
@@ -144,12 +206,18 @@ describe('live data source names', () => {
             const { definitions } = getLiveBaseLayer(apiSource.connector);
             const everyFieldInUse: LiveSourceFieldEdits = Object.fromEntries(
                 [
-                    ...definitions.flatMap((definition) => [
-                        ...definition.dimensions,
-                        ...definition.metrics,
-                    ]),
-                    ...scannedFields.map((field) => field.definition),
-                ].map((field) => [field.name, { inUse: true, lastEdit: null }]),
+                    ...definitions.flatMap((definition) =>
+                        [...definition.dimensions, ...definition.metrics].map(
+                            ({ name: fieldName }) => fieldName,
+                        ),
+                    ),
+                    ...scannedFields.map((field) =>
+                        getLiveFieldEditKey(
+                            field.model ?? null,
+                            field.definition.name,
+                        ),
+                    ),
+                ].map((key) => [key, { inUse: true, lastEdit: null }]),
             );
             const explores = buildLiveExplores({
                 connectionUuid: '03386598-7a51-45b2-b1f9-5ef55bd09016',

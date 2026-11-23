@@ -1,5 +1,9 @@
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { LightdashConfig } from '../../../../config/parseConfig';
+import {
+    createRequestSizeGuardedFetch,
+    IMAGE_MODEL_REQUEST_MAX_BYTES,
+} from './requestSizeGuard';
 import { AiModel } from './types';
 
 const PROVIDER = 'openrouter';
@@ -11,6 +15,9 @@ export const getOpenRouterModel = (
 ): AiModel<typeof PROVIDER> => {
     /** @ref https://openrouter.ai/docs/community/vercel-ai-sdk */
     const openrouter = createOpenRouter({
+        fetch: createRequestSizeGuardedFetch(
+            IMAGE_MODEL_REQUEST_MAX_BYTES.openrouter,
+        ),
         apiKey: `${config.apiKey}`,
         compatibility: 'strict',
         headers: config.customHeaders,

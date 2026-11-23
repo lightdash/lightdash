@@ -189,6 +189,7 @@ export type ContentTableOptions<TData extends RowData> = {
     enableRowActions?: boolean;
     enableRowSelection?: boolean | ((row: Row<TData>) => boolean);
     enableRowVirtualization?: boolean;
+    enableColumnVirtualization?: boolean;
     enableSorting?: boolean;
     enableStickyHeader?: boolean;
     enableTopToolbar?: boolean;

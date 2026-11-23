@@ -17,19 +17,24 @@ import { ATTIO_DEAL_ATTRIBUTES } from './attio.fixtures';
 import { isInternalAttioField } from './attributes';
 import { compileAttioQuery } from './compile';
 import {
+    ATTIO_EXPLORES,
     ATTIO_MAX_RECORDS,
-    ATTIO_RECORDS_EXPLORE,
+    ATTIO_SCANNED_MODELS,
+    readAttioAttributes,
+    toAttioObject,
     withAttioAttributeFields,
 } from './explores';
 
+const DEALS_EXPLORE = ATTIO_EXPLORES.find(({ name }) => name === 'deals')!;
+
 const DEFINITION = withAttioAttributeFields(
-    ATTIO_RECORDS_EXPLORE,
+    DEALS_EXPLORE,
     ATTIO_DEAL_ATTRIBUTES,
 );
 
 const DEALS = buildLiveExplore({
     definition: DEFINITION,
-    exploreName: 'attio_records',
+    exploreName: 'attio_deals',
     label: 'Attio deals',
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.ATTIO,
@@ -40,7 +45,7 @@ const DEALS = buildLiveExplore({
     ),
 });
 
-const field = (name: string) => `attio_records_${name}`;
+const field = (name: string) => `attio_deals_${name}`;
 
 const rule = (
     name: string,
@@ -94,18 +99,43 @@ describe('Attio scanned fields', () => {
             'created_at created_at',
             'name name',
             'stage stage.status',
+            'stage__entered_at stage.active_from',
             'value value.currency_value',
             'probability probability',
             'close_date close_date',
             'is_won is_won',
             'categories categories.option',
             'owner owner.referenced_actor_id',
+            'owner__name owner.member_name',
             'associated_company associated_company.target_record_id',
             'point_of_contact point_of_contact.full_name',
             'contact_email contact_email.email_address',
             // A slug an old built-in field used keeps a prefix
             'attribute_count count',
+            // So does one that could collide with a derived field
+            'attribute_stage__entered_at stage__entered_at',
+            // Other double underscores keep their name
+            'arr__usd arr__usd',
         ]);
+    });
+
+    it('labels derived fields after their attribute', () => {
+        const byName = new Map(
+            DEFINITION.dimensions.map((dimension) => [
+                dimension.name,
+                dimension,
+            ]),
+        );
+        expect(byName.get('stage__entered_at')).toMatchObject({
+            label: 'Deal stage entered at',
+            type: 'timestamp',
+            filterOperators: [],
+        });
+        expect(byName.get('owner__name')).toMatchObject({
+            label: 'Deal owner name',
+            type: 'string',
+            filterOperators: [],
+        });
     });
 
     it('adds no metrics', () => {
@@ -118,12 +148,53 @@ describe('Attio scanned fields', () => {
             isInternalAttioField('associated_company.target_record_id'),
         ).toBe(true);
         expect(isInternalAttioField('stage.status')).toBe(false);
+        expect(isInternalAttioField('owner.member_name')).toBe(false);
     });
 
     it('adds nothing from an attribute list it cannot read', () => {
+        expect(withAttioAttributeFields(DEALS_EXPLORE, { data: 'x' })).toBe(
+            DEALS_EXPLORE,
+        );
+    });
+});
+
+describe('Attio explores', () => {
+    it('has one explore per standard object, companies first', () => {
+        expect(ATTIO_EXPLORES.map(({ name, label }) => [name, label])).toEqual([
+            ['companies', 'Companies'],
+            ['people', 'People'],
+            ['deals', 'Deals'],
+            ['users', 'Users'],
+            ['workspaces', 'Workspaces'],
+        ]);
+        expect(ATTIO_SCANNED_MODELS).toEqual([
+            'people',
+            'deals',
+            'users',
+            'workspaces',
+        ]);
+        expect(attioIntegration.explores).toBe(ATTIO_EXPLORES);
+    });
+
+    it('reads each object from its explore name', () => {
+        expect(toAttioObject('people')).toBe('people');
+        // The explore of a source not refreshed since it read one object
+        expect(() => toAttioObject('records')).toThrow(
+            "Refresh the source's fields",
+        );
+    });
+
+    it("reads one object's attributes from a scan, and none from anything else", () => {
+        const scanned = { deals: ATTIO_DEAL_ATTRIBUTES };
+        expect(readAttioAttributes(scanned, 'deals')).toBe(
+            ATTIO_DEAL_ATTRIBUTES,
+        );
+        expect(readAttioAttributes(scanned, 'people')).toBeUndefined();
+        expect(readAttioAttributes(null, 'deals')).toBeUndefined();
+        // A scan from before objects had their own explores
         expect(
-            withAttioAttributeFields(ATTIO_RECORDS_EXPLORE, { data: 'x' }),
-        ).toBe(ATTIO_RECORDS_EXPLORE);
+            readAttioAttributes(ATTIO_DEAL_ATTRIBUTES, 'deals'),
+        ).toBeUndefined();
     });
 });
 
@@ -138,6 +209,7 @@ describe('compileAttioQuery', () => {
             ),
         ).toEqual({
             request: {
+                object: 'deals',
                 columns: ['name', 'value.currency_value'],
                 sorts: [
                     {
@@ -170,7 +242,7 @@ describe('compileAttioQuery', () => {
             { fieldId: field('stage'), descending: false },
         ];
         expect(compile(query({ dimensions: [field('name')], sorts }))).toEqual({
-            request: { columns: ['name'] },
+            request: { object: 'deals', columns: ['name'] },
             localSorts: sorts,
         });
     });

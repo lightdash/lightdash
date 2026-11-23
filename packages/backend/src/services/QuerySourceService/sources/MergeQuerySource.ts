@@ -103,7 +103,7 @@ export class MergeQuerySource implements QuerySourceClient {
         sourceType: QuerySourceType.MERGE,
         label: 'Merge',
         description:
-            'Joins two or more semanticLayer nodes of the same submission on shared dimensions, without SQL. Each source must select its join keys and return fewer rows than its limit. Result columns are named <nodeId>_<fieldId>, and merge_<name> for join keys and table calculations, and keep the label and format of the field they come from.',
+            'Joins two or more semanticLayer nodes of the same submission on shared dimensions, without SQL, including nodes on live data source explores. Each source must select its join keys and return fewer rows than its limit. Result columns are named <nodeId>_<fieldId>, and merge_<name> for join keys and table calculations, and keep the label and format of the field they come from.',
     };
 
     readonly supportsPivot = false;
@@ -142,6 +142,11 @@ export class MergeQuerySource implements QuerySourceClient {
                 ...args.parameters,
                 ...getMergeNodeParameters(query, args.submission),
             };
+            // A bound run's legs ran zoomed, so the merge compiles against the same grain
+            const legZooms =
+                args.authority.kind === 'composer'
+                    ? args.authority.binding.dateZoomByNodeId
+                    : {};
             const compiled = await this.asyncQueryService.compileComposerMerge({
                 authority: withoutDocumentAuthority(args.authority),
                 account: args.account,
@@ -150,6 +155,11 @@ export class MergeQuerySource implements QuerySourceClient {
                 mergeQuery,
                 parameters,
                 userAttributeOverrides: args.userAttributeOverrides,
+                dateZoomBySourceId: Object.fromEntries(
+                    mergeQuery.sources.flatMap(({ id }) =>
+                        legZooms[id] ? [[id, legZooms[id]]] : [],
+                    ),
+                ),
                 sourceTitleById: Object.fromEntries(
                     mergeQuery.sources.map(({ id }) => [
                         id,

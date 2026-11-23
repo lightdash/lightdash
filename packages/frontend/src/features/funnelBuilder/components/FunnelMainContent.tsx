@@ -58,9 +58,7 @@ export const FunnelMainContent: FC = () => {
                         <FunnelBarChart />
                     </div>
 
-                    <div className={styles.tableContainer}>
-                        <FunnelResultsTable />
-                    </div>
+                    <FunnelResultsTable />
 
                     <FunnelDebugSql />
                 </>

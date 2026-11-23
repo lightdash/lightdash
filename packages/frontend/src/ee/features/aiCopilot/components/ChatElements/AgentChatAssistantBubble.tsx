@@ -45,16 +45,22 @@ import {
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import {
+    createContext,
     memo,
     useCallback,
     useContext,
     useMemo,
     useState,
+    type ComponentProps,
     type FC,
     type ReactNode,
 } from 'react';
 import { Link } from 'react-router';
-import { type CustomRendererProps, type StreamdownProps } from 'streamdown';
+import {
+    type CustomRendererProps,
+    type ExtraProps,
+    type StreamdownProps,
+} from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import { AiMarkdownErrorBoundary } from '../../../../../components/common/AiMarkdown/AiMarkdownErrorBoundary';
 import { LazyWordsMarkdown } from '../../../../../components/common/AiMarkdown/LazyWordsMarkdown';
@@ -91,7 +97,7 @@ import {
 } from '../../store/hooks';
 import {
     useAiAgentThreadMessageStreaming,
-    useAiAgentThreadStreamQuery,
+    useAiAgentMessageStream,
 } from '../../streaming/useAiAgentThreadStreamQuery';
 import { useBattleMessage } from '../Battle/BattleMessageContext';
 import { JevDecisionIndicator } from '../Battle/JevDecisionIndicator';
@@ -314,11 +320,34 @@ const getLatestSuccessfulRunSqlLinkState = ({
 const SQL_LANGUAGES = ['sql', 'postgresql', 'bigquery', 'snowflake'];
 const DIFF_LANGUAGES = ['diff', 'patch'];
 
-const SqlMarkdownCodeBlock: FC<
-    CustomRendererProps & { projectUuid: string; canOpenSqlRunner: boolean }
-> = ({ code, isIncomplete, projectUuid, canOpenSqlRunner }) => {
+type AnswerMarkdownContextValue = {
+    message: AiAgentMessageAssistant;
+    projectUuid: string;
+    agentUuid: string;
+    sqlRunnerLinkState: SqlRunnerLinkState | null;
+    onDashboardLinkClick: ((url: string) => void) | undefined;
+};
+
+// Renderers read per-message state here so their identity never changes:
+// streamdown re-parses every finished block when a renderer changes.
+const AnswerMarkdownContext = createContext<AnswerMarkdownContextValue | null>(
+    null,
+);
+
+const useAnswerMarkdownContext = () => {
+    const value = useContext(AnswerMarkdownContext);
+    if (!value) throw new Error('Answer markdown rendered without context');
+    return value;
+};
+
+const SqlMarkdownCodeBlock: FC<CustomRendererProps> = ({
+    code,
+    isIncomplete,
+}) => {
+    const { projectUuid, sqlRunnerLinkState } = useAnswerMarkdownContext();
     const sql = code.trim();
-    const canOpen = canOpenSqlRunner && !isIncomplete && sql.length > 0;
+    const canOpen =
+        sqlRunnerLinkState !== null && !isIncomplete && sql.length > 0;
 
     return (
         <Box className={styles.sqlMarkdownCodeBlock}>
@@ -357,6 +386,81 @@ const SqlMarkdownCodeBlock: FC<
     );
 };
 
+const AnswerMarkdownLink: FC<ComponentProps<'a'> & ExtraProps> = ({
+    node: _node,
+    children,
+    ...props
+}) => {
+    const {
+        message,
+        projectUuid,
+        agentUuid,
+        sqlRunnerLinkState,
+        onDashboardLinkClick,
+    } = useAnswerMarkdownContext();
+    const contentType =
+        'data-content-type' in props &&
+        isContentType(props['data-content-type'])
+            ? props['data-content-type']
+            : undefined;
+    return (
+        <ContentLink
+            contentType={contentType}
+            props={props}
+            message={message}
+            projectUuid={projectUuid}
+            agentUuid={agentUuid}
+            sqlRunnerLinkState={sqlRunnerLinkState}
+            onDashboardLinkClick={onDashboardLinkClick}
+        >
+            {children}
+        </ContentLink>
+    );
+};
+
+const ANSWER_MARKDOWN_COMPONENTS: StreamdownProps['components'] = {
+    ...MEMORY_CITATION_COMPONENTS,
+    a: AnswerMarkdownLink,
+};
+
+const ANSWER_MARKDOWN_PLUGINS: StreamdownProps['plugins'] = {
+    renderers: [
+        {
+            language: SQL_LANGUAGES,
+            component: SqlMarkdownCodeBlock,
+        },
+        {
+            language: DIFF_LANGUAGES,
+            component: DiffMarkdownCodeBlock,
+        },
+    ],
+};
+
+// Words code blocks read the same AnswerMarkdownContext as Streamdown's renderers.
+const WORDS_CODE_BLOCKS: WordsCodeBlockRenderer[] = [
+    { languages: SQL_LANGUAGES, component: SqlMarkdownCodeBlock },
+    { languages: DIFF_LANGUAGES, component: DiffMarkdownCodeBlock },
+];
+
+const AnswerMarkdown: FC<{
+    context: AnswerMarkdownContextValue;
+    className: string;
+    rehypePlugins: StreamdownProps['rehypePlugins'];
+    isStreaming: boolean;
+    children: string;
+}> = ({ context, children, ...props }) => (
+    <AnswerMarkdownContext.Provider value={context}>
+        <AiMarkdown
+            {...props}
+            allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
+            plugins={ANSWER_MARKDOWN_PLUGINS}
+            components={ANSWER_MARKDOWN_COMPONENTS}
+        >
+            {children}
+        </AiMarkdown>
+    </AnswerMarkdownContext.Provider>
+);
+
 /**
  * The streamed part carrying a tool's finished output. The streaming slice
  * mirrors each tool's full return shape into its part's `toolResult`.
@@ -393,16 +497,10 @@ const AssistantBubbleContent: FC<{
     onDashboardLinkClick,
     artifactSlot,
 }) => {
-    const threadStreamingState = useAiAgentThreadStreamQuery(
+    const streamingState = useAiAgentMessageStream(
         message.threadUuid,
+        message.uuid,
     );
-    // The thread-level streaming state is shared across all messages on the
-    // thread. We must only use it for *this* message's bubble — otherwise the
-    // previous bubble would mirror the next prompt's parts.
-    const streamingState =
-        threadStreamingState?.messageUuid === message.uuid
-            ? threadStreamingState
-            : null;
     const isStreaming = useAiAgentThreadMessageStreaming(
         message.threadUuid,
         message.uuid,
@@ -447,27 +545,28 @@ const AssistantBubbleContent: FC<{
         message,
         streamParts: streamingState?.parts,
     });
-    const canOpenSqlRunner = !!sqlRunnerLinkState;
-    const markdownPlugins = useMemo(
+    // Rebuilt every frame while streaming, so key the context on its values.
+    const sqlRunnerSql = sqlRunnerLinkState?.sql ?? null;
+    const sqlRunnerLimit = sqlRunnerLinkState?.limit;
+    const answerMarkdownContext = useMemo<AnswerMarkdownContextValue>(
         () => ({
-            renderers: [
-                {
-                    language: SQL_LANGUAGES,
-                    component: (props: CustomRendererProps) => (
-                        <SqlMarkdownCodeBlock
-                            {...props}
-                            projectUuid={projectUuid}
-                            canOpenSqlRunner={canOpenSqlRunner}
-                        />
-                    ),
-                },
-                {
-                    language: DIFF_LANGUAGES,
-                    component: DiffMarkdownCodeBlock,
-                },
-            ],
+            message,
+            projectUuid,
+            agentUuid,
+            onDashboardLinkClick,
+            sqlRunnerLinkState:
+                sqlRunnerSql === null
+                    ? null
+                    : { sql: sqlRunnerSql, limit: sqlRunnerLimit },
         }),
-        [canOpenSqlRunner, projectUuid],
+        [
+            message,
+            projectUuid,
+            agentUuid,
+            onDashboardLinkClick,
+            sqlRunnerSql,
+            sqlRunnerLimit,
+        ],
     );
     // After streaming ends there's a brief window where the client has
     // refetched the thread but the persisted message.message hasn't landed
@@ -539,22 +638,6 @@ const AssistantBubbleContent: FC<{
         FeatureFlags.AiAgentWordsMarkdown,
     );
     const isWordsMarkdown = wordsMarkdownFlag?.enabled === true;
-    const wordsCodeBlocks = useMemo<WordsCodeBlockRenderer[]>(
-        () => [
-            {
-                languages: SQL_LANGUAGES,
-                component: (props) => (
-                    <SqlMarkdownCodeBlock
-                        {...props}
-                        projectUuid={projectUuid}
-                        canOpenSqlRunner={canOpenSqlRunner}
-                    />
-                ),
-            },
-            { languages: DIFF_LANGUAGES, component: DiffMarkdownCodeBlock },
-        ],
-        [canOpenSqlRunner, projectUuid],
-    );
     const renderWordsLink = useCallback(
         ({ attributes, text, children }: WordsLinkProps) => {
             const props: Record<string, unknown> = {
@@ -649,25 +732,24 @@ const AssistantBubbleContent: FC<{
                       : [];
               });
 
-    // A proposal still being checked has no card yet, so its place is held.
-    const isProposing =
-        isStreaming &&
-        (streamingState?.parts ?? []).some(
-            (part) =>
-                part.type === 'toolCall' &&
-                part.toolName === 'proposeSemanticLayerChange' &&
-                part.toolResult === null,
-        );
-
     // A turn still working says nothing of an attempt that failed: it may yet land the change.
     const showsTurnSummary =
         semanticLayerProposals.length > 0 &&
-        !isProposing &&
         !(
             isStreaming &&
             semanticLayerProposals.every(
                 ({ draftChangeUuid }) => !draftChangeUuid,
             )
+        );
+
+    // Once a turn proposes, its card's place is held until the card lands; a later proposal updates the card in place.
+    const isProposing =
+        isStreaming &&
+        !showsTurnSummary &&
+        (streamingState?.parts ?? []).some(
+            (part) =>
+                part.type === 'toolCall' &&
+                part.toolName === 'proposeSemanticLayerChange',
         );
 
     // General coding-agent (editRepo) PR card metadata — resolved the same way
@@ -811,71 +893,50 @@ const AssistantBubbleContent: FC<{
                             keyId: s.keyId,
                             display: s.display,
                         }));
-                    const pendingApprovalIds = streamingState
-                        ? getPendingApprovalIds(streamingState)
-                        : [];
+                    // Studio runs SQL unasked, so it never shows the prompt.
+                    const pendingApprovalIds =
+                        streamingState && !quietCards
+                            ? getPendingApprovalIds(streamingState)
+                            : [];
                     const textSegments = segments.filter(
                         (s): s is Extract<typeof s, { kind: 'text' }> =>
                             s.kind === 'text',
                     );
                     const latestTextSeg = textSegments[textSegments.length - 1];
                     const streamdownAnswerMd = latestTextSeg ? (
-                        <AiMarkdown
+                        <AnswerMarkdown
+                            // Remount per segment so its words fade in.
+                            key={latestTextSeg.idx}
+                            context={answerMarkdownContext}
                             isStreaming={isStreaming}
-                            allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
                             className={clsx(
                                 styles.answerMarkdown,
                                 isStreaming && styles.streamingNarration,
                             )}
                             rehypePlugins={answerRehypePlugins}
-                            plugins={markdownPlugins}
-                            components={{
-                                ...MEMORY_CITATION_COMPONENTS,
-                                a: ({ node, children, ...props }) => {
-                                    const contentType =
-                                        'data-content-type' in props &&
-                                        isContentType(
-                                            props['data-content-type'],
-                                        )
-                                            ? props['data-content-type']
-                                            : undefined;
-                                    return (
-                                        <ContentLink
-                                            contentType={contentType}
-                                            props={props}
-                                            message={message}
-                                            projectUuid={projectUuid}
-                                            agentUuid={agentUuid}
-                                            sqlRunnerLinkState={
-                                                sqlRunnerLinkState
-                                            }
-                                            onDashboardLinkClick={
-                                                onDashboardLinkClick
-                                            }
-                                        >
-                                            {children}
-                                        </ContentLink>
-                                    );
-                                },
-                            }}
                         >
                             {latestTextSeg.text}
-                        </AiMarkdown>
+                        </AnswerMarkdown>
                     ) : null;
                     const finalAnswerMd =
                         latestTextSeg && isWordsMarkdown ? (
-                            <LazyWordsMarkdown
-                                fallback={streamdownAnswerMd}
-                                isStreaming={isStreaming}
-                                className={clsx(
-                                    styles.answerMarkdown,
-                                    isStreaming && styles.streamingNarration,
-                                )}
-                                renderLink={renderWordsLink}
-                                codeBlocks={wordsCodeBlocks}
+                            <AnswerMarkdownContext.Provider
+                                value={answerMarkdownContext}
                             >
-                                {latestTextSeg.text}
-                            </LazyWordsMarkdown>
+                                <LazyWordsMarkdown
+                                    fallback={streamdownAnswerMd}
+                                    isStreaming={isStreaming}
+                                    className={clsx(
+                                        styles.answerMarkdown,
+                                        isStreaming &&
+                                            styles.streamingNarration,
+                                    )}
+                                    renderLink={renderWordsLink}
+                                    codeBlocks={WORDS_CODE_BLOCKS}
+                                >
+                                    {latestTextSeg.text}
+                                </LazyWordsMarkdown>
+                            </AnswerMarkdownContext.Provider>
                         ) : (
                             streamdownAnswerMd
                         );
@@ -963,7 +1024,9 @@ const AssistantBubbleContent: FC<{
                     projectUuid,
                     agentUuid,
                     threadUuid: message.threadUuid,
-                    pendingToolCallIds: getPendingPersistedApprovalIds(message),
+                    pendingToolCallIds: quietCards
+                        ? []
+                        : getPendingPersistedApprovalIds(message),
                     decidedToolCallIds: [],
                 };
                 // In Studio a turn that only changed the draft ends on its card; the line kept for history is not shown twice.
@@ -976,6 +1039,20 @@ const AssistantBubbleContent: FC<{
                 const hasAnswerText =
                     messageContent.length > 0 &&
                     !(quietCards && messageContent.trim() === cardReply);
+                const persistedStreamdownMd = (
+                    <AnswerMarkdown
+                        key={citationResolutionKey}
+                        context={answerMarkdownContext}
+                        isStreaming={false}
+                        className={clsx(
+                            styles.answerMarkdown,
+                            styles.persistedAnswer,
+                        )}
+                        rehypePlugins={answerRehypePlugins}
+                    >
+                        {messageContent}
+                    </AnswerMarkdown>
+                );
                 return (
                     <>
                         <LiveActivityCard
@@ -1007,69 +1084,10 @@ const AssistantBubbleContent: FC<{
                                 data-tour-label="Read the answer"
                                 data-tour-docs="agents.mdx#intro:2"
                             >
-                                {(() => {
-                                    const persistedStreamdownMd = (
-                                        <AiMarkdown
-                                            key={citationResolutionKey}
-                                            className={clsx(
-                                                styles.answerMarkdown,
-                                                styles.persistedAnswer,
-                                            )}
-                                            allowedTags={
-                                                MEMORY_CITATION_ALLOWED_TAGS
-                                            }
-                                            rehypePlugins={answerRehypePlugins}
-                                            plugins={markdownPlugins}
-                                            components={{
-                                                ...MEMORY_CITATION_COMPONENTS,
-                                                a: ({
-                                                    node,
-                                                    children,
-                                                    ...props
-                                                }) => {
-                                                    const contentType =
-                                                        'data-content-type' in
-                                                            props &&
-                                                        isContentType(
-                                                            props[
-                                                                'data-content-type'
-                                                            ],
-                                                        )
-                                                            ? props[
-                                                                  'data-content-type'
-                                                              ]
-                                                            : undefined;
-
-                                                    return (
-                                                        <ContentLink
-                                                            contentType={
-                                                                contentType
-                                                            }
-                                                            props={props}
-                                                            message={message}
-                                                            projectUuid={
-                                                                projectUuid
-                                                            }
-                                                            agentUuid={
-                                                                agentUuid
-                                                            }
-                                                            sqlRunnerLinkState={
-                                                                sqlRunnerLinkState
-                                                            }
-                                                            onDashboardLinkClick={
-                                                                onDashboardLinkClick
-                                                            }
-                                                        >
-                                                            {children}
-                                                        </ContentLink>
-                                                    );
-                                                },
-                                            }}
-                                        >
-                                            {messageContent}
-                                        </AiMarkdown>
-                                    );
-                                    return isWordsMarkdown ? (
+                                {isWordsMarkdown ? (
+                                    <AnswerMarkdownContext.Provider
+                                        value={answerMarkdownContext}
+                                    >
                                         <LazyWordsMarkdown
                                             fallback={persistedStreamdownMd}
                                             isStreaming={false}
@@ -1078,14 +1096,14 @@ const AssistantBubbleContent: FC<{
                                                 styles.persistedAnswer,
                                             )}
                                             renderLink={renderWordsLink}
-                                            codeBlocks={wordsCodeBlocks}
+                                            codeBlocks={WORDS_CODE_BLOCKS}
                                         >
                                             {messageContent}
                                         </LazyWordsMarkdown>
-                                    ) : (
-                                        persistedStreamdownMd
-                                    );
-                                })()}
+                                    </AnswerMarkdownContext.Provider>
+                                ) : (
+                                    persistedStreamdownMd
+                                )}
                             </Box>
                         ) : null}
                     </>
@@ -1345,12 +1363,11 @@ export const AssistantBubble: FC<Props> = memo(
             setFeedbackText('');
         }, [closePopover]);
 
-        const threadStreamingState = useAiAgentThreadStreamQuery(
+        const streamingState = useAiAgentMessageStream(
             message.threadUuid,
+            message.uuid,
         );
-        const isRefused =
-            threadStreamingState?.messageUuid === message.uuid &&
-            threadStreamingState.connection.status === 'refused';
+        const isRefused = streamingState?.connection.status === 'refused';
         const isPending = message.status === 'pending' && !isRefused;
         const isStreaming = useAiAgentThreadMessageStreaming(
             message.threadUuid,
@@ -1359,9 +1376,8 @@ export const AssistantBubble: FC<Props> = memo(
         const isLoading = isStreaming || isPending;
         const showWritingSummary =
             isStreaming &&
-            threadStreamingState?.messageUuid === message.uuid &&
-            summaryPhaseOf(message, threadStreamingState.parts) ===
-                'awaitingSummary';
+            streamingState !== null &&
+            summaryPhaseOf(message, streamingState.parts) === 'awaitingSummary';
 
         // status flips to 'idle' only at stream end; artifacts land earlier.
         const isArtifactAvailable = !!(
@@ -1369,9 +1385,9 @@ export const AssistantBubble: FC<Props> = memo(
         );
 
         const pendingArtifactType =
-            isStreaming && threadStreamingState?.messageUuid === message.uuid
+            isStreaming && streamingState
                 ? getPendingArtifactType(
-                      threadStreamingState.parts,
+                      streamingState.parts,
                       isArtifactAvailable,
                   )
                 : null;

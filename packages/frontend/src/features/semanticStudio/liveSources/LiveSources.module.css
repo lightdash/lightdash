@@ -13,9 +13,7 @@
 
 .row {
     display: grid;
-    grid-template-columns:
-        minmax(160px, 220px) minmax(0, 1fr) 96px 88px 88px 112px
-        28px;
+    grid-template-columns: minmax(160px, 220px) minmax(0, 1fr) 96px 136px 28px;
     align-items: center;
     gap: 12px;
     min-height: 44px;
@@ -88,7 +86,11 @@
     background: var(--mantine-color-body);
 }
 
+/* Keeps an info icon on the label's line */
 .statLabel {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
     font-size: 12px;
     color: var(--mantine-color-dimmed);
 }
@@ -113,4 +115,17 @@
     .summary {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+}
+
+.usageInfo {
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+/* A right-aligned header that keeps its info icon on the same line */
+.headWithInfo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    white-space: nowrap;
 }

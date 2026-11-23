@@ -6,6 +6,7 @@ import {
     type ExternalConnectionAuthType,
 } from '@lightdash/common';
 import { type z } from 'zod';
+import { refuseLiveQuery } from './query/refuse';
 import type { LiveCapabilities, LiveIntegration } from './types';
 
 /**
@@ -48,7 +49,10 @@ export const jsonRequest =
 /** Refuses a limit past what one query can read, for APIs that can't cap it. */
 export const assertMaxRows = (limit: number, maxRows: number) => {
     if (limit > maxRows) {
-        throw new ParameterError(`limit must be between 1 and ${maxRows} rows`);
+        throw refuseLiveQuery(
+            'live_source.refused.row_limit',
+            `limit must be between 1 and ${maxRows} rows`,
+        );
     }
 };
 
@@ -113,8 +117,12 @@ export const validateLiveConnection = <C extends ApiConnectorType>(
     { apiSource, type, origin, oauthTokenUrl }: LiveConnectionSettings<C>,
 ) => {
     integration.validate(apiSource);
-    const { origins, label } = integration;
-    if (!origins.includes(origin.replace(/\/+$/, ''))) {
+    const { origins, acceptsOrigin, label } = integration;
+    const trimmed = origin.replace(/\/+$/, '');
+    const isAccepted = acceptsOrigin
+        ? acceptsOrigin(trimmed)
+        : origins.includes(trimmed);
+    if (!isAccepted) {
         throw new ParameterError(
             `${label} connections must use ${origins.join(' or ')}`,
         );

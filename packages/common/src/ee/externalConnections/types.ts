@@ -72,10 +72,42 @@ export type PylonApiSource = {
     connector: ApiConnectorType.PYLON;
 };
 
+/** The Attio standard objects a source reads, one explore each, companies first. */
+export const ATTIO_OBJECTS = [
+    'companies',
+    'people',
+    'deals',
+    'users',
+    'workspaces',
+] as const;
+export type AttioObject = (typeof ATTIO_OBJECTS)[number];
+
+/** The access token picks the Attio workspace, so nothing else is set. */
 export type AttioApiSource = {
     connector: ApiConnectorType.ATTIO;
-    /** The slug of the Attio object the source reads, e.g. companies or deals. */
-    object: string;
+};
+
+/** The HubSpot CRM objects a source reads, one explore each. */
+export const HUBSPOT_OBJECTS = ['deals', 'contacts', 'companies'] as const;
+export type HubspotObject = (typeof HUBSPOT_OBJECTS)[number];
+
+/** The private app's token picks the HubSpot account, so nothing else is set. */
+export type HubspotApiSource = {
+    connector: ApiConnectorType.HUBSPOT;
+};
+
+/** The Salesforce objects a source reads, one explore each, Opportunity first. */
+export const SALESFORCE_OBJECTS = [
+    'Opportunity',
+    'Account',
+    'Lead',
+    'Contact',
+] as const;
+export type SalesforceObject = (typeof SALESFORCE_OBJECTS)[number];
+
+/** One sign-in reads every object in SALESFORCE_OBJECTS, so nothing else is set. */
+export type SalesforceApiSource = {
+    connector: ApiConnectorType.SALESFORCE;
 };
 
 /** Connector settings of a live source; the server fixes its access rules. */
@@ -89,7 +121,9 @@ export type ExternalConnectionApiSource =
     | LinkedInAdsApiSource
     | GithubApiSource
     | PylonApiSource
-    | AttioApiSource;
+    | AttioApiSource
+    | HubspotApiSource
+    | SalesforceApiSource;
 
 /** The settings of one integration's sources. */
 export type ApiSourceOf<C extends ApiConnectorType> = Extract<
@@ -140,12 +174,67 @@ export const PYLON_CONTACTS_SEARCH_PATH = '/contacts/search';
 export const PYLON_USERS_PATH = '/users';
 
 export const ATTIO_ORIGIN = 'https://api.attio.com';
+/** Owner names; reading them needs the user_management:read scope. */
+export const ATTIO_WORKSPACE_MEMBERS_PATH = '/v2/workspace_members';
 
 export const getAttioAttributesPath = (object: string) =>
     `/v2/objects/${object}/attributes`;
 
 export const getAttioRecordsQueryPath = (object: string) =>
     `/v2/objects/${object}/records/query`;
+
+export const HUBSPOT_ORIGIN = 'https://api.hubapi.com';
+
+export const getHubspotPropertiesPath = (object: string) =>
+    `/crm/v3/properties/${object}`;
+
+export const getHubspotSearchPath = (object: string) =>
+    `/crm/v3/objects/${object}/search`;
+/** Every Salesforce call goes to this REST API version, so responses keep one shape. */
+export const SALESFORCE_API_VERSION = 'v62.0';
+
+/** Production orgs sign in at login.salesforce.com, sandboxes at test.salesforce.com. */
+export const SALESFORCE_ENVIRONMENTS = ['production', 'sandbox'] as const;
+export type SalesforceEnvironment = (typeof SALESFORCE_ENVIRONMENTS)[number];
+
+export const isSalesforceEnvironment = (
+    value: unknown,
+): value is SalesforceEnvironment =>
+    SALESFORCE_ENVIRONMENTS.includes(value as SalesforceEnvironment);
+
+/** Where people sign in to a Salesforce org. */
+export const SALESFORCE_LOGIN_ORIGINS: Record<SalesforceEnvironment, string> = {
+    production: 'https://login.salesforce.com',
+    sandbox: 'https://test.salesforce.com',
+};
+
+export const getSalesforceTokenUrl = (environment: SalesforceEnvironment) =>
+    `${SALESFORCE_LOGIN_ORIGINS[environment]}/services/oauth2/token`;
+
+/** The environment a saved source signed in to, from its token URL; null for any other URL. */
+export const getSalesforceEnvironment = (
+    tokenUrl: string | null,
+): SalesforceEnvironment | null =>
+    SALESFORCE_ENVIRONMENTS.find(
+        (environment) => getSalesforceTokenUrl(environment) === tokenUrl,
+    ) ?? null;
+
+export const SALESFORCE_QUERY_PATH = `/services/data/${SALESFORCE_API_VERSION}/query`;
+export const SALESFORCE_LIMITS_PATH = `/services/data/${SALESFORCE_API_VERSION}/limits`;
+
+export const getSalesforceDescribePath = (object: string) =>
+    `/services/data/${SALESFORCE_API_VERSION}/sobjects/${object}/describe`;
+
+/** Salesforce's shared login hosts, which never serve an org's API. */
+const SALESFORCE_SHARED_LOGIN_ORIGINS = Object.values(SALESFORCE_LOGIN_ORIGINS);
+
+/** An org's own API host, as its sign-in returns it: a My Domain such as https://acme.my.salesforce.com. */
+const SALESFORCE_INSTANCE_ORIGIN =
+    /^https:\/\/[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*\.salesforce\.com$/;
+
+export const isSalesforceInstanceOrigin = (origin: string) =>
+    SALESFORCE_INSTANCE_ORIGIN.test(origin.toLowerCase()) &&
+    !SALESFORCE_SHARED_LOGIN_ORIGINS.includes(origin.toLowerCase());
 
 /** HTTP methods an admin can opt a connection into. Single source of truth for
  *  the backend validation allowlist and the frontend method pickers. */
@@ -567,9 +656,11 @@ export type ApiListExternalConnectionSamplesResponse = {
     results: ExternalConnectionSample[];
 };
 
-/** What a live source has sent its integration across every logged query. */
+/** What a live source has sent its integration across the logged queries in the usage window. */
 export type ExternalConnectionApiUsage = {
     externalConnectionUuid: string;
+    /** How many days back the usage goes: the query history retention window. */
+    windowDays: number;
     apiCalls: number;
     /** Queries a stored result answered without calling the integration. */
     cacheHits: number;

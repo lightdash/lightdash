@@ -169,6 +169,10 @@ const buildService = ({
                     oauthClientId: undefined,
                     oauthClientSecret: undefined,
                 },
+                salesforce: {
+                    oauthClientId: undefined,
+                    oauthClientSecret: undefined,
+                },
             },
             auth: {
                 google: {

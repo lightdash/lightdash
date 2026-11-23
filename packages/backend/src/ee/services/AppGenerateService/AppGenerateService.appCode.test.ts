@@ -736,6 +736,36 @@ describe('AppGenerateService.importAppCode', () => {
         expect(analytics.track).not.toHaveBeenCalled();
     });
 
+    it('append mode: marks the version error when unverifying the app fails', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+        appModel.findApp.mockResolvedValue(makeExistingApp());
+        appModel.getLatestVersion.mockResolvedValue({ version: 4 });
+        appModel.createVersion.mockResolvedValue({ version: 5 });
+        vi.spyOn(
+            service as unknown as {
+                unverifyAppIfNotPreserved: () => Promise<void>;
+            },
+            'unverifyAppIfNotPreserved',
+        ).mockRejectedValue(new Error('verification store unavailable'));
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                targetAppUuid: EXISTING_APP_UUID,
+                code: makeCode(),
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow('verification store unavailable');
+
+        expect(appModel.createVersion).toHaveBeenCalledOnce();
+        expect(appModel.updateVersionStatusIfInProgress).toHaveBeenCalledWith(
+            EXISTING_APP_UUID,
+            5,
+            'error',
+            expect.stringContaining('verification store unavailable'),
+            'Upload failed before the build started',
+        );
+        expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalled();
+    });
+
     it('append mode: appends version 5 when latest is 4 and enqueues build', async () => {
         const { service, appModel, schedulerClient } = buildService();
 

@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hydra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #fbfbfc; --surface: #ffffff; --raised: #f4f4f6; --hover: #f0f0f3;
+  --text: #1b1b1f; --text-2: #5d5d66; --text-3: #8f8f99; --line: #e8e8ec; --line-2: #dcdce2;
+  --brand: #e5484d; --green: #2f9e5b; --red: #e5484d; --amber: #d48a0b; --blue: #5e6ad2;
+  --sans: Inter, -apple-system, system-ui, sans-serif; --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e0e10; --surface: #141417; --raised: #1b1b1f; --hover: #1f1f24;
+    --text: #ececef; --text-2: #a1a1aa; --text-3: #6b6b75; --line: #232328; --line-2: #2e2e35;
+    --green: #4cc38a; --red: #f2555a; --amber: #f1a10d; --blue: #8b94f3;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.5 var(--sans); -webkit-font-smoothing: antialiased; font-feature-settings: 'cv11', 'ss01'; }
+a { color: inherit; text-decoration: none; }
+.mono { font-family: var(--mono); font-size: 12px; }
+.t2 { color: var(--text-2); }
+.t3 { color: var(--text-3); }
+
+.top { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(8px); }
+.logo { display: flex; align-items: center; gap: 7px; font-weight: 600; letter-spacing: -.01em; }
+.logo svg { width: 18px; height: 18px; color: var(--brand); }
+.crumb { color: var(--text-3); }
+.top .spacer { flex: 1; }
+
+.shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: calc(100vh - 44px); }
+.shell.single { grid-template-columns: minmax(0, 1fr); }
+nav { border-right: 1px solid var(--line); padding: 10px 8px; position: sticky; top: 44px; height: calc(100vh - 44px); overflow-y: auto; }
+nav .label { padding: 6px 8px; font-size: 11px; font-weight: 500; color: var(--text-3); }
+nav a { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-radius: 6px; color: var(--text-2); }
+nav a:hover { background: var(--hover); color: var(--text); }
+nav a.on { background: var(--raised); color: var(--text); }
+nav a .grow { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+main { padding: 28px 32px 80px; max-width: 1040px; width: 100%; }
+
+h1 { font-size: 20px; font-weight: 600; letter-spacing: -.02em; margin: 0; }
+.subtitle { color: var(--text-3); margin: 4px 0 24px; }
+h2 { font-size: 12px; font-weight: 500; color: var(--text-3); margin: 28px 0 8px; display: flex; align-items: center; gap: 8px; }
+
+.dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--text-3); }
+.dot.green { background: var(--green); } .dot.red { background: var(--red); } .dot.amber { background: var(--amber); } .dot.blue { background: var(--blue); }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border: 1px solid var(--line-2); border-radius: 999px; font-size: 12px; color: var(--text-2); white-space: nowrap; background: var(--surface); }
+.bar { display: inline-block; width: 64px; height: 4px; border-radius: 2px; background: var(--line-2); overflow: hidden; vertical-align: middle; }
+.bar i { display: block; height: 100%; background: var(--green); }
+.bar i.amber { background: var(--amber); } .bar i.red { background: var(--red); }
+
+.list { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.row { display: grid; align-items: center; gap: 12px; min-height: 40px; padding: 8px 14px; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+a.row:hover, .row.case:hover { background: var(--hover); }
+.row.head { min-height: 32px; font-size: 11px; font-weight: 500; color: var(--text-3); background: var(--raised); }
+.overview .row { grid-template-columns: minmax(140px, 1.2fr) 56px 120px 130px 296px minmax(0, 1fr); }
+.overview .tags { flex-wrap: nowrap; overflow: hidden; }
+.row .name { font-weight: 500; }
+.row .clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
+
+.props { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.prop { background: var(--surface); padding: 12px 14px; }
+.props > .prop.wide { grid-column: 1 / -1; }
+.prop .kv { margin-top: 2px; padding-top: 0; border-top: 0; }
+.status.test-with { flex-wrap: wrap; }
+.status.test-with .tags { margin-left: 4px; }
+.limits { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; margin-top: 6px; }
+.limit { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
+.limit .kk { display: block; margin-bottom: 2px; }
+.limit .num { font: 500 16px/1.3 var(--mono); letter-spacing: -.01em; }
+.limit .num .unit { font: 400 12px var(--sans); color: var(--text-3); margin-left: 4px; }
+.limit.off .num { color: var(--text-3); font: 400 14px/1.55 var(--sans); }
+.limits-note { display: flex; gap: 8px; align-items: baseline; margin-top: 10px; font-size: 12.5px; color: var(--text-2); }
+.limits-note .dot { transform: translateY(-1px); }
+.prop .k { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 500; color: var(--text-3); margin-bottom: 4px; }
+.prop .v { color: var(--text); }
+.kv { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 7px 12px; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.kk { font-size: 12px; color: var(--text-3); }
+.kv .status { color: var(--text); }
+.tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.tag { font-size: 12px; line-height: 20px; padding: 0 7px; border-radius: 4px; background: var(--raised); color: var(--text-2); }
+.tag.warn { color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); }
+
+.verdict { padding: 20px 22px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); margin-bottom: 20px; }
+.verdict .k { font-size: 11px; font-weight: 500; color: var(--text-3); margin-bottom: 6px; }
+.verdict .headline { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; letter-spacing: -.01em; margin-bottom: 14px; }
+.verdict .axes { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 8px 12px; margin-bottom: 14px; font-size: 12.5px; }
+.verdict .axes .kk { padding-top: 1px; }
+.verdict .axes .status { display: block; color: var(--text); font-weight: 500; }
+.verdict .axes .dot { display: inline-block; margin-right: 6px; vertical-align: 1px; }
+.verdict .axes .why { color: var(--text-2); font-weight: 400; margin-left: 6px; }
+.verdict ul { margin: 0; padding: 14px 0 0; border-top: 1px solid var(--line); list-style: none; display: grid; gap: 8px; }
+.verdict li { position: relative; padding-left: 14px; font-size: 12.5px; line-height: 1.6; color: var(--text-2); }
+.verdict li::before { content: ''; position: absolute; left: 2px; top: 9px; width: 4px; height: 4px; border-radius: 50%; background: var(--text-3); }
+
+.cases .row { grid-template-columns: 112px minmax(0, 1fr); }
+.cases.results .row { grid-template-columns: 112px minmax(0, 1fr) 150px; }
+.group { padding: 8px 14px; font-size: 12px; font-weight: 500; background: var(--raised); border-top: 1px solid var(--line); display: flex; gap: 8px; align-items: baseline; }
+.group:first-child { border-top: 0; }
+.group .t3 { font-weight: 400; }
+.status { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-2); }
+.note { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+
+.tabs { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); margin-left: auto; }
+.tabs button { font: inherit; font-size: 12px; color: var(--text-2); background: none; border: 0; border-radius: 6px; padding: 2px 10px; cursor: pointer; }
+.tabs button.on { background: var(--raised); color: var(--text); }
+.btn { font: inherit; font-size: 12px; color: var(--text-2); background: var(--surface); border: 1px solid var(--line-2); border-radius: 6px; padding: 2px 10px; cursor: pointer; }
+.btn:hover { color: var(--text); background: var(--hover); }
+.explorer { display: grid; grid-template-columns: 240px minmax(0, 1fr); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; min-height: 280px; }
+.rail { border-right: 1px solid var(--line); padding: 6px; overflow-y: auto; max-height: 520px; }
+.node { display: flex; align-items: center; gap: 6px; width: 100%; height: 28px; padding: 0 8px; border: 0; border-radius: 6px; background: none; color: var(--text-2); font: inherit; text-align: left; cursor: pointer; }
+.node:hover { background: var(--hover); }
+.node.on { background: var(--raised); color: var(--text); }
+.node .grow { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.node.leaf { padding-left: 30px; height: 26px; font-size: 12px; }
+.chev { width: 14px; height: 14px; flex: none; color: var(--text-3); transition: none; }
+.chev.open { transform: rotate(90deg); }
+.ficon { width: 14px; height: 14px; flex: none; }
+.ficon.dim { color: var(--blue); } .ficon.met { color: var(--amber); } .ficon.tbl { color: var(--text-3); }
+.pane { padding: 16px 18px; overflow: hidden; }
+.pane-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 4px; }
+.pane-head .name { font-size: 15px; font-weight: 600; }
+.pane .desc { color: var(--text-2); margin-bottom: 14px; }
+.ftable { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-bottom: 14px; }
+.ftable .fhead { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 11px; font-weight: 500; color: var(--text-3); background: var(--raised); }
+.frow { display: grid; grid-template-columns: 14px minmax(140px, 0.9fr) minmax(0, 1.4fr); gap: 10px; align-items: center; min-height: 32px; padding: 6px 12px; border-top: 1px solid var(--line); }
+.frow.on { background: color-mix(in srgb, var(--blue) 10%, transparent); }
+.frow .t3 { font-size: 12px; }
+pre { margin: 0 0 8px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow-x: auto; font: 12px/1.6 var(--mono); }
+
+@media (max-width: 800px) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  nav { display: none; }
+  main { padding: 20px 16px 64px; }
+  .props { grid-template-columns: minmax(0, 1fr); }
+  .props > .prop.wide { grid-column: 1; }
+  .overview .row { grid-template-columns: minmax(0, 1fr) 48px 96px; }
+  .overview .row > :nth-child(n+4) { display: none; }
+  .explorer { grid-template-columns: minmax(0, 1fr); }
+  .rail { border-right: 0; border-bottom: 1px solid var(--line); max-height: 240px; }
+  .frow { grid-template-columns: 14px minmax(0, 1fr); }
+  .frow > :last-child { grid-column: 2; }
+  .cases .row, .cases.results .row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script id="data" type="application/json">__HYDRA_DATA__</script>
+<script>
+const data = JSON.parse(document.getElementById('data').textContent);
+const app = document.getElementById('app');
+
+const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const RATING_COLOR = { easy: 'green', medium: 'amber', hard: 'red' };
+const OUTCOME_COLOR = { pass: 'green', regression: 'red', flip: 'blue', blocked: 'amber' };
+const dot = (color) => `<span class="dot ${color ?? ''}"></span>`;
+const chip = (text, color) => `<span class="chip">${color ? dot(color) : ''}${esc(text)}</span>`;
+const words = (value) => value.replace(/_/g, ' ');
+const num = (n) => Number(n).toLocaleString('en-US');
+const compact = (n) => (n >= 1000 ? `${Number((n / 1000).toFixed(1))}k` : num(n));
+const WINDOW = { 1000: 's', 60000: 'min', 3600000: 'h', 86400000: 'day' };
+const per = (ms) => WINDOW[ms] ?? `${ms / 1000}s`;
+const limitTags = (r) => `<span class="tags">${[
+  `${r.concurrentCalls} at once`,
+  ...(r.callsPerSecond ? [`${compact(r.callsPerSecond)}/s`] : []),
+  ...r.buckets.map((b) => `${compact(b.capacity)}/${per(b.windowMs)}`),
+].map((text) => `<span class="tag mono">${esc(text)}</span>`).join('')}</span>`;
+const capital = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+const limitTile = (label, value, unit) => `<div class="limit ${value == null ? 'off' : ''}">
+  <span class="kk">${esc(label)}</span>
+  <div class="num">${value == null ? 'No limit' : `${num(value)}<span class="unit">${esc(unit)}</span>`}</div>
+</div>`;
+const rateLimitsValue = (r) => `<div class="limits">
+    ${limitTile('At once', r.concurrentCalls, 'calls')}
+    ${limitTile('Per second', r.callsPerSecond, 'calls')}
+    ${r.buckets.map((b) => limitTile(capital(b.label), b.capacity, 'calls')).join('')}
+  </div>
+  ${r.note ? `<div class="limits-note">${dot('amber')}<span>${esc(r.note)}</span></div>` : ''}`;
+
+const LOGO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+  <path d="M12 21v-6.5"/>
+  <path d="M12 14.5V6.8"/>
+  <path d="M12 15.5c-2.6 0-3.6-1.6-4-3.6-.3-1.6-.6-3-1.6-3.6"/>
+  <path d="M12 15.5c2.6 0 3.6-1.6 4-3.6.3-1.6.6-3 1.6-3.6"/>
+  <path d="M12 17.8c-3.2 0-5.2-.6-6.2-2.2-.5-.9-.7-1.6-1.4-1.9"/>
+  <path d="M12 17.8c3.2 0 5.2-.6 6.2-2.2.5-.9.7-1.6 1.4-1.9"/>
+  <g fill="currentColor" stroke="none">
+    <circle cx="12" cy="4.6" r="2.3"/>
+    <circle cx="6.1" cy="7.1" r="1.75"/><circle cx="17.9" cy="7.1" r="1.75"/>
+    <circle cx="3.6" cy="12.6" r="1.6"/><circle cx="20.4" cy="12.6" r="1.6"/>
+  </g>
+</svg>`;
+
+const cases = (useCases) => [
+  ...useCases.questions.map((q) => ({ ...q, text: q.question, group: 'Questions' })),
+  ...useCases.dashboards.flatMap((d) => d.charts.map((c) => ({ ...c, text: c.title, detail: c.detail, group: d.name, purpose: d.purpose }))),
+];
+const possibleShare = (useCases) => {
+  const all = cases(useCases);
+  const yes = all.filter((c) => c.possible).length;
+  return { yes, total: all.length, pct: all.length ? Math.round((yes / all.length) * 100) : 0 };
+};
+const coverage = (useCases) => {
+  const { yes, total, pct } = possibleShare(useCases);
+  return `<span style="display:flex;align-items:center;gap:8px"><span class="bar"><i class="${coverageColor(useCases)}" style="width:${pct}%"></i></span><span class="mono t2">${yes}/${total}</span></span>`;
+};
+const coverageColor = (useCases) => {
+  const { pct } = possibleShare(useCases);
+  if (pct >= 66) return 'green';
+  return pct >= 40 ? 'amber' : 'red';
+};
+const authChip = (i) => chip(i.authScore.rating, RATING_COLOR[i.authScore.rating]);
+
+const overview = (integrations) => `
+  <h1>${esc(data.title)}</h1>
+  <div class="subtitle">${integrations.length} integrations</div>
+  <div class="list overview">
+    <div class="row head"><span>Integration</span><span>Level</span><span>Auth</span><span>Possible</span><span>Rate limits</span><span>Paging</span></div>
+    ${integrations.map((i) => `<a class="row" href="#${esc(i.name)}">
+      <span class="name">${esc(i.label)}</span>
+      <span class="mono t2">L${i.level.value}</span>
+      <span>${authChip(i)}</span>
+      ${coverage(i.useCases)}
+      ${i.rateLimits ? limitTags(i.rateLimits) : '<span class="t3">Not set</span>'}
+      <span class="clip">${esc(i.paging.description)}</span>
+    </a>`).join('')}
+  </div>`;
+
+const BLOCKING_NEEDS = ['card', 'real_person', 'vendor_approval', 'sales_contract'];
+const OAUTH = {
+  none: { color: '', text: 'Not offered' },
+  no_review: { color: 'green', text: 'Self-serve, no review' },
+  needs_review: { color: 'amber', text: 'Vendor review required' },
+};
+const TEST_WITH = { test_account: ['green', 'Free test account'], real_account: ['amber', 'A real account'], paid_account: ['amber', 'A paid account'], unknown: ['red', 'No known way'] };
+const authAccess = (auth) => {
+  const oauth = OAUTH[auth.oauth];
+  const [testColor, testText] = TEST_WITH[auth.testWith];
+  const tag = (need) => `<span class="tag ${BLOCKING_NEEDS.includes(need) ? 'warn' : ''}">${esc(words(need))}</span>`;
+  return `<div class="kv">
+      <span class="kk">Token</span><span class="status">${dot(auth.token ? 'green' : '')}${auth.token ? 'Customer pastes a key' : 'Not offered'}</span>
+      <span class="kk">OAuth</span><span class="status">${dot(oauth.color)}${oauth.text}</span>
+      <span class="kk">Test with</span><span class="status test-with">${dot(testColor)}${testText}<span class="tags">${auth.needs.map(tag).join('')}</span></span>
+    </div>`;
+};
+
+const caseStatus = (possible) => `<span class="status">${dot(possible ? 'green' : 'red')}${possible ? 'Possible' : 'Not possible'}</span>`;
+const resultCell = (result) => (result
+  ? `<span><span class="status">${dot(OUTCOME_COLOR[result.outcome])}${esc(words(result.outcome))}</span>${result.note ? `<div class="note">${esc(result.note)}</div>` : ''}</span>`
+  : '<span class="status t3">Not tried</span>');
+
+const caseList = (integration, filter) => {
+  const results = integration.results;
+  const shown = cases(integration.useCases).filter((c) => {
+    if (filter === 'possible') return c.possible;
+    if (filter === 'not') return !c.possible;
+    if (filter === 'tried') return results?.[c.id];
+    return true;
+  });
+  const groups = [...new Set(shown.map((c) => c.group))];
+  if (shown.length === 0) return '<div class="list"><div class="row t3">Nothing here.</div></div>';
+  return `<div class="list cases ${results ? 'results' : ''}">${groups.map((g) => {
+    const inGroup = shown.filter((c) => c.group === g);
+    return `<div class="group">${esc(g)}${inGroup[0].purpose ? `<span class="t3">${esc(inGroup[0].purpose)}</span>` : ''}</div>
+      ${inGroup.map((c) => `<div class="row case">
+        ${caseStatus(c.possible)}
+        <span>${esc(c.text)}${c.detail ? `<div class="note">${esc(c.detail)}</div>` : ''}</span>
+        ${results ? resultCell(results[c.id]) : ''}
+      </div>`).join('')}`;
+  }).join('')}</div>`;
+};
+
+const tally = (results) => {
+  const counts = Object.values(results).reduce((acc, r) => ({ ...acc, [r.outcome]: (acc[r.outcome] ?? 0) + 1 }), {});
+  return Object.entries(counts).map(([outcome, n]) => chip(`${n} ${words(outcome)}`, OUTCOME_COLOR[outcome])).join(' ');
+};
+
+const ICON = {
+  chev: '<svg class="chev{open}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>',
+  tbl: '<svg class="ficon tbl" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 6.5h12M6.5 6.5V13"/></svg>',
+  dim: '<svg class="ficon dim" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 12.5L5.8 4h.4L9 12.5M3.9 10h4.2"/><path d="M10.5 8.2c.5-.6 1.1-.9 1.9-.9 1.1 0 1.6.6 1.6 1.6v3.6M14 10.2c-.5-.3-1.1-.4-1.7-.4-1.1 0-1.8.6-1.8 1.4 0 .8.6 1.3 1.5 1.3.8 0 1.5-.4 2-1"/></svg>',
+  met: '<svg class="ficon met" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 2.5L4.5 13.5M11.5 2.5L10 13.5M2.5 6h11M2 10.5h11"/></svg>',
+};
+const fieldsOf = (e) => [...e.dimensions.map((f) => ({ ...f, kind: 'dim' })), ...e.metrics.map((f) => ({ ...f, kind: 'met' }))];
+const fieldTable = (title, kind, fields) => `<div class="ftable">
+  <div class="fhead">${ICON[kind]}${title} <span class="mono">${fields.length}</span></div>
+  ${fields.length ? fields.map((f) => `<div class="frow ${state.field === f.name ? 'on' : ''}">${ICON[kind]}<span class="mono">${esc(f.name)}</span><span class="t3">${esc(f.description ?? '')}</span></div>`).join('') : '<div class="frow"><span></span><span class="t3">None</span></div>'}
+</div>`;
+const explorer = (explores) => {
+  const selected = explores[state.explore] ?? explores[0];
+  return `<div class="explorer">
+    <div class="rail">${explores.map((e, index) => {
+      const open = state.expanded.has(index);
+      return `<button class="node ${index === state.explore && !state.field ? 'on' : ''}" data-explore="${index}">
+          ${ICON.chev.replace('{open}', open ? ' open' : '')}${ICON.tbl}<span class="grow">${esc(e.label)}</span><span class="mono t3">${fieldsOf(e).length}</span>
+        </button>
+        ${open ? fieldsOf(e).map((f) => `<button class="node leaf ${index === state.explore && state.field === f.name ? 'on' : ''}" data-explore="${index}" data-field="${esc(f.name)}">${ICON[f.kind]}<span class="grow mono">${esc(f.name)}</span></button>`).join('') : ''}`;
+    }).join('')}</div>
+    <div class="pane">
+      <div class="pane-head"><span class="name">${esc(selected.label)}</span><span class="mono t3">${esc(selected.name)}</span></div>
+      ${selected.description ? `<div class="desc">${esc(selected.description)}</div>` : ''}
+      ${fieldTable('Dimensions', 'dim', selected.dimensions)}
+      ${fieldTable('Metrics', 'met', selected.metrics)}
+    </div>
+  </div>`;
+};
+
+const VALUES = ['high', 'medium', 'low'];
+const EFFORTS = ['easy', 'medium', 'hard'];
+const CALLS = {
+  high: { easy: 'build', medium: 'build', hard: 'plan' },
+  medium: { easy: 'build', medium: 'plan', hard: 'later' },
+  low: { easy: 'later', medium: 'skip', hard: 'skip' },
+};
+const CALL = {
+  build: { label: 'Build now', color: 'green' },
+  plan: { label: 'Plan it', color: 'blue' },
+  later: { label: 'Later', color: 'amber' },
+  skip: { label: 'Skip', color: 'red' },
+};
+const VALUE_COLOR = { high: 'green', medium: 'amber', low: 'red' };
+const EFFORT_COLOR = { easy: 'green', medium: 'amber', hard: 'red' };
+const verdictBlock = ({ value, effort, points = [] }) => {
+  const call = CALL[CALLS[value.level][effort.level]];
+  return `<div class="verdict">
+    <div>
+      <div class="k">Verdict</div>
+      <div class="headline">${dot(call.color)}${call.label}</div>
+      <div class="axes">
+        <span class="kk">Value</span><span class="status">${dot(VALUE_COLOR[value.level])}${esc(value.level)}<span class="why">· ${esc(value.reason)}</span></span>
+        <span class="kk">Effort</span><span class="status">${dot(EFFORT_COLOR[effort.level])}${esc(effort.level)}<span class="why">· ${esc(effort.reason)}</span></span>
+      </div>
+      ${points.length ? `<ul>${points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}
+    </div>
+  </div>`;
+};
+const FILTERS = (i) => [['all', 'All'], ...(i.results ? [['tried', 'Tried']] : []), ['possible', 'Possible'], ['not', 'Not possible']];
+const state = { filter: data.mode === 'test' ? 'tried' : 'all', explore: 0, field: null, expanded: new Set([0]) };
+
+const detail = (i) => {
+  const share = possibleShare(i.useCases);
+  return `
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <h1>${esc(i.label)}</h1>
+    <span class="mono t3">${esc(i.name)}</span>
+  </div>
+  <div class="subtitle" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+    ${chip(`Level ${i.level.value}`)} ${chip(`${share.yes} of ${share.total} possible`)} ${i.results ? tally(i.results) : ''}
+  </div>
+  ${i.verdict ? verdictBlock(i.verdict) : ''}
+  <div class="props">
+    <div class="prop"><div class="k">Level <span class="mono">${i.level.value}/5</span></div><div class="v">${esc(i.level.description)}</div></div>
+    <div class="prop"><div class="k">Auth <span class="status">${dot(RATING_COLOR[i.authScore.rating])}${esc(i.authScore.rating)}</span></div><div class="v">${esc(i.auth.description)}</div></div>
+    <div class="prop"><div class="k">Paging</div><div class="v">${esc(i.paging.description)}</div></div>
+    <div class="prop"><div class="k">Access</div>${authAccess(i.auth)}</div>
+    <div class="prop wide"><div class="k">Rate limits</div>${i.rateLimits ? rateLimitsValue(i.rateLimits) : '<div class="v"><span class="t3">Not set</span></div>'}</div>
+  </div>
+  ${i.explores?.length ? `<h2>Explores <span class="t3" style="font-weight:400">${i.explores.length}</span></h2>${explorer(i.explores)}` : ''}
+  <h2>Use cases
+    <span class="tabs">${FILTERS(i).map(([key, label]) => `<button data-filter="${key}" class="${state.filter === key ? 'on' : ''}">${label}</button>`).join('')}</span>
+  </h2>
+  ${caseList(i, state.filter)}`;
+};
+
+const current = () => {
+  const name = decodeURIComponent(location.hash.slice(1));
+  return data.integrations.length === 1 ? data.integrations[0] : data.integrations.find((i) => i.name === name);
+};
+
+const render = () => {
+  const selected = current();
+  const many = data.integrations.length > 1;
+  const generated = new Date(data.generatedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  app.innerHTML = `
+    <header class="top">
+      <a class="logo" href="#">${LOGO}hydra</a>
+      <span class="crumb">/</span><span class="t2">${esc(data.mode)}</span>
+      ${selected && many ? `<span class="crumb">/</span><span>${esc(selected.label)}</span>` : ''}
+      <span class="spacer"></span>
+      <span class="t3">${esc(data.summary ?? generated)}</span>
+    </header>
+    <div class="shell ${many ? '' : 'single'}">
+      ${many ? `<nav>
+        <a href="#" class="${selected ? '' : 'on'}"><span class="grow">Overview</span></a>
+        <div class="label">Integrations</div>
+        ${data.integrations.map((i) => `<a href="#${esc(i.name)}" class="${selected === i ? 'on' : ''}">
+          ${dot(coverageColor(i.useCases))}<span class="grow">${esc(i.label)}</span><span class="mono t3">L${i.level.value}</span>
+        </a>`).join('')}
+      </nav>` : ''}
+      <main>${selected ? detail(selected) : overview(data.integrations)}</main>
+    </div>`;
+};
+
+window.addEventListener('hashchange', () => {
+  state.filter = data.mode === 'test' ? 'tried' : 'all';
+  render();
+  window.scrollTo(0, 0);
+});
+app.addEventListener('click', (event) => {
+  const target = event.target.closest('button');
+  if (!target) return;
+  if (target.dataset.explore !== undefined) {
+    const index = Number(target.dataset.explore);
+    const field = target.dataset.field ?? null;
+    if (!field) {
+      if (state.explore === index && !state.field && state.expanded.has(index)) state.expanded.delete(index);
+      else state.expanded.add(index);
+    }
+    state.explore = index;
+    state.field = field;
+  }
+  if (target.dataset.filter) state.filter = target.dataset.filter;
+  render();
+});
+render();
+</script>
+</body>
+</html>

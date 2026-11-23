@@ -158,12 +158,14 @@
         display: none;
     }
 
-    &:hover,
+    /* The linked title follows the pointer's aim, not plain hover */
+    &:not([data-follows-aim]):hover,
     &[data-hovered='true'] {
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
+        width: auto;
         z-index: 10;
         white-space: normal;
         overflow: visible;
@@ -178,6 +180,8 @@
     }
 
     &:is(a) {
+        width: fit-content;
+
         &:not([href]) {
             cursor: default;
             text-decoration: none;

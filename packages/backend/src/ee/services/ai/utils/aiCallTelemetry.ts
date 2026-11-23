@@ -1,4 +1,5 @@
-import type { LanguageModel } from 'ai';
+import { assertUnreachable } from '@lightdash/common';
+import type { LanguageModel, ModelMessage } from 'ai';
 import type {
     AiCallFeature,
     AiCallRuntimeContextKey,
@@ -85,6 +86,8 @@ export type AiCallTelemetryOptions = AiCallAttribution & {
      * attribution) is always on, content capture is opt-in.
      */
     recordIO?: boolean;
+    /** Binary inputs must never reach prompt-content tracing, even when recordIO is enabled. */
+    hasBinaryInputs?: boolean;
     /** Extra span metadata (e.g. a mode flag). Nullish values are dropped. */
     extra?: Record<string, string | number | boolean | null | undefined>;
 };
@@ -148,6 +151,53 @@ const TELEMETRY_REPORTED_KEYS: (
     'loadoutAddOns',
 ];
 
+/** Binary content must be withheld from input spans and debug message dumps. */
+export const hasBinaryModelInputs = (
+    messages: readonly ModelMessage[],
+): boolean =>
+    messages.some((message) => {
+        if (typeof message.content === 'string') return false;
+        return message.content.some((part) => {
+            switch (part.type) {
+                case 'image':
+                case 'file':
+                case 'reasoning-file':
+                case 'custom':
+                    return true;
+                case 'text':
+                case 'reasoning':
+                case 'tool-call':
+                case 'tool-approval-request':
+                case 'tool-approval-response':
+                    return false;
+                case 'tool-result':
+                    switch (part.output.type) {
+                        case 'content':
+                            // Withhold all non-text tool content, including future media types.
+                            return part.output.value.some(
+                                (content) => content.type !== 'text',
+                            );
+                        case 'text':
+                        case 'json':
+                        case 'execution-denied':
+                        case 'error-text':
+                        case 'error-json':
+                            return false;
+                        default:
+                            return assertUnreachable(
+                                part.output,
+                                'Unknown tool output type',
+                            );
+                    }
+                default:
+                    return assertUnreachable(
+                        part,
+                        'Unknown model message part',
+                    );
+            }
+        });
+    });
+
 /**
  * Builds the telemetry options for any Vercel AI SDK call (generateText /
  * streamText / embed). Spread the result into the call, since attribution is a
@@ -169,6 +219,7 @@ export const getAiCallTelemetry = ({
     functionId,
     feature,
     recordIO = false,
+    hasBinaryInputs = false,
     extra,
     ...attribution
 }: AiCallTelemetryOptions) => {
@@ -215,7 +266,7 @@ export const getAiCallTelemetry = ({
         runtimeContext: metadata,
         telemetry: {
             functionId,
-            recordInputs: recordIO,
+            recordInputs: recordIO && !hasBinaryInputs,
             recordOutputs: recordIO,
             includeRuntimeContext,
         },

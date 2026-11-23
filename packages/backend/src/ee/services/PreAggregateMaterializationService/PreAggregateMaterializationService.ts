@@ -32,7 +32,6 @@ import { writeMaterializationProducer } from '../AsyncQueryService/materializati
 const { getDefaultMaterializationSorts } = preAggregateMaterialization;
 
 const QUERY_POLL_INTERVAL_MS = 1000;
-const QUERY_POLL_TIMEOUT_MS = 30 * 60 * 1000;
 
 export class PreAggregateMaterializationService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -338,7 +337,9 @@ export class PreAggregateMaterializationService extends BaseService {
                         projectUuid: args.projectUuid,
                         initialBackoffMs: QUERY_POLL_INTERVAL_MS,
                         maxBackoffMs: QUERY_POLL_INTERVAL_MS,
-                        timeoutMs: QUERY_POLL_TIMEOUT_MS,
+                        timeoutMs:
+                            this.lightdashConfig.preAggregates
+                                .materializationTimeout,
                         throwOnCancelled: false,
                         throwOnError: false,
                     }),

@@ -570,6 +570,7 @@ export interface DbtManifest {
 export interface DbtRawManifestMetadata {
     project_name?: string;
     dbt_schema_version: string;
+    dbt_version?: string;
     generated_at: string;
     adapter_type: string;
 }

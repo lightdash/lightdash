@@ -10,10 +10,12 @@ import {
     QueryHistoryStatus,
     sleep,
     type ApiError,
+    type ApiExecuteAsyncDashboardChartQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiGetAsyncQueryResults,
     type ApiJobScheduledResponse,
     type ApiSuccessEmpty,
+    type DashboardTileRenderRequest,
     type DateGranularity,
     type DownloadOptions,
     type ExecuteAsyncMetricQueryRequestParams,
@@ -49,6 +51,8 @@ export type QueryResultsProps = {
     pivotConfiguration?: PivotConfiguration;
     pivotResults?: boolean;
     customSqlProvenanceChartUuid?: UUID;
+    // Headless renders only: run the saved chart as this dashboard tile ran it
+    dashboardTileRenderRequest?: DashboardTileRenderRequest;
 };
 
 /**
@@ -158,6 +162,7 @@ export const scheduleDownloadQuery = async (
             attachmentDownloadName: options.attachmentDownloadName,
             conditionalFormattings: options.conditionalFormattings,
             showColumnTotals: options.showColumnTotals,
+            xlsxContent: options.xlsxContent,
             showSubtotals: options.showSubtotals,
         }),
         version: 'v2',
@@ -184,6 +189,19 @@ export const executeAsyncQuery = (
             },
             { signal },
         );
+    } else if (data?.chartUuid && data.dashboardTileRenderRequest) {
+        return lightdashApi<ApiExecuteAsyncDashboardChartQueryResults>({
+            url: `/projects/${data.projectUuid}/query/dashboard-chart`,
+            version: 'v2',
+            method: 'POST',
+            body: JSON.stringify({
+                ...data.dashboardTileRenderRequest,
+                chartUuid: data.chartUuid,
+                context: data.context ?? QueryExecutionContext.DASHBOARD,
+                pivotResults: data.pivotResults,
+            }),
+            signal,
+        }).then((results) => ({ ...results, warnings: [] }));
     } else if (data?.chartUuid) {
         return executeAsyncSavedChartQuery(
             lightdashApi,

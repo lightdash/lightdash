@@ -36,7 +36,7 @@ import {
     IconDotsVertical,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import {
@@ -69,6 +69,7 @@ import { TileCopyPlacement } from './TileCopyPlacement';
 import { TileHeaderPopoverContext } from './tileHeaderPopoverContext';
 import { TileSelectionToolbar } from './TileSelectionToolbar';
 import { type TileBaseProps } from './types';
+import { useTileTitleAim } from './useTileTitleAim';
 
 const HEADING_FLEX_ALIGN: Record<DashboardHeadingVerticalAlign, string> = {
     [DashboardHeadingVerticalAlign.TOP]: 'flex-start',
@@ -124,7 +125,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const { isHovered: chartHovered, ...chartHoveredProps } = useDelayedHover({
         delay: 500,
     });
-    const [titleHovered, setTitleHovered] = useState(false);
+    const titleRef = useRef<HTMLAnchorElement>(null);
     const [isMenuOpen, toggleMenu] = useToggle([false, true]);
     const [openHeaderPopovers, setOpenHeaderPopovers] = useState<
         ReadonlySet<string>
@@ -148,6 +149,19 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         (tile.type !== DashboardTileTypes.MARKDOWN
             ? tile.properties.hideTitle
             : false);
+    const isTitleLink =
+        !isEditMode && tile.type !== DashboardTileTypes.MARKDOWN;
+    // Touch keeps the plain :hover, which a tap makes sticky
+    const canHover = useMediaQuery('(hover: hover)', undefined, {
+        getInitialValueInEffect: false,
+    });
+    const followsTitleAim = isTitleLink && !minimal && !hideTitle && canHover;
+    const { titleHovered, descriptionOpened, pointerHandlers } =
+        useTileTitleAim({
+            enabled: followsTitleAim,
+            titleRef,
+            actionsSelector: `.${styles.tileTooltip}`,
+        });
     const belongsToDashboard: boolean =
         isDashboardChartTileType(tile) && !!tile.properties.belongsToDashboard;
 
@@ -410,7 +424,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     ) : null;
 
     return (
-        <div ref={containerRef} className={styles.tileWrapper}>
+        <Box
+            ref={containerRef}
+            className={styles.tileWrapper}
+            {...pointerHandlers}
+        >
             {containerHovered && isEditMode && !minimal && !focusedActions && (
                 <Paper
                     className={styles.dragHandleIcon}
@@ -533,6 +551,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         ) : (
                             <Tooltip
                                 disabled={!description}
+                                opened={descriptionOpened}
                                 label={
                                     <Text
                                         className={styles.description}
@@ -544,8 +563,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                 position="top-start"
                                 maw={400}
                             >
-                                {isEditMode ||
-                                tile.type === DashboardTileTypes.MARKDOWN ? (
+                                {!isTitleLink ? (
                                     <Text
                                         className={styles.tileTitle}
                                         data-hidden={hideTitle}
@@ -559,13 +577,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                         className={styles.tileTitle}
                                         data-hidden={hideTitle}
                                         data-hovered={titleHovered}
+                                        data-follows-aim={
+                                            followsTitleAim || undefined
+                                        }
+                                        ref={titleRef}
                                         href={titleHref}
-                                        onMouseEnter={() =>
-                                            setTitleHovered(true)
-                                        }
-                                        onMouseLeave={() =>
-                                            setTitleHovered(false)
-                                        }
                                         target="_blank"
                                     >
                                         {title}
@@ -674,7 +690,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     onClose={() => setIsMovingTabs(false)}
                 />
             </Card>
-        </div>
+        </Box>
     );
 };
 

@@ -119,6 +119,17 @@ describe('the development view of a checked-out draft', () => {
         expect(queryClient.getQueryData(key)).toBe('discarded');
     });
 
+    it('reads one chat thread in either view, so a view switch never brings back an older copy of it', () => {
+        const queryClient = createQueryClient();
+        const key = ['aiAgents', 'p-1', 'a-1', 'threads', 't-1'];
+        at('/projects/p-1/semantic-layer');
+        queryClient.setQueryData(key, 'before the turn');
+        localStorage.setItem('lightdash-checked-out-project', 'p-1');
+        queryClient.setQueryData(key, 'after the turn');
+        clearDevelopmentView();
+        expect(queryClient.getQueryData(key)).toBe('after the turn');
+    });
+
     it('reads a query that names what is published the same on and off a draft', () => {
         const queryClient = createQueryClient();
         const key = ['tables', 'p-1', 'filtered', PUBLISHED_VIEW];
@@ -134,6 +145,8 @@ describe('the development view of a checked-out draft', () => {
         at('/projects/p-1/semantic-layer');
         queryClient.setQueryData(key, 'published');
         queryClient.setQueryData(['semantic-studio-checkout', 'p-1'], 'a');
+        const access = ['ai-access', 'p-1', null, 'me'];
+        queryClient.setQueryData(access, 'allowed');
         const { result } = renderHook(() => useDevelopmentView(), {
             wrapper: ({ children }: PropsWithChildren) => (
                 <QueryClientProvider client={queryClient}>
@@ -147,6 +160,8 @@ describe('the development view of a checked-out draft', () => {
         });
         expect(queryClient.getQueryData(key)).toBe('published');
         expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
+        // The chat's composer hides while this refetches, so a view switch leaves it alone.
+        expect(queryClient.getQueryState(access)?.isInvalidated).toBe(false);
     });
 
     it('switches Try it on over a checked-out draft, which already reads the changes, without fetching again', () => {

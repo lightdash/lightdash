@@ -1,0 +1,264 @@
+import {
+    AI_THREAD_IMAGE_MAX_BYTES,
+    NotFoundError,
+    ParameterError,
+    type AiPromptContext,
+} from '@lightdash/common';
+import * as Sentry from '@sentry/node';
+import { Readable } from 'node:stream';
+import sharp from 'sharp';
+import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
+import { type AiThreadFileWithContent } from '../../models/AiThreadFileModel';
+import {
+    assertNoImagesInBattleMode,
+    resolveThreadImages,
+    threadImagesWithoutBytes,
+    withoutFileParts,
+} from './threadImageContext';
+
+vi.mock('@sentry/node', () => ({ captureException: vi.fn() }));
+beforeEach(() => vi.clearAllMocks());
+
+const setup = async (uuid = 'image-1', promptUuid = 'prompt-1') => {
+    const bytes = await sharp({
+        create: { width: 2, height: 2, channels: 3, background: 'red' },
+    })
+        .png()
+        .toBuffer();
+    const file: Extract<AiThreadFileWithContent, { kind: 'image' }> = {
+        kind: 'image',
+        uuid,
+        promptUuid,
+        fileName: 'chart.png',
+        threadUuid: 'thread-1',
+        createdAt: new Date(),
+        sizeBytes: bytes.length,
+        width: 2,
+        height: 2,
+        mediaType: 'image/png',
+        storageKey: `private/${uuid}.png`,
+        uploadedAt: new Date(),
+    };
+    const item: Extract<AiPromptContext[number], { type: 'thread_image' }> = {
+        type: 'thread_image',
+        fileUuid: uuid,
+        fileName: file.fileName,
+        width: file.width,
+        height: file.height,
+        mediaType: file.mediaType,
+        sizeBytes: file.sizeBytes,
+    };
+    const contextMap = new Map<string, AiPromptContext>([[promptUuid, [item]]]);
+    const storage = {
+        getFileStream: vi
+            .fn<FileStorageClient['getFileStream']>()
+            .mockImplementation(async () => ({
+                stream: Readable.from([bytes]),
+                contentDisposition: null,
+            })),
+    };
+    const read = () =>
+        resolveThreadImages({ contextMap, files: [file], storage });
+    return { bytes, file, item, contextMap, storage, read };
+};
+
+test('reads binary bytes into native model image parts', async () => {
+    const { read, bytes, file, storage } = await setup();
+    const images = await read();
+    expect(images.get(file.uuid)).toEqual({
+        status: 'available',
+        part: {
+            type: 'file',
+            data: { type: 'data', data: bytes },
+            mediaType: 'image/png',
+        },
+    });
+    expect(storage.getFileStream).toHaveBeenCalledWith(file.storageKey, {
+        abortSignal: expect.any(AbortSignal),
+    });
+});
+
+test('does not read bytes for compacted-away image references', async () => {
+    const first = await setup();
+    const second = await setup('image-2', 'prompt-2');
+    const images = await resolveThreadImages({
+        contextMap: second.contextMap,
+        files: [first.file, second.file],
+        storage: second.storage,
+    });
+    expect([...images.keys()]).toEqual(['image-2']);
+    expect(second.storage.getFileStream).toHaveBeenCalledExactlyOnceWith(
+        second.file.storageKey,
+        expect.anything(),
+    );
+});
+
+test('retains both first-prompt and follow-up image identities', async () => {
+    const first = await setup();
+    const second = await setup('image-2', 'prompt-2');
+    const images = await resolveThreadImages({
+        contextMap: new Map([...first.contextMap, ...second.contextMap]),
+        files: [first.file, second.file],
+        storage: first.storage,
+    });
+    expect([...images.keys()]).toEqual(['image-1', 'image-2']);
+    expect(first.storage.getFileStream).toHaveBeenCalledTimes(2);
+});
+
+test('retains a missing-file placeholder when the attachment row is gone', async () => {
+    const { contextMap, storage } = await setup();
+    expect(
+        (await resolveThreadImages({ contextMap, files: [], storage })).get(
+            'image-1',
+        ),
+    ).toEqual({ status: 'missing' });
+    expect(storage.getFileStream).not.toHaveBeenCalled();
+});
+
+test('does not read an image attached to a different prompt', async () => {
+    const { read, file, storage } = await setup();
+    file.promptUuid = 'another-prompt';
+    expect((await read()).get(file.uuid)).toEqual({ status: 'missing' });
+    expect(storage.getFileStream).not.toHaveBeenCalled();
+});
+
+test('incomplete uploads have a distinct placeholder and cannot be read', async () => {
+    const { read, file, storage } = await setup();
+    file.uploadedAt = null;
+    expect((await read()).get(file.uuid)).toEqual({ status: 'incomplete' });
+    expect(storage.getFileStream).not.toHaveBeenCalled();
+});
+
+test('object 404s become missing placeholders but transient errors fail the request visibly', async () => {
+    const { read, storage } = await setup();
+    storage.getFileStream.mockRejectedValueOnce(new NotFoundError('missing'));
+    expect((await read()).get('image-1')).toEqual({ status: 'missing' });
+    const error = new Error('temporarily unavailable');
+    storage.getFileStream.mockRejectedValueOnce(error);
+    await expect(read()).rejects.toBe(error);
+});
+
+test('oversized storage objects become missing placeholders, report integrity failure and destroy the stream', async () => {
+    const { read, storage } = await setup();
+    const stream = Readable.from([Buffer.alloc(AI_THREAD_IMAGE_MAX_BYTES + 1)]);
+    storage.getFileStream.mockResolvedValue({
+        stream,
+        contentDisposition: null,
+    });
+    expect((await read()).get('image-1')).toEqual({ status: 'missing' });
+    expect(Sentry.captureException).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+            message: 'An attached image exceeds its stored size.',
+        }),
+    );
+    expect(stream.destroyed).toBe(true);
+});
+
+test('partial storage reads cannot silently become image parts', async () => {
+    const { read, bytes, storage } = await setup();
+    storage.getFileStream.mockResolvedValue({
+        stream: Readable.from([bytes.subarray(0, -1)]),
+        contentDisposition: null,
+    });
+    const pending = read();
+    await expect(pending).rejects.toThrow('read completely');
+    await expect(pending).rejects.not.toBeInstanceOf(ParameterError);
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+});
+
+test('non-binary storage data reports an integrity failure without bricking the thread', async () => {
+    const { read, storage } = await setup();
+    storage.getFileStream.mockResolvedValue({
+        stream: Readable.from(['not binary']),
+        contentDisposition: null,
+    });
+    expect((await read()).get('image-1')).toEqual({ status: 'missing' });
+    expect(Sentry.captureException).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+            message: 'Image storage returned non-binary data',
+        }),
+    );
+});
+
+test('the 30-second deadline covers stalled storage requests', async () => {
+    const { read, storage } = await setup();
+    vi.useFakeTimers();
+    try {
+        storage.getFileStream.mockImplementation(() => new Promise(() => {}));
+        await Promise.all([
+            expect(read()).rejects.toThrow('timed out'),
+            vi.advanceTimersByTimeAsync(30_000),
+        ]);
+        expect(
+            storage.getFileStream.mock.calls[0]?.[1]?.abortSignal.aborted,
+        ).toBe(true);
+    } finally {
+        vi.useRealTimers();
+    }
+});
+
+test('the deadline also terminates a stalled response stream', async () => {
+    const { read, storage } = await setup();
+    const stream = new Readable({ read() {} });
+    vi.useFakeTimers();
+    try {
+        storage.getFileStream.mockResolvedValue({
+            stream,
+            contentDisposition: null,
+        });
+        await Promise.all([
+            expect(read()).rejects.toThrow('timed out'),
+            vi.advanceTimersByTimeAsync(30_000),
+        ]);
+        expect(stream.destroyed).toBe(true);
+    } finally {
+        vi.useRealTimers();
+    }
+});
+
+test('title history keeps the text of a turn and drops its files', () => {
+    expect(
+        withoutFileParts([
+            {
+                role: 'user',
+                content: [
+                    { type: 'text', text: 'Recreate this chart' },
+                    {
+                        type: 'file',
+                        data: Buffer.from('png'),
+                        mediaType: 'image/png',
+                    },
+                ],
+            },
+            { role: 'assistant', content: 'Done' },
+        ]),
+    ).toEqual([
+        {
+            role: 'user',
+            content: [{ type: 'text', text: 'Recreate this chart' }],
+        },
+        { role: 'assistant', content: 'Done' },
+    ]);
+});
+
+test('images can be marked unavailable without reading any bytes', async () => {
+    const { contextMap, storage } = await setup();
+    expect([...threadImagesWithoutBytes(contextMap, 'omitted')]).toEqual([
+        ['image-1', { status: 'omitted' }],
+    ]);
+    expect(storage.getFileStream).not.toHaveBeenCalled();
+});
+
+test('battle mode refuses image context and allows everything else', () => {
+    expect(() =>
+        assertNoImagesInBattleMode([
+            { type: 'thread_image', fileUuid: 'image-1' },
+        ]),
+    ).toThrow(ParameterError);
+    expect(() =>
+        assertNoImagesInBattleMode([
+            { type: 'thread_file', fileUuid: 'file-1' },
+        ]),
+    ).not.toThrow();
+    expect(() => assertNoImagesInBattleMode(undefined)).not.toThrow();
+});

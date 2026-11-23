@@ -29,7 +29,10 @@ import { UsageHistoryBackfill } from '../analytics/eventStream/UsageHistoryBackf
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
 import { type AgentActionLogModel } from '../models/AgentActionLogModel';
-import { type RetentionCleanupOptions } from '../models/retentionCleanup';
+import {
+    type RetentionCleanupOptions,
+    type RetentionCleanupResult,
+} from '../models/retentionCleanup';
 import type { UsageDimensionsModel } from '../models/UsageDimensionsModel';
 import type { UsageHistoryModel } from '../models/UsageHistoryModel';
 import type { UsageProcessingModel } from '../models/UsageProcessingModel';
@@ -59,8 +62,17 @@ import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
 import { SchedulerWorkerHealth } from './SchedulerWorkerHealth';
 import { TypedTaskList } from './types';
 
+/** The live data source call log, which only commercial builds have. */
+type ApiSourceCallLog = {
+    cleanupApiSourceCalls: (
+        cutoffDate: Date,
+        options: RetentionCleanupOptions,
+    ) => Promise<RetentionCleanupResult>;
+};
+
 export type SchedulerWorkerArguments = SchedulerTaskArguments & {
     agentActionLogModel: AgentActionLogModel;
+    apiSourceCallLog?: ApiSourceCallLog;
     usageDimensionsModel: UsageDimensionsModel;
     usageHistoryModel: UsageHistoryModel;
     usageProcessingModel?: UsageProcessingModel;
@@ -213,11 +225,14 @@ export class SchedulerWorker extends SchedulerTask {
 
     private readonly agentActionLogModel: AgentActionLogModel;
 
+    private readonly apiSourceCallLog: ApiSourceCallLog | undefined;
+
     private readonly approvalRequestCleanupMaxBatches: number;
 
     constructor(schedulerWorkerArgs: SchedulerWorkerArguments) {
         super(schedulerWorkerArgs);
         this.agentActionLogModel = schedulerWorkerArgs.agentActionLogModel;
+        this.apiSourceCallLog = schedulerWorkerArgs.apiSourceCallLog;
         this.approvalRequestCleanupMaxBatches =
             schedulerWorkerArgs.approvalRequestCleanupMaxBatches ?? 50;
         if (
@@ -2162,6 +2177,23 @@ export class SchedulerWorker extends SchedulerTask {
                 Logger.info(
                     `Agent action log cleanup completed. Total records deleted: ${actionCleanup.totalDeleted} in ${actionCleanup.batchCount} batches`,
                 );
+
+                // Live data source calls expire with the queries they belong to
+                if (this.apiSourceCallLog) {
+                    const callCleanup =
+                        await this.apiSourceCallLog.cleanupApiSourceCalls(
+                            cutoffDate,
+                            cleanupOptions,
+                        );
+                    Logger.info(
+                        `Live data source call log cleanup completed. Total records deleted: ${callCleanup.totalDeleted} in ${callCleanup.batchCount} batches`,
+                    );
+                    if (!callCleanup.completed) {
+                        Logger.warn(
+                            `Live data source call log cleanup stopped before clearing the retention backlog; the rest older than ${cutoffDate.toISOString()} goes in later runs`,
+                        );
+                    }
+                }
 
                 // Also clean up pre-aggregate daily stats (3-day retention)
                 try {

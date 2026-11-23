@@ -307,6 +307,39 @@ describe('buildComposeMergeSql', () => {
         ).toEqual([7 / 20.5, 0.5]);
     });
 
+    test('quotes names containing the quote character', async () => {
+        const keyName = 'the "month" -- net';
+        const calculationName = 'ratio "a/b" /* pct */ -- total';
+        const rows = await runOnDuckdb(
+            toSql(
+                build({
+                    joinKey: [{ ...joinKey[0], name: keyName }],
+                    outputAliasByColumn: {
+                        [keyName]: 'merge "month" -- net',
+                        c0_0: 'a_orders_count',
+                        c1_0: 'b_payments_sum',
+                    },
+                    tableCalculations: [
+                        {
+                            name: calculationName,
+                            displayName: 'Ratio',
+                            sql: '',
+                            formula: '=a_orders_count / b_payments_sum',
+                        },
+                    ],
+                }),
+            ),
+            SETUP,
+        );
+
+        expect(Object.keys(rows[0])).toEqual([
+            'merge "month" -- net',
+            'a_orders_count',
+            'b_payments_sum',
+            calculationName,
+        ]);
+    });
+
     test('casts string keys before coalescing', () => {
         const sql = toSql(
             build({

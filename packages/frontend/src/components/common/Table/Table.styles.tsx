@@ -75,15 +75,21 @@ TableContainer.displayName = 'TableContainer';
 
 interface TableProps extends ComponentPropsWithoutRef<'table'> {
     $showFooter?: boolean;
+    $virtualWidth?: number;
 }
 
 export const Table = forwardRef<HTMLTableElement, TableProps>(
-    ({ $showFooter: _showFooter, className, ...props }, ref) => (
+    ({ $showFooter: _showFooter, $virtualWidth, className, ...props }, ref) => (
         <Box
             component="table"
             ref={ref}
             className={[classes.table, className].filter(Boolean).join(' ')}
+            data-virtual-columns={$virtualWidth !== undefined || undefined}
             __vars={{
+                '--virtual-table-width':
+                    $virtualWidth === undefined
+                        ? undefined
+                        : `${$virtualWidth}px`,
                 '--frozen-column-background': FROZEN_COLUMN_BACKGROUND,
                 '--frozen-column-border-color': FROZEN_COLUMN_BORDER_COLOR,
                 '--frozen-column-border-width': FROZEN_COLUMN_BORDER_WIDTH,

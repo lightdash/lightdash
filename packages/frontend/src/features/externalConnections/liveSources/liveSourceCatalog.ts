@@ -7,11 +7,13 @@ import {
 } from '@lightdash/common';
 import { ATTIO_TOKEN_FORM } from './attioConnection';
 import { GITHUB_TOKEN_FORM } from './githubConnection';
+import { HUBSPOT_TOKEN_FORM } from './hubspotConnection';
 import attioIcon from './icons/attio.svg';
 import githubIcon from './icons/github.svg';
 import googleAdsIcon from './icons/google-ads.svg';
 import googleAnalyticsIcon from './icons/google-analytics.svg';
 import googleSearchConsoleIcon from './icons/google-search-console.svg';
+import hubspotIcon from './icons/hubspot.svg';
 import jiraIcon from './icons/jira.svg';
 import linkedinAdsIcon from './icons/linkedin-ads.svg';
 import metaAdsIcon from './icons/meta-ads.svg';
@@ -22,6 +24,7 @@ import salesforceIcon from './icons/salesforce.svg';
 import shopifyIcon from './icons/shopify.svg';
 import stripeIcon from './icons/stripe.svg';
 import youtubeAnalyticsIcon from './icons/youtube-analytics.svg';
+import iconClasses from './LiveSourceIcon.module.css';
 import { META_ADS_TOKEN_FORM } from './metaAdsConnection';
 import { PYLON_TOKEN_FORM } from './pylonConnection';
 import { type TokenLiveSourceForm } from './tokenLiveSource';
@@ -31,7 +34,8 @@ export type LiveSourceSetup =
     | { kind: 'google' }
     | { kind: 'posthog' }
     | { kind: 'token'; form: TokenLiveSourceForm }
-    | { kind: 'linkedin_ads' };
+    | { kind: 'linkedin_ads' }
+    | { kind: 'salesforce' };
 
 export type AvailableLiveSource = Omit<LiveIntegrationCatalogEntry, 'setup'> & {
     status: 'available';
@@ -64,12 +68,19 @@ const ICONS: Record<string, string> = {
     [ApiConnectorType.GITHUB]: githubIcon,
     [ApiConnectorType.PYLON]: pylonIcon,
     [ApiConnectorType.ATTIO]: attioIcon,
+    [ApiConnectorType.HUBSPOT]: hubspotIcon,
+    [ApiConnectorType.SALESFORCE]: salesforceIcon,
     shopify: shopifyIcon,
     stripe: stripeIcon,
-    salesforce: salesforceIcon,
     mixpanel: mixpanelIcon,
     jira: jiraIcon,
 };
+
+/** One-colour marks, such as GitHub's, drawn dark and lightened in dark mode. */
+const MONO_ICONS = new Set([githubIcon]);
+
+export const getLiveSourceIconClass = (icon: string) =>
+    MONO_ICONS.has(icon) ? iconClasses.mono : undefined;
 
 /** The order sources are offered in; every connector appears once. */
 const DISPLAY_ORDER = [
@@ -83,6 +94,8 @@ const DISPLAY_ORDER = [
     ApiConnectorType.GITHUB,
     ApiConnectorType.PYLON,
     ApiConnectorType.ATTIO,
+    ApiConnectorType.HUBSPOT,
+    ApiConnectorType.SALESFORCE,
 ] as const satisfies readonly ApiConnectorType[];
 
 /** The form of each integration connected with an account id and a token. */
@@ -91,6 +104,7 @@ const TOKEN_FORMS: Partial<Record<ApiConnectorType, TokenLiveSourceForm>> = {
     [ApiConnectorType.GITHUB]: GITHUB_TOKEN_FORM,
     [ApiConnectorType.PYLON]: PYLON_TOKEN_FORM,
     [ApiConnectorType.ATTIO]: ATTIO_TOKEN_FORM,
+    [ApiConnectorType.HUBSPOT]: HUBSPOT_TOKEN_FORM,
 };
 
 const toSetup = (entry: LiveIntegrationCatalogEntry): LiveSourceSetup => {

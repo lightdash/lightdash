@@ -1,0 +1,20 @@
+name: Cancel PR checks on close
+
+on:
+  pull_request:
+    types: [closed]
+
+# Shares the PR Checks group, so this run cancels the one still in progress
+# for a merged or closed pull request, whose preview is gone.
+concurrency:
+  group: PR Checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  cancel:
+    name: Cancel in-progress PR checks
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Cancelled any in-progress PR Checks run for this pull request"

@@ -48,6 +48,16 @@
     vertical-align: top;
 }
 
+.table[data-virtual-columns] {
+    width: var(--virtual-table-width);
+    table-layout: fixed;
+}
+
+.table[data-virtual-columns] .thContainer > :first-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
 .table th {
     font-weight: 600;
 }

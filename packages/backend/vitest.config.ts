@@ -19,6 +19,7 @@ const alwaysIsolated = [
     'src/dbt/dbtPartialParseBaseline.test.ts',
     'src/ee/models/AiAgentDocumentModel.test.ts',
     'src/ee/postgresWire/PostgresWireServer.test.ts',
+    'src/ee/services/EmbedService/EmbedService.aiAgentDashboardViewer.test.ts',
     'src/models/OrganizationModel.test.ts',
     'src/nats/natsConfig.test.ts',
 ];

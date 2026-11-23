@@ -6,10 +6,6 @@
     white-space: nowrap;
 }
 
-.header > svg {
-    flex: none;
-}
-
 .source {
     display: inline-flex;
     align-items: center;

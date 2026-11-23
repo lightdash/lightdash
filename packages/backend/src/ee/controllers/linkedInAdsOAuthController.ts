@@ -46,6 +46,7 @@ export class LinkedInAdsOAuthController extends BaseController {
         @Query() adAccountId: string,
         @Query() connectionUuid?: string,
         @Query() returnTo?: string,
+        @Query() explorePrefix?: string,
     ): Promise<void> {
         assertRegisteredAccount(req.account);
         const { authorizeUrl, state, session } =
@@ -55,6 +56,7 @@ export class LinkedInAdsOAuthController extends BaseController {
                 {
                     name,
                     adAccountId,
+                    explorePrefix,
                     connectionUuid: connectionUuid ?? null,
                 },
             );

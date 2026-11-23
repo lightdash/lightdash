@@ -213,8 +213,6 @@ const Settings: FC = () => {
         showMyAgentConnections,
         hasSocialLogin,
         isMyAgentConnectionsLoading,
-        isMobileSettingsEnabled,
-        isMobileSettingsFlagLoading,
         isHealthLoading,
         healthError,
         isUserLoading,
@@ -524,12 +522,10 @@ const Settings: FC = () => {
             });
         }
 
-        if (isMobileSettingsEnabled) {
-            allowedRoutes.push({
-                path: '/mobile',
-                element: <MobileSettingsPage />,
-            });
-        }
+        allowedRoutes.push({
+            path: '/mobile',
+            element: <MobileSettingsPage />,
+        });
 
         if (
             (dataAppsFlag?.enabled || isChartStudioAvailable) &&
@@ -936,7 +932,6 @@ const Settings: FC = () => {
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
-        isMobileSettingsEnabled,
         projectSettingsAccess,
     ]);
     const routeElements = useRoutes(routes);
@@ -1088,10 +1083,6 @@ const Settings: FC = () => {
             matchPath('/generalSettings/lightdashAnalytics', location.pathname),
         );
 
-    const isAwaitingMobileRoute =
-        isMobileSettingsFlagLoading &&
-        Boolean(matchPath('/generalSettings/mobile', location.pathname));
-
     const isAwaitingBillingRoute =
         isBillingPortalFlagLoading &&
         Boolean(matchPath('/generalSettings/billing', location.pathname));
@@ -1131,7 +1122,6 @@ const Settings: FC = () => {
         isAwaitingAgentIdentityRoute ||
         isAwaitingDataAppsRoute ||
         isAwaitingAnalyticsRoute ||
-        isAwaitingMobileRoute ||
         isAwaitingBillingRoute ||
         isAwaitingAiCreditsRoute
     ) {

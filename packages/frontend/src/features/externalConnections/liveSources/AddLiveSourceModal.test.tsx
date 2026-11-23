@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -28,7 +28,10 @@ vi.mock('../../../providers/App/useApp', () => ({
 
 const onPick = vi.fn();
 
-const renderModal = ({ canUseLinkedInAds = true } = {}) =>
+const renderModal = ({
+    canUseLinkedInAds = true,
+    canUseSalesforce = true,
+} = {}) =>
     renderWithProviders(
         <MemoryRouter>
             <AddLiveSourceModal
@@ -37,25 +40,21 @@ const renderModal = ({ canUseLinkedInAds = true } = {}) =>
                 projectUuid="project-1"
                 canUseGoogle
                 canUseLinkedInAds={canUseLinkedInAds}
+                canUseSalesforce={canUseSalesforce}
                 onPick={onPick}
             />
         </MemoryRouter>,
     );
 
-const customCard = () => {
-    const form = screen
-        .getByRole('textbox', { name: 'Source name' })
-        .closest('form');
-    if (form === null) {
-        throw new Error('Custom source form not found');
-    }
-    return within(form);
-};
+const openRequest = () =>
+    userEvent.click(
+        screen.getByRole('button', { name: 'Request a live source' }),
+    );
 
 const customInput = () => screen.getByRole('textbox', { name: 'Source name' });
 
 const customRequestButton = () =>
-    customCard().getByRole('button', { name: 'Request' });
+    screen.getByRole('button', { name: 'Request' });
 
 describe('AddLiveSourceModal', () => {
     beforeEach(() => {
@@ -68,7 +67,9 @@ describe('AddLiveSourceModal', () => {
         resultsCacheStatus.mockReturnValue({ data: { enabled: false } });
         renderModal();
 
-        expect(screen.getByText(/Project caching is off/)).toBeInTheDocument();
+        expect(
+            screen.getByText(/Caching is off for this project/),
+        ).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Turn on' })).toHaveAttribute(
             'href',
             '/generalSettings/projectManagement/project-1/caching',
@@ -78,34 +79,34 @@ describe('AddLiveSourceModal', () => {
     it('shows no warning while the project caches results or is loading', () => {
         renderModal();
         expect(
-            screen.queryByText(/Project caching is off/),
+            screen.queryByText(/Caching is off for this project/),
         ).not.toBeInTheDocument();
 
         resultsCacheStatus.mockReturnValue({ data: undefined });
         renderModal();
         expect(
-            screen.queryByText(/Project caching is off/),
+            screen.queryByText(/Caching is off for this project/),
         ).not.toBeInTheDocument();
     });
 
-    it('shows LinkedIn Ads as requestable without a LinkedIn client', async () => {
-        renderModal({ canUseLinkedInAds: false });
+    it('lists only integrations this instance can connect', () => {
+        renderModal({ canUseLinkedInAds: false, canUseSalesforce: false });
 
-        const requestButtons = screen.getAllByRole('button', {
-            name: 'Request',
-        });
-        expect(screen.getByText('LinkedIn Ads')).toBeInTheDocument();
-        await userEvent.click(requestButtons[0]);
+        expect(screen.queryByText('LinkedIn Ads')).not.toBeInTheDocument();
+        expect(screen.queryByText('Salesforce')).not.toBeInTheDocument();
+        expect(screen.queryByText('Jira')).not.toBeInTheDocument();
+        expect(screen.queryByText('Coming soon')).not.toBeInTheDocument();
+        expect(screen.getByText('PostHog')).toBeInTheDocument();
+    });
 
-        expect(track).toHaveBeenCalledWith(
-            expect.objectContaining({
-                name: EventName.LIVE_DATA_SOURCE_REQUESTED,
-                properties: expect.objectContaining({
-                    integration: 'linkedin_ads',
-                }),
-            }),
-        );
-        expect(onPick).not.toHaveBeenCalled();
+    it('asks for a source name only after Request a live source is clicked', async () => {
+        renderModal();
+
+        expect(
+            screen.queryByRole('textbox', { name: 'Source name' }),
+        ).not.toBeInTheDocument();
+        await openRequest();
+        expect(customInput()).toBeInTheDocument();
     });
 
     it('connects LinkedIn Ads when the server has a LinkedIn client', async () => {
@@ -118,6 +119,7 @@ describe('AddLiveSourceModal', () => {
 
     it('tracks a typed source by its trimmed name', async () => {
         renderModal();
+        await openRequest();
 
         await userEvent.type(customInput(), '  Hubspot  ');
         await userEvent.click(customRequestButton());
@@ -135,25 +137,31 @@ describe('AddLiveSourceModal', () => {
 
     it('requests a typed source when Enter is pressed', async () => {
         renderModal();
+        await openRequest();
 
         await userEvent.type(customInput(), 'Hubspot{Enter}');
 
         expect(track).toHaveBeenCalledOnce();
     });
 
-    it('clears the input and confirms the request so another can be added', async () => {
+    it('confirms the request and starts the next one empty', async () => {
         renderModal();
+        await openRequest();
 
         await userEvent.type(customInput(), 'Hubspot{Enter}');
 
+        expect(screen.getAllByText('Requested Hubspot').length).toBeGreaterThan(
+            0,
+        );
+        await openRequest();
         expect(customInput()).toHaveValue('');
-        expect(screen.getByText('Requested Hubspot')).toBeInTheDocument();
     });
 
     it.each(['', '   '])(
         'does not request a source named %j',
         async (sourceName) => {
             renderModal();
+            await openRequest();
 
             if (sourceName !== '') {
                 await userEvent.type(customInput(), sourceName);
@@ -164,27 +172,6 @@ describe('AddLiveSourceModal', () => {
             expect(track).not.toHaveBeenCalled();
         },
     );
-
-    it('tracks a catalog request by its id, without a custom name', async () => {
-        renderModal();
-
-        const jiraCard = screen.getByText('Jira').closest('[data-requestable]');
-        if (!(jiraCard instanceof HTMLElement)) {
-            throw new Error('Jira card not found');
-        }
-        await userEvent.click(
-            within(jiraCard).getByRole('button', { name: 'Request' }),
-        );
-
-        expect(track).toHaveBeenCalledExactlyOnceWith({
-            name: EventName.LIVE_DATA_SOURCE_REQUESTED,
-            properties: {
-                organizationId: 'org-1',
-                projectId: 'project-1',
-                integration: 'jira',
-            },
-        });
-    });
 
     it('still opens setup for an available source', async () => {
         renderModal();

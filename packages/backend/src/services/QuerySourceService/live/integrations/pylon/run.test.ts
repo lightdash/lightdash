@@ -1,5 +1,6 @@
 import {
     ApiConnectorType,
+    DimensionType,
     ParameterError,
     TooManyRequestsError,
     UnexpectedServerError,
@@ -173,6 +174,63 @@ describe('pylonIntegration issues', () => {
         expect(result.hasMoreRows).toBe(true);
     });
 
+    it('filters first response on the rows read, counting only kept rows against the limit', async () => {
+        const { source, send } = connect(
+            page([
+                issue(1, { first_response_seconds: 600 }),
+                issue(2, { first_response_seconds: 7_200 }),
+                issue(3, { first_response_time: null }),
+                issue(4, { first_response_seconds: 9_000 }),
+                issue(5, { first_response_seconds: 6_000 }),
+            ]),
+        );
+
+        const result = await run(
+            source,
+            {
+                kind: 'issues',
+                columns: ['number', 'first_response_minutes'],
+                localFilters: [
+                    {
+                        column: 'first_response_minutes',
+                        operator: 'greater_than',
+                        value: 90,
+                    },
+                ],
+            },
+            2,
+        );
+
+        expect(send.mock.calls[0][0].body.limit).toBe(1_000);
+        expect(result.rows).toEqual([
+            { number: 2, first_response_minutes: 120 },
+            { number: 4, first_response_minutes: 150 },
+        ]);
+        expect(result.hasMoreRows).toBe(true);
+    });
+
+    it('applies null checks on the rows read, whatever Pylon returns', async () => {
+        const { source } = connect(
+            page([
+                issue(1),
+                issue(2, { account: null }),
+                issue(3, { account: null, assignee: null }),
+            ]),
+        );
+
+        const result = await run(source, {
+            kind: 'issues',
+            columns: ['number'],
+            localFilters: [
+                { column: 'account_id', operator: 'is_null' },
+                { column: 'assignee_id', operator: 'is_not_null' },
+            ],
+        });
+
+        expect(result.rows).toEqual([{ number: 2 }]);
+        expect(result.hasMoreRows).toBe(false);
+    });
+
     it('returns no rows when no issues match', async () => {
         const { source } = connect(page([]));
 
@@ -288,6 +346,259 @@ describe('pylonIntegration issues', () => {
 
         expect(send).toHaveBeenCalledTimes(1);
         expect(result.rows).toEqual([]);
+    });
+});
+
+describe('pylonIntegration date grains', () => {
+    it('reads the Monday of the week and the first of the month, in UTC', async () => {
+        const { source } = connect(
+            page([
+                issue(1, {
+                    created_at: '2026-11-01T10:00:00Z',
+                    updated_at: '2026-11-30T23:59:00Z',
+                    resolution_time: '2026-11-04T23:00:00Z',
+                }),
+                issue(2, { created_at: '2026-10-31T23:59:00Z' }),
+            ]),
+        );
+
+        const { rows } = await run(source, {
+            kind: 'issues',
+            filters: [LAST_30_DAYS],
+            columns: [
+                'created_at_week',
+                'created_at_month',
+                'updated_at_week',
+                'updated_at_month',
+                'resolved_at_week',
+                'resolved_at_month',
+            ],
+        });
+
+        // 2026-11-01 is a Sunday, so its week starts on the Monday before
+        expect(rows).toEqual([
+            {
+                created_at_week: '2026-10-26',
+                created_at_month: '2026-11-01',
+                updated_at_week: '2026-11-30',
+                updated_at_month: '2026-11-01',
+                resolved_at_week: '2026-11-02',
+                resolved_at_month: '2026-11-01',
+            },
+            expect.objectContaining({
+                created_at_week: '2026-10-26',
+                created_at_month: '2026-10-01',
+                // An open issue has no resolved grains
+                resolved_at_week: null,
+                resolved_at_month: null,
+            }),
+        ]);
+    });
+});
+
+describe('pylonIntegration issue fields', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('reads SLA, business-hours, priority, CSAT and linked issue fields', async () => {
+        const { source } = connect(
+            page([
+                issue(1, {
+                    first_response_breach_time: '2026-11-01T12:00:00Z',
+                    resolution_time: '2026-11-03T08:00:00Z',
+                    resolution_breach_time: '2026-11-04T09:30:00Z',
+                    next_reply: { breach_time: '2026-11-02T09:00:00Z' },
+                    first_resolution_time: '2026-11-02T22:00:00Z',
+                    business_hours_first_response_seconds: 900,
+                    business_hours_resolution_seconds: 18_000,
+                    custom_fields: {
+                        priority: { value: 'high' },
+                        product_area: { value: '', values: ['api'] },
+                    },
+                    csat_responses: [{ score: 4, comment: 'Quick fix' }],
+                    external_issues: [
+                        {
+                            external_id: 'a',
+                            source: 'linear',
+                            link: 'https://linear.app/x/issue/A-1',
+                        },
+                        {
+                            external_id: 'b',
+                            source: 'github',
+                            link: 'https://github.com/x/y/issues/2',
+                        },
+                    ],
+                }),
+            ]),
+        );
+
+        const { rows, columns } = await run(source, {
+            kind: 'issues',
+            filters: [LAST_30_DAYS],
+            columns: [
+                'first_response_due',
+                'first_response_breached',
+                'resolution_due',
+                'resolution_breached',
+                'next_reply_due',
+                'first_resolved_at',
+                'business_first_response_minutes',
+                'business_resolution_hours',
+                'created_time',
+                'priority',
+                'csat_comment',
+                'linked_issue_sources',
+                'linked_issue_links',
+            ],
+        });
+
+        expect(rows).toEqual([
+            {
+                first_response_due: '2026-11-01T12:00:00Z',
+                first_response_breached: false,
+                resolution_due: '2026-11-04T09:30:00Z',
+                resolution_breached: false,
+                next_reply_due: '2026-11-02T09:00:00Z',
+                first_resolved_at: '2026-11-02',
+                business_first_response_minutes: 15,
+                business_resolution_hours: 5,
+                created_time: '2026-11-01T09:30:00Z',
+                priority: 'high',
+                csat_comment: 'Quick fix',
+                linked_issue_sources: 'linear, github',
+                linked_issue_links:
+                    'https://linear.app/x/issue/A-1, https://github.com/x/y/issues/2',
+            },
+        ]);
+        expect(columns).toEqual(
+            expect.arrayContaining([
+                { name: 'first_response_due', type: DimensionType.TIMESTAMP },
+                {
+                    name: 'first_response_breached',
+                    type: DimensionType.BOOLEAN,
+                },
+                { name: 'first_resolved_at', type: DimensionType.DATE },
+                {
+                    name: 'business_first_response_minutes',
+                    type: DimensionType.NUMBER,
+                },
+            ]),
+        );
+    });
+
+    it('flags a met, a missed and a pending deadline', async () => {
+        vi.useFakeTimers({ now: new Date('2026-11-05T00:00:00Z') });
+        const { source } = connect(
+            page([
+                // Met: replied before the deadline
+                issue(1, {
+                    first_response_breach_time: '2026-11-01T12:00:00Z',
+                }),
+                // Missed: replied after the deadline
+                issue(2, {
+                    first_response_time: '2026-11-01T13:00:00Z',
+                    first_response_breach_time: '2026-11-01T12:00:00Z',
+                }),
+                // Missed: no reply and the deadline passed
+                issue(3, {
+                    first_response_time: null,
+                    first_response_breach_time: '2026-11-04T12:00:00Z',
+                }),
+                // Pending: no reply and the deadline is still ahead
+                issue(4, {
+                    first_response_time: null,
+                    first_response_breach_time: '2026-11-06T12:00:00Z',
+                }),
+                // No SLA
+                issue(5),
+            ]),
+        );
+
+        const { rows } = await run(source, {
+            kind: 'issues',
+            filters: [LAST_30_DAYS],
+            columns: ['first_response_breached', 'resolution_breached'],
+        });
+
+        expect(rows.map((row) => row.first_response_breached)).toEqual([
+            false,
+            true,
+            true,
+            false,
+            null,
+        ]);
+        expect(rows.map((row) => row.resolution_breached)).toEqual([
+            null,
+            null,
+            null,
+            null,
+            null,
+        ]);
+    });
+
+    it('leaves the priority and CSAT comment empty when there are none', async () => {
+        const { source } = connect(
+            page([
+                issue(1, {
+                    custom_fields: { product_area: { value: 'api' } },
+                    csat_responses: [{ score: 5, comment: null }],
+                }),
+            ]),
+        );
+
+        const { rows } = await run(source, {
+            kind: 'issues',
+            filters: [LAST_30_DAYS],
+            columns: ['priority', 'csat_comment', 'linked_issue_sources'],
+        });
+
+        expect(rows).toEqual([
+            { priority: null, csat_comment: null, linked_issue_sources: null },
+        ]);
+    });
+
+    it('reads odd field values as empty instead of failing the query', async () => {
+        vi.useFakeTimers({ now: new Date('2026-11-05T00:00:00Z') });
+        const { source } = connect(
+            page([
+                issue(1, {
+                    first_response_breach_time: '',
+                    resolution_time: '2026-11-03T08:00:00Z',
+                    resolution_breach_time: '2026-11-02T08:00:00Z',
+                    next_reply: { breach_time: '' },
+                    custom_fields: { priority: { value: ['high', 'urgent'] } },
+                    external_issues: [
+                        { external_id: 'a', source: 'linear', link: null },
+                    ],
+                }),
+            ]),
+        );
+
+        const { rows } = await run(source, {
+            kind: 'issues',
+            filters: [LAST_30_DAYS],
+            columns: [
+                'first_response_due',
+                'next_reply_due',
+                'resolution_breached',
+                'priority',
+                'linked_issue_sources',
+                'linked_issue_links',
+            ],
+        });
+
+        expect(rows).toEqual([
+            {
+                first_response_due: null,
+                next_reply_due: null,
+                // Resolved a day after its deadline
+                resolution_breached: true,
+                priority: null,
+                linked_issue_sources: 'linear',
+                linked_issue_links: null,
+            },
+        ]);
     });
 });
 

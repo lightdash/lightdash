@@ -226,6 +226,7 @@ const setup = ({
     /** The project branch as Studio reads it. */
     checkout?: ApiCheckout | null;
 } = {}) => {
+    const track = vi.fn();
     const upsert = vi.fn(
         (
             _projectUuid: string,
@@ -457,6 +458,7 @@ const setup = ({
         },
     );
     const args: SemanticStudioServiceArguments = {
+        analytics: { track },
         aiWritebackService: {
             openStudioCheckout: async () => {
                 if (checkout === null) throw new Error('No checkout');
@@ -798,6 +800,7 @@ const setup = ({
         setActiveWorkspace: (next: typeof activeWorkspace) => {
             activeWorkspace = next;
         },
+        track,
         studioThreads,
         draftWorkspaces,
         startWorkspace,
@@ -859,6 +862,75 @@ const draftAndApply = async (
 };
 
 describe('SemanticStudioService', () => {
+    describe('analytics', () => {
+        const tracked = (context: ReturnType<typeof setup>) =>
+            context.track.mock.calls.map(([{ event, properties }]) => ({
+                event,
+                ...properties,
+            }));
+
+        it('tracks a chat change that starts a draft, then its publish', async () => {
+            const context = setup();
+            await draftAndApply(context, [
+                {
+                    name: 'orders',
+                    dimensions: [
+                        {
+                            name: 'amount',
+                            metrics: { revenue: { type: MetricType.SUM } },
+                        },
+                    ],
+                },
+            ]);
+            await vi.waitFor(() =>
+                expect(tracked(context)).toEqual([
+                    expect.objectContaining({
+                        event: 'semantic_studio.draft_started',
+                        trigger: 'first_change',
+                    }),
+                    expect.objectContaining({
+                        event: 'semantic_studio.change_saved',
+                        source: 'chat',
+                        modelCount: 1,
+                        failedModelCount: 0,
+                        startedDraft: true,
+                        organizationId: ORGANIZATION_UUID,
+                        projectId: PROJECT_UUID,
+                        appliesAs: 'live',
+                    }),
+                    expect.objectContaining({
+                        event: 'semantic_studio.draft_published',
+                        outcome: 'live',
+                        scope: 'draft',
+                    }),
+                ]),
+            );
+        });
+
+        it('tracks a hand edit that fails with its reason and no model content', async () => {
+            const context = setup();
+            await context.service.saveDraftModel(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+                { base: 'stale', content: orders },
+            );
+            await vi.waitFor(() =>
+                expect(tracked(context)).toEqual([
+                    {
+                        event: 'semantic_studio.change_failed',
+                        source: 'hand',
+                        reason: 'stale',
+                        modelCount: 1,
+                        organizationId: ORGANIZATION_UUID,
+                        projectId: PROJECT_UUID,
+                        appliesAs: 'live',
+                    },
+                ]),
+            );
+        });
+    });
+
     describe('proposing a change to the draft', () => {
         it('adds what passes to the draft and writes nothing live', async () => {
             const context = setup();

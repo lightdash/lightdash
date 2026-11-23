@@ -9,7 +9,10 @@ import {
 import { searchConsoleIntegration } from '.';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
-import { getSearchConsoleQueryPath } from './run';
+import {
+    getSearchConsoleQueryPath,
+    SEARCH_CONSOLE_MAX_QUERY_ROWS,
+} from './run';
 
 const jsonResponse = (
     body: unknown,
@@ -89,6 +92,7 @@ describe('searchConsoleIntegration run', () => {
         expect(result.columns).toEqual([
             { name: 'date', type: DimensionType.DATE },
             { name: 'query', type: DimensionType.STRING },
+            { name: 'search_type', type: DimensionType.STRING },
             { name: 'clicks', type: DimensionType.NUMBER },
             { name: 'impressions', type: DimensionType.NUMBER },
             { name: 'ctr', type: DimensionType.NUMBER },
@@ -98,6 +102,7 @@ describe('searchConsoleIntegration run', () => {
             {
                 date: '2026-10-01',
                 query: 'bi tool',
+                search_type: 'web',
                 clicks: 12,
                 impressions: 300,
                 ctr: 0.04,
@@ -106,6 +111,7 @@ describe('searchConsoleIntegration run', () => {
             {
                 date: '2026-10-01',
                 query: 'dbt bi',
+                search_type: 'web',
                 clicks: 8,
                 impressions: 90,
                 ctr: 0.088,
@@ -113,6 +119,44 @@ describe('searchConsoleIntegration run', () => {
             },
         ]);
         expect(result.hasMoreRows).toBe(true);
+    });
+
+    describe('when every row is read for a sort on our side', () => {
+        const fullRead = (dimensions: string[]) => ({
+            query: JSON.stringify({
+                startDate: '2026-10-01',
+                endDate: '2026-10-28',
+                dimensions,
+            }),
+            limit: SEARCH_CONSOLE_MAX_QUERY_ROWS,
+        });
+        const tooManyRows = {
+            rows: Array.from(
+                { length: SEARCH_CONSOLE_MAX_QUERY_ROWS + 1 },
+                (_, index) => ({
+                    keys: ['2026-10-01', `/page-${index}`],
+                    clicks: 1,
+                    impressions: 1,
+                    ctr: 1,
+                    position: 1,
+                }),
+            ),
+        };
+
+        it('says why a date grouping with too many rows is refused', async () => {
+            const { source } = connect(jsonResponse(tooManyRows));
+            const run = source.run(fullRead(['date', 'page']));
+            await expect(run).rejects.toBeInstanceOf(ParameterError);
+            await expect(run).rejects.toThrow(
+                /grouped by date in date order.*Narrow the date range/,
+            );
+        });
+
+        it('leaves a query without the date to the generic check', async () => {
+            const { source } = connect(jsonResponse(tooManyRows));
+            const result = await source.run(fullRead(['page']));
+            expect(result.hasMoreRows).toBe(true);
+        });
     });
 
     it('uses a smaller row limit from the request', async () => {
@@ -148,9 +192,55 @@ describe('searchConsoleIntegration run', () => {
         );
 
         expect(result.rows).toEqual([
-            { clicks: 25, impressions: 590, ctr: 0.042, position: 3 },
+            {
+                search_type: 'web',
+                clicks: 25,
+                impressions: 590,
+                ctr: 0.042,
+                position: 3,
+            },
         ]);
         expect(result.hasMoreRows).toBe(false);
+    });
+
+    it('echoes the search type it read, and splits by search appearance', async () => {
+        const { source, send } = connect(
+            jsonResponse({
+                rows: [
+                    {
+                        keys: ['VIDEO'],
+                        clicks: 4,
+                        impressions: 40,
+                        ctr: 0.1,
+                        position: 2,
+                    },
+                ],
+            }),
+        );
+
+        const result = await source.run(
+            query({
+                startDate: '2026-10-01',
+                endDate: '2026-10-28',
+                dimensions: ['searchAppearance'],
+                type: 'image',
+            }),
+        );
+
+        expect(send.mock.calls[0][0].body).toMatchObject({
+            dimensions: ['searchAppearance'],
+            type: 'image',
+        });
+        expect(result.rows).toEqual([
+            {
+                searchAppearance: 'VIDEO',
+                search_type: 'image',
+                clicks: 4,
+                impressions: 40,
+                ctr: 0.1,
+                position: 2,
+            },
+        ]);
     });
 
     it('returns no rows when the site has no data for the range', async () => {

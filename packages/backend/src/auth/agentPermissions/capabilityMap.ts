@@ -546,6 +546,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiServiceAccountController.upsert': [AgentCapability.Administration],
     'AiThreadFileController.delete': [AgentCapability.Delete],
     'AiThreadFileController.upload': [AgentCapability.DeployUpload],
+    'AiThreadFileController.uploadImage': [AgentCapability.DeployUpload],
     'AiWritebackController.closeWritebackPullRequest': [
         AgentCapability.DbtWriteback,
     ],
@@ -1853,6 +1854,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'QueryController.executeAsyncMergeQuery': [AgentCapability.Query],
     'QueryController.executeAsyncMetricQuery': [AgentCapability.Query],
     'QueryController.executeAsyncSavedChartQuery': [AgentCapability.Query],
+    'QueryController.executeAsyncSavedMergeQuery': [AgentCapability.Query],
     'QueryController.executeAsyncSqlChartQuery': [
         AgentCapability.Query,
         AgentCapability.RawSql,

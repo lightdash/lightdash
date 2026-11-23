@@ -5,15 +5,49 @@ exports[`live data source names > Attio explore names and field ids never change
   "explores": [
     {
       "fieldIds": [
-        "attio_records_attribute_count",
-        "attio_records_created_at",
-        "attio_records_name",
-        "attio_records_record_id",
-        "attio_records_stage",
-        "attio_records_value",
-        "attio_records_web_url",
+        "attio_companies_created_at",
+        "attio_companies_record_id",
+        "attio_companies_web_url",
       ],
-      "name": "attio_records",
+      "name": "attio_companies",
+    },
+    {
+      "fieldIds": [
+        "attio_people_created_at",
+        "attio_people_email_addresses",
+        "attio_people_record_id",
+        "attio_people_web_url",
+      ],
+      "name": "attio_people",
+    },
+    {
+      "fieldIds": [
+        "attio_deals_attribute_count",
+        "attio_deals_created_at",
+        "attio_deals_name",
+        "attio_deals_record_id",
+        "attio_deals_stage",
+        "attio_deals_stage__entered_at",
+        "attio_deals_value",
+        "attio_deals_web_url",
+      ],
+      "name": "attio_deals",
+    },
+    {
+      "fieldIds": [
+        "attio_users_created_at",
+        "attio_users_record_id",
+        "attio_users_web_url",
+      ],
+      "name": "attio_users",
+    },
+    {
+      "fieldIds": [
+        "attio_workspaces_created_at",
+        "attio_workspaces_record_id",
+        "attio_workspaces_web_url",
+      ],
+      "name": "attio_workspaces",
     },
   ],
   "reservedExploreNames": [],
@@ -192,6 +226,46 @@ exports[`live data source names > Google Analytics explore names and field ids n
 }
 `;
 
+exports[`live data source names > HubSpot explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "hubspot_deals_amount",
+        "hubspot_deals_count",
+        "hubspot_deals_created_at",
+        "hubspot_deals_dealname",
+        "hubspot_deals_dealstage",
+        "hubspot_deals_property_count",
+        "hubspot_deals_record_id",
+        "hubspot_deals_updated_at",
+      ],
+      "name": "hubspot_deals",
+    },
+    {
+      "fieldIds": [
+        "hubspot_contacts_count",
+        "hubspot_contacts_created_at",
+        "hubspot_contacts_email",
+        "hubspot_contacts_record_id",
+        "hubspot_contacts_updated_at",
+      ],
+      "name": "hubspot_contacts",
+    },
+    {
+      "fieldIds": [
+        "hubspot_companies_count",
+        "hubspot_companies_created_at",
+        "hubspot_companies_record_id",
+        "hubspot_companies_updated_at",
+      ],
+      "name": "hubspot_companies",
+    },
+  ],
+  "reservedExploreNames": [],
+}
+`;
+
 exports[`live data source names > LinkedIn Ads explore names and field ids never change 1`] = `
 {
   "explores": [
@@ -325,13 +399,30 @@ exports[`live data source names > Pylon explore names and field ids never change
         "pylon_issues_account_id",
         "pylon_issues_account_name",
         "pylon_issues_assignee_email",
+        "pylon_issues_business_first_response_minutes",
+        "pylon_issues_business_resolution_hours",
         "pylon_issues_created_at",
+        "pylon_issues_created_at_month",
+        "pylon_issues_created_at_week",
+        "pylon_issues_created_time",
+        "pylon_issues_csat_comment",
         "pylon_issues_csat_score",
+        "pylon_issues_first_resolved_at",
+        "pylon_issues_first_response_breached",
+        "pylon_issues_first_response_due",
         "pylon_issues_first_response_minutes",
         "pylon_issues_link",
+        "pylon_issues_linked_issue_links",
+        "pylon_issues_linked_issue_sources",
+        "pylon_issues_next_reply_due",
         "pylon_issues_number",
+        "pylon_issues_priority",
+        "pylon_issues_resolution_breached",
+        "pylon_issues_resolution_due",
         "pylon_issues_resolution_hours",
         "pylon_issues_resolved_at",
+        "pylon_issues_resolved_at_month",
+        "pylon_issues_resolved_at_week",
         "pylon_issues_source",
         "pylon_issues_state",
         "pylon_issues_tags",
@@ -340,6 +431,8 @@ exports[`live data source names > Pylon explore names and field ids never change
         "pylon_issues_touches",
         "pylon_issues_type",
         "pylon_issues_updated_at",
+        "pylon_issues_updated_at_month",
+        "pylon_issues_updated_at_week",
       ],
       "name": "pylon_issues",
     },
@@ -377,6 +470,95 @@ exports[`live data source names > Pylon explore names and field ids never change
 }
 `;
 
+exports[`live data source names > Salesforce explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "salesforce_opportunities_account__name",
+        "salesforce_opportunities_accountid",
+        "salesforce_opportunities_amount__avg",
+        "salesforce_opportunities_amount__max",
+        "salesforce_opportunities_amount__min",
+        "salesforce_opportunities_amount__sum",
+        "salesforce_opportunities_closedate",
+        "salesforce_opportunities_closedate__month",
+        "salesforce_opportunities_closedate__quarter",
+        "salesforce_opportunities_closedate__year",
+        "salesforce_opportunities_count",
+        "salesforce_opportunities_created_at",
+        "salesforce_opportunities_created_at_day",
+        "salesforce_opportunities_created_at_month",
+        "salesforce_opportunities_created_at_quarter",
+        "salesforce_opportunities_created_at_year",
+        "salesforce_opportunities_isdeleted",
+        "salesforce_opportunities_iswon",
+        "salesforce_opportunities_lastmodifieddate",
+        "salesforce_opportunities_lastmodifieddate__month",
+        "salesforce_opportunities_lastmodifieddate__quarter",
+        "salesforce_opportunities_lastmodifieddate__year",
+        "salesforce_opportunities_name",
+        "salesforce_opportunities_owner__name",
+        "salesforce_opportunities_ownerid",
+        "salesforce_opportunities_probability__avg",
+        "salesforce_opportunities_probability__max",
+        "salesforce_opportunities_probability__min",
+        "salesforce_opportunities_record_id",
+        "salesforce_opportunities_region__c",
+        "salesforce_opportunities_seats__c__avg",
+        "salesforce_opportunities_seats__c__max",
+        "salesforce_opportunities_seats__c__min",
+        "salesforce_opportunities_seats__c__sum",
+        "salesforce_opportunities_stagename",
+        "salesforce_opportunities_systemmodstamp",
+        "salesforce_opportunities_systemmodstamp__month",
+        "salesforce_opportunities_systemmodstamp__quarter",
+        "salesforce_opportunities_systemmodstamp__year",
+      ],
+      "name": "salesforce_opportunities",
+    },
+    {
+      "fieldIds": [
+        "salesforce_accounts_count",
+        "salesforce_accounts_created_at",
+        "salesforce_accounts_created_at_day",
+        "salesforce_accounts_created_at_month",
+        "salesforce_accounts_created_at_quarter",
+        "salesforce_accounts_created_at_year",
+        "salesforce_accounts_record_id",
+      ],
+      "name": "salesforce_accounts",
+    },
+    {
+      "fieldIds": [
+        "salesforce_leads_company",
+        "salesforce_leads_count",
+        "salesforce_leads_created_at",
+        "salesforce_leads_created_at_day",
+        "salesforce_leads_created_at_month",
+        "salesforce_leads_created_at_quarter",
+        "salesforce_leads_created_at_year",
+        "salesforce_leads_record_id",
+      ],
+      "name": "salesforce_leads",
+    },
+    {
+      "fieldIds": [
+        "salesforce_contacts_count",
+        "salesforce_contacts_created_at",
+        "salesforce_contacts_created_at_day",
+        "salesforce_contacts_created_at_month",
+        "salesforce_contacts_created_at_quarter",
+        "salesforce_contacts_created_at_year",
+        "salesforce_contacts_record_id",
+      ],
+      "name": "salesforce_contacts",
+    },
+  ],
+  "reservedExploreNames": [],
+}
+`;
+
 exports[`live data source names > Search Console explore names and field ids never change 1`] = `
 {
   "explores": [
@@ -391,6 +573,8 @@ exports[`live data source names > Search Console explore names and field ids nev
         "search_console_performance_page",
         "search_console_performance_position",
         "search_console_performance_query",
+        "search_console_performance_search_appearance",
+        "search_console_performance_search_type",
       ],
       "name": "search_console_performance",
     },

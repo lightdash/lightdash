@@ -398,6 +398,8 @@
         "aiAgent.modelSelector.agentDefault": "Predeterminado del agente",
         "aiAgent.composer.loadingResult": "Cargando resultados...",
         "aiAgent.composer.resultError": "No se pudo cargar este resultado",
+        "aiAgent.thread.loadError": "No se pudo cargar este hilo",
+        "aiAgent.thread.startNew": "Iniciar un hilo nuevo",
         "aiAgent.nodeCitation.open": "Abrir el resultado de la consulta: {figure}",
         "aiAgent.nodeCitation.loading": "Cargando la consulta…",
         "aiAgent.toolCall.sqlNotApproved": "SQL no aprobado",
@@ -622,6 +624,18 @@
         "filters.fieldBar.filterMoreNone": "Filtrar más",
         "filters.fieldBar.clearCount": "Quitar {count}",
         "filters.fieldBar.clearOnOtherTabs": "Quitar {count} en otras pestañas",
-        "filters.fieldBar.onlyFieldClear": "Es el único campo del filtro"
+        "filters.fieldBar.onlyFieldClear": "Es el único campo del filtro",
+        "aiAgent.chatInput.label": "Instrucción",
+        "aiAgent.chartType.label": "Tipo de gráfico",
+        "aiAgent.chartType.table": "Tabla",
+        "aiAgent.chartType.bar": "Gráfico de barras",
+        "aiAgent.chartType.horizontal": "Gráfico de barras horizontales",
+        "aiAgent.chartType.line": "Gráfico de líneas",
+        "aiAgent.chartType.scatter": "Gráfico de dispersión",
+        "aiAgent.chartType.pie": "Gráfico circular",
+        "aiAgent.chartType.funnel": "Gráfico de embudo",
+        "aiAgent.chartType.big_number": "Número grande",
+        "aiAgent.verifiedAnswer.add": "Añadir a respuestas verificadas",
+        "aiAgent.verifiedAnswer.remove": "Quitar de respuestas verificadas"
     }
 }

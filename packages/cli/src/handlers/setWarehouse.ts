@@ -63,6 +63,9 @@ export const setWarehouseHandler = async (
         return;
     }
     const { credentials } = loaded;
+    if (credentials === null) {
+        return;
+    }
 
     // Fetch existing project to preserve its settings
     const existingProject = await getProject(projectUuid);

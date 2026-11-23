@@ -366,6 +366,7 @@ describe('ExternalConnectionService api sources', () => {
             query: 'SELECT 1 AS a',
             rowLimit: 10,
             outcome: 'ok',
+            errorCode: null,
             errorMessage: null,
             durationMs: 120,
             rowCount: 1,
@@ -443,6 +444,7 @@ describe('ExternalConnectionService api sources', () => {
                 query: 'SELECT 1 AS a',
                 rowLimit: 10,
                 outcome: 'timeout',
+                errorCode: 'live_source.upstream.timeout',
                 errorMessage: 'timed out',
                 durationMs: 45_000,
                 rowCount: null,
@@ -453,7 +455,7 @@ describe('ExternalConnectionService api sources', () => {
         ).resolves.toBeUndefined();
     });
 
-    it('tells a failure of ours from the integration failing', async () => {
+    it('tells a refusal and a failure of ours from the integration failing', async () => {
         const { service, analytics } = buildService();
         const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
         const call = {
@@ -469,8 +471,21 @@ describe('ExternalConnectionService api sources', () => {
             cacheHit: false,
         };
 
-        await source.logCall({ ...call, outcome: 'timeout' });
-        await source.logCall({ ...call, outcome: 'invalid_request' });
+        await source.logCall({
+            ...call,
+            outcome: 'timeout',
+            errorCode: 'live_source.upstream.timeout',
+        });
+        await source.logCall({
+            ...call,
+            outcome: 'invalid_request',
+            errorCode: 'live_source.internal.invalid_request',
+        });
+        await source.logCall({
+            ...call,
+            outcome: 'invalid_request',
+            errorCode: 'live_source.refused.row_limit',
+        });
 
         const tracked = analytics.trackAccount.mock.calls.map(
             ([, event]) => event.properties,
@@ -483,6 +498,10 @@ describe('ExternalConnectionService api sources', () => {
             expect.objectContaining({
                 errorOrigin: 'internal',
                 errorCode: 'live_source.internal.invalid_request',
+            }),
+            expect.objectContaining({
+                errorOrigin: 'refused',
+                errorCode: 'live_source.refused.row_limit',
             }),
         ]);
     });
@@ -497,6 +516,7 @@ describe('ExternalConnectionService api sources', () => {
             query: 'SELECT 1 AS a',
             rowLimit: 10,
             outcome: 'ok',
+            errorCode: null,
             errorMessage: null,
             durationMs: 8,
             rowCount: 1,
@@ -1337,6 +1357,51 @@ describe('ExternalConnectionService live source explores', () => {
             await expect(
                 service.getLiveSourceFields(account, 'proj-1', 'conn-1'),
             ).rejects.toThrow(ForbiddenError);
+        });
+
+        it('lists the first explore under `explores` too, for integrations scanning one explore', async () => {
+            const { service } = await createScanned();
+            const { fields, explores } = await service.getLiveSourceFields(
+                account,
+                'proj-1',
+                'conn-1',
+            );
+
+            expect(explores).toEqual([
+                {
+                    exploreName: 'product_analytics_events',
+                    label: expect.any(String),
+                    fields,
+                },
+            ]);
+        });
+
+        it('edits the named explore, and refuses one without fields to edit', async () => {
+            const { service } = await createScanned();
+            const { fields } = await service.updateLiveSourceFields(
+                account,
+                'proj-1',
+                'conn-1',
+                [
+                    {
+                        name: 'property_plan',
+                        exploreName: 'product_analytics_events',
+                        inUse: true,
+                    },
+                ],
+            );
+            expect(
+                fields.find((field) => field.name === 'property_plan')?.inUse,
+            ).toBe(true);
+            await expect(
+                service.updateLiveSourceFields(account, 'proj-1', 'conn-1', [
+                    {
+                        name: 'property_plan',
+                        exploreName: 'product_analytics_persons',
+                        inUse: true,
+                    },
+                ]),
+            ).rejects.toThrow(ParameterError);
         });
 
         it('counts the charts using each field', async () => {

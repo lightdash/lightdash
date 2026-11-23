@@ -439,8 +439,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     spacePermissionService:
                         repository.getSpacePermissionService(),
                 }),
-            semanticStudioService: ({ models, repository, clients }) =>
+            semanticStudioService: ({ models, repository, clients, context }) =>
                 new SemanticStudioService({
+                    analytics: context.lightdashAnalytics,
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     featureFlagModel: models.getFeatureFlagModel(),
@@ -915,6 +916,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     }),
                     shareService: repository.getShareService(),
                     fileStorageClient: clients.getFileStorageClient(),
+                    uploadsFileStorageClient:
+                        clients.getUploadsFileStorageClient(),
                     downloadFileModel: models.getDownloadFileModel(),
                     slackUnfurlImageModel: models.getSlackUnfurlImageModel(),
                     persistentDownloadFileService:
@@ -1033,12 +1036,17 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         aiModelCatalog,
                     }),
                 }),
-            aiThreadFileService: ({ models, repository }) =>
+            aiThreadFileService: ({ models, repository, clients, context }) =>
                 new AiThreadFileService({
                     aiThreadFileModel:
                         models.getAiThreadFileModel<AiThreadFileModel>(),
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
+                    featureFlagModel: models.getFeatureFlagModel(),
+                    uploadsFileStorageClient:
+                        clients.getUploadsFileStorageClient(),
+                    durableUploadsConfigured:
+                        context.lightdashConfig.uploads.s3 !== null,
                 }),
             aiAgentSkillService: ({ models, repository, context }) =>
                 new AiAgentSkillService({
@@ -1567,6 +1575,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     refreshTokenRotation: models.getRefreshTokenRotation(),
                     aiAccessService: repository.getAiAccessService(),
                     getDocumentService: () => repository.getDocumentService(),
+                    getUnfurlService: () => repository.getUnfurlService(),
                     getComposerChartService: () =>
                         repository.getComposerChartService(),
                     contentDraftModel: models.getContentDraftModel(),
@@ -1928,6 +1937,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
         ],
         schedulerWorkerFactory: (context) =>
             new CommercialSchedulerWorker({
+                apiSourceCallLog:
+                    context.models.getExternalConnectionModel<ExternalConnectionModel>(),
                 analyticsProjectService:
                     context.serviceRepository.getAnalyticsProjectService<AnalyticsProjectService>(),
                 getAgentConnectionGrantService: () =>

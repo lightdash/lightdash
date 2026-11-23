@@ -2,9 +2,11 @@ import {
     ApiConnectorType,
     assertUnreachable,
     DimensionType,
+    getEffectiveItemType,
     getItemId,
     getItemMap,
     isDimension,
+    isMetric,
     SupportedDbtAdapter,
     UnexpectedServerError,
     type Explore,
@@ -30,6 +32,7 @@ import {
 } from './definition';
 import {
     applyLiveSourceFieldEdits,
+    getLiveModelFieldInputs,
     type LiveSourceFieldEdits,
     type ScannedLiveSourceField,
 } from './fields';
@@ -90,11 +93,6 @@ export const getLiveBaseLayer = (
     };
 };
 
-/** The wide model of an integration, which scans and field edits apply to. */
-export const getLiveWideDefinition = (
-    connector: ApiConnectorType,
-): LiveExploreDefinition => getLiveBaseLayer(connector).definitions[0];
-
 /** The explore names a source with this name gets today. */
 export const getLiveExploreNames = (
     connector: ApiConnectorType,
@@ -113,40 +111,67 @@ export const getLiveReservedExploreNames = (
         getLiveExploreName(sourceName, modelName),
     );
 
+/** An explore that scans add fields to; `model` is null for the first one. */
+export type LiveScannedModel = {
+    model: string | null;
+    definition: LiveExploreDefinition;
+};
+
+/** The explores scans add fields to: the first, then any the integration names. */
+export const getLiveScannedModels = (
+    connector: ApiConnectorType,
+): LiveScannedModel[] => {
+    const {
+        definitions: [wide, ...others],
+    } = getLiveBaseLayer(connector);
+    const models = new Set(getLiveIntegration(connector).scan?.models ?? []);
+    return [
+        { model: null, definition: wide },
+        ...others
+            .filter(({ name }) => models.has(name))
+            .map((definition) => ({ model: definition.name, definition })),
+    ];
+};
+
 /** The fields a scan found beyond the integration's built-in ones. */
 export const toScannedLiveSourceFields = (
     connector: ApiConnectorType,
     scan: LiveScanResult,
 ): ScannedLiveSourceField[] => {
-    const definition = getLiveWideDefinition(connector);
     const { scan: scanning } = getLiveIntegration(connector);
-    const scanned = scanning?.withScannedFields(definition, scan) ?? definition;
-    const builtInNames = new Set([
-        ...definition.dimensions.map(({ name }) => name),
-        ...definition.metrics.map(({ name }) => name),
-    ]);
     const isInternal = (apiName: string) =>
         scanning?.isInternalField?.(apiName) ?? false;
-    return [
-        ...scanned.dimensions
-            .filter(({ name }) => !builtInNames.has(name))
-            .map(
-                (field): ScannedLiveSourceField => ({
-                    kind: 'dimension',
-                    definition: field,
-                    isInternal: isInternal(field.apiName),
-                }),
-            ),
-        ...scanned.metrics
-            .filter(({ name }) => !builtInNames.has(name))
-            .map(
-                (field): ScannedLiveSourceField => ({
-                    kind: 'metric',
-                    definition: field,
-                    isInternal: isInternal(field.apiName),
-                }),
-            ),
-    ];
+    return getLiveScannedModels(connector).flatMap(({ model, definition }) => {
+        const scanned =
+            scanning?.withScannedFields(definition, scan) ?? definition;
+        const builtInNames = new Set([
+            ...definition.dimensions.map(({ name }) => name),
+            ...definition.metrics.map(({ name }) => name),
+        ]);
+        const tag = model === null ? {} : { model };
+        return [
+            ...scanned.dimensions
+                .filter(({ name }) => !builtInNames.has(name))
+                .map(
+                    (field): ScannedLiveSourceField => ({
+                        kind: 'dimension',
+                        definition: field,
+                        isInternal: isInternal(field.apiName),
+                        ...tag,
+                    }),
+                ),
+            ...scanned.metrics
+                .filter(({ name }) => !builtInNames.has(name))
+                .map(
+                    (field): ScannedLiveSourceField => ({
+                        kind: 'metric',
+                        definition: field,
+                        isInternal: isInternal(field.apiName),
+                        ...tag,
+                    }),
+                ),
+        ];
+    });
 };
 
 const buildDefinitionExplore = (
@@ -227,19 +252,30 @@ export const getLostLiveFieldIds = ({
     storedFieldIds,
     rebuilt,
     edits,
+    sourceName,
 }: {
     storedFieldIds: string[];
     rebuilt: Explore[];
     edits: LiveSourceFieldEdits;
+    /** Names the explores of edits keyed `<model>.<name>`. */
+    sourceName: string;
 }): string[] => {
+    // A bare key is the first explore's field; `<model>.<name>` another's
+    const toFieldId = (key: string) => {
+        const dot = key.indexOf('.');
+        return dot === -1
+            ? getItemId({ table: rebuilt[0].name, name: key })
+            : getItemId({
+                  table: getLiveExploreName(sourceName, key.slice(0, dot)),
+                  name: key.slice(dot + 1),
+              });
+    };
     const kept = new Set([
         ...rebuilt.flatMap(({ apiSource }) =>
             Object.keys(apiSource?.fields ?? {}),
         ),
-        ...Object.entries(edits).flatMap(([name, edit]) =>
-            edit.inUse === false
-                ? [getItemId({ table: rebuilt[0].name, name })]
-                : [],
+        ...Object.entries(edits).flatMap(([key, edit]) =>
+            edit.inUse === false ? [toFieldId(key)] : [],
         ),
     ]);
     return storedFieldIds.filter((fieldId) => !kept.has(fieldId));
@@ -276,11 +312,10 @@ export const buildLiveExplores = ({
     /** The target first, then the admin's text. */
     aiHint?: string[];
 }): Explore[] => {
-    const {
-        definitions: [wide, ...others],
-    } = getLiveBaseLayer(apiSource.connector);
+    const { definitions } = getLiveBaseLayer(apiSource.connector);
+    const scannedModels = getLiveScannedModels(apiSource.connector);
     const definitionHashes = getLiveDefinitionHashes(apiSource.connector);
-    const isSingle = others.length === 0;
+    const isSingle = definitions.length === 1;
     const build = (definition: LiveExploreDefinition) =>
         buildDefinitionExplore(apiSource.connector, {
             definition,
@@ -293,10 +328,23 @@ export const buildLiveExplores = ({
             definitionHash: definitionHashes[definition.name],
             aiHint,
         });
-    return [
-        build(applyLiveSourceFieldEdits({ base: wide, scannedFields, edits })),
-        ...others.map(build),
-    ];
+    return definitions.map((definition) => {
+        const scanned = scannedModels.find(
+            (candidate) => candidate.definition === definition,
+        );
+        return build(
+            scanned
+                ? applyLiveSourceFieldEdits({
+                      base: definition,
+                      ...getLiveModelFieldInputs({
+                          model: scanned.model,
+                          scannedFields,
+                          edits,
+                      }),
+                  })
+                : definition,
+        );
+    });
 };
 
 /**
@@ -463,6 +511,26 @@ export const assertLiveResultComplete = ({
     }
 };
 
+/**
+ * A result column's type: a dimension's own, or a metric's, where a minimum
+ * or maximum of a date stays a date.
+ */
+const toResultColumnType = (
+    field: ItemsMap[string] | undefined,
+    fields: ItemsMap,
+): DimensionType => {
+    if (!field) return DimensionType.NUMBER;
+    if (isDimension(field)) return field.type;
+    // Custom metrics carry their base dimension's type
+    if (isMetric(field) && field.baseDimensionType) {
+        return field.baseDimensionType;
+    }
+    const type = getEffectiveItemType(field, fields);
+    return type === DimensionType.DATE || type === DimensionType.TIMESTAMP
+        ? type
+        : DimensionType.NUMBER;
+};
+
 /** The connector's rows as result rows keyed by field id, sorted and limited. */
 export const toLiveResult = ({
     compiled,
@@ -494,13 +562,7 @@ export const toLiveResult = ({
             const field = fields[fieldId];
             return [
                 fieldId,
-                {
-                    reference: fieldId,
-                    type:
-                        field && isDimension(field)
-                            ? field.type
-                            : DimensionType.NUMBER,
-                },
+                { reference: fieldId, type: toResultColumnType(field, fields) },
             ];
         }),
     );

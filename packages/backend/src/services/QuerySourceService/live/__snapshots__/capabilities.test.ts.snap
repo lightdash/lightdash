@@ -132,6 +132,11 @@ exports[`connector capability declarations > the summable tags 1`] = `
       "aggregation": "additive",
     },
   },
+  "hubspot": {
+    "count": {
+      "aggregation": "additive",
+    },
+  },
   "linkedin_ads": {
     "clicks": {
       "aggregation": "additive",
@@ -259,6 +264,11 @@ exports[`connector capability declarations > the summable tags 1`] = `
     },
   },
   "pylon": {},
+  "salesforce": {
+    "count": {
+      "aggregation": "additive",
+    },
+  },
   "search_console": {
     "clicks": {
       "aggregation": "additive",

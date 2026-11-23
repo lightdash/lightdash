@@ -35,6 +35,7 @@ import {
     REQUEST_AUTHORITY,
     type DocumentAuthority,
     type DuckdbQueryPlan,
+    type MergeRunAuthority,
     type QueryRunAuthority,
     type RequestAuthority,
 } from '../AsyncQueryService/types';
@@ -512,7 +513,7 @@ export class QuerySourceService extends BaseService {
      */
     async submitQueries(
         args: SubmitQueriesArgs & {
-            authority: RequestAuthority | DocumentAuthority;
+            authority: MergeRunAuthority;
         },
     ): Promise<{ queries: InternalSourceQuerySubmission[] }> {
         return this.submit(args);
@@ -594,6 +595,11 @@ export class QuerySourceService extends BaseService {
                 userAttributeOverrides,
                 invalidateCache,
                 pivotConfiguration: entry.query.pivotConfiguration ?? null,
+                dateZoom:
+                    authority.kind === 'composer'
+                        ? (authority.binding.dateZoomByNodeId[entry.nodeId] ??
+                          null)
+                        : null,
                 plan: plans[entry.nodeId] ?? null,
             });
             resolvedReferences[entry.nodeId] = queryUuid;

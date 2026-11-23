@@ -51,7 +51,6 @@ beforeEach(() => {
     mockedLightdashApi.mockReset();
     mockedLightdashApi.mockResolvedValue(undefined);
     flags.state = {
-        [FeatureFlags.MobileQrSignIn]: 'on',
         [FeatureFlags.MobileAppAccess]: 'on',
     };
 });
@@ -60,7 +59,7 @@ describe.each([
     ['desktop nav icon', false],
     ['compact nav entry', true],
 ])('MobileSignInMenu organization access gate: %s', (_, withLabel) => {
-    it('shows the item when organization access and QR sign-in are on', () => {
+    it('shows the item when organization access is on', () => {
         renderMenu(withLabel);
         expect(mobileItem()).toBeInTheDocument();
     });
@@ -79,12 +78,6 @@ describe.each([
 
     it('hides the item when the organization access check fails', () => {
         flags.state[FeatureFlags.MobileAppAccess] = 'error';
-        renderMenu(withLabel);
-        expect(mobileItem()).not.toBeInTheDocument();
-    });
-
-    it('hides the item when QR sign-in is off even with organization access on', () => {
-        flags.state[FeatureFlags.MobileQrSignIn] = 'off';
         renderMenu(withLabel);
         expect(mobileItem()).not.toBeInTheDocument();
     });

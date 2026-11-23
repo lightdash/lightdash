@@ -28,10 +28,12 @@ export class AppAccessModel {
         {
             trx = this.database,
             organizationUuid,
+            includePendingUser = false,
             includeDeleted = false,
         }: {
             trx?: Knex;
             organizationUuid: string;
+            includePendingUser?: boolean;
             includeDeleted?: boolean;
         },
     ): Promise<Record<string, DirectAccess>> {
@@ -123,7 +125,7 @@ export class AppAccessModel {
                 `${OrganizationTableName}.organization_uuid`,
                 organizationUuid,
             )
-            .where(getActiveProjectMemberPredicate(trx))
+            .where(getActiveProjectMemberPredicate(trx, { includePendingUser }))
             .modify((query) => {
                 if (!includeDeleted) {
                     void query.whereNull(`${AppsTableName}.deleted_at`);
@@ -183,7 +185,11 @@ export class AppAccessModel {
                         `${OrganizationTableName}.organization_uuid`,
                         organizationUuid,
                     )
-                    .where(getActiveProjectMemberPredicate(trx))
+                    .where(
+                        getActiveProjectMemberPredicate(trx, {
+                            includePendingUser,
+                        }),
+                    )
                     .where(
                         `${GroupMembershipTableName}.organization_id`,
                         trx.ref(`${ProjectTableName}.organization_id`),

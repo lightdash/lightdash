@@ -33,6 +33,8 @@ import {
     getPromptContextItemHref,
     getPromptContextItemKey,
 } from './contentReferenceUtils';
+import { ThreadImageTileRow } from './ThreadImageCard';
+import { ThreadImageReference } from './ThreadImageReference';
 import { isPlainLeftClick } from './useDataAppPreviewLink';
 
 type Props = {
@@ -88,7 +90,14 @@ export const UserBubble: FC<Props> = ({
     });
     // Review entities share one quiet grouped card; everything else stays a chip.
     const reviewContext = remainingContext.filter(isReviewEntityItem);
-    const otherContext = remainingContext.filter(
+    // Images sit under the bubble; every other reference stays a chip above it.
+    const images = remainingContext.flatMap((item) =>
+        item.type === 'thread_image' ? [item] : [],
+    );
+    const chipContext = remainingContext.filter(
+        (item) => item.type !== 'thread_image',
+    );
+    const otherContext = chipContext.filter(
         (item) => !isReviewEntityItem(item),
     );
 
@@ -132,7 +141,7 @@ export const UserBubble: FC<Props> = ({
                 </Tooltip>
             </Stack>
 
-            {remainingContext.length > 0 && projectUuid && (
+            {chipContext.length > 0 && projectUuid && (
                 <Stack
                     gap="xs"
                     align="flex-end"
@@ -300,6 +309,19 @@ export const UserBubble: FC<Props> = ({
                         />
                     )}
                 </Card>
+            )}
+
+            {images.length > 0 && (
+                <Box mt={6} className={styles.contextGroup}>
+                    <ThreadImageTileRow>
+                        {images.map((item) => (
+                            <ThreadImageReference
+                                key={item.fileUuid}
+                                item={item}
+                            />
+                        ))}
+                    </ThreadImageTileRow>
+                </Box>
             )}
 
             {message.steers.length > 0 && (

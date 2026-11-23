@@ -36,6 +36,13 @@ type S3ClientArguments = {
     s3Config?: S3Config;
 };
 
+// NoSuchBucket is also a 404, so the status code alone cannot tell them apart.
+const isMissingObjectError = (error: unknown): boolean =>
+    error instanceof NoSuchKey ||
+    error instanceof NotFound ||
+    (error instanceof S3ServiceException &&
+        (error.name === 'NoSuchKey' || error.name === 'NotFound'));
+
 export class S3Client extends S3BaseClient implements FileStorageClient {
     lightdashConfig: LightdashConfig;
 
@@ -251,14 +258,17 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
         return onEnd;
     }
 
-    async getFileStream(fileId: string): Promise<FileStreamResult> {
+    async getFileStream(
+        fileId: string,
+        options?: { abortSignal: AbortSignal },
+    ): Promise<FileStreamResult> {
         const command = new GetObjectCommand({
             Bucket: this.s3Config?.bucket,
             Key: fileId,
         });
 
         try {
-            const response = await this.s3?.send(command);
+            const response = await this.s3?.send(command, options);
             if (response === undefined) {
                 throw new S3Error('No response from S3', { fileId });
             }
@@ -267,7 +277,7 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
                 contentDisposition: response.ContentDisposition ?? null,
             };
         } catch (error) {
-            if (error instanceof NoSuchKey || error instanceof NotFound) {
+            if (isMissingObjectError(error)) {
                 throw new NotFoundError('File not found');
             }
             if (error instanceof S3Error) {
@@ -301,6 +311,7 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
         fileName: string,
         opts: {
             contentType: string;
+            abortController?: AbortController;
         },
         attachmentDownloadName?: string,
     ) {
@@ -322,6 +333,7 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
 
         const upload = new Upload({
             client: this.s3,
+            abortController: opts.abortController,
             params: {
                 Bucket: this.s3Config.bucket,
                 Key: fileName,
@@ -405,16 +417,26 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
         return url;
     }
 
-    async deleteFile(fileName: string): Promise<void> {
+    async deleteFile(
+        fileName: string,
+        options?: { abortSignal: AbortSignal },
+    ): Promise<void> {
         if (!this.s3Config?.bucket || this.s3 === undefined) {
             throw new MissingConfigError('S3 configuration is not set');
         }
-        await this.s3.send(
-            new DeleteObjectCommand({
-                Bucket: this.s3Config.bucket,
-                Key: fileName,
-            }),
-        );
+        try {
+            await this.s3.send(
+                new DeleteObjectCommand({
+                    Bucket: this.s3Config.bucket,
+                    Key: fileName,
+                }),
+                options,
+            );
+        } catch (error) {
+            // A missing object is a completed delete; a missing bucket is not.
+            if (isMissingObjectError(error)) return;
+            throw error;
+        }
     }
 
     async objectExists(fileName: string): Promise<boolean> {

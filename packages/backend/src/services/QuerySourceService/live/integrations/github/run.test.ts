@@ -383,6 +383,24 @@ describe('githubIntegration errors', () => {
         });
     });
 
+    it('says when to retry without the account GitHub names in its rate-limit message', async () => {
+        const { source } = connect(
+            response(
+                {
+                    message:
+                        'API rate limit exceeded for user ID 1234567. If you reach out to GitHub Support for help, please include the request ID ABCD:1234.',
+                },
+                403,
+                { 'x-ratelimit-remaining': '0', 'retry-after': '30' },
+            ),
+        );
+        const error = await run(source, count).catch((caught) => caught);
+        expect(error.message).toBe(
+            'GitHub rate limit reached. Search allows about 30 queries a minute per token; retry in 30 seconds.',
+        );
+        expect(error.message).not.toContain('1234567');
+    });
+
     it('explains an invalid search', async () => {
         const { source } = connect(
             response(

@@ -7,6 +7,7 @@ import {
     formatItemValue,
     formatRawValue,
     formatRows,
+    getCellUrls,
     getColorFromRange,
     getConditionalFormattingColor,
     getConditionalFormattingConfig,
@@ -16,6 +17,7 @@ import {
     getReadableTextColor,
     getRowConditionalFormattingColor,
     getRowConditionalFormattingConfig,
+    getTemplatedUrlRowDependencies,
     isConditionalFormattingConfigWithColorRange,
     isDimension,
     isField,
@@ -25,6 +27,7 @@ import {
     ItemsMap,
     PivotConfig,
     pivotResultsAsData,
+    renderTemplatedUrl,
     ResultRow,
     shouldShiftItemTimezone,
     timeIntervalToExcelNumFmt,
@@ -33,10 +36,12 @@ import {
     type ConditionalFormattingConfig,
     type ConditionalFormattingMinMaxMap,
     type ConditionalFormattingRowFields,
+    type Field,
     type PivotResultsDataCell,
     type PivotRowTotalsByIndex,
     type PivotValuesColumn,
     type ReadyQueryResultsPage,
+    type ResultValue,
 } from '@lightdash/common';
 import * as Excel from 'exceljs';
 import fs from 'fs';
@@ -62,11 +67,33 @@ import {
     interleaveSubtotalRows,
     type SubtotalExportLevel,
 } from '../../utils/subtotalExport';
+import { WorkbookExportHelper } from './WorkbookExportHelper';
+
+const PNG_SIGNATURE = '89504e470d0a1a0a';
+
+type TemplatedUrlRow = Record<string, Record<string, ResultValue>>;
+
+type HyperlinkSheetState = {
+    remaining: number;
+    templateDependencies: Map<string, string[] | null>;
+};
 
 export class ExcelService {
     private static readonly EXCEL_ROW_LIMIT = 1_000_000;
 
     private static readonly EXCEL_MAX_OUTLINE_LEVEL = 7;
+
+    // Screenshots come from a 1400px-wide viewport; shrink so the chart fits
+    // a spreadsheet window without horizontal scrolling.
+    private static readonly CHART_IMAGE_MAX_WIDTH_PX = 1000;
+
+    // Excel rejects sheets with more than 65,530 hyperlinks
+    private static readonly EXCEL_MAX_HYPERLINKS_PER_SHEET = 65_530;
+
+    // Excel's per-link limit is 2,079 characters
+    private static readonly EXCEL_MAX_HYPERLINK_LENGTH = 2_000;
+
+    private static readonly HYPERLINK_FONT_ARGB = 'FF0563C1';
 
     private static isTzActive(
         timezone: string | undefined,
@@ -175,6 +202,192 @@ export class ExcelService {
                 undefined,
                 timezone,
             );
+        });
+    }
+
+    /** Renders a URL template to an absolute http(s) link Excel can store. */
+    private static renderHyperlink(
+        template: string,
+        value: ResultValue,
+        row: TemplatedUrlRow,
+    ): string | undefined {
+        try {
+            const parsed = new URL(renderTemplatedUrl(template, value, row));
+            if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+                return undefined;
+            }
+            return parsed.href.length <= ExcelService.EXCEL_MAX_HYPERLINK_LENGTH
+                ? parsed.href
+                : undefined;
+        } catch {
+            return undefined;
+        }
+    }
+
+    private static createHyperlinkSheetState(): HyperlinkSheetState {
+        return {
+            remaining: ExcelService.EXCEL_MAX_HYPERLINKS_PER_SHEET,
+            templateDependencies: new Map(),
+        };
+    }
+
+    /** Field ids a template's `row.*` references need, or null if invalid. */
+    private static getTemplateDependencies(
+        template: string,
+        state: HyperlinkSheetState,
+    ): string[] | null {
+        const cached = state.templateDependencies.get(template);
+        if (cached !== undefined) return cached;
+        let dependencies: string[] | null;
+        try {
+            dependencies = getTemplatedUrlRowDependencies(template);
+        } catch {
+            dependencies = null;
+        }
+        state.templateDependencies.set(template, dependencies);
+        return dependencies;
+    }
+
+    /**
+     * Links a string cell, keeping its text. Numbers and dates are never
+     * linked because exceljs can only store a hyperlink on a string cell.
+     */
+    private static setCellHyperlink(
+        excelCell: Excel.Cell,
+        hyperlink: string,
+        state: HyperlinkSheetState,
+    ): void {
+        if (typeof excelCell.value !== 'string') return;
+        // eslint-disable-next-line no-param-reassign
+        excelCell.value = { text: excelCell.value, hyperlink };
+        // eslint-disable-next-line no-param-reassign
+        excelCell.font = {
+            ...excelCell.font,
+            color: { argb: ExcelService.HYPERLINK_FONT_ARGB },
+            underline: true,
+        };
+        // eslint-disable-next-line no-param-reassign
+        state.remaining -= 1;
+    }
+
+    /**
+     * Turns string cells of fields with `urls` into Excel hyperlinks using
+     * the first configured url, until the sheet's hyperlink cap is reached.
+     */
+    private static applyHyperlinksToRow({
+        excelRow,
+        parsedRow,
+        fields,
+        sortedFieldIds,
+        onlyRaw,
+        timezone,
+        state,
+    }: {
+        excelRow: Excel.Row;
+        parsedRow: Record<string, unknown>;
+        fields: ItemsMap;
+        sortedFieldIds: string[];
+        onlyRaw: boolean;
+        timezone?: string;
+        state: HyperlinkSheetState;
+    }): void {
+        const formatValue = (item: Field, raw: unknown): ResultValue => ({
+            raw,
+            formatted: formatItemValue(
+                item,
+                raw,
+                undefined,
+                undefined,
+                timezone,
+            ),
+        });
+        sortedFieldIds.forEach((fieldId, colIndex) => {
+            if (state.remaining <= 0) return;
+            const item = fields[fieldId];
+            const raw = parsedRow[fieldId];
+            if (raw === null || raw === undefined || !isField(item)) return;
+            const excelCell = excelRow.getCell(colIndex + 1);
+            if (typeof excelCell.value !== 'string') return;
+            const urls = getCellUrls(item.urls, raw);
+            if (urls.length === 0) return;
+            const template = urls[0].url;
+            const dependencies = ExcelService.getTemplateDependencies(
+                template,
+                state,
+            );
+            if (dependencies === null) return;
+            const row = dependencies.reduce<TemplatedUrlRow>(
+                (acc, dependencyId) => {
+                    const dependency = fields[dependencyId];
+                    if (!isField(dependency) || !(dependencyId in parsedRow)) {
+                        return acc;
+                    }
+                    acc[dependency.table] = acc[dependency.table] ?? {};
+                    acc[dependency.table][dependency.name] = formatValue(
+                        dependency,
+                        parsedRow[dependencyId],
+                    );
+                    return acc;
+                },
+                {},
+            );
+            // Non-raw string cells already hold the formatted value
+            const value = onlyRaw
+                ? formatValue(item, raw)
+                : { raw, formatted: excelCell.value };
+            const hyperlink = ExcelService.renderHyperlink(
+                template,
+                value,
+                row,
+            );
+            if (hyperlink) {
+                ExcelService.setCellHyperlink(excelCell, hyperlink, state);
+            }
+        });
+    }
+
+    private static applyPivotHyperlinks(
+        excelRow: Excel.Row,
+        pivotRow: PivotResultsDataCell[],
+        itemMap: ItemsMap,
+        state: HyperlinkSheetState,
+    ): void {
+        let row: TemplatedUrlRow | undefined;
+        pivotRow.forEach((cell, colIndex) => {
+            if (state.remaining <= 0) return;
+            if (cell.raw === null || cell.raw === undefined) return;
+            const item = itemMap[cell.itemId ?? cell.fieldId];
+            if (!isField(item)) return;
+            const excelCell = excelRow.getCell(colIndex + 1);
+            if (typeof excelCell.value !== 'string') return;
+            const urls = getCellUrls(item.urls, cell.raw);
+            if (urls.length === 0) return;
+            row =
+                row ??
+                pivotRow.reduce<TemplatedUrlRow>((acc, rowCell) => {
+                    const rowItem = itemMap[rowCell.itemId ?? rowCell.fieldId];
+                    if (
+                        !isField(rowItem) ||
+                        rowCell.raw === null ||
+                        rowCell.raw === undefined
+                    ) {
+                        return acc;
+                    }
+                    acc[rowItem.table] = acc[rowItem.table] ?? {};
+                    acc[rowItem.table][rowItem.name] = {
+                        raw: rowCell.raw,
+                        formatted: rowCell.formatted,
+                    };
+                    return acc;
+                }, {});
+            const hyperlink = ExcelService.renderHyperlink(
+                urls[0].url,
+                { raw: cell.raw, formatted: cell.formatted },
+                row,
+            );
+            if (hyperlink) {
+                ExcelService.setCellHyperlink(excelCell, hyperlink, state);
+            }
         });
     }
 
@@ -569,6 +782,7 @@ export class ExcelService {
 
         const workbook = new Excel.Workbook();
         const worksheet = workbook.addWorksheet('Pivot Table');
+        const hyperlinkState = ExcelService.createHyperlinkSheetState();
 
         // Add header rows
         pivotData.headers.forEach((row, rowIndex) => {
@@ -619,6 +833,13 @@ export class ExcelService {
                     cell.numFmt = numFmt;
                 }
             });
+
+            ExcelService.applyPivotHyperlinks(
+                wsRow,
+                row,
+                itemMap,
+                hyperlinkState,
+            );
         });
 
         // Auto-adjust column widths
@@ -689,6 +910,7 @@ export class ExcelService {
 
         const workbook = new Excel.Workbook();
         const worksheet = workbook.addWorksheet('Pivot Table');
+        const hyperlinkState = ExcelService.createHyperlinkSheetState();
 
         csvResults.forEach((row, index) => {
             const pivotRow =
@@ -713,6 +935,12 @@ export class ExcelService {
                     pivotRow,
                     itemMap,
                     onlyRaw,
+                );
+                ExcelService.applyPivotHyperlinks(
+                    wsRow,
+                    pivotRow,
+                    itemMap,
+                    hyperlinkState,
                 );
             }
 
@@ -863,6 +1091,100 @@ export class ExcelService {
         );
     }
 
+    /** Pixel size from a PNG header; null when the buffer is not a PNG. */
+    static getPngDimensions(
+        buffer: Buffer,
+    ): { width: number; height: number } | null {
+        if (
+            buffer.length < 24 ||
+            buffer.subarray(0, 8).toString('hex') !== PNG_SIGNATURE
+        ) {
+            return null;
+        }
+        return {
+            width: buffer.readUInt32BE(16),
+            height: buffer.readUInt32BE(20),
+        };
+    }
+
+    /**
+     * Single-sheet workbook whose only content is the rendered chart image,
+     * anchored at A1 and scaled down to CHART_IMAGE_MAX_WIDTH_PX.
+     */
+    static async buildChartImageWorkbook({
+        imageBuffer,
+        sheetName,
+    }: {
+        imageBuffer: Buffer;
+        sheetName: string;
+    }): Promise<Excel.Buffer> {
+        const dimensions = ExcelService.getPngDimensions(imageBuffer);
+        if (!dimensions) {
+            throw new UnexpectedServerError(
+                'Chart image is not a PNG and cannot be embedded in XLSX',
+            );
+        }
+        const scale = Math.min(
+            1,
+            ExcelService.CHART_IMAGE_MAX_WIDTH_PX / dimensions.width,
+        );
+
+        const workbook = new Excel.Workbook();
+        const worksheet = workbook.addWorksheet(
+            WorkbookExportHelper.getWorksheetName(sheetName, new Set()),
+        );
+        const imageId = workbook.addImage({
+            base64: imageBuffer.toString('base64'),
+            extension: 'png',
+        });
+        worksheet.addImage(imageId, {
+            tl: { col: 0, row: 0 },
+            ext: {
+                width: Math.round(dimensions.width * scale),
+                height: Math.round(dimensions.height * scale),
+            },
+        });
+        return workbook.xlsx.writeBuffer();
+    }
+
+    /**
+     * Uploads a chart-image workbook to the exports bucket. Mirrors the
+     * return shape of the data exports so callers treat both the same way.
+     */
+    static async downloadChartImageXlsx({
+        imageBuffer,
+        chartName,
+        exportsStorageClient,
+        attachmentDownloadName,
+    }: {
+        imageBuffer: Buffer;
+        chartName: string;
+        exportsStorageClient: FileStorageClient;
+        attachmentDownloadName?: string;
+    }): Promise<{ fileUrl: string; truncated: boolean; s3Key: string }> {
+        const excelBuffer = await ExcelService.buildChartImageWorkbook({
+            imageBuffer,
+            sheetName: chartName,
+        });
+        const s3Key = ExcelService.generateFileId(
+            attachmentDownloadName || chartName,
+        );
+        const tempFilePath = ExcelService.createTempFilePath('chart-image');
+        try {
+            await fs.promises.writeFile(tempFilePath, Buffer.from(excelBuffer));
+            const fileUrl = await exportsStorageClient.uploadExcel(
+                fs.createReadStream(tempFilePath),
+                s3Key,
+                attachmentDownloadName
+                    ? `${attachmentDownloadName}.xlsx`
+                    : undefined,
+            );
+            return { fileUrl, truncated: false, s3Key };
+        } finally {
+            ExcelService.cleanupTempFile(tempFilePath);
+        }
+    }
+
     // Helper method to create temporary file path
     private static createTempFilePath(prefix: string): string {
         return path.join(
@@ -943,6 +1265,7 @@ export class ExcelService {
             return column;
         });
 
+        const hyperlinkState = ExcelService.createHyperlinkSheetState();
         const writeRow = (
             parsedRow: Record<string, unknown>,
             lineCount: number,
@@ -982,15 +1305,26 @@ export class ExcelService {
 
             if (isSubtotal) {
                 row.font = { bold: true };
-            } else if (conditionalFormattings?.length) {
-                ExcelService.applyConditionalFormattingToRow({
+            } else {
+                ExcelService.applyHyperlinksToRow({
                     excelRow: row,
                     parsedRow,
                     fields,
                     sortedFieldIds,
-                    conditionalFormattings,
-                    minMaxMap: minMaxMap ?? {},
+                    onlyRaw,
+                    timezone,
+                    state: hyperlinkState,
                 });
+                if (conditionalFormattings?.length) {
+                    ExcelService.applyConditionalFormattingToRow({
+                        excelRow: row,
+                        parsedRow,
+                        fields,
+                        sortedFieldIds,
+                        conditionalFormattings,
+                        minMaxMap: minMaxMap ?? {},
+                    });
+                }
             }
 
             row.commit();

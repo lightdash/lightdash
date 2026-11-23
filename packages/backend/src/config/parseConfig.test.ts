@@ -111,6 +111,30 @@ describe('PRE_AGGREGATE_DUCKDB_WRITE_MEMORY_LIMIT', () => {
     );
 });
 
+describe('PRE_AGGREGATE_MATERIALIZATION_TIMEOUT_MS', () => {
+    it('defaults to 30 minutes', () => {
+        expect(parseConfig().preAggregates.materializationTimeout).toBe(
+            1_800_000,
+        );
+    });
+
+    it('reads the value in milliseconds', () => {
+        process.env.PRE_AGGREGATE_MATERIALIZATION_TIMEOUT_MS = '7200000';
+
+        expect(parseConfig().preAggregates.materializationTimeout).toBe(
+            7_200_000,
+        );
+    });
+
+    it.each(['0', '-1', '2147483648'])('rejects %s', (value) => {
+        process.env.PRE_AGGREGATE_MATERIALIZATION_TIMEOUT_MS = value;
+
+        expect(() => parseConfig()).toThrow(
+            /PRE_AGGREGATE_MATERIALIZATION_TIMEOUT_MS/,
+        );
+    });
+});
+
 describe('MOBILE_ANDROID_CERT_FINGERPRINTS', () => {
     const playAppSigning =
         'EB:2C:4B:A2:0C:21:91:EB:9A:47:DF:1C:09:69:36:80:89:95:93:F5:6A:E5:AF:E8:9F:3D:4B:B0:C1:E2:8C:90';

@@ -1,5 +1,16 @@
+.tableContainer {
+    flex-shrink: 0;
+    max-height: 400px;
+    overflow: auto;
+}
+
 .funnelTable {
     white-space: nowrap;
+}
+
+.funnelTable[data-windowed] :is(th, td) {
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .stepHeader {

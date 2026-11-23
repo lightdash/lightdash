@@ -183,6 +183,99 @@ resolver while its backend checked only ENV. Enabling Console made the menu
 visible but could never enable the API. An ENV workaround can restore availability;
 the proper fix is to use the standard resolver across entry points.
 
+## AI conversation images
+
+`ai-thread-images` is off by default on Cloud, self-hosted instances and previews.
+It resolves through a config handler that needs an uploads bucket (below). Prefer
+Console organization overrides; standard user overrides and the generic self-hosted
+ENV lists also apply.
+The upload action and new image context items are gated on the backend, and the
+composer uses the server-resolved flag. Existing text attachment routing is unchanged.
+
+The first version supports regular browser chat with a specific agent: first and
+follow-up prompts in one conversation. Auto-routing and comparison composers ask
+users to choose an agent or start a single conversation before attaching images;
+these paths cannot await one definitive attachment claim. Deep research cannot
+consume an image-bearing draft. Urgent steering sends text immediately and leaves
+images unsent for the next normal message. Image submission failures keep the draft
+and local previews; successful claims release local previews. History shows metadata,
+dimensions, not downloadable images or persisted thumbnails.
+
+Enable only after every API/worker pod and browser bundle supports `thread_image`.
+Reload existing browser tabs before use. Older readers cannot load image-bearing
+threads, so after activation rollback must use compatible code or a forward fix,
+not the pre-feature version. Console changes affect subsequent backend resolutions;
+the composer needs a flag refetch or page reload. ENV changes need a process restart.
+
+Images additionally require a private, durable `UPLOADS_S3_BUCKET`: without one the
+flag's handler resolves it off, whatever is stored for the organization, and the
+purgeable exports-bucket fallback is refused. Forcing the flag on with
+`LIGHTDASH_ENABLE_FEATURE_FLAGS` skips the handler, so the composer offers images
+and the server refuses the upload. The bucket uses the base S3 endpoint and credentials. The
+scheduler must run even while the flag is off. Images are kept for as long as their thread exists. Deleting the thread,
+by hand or through thread retention, removes its images; physical deletion is
+asynchronous and retried in bounded batches. Unsent uploads expire after 24 hours.
+An independent cleanup ledger survives thread, prompt and organization deletion.
+Unreferenced objects have a one-hour grace period for interrupted uploads.
+Operators must ensure bucket versioning/noncurrent-object retention does not retain
+deleted image versions. Disabling the flag stops new
+attachments, not historical replay or cleanup, and does not erase completed writes.
+
+The final serialized model request is measured after provider image encoding,
+including system instructions, tools and conversation history. Image-bearing
+request ceilings are 32 MB for direct Anthropic, 512 MB for direct OpenAI, and a
+conservative 20 MB for custom OpenAI/Anthropic gateways, Google, Vertex, Bedrock,
+Azure and OpenRouter (decimal MB). Unknown
+routes and gateways may impose lower limits; these application ceilings do not
+promise route compatibility. Text-only requests are not subject to this guard.
+An over-limit conversation must remove unsent images or start a new thread.
+Streaming or multipart provider bodies are not buffered or measured; a one-time
+server warning identifies that transport gap. Current language-provider request
+serialization is covered by tests.
+See [Claude request limits](https://platform.claude.com/docs/en/api/overview#request-size-limits),
+[Gemini inline requests](https://ai.google.dev/gemini-api/docs/image-understanding)
+and [OpenAI image inputs](https://developers.openai.com/api/docs/guides/images-vision).
+
+The server identifies an image by its leading bytes before decoding it, then always
+re-encodes it in its own format, so no metadata block (EXIF, XMP, IPTC, colour
+profile, comments) or appended data reaches the bucket or the model. PNG and
+lossless WebP keep their pixels exactly. JPEG and lossy WebP are re-encoded at
+quality 92, stepping down to 85 then 75 only when the result would exceed the size
+limit. Malformed images may need re-saving before upload.
+
+Application limits are 3 MiB and a 2560-pixel longest edge per uploaded image,
+and 5 images per prompt. A thread has no image limit of its own; every image is
+replayed each turn, so a long thread is bounded only by the request-size
+guard on the model call. Browser input
+limits are 10 MiB and 40 megapixels, checked from headers before decoding and again
+on the oriented bitmap. Backend decoding and validation remain mandatory. These are application limits, not universal provider limits.
+
+A user may start 30 uploads a minute. Images are counted from the cleanup ledger,
+so deleting an upload does not free its slot. One image per user is checked and
+decoded at a time on each backend process, and more than 10 waiting uploads from
+one user are refused. A missing uploads bucket is reported as a storage error, not
+as a missing image; if the bucket is unset after images exist, conversations carry
+on and the agent is told those images are unavailable. Title generation never reads
+image bytes.
+Preserve screenshot labels: proportional downscaling, no cropping/upscaling, no
+lossy fallback for PNG. Image bytes must not be recorded in model input telemetry
+or exception payloads; cost and audit metadata remain available.
+
+Both Sentry tracing modes exclude incoming bodies across the entire thread-files
+upload prefix, including documents. Parsed raw bytes move into request-identity
+private custody before JSON/error middleware; controllers read them through an
+accessor, preventing Express error capture from reintroducing the body. Browser
+upload requests also opt out of network-history payload capture. Other request-body
+capture is unchanged. Operations follow-up: separately assess global customer query
+body capture; do not treat this narrow upload control as global body redaction.
+
+Existing text/CSV follow-ups, outside this image rollout: homepage Auto navigation
+carries only prompt text and loses attachment context; comparison conversations
+reuse claim-once document IDs; and rejected mixed-image submissions retain CSV
+source ownership even while the draft remains. Those legacy routing/ownership
+semantics are not redesigned here. Validate browser clipboard/encoding behavior,
+model vision support and gateway image forwarding before enabling an organization.
+
 ## Pre-aggregates
 
 Pre-aggregates are not behind a feature flag. They are on for every
@@ -514,8 +607,7 @@ other organisations are not affected. `POST /api/v1/oauth/revoke` still works.
 **Console.** Create the flag with no default. A default of off disables mobile
 access for every organisation in that deployment. Add an organisation override
 set to off to disable one organisation. Remove the override, or set it to on, to
-enable it again. To hide the Mobile settings page for that organisation, turn
-`mobile-settings` off as well.
+enable it again.
 
 **Propagation.** The server reads the flag on each check and keeps no cache. A
 Console change applies to the next request. A response that is already streaming
@@ -556,14 +648,9 @@ forces it on, and Console cannot turn it off there. ENV changes need a restart.
 
 ### Mobile QR sign-in and source project support
 
-`mobile-qr-sign-in` is the QR sign-in feature flag. `mobile-app-access` is checked
-first and refuses every QR action when it is off. Authenticated backend
-availability and mint checks resolve it for the user's organisation through the
-standard resolver. The web menu uses the server-resolved flag. Console organisation
-overrides work with ENV enable unset. Deployment defaults and generic ENV precedence
-apply as described above. Console changes apply to the next backend check and UI
-refetch; ENV changes require an API restart. Other mobile settings, mode, user and
-project access checks still apply.
+QR sign-in has no feature flag of its own. It needs Cloud mode, and
+`mobile-app-access` refuses every QR action when it is off. Mode, user and project
+access checks still apply.
 
 `GET /api/v1/mobile/sign-in-capabilities` advertises implemented protocol support,
 not QR availability or permission. Its static response always has `schemaVersion: 1`
@@ -574,8 +661,8 @@ Mint validates optional source project access, organisation and DEFAULT type.
 Token exchange returns stored context only when `include_source_project=true`.
 The web makes one uncached, bounded discovery request per mint attempt with a source
 project. Unknown or failed discovery uses the exact legacy mint shape. It retains
-no positive result. Disabling QR sign-in still refuses mint and normal QR actions;
-static protocol discovery grants no access and issues no code or token.
+no positive result. Static protocol discovery grants no access and issues no code
+or token.
 
 ## BigQuery OAuth Drive access
 

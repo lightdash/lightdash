@@ -31,6 +31,7 @@ export const MergeAutoRun: FC = () => {
     const { canRun, handleRun, mergeQuery, setupStep, joinKeyErrors, fanOut } =
         useMergeSetup();
     const wasRestored = merge?.wasRestored ?? false;
+    const runsSavedChart = merge?.runsSavedChart ?? false;
     const isRunning = merge?.isRunning ?? false;
     const mergeResults = merge?.mergeResults ?? null;
     const refuseRestoredRun = merge?.refuseRestoredRun;
@@ -72,11 +73,21 @@ export const MergeAutoRun: FC = () => {
     const ranSorts = mergeResults
         ? sortsKey(mergeResults.metricQuery.sorts)
         : null;
+    // A saved chart's run sorts as saved; a client-seeded default must not re-run it forever.
     useEffect(() => {
+        if (runsSavedChart) return;
         if (wantedSorts === null || wantedSorts === ranSorts) return;
         if (isRunning || !canRun || isRefused) return;
         handleRun();
-    }, [wantedSorts, ranSorts, isRunning, canRun, isRefused, handleRun]);
+    }, [
+        runsSavedChart,
+        wantedSorts,
+        ranSorts,
+        isRunning,
+        canRun,
+        isRefused,
+        handleRun,
+    ]);
 
     // The join type, join key and limit are inputs of the join alone. The
     // legs are cached, so changing them re-runs only the join; leaving the

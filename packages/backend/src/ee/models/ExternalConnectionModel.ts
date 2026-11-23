@@ -8,6 +8,7 @@ import {
     getAppDisplayName,
     NotFoundError,
     ParameterError,
+    sleep,
     type ApiSourceSchemaScan,
     type CreateExternalConnection,
     type ExternalConnection,
@@ -28,6 +29,11 @@ import {
     type DbApp as DbDataApp,
 } from '../../database/entities/apps';
 import { SpaceTableName } from '../../database/entities/spaces';
+import {
+    pauseBetweenBatchesMs,
+    type RetentionCleanupOptions,
+    type RetentionCleanupResult,
+} from '../../models/retentionCleanup';
 import {
     parseLiveSourceFieldState,
     type LiveSourceFieldEdits,
@@ -1858,12 +1864,61 @@ export class ExternalConnectionModel {
         await this.database(ApiSourceCallsTableName).insert(call);
     }
 
-    /** API calls, response bytes and median fetch time per connection, over every logged query in the project. */
+    /**
+     * Deletes call log rows older than the cutoff, one live data source at a
+     * time so each batch reads the (external_connection_uuid, created_at)
+     * index. Stops at `maxBatches` across all sources.
+     */
+    async cleanupApiSourceCalls(
+        cutoffDate: Date,
+        options: RetentionCleanupOptions,
+    ): Promise<RetentionCleanupResult> {
+        const connections: { external_connection_uuid: string }[] =
+            await this.database(ExternalConnectionsTableName).select(
+                'external_connection_uuid',
+            );
+        let totalDeleted = 0;
+        let batchCount = 0;
+        for (const {
+            external_connection_uuid: connectionUuid,
+        } of connections) {
+            for (;;) {
+                if (batchCount >= options.maxBatches) {
+                    return { totalDeleted, batchCount, completed: false };
+                }
+                const batchStartedAt = Date.now();
+                // eslint-disable-next-line no-await-in-loop
+                const deleted = await this.database(ApiSourceCallsTableName)
+                    .whereIn(
+                        'api_source_call_uuid',
+                        this.database(ApiSourceCallsTableName)
+                            .select('api_source_call_uuid')
+                            .where('external_connection_uuid', connectionUuid)
+                            .andWhere('created_at', '<', cutoffDate)
+                            .limit(options.batchSize),
+                    )
+                    .delete();
+                if (deleted === 0) break;
+                totalDeleted += deleted;
+                batchCount += 1;
+                if (deleted < options.batchSize) break;
+                // eslint-disable-next-line no-await-in-loop
+                await sleep(
+                    pauseBetweenBatchesMs(options, Date.now() - batchStartedAt),
+                );
+            }
+        }
+        return { totalDeleted, batchCount, completed: true };
+    }
+
+    /** API calls, response bytes and median fetch time per connection, over the logged queries since `since`. */
     async getApiSourceUsage(
         projectUuid: string,
-    ): Promise<ExternalConnectionApiUsage[]> {
+        since: Date,
+    ): Promise<Omit<ExternalConnectionApiUsage, 'windowDays'>[]> {
         const rows = await this.database(ApiSourceCallsTableName)
             .where('project_uuid', projectUuid)
+            .andWhere('created_at', '>=', since)
             .groupBy('external_connection_uuid')
             .select<
                 {

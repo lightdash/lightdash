@@ -38,7 +38,10 @@ import {
     type StudioChatRef,
 } from '../../../../../features/semanticStudio/studioChatRefs';
 import { STUDIO_STARTERS } from '../../../../../features/semanticStudio/studioStarters';
-import { useKeepsSemanticLayerDraft } from '../../../../../features/semanticStudio/useSemanticLayerModel';
+import {
+    useKeepsSemanticLayerDraft,
+    useSemanticLayerDraft,
+} from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import useSidebarResize from '../../../../../hooks/useSidebarResize';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
@@ -54,6 +57,7 @@ import {
     QuietCardsContext,
     StudioAskContext,
 } from '../ChatElements/ToolCalls/quietCards';
+import { getClosedChange } from './closedChange';
 import classes from './SemanticStudioAgent.module.css';
 import { StudioChatEmptyState } from './StudioChatEmptyState';
 import { StudioChatRefChips } from './StudioChatRefChips';
@@ -250,6 +254,18 @@ const NewThread: FC<
     );
 };
 
+/** Where the composer was once a change is out: the chat is done, and the next request starts a new one. */
+const ChangeClosed: FC<{ onStartNew: () => void }> = ({ onStartNew }) => (
+    <Group gap="xs" p="md" justify="space-between" wrap="nowrap">
+        <Text fz="sm" c="dimmed">
+            Done
+        </Text>
+        <Button size="xs" onClick={onStartNew}>
+            Start a new chat
+        </Button>
+    </Group>
+);
+
 const ExistingThread: FC<
     OpenModel &
         AskedPrompt &
@@ -257,11 +273,13 @@ const ExistingThread: FC<
             projectUuid: string;
             agent: AiAgentSummary;
             threadUuid: string;
+            onStartNew: () => void;
         }
 > = ({
     projectUuid,
     agent,
     threadUuid,
+    onStartNew,
     modelName,
     fieldName,
     prompt,
@@ -296,6 +314,7 @@ const ExistingThread: FC<
         onAttachedSent();
     };
     useAskedPrompt({ prompt, onPromptTaken }, (message) => send({ message }));
+    const { data: draft } = useSemanticLayerDraft(projectUuid);
     // The composer stays put while the conversation loads, so opening one never blanks the panel.
     if (isLoading || !thread) {
         return (
@@ -319,6 +338,7 @@ const ExistingThread: FC<
         );
     }
     const isBusy = isSending || isStreaming || isThreadPending;
+    const closed = isBusy ? null : getClosedChange(thread, draft);
     return (
         <StudioAskContext.Provider
             value={isBusy ? null : (message) => send({ message })}
@@ -340,19 +360,28 @@ const ExistingThread: FC<
                         publish it when it is ready.
                     </Text>
                 ) : null}
-                <StudioChatRefChips refs={attached} onRemove={onDetach} />
-                <AgentChatInput
-                    allowAttachments={false}
-                    accessCalloutVariant="inline"
-                    loading={isBusy}
-                    onSubmit={send}
-                    placeholder="What should I build or change?"
-                    messageCount={thread.messages.length}
-                    projectUuid={projectUuid}
-                    agentUuid={agent.uuid}
-                    threadUuid={threadUuid}
-                    fullWidth
-                />
+                {closed ? (
+                    <ChangeClosed onStartNew={onStartNew} />
+                ) : (
+                    <>
+                        <StudioChatRefChips
+                            refs={attached}
+                            onRemove={onDetach}
+                        />
+                        <AgentChatInput
+                            allowAttachments={false}
+                            accessCalloutVariant="inline"
+                            loading={isBusy}
+                            onSubmit={send}
+                            placeholder="What should I build or change?"
+                            messageCount={thread.messages.length}
+                            projectUuid={projectUuid}
+                            agentUuid={agent.uuid}
+                            threadUuid={threadUuid}
+                            fullWidth
+                        />
+                    </>
+                )}
             </AgentChatDisplay>
         </StudioAskContext.Provider>
     );
@@ -500,6 +529,7 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
                             projectUuid={projectUuid}
                             agent={thread.agent}
                             threadUuid={thread.threadUuid}
+                            onStartNew={startNewThread}
                             modelName={modelName}
                             fieldName={fieldName}
                             prompt={prompt}

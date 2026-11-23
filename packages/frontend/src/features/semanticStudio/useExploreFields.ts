@@ -164,11 +164,14 @@ export const useExploreFields = ({
     const fields = useMemo((): Field[] | undefined => {
         if (liveConnection) {
             if (!live.data) return undefined;
-            // The live fields cover the source's first explore; any other
+            // Explores the integration scans list their fields; any other
             // explore of the source shows its compiled fields
-            if (live.data.exploreName === explore.name) {
-                return live.data.fields.map((field) =>
-                    fromLive(field, live.data.exploreName, explore.label),
+            const curated = live.data.explores.find(
+                ({ exploreName }) => exploreName === explore.name,
+            );
+            if (curated) {
+                return curated.fields.map((field) =>
+                    fromLive(field, curated.exploreName, explore.label),
                 );
             }
         }
@@ -206,7 +209,11 @@ export const useExploreFields = ({
     }, [compiled.data]);
 
     const query =
-        liveConnection && (!live.data || live.data.exploreName === explore.name)
+        liveConnection &&
+        (!live.data ||
+            live.data.explores.some(
+                ({ exploreName }) => exploreName === explore.name,
+            ))
             ? live
             : compiled;
     return {

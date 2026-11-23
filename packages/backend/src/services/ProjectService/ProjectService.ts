@@ -194,6 +194,7 @@ import {
     MergeQueryErrorKind,
     MergeQueryField,
     MergeQueryMetricSource,
+    mergeReservedDefinitions,
     mergeWarehouseCredentials,
     MetricQuery,
     MetricType,
@@ -497,6 +498,7 @@ import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { ExploreCompilationSummary } from '../../utils/ExploreCompilationSummary';
 import { inheritUpstreamSshTunnelPrivateKey } from '../../utils/inheritUpstreamSshTunnelPrivateKey';
 import { createComposeMergeQueryBuilder } from '../../utils/QueryBuilder/composeMergeSql';
+import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
 import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBuilder';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
@@ -545,6 +547,7 @@ import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/
 import { type PermissionsService } from '../PermissionsService/PermissionsService';
 import { compileLiveMetricQuery } from '../QuerySourceService/live/explores/build';
 import { assertLiveQuery } from '../QuerySourceService/live/explores/definition';
+import { getLiveIntegration } from '../QuerySourceService/live/registry';
 import { resolveCliPreviewDeploy } from '../resolveCliPreviewDeploy';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
@@ -10149,6 +10152,7 @@ export class ProjectService
             userAttributeOverrides?: UserAttributeValueMap;
             /** Saved chart whose custom SQL an embed viewer may compile */
             customSqlProvenanceChartUuid?: UUID;
+            dateZoom?: DateZoom;
         } & ({ exploreName: string } | { explore: Explore }),
     ) {
         const {
@@ -10199,6 +10203,10 @@ export class ProjectService
             case 'composer':
                 // The author's custom SQL rights were checked at save
                 authority.binding.assertExecution(account, projectUuid);
+                break;
+            case 'mergedChart':
+                // Each source's SQL was checked at save, as a plain chart's is
+                authority.run.assertExecution(account, projectUuid);
                 break;
             case 'document':
                 authority.context.assertMetricQuery(
@@ -10300,7 +10308,7 @@ export class ProjectService
                 timezone,
                 availableParameterDefinitions,
                 parameters: combinedParameters,
-                dateZoom: undefined,
+                dateZoom: args.dateZoom,
                 pivotDimensions,
                 pivotItemsMap: undefined,
                 continueOnError: true, // Return SQL even with compilation errors for debugging
@@ -10483,6 +10491,32 @@ export class ProjectService
             .map((calculation) => calculation.name);
     }
 
+    /** The explore with one dimension re-grained under its own name, as a dashboard tile's metric query is zoomed. */
+    private async getDateZoomedExplore(
+        projectUuid: string,
+        explore: Explore,
+        metricQuery: MetricQuery,
+        dateZoom: DateZoom,
+    ): Promise<Explore> {
+        const settings = await this.getWarehouseSqlBuilderSettings(
+            projectUuid,
+            { kind: 'explore', exploreName: explore.name },
+        );
+        // As QueryComposer: the reserved parameters, such as date_zoom, are available too
+        const availableParameters = Object.keys(
+            mergeReservedDefinitions(
+                await this.getAvailableParameters(projectUuid, explore),
+            ),
+        );
+        return updateExploreWithDateZoom(
+            explore,
+            metricQuery,
+            warehouseSqlBuilderFromType(settings.type, settings.startOfWeek),
+            availableParameters,
+            dateZoom,
+        ).explore;
+    }
+
     /**
      * Compiles a merge of several metric queries into one warehouse statement.
      *
@@ -10501,6 +10535,14 @@ export class ProjectService
         userAttributeOverrides?: UserAttributeValueMap;
         /** Composer only: names a source of a shared explore by its node title, not its slot. */
         sourceTitleById?: Record<string, string>;
+        /**
+         * Composer only: each source is a node that already runs at its own
+         * limit, so a live data source can be a source; its rows are joined
+         * in DuckDB.
+         */
+        sourcesRunAsNodes?: boolean;
+        /** Composer only: the date zoom each metric source's leg runs with. */
+        dateZoomBySourceId?: Record<string, DateZoom>;
     }): Promise<ApiCompiledMergeQueryResults> {
         const {
             account,
@@ -10522,6 +10564,9 @@ export class ProjectService
                 break;
             case 'composer':
                 authority.binding.assertExecution(account, projectUuid);
+                break;
+            case 'mergedChart':
+                authority.run.assertExecution(account, projectUuid);
                 break;
             case 'request':
                 break;
@@ -10565,11 +10610,20 @@ export class ProjectService
                         return null;
                     }
                 }
-                const explore = await this.getExplore(
+                const savedExplore = await this.getExplore(
                     account,
                     projectUuid,
                     source.metricQuery.exploreName,
                 );
+                const dateZoom = args.dateZoomBySourceId?.[source.id];
+                const explore = dateZoom
+                    ? await this.getDateZoomedExplore(
+                          projectUuid,
+                          savedExplore,
+                          source.metricQuery,
+                          dateZoom,
+                      )
+                    : savedExplore;
                 const itemMap = getItemMap(
                     explore,
                     source.metricQuery.additionalMetrics,
@@ -10692,7 +10746,8 @@ export class ProjectService
         switch (authority.kind) {
             case 'document':
             case 'composer':
-                // Checked as the author at save: a document compiles its merge, a composer chart runs its write check
+            case 'mergedChart':
+                // Checked as the author at save: a document compiles its merge, a chart runs its write check
                 break;
             case 'request':
                 if (mergeSqlTableCalculations.length > 0) {
@@ -10755,6 +10810,47 @@ export class ProjectService
                     };
                 }
 
+                // A live data source leg runs on its integration as its own
+                // query, and the join reads its rows in DuckDB like a stored
+                // result; it has no SQL. It gets the refusals it would get alone.
+                const explore = exploreBySourceId[source.id];
+                if (
+                    args.sourcesRunAsNodes &&
+                    explore?.type === ExploreType.API_SOURCE
+                ) {
+                    const { integration } = assertLiveQuery(
+                        explore,
+                        resolvedMetricQuery,
+                        {
+                            dateZoomGranularity:
+                                args.dateZoomBySourceId?.[source.id]
+                                    ?.granularity,
+                        },
+                    );
+                    // A leg cut short at the integration's cap would join
+                    // as if its missing rows did not exist
+                    const { label, limits } = getLiveIntegration(integration);
+                    if (resolvedMetricQuery.limit > limits.maxRows) {
+                        throw new ParameterError(
+                            `Merge source "${source.id}" asks for ${resolvedMetricQuery.limit.toLocaleString(
+                                'en-US',
+                            )} rows, but one ${label} query returns at most ${limits.maxRows.toLocaleString(
+                                'en-US',
+                            )}. Lower its limit or narrow it with a filter.`,
+                        );
+                    }
+                    return {
+                        id: source.id,
+                        sql: null,
+                        metricQuery: resolvedMetricQuery,
+                        valueColumns,
+                        missingParameters: [],
+                        parameterReferences: [],
+                        usedParametersValues: {},
+                        originBySourceColumn,
+                    };
+                }
+
                 // Each metric source compiles exactly as it would on its own,
                 // so a merged query inherits the same access rules, required
                 // filters and parameter handling as the query it was built
@@ -10765,6 +10861,7 @@ export class ProjectService
                     account,
                     projectUuid,
                     exploreName: resolvedMetricQuery.exploreName,
+                    dateZoom: args.dateZoomBySourceId?.[source.id],
                     body: {
                         ...resolvedMetricQuery,
                         sorts: [],
@@ -17377,12 +17474,99 @@ export class ProjectService
             throw new ForbiddenError();
         }
 
+        const [spaceUuid, dashboardUuid, chartUuid] = await Promise.all([
+            this.filterViewablePaletteContext(context.spaceUuid, (uuid) =>
+                this.canViewSpaceInProject(user, projectUuid, uuid),
+            ),
+            this.filterViewablePaletteContext(context.dashboardUuid, (uuid) =>
+                this.canViewDashboardInProject(user, projectUuid, uuid),
+            ),
+            this.filterViewablePaletteContext(context.chartUuid, (uuid) =>
+                this.canViewChartInProject(user, projectUuid, uuid),
+            ),
+        ]);
+
         return this.savedChartModel.resolveColorPalette({
             projectUuid,
-            spaceUuid: context.spaceUuid,
-            dashboardUuid: context.dashboardUuid,
-            chartUuid: context.chartUuid,
+            spaceUuid,
+            dashboardUuid,
+            chartUuid,
         });
+    }
+
+    // Context the user can't view is dropped, so the palette falls back to the next level.
+    private async filterViewablePaletteContext(
+        uuid: string | undefined,
+        canView: (uuid: string) => Promise<boolean>,
+    ): Promise<string | undefined> {
+        if (uuid === undefined) return undefined;
+        try {
+            return (await canView(uuid)) ? uuid : undefined;
+        } catch (error) {
+            if (error instanceof NotFoundError) return undefined;
+            throw error;
+        }
+    }
+
+    private async canViewSpaceInProject(
+        user: SessionUser,
+        projectUuid: string,
+        spaceUuid: string,
+    ): Promise<boolean> {
+        await this.spaceModel.getSpaceSummary(spaceUuid, { projectUuid });
+        return this.spacePermissionService.can('view', user, spaceUuid);
+    }
+
+    private async canViewDashboardInProject(
+        user: SessionUser,
+        projectUuid: string,
+        dashboardUuid: string,
+    ): Promise<boolean> {
+        const dashboard =
+            await this.dashboardModel.getSummaryByUuid(dashboardUuid);
+        if (dashboard.projectUuid !== projectUuid) return false;
+        const { inheritsFromOrgOrProject, access } =
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid,
+                spaceUuid: dashboard.spaceUuid,
+            });
+        return this.createAuditedAbility(user).can(
+            'view',
+            subject('Dashboard', {
+                organizationUuid: dashboard.organizationUuid,
+                projectUuid,
+                inheritsFromOrgOrProject,
+                access,
+                metadata: { dashboardUuid },
+            }),
+        );
+    }
+
+    private async canViewChartInProject(
+        user: SessionUser,
+        projectUuid: string,
+        chartUuid: string,
+    ): Promise<boolean> {
+        const chart = await this.savedChartModel.getSummary(chartUuid);
+        if (chart.projectUuid !== projectUuid) return false;
+        const { inheritsFromOrgOrProject, access } =
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'chart',
+                chartUuid,
+                dashboardUuid: chart.dashboardUuid,
+                spaceUuid: chart.spaceUuid,
+            });
+        return this.createAuditedAbility(user).can(
+            'view',
+            subject('SavedChart', {
+                organizationUuid: chart.organizationUuid,
+                projectUuid,
+                inheritsFromOrgOrProject,
+                access,
+                metadata: { savedChartUuid: chartUuid },
+            }),
+        );
     }
 
     /** @deprecated Only used by the deprecated project access endpoint; use RolesService.deleteProjectRoleAssignment instead. */

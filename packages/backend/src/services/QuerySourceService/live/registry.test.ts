@@ -57,10 +57,9 @@ const SAMPLE_SETTINGS: {
     [ApiConnectorType.PYLON]: {
         connector: ApiConnectorType.PYLON,
     },
-    [ApiConnectorType.ATTIO]: {
-        connector: ApiConnectorType.ATTIO,
-        object: 'companies',
-    },
+    [ApiConnectorType.ATTIO]: { connector: ApiConnectorType.ATTIO },
+    [ApiConnectorType.HUBSPOT]: { connector: ApiConnectorType.HUBSPOT },
+    [ApiConnectorType.SALESFORCE]: { connector: ApiConnectorType.SALESFORCE },
 };
 
 const SERVER_ERROR: LiveHttpResponse = {
@@ -86,6 +85,16 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
 
         test('stores its settings as they are', () => {
             expect(integration.settings.parse(settings)).toEqual(settings);
+        });
+
+        test('scans only explores it has, besides its first', () => {
+            const [first, ...others] = integration.explores.map(
+                ({ name }) => name,
+            );
+            (integration.scan?.models ?? []).forEach((model) => {
+                expect(others).toContain(model);
+                expect(model).not.toBe(first);
+            });
         });
 
         test('refuses a limit that is not a positive number before calling', async () => {

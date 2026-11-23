@@ -22,7 +22,7 @@ type Merged = Omit<ApplyModelFragmentResult, 'contents'> & {
     contents: string | null;
 };
 
-/** What a drafted item's fragment and removals do to one model's YAML. */
+/** What a drafted item's removals and fragment do to one model's YAML. */
 const mergeFragment = (
     current: string | null,
     { name, yaml, remove, removeModel }: SemanticLayerDraftModelInput,
@@ -51,41 +51,34 @@ const mergeFragment = (
             'sql_from can only hold one SELECT statement, with no semicolons inside it',
         );
     }
-    const merged: Merged =
-        written === null
-            ? { contents: current, changes: [], refusals: [] }
-            : applyModelFragment({
-                  contents: current,
-                  filename,
-                  fragment:
-                      derivedFrom === undefined
-                          ? written
-                          : { ...written, sql_from: derivedFrom },
-              });
-    const merging = merged.changes.length > 0 ? merged.contents : current;
-    if (remove.length === 0) return merged;
-    if (merging === null) {
-        return {
-            ...merged,
-            contents: null,
-            refusals: [
-                ...merged.refusals,
-                ...remove.map((path) => ({
+    // Removals come first, so one item can give up a name and take it again.
+    const removed = ((): Merged => {
+        if (remove.length === 0 || current === null) {
+            return {
+                contents: current,
+                changes: [],
+                refusals: remove.map((path) => ({
                     path,
                     reason: 'not_found' as const,
                 })),
-            ],
-        };
-    }
-    const removed = removeModelParts({
-        contents: merging,
+            };
+        }
+        return removeModelParts({ contents: current, filename, paths: remove });
+    })();
+    if (written === null) return removed;
+    const merged = applyModelFragment({
+        contents: removed.contents,
         filename,
-        paths: remove,
+        fragment:
+            derivedFrom === undefined
+                ? written
+                : { ...written, sql_from: derivedFrom },
     });
     return {
-        contents: removed.contents,
-        changes: [...merged.changes, ...removed.changes],
-        refusals: [...merged.refusals, ...removed.refusals],
+        contents:
+            merged.changes.length > 0 ? merged.contents : removed.contents,
+        changes: [...removed.changes, ...merged.changes],
+        refusals: [...removed.refusals, ...merged.refusals],
     };
 };
 
