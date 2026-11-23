@@ -29,7 +29,7 @@ describe('hydraConnection', () => {
         expect(
             toTokenLiveSourceUpdatePayload(HYDRA_TOKEN_FORM, {
                 name: 'Hydra',
-                accountId: 'latencyMs=500, retryAfterEvery=3 failAuth=true',
+                accountId: 'latencyMs=500, pageSize=20 failAuth=true',
                 token: '',
             }),
         ).toEqual({
@@ -37,7 +37,7 @@ describe('hydraConnection', () => {
             apiSource: {
                 ...HYDRA_DEFAULT_SETTINGS,
                 latencyMs: 500,
-                retryAfterEvery: 3,
+                pageSize: 20,
                 failAuth: true,
             },
         });
@@ -55,5 +55,8 @@ describe('hydraConnection', () => {
         expect(HYDRA_TOKEN_FORM.account.isValid(line)).toBe(true);
         expect(HYDRA_TOKEN_FORM.account.isValid('errorRate=2')).toBe(false);
         expect(HYDRA_TOKEN_FORM.account.isValid('speed=fast')).toBe(false);
+        expect(
+            HYDRA_TOKEN_FORM.account.isValid('{"declaredLimits": null}'),
+        ).toBe(true);
     });
 });

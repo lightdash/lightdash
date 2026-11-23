@@ -19,7 +19,9 @@ import { pollUntil } from '../helpers/polling';
 
 // Hydra is the test integration the shared live data source engine is
 // tested through: its API answers in-process, from rows seeded by the
-// sign-in token, and its settings make it slow, fail or rate limit.
+// sign-in token, and its settings make it slow, fail, page or rate limit.
+// Hydra counts calls per backend process, so these tests check what queries
+// return, not Hydra's call counts; a new source starts at call 1.
 
 const projectUuid = SEED_PROJECT.project_uuid;
 const connectionsUrl = `/api/v1/ee/projects/${projectUuid}/external-connections`;
@@ -311,41 +313,77 @@ describe('Hydra, the test integration', () => {
         expect(updated.body.error.message).toBe(message);
     });
 
-    it('passes on a 429 with its Retry-After', async () => {
-        await setBehaviour({ retryAfterEvery: 1, retryAfterSeconds: 3 });
-        try {
-            const result = await runQuery(admin, source.events, {
-                invalidateCache: true,
-            });
-            expect(result.status).toBe('error');
-            expect(result.error).toMatch(/Hydra rate limit reached.*3 seconds/);
-        } finally {
-            await setBehaviour({});
-        }
+    it.each([
+        ['a 429 with Retry-After', { status: 429, retryAfterSeconds: 2 }],
+        [
+            'a 403 whose body says it is a throttle',
+            {
+                status: 403,
+                retryAfterSeconds: 1,
+                body: { code: 'rate_limited', message: 'Slow down' },
+            },
+        ],
+    ])('waits out %s and retries the call', async (_name, respond) => {
+        const limited = await createHydraSource(
+            admin,
+            `retry${respond.status}`,
+            'erin',
+            { script: [{ calls: '1', respond }] },
+        );
+        created.push(limited.uuid);
+        const result = await runQuery(admin, limited.events, {
+            invalidateCache: true,
+        });
+        expect(result.status).toBe('ready');
     });
 
-    it("refuses calls past the source's per-minute limit", async () => {
-        const limited = await createHydraSource(admin, 'limited', 'carol', {
-            callsPerMinute: 1,
+    it('gives up after its retries while Hydra keeps refusing', async () => {
+        const limited = await createHydraSource(admin, 'refusing', 'frank', {
+            script: [
+                { calls: '1-', respond: { status: 429, retryAfterSeconds: 1 } },
+            ],
         });
         created.push(limited.uuid);
-        const results = [];
-        for (let call = 0; call < 3; call += 1) {
-            // eslint-disable-next-line no-await-in-loop
-            results.push(
-                await runQuery(admin, limited.events, {
-                    invalidateCache: true,
-                }),
-            );
-        }
-        // Three calls a few seconds apart cross at most one minute boundary
-        expect(results[0].status).toBe('ready');
-        expect(
-            results
-                .slice(1)
-                .some(({ error }) =>
-                    /limit of 1 calls per minute/.test(error ?? ''),
-                ),
-        ).toBe(true);
+        const result = await runQuery(admin, limited.events, {
+            invalidateCache: true,
+        });
+        expect(result.status).not.toBe('ready');
+        expect(result.error).toMatch(/Hydra rate limit reached/);
+    });
+
+    it("shows the vendor's refusal when Lightdash declares no limits to hold", async () => {
+        const limited = await createHydraSource(admin, 'undeclared', 'grace', {
+            vendorLimits: {
+                concurrentCalls: null,
+                callsPerSecond: null,
+                buckets: [{ id: 'hour', windowMs: 3_600_000, capacity: 1 }],
+            },
+            declaredLimits: null,
+        });
+        created.push(limited.uuid);
+        const first = await runQuery(admin, limited.events, {
+            invalidateCache: true,
+        });
+        expect(first.status).toBe('ready');
+        const second = await runQuery(admin, limited.events, {
+            invalidateCache: true,
+        });
+        expect(second.status).not.toBe('ready');
+        expect(second.error).toMatch(/Hydra rate limit reached/);
+    });
+
+    it('reads a big report a page at a time', async () => {
+        // 1,000 events seed 100 users, enough for 61 rows
+        const paged = await createHydraSource(admin, 'paged', 'alice', {
+            pageSize: 20,
+        });
+        created.push(paged.uuid);
+        const result = await runQuery(admin, paged.events, {
+            dimensions: [`${paged.events}_user_id`],
+            limit: 60,
+            invalidateCache: true,
+        });
+        expect(result.status).toBe('ready');
+        expect(result.rows).toHaveLength(60);
     });
 });

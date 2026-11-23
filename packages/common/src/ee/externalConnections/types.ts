@@ -134,25 +134,63 @@ export type SalesforceApiSource = {
 
 /**
  * Hydra, the test integration: its rows are seeded from the sign-in token,
- * and these settings make its fake API slow, fail or rate limit on demand.
+ * and these settings make its fake API slow, fail, page or rate limit.
  */
 export type HydraApiSource = {
     connector: ApiConnectorType.HYDRA;
-    /** Milliseconds each call waits before answering. */
-    latencyMs: number;
-    /** Share of calls, 0 to 1, that fail with a 500. */
-    errorRate: number;
-    /** Every Nth call answers 429 with Retry-After; 0 never does. */
-    retryAfterEvery: number;
-    /** The Retry-After those 429s carry, in seconds. */
-    retryAfterSeconds: number;
-    /** Every call answers 401, as a revoked sign-in would. */
-    failAuth: boolean;
     /** Events seeded per sign-in token, over the last 90 days. */
     rowCount: number;
-    /** The limits Lightdash keeps the source's calls under. */
-    callsPerMinute: number;
-    callsPerHour: number;
+    /** Rows per call; a bigger report takes several calls. 0 never pages. */
+    pageSize: number;
+    /** Milliseconds each call waits before answering. */
+    latencyMs: number;
+    /** Up to this many milliseconds more, at random, per call. */
+    jitterMs: number;
+    /** Share of calls, 0 to 1, that fail with a 500. */
+    errorRate: number;
+    /** Every call answers 401, as a revoked sign-in would. */
+    failAuth: boolean;
+    /** The limits Hydra's API enforces, refusing calls past them; null enforces none. */
+    vendorLimits: HydraRateLimits | null;
+    /** How Hydra refuses a call past `vendorLimits`. */
+    onLimit: HydraOnLimit;
+    /**
+     * The limits Lightdash keeps the source's calls under: "vendor" copies
+     * `vendorLimits`, and null declares none.
+     */
+    declaredLimits: 'vendor' | HydraRateLimits | null;
+    /** Fixed answers for given calls, counted per source from 1. */
+    script: HydraScriptStep[];
+};
+
+/** Rate limits, in the shape the rate-limit gate reads. */
+export type HydraRateLimits = {
+    /** Calls in flight at once; null for no cap. */
+    concurrentCalls: number | null;
+    callsPerSecond: number | null;
+    /** Fixed windows of calls, like a minute or an hour. */
+    buckets: { id: string; windowMs: number; capacity: number }[];
+};
+
+export type HydraOnLimit = {
+    status: number;
+    /** Retry-After as seconds, as an HTTP date, or left out. */
+    retryAfter: 'seconds' | 'date' | 'none';
+    /** The body Hydra answers; `{"code": "rate_limited"}` marks a throttle in a non-429. */
+    body: Record<string, unknown> | null;
+};
+
+export type HydraScriptStep = {
+    /** One call ("3"), a range ("1-2") or every call from one on ("4-"). */
+    calls: string;
+    /** "ok" answers as usual, skipping injected failures. */
+    respond:
+        | 'ok'
+        | {
+              status: number;
+              retryAfterSeconds?: number;
+              body?: Record<string, unknown>;
+          };
 };
 
 /** Connector settings of a live source; the server fixes its access rules. */
@@ -223,6 +261,9 @@ export const PYLON_USERS_PATH = '/users';
 export const HYDRA_ORIGIN = 'https://hydra.invalid';
 export const HYDRA_REPORT_PATH = '/v1/report';
 export const HYDRA_ACCOUNT_PATH = '/v1/account';
+/** What Hydra saw of the source's calls; POST to `/reset` to forget it. */
+export const HYDRA_STATS_PATH = '/v1/stats';
+export const HYDRA_STATS_RESET_PATH = '/v1/stats/reset';
 /** Set to "true" to register Hydra; it is absent everywhere otherwise. */
 export const HYDRA_ENABLED_ENV = 'LIVE_SOURCES_HYDRA_ENABLED';
 

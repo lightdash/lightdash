@@ -2,8 +2,10 @@ import {
     ApiConnectorType,
     getHydraSettingsProblem,
     HYDRA_ACCOUNT_PATH,
+    HYDRA_DEFAULT_SETTINGS,
     HYDRA_ORIGIN,
     HYDRA_REPORT_PATH,
+    HYDRA_STATS_PATH,
     LIVE_INTEGRATION_CATALOG,
     ParameterError,
 } from '@lightdash/common';
@@ -15,6 +17,7 @@ import {
 import { getIsoDateInTimeZone } from '../../query/dateRange';
 import { type LiveLimits } from '../../types';
 import { compileHydraQuery } from './compile';
+import { getHydraDeclaredLimits } from './declaredLimits';
 import { toHydraError } from './errors';
 import {
     HYDRA_DATE_FILTERS,
@@ -30,12 +33,9 @@ import { hydraUseCases } from './useCases';
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.HYDRA];
 const LABEL = CATALOG.messageLabel;
 
-// The defaults every source starts from; its settings set the call limits
 const LIMITS: LiveLimits = {
-    concurrentCalls: 2,
-    callsPerMinute: 30,
-    callsPerHour: 300,
-    callsPerQuery: 1,
+    // Enough pages for the row cap at a page size of 50
+    callsPerQuery: 11,
     timeoutMs: 30_000,
     maxRows: HYDRA_MAX_QUERY_ROWS,
 };
@@ -51,15 +51,11 @@ export const hydraIntegration = defineLiveIntegration({
     settings: CATALOG.settings,
     origins: [HYDRA_ORIGIN],
     access: () => ({
-        pathPrefixes: [HYDRA_REPORT_PATH, HYDRA_ACCOUNT_PATH],
+        pathPrefixes: [HYDRA_REPORT_PATH, HYDRA_ACCOUNT_PATH, HYDRA_STATS_PATH],
         methods: ['GET', 'POST'],
     }),
     limits: LIMITS,
-    limitsFor: ({ callsPerMinute, callsPerHour }) => ({
-        ...LIMITS,
-        callsPerMinute,
-        callsPerHour,
-    }),
+    rateLimitsFor: getHydraDeclaredLimits,
     // One AND of report filters, each keeping or dropping a list of values.
     // Events are read over one range of UTC days.
     capabilities: {
@@ -98,27 +94,9 @@ export const hydraIntegration = defineLiveIntegration({
     },
     paging: {
         description:
-            'One call returns up to 10,000 groups; there is no paging.',
+            "One call returns up to 10,000 groups, or the source's pageSize, and says where the next page starts.",
     },
-    rateLimits: {
-        concurrentCalls: LIMITS.concurrentCalls,
-        callsPerSecond: null,
-        buckets: [
-            {
-                id: 'minute',
-                label: 'per minute',
-                windowMs: 60_000,
-                capacity: LIMITS.callsPerMinute,
-            },
-            {
-                id: 'hour',
-                label: 'per hour',
-                windowMs: 3_600_000,
-                capacity: LIMITS.callsPerHour,
-            },
-        ],
-        note: 'Each source sets its own per-minute and per-hour limits, and can answer 429 with Retry-After every Nth call.',
-    },
+    rateLimits: getHydraDeclaredLimits(HYDRA_DEFAULT_SETTINGS),
     useCases: hydraUseCases,
     validate: (settings) => {
         const problem = getHydraSettingsProblem(settings);

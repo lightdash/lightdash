@@ -16,7 +16,7 @@ import type {
     LiveExploreDefinition,
     LivePeriodFormat,
 } from './explores/definition';
-import type { LiveIntegrationSpec } from './spec/types';
+import type { LiveIntegrationSpec, LiveRateLimits } from './spec/types';
 
 /**
  * One external API Lightdash queries live: a source's settings, what it may
@@ -47,8 +47,8 @@ export type LiveIntegration<
         headers?: Record<string, string> | null;
     };
     limits: LiveLimits;
-    /** A source's own limits, when its settings set them; omitted, every source gets `limits`. */
-    limitsFor?: (settings: ApiSourceOf<C>) => LiveLimits;
+    /** A source's own rate limits, when its settings set them; omitted, every source gets `rateLimits`. */
+    rateLimitsFor?: (settings: ApiSourceOf<C>) => LiveRateLimits;
     capabilities: LiveCapabilities;
     /** The first is the wide model; scans and field edits apply to it and to `scan.models`. */
     explores: readonly [LiveExploreDefinition, ...LiveExploreDefinition[]];

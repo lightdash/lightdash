@@ -21,7 +21,7 @@ Use it to test anything live data sources do (adding a source, charts, dashboard
       "type": "bearer_token",
       "origin": "https://hydra.invalid",
       "secret": "alice",
-      "apiSource": { "connector": "hydra", "latencyMs": 0, "errorRate": 0, "retryAfterEvery": 0, "retryAfterSeconds": 1, "failAuth": false, "rowCount": 1000, "callsPerMinute": 30, "callsPerHour": 300 },
+      "apiSource": { ...HYDRA_DEFAULT_SETTINGS, "latencyMs": 500 },
       "allowedMethods": ["GET", "POST"],
       "allowedPathPrefixes": ["/v1/report", "/v1/account"],
       "allowedContentTypes": ["application/json"],
@@ -29,7 +29,7 @@ Use it to test anything live data sources do (adding a source, charts, dashboard
   }
   ```
 
-  `createHydraSource` in `packages/api-tests/tests/hydraLiveSource.test.ts` builds the same body. `PATCH` the same URL plus `/<uuid>` with a new `apiSource` to change behaviour.
+  `apiSource` must hold every setting: start from `HYDRA_DEFAULT_SETTINGS` (`@lightdash/common`). `createHydraSource` in `packages/api-tests/tests/hydraLiveSource.test.ts` builds the same body. `PATCH` the same URL plus `/<uuid>` with a new `apiSource` to change behaviour.
 
 ## Data
 
@@ -41,18 +41,30 @@ Use it to test anything live data sources do (adding a source, charts, dashboard
 
 ## Behaviour
 
-Settings are `key=value` pairs, in the UI's Behaviour field or `apiSource`. Each call applies them in this order:
+The UI's Behaviour field takes `key=value` pairs for the simple keys, or a JSON object of any settings; keys left out keep their defaults. Through the API, set them in `apiSource`.
 
 | Key | Default | Effect | What a query shows |
 | --- | --- | --- | --- |
-| `latencyMs` | 0 | Waits before answering. At 30000 or more the call times out | A slow tile, or a timeout error |
+| `latencyMs`, `jitterMs` | 0, 0 | Waits `latencyMs` plus up to `jitterMs` at random. At 30000 or more the call times out | A slow tile, or a timeout error |
 | `failAuth` | false | Answers 401 | `Hydra rejected the sign-in token…` |
-| `retryAfterEvery`, `retryAfterSeconds` | 0, 1 | Every Nth call answers 429 with `Retry-After` | `Hydra rate limit reached… Retry in N seconds…` |
 | `errorRate` | 0 | Share of calls (0 to 1) that answer 500 | `Hydra returned 500…` |
 | `rowCount` | 1000 | Seeded events | Bigger or smaller totals |
-| `callsPerMinute`, `callsPerHour` | 30, 300 | The source's own call limits, enforced by the shared limiter | `…reached its limit of N calls per minute. Retry after N seconds.` |
+| `pageSize` | 0 | Rows per call; a bigger report takes several calls (at most 11 per query). 0 never pages | The same rows, over more calls |
+| `vendorLimits` | 2 at once, 30 a minute, 300 an hour | What Hydra's API enforces: `concurrentCalls`, `callsPerSecond` and fixed-window `buckets` (`{id, windowMs, capacity}`). It refuses calls past them until the window resets; null enforces none | Nothing while the gate keeps under them |
+| `onLimit` | 429, Retry-After in seconds | How Hydra refuses: `status`, `retryAfter` (`seconds`, `date` or `none`) and `body`. A body with `"code": "rate_limited"` marks a throttle under any status | `Hydra rate limit reached…` once retries run out |
+| `declaredLimits` | `"vendor"` | The limits Lightdash's rate-limit gate keeps calls under, in the `vendorLimits` shape: `"vendor"` copies them, an object sets tighter or looser ones, null declares none | Calls wait their turn; past the deadline, `…reached its limit…` |
+| `script` | none | Fixed answers by call number, from 1 per source: `[{"calls": "1-2", "respond": "ok"}, {"calls": "3", "respond": {"status": 429, "retryAfterSeconds": 5}}]`. `"4-"` matches every call from 4. `"ok"` answers as usual, skipping `errorRate` | Whatever the step answers |
 
-The call counter for `retryAfterEvery` is per source and resets when the server restarts.
+Each call is refused at once past `vendorLimits`, then waits, then answers its script step, `failAuth`, `errorRate` or the data, in that order.
+
+To test the gate against the vendor:
+- **Declared tighter or equal:** Hydra never refuses (check `refused` in the stats).
+- **Declared looser:** Hydra refuses, and the gate holds the declared buckets until Retry-After, then retries the call up to twice.
+- **Declared none:** the gate charges no bucket, so a refusal is not retried and the query fails.
+
+## Stats
+
+`hydraServer.getStats(connectionUuid)` (in `server.ts`) returns `{ calls, refused, maxInFlight, minGapMs, peakPerBucket }` for a source, and `hydraServer.reset(connectionUuid)` forgets its counts, windows and script position. The same stats are at `GET /v1/stats`, and `POST /v1/stats/reset` resets them. Stats calls are not counted. Counts are per backend process and start over when it restarts, so API tests against an env check what queries return, not the counts.
 
 ## What to check
 
@@ -62,5 +74,5 @@ The call counter for `retryAfterEvery` is per source and resets when the server 
 
 ## Automated tests
 
-- Unit: `hydra.test.ts` (compile, the fake server, the engine path), `ExternalConnectionService/hydraFetch.test.ts` (fetch seam, limiter).
+- Unit: `hydra.test.ts` (compile, the engine path, scripts, paging, declared limits), `server.test.ts` (vendor limits, refusals, stats), `ExternalConnectionService/hydraFetch.test.ts` (fetch seam).
 - API: `packages/api-tests/tests/hydraLiveSource.test.ts`, run against a preview env.

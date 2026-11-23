@@ -11,17 +11,17 @@ import { type TokenLiveSourceForm } from './tokenLiveSource';
 
 /**
  * Hydra, the test integration. Its settings go in one line of key=value
- * pairs; any token signs in and seeds its own rows.
+ * pairs, or JSON; any token signs in and seeds its own rows.
  */
 export const HYDRA_TOKEN_FORM = {
     origin: HYDRA_ORIGIN,
     account: {
         label: 'Behaviour',
         description:
-            'Keys like latencyMs, failAuth, retryAfterEvery and rowCount',
+            'Keys like latencyMs, failAuth, errorRate and pageSize, or JSON for limits and scripts',
         placeholder: 'Leave blank for defaults',
         invalidMessage:
-            'Use key=value pairs with the keys above, numbers of 0 or more, errorRate up to 1 and failAuth true or false',
+            'Use key=value pairs with the keys above, or a JSON object of Hydra settings',
         normalize: (value) => {
             const parsed = parseHydraBehaviour(value);
             return parsed ? formatHydraBehaviour(parsed) : value.trim();
