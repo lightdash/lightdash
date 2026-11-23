@@ -174,13 +174,25 @@ export const AppSidebar: FC<Props> = ({
                             ),
                         }));
                         return section.label === null ? (
-                            <Box key={section.key}>
-                                {items.map((item) => (
-                                    <Fragment key={item.key}>
-                                        {item.element}
-                                    </Fragment>
-                                ))}
-                            </Box>
+                            <Fragment key={section.key}>
+                                <Box>
+                                    {items.map((item) => (
+                                        <Fragment key={item.key}>
+                                            {item.element}
+                                        </Fragment>
+                                    ))}
+                                </Box>
+                                {projectUuid && projectUrlIdentifier && (
+                                    <SidebarFavorites
+                                        projectUuid={projectUuid}
+                                        projectUrlIdentifier={
+                                            projectUrlIdentifier
+                                        }
+                                        isSidebarCollapsed={isCollapsed}
+                                        activeFavoriteUuid={activeFavoriteUuid}
+                                    />
+                                )}
+                            </Fragment>
                         ) : (
                             <SidebarSection
                                 key={section.key}
@@ -191,14 +203,6 @@ export const AppSidebar: FC<Props> = ({
                             />
                         );
                     })}
-                    {projectUuid && projectUrlIdentifier && (
-                        <SidebarFavorites
-                            projectUuid={projectUuid}
-                            projectUrlIdentifier={projectUrlIdentifier}
-                            isSidebarCollapsed={isCollapsed}
-                            activeFavoriteUuid={activeFavoriteUuid}
-                        />
-                    )}
                 </Box>
                 <NavBarPortalContext.Provider value="body">
                     <NavMenuTriggerContext.Provider value={SidebarMenuTrigger}>
