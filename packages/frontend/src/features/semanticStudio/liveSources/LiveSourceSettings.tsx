@@ -172,7 +172,7 @@ const SignInModeRow: FC<{
                 role="alertdialog"
                 description={
                     asked === 'per_user'
-                        ? `Everyone connects their own ${integration} account before they see data from this source. Scheduled deliveries fail until their creator connects, and service accounts and Slack link previews stop getting data.`
+                        ? `Everyone connects their own ${integration} account before they see data from this source. Scheduled deliveries fail until their creator connects. Service accounts, embeds and Slack link previews stop getting data, and so does the Slack agent unless Slack signs people in to Lightdash.`
                         : `Everyone will see what this source's ${integration} sign-in sees, and every viewer's own sign-in is forgotten.`
                 }
                 confirmLabel={
