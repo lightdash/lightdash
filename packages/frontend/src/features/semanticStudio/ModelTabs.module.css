@@ -38,16 +38,6 @@
     }
 }
 
-.copy {
-    opacity: 0;
-    transition: opacity 120ms ease;
-}
-
-.codePane:hover .copy,
-.copy:focus-within {
-    opacity: 1;
-}
-
 .codeToolbar {
     flex: none;
     min-height: 45px;

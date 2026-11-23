@@ -38,7 +38,6 @@ import {
     type ReactNode,
 } from 'react';
 import { useSearchParams } from 'react-router';
-import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import {
     PIERRE_HIGHLIGHTER_OPTIONS,
@@ -300,14 +299,6 @@ export const ModelCodeView: FC<{
                             </Button>
                         </Tooltip>
                     </>
-                ) : null}
-                {shownContent !== null ? (
-                    <Box className={classes.copy}>
-                        <CopyActionIcon
-                            value={text ?? shownContent}
-                            copyLabel="Copy YAML"
-                        />
-                    </Box>
                 ) : null}
             </Group>
             {changedUnder ? (
