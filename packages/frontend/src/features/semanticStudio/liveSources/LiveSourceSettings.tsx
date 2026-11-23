@@ -104,19 +104,7 @@ const TokenRow: FC<{
     /** Only token integrations know a small read to test with. */
     tokenForm: TokenLiveSourceForm | null;
     form: UseFormReturnType<Values>;
-    isReplacing: boolean;
-    onReplace: () => void;
-    onKeep: () => void;
-}> = ({
-    projectUuid,
-    connection,
-    label,
-    tokenForm,
-    form,
-    isReplacing,
-    onReplace,
-    onKeep,
-}) => {
+}> = ({ projectUuid, connection, label, tokenForm, form }) => {
     const testSaved = useTestConnection();
     const testNew = useTestConnectionConfig();
     const { values } = form;
@@ -152,24 +140,14 @@ const TokenRow: FC<{
                 )
             }
         >
-            {isReplacing ? (
-                <PasswordInput
-                    size="xs"
-                    w={200}
-                    aria-label={`New ${label}`}
-                    placeholder={`New ${label.toLowerCase()}`}
-                    autoComplete="off"
-                    data-autofocus
-                    {...form.getInputProps('token')}
-                />
-            ) : null}
-            <Button
+            <PasswordInput
                 size="xs"
-                variant="default"
-                onClick={isReplacing ? onKeep : onReplace}
-            >
-                {isReplacing ? 'Keep saved' : 'Replace'}
-            </Button>
+                w={240}
+                aria-label={`New ${label}`}
+                placeholder="Leave empty to keep the saved key"
+                autoComplete="off"
+                {...form.getInputProps('token')}
+            />
             {tokenForm ? (
                 <Button
                     size="xs"
@@ -216,7 +194,6 @@ export const LiveSourceSettings: FC<{
     const { data: projectCache } = useResultsCacheStatus(projectUuid);
     /** The project doesn't cache results, so the source has nothing to tune or clear. */
     const isProjectCacheOff = projectCache?.enabled === false;
-    const [isReplacingToken, setIsReplacingToken] = useState(false);
 
     const form = useForm<Values>({
         initialValues: {
@@ -240,12 +217,6 @@ export const LiveSourceSettings: FC<{
         ? `Last refreshed ${formatDate(fields.scannedAt)}`
         : 'Never refreshed';
 
-    const keepToken = () => {
-        form.setFieldValue('token', '');
-        form.clearFieldError('token');
-        setIsReplacingToken(false);
-    };
-
     /** Saves the given settings over the saved ones, if they changed and are valid. */
     const saveSource = async (keys: (keyof LiveSourceAccessValues)[]) => {
         const saved = form.getInitialValues();
@@ -259,7 +230,6 @@ export const LiveSourceSettings: FC<{
             values.region !== saved.region &&
             values.token.trim() === ''
         ) {
-            setIsReplacingToken(true);
             form.setFieldError('token', 'Enter a key for the new region');
             return;
         }
@@ -283,7 +253,6 @@ export const LiveSourceSettings: FC<{
             return;
         }
         form.setValues({ ...changed, token: '' });
-        setIsReplacingToken(false);
     };
 
     const isChanged = (keys: (keyof LiveSourceAccessValues)[]) =>
@@ -297,7 +266,6 @@ export const LiveSourceSettings: FC<{
             form.setFieldValue(key, form.getInitialValues()[key]);
             form.clearFieldError(key);
         });
-        if (keys.includes('token')) setIsReplacingToken(false);
     };
 
     /** Cancel and Save changes under a card's editable rows. */
@@ -398,9 +366,6 @@ export const LiveSourceSettings: FC<{
                                 access.kind === 'token' ? access.form : null
                             }
                             form={form}
-                            isReplacing={isReplacingToken}
-                            onReplace={() => setIsReplacingToken(true)}
-                            onKeep={keepToken}
                         />
                     ) : (
                         <SettingsRow

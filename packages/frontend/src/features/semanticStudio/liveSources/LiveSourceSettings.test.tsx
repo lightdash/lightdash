@@ -80,7 +80,6 @@ describe('LiveSourceSettings PostHog access', () => {
         const project = screen.getByRole('textbox', { name: 'Project ID' });
         await user.clear(project);
         await user.type(project, '99');
-        await user.click(screen.getByRole('button', { name: 'Replace' }));
         await user.type(
             screen.getByLabelText('New Personal API key'),
             'phx_us',
@@ -112,5 +111,18 @@ describe('LiveSourceSettings PostHog access', () => {
         expect(
             screen.getByText('Enter a key for the new region'),
         ).toBeInTheDocument();
+    });
+
+    it('keeps the saved key when its field is left empty', async () => {
+        const user = userEvent.setup();
+        renderSettings();
+
+        const project = screen.getByRole('textbox', { name: 'Project ID' });
+        await user.clear(project);
+        await user.type(project, '99');
+        await user.click(saveAccess());
+
+        expect(update).toHaveBeenCalledOnce();
+        expect(update.mock.calls[0][0].data).not.toHaveProperty('secret');
     });
 });
