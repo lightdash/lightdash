@@ -718,7 +718,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({
                 classNames={{ dropdown: classes.dropdown, item: classes.item }}
                 zIndex={getDefaultZIndex('max')}
                 {...getNavBarMenuProps(portalTarget)}
-                withArrow={!isInSidebar}
+                {...(isInSidebar ? { withArrow: false } : {})}
             >
                 <Menu.Target>
                     {isInSidebar ? (
