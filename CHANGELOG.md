@@ -1,3 +1,10 @@
+## [3.371.2](https://github.com/lightdash/lightdash/compare/3.371.1...3.371.2) (2026-11-23)
+
+
+### Bug Fixes
+
+* **semantic-studio:** a draft card waits for the compile instead of saying no field changed ([#33237](https://github.com/lightdash/lightdash/issues/33237)) ([b290aaa](https://github.com/lightdash/lightdash/commit/b290aaaf33907dd4309e7925db788d4697e9697b))
+
 ## [3.371.1](https://github.com/lightdash/lightdash/compare/3.371.0...3.371.1) (2026-11-23)
 
 
