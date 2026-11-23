@@ -297,7 +297,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         keepsDraft || project?.dbtConnection.type === DbtProjectType.GITHUB;
     const canEditModels = useCanEditSemanticLayer(view.project.id);
     const status = useSemanticLayerStatus(view.project.id);
-    const checkout = useStudioCheckout().shown;
+    const { shown: checkout, isSwitching } = useStudioCheckout();
     const checkedOutDraft = keepsDraft ? (checkout?.draft ?? null) : null;
 
     const {
@@ -743,12 +743,17 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const trackRef = useRef(track);
     trackRef.current = track;
     const projectId = view.project.id;
+    // Until the draft and checkout first load, the pane is a placeholder, not a view.
+    const hasLoaded = useRef(false);
+    if (!isSwitching && draft !== undefined) hasLoaded.current = true;
+    const isPaneSettled = hasLoaded.current;
     useEffect(() => {
+        if (!isPaneSettled) return;
         trackRef.current({
             name: EventName.SEMANTIC_STUDIO_PANE_VIEWED,
             properties: { projectId, pane },
         });
-    }, [projectId, pane]);
+    }, [projectId, pane, isPaneSettled]);
     useEffect(() => {
         if (openExplore === null) return;
         trackRef.current({
