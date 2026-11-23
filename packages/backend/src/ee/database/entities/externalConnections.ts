@@ -16,9 +16,6 @@ export const ExternalConnectionSamplesTableName = 'external_connection_samples';
 export const ApiSourceCallCountersTableName = 'api_source_call_counters';
 export const ApiSourceCallLeasesTableName = 'api_source_call_leases';
 export const ApiSourceCallsTableName = 'api_source_calls';
-export const ApiSourceRateBucketsTableName = 'api_source_rate_buckets';
-export const ApiSourceRatePacingTableName = 'api_source_rate_pacing';
-export const ApiSourceRateSlotsTableName = 'api_source_rate_slots';
 
 export type DbExternalConnection = {
     external_connection_uuid: string;
@@ -214,67 +211,6 @@ export type ApiSourceCallLeasesTable = Knex.CompositeTableType<
     DbApiSourceCallLease,
     DbApiSourceCallLease,
     Partial<Pick<DbApiSourceCallLease, 'lease_uuid' | 'expires_at'>>
->;
-
-/** Calls charged to one rate-limit bucket in its current window. */
-export type DbApiSourceRateBucket = {
-    limit_key: string;
-    bucket_id: string;
-    window_started_at: Date;
-    used: number;
-    /** Set when the vendor said to slow down; calls charging the bucket wait until then. */
-    limited_until: Date | null;
-    updated_at: Date;
-};
-
-export type ApiSourceRateBucketsTable = Knex.CompositeTableType<
-    DbApiSourceRateBucket,
-    Pick<
-        DbApiSourceRateBucket,
-        'limit_key' | 'bucket_id' | 'window_started_at' | 'used'
-    > &
-        Partial<Pick<DbApiSourceRateBucket, 'limited_until' | 'updated_at'>>,
-    Partial<
-        Pick<
-            DbApiSourceRateBucket,
-            'window_started_at' | 'used' | 'limited_until' | 'updated_at'
-        >
-    >
->;
-
-/** When the next evenly spaced call may go out. */
-export type DbApiSourceRatePacing = {
-    limit_key: string;
-    next_call_at: Date;
-    updated_at: Date;
-};
-
-export type ApiSourceRatePacingTable = Knex.CompositeTableType<
-    DbApiSourceRatePacing,
-    Pick<DbApiSourceRatePacing, 'limit_key' | 'next_call_at'> &
-        Partial<Pick<DbApiSourceRatePacing, 'updated_at'>>,
-    Partial<Pick<DbApiSourceRatePacing, 'next_call_at' | 'updated_at'>>
->;
-
-/** One of the calls allowed in flight at once, held until `expires_at`. */
-export type DbApiSourceRateSlot = {
-    limit_key: string;
-    slot: number;
-    lease_uuid: string;
-    expires_at: Date;
-    updated_at: Date;
-};
-
-export type ApiSourceRateSlotsTable = Knex.CompositeTableType<
-    DbApiSourceRateSlot,
-    Pick<
-        DbApiSourceRateSlot,
-        'limit_key' | 'slot' | 'lease_uuid' | 'expires_at'
-    > &
-        Partial<Pick<DbApiSourceRateSlot, 'updated_at'>>,
-    Partial<
-        Pick<DbApiSourceRateSlot, 'lease_uuid' | 'expires_at' | 'updated_at'>
-    >
 >;
 
 /** One query a live source sent to its integration, written once it finished. */

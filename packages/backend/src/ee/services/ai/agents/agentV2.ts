@@ -2838,7 +2838,7 @@ export const getAgentMessages = (
         canRunSql: args.canRunSql,
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
-        semanticStudioHasRepository: args.semanticStudioHasRepository,
+        semanticStudioCodeMode: args.semanticStudioCodeMode,
         semanticStudioBuilder: loadout.withheldToolNames.size > 0,
         semanticStudioProjectMap: args.semanticStudioProjectMap,
         semanticStudioQueriesDraft: loadout.toolNames.has('runMetricQuery'),

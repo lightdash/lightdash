@@ -16436,112 +16436,19 @@ const models: TsoaRoute.Models = {
         enums: ['hydra'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    HydraRateLimits: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                buckets: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            capacity: { dataType: 'double', required: true },
-                            windowMs: { dataType: 'double', required: true },
-                            id: { dataType: 'string', required: true },
-                        },
-                    },
-                    required: true,
-                },
-                callsPerSecond: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                concurrentCalls: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    HydraOnLimit: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                body: { ref: 'Record_string.unknown_' },
-                retryAfterFormat: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['seconds'] },
-                        { dataType: 'enum', enums: ['date'] },
-                        { dataType: 'enum', enums: ['none'] },
-                    ],
-                    required: true,
-                },
-                status: { dataType: 'double', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    HydraMockResponse: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                body: { ref: 'Record_string.unknown_' },
-                retryAfterSeconds: { dataType: 'double' },
-                status: { dataType: 'double', required: true },
-                toCall: { dataType: 'double' },
-                fromCall: { dataType: 'double' },
-                call: { dataType: 'double' },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HydraApiSource: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                mockResponses: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'HydraMockResponse' },
-                },
-                declaredLimits: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['vendor'] },
-                        { ref: 'HydraRateLimits' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                },
-                onLimit: { ref: 'HydraOnLimit' },
-                vendorLimits: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'HydraRateLimits' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                },
-                failAuth: { dataType: 'boolean' },
-                errorRate: { dataType: 'double' },
-                jitterMs: { dataType: 'double' },
-                latencyMs: { dataType: 'double' },
-                pageSize: { dataType: 'double' },
-                rowCount: { dataType: 'double' },
+                callsPerHour: { dataType: 'double', required: true },
+                callsPerMinute: { dataType: 'double', required: true },
+                rowCount: { dataType: 'double', required: true },
+                failAuth: { dataType: 'boolean', required: true },
+                retryAfterSeconds: { dataType: 'double', required: true },
+                retryAfterEvery: { dataType: 'double', required: true },
+                errorRate: { dataType: 'double', required: true },
+                latencyMs: { dataType: 'double', required: true },
                 connector: { ref: 'ApiConnectorType.HYDRA', required: true },
             },
             validators: {},
@@ -17363,72 +17270,6 @@ const models: TsoaRoute.Models = {
                         { ref: 'ApiSourceSchemaScan' },
                         { dataType: 'enum', enums: [null] },
                     ],
-                    required: true,
-                },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ExternalConnectionRateLimitBucket: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                resetsAt: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                used: { dataType: 'double', required: true },
-                capacity: { dataType: 'double', required: true },
-                windowMs: { dataType: 'double', required: true },
-                label: { dataType: 'string', required: true },
-                id: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ExternalConnectionRateLimitUsage: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                limitedUntil: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                buckets: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'ExternalConnectionRateLimitBucket',
-                    },
-                    required: true,
-                },
-                checkedAt: { dataType: 'string', required: true },
-                integrationLabel: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiExternalConnectionRateLimitUsageResponse: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: {
-                    ref: 'ExternalConnectionRateLimitUsage',
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
@@ -67952,7 +67793,6 @@ const models: TsoaRoute.Models = {
                 },
                 { dataType: 'enum', enums: ['cleanMcpToolCalls'] },
                 { dataType: 'enum', enums: ['cleanRateCounters'] },
-                { dataType: 'enum', enums: ['cleanApiSourceRateLimits'] },
                 {
                     dataType: 'enum',
                     enums: ['rebuildOutdatedApiSourceExplores'],
@@ -97154,74 +96994,6 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getExternalConnectionSchema',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 200,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsExternalConnectionController_getExternalConnectionRateLimitUsage: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        projectUuid: {
-            in: 'path',
-            name: 'projectUuid',
-            required: true,
-            dataType: 'string',
-        },
-        connectionUuid: {
-            in: 'path',
-            name: 'connectionUuid',
-            required: true,
-            dataType: 'string',
-        },
-    };
-    app.get(
-        '/api/v1/ee/projects/:projectUuid/external-connections/:connectionUuid/rate-limits',
-        ...fetchMiddlewares<RequestHandler>(ExternalConnectionController),
-        ...fetchMiddlewares<RequestHandler>(
-            ExternalConnectionController.prototype
-                .getExternalConnectionRateLimitUsage,
-        ),
-
-        async function ExternalConnectionController_getExternalConnectionRateLimitUsage(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsExternalConnectionController_getExternalConnectionRateLimitUsage,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<ExternalConnectionController>(
-                        ExternalConnectionController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'getExternalConnectionRateLimitUsage',
                     controller,
                     response,
                     next,

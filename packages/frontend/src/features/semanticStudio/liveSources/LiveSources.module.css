@@ -104,14 +104,6 @@
     white-space: nowrap;
 }
 
-.statValue[data-tone='danger'] {
-    color: var(--mantine-color-red-text);
-}
-
-.statValue[data-tone='warning'] {
-    color: var(--mantine-color-orange-text);
-}
-
 /* The bracketed part of a value, such as (902ms), sits back from the number. */
 .statDetail {
     font-size: 12px;
@@ -136,21 +128,4 @@
     align-items: center;
     justify-content: flex-end;
     white-space: nowrap;
-}
-
-/* A source's rate limits in its settings: the count beside each bar. */
-
-.rateCount {
-    min-width: 84px;
-    font-size: 13px;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-}
-
-.rateDetail[data-limit-reached] {
-    color: var(--mantine-color-red-text);
-}
-
-.warningText {
-    color: var(--mantine-color-orange-text);
 }

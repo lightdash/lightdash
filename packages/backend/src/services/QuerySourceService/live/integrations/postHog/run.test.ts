@@ -69,6 +69,9 @@ describe('postHogIntegration run', () => {
     it('describes itself as an L5 HogQL integration', () => {
         expect(postHogIntegration.label).toBe('PostHog');
         expect(postHogIntegration.limits).toEqual({
+            concurrentCalls: 3,
+            callsPerMinute: 240,
+            callsPerHour: 2_400,
             callsPerQuery: 1,
             timeoutMs: 45_000,
             maxRows: 49_999,

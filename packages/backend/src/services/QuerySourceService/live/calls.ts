@@ -1,5 +1,4 @@
 import {
-    TooManyRequestsError,
     UnexpectedServerError,
     type ExternalConnectionApiSource,
     type LiveSourceErrorCode,
@@ -19,51 +18,6 @@ export type LiveTransport = (
 ) => Promise<LiveHttpResponse>;
 
 const isOk = (status: number) => status >= 200 && status < 300;
-
-/** `Retry-After` as seconds from now: a number of seconds, or an HTTP date. */
-export const parseRetryAfterSeconds = (
-    value: string | undefined,
-    now: Date,
-): number | null => {
-    if (!value) return null;
-    const trimmed = value.trim();
-    if (/^\d+$/.test(trimmed)) return Number(trimmed);
-    const date = Date.parse(trimmed);
-    return Number.isNaN(date)
-        ? null
-        : Math.max(0, Math.ceil((date - now.getTime()) / 1_000));
-};
-
-/**
- * Whether a response says the integration is limiting calls, and until when.
- * The integration's `toError` knows its vendor's signals (Meta's throttle
- * codes, Salesforce's REQUEST_LIMIT_EXCEEDED, Google's RESOURCE_EXHAUSTED);
- * a 429 always counts. Null for anything else, server errors included.
- */
-export const readLiveRateLimit = (
-    integration: LiveIntegration,
-    settings: ExternalConnectionApiSource,
-    response: LiveHttpResponse,
-    now: Date,
-): { resumesAt: Date | null } | null => {
-    if (isOk(response.status)) return null;
-    const error = integration.toError(response, settings);
-    const isRateLimit =
-        error instanceof TooManyRequestsError || response.status === 429;
-    if (!isRateLimit) return null;
-    const declared: unknown =
-        error instanceof TooManyRequestsError
-            ? error.data?.retryAfterSeconds
-            : undefined;
-    const seconds =
-        typeof declared === 'number' && Number.isFinite(declared)
-            ? declared
-            : parseRetryAfterSeconds(response.headers['retry-after'], now);
-    return {
-        resumesAt:
-            seconds === null ? null : new Date(now.getTime() + seconds * 1_000),
-    };
-};
 
 /** The calls an integration's `run` and scan make over one connection's transport. */
 export const createLiveCalls = (

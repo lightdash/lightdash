@@ -24,7 +24,6 @@ import {
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useResultsCacheStatus } from '../../../hooks/useProjectResultsCacheSettings';
 import { useExternalConnectionApiUsage } from '../../externalConnections/hooks/useExternalConnectionApiUsage';
-import { useExternalConnectionRateLimitUsage } from '../../externalConnections/hooks/useExternalConnectionRateLimitUsage';
 import { useExternalConnections } from '../../externalConnections/hooks/useExternalConnections';
 import { useLiveSourceFields } from '../../externalConnections/hooks/useLiveSourceFields';
 import { formatChartCount } from '../../externalConnections/liveSources/liveSourceCatalog';
@@ -38,7 +37,6 @@ import {
     type LiveSourceConnection,
 } from './liveSourceRows';
 import classes from './LiveSources.module.css';
-import { getRateLimitStat } from './rateLimitFormat';
 
 const stopPropagation = (event: MouseEvent) => event.stopPropagation();
 
@@ -145,12 +143,8 @@ export const LiveSourcesTable: FC<{
                     Data read
                     <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
                 </span>
-                <span
-                    role="columnheader"
-                    className={`${classes.number} ${classes.headWithInfo}`}
-                >
+                <span role="columnheader" className={classes.number}>
                     API calls
-                    <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
                 </span>
                 <span />
             </Box>
@@ -222,9 +216,7 @@ const Stat: FC<{
     title?: string;
     /** Shown after the label, such as an info icon. */
     labelExtra?: ReactNode;
-    /** Colours the value: red for a full rate limit, orange for a warning. */
-    tone?: 'danger' | 'warning';
-}> = ({ label, value, detail, title, labelExtra, tone }) => (
+}> = ({ label, value, detail, title, labelExtra }) => (
     <Box className={classes.stat}>
         <span className={classes.statLabel}>
             {label}
@@ -232,7 +224,6 @@ const Stat: FC<{
         </span>
         <span
             className={classes.statValue}
-            data-tone={tone}
             title={title ?? (detail ? `${value} (${detail})` : value)}
         >
             {value}
@@ -254,11 +245,6 @@ export const LiveSourceSummary: FC<{
         connectionUuid: connection.externalConnectionUuid,
     });
     const { data: projectCache } = useResultsCacheStatus(projectUuid);
-    const { data: rateLimits } = useExternalConnectionRateLimitUsage({
-        projectUuid,
-        connectionUuid: connection.externalConnectionUuid,
-    });
-    const rateLimit = getRateLimitStat(rateLimits);
     const isProjectCacheOff = projectCache?.enabled === false;
     const row = toLiveSourceRow(connection, usage);
     const freshness = getLiveSourceFreshness(connection);
@@ -278,11 +264,11 @@ export const LiveSourceSummary: FC<{
                 <Stat label="Explore" value={fields?.exploreName ?? '—'} />
             )}
             <Stat
-                label="Fields in use"
+                label="Access"
                 value={
-                    allFields && inUse !== undefined
-                        ? `${inUse.toLocaleString()} of ${allFields.length.toLocaleString()}`
-                        : '—'
+                    connection.type === 'oauth_authorization_code'
+                        ? 'Signed in'
+                        : 'API key'
                 }
             />
             <Stat
@@ -299,9 +285,6 @@ export const LiveSourceSummary: FC<{
             <Stat
                 label="API calls"
                 value={row.usage.apiCalls}
-                labelExtra={
-                    <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
-                }
                 detail={row.usage.medianLatency}
                 title={
                     row.usage.medianLatency
@@ -313,7 +296,7 @@ export const LiveSourceSummary: FC<{
                 label="Cache"
                 value={
                     isProjectCacheOff
-                        ? 'Disabled'
+                        ? 'Not cached'
                         : formatFreshness(freshness.seconds)
                 }
                 detail={isProjectCacheOff ? null : row.usage.cacheHitsLabel}
@@ -322,14 +305,14 @@ export const LiveSourceSummary: FC<{
                         ? 'Results caching is off for this project'
                         : cachingTitle
                 }
-                tone={isProjectCacheOff ? 'warning' : undefined}
             />
             <Stat
-                label="Rate limit"
-                value={rateLimit.value}
-                detail={rateLimit.detail}
-                title={rateLimit.title}
-                tone={rateLimit.limitReached ? 'danger' : undefined}
+                label="Fields in use"
+                value={
+                    allFields && inUse !== undefined
+                        ? `${inUse.toLocaleString()} of ${allFields.length.toLocaleString()}`
+                        : '—'
+                }
             />
         </Box>
     );

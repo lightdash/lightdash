@@ -1,38 +1,3 @@
-# [3.377.0](https://github.com/lightdash/lightdash/compare/3.376.1...3.377.0) (2026-11-23)
-
-
-### Features
-
-* **live-sources:** show rate-limit usage and reset times on source pages ([#33270](https://github.com/lightdash/lightdash/issues/33270)) ([79657a0](https://github.com/lightdash/lightdash/commit/79657a0bbe24e99301788202fa0b577f172e6860))
-
-## [3.376.1](https://github.com/lightdash/lightdash/compare/3.376.0...3.376.1) (2026-11-23)
-
-
-### Bug Fixes
-
-* **live-sources:** show single-explore sources as folders in the explore sidebar ([#33272](https://github.com/lightdash/lightdash/issues/33272)) ([47edb44](https://github.com/lightdash/lightdash/commit/47edb441f8a9dd0e4c62cde7dcf2367250c72b89))
-
-# [3.376.0](https://github.com/lightdash/lightdash/compare/3.375.0...3.376.0) (2026-11-23)
-
-
-### Features
-
-* **live-sources:** Hydra enforces vendor limits apart from the limits Lightdash declares ([#33267](https://github.com/lightdash/lightdash/issues/33267)) ([7aea920](https://github.com/lightdash/lightdash/commit/7aea92029a05b04c9647dc20f18abf71b9fff0fc))
-
-# [3.375.0](https://github.com/lightdash/lightdash/compare/3.374.1...3.375.0) (2026-11-23)
-
-
-### Bug Fixes
-
-* **live-sources:** refuse out-of-range Hydra settings with a 400 ([#33260](https://github.com/lightdash/lightdash/issues/33260)) ([11fdc71](https://github.com/lightdash/lightdash/commit/11fdc711e1b73149b30ca61fdd7835a14b59ddfd))
-
-
-### Features
-
-* **live-sources:** calls wait their turn within each integration's rate limits ([#33198](https://github.com/lightdash/lightdash/issues/33198)) ([2076a8d](https://github.com/lightdash/lightdash/commit/2076a8d534ad6428c1d3b4046735350d88b8f320))
-* **live-sources:** each caller sets how long its queries may wait for rate limits ([#33200](https://github.com/lightdash/lightdash/issues/33200)) ([cc98e36](https://github.com/lightdash/lightdash/commit/cc98e36fadf9ba135b87c5d0d9c40abe1ab6b4d4))
-* **live-sources:** wait out the vendor's Retry-After and hold other calls ([#33199](https://github.com/lightdash/lightdash/issues/33199)) ([edbf954](https://github.com/lightdash/lightdash/commit/edbf95489e982a999612c56add17df58ecbae874))
-
 ## [3.374.1](https://github.com/lightdash/lightdash/compare/3.374.0...3.374.1) (2026-11-23)
 
 

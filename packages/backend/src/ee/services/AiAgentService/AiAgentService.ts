@@ -18328,9 +18328,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                           promptProject.projectUuid,
                       )
                     : null;
-                // Only a project with no repository has nowhere to keep project context.
-                const semanticStudioHasRepository =
-                    semanticStudioStatus?.appliesAs !== 'live';
                 // Studio saves a dbt change with a script wherever Studio itself is on for the person.
                 const semanticStudioCodeMode =
                     semanticStudioStatus?.appliesAs === 'dbt_pull_request' &&
@@ -18872,7 +18869,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     isSemanticStudioThread,
                     semanticStudioDrafts,
                     semanticStudioCodeMode,
-                    semanticStudioHasRepository,
                     semanticStudioProjectMap,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,

@@ -43,7 +43,11 @@ export const youtubeAnalyticsIntegration = defineLiveIntegration({
         pathPrefixes: [YOUTUBE_ANALYTICS_REPORTS_PATH],
         methods: ['GET'],
     }),
+    // Google publishes no per-minute figure for this API; these match GA4.
     limits: {
+        concurrentCalls: 5,
+        callsPerMinute: 60,
+        callsPerHour: 1_000,
         callsPerQuery: 1,
         timeoutMs: 30_000,
         maxRows: YOUTUBE_ANALYTICS_MAX_QUERY_ROWS,
@@ -93,7 +97,6 @@ export const youtubeAnalyticsIntegration = defineLiveIntegration({
         description:
             'One report call; startIndex and maxResults page larger results.',
     },
-    // Google publishes no per-minute figure for this API; these match GA4.
     rateLimits: {
         concurrentCalls: 5,
         callsPerSecond: null,

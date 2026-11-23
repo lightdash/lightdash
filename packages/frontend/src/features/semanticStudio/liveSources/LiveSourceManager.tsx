@@ -13,7 +13,6 @@ import useHealth from '../../../hooks/health/useHealth';
 import { useDeleteExternalConnection } from '../../externalConnections/hooks/useDeleteExternalConnection';
 import { useLiveSourceFields } from '../../externalConnections/hooks/useLiveSourceFields';
 import { AddLiveSourceModal } from '../../externalConnections/liveSources/AddLiveSourceModal';
-import { AmplitudeConnectionModal } from '../../externalConnections/liveSources/AmplitudeConnectionModal';
 import {
     getGoogleSignInUrl,
     isGoogleConnector,
@@ -161,9 +160,6 @@ export const LiveSourceManager: FC<{
                     // A token is replaced in the source's settings
                     case 'token':
                         return null;
-                    // A new key pair means adding the source again
-                    case 'amplitude':
-                        return null;
                     case 'linkedin_ads': {
                         const { apiSource } = connection;
                         return canUseLinkedInAds &&
@@ -285,15 +281,6 @@ const LiveSourceConnectDialog: FC<{
                     opened
                     onClose={onClose}
                     projectUuid={projectUuid}
-                />
-            );
-        case 'amplitude':
-            return (
-                <AmplitudeConnectionModal
-                    opened
-                    onClose={onClose}
-                    projectUuid={projectUuid}
-                    onCreated={onCreated}
                 />
             );
         default:

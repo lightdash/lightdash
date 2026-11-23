@@ -72,9 +72,8 @@ export type LiveRateLimitBucket = {
 };
 
 /**
- * One integration's rate limits, as data. The rate-limit gate charges every
- * bucket on every call, spaces calls by `callsPerSecond`, and caps calls in
- * flight at `concurrentCalls`.
+ * One connection's rate limits, as data. Not enforced yet: the limiter
+ * still reads `limits` on the integration definition.
  */
 export type LiveRateLimits = {
     /** Calls one connection may have in flight at once. */

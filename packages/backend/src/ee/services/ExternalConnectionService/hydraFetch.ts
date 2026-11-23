@@ -1,7 +1,6 @@
 import { type HydraApiSource } from '@lightdash/common';
 import {
     hydraServer,
-    HydraTimeoutError,
     type HydraServer,
 } from '../../../services/QuerySourceService/live/integrations/hydra/server';
 import {
@@ -12,7 +11,7 @@ import {
 /**
  * Answers a Hydra source's call in-process, in the shape the guarded fetch
  * returns, so everything around the fetch runs as it does for a real API.
- * A wait past the source's timeout fails the way a slow API would.
+ * A latency past the source's timeout fails the way a slow API would.
  */
 export const fetchFromHydra = async ({
     connectionUuid,
@@ -21,6 +20,10 @@ export const fetchFromHydra = async ({
     timeoutMs,
     request,
     server = hydraServer,
+    sleep = (ms) =>
+        new Promise((resolve) => {
+            setTimeout(resolve, ms);
+        }),
 }: {
     connectionUuid: string;
     settings: HydraApiSource;
@@ -28,26 +31,25 @@ export const fetchFromHydra = async ({
     timeoutMs: number;
     request: { method: 'GET' | 'POST'; path: string; body?: unknown };
     server?: HydraServer;
+    sleep?: (ms: number) => Promise<void>;
 }): Promise<SecureFetchResult> => {
-    let response: Awaited<ReturnType<HydraServer['fetch']>>;
-    try {
-        response = await server.fetch({
-            sourceKey: connectionUuid,
-            settings,
-            token: secret,
-            timeoutMs,
-            request: {
-                method: request.method,
-                path: request.path,
-                body: request.body,
-            },
-        });
-    } catch (error) {
-        if (error instanceof HydraTimeoutError) {
-            throw new SecureFetchError('timeout', error.message);
-        }
-        throw error;
+    if (settings.latencyMs >= timeoutMs) {
+        await sleep(timeoutMs);
+        throw new SecureFetchError(
+            'timeout',
+            `Hydra did not answer within ${timeoutMs}ms`,
+        );
     }
+    const response = await server.fetch({
+        sourceKey: connectionUuid,
+        settings,
+        token: secret,
+        request: {
+            method: request.method,
+            path: request.path,
+            body: request.body,
+        },
+    });
     return {
         status: response.status,
         contentType: 'application/json',

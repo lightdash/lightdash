@@ -55,7 +55,12 @@ export const attioIntegration = defineLiveIntegration({
         // Records are read with POST, attributes with GET
         methods: ['GET', 'POST'],
     }),
+    // Attio allows 100 reads a second per workspace, and scores list
+    // queries by their filters and sorts over a 10-second window.
     limits: {
+        concurrentCalls: 3,
+        callsPerMinute: 600,
+        callsPerHour: 20_000,
         // The record pages, plus one call for owner names when they're selected
         callsPerQuery: ATTIO_MAX_PAGES + 1,
         timeoutMs: 30_000,
@@ -98,8 +103,6 @@ export const attioIntegration = defineLiveIntegration({
         oauth: 'no_review',
     },
     paging: { description: 'Up to 500 records a page, with limit and offset.' },
-    // Attio allows 100 reads a second per workspace, and scores list
-    // queries by their filters and sorts over a 10-second window.
     rateLimits: {
         concurrentCalls: 3,
         callsPerSecond: 50,
