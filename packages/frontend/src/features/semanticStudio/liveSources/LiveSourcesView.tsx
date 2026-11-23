@@ -218,7 +218,9 @@ const Stat: FC<{
     title?: string;
     /** Shown after the label, such as an info icon. */
     labelExtra?: ReactNode;
-}> = ({ label, value, detail, title, labelExtra }) => (
+    /** Marks the value red, such as a rate limit that is full. */
+    alert?: boolean;
+}> = ({ label, value, detail, title, labelExtra, alert }) => (
     <Box className={classes.stat}>
         <span className={classes.statLabel}>
             {label}
@@ -226,6 +228,7 @@ const Stat: FC<{
         </span>
         <span
             className={classes.statValue}
+            data-alert={alert || undefined}
             title={title ?? (detail ? `${value} (${detail})` : value)}
         >
             {value}
@@ -318,6 +321,7 @@ export const LiveSourceSummary: FC<{
                 value={rateLimit.value}
                 detail={rateLimit.detail}
                 title={rateLimit.title}
+                alert={rateLimit.limitReached}
             />
         </Box>
     );

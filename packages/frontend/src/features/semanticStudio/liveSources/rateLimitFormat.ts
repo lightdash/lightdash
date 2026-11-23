@@ -61,28 +61,37 @@ export const resetsOf = (
         ? formatResetsAt(bucket.resetsAt, checkedAt)
         : 'No calls in this window';
 
-/** The summary tile: a vendor pause, else the longest declared limit. */
+/**
+ * The summary tile: a vendor pause, else the shortest limit that is full
+ * (the one holding calls back), else the longest declared limit.
+ */
 export const getRateLimitStat = (
     usage: ExternalConnectionRateLimitUsage | undefined,
-): { value: string; detail: string | null; title?: string } => {
+): {
+    value: string;
+    detail: string | null;
+    title?: string;
+    limitReached?: boolean;
+} => {
     if (!usage) return { value: '—', detail: null };
     if (usage.limitedUntil) {
         return {
             value: 'Paused',
             detail: formatUntil(usage.limitedUntil, usage.checkedAt),
             title: `${usage.integrationLabel} asked Lightdash to slow down`,
+            limitReached: true,
         };
     }
-    const longest = usage.buckets.at(-1);
-    if (!longest) {
+    const shown = usage.buckets.find(isFull) ?? usage.buckets.at(-1);
+    if (!shown) {
         return { value: '—', detail: null, title: 'No limits declared' };
     }
-    const resets = resetsOf(longest, usage.checkedAt);
+    const full = isFull(shown);
+    const resets = resetsOf(shown, usage.checkedAt);
     return {
-        value: formatUsed(longest.used, longest.capacity),
-        detail: longest.label,
-        title: capitalize(
-            isFull(longest) ? `limit reached, ${resets}` : resets,
-        ),
+        value: formatUsed(shown.used, shown.capacity),
+        detail: shown.label,
+        title: capitalize(full ? `limit reached, ${resets}` : resets),
+        limitReached: full,
     };
 };

@@ -61,7 +61,7 @@ describe('getRateLimitStat', () => {
                 label: 'per minute',
                 windowMs: 60_000,
                 capacity: 30,
-                used: 30,
+                used: 12,
                 resetsAt: at(20_000),
             },
             {
@@ -81,6 +81,22 @@ describe('getRateLimitStat', () => {
             value: '410 of 5,000',
             detail: 'per hour',
             title: 'Resets in 24 min',
+            limitReached: false,
+        });
+    });
+
+    it('shows a full limit over the longest one', () => {
+        const minuteFull = {
+            ...usage,
+            buckets: usage.buckets.map((bucket) =>
+                bucket.id === 'minute' ? { ...bucket, used: 30 } : bucket,
+            ),
+        };
+        expect(getRateLimitStat(minuteFull)).toEqual({
+            value: '30 of 30',
+            detail: 'per minute',
+            title: 'Limit reached, resets in 20s',
+            limitReached: true,
         });
     });
 
@@ -90,6 +106,7 @@ describe('getRateLimitStat', () => {
         ).toMatchObject({
             value: 'Paused',
             detail: expect.stringMatching(/^until /),
+            limitReached: true,
         });
     });
 
