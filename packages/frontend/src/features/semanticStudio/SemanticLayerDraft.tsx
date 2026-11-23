@@ -18,6 +18,7 @@ import {
 import { WorkerPoolContextProvider } from '@pierre/diffs/react';
 import {
     IconAlertTriangle,
+    IconChevronDown,
     IconDots,
     IconExternalLink,
     IconEye,
@@ -497,9 +498,62 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const blocked = cannotApply(draft, null);
     const conflicts = countConflicts(draft, null);
     // A removed model has nothing to open.
+    const showsPublish = conflicts === 0 && draft.models.length > 0;
     const tryModel =
         draft.models.find((entry) => getChangeKind(entry) !== 'removed')
             ?.model ?? null;
+    const moreMenu = (
+        <Menu position="bottom-end" withinPortal>
+            <Menu.Target>
+                {showsPublish ? (
+                    <Button
+                        size="xs"
+                        px={6}
+                        aria-label="More actions"
+                        className={classes.publishMore}
+                    >
+                        <MantineIcon icon={IconChevronDown} />
+                    </Button>
+                ) : (
+                    <ActionIcon
+                        size="md"
+                        aria-label="More actions"
+                        variant="subtle"
+                        color="gray"
+                    >
+                        <MantineIcon icon={IconDots} />
+                    </ActionIcon>
+                )}
+            </Menu.Target>
+            <Menu.Dropdown>
+                {tryModel ? (
+                    <Menu.Item
+                        component={Link}
+                        to={`/projects/${projectUuid}/tables/${encodeURIComponent(tryModel)}`}
+                    >
+                        Open in Explore
+                    </Menu.Item>
+                ) : null}
+                <Menu.Item
+                    disabled={
+                        check.isLoading || impact.data?.status === 'checking'
+                    }
+                    onClick={() => {
+                        check.mutate(undefined);
+                        setSearchParams({
+                            [DRAFT_PARAM]: DRAFT_REVIEW,
+                        });
+                    }}
+                >
+                    Check saved charts and dashboards
+                </Menu.Item>
+                <Menu.Divider />
+                <Menu.Item color="red" onClick={() => setDiscarding(true)}>
+                    Discard draft
+                </Menu.Item>
+            </Menu.Dropdown>
+        </Menu>
+    );
     return (
         <>
             <DevelopmentBar
@@ -541,65 +595,28 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                             Resolve {count(conflicts, 'conflict')}
                         </Button>
                     </Tooltip>
-                ) : draft.models.length > 0 ? (
-                    <Tooltip
-                        label="Some changes no longer pass their checks."
-                        disabled={!blocked}
-                    >
-                        <Button
-                            size="xs"
-                            data-disabled={blocked || undefined}
-                            onClick={() => {
-                                if (!blocked) setPublishing(true);
-                            }}
-                        >
-                            {asPullRequest ? sendLabel : 'Publish'}
-                        </Button>
-                    </Tooltip>
                 ) : null}
-                <Menu position="bottom-end" withinPortal>
-                    <Menu.Target>
-                        <ActionIcon
-                            size="md"
-                            aria-label="More actions"
-                            variant="subtle"
-                            color="gray"
+                {showsPublish ? (
+                    <Button.Group>
+                        <Tooltip
+                            label="Some changes no longer pass their checks."
+                            disabled={!blocked}
                         >
-                            <MantineIcon icon={IconDots} />
-                        </ActionIcon>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                        {tryModel ? (
-                            <Menu.Item
-                                component={Link}
-                                to={`/projects/${projectUuid}/tables/${encodeURIComponent(tryModel)}`}
+                            <Button
+                                size="xs"
+                                data-disabled={blocked || undefined}
+                                onClick={() => {
+                                    if (!blocked) setPublishing(true);
+                                }}
                             >
-                                Open in Explore
-                            </Menu.Item>
-                        ) : null}
-                        <Menu.Item
-                            disabled={
-                                check.isLoading ||
-                                impact.data?.status === 'checking'
-                            }
-                            onClick={() => {
-                                check.mutate(undefined);
-                                setSearchParams({
-                                    [DRAFT_PARAM]: DRAFT_REVIEW,
-                                });
-                            }}
-                        >
-                            Check saved charts and dashboards
-                        </Menu.Item>
-                        <Menu.Divider />
-                        <Menu.Item
-                            color="red"
-                            onClick={() => setDiscarding(true)}
-                        >
-                            Discard draft
-                        </Menu.Item>
-                    </Menu.Dropdown>
-                </Menu>
+                                {asPullRequest ? sendLabel : 'Publish'}
+                            </Button>
+                        </Tooltip>
+                        {moreMenu}
+                    </Button.Group>
+                ) : (
+                    moreMenu
+                )}
                 {discarding ? (
                     <MantineModal
                         opened

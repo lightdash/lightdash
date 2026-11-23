@@ -73,3 +73,9 @@
 .glyph[data-change='removed'] {
     color: var(--mantine-color-red-7);
 }
+
+/* The menu half of the Publish split button, ruled off from it. */
+.publishMore {
+    border-inline-start: 1px solid
+        light-dark(rgba(255, 255, 255, 0.2), rgba(0, 0, 0, 0.15));
+}
