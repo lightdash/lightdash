@@ -232,7 +232,7 @@ describe('amplitudeIntegration run', () => {
         ]);
     });
 
-    it('reads retention cohorts by their datetimes, skipping the cohort size and running periods', async () => {
+    it('reads retention cohorts by their datetimes, skipping the cohort size', async () => {
         const entries = (counts: number[], outof: number, running = 0) =>
             counts.map((count, index) => ({
                 count,
@@ -247,7 +247,7 @@ describe('amplitudeIntegration run', () => {
                             dates: ['Oct 02, 2026', 'Oct 01, 2026'],
                             datetimes: ['2026-10-02', '2026-10-01'],
                             values: {
-                                'Oct 02, 2026': entries([50, 50, 10, 0], 50, 1),
+                                'Oct 02, 2026': entries([50, 50, 10], 50, 1),
                                 'Oct 01, 2026': entries([40, 40, 20], 40),
                             },
                             combined: entries([90, 90, 30], 90),

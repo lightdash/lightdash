@@ -234,7 +234,7 @@ export const AMPLITUDE_FUNNEL_EXPLORE: LiveExploreDefinition = {
     name: 'funnel',
     label: 'Funnel',
     description:
-        'A funnel Amplitude computes over the date range: users who did each step in order, and how many converted. Filter Step event to the steps in order, from 2 to 10 events. User properties filter who enters the funnel.',
+        "A funnel Amplitude computes over the date range: users who did each step in order, and how many converted. Required: filter Step event to the steps in order, from 2 to 10 event names (the Events explore's Event field lists them). Group by Step number and Step event, not by date. User properties filter who enters the funnel.",
     dimensions: [
         {
             name: 'date',
@@ -318,7 +318,7 @@ export const AMPLITUDE_RETENTION_EXPLORE: LiveExploreDefinition = {
     name: 'retention',
     label: 'Retention',
     description:
-        'Retention Amplitude computes: of the users who did the start event in each cohort, how many did the return event in each later day, week or month. Without filters, new users who came back with any active event.',
+        'Retention Amplitude computes: of the users who did the start event in each cohort, how many did the return event in each later day, week or month. Required: add exactly one of Days, Weeks or Months after start; add the cohort date at the same grain to split by cohort. Without filters, new users who came back with any active event; filter Start event and Return event to one event name each to change that.',
     dimensions: [
         ...dateDimensions('cohort start', ['date', 'week', 'month']).map(
             (dimension) => ({

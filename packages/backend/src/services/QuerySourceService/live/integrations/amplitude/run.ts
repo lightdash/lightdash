@@ -227,8 +227,6 @@ const funnelResponseSchema = z.object({
 const retentionEntrySchema = z.object({
     count: numberSchema,
     outof: numberSchema,
-    /** The period hasn't ended yet, so its count is partial. */
-    incomplete: z.boolean().optional(),
 });
 const retentionResponseSchema = z.object({
     data: z.object({
@@ -594,21 +592,18 @@ const toRetentionRows = (
     entries: z.infer<typeof retentionEntrySchema>[],
     base: Row,
 ): Row[] =>
-    entries
-        .slice(1)
-        .map((entry, period) => ({ ...entry, period }))
-        // A period still running would chart as a drop to its partial count
-        .filter(({ incomplete }) => incomplete !== true)
-        .map(({ count, outof, period }) => ({
-            ...base,
-            period,
-            retained_users: count,
-            cohort_users: outof,
-            retention_rate:
-                count !== null && outof !== null && outof > 0
-                    ? count / outof
-                    : null,
-        }));
+    // Like Amplitude's charts, this keeps periods it marks incomplete: some of
+    // the cohort hasn't had the whole period yet, so their counts may still grow
+    entries.slice(1).map(({ count, outof }, period) => ({
+        ...base,
+        period,
+        retained_users: count,
+        cohort_users: outof,
+        retention_rate:
+            count !== null && outof !== null && outof > 0
+                ? count / outof
+                : null,
+    }));
 
 const runRetention = async (
     request: Extract<AmplitudeRequest, { endpoint: 'retention' }>,
