@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { type HydraApiSource } from '../ee/externalConnections/types';
 import { ApiConnectorType } from '../types/querySources';
 
@@ -14,6 +15,46 @@ export const HYDRA_DEFAULT_SETTINGS: HydraApiSource = {
     rowCount: 1_000,
     callsPerMinute: 30,
     callsPerHour: 300,
+};
+
+/** What a Hydra source accepts; the API and the setup form both check against it. */
+export const HYDRA_SETTINGS_SCHEMA = z.object({
+    connector: z.literal(ApiConnectorType.HYDRA),
+    latencyMs: z.number().int().min(0).max(120_000),
+    errorRate: z.number().min(0).max(1),
+    retryAfterEvery: z.number().int().min(0),
+    retryAfterSeconds: z.number().int().min(0).max(3_600),
+    failAuth: z.boolean(),
+    rowCount: z.number().int().min(0).max(100_000),
+    callsPerMinute: z.number().int().min(1),
+    callsPerHour: z.number().int().min(1),
+});
+
+const describeAllowed = (field: z.ZodType): string | null => {
+    if (field instanceof z.ZodBoolean) return 'true or false';
+    if (!(field instanceof z.ZodNumber)) return null;
+    const kind = field.isInt ? 'a whole number' : 'a number';
+    const { minValue, maxValue } = field;
+    if (maxValue === null || maxValue >= Number.MAX_SAFE_INTEGER) {
+        return `${kind} of ${minValue} or more`;
+    }
+    return `${kind} from ${minValue} to ${maxValue}`;
+};
+
+/**
+ * What is wrong with a source's settings, naming the field and what it
+ * allows, or null when they are valid.
+ */
+export const getHydraSettingsProblem = (value: unknown): string | null => {
+    const parsed = HYDRA_SETTINGS_SCHEMA.safeParse(value);
+    if (parsed.success) return null;
+    const [issue] = parsed.error.issues;
+    const key = String(issue.path[0] ?? '');
+    const field = HYDRA_SETTINGS_SCHEMA.shape[
+        key as keyof typeof HYDRA_SETTINGS_SCHEMA.shape
+    ] as z.ZodType | undefined;
+    const allowed = field ? describeAllowed(field) : null;
+    return allowed ? `${key} must be ${allowed}` : issue.message;
 };
 
 const KEYS = Object.keys(HYDRA_DEFAULT_SETTINGS).filter(
@@ -57,7 +98,5 @@ export const parseHydraBehaviour = (text: string): HydraApiSource | null => {
             settings[key] = number;
         }
     }
-    return settings.callsPerMinute >= 1 && settings.callsPerHour >= 1
-        ? settings
-        : null;
+    return getHydraSettingsProblem(settings) === null ? settings : null;
 };
