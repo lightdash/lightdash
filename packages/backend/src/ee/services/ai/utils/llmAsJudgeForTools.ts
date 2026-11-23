@@ -75,7 +75,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     proposeSemanticLayerChange: 'propose_semantic_layer_change',
     listChanges: 'list_changes',
     readSemanticModel: 'read_semantic_model',
-    verifyDbtChange: 'verify_dbt_change',
+    verify: 'verify',
     editRepo: 'edit_repo',
     syncDbtProject: 'sync_dbt_project',
     exploreRepo: 'explore_repo',

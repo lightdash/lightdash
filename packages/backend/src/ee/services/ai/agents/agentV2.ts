@@ -174,7 +174,7 @@ import { type SqlChartSaving } from '../tools/sqlChartApproval';
 import { getSubmitWorkerFindings } from '../tools/submitWorkerFindings';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
 import { getUpdateUserName } from '../tools/updateUserName';
-import { getVerifyDbtChange } from '../tools/verifyDbtChange';
+import { getVerify } from '../tools/verify';
 import { getVisualize } from '../tools/visualize';
 import type {
     AiAgentArgs,
@@ -2275,9 +2275,9 @@ export const getAgentTools = (
             getReadSemanticModel({
                 readSemanticModel: dependencies.readSemanticModel,
             }),
-        verifyDbtChange: () =>
-            getVerifyDbtChange({
-                verifyDbtChange: dependencies.verifyDbtChange,
+        verify: () =>
+            getVerify({
+                verify: dependencies.verify,
             }),
         runMetricQuery: () =>
             getRunMetricQuery({

@@ -329,7 +329,7 @@ describe('resolveLoadout', () => {
         expect(drafts.has('proposeSemanticLayerChange')).toBe(true);
         expect(drafts.has('editDbtProject')).toBe(false);
         expect(drafts.has('exploreRepo')).toBe(false);
-        expect(drafts.has('verifyDbtChange')).toBe(false);
+        expect(drafts.has('verify')).toBe(false);
 
         const dbt = resolveLoadout({
             ...inputs.semantic_studio,
@@ -340,18 +340,16 @@ describe('resolveLoadout', () => {
         expect(dbt.toolNames.has('readSemanticModel')).toBe(false);
         expect(dbt.toolNames.has('editDbtProject')).toBe(true);
         expect(dbt.toolNames.has('exploreRepo')).toBe(true);
-        expect(dbt.toolNames.has('verifyDbtChange')).toBe(true);
+        expect(dbt.toolNames.has('verify')).toBe(true);
         expect(dbt.toolNames.has('generateVisualization')).toBe(false);
         expect(
             resolveLoadout({
                 ...inputs.semantic_studio,
                 semanticStudioDrafts: false,
                 enableAiWriteback: false,
-            }).toolNames.has('verifyDbtChange'),
+            }).toolNames.has('verify'),
         ).toBe(false);
-        expect(resolveLoadout(fullInput).toolNames.has('verifyDbtChange')).toBe(
-            false,
-        );
+        expect(resolveLoadout(fullInput).toolNames.has('verify')).toBe(false);
     });
 
     test.each<[string, LoadoutInput, LoadoutBase]>([

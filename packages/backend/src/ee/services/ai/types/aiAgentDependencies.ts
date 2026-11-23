@@ -1088,7 +1088,7 @@ export type ProposeSemanticLayerChangeFn = (
 ) => Promise<SemanticLayerDraftProposal>;
 
 /** Waits for the agent's latest save to its pull request and the branch compile after it. */
-export type VerifyDbtChangeFn = (args: {
+export type VerifyFn = (args: {
     check: 'compile';
 }) => Promise<BranchCompileCheck>;
 
