@@ -36,26 +36,31 @@ type QueryOutcome = {
     error: string | null;
 };
 
+const hydraSourceBody = (
+    name: string,
+    token: string,
+    settings: Partial<HydraApiSource> = {},
+): CreateExternalConnection => ({
+    name: `Hydra ${name} ${runId}`,
+    type: 'bearer_token',
+    origin: HYDRA_ORIGIN,
+    secret: token,
+    apiSource: { ...HYDRA_DEFAULT_SETTINGS, ...settings },
+    allowedMethods: ['GET', 'POST'],
+    allowedPathPrefixes: [HYDRA_REPORT_PATH, HYDRA_ACCOUNT_PATH],
+    allowedContentTypes: ['application/json'],
+    explorePrefix: `hydra_${name}_${runId}`,
+});
+
 const createHydraSource = async (
     admin: ApiClient,
     name: string,
     token: string,
     settings: Partial<HydraApiSource> = {},
 ) => {
-    const body: CreateExternalConnection = {
-        name: `Hydra ${name} ${runId}`,
-        type: 'bearer_token',
-        origin: HYDRA_ORIGIN,
-        secret: token,
-        apiSource: { ...HYDRA_DEFAULT_SETTINGS, ...settings },
-        allowedMethods: ['GET', 'POST'],
-        allowedPathPrefixes: [HYDRA_REPORT_PATH, HYDRA_ACCOUNT_PATH],
-        allowedContentTypes: ['application/json'],
-        explorePrefix: `hydra_${name}_${runId}`,
-    };
     const resp = await admin.post<Body<ExternalConnection>>(
         connectionsUrl,
-        body,
+        hydraSourceBody(name, token, settings),
     );
     expect(resp.status).toBe(201);
     const prefix = `hydra_${name}_${runId}`;
@@ -283,6 +288,27 @@ describe('Hydra, the test integration', () => {
         } finally {
             await setBehaviour({});
         }
+    });
+
+    it('refuses out-of-range settings with a 400, on create and on update', async () => {
+        const invalid = { latencyMs: -1 };
+        const message =
+            'The Hydra setting latencyMs must be a whole number from 0 to 120000';
+        const createResp = await admin.post<{ error: { message: string } }>(
+            connectionsUrl,
+            hydraSourceBody('invalid', 'dave', invalid),
+            { failOnStatusCode: false },
+        );
+        expect(createResp.status).toBe(400);
+        expect(createResp.body.error.message).toBe(message);
+
+        const updated = await admin.patch<{ error: { message: string } }>(
+            `${connectionsUrl}/${source.uuid}`,
+            { apiSource: { ...HYDRA_DEFAULT_SETTINGS, ...invalid } },
+            { failOnStatusCode: false },
+        );
+        expect(updated.status).toBe(400);
+        expect(updated.body.error.message).toBe(message);
     });
 
     it('passes on a 429 with its Retry-After', async () => {

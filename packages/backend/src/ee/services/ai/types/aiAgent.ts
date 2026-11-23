@@ -343,6 +343,8 @@ export type AiAgentArgs = AnyAiModel & {
     repoFsSupportsCodeSearch: boolean;
     // Semantic Studio saves changes with a code mode script instead of the sandbox.
     semanticStudioCodeMode: boolean;
+    // False only for a Studio project with no repository.
+    semanticStudioHasRepository: boolean;
     // A Studio dbt project's layout from its last compile; null otherwise.
     semanticStudioProjectMap: string | null;
     canRunSql: boolean;

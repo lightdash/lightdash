@@ -76,9 +76,11 @@ import { type AppModel } from '../../../models/AppModel';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { SavedChartModel } from '../../../models/SavedChartModel';
+import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { BaseService } from '../../../services/BaseService';
 import {
     createLiveCalls,
+    readLiveRateLimit,
     type LiveCallUsage,
     type LiveTransport,
     type MeteredLiveSource,
@@ -118,6 +120,7 @@ import {
 } from '../../../services/QuerySourceService/live/integrations/postHog/scan';
 import { refuseLiveQuery } from '../../../services/QuerySourceService/live/query/refuse';
 import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
+import { LIVE_RATE_LIMIT_DEADLINES_MS } from '../../../services/QuerySourceService/live/rateLimitDeadlines';
 import { getLiveIntegration } from '../../../services/QuerySourceService/live/registry';
 import { getLiveSourceTestCheck } from '../../../services/QuerySourceService/live/testCheck';
 import { type LiveScanResult } from '../../../services/QuerySourceService/live/types';
@@ -148,7 +151,10 @@ import {
 } from '../AppGenerateService/appAuthz';
 import { type AppGenerateService } from '../AppGenerateService/AppGenerateService';
 import { type EmbedService } from '../EmbedService/EmbedService';
-import { ApiSourceCallLimiter } from './ApiSourceCallLimiter';
+import {
+    ApiSourceCallLimiter,
+    type RateLimitTarget,
+} from './ApiSourceCallLimiter';
 import {
     validateApiSourceConnection,
     withApiSourceAccessRules,
@@ -236,6 +242,7 @@ type ExternalConnectionServiceArguments = {
         LightdashConfig,
         'siteUrl' | 'liveSources' | 'auth' | 'scheduler'
     >;
+    prometheusMetrics?: PrometheusMetrics;
 };
 
 export type PostHogRegion = keyof typeof POSTHOG_REGION_ORIGINS;
@@ -383,6 +390,7 @@ export class ExternalConnectionService extends BaseService {
         this.encryptionUtil = args.encryptionUtil;
         this.apiSourceCallLimiter = new ApiSourceCallLimiter({
             model: args.externalConnectionModel,
+            metrics: args.prometheusMetrics,
         });
         this.orgAiCopilotConfigResolver = args.orgAiCopilotConfigResolver;
         this.featureFlagModel = args.featureFlagModel;
@@ -1284,13 +1292,19 @@ export class ExternalConnectionService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         connectionUuid: string,
+        rateLimitDeadlineMs: number,
     ): Promise<MeteredLiveSource> {
         const connection = await this.getViewableConnection(
             account,
             projectUuid,
             connectionUuid,
         );
-        return this.getMeteredLiveSource(account, projectUuid, connection);
+        return this.getMeteredLiveSource(
+            account,
+            projectUuid,
+            connection,
+            rateLimitDeadlineMs,
+        );
     }
 
     /**
@@ -1302,12 +1316,18 @@ export class ExternalConnectionService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         connectionUuid: string,
+        rateLimitDeadlineMs: number,
     ): Promise<MeteredLiveSource> {
         const connection = await this.loadConnection(
             projectUuid,
             connectionUuid,
         );
-        return this.getMeteredLiveSource(account, projectUuid, connection);
+        return this.getMeteredLiveSource(
+            account,
+            projectUuid,
+            connection,
+            rateLimitDeadlineMs,
+        );
     }
 
     /** Sets how long a live source's results answer the same query; null uses the integration's default. */
@@ -1448,7 +1468,10 @@ export class ExternalConnectionService extends BaseService {
                 const { integration, settings, calls } = this.createLiveSource(
                     account,
                     connection,
-                    { isPerQuery: false },
+                    {
+                        isPerQuery: false,
+                        rateLimitDeadlineMs: LIVE_RATE_LIMIT_DEADLINES_MS.sync,
+                    },
                 );
                 return (
                     (await integration.scan?.read({ settings, calls })) ?? {}
@@ -2258,11 +2281,12 @@ export class ExternalConnectionService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         connection: ExternalConnection,
+        rateLimitDeadlineMs: number,
     ): MeteredLiveSource {
         const { usage, ...source } = this.createLiveSource(
             account,
             connection,
-            { isPerQuery: true },
+            { isPerQuery: true, rateLimitDeadlineMs },
         );
         return {
             ...source,
@@ -2385,6 +2409,7 @@ export class ExternalConnectionService extends BaseService {
                         account,
                         projectUuid,
                         connectionUuid,
+                        LIVE_RATE_LIMIT_DEADLINES_MS.background,
                     ),
                     args,
                 ),
@@ -2459,6 +2484,24 @@ export class ExternalConnectionService extends BaseService {
         );
     }
 
+    /** What the rate-limit gate limits for a live source: its integration's declared limits. */
+    private static getRateLimitTarget(
+        connection: Pick<
+            ExternalConnection,
+            'externalConnectionUuid' | 'timeoutMs'
+        >,
+        { connector }: Pick<ExternalConnectionApiSource, 'connector'>,
+    ): RateLimitTarget {
+        const integration = getLiveIntegration(connector);
+        return {
+            limitKey: connection.externalConnectionUuid,
+            integration: connector,
+            label: integration.label,
+            rateLimits: integration.rateLimits,
+            timeoutMs: connection.timeoutMs,
+        };
+    }
+
     /**
      * The source's integration with calls over the guarded fetch. A
      * per-query source refuses to make more calls than one query may.
@@ -2466,7 +2509,10 @@ export class ExternalConnectionService extends BaseService {
     private createLiveSource(
         account: RegisteredAccount,
         storedConnection: ExternalConnection,
-        { isPerQuery }: { isPerQuery: boolean },
+        {
+            isPerQuery,
+            rateLimitDeadlineMs,
+        }: { isPerQuery: boolean; rateLimitDeadlineMs: number },
     ): Pick<MeteredLiveSource, 'integration' | 'settings' | 'calls'> & {
         usage: LiveCallUsage;
     } {
@@ -2539,8 +2585,23 @@ export class ExternalConnectionService extends BaseService {
                     `This query needs more than ${limits.callsPerQuery} ${label} API calls. Narrow it with filters or a shorter time range.`,
                 );
             }
-            return this.apiSourceCallLimiter.run(connection, limits, () =>
-                sendOnce(request),
+            return this.apiSourceCallLimiter.run(
+                ExternalConnectionService.getRateLimitTarget(
+                    connection,
+                    apiSource,
+                ),
+                () => sendOnce(request),
+                {
+                    deadlineMs: rateLimitDeadlineMs,
+                    // Retried here, so a paged read keeps the pages it has
+                    readRateLimit: (response) =>
+                        readLiveRateLimit(
+                            integration,
+                            apiSource,
+                            response,
+                            new Date(),
+                        ),
+                },
             );
         };
         return {
@@ -3884,18 +3945,47 @@ export class ExternalConnectionService extends BaseService {
             responseBytes: number;
         };
         try {
-            result = await this.executeExternalFetch(
-                connection,
-                secret,
-                {
+            const fetchOnce = () =>
+                this.executeExternalFetch(
+                    connection,
+                    secret,
+                    {
+                        method,
+                        path: req.path,
+                        query: req.query,
+                        body: req.body,
+                    },
+                    { account, appUuid },
+                );
+            // A live source's calls share its integration's limits with its queries
+            const { apiSource } = connection;
+            result = apiSource
+                ? await this.apiSourceCallLimiter.run(
+                      ExternalConnectionService.getRateLimitTarget(
+                          connection,
+                          apiSource,
+                      ),
+                      fetchOnce,
+                  )
+                : await fetchOnce();
+        } catch (error) {
+            if (error instanceof TooManyRequestsError) {
+                this.trackFetch({
+                    account,
+                    projectUuid,
+                    appUuid,
+                    connectionAlias: req.connectionAlias,
+                    connection,
                     method,
                     path: req.path,
-                    query: req.query,
-                    body: req.body,
-                },
-                { account, appUuid },
-            );
-        } catch (error) {
+                    status: null,
+                    outcome: 'rate_limited',
+                    start,
+                    requestBytes: 0,
+                    responseBytes: 0,
+                });
+                throw error;
+            }
             const isKnown =
                 error instanceof ParameterError ||
                 error instanceof SecureFetchError;

@@ -1,5 +1,9 @@
 import {
     ApiConnectorType,
+    HYDRA_ACCOUNT_PATH,
+    HYDRA_DEFAULT_SETTINGS,
+    HYDRA_ORIGIN,
+    HYDRA_REPORT_PATH,
     ParameterError,
     type CreateExternalConnection,
     type ExternalConnectionApiSource,
@@ -265,5 +269,37 @@ describe('Google Ads connections', () => {
         expect(() =>
             validateApiSourceConnection({ ...valid, ...override }),
         ).toThrow(ParameterError);
+    });
+});
+
+describe('Hydra connections', () => {
+    const hydra = (overrides: Record<string, unknown>) =>
+        config({
+            origin: HYDRA_ORIGIN,
+            allowedPathPrefixes: [HYDRA_REPORT_PATH, HYDRA_ACCOUNT_PATH],
+            apiSource: {
+                ...HYDRA_DEFAULT_SETTINGS,
+                ...overrides,
+            } as ExternalConnectionApiSource,
+        });
+
+    it('accepts the default settings', () => {
+        expect(() => validateApiSourceConnection(hydra({}))).not.toThrow();
+    });
+
+    it.each([
+        [
+            { latencyMs: -1 },
+            'latencyMs must be a whole number from 0 to 120000',
+        ],
+        [{ errorRate: 2 }, 'errorRate must be a number from 0 to 1'],
+        [
+            { callsPerMinute: 0 },
+            'callsPerMinute must be a whole number of 1 or more',
+        ],
+    ])('refuses %o, naming the field and its range', (overrides, message) => {
+        expect(() => validateApiSourceConnection(hydra(overrides))).toThrow(
+            new ParameterError(`The Hydra setting ${message}`),
+        );
     });
 });

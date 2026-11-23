@@ -1,5 +1,6 @@
 import {
     ApiConnectorType,
+    getHydraSettingsProblem,
     HYDRA_ACCOUNT_PATH,
     HYDRA_ORIGIN,
     HYDRA_REPORT_PATH,
@@ -119,7 +120,12 @@ export const hydraIntegration = defineLiveIntegration({
         note: 'Each source sets its own per-minute and per-hour limits, and can answer 429 with Retry-After every Nth call.',
     },
     useCases: hydraUseCases,
-    validate: () => {},
+    validate: (settings) => {
+        const problem = getHydraSettingsProblem(settings);
+        if (problem) {
+            throw new ParameterError(`The Hydra setting ${problem}`);
+        }
+    },
     checkAuth: ({ type }) => {
         if (type !== 'bearer_token') {
             throw new ParameterError(
