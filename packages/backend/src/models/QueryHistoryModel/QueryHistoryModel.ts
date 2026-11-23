@@ -635,10 +635,18 @@ export class QueryHistoryModel {
             excludeAgentProduced,
             excludeAgentClaims = false,
             excludeCacheHits = false,
+            statuses,
+            requireResultsFile = false,
+            createdAfter,
         }: {
             excludeAgentProduced: boolean;
             excludeAgentClaims?: boolean;
             excludeCacheHits?: boolean;
+            /** Only rows in one of these states; any state when omitted. */
+            statuses?: QueryHistoryStatus[];
+            /** Only rows whose results were written to a file. */
+            requireResultsFile?: boolean;
+            createdAfter?: Date;
         },
     ) {
         const result = await this.database(QueryHistoryTableName)
@@ -651,6 +659,11 @@ export class QueryHistoryModel {
             )
             .whereNull('cache_invalidated_at')
             .modify((query) => {
+                if (statuses) void query.whereIn('status', statuses);
+                if (requireResultsFile)
+                    void query.whereNotNull('results_file_name');
+                if (createdAfter)
+                    void query.where('created_at', '>', createdAfter);
                 if (excludeAgentClaims) void query.whereNull('agent_identity');
                 if (excludeCacheHits) {
                     void query.whereRaw(
