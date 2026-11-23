@@ -217,11 +217,45 @@ export type ApiSourceRateCharge =
           bucketId: string;
           used: number;
           resumesAt: Date;
+          /** The integration asked to slow down, rather than the bucket being full. */
+          isHeldByVendor: boolean;
       };
 
 export type ApiSourceRateTurn = { booked: boolean; turnAt: Date; now: Date };
 
-type FullBucketRow = { used: number; window_started_at: Date; now: Date };
+type FullBucketRow = {
+    used: number;
+    window_started_at: Date;
+    limited_until: Date | null;
+    now: Date;
+};
+
+/** Why a bucket refused a call, and when it takes calls again. */
+const toBucketRefusal = (
+    bucket: ApiSourceRateBucketLimit,
+    row: FullBucketRow | undefined,
+): Extract<ApiSourceRateCharge, { charged: false }> => {
+    const now = row?.now ?? new Date();
+    const windowEndsAt =
+        (row?.window_started_at ?? now).getTime() + bucket.windowMs;
+    const isFull =
+        (row?.used ?? bucket.capacity) >= bucket.capacity &&
+        windowEndsAt > now.getTime();
+    const limitedUntil =
+        row?.limited_until && row.limited_until > now
+            ? row.limited_until.getTime()
+            : null;
+    return {
+        charged: false,
+        now,
+        bucketId: bucket.id,
+        used: row?.used ?? bucket.capacity,
+        resumesAt: new Date(
+            Math.max(isFull ? windowEndsAt : now.getTime(), limitedUntil ?? 0),
+        ),
+        isHeldByVendor: limitedUntil !== null,
+    };
+};
 type QueuedTurnRow = { next_call_at: Date; now: Date };
 
 /** Rolls back a charge that a full bucket refused. */
@@ -1854,7 +1888,8 @@ export class ExternalConnectionModel {
                             window_started_at = CASE WHEN ${WINDOW_CLOSED} THEN ${WINDOW_START} ELSE b.window_started_at END,
                             used = CASE WHEN ${WINDOW_CLOSED} THEN 1 ELSE b.used + 1 END,
                             updated_at = now()
-                        WHERE ${WINDOW_CLOSED} OR b.used < :capacity
+                        WHERE (${WINDOW_CLOSED} OR b.used < :capacity)
+                            AND (b.limited_until IS NULL OR b.limited_until <= now())
                         RETURNING window_started_at, now() AS now`,
                         {
                             limitKey,
@@ -1867,22 +1902,12 @@ export class ExternalConnectionModel {
                         const {
                             rows: [full],
                         } = await trx.raw<{ rows: FullBucketRow[] }>(
-                            `SELECT used, window_started_at, now() AS now
+                            `SELECT used, window_started_at, limited_until, now() AS now
                             FROM ${ApiSourceRateBucketsTableName}
                             WHERE limit_key = :limitKey AND bucket_id = :bucketId`,
                             { limitKey, bucketId: bucket.id },
                         );
-                        throw new BucketFull({
-                            charged: false,
-                            now: full?.now ?? new Date(),
-                            bucketId: bucket.id,
-                            used: full?.used ?? bucket.capacity,
-                            resumesAt: new Date(
-                                (
-                                    full?.window_started_at ?? new Date()
-                                ).getTime() + bucket.windowMs,
-                            ),
-                        });
+                        throw new BucketFull(toBucketRefusal(bucket, full));
                     }
                     now = rows[0].now;
                     windows.push({
@@ -1901,6 +1926,40 @@ export class ExternalConnectionModel {
             if (error instanceof BucketFull) return error.refusal;
             throw error;
         }
+    }
+
+    /**
+     * Holds buckets after the integration said to slow down: calls charging
+     * them wait until `resumesAt`, or the end of the bucket's window when the
+     * integration didn't say. A hold only ever gets longer.
+     */
+    async holdApiSourceRateBuckets(
+        limitKey: string,
+        buckets: readonly Pick<ApiSourceRateBucketLimit, 'id' | 'windowMs'>[],
+        resumesAt: Date | null,
+    ): Promise<void> {
+        await Promise.all(
+            buckets.map((bucket) =>
+                this.database.raw(
+                    `UPDATE ${ApiSourceRateBucketsTableName}
+                    SET limited_until = greatest(
+                            coalesce(limited_until, now()),
+                            coalesce(
+                                CAST(:resumesAt AS timestamptz),
+                                window_started_at + :windowMs * interval '1 millisecond'
+                            )
+                        ),
+                        updated_at = now()
+                    WHERE limit_key = :limitKey AND bucket_id = :bucketId`,
+                    {
+                        limitKey,
+                        bucketId: bucket.id,
+                        windowMs: bucket.windowMs,
+                        resumesAt,
+                    },
+                ),
+            ),
+        );
     }
 
     /** Gives back a charge made in the same windows; a window that has since closed keeps it. */

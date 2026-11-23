@@ -80,6 +80,7 @@ import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { BaseService } from '../../../services/BaseService';
 import {
     createLiveCalls,
+    readLiveRateLimit,
     type LiveCallUsage,
     type LiveTransport,
     type MeteredLiveSource,
@@ -2569,6 +2570,16 @@ export class ExternalConnectionService extends BaseService {
                     apiSource,
                 ),
                 () => sendOnce(request),
+                {
+                    // Retried here, so a paged read keeps the pages it has
+                    readRateLimit: (response) =>
+                        readLiveRateLimit(
+                            integration,
+                            apiSource,
+                            response,
+                            new Date(),
+                        ),
+                },
             );
         };
         return {

@@ -116,6 +116,7 @@ const buildService = ({
             windows: [],
         }),
         refundApiSourceRateBuckets: vi.fn().mockResolvedValue(undefined),
+        holdApiSourceRateBuckets: vi.fn().mockResolvedValue(undefined),
         bookApiSourceRateTurn: vi.fn().mockImplementation(async () => ({
             booked: true,
             turnAt: new Date(),
@@ -628,6 +629,57 @@ describe('ExternalConnectionService api source schema scans', () => {
             'conn-1',
             scan,
         );
+    });
+
+    it('waits out a 429 part-way through a scan and keeps what it read', async () => {
+        mockSecureFetch
+            .mockResolvedValueOnce(
+                postHogQueryResponse(
+                    [
+                        ['event_name', 'String'],
+                        ['event_count', 'UInt64'],
+                    ],
+                    [['$pageview', 1200]],
+                ),
+            )
+            .mockResolvedValueOnce({
+                status: 429,
+                contentType: 'application/json',
+                headers: { 'retry-after': '0' },
+                bodyText: JSON.stringify({ detail: 'Slow down' }),
+                truncated: false,
+            })
+            .mockResolvedValueOnce(
+                postHogQueryResponse(
+                    [
+                        ['property_key', 'String'],
+                        ['occurrences', 'UInt64'],
+                    ],
+                    [['$browser', 900]],
+                ),
+            );
+        const { service, externalConnectionModel } = buildService();
+        externalConnectionModel.chargeApiSourceRateBuckets.mockResolvedValue({
+            charged: true,
+            now: new Date(),
+            windows: [{ bucketId: 'minute', windowStartedAt: new Date() }],
+        });
+
+        const scan = await service.scanApiSourceSchema(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+
+        expect(scan).toMatchObject({
+            status: 'ready',
+            events: [{ name: '$pageview', count: 1200 }],
+            propertyKeys: ['$browser'],
+        });
+        expect(mockSecureFetch).toHaveBeenCalledTimes(3);
+        expect(
+            externalConnectionModel.holdApiSourceRateBuckets,
+        ).toHaveBeenCalledOnce();
     });
 
     it('stores a failed scan when PostHog refuses the key', async () => {
