@@ -50,7 +50,6 @@ import {
     TestOutcome,
 } from '../../externalConnections/liveSources/LiveSourceSettingsRows';
 import rowClasses from '../../externalConnections/liveSources/LiveSourceSettingsRows.module.css';
-import { ProjectCacheOffAlert } from '../../externalConnections/liveSources/ProjectCacheOffAlert';
 import {
     normalizeAccountId,
     toTokenLiveSourceCreatePayload,
@@ -65,11 +64,13 @@ import {
     toLiveSourceAccessValues,
     type LiveSourceAccessValues,
 } from './liveSourceAccess';
+import { LiveSourceRateLimitsCard } from './LiveSourceRateLimits';
 import {
     formatFreshness,
     getLiveSourceFreshness,
     type LiveSourceConnection,
 } from './liveSourceRows';
+import classes from './LiveSources.module.css';
 
 const WINDOW_SECONDS = [
     0,
@@ -508,14 +509,12 @@ export const LiveSourceSettings: FC<{
                         </Button>
                     </SettingsRow>
                     <SettingsRow
-                        label="Cache"
+                        label="Caching"
                         hint={
                             isProjectCacheOff ? (
-                                <ProjectCacheOffAlert
-                                    projectUuid={projectUuid}
-                                    message="Caching is disabled"
-                                    withLink={false}
-                                />
+                                <span className={classes.warningText}>
+                                    Currently disabled
+                                </span>
                             ) : (
                                 formatPurgedAt(connection.cachePurgedAt)
                             )
@@ -535,7 +534,7 @@ export const LiveSourceSettings: FC<{
                                 <Select
                                     w={116}
                                     size="xs"
-                                    aria-label="Cache"
+                                    aria-label="Caching"
                                     allowDeselect={false}
                                     comboboxProps={{ withinPortal: true }}
                                     data={ttlOptions.map((option) => ({
@@ -558,6 +557,11 @@ export const LiveSourceSettings: FC<{
                         )}
                     </SettingsRow>
                 </SettingsCard>
+
+                <LiveSourceRateLimitsCard
+                    projectUuid={projectUuid}
+                    connectionUuid={connection.externalConnectionUuid}
+                />
 
                 <SettingsCard title="Danger zone">
                     <SettingsRow
