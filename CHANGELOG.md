@@ -1,3 +1,10 @@
+# [3.374.0](https://github.com/lightdash/lightdash/compare/3.373.0...3.374.0) (2026-11-23)
+
+
+### Features
+
+* **live-sources:** add HubSpot tickets and leads explores ([#33253](https://github.com/lightdash/lightdash/issues/33253)) ([0778fcd](https://github.com/lightdash/lightdash/commit/0778fcda1d1897962269d01db7dfe41efb55ad05))
+
 # [3.373.0](https://github.com/lightdash/lightdash/compare/3.372.0...3.373.0) (2026-11-23)
 
 
