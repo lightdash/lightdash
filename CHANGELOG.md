@@ -1,3 +1,10 @@
+# [3.373.0](https://github.com/lightdash/lightdash/compare/3.372.0...3.373.0) (2026-11-23)
+
+
+### Features
+
+* **live-sources:** add Hydra, a test integration tests control ([#33248](https://github.com/lightdash/lightdash/issues/33248)) ([6019402](https://github.com/lightdash/lightdash/commit/601940286f3c005d79ccff42bce9d607066af9d1))
+
 # [3.372.0](https://github.com/lightdash/lightdash/compare/3.371.5...3.372.0) (2026-11-23)
 
 
