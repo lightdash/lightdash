@@ -40,6 +40,7 @@
 
 .codeToolbar {
     flex: none;
+    min-height: 45px;
     padding: 6px 8px 6px 12px;
     border-bottom: 1px solid var(--mantine-color-default-border);
 }
