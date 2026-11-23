@@ -341,6 +341,8 @@ export type AiAgentArgs = AnyAiModel & {
     repoFsSupportsCodeSearch: boolean;
     // Semantic Studio saves changes with a code mode script instead of the sandbox.
     semanticStudioCodeMode: boolean;
+    // A Studio dbt project's layout from its last compile; null otherwise.
+    semanticStudioProjectMap: string | null;
     canRunSql: boolean;
     // Whether the composer query tool is the query path: composer flags, data
     // access and the agent's enableComposerQueries opt-in.

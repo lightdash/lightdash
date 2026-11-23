@@ -114,6 +114,7 @@ import {
     type DbtScriptChange,
     type DbtScriptCheck,
 } from './codeMode/dbtManifestPatch';
+import { describeDbtProjectMap } from './dbtProjectMap';
 import {
     checkedExploresFileId,
     dbtChangeFingerprint,
@@ -1757,6 +1758,22 @@ export class SemanticStudioService extends BaseService {
      * request, as a refresh would; nothing for a change that is not theirs or a
      * project that is not dbt in a repository.
      */
+    /** The dbt project's layout from its last compile, for the agent's prompt; null when none is stored. */
+    async getDbtProjectMap(projectUuid: string): Promise<string | null> {
+        try {
+            const compiled = await readCompiledDbtManifest(
+                this.fileStorageClient,
+                projectUuid,
+            );
+            return compiled ? describeDbtProjectMap(compiled.manifest) : null;
+        } catch (error) {
+            this.logger.warn(
+                `SemanticStudio: could not read the project map of ${projectUuid}: ${getErrorMessage(error)}`,
+            );
+            return null;
+        }
+    }
+
     async queueBranchCompile(
         user: SessionUser,
         projectUuid: string,
