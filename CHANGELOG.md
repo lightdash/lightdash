@@ -1,3 +1,10 @@
+## [3.371.5](https://github.com/lightdash/lightdash/compare/3.371.4...3.371.5) (2026-11-23)
+
+
+### Bug Fixes
+
+* **live-sources:** reuse in-flight and finished results for same-query tiles ([#33244](https://github.com/lightdash/lightdash/issues/33244)) ([84fc7e5](https://github.com/lightdash/lightdash/commit/84fc7e55166e8e7874a652d9093854388275bffe))
+
 ## [3.371.4](https://github.com/lightdash/lightdash/compare/3.371.3...3.371.4) (2026-11-23)
 
 
