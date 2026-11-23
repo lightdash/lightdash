@@ -1,14 +1,14 @@
 import {
     assertUnreachable,
-    verifyDbtChangeToolDefinition,
-    type ToolVerifyDbtChangeStructuredContent,
+    verifyToolDefinition,
+    type ToolVerifyStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import {
     quoteCompileOutput,
     type BranchCompileCheck,
 } from '../../SemanticStudioService/branchCompileCheck';
-import type { VerifyDbtChangeFn } from '../types/aiAgentDependencies';
+import type { VerifyFn } from '../types/aiAgentDependencies';
 import type {
     ExecuteStructuredToolResult,
     ExecuteToolErrorResult,
@@ -16,10 +16,10 @@ import type {
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 type Dependencies = {
-    verifyDbtChange: VerifyDbtChangeFn;
+    verify: VerifyFn;
 };
 
-const toolDefinition = verifyDbtChangeToolDefinition.for('agent');
+const toolDefinition = verifyToolDefinition.for('agent');
 
 export const describeCheck = (check: BranchCompileCheck): string => {
     switch (check.status) {
@@ -55,17 +55,17 @@ export const describeCheck = (check: BranchCompileCheck): string => {
     }
 };
 
-export const getVerifyDbtChange = ({ verifyDbtChange }: Dependencies) =>
+export const getVerify = ({ verify }: Dependencies) =>
     tool({
         ...toolDefinition,
         execute: async ({
             check,
         }): Promise<
-            | ExecuteStructuredToolResult<ToolVerifyDbtChangeStructuredContent>
+            | ExecuteStructuredToolResult<ToolVerifyStructuredContent>
             | ExecuteToolErrorResult
         > => {
             try {
-                const result = await verifyDbtChange({ check });
+                const result = await verify({ check });
                 return {
                     result: describeCheck(result),
                     metadata: { status: 'success' },

@@ -44,7 +44,7 @@ const DUMP_TOOL_RESULT_POLICIES = {
     proposeSemanticLayerChange: 'keep',
     listChanges: 'keep',
     readSemanticModel: 'keep',
-    verifyDbtChange: 'keep',
+    verify: 'keep',
     editRepo: 'keep',
     syncDbtProject: 'keep',
     discoverRepos: 'keep',

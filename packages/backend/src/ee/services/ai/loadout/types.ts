@@ -66,7 +66,7 @@ export const AGENT_TOOL_NAMES = [
     'proposeSemanticLayerChange',
     'listChanges',
     'readSemanticModel',
-    'verifyDbtChange',
+    'verify',
     'runMetricQuery',
     'syncDbtProject',
     'exploreRepo',

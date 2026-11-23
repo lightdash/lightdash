@@ -5,11 +5,11 @@ import {
 } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-export const TOOL_VERIFY_DBT_CHANGE_DESCRIPTION = `Check a change you saved with editDbtProject, in the same turn. check "compile" waits for your latest save to reach the pull request branch, then for the branch's dbt compile, up to a minute, and returns whether it compiled and which models failed to load.
+export const TOOL_VERIFY_DESCRIPTION = `Check a change you saved with editDbtProject, in the same turn. check "compile" waits for your latest save to reach the pull request branch, then for the branch's dbt compile, up to a minute, and returns whether it compiled and which models failed to load.
 
 Call it after a save that adds a model or changes SQL, before you tell the person the change works; a change to YAML alone is already checked when it is saved. When it fails, fix it with editDbtProject and check again. When it is still running after a minute, say so: a failure is sent to you once it finishes.`;
 
-export const toolVerifyDbtChangeArgsSchema = createToolSchema()
+export const toolVerifyArgsSchema = createToolSchema()
     .extend({
         check: z
             .enum(['compile'])
@@ -19,11 +19,9 @@ export const toolVerifyDbtChangeArgsSchema = createToolSchema()
     })
     .build();
 
-export type ToolVerifyDbtChangeArgs = z.infer<
-    typeof toolVerifyDbtChangeArgsSchema
->;
+export type ToolVerifyArgs = z.infer<typeof toolVerifyArgsSchema>;
 
-export const toolVerifyDbtChangeStructuredContentSchema = z.object({
+export const toolVerifyStructuredContentSchema = z.object({
     status: z
         .enum([
             'ready',
@@ -42,15 +40,13 @@ export const toolVerifyDbtChangeStructuredContentSchema = z.object({
         .describe('Models that compiled but failed to load, when ready.'),
 });
 
-export type ToolVerifyDbtChangeStructuredContent = z.infer<
-    typeof toolVerifyDbtChangeStructuredContentSchema
+export type ToolVerifyStructuredContent = z.infer<
+    typeof toolVerifyStructuredContentSchema
 >;
 
-export const toolVerifyDbtChangeOutputSchema = structuredToolOutputSchema({
+export const toolVerifyOutputSchema = structuredToolOutputSchema({
     metadata: baseOutputMetadataSchema,
-    structuredContent: toolVerifyDbtChangeStructuredContentSchema,
+    structuredContent: toolVerifyStructuredContentSchema,
 });
 
-export type ToolVerifyDbtChangeOutput = z.infer<
-    typeof toolVerifyDbtChangeOutputSchema
->;
+export type ToolVerifyOutput = z.infer<typeof toolVerifyOutputSchema>;

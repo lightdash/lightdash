@@ -633,7 +633,7 @@ import {
     StoreToolResultsFn,
     UpdateProgressFn,
     UpdateSlackMessageFn,
-    VerifyDbtChangeFn,
+    VerifyFn,
 } from '../ai/types/aiAgentDependencies';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import {
@@ -15996,7 +15996,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 name,
             );
 
-        const verifyDbtChange: VerifyDbtChangeFn = () =>
+        const verify: VerifyFn = () =>
             this.semanticStudioService.waitForBranchCompile(user, projectUuid, {
                 threadUuid: prompt.threadUuid,
                 isSaving: () =>
@@ -16138,7 +16138,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             getDraftExplore,
             runDraftQuery,
             readSemanticModel,
-            verifyDbtChange,
+            verify,
             exploreRepo,
             readAttachments,
             discoverRepos,
@@ -18556,7 +18556,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     getDraftExplore,
                     runDraftQuery,
                     readSemanticModel,
-                    verifyDbtChange,
+                    verify,
                     exploreRepo,
                     readAttachments,
                     discoverRepos,
@@ -19088,7 +19088,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     getDraftExplore,
                     runDraftQuery,
                     readSemanticModel,
-                    verifyDbtChange,
+                    verify,
                     exploreRepo,
                     readAttachments,
                     discoverRepos,
@@ -21065,7 +21065,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     return 'Listing your changes...';
                 case 'readSemanticModel':
                     return 'Reading the model...';
-                case 'verifyDbtChange':
+                case 'verify':
                     return 'Checking the change...';
                 case 'closePullRequest':
                 case 'editContent':

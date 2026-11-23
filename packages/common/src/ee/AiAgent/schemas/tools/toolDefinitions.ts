@@ -400,10 +400,10 @@ import {
     toolUpdateUserNameOutputSchema,
 } from './toolUpdateUserNameArgs';
 import {
-    TOOL_VERIFY_DBT_CHANGE_DESCRIPTION,
-    toolVerifyDbtChangeArgsSchema,
-    toolVerifyDbtChangeOutputSchema,
-} from './toolVerifyDbtChangeArgs';
+    TOOL_VERIFY_DESCRIPTION,
+    toolVerifyArgsSchema,
+    toolVerifyOutputSchema,
+} from './toolVerifyArgs';
 import {
     TOOL_VISUALIZE_DESCRIPTION,
     toolVisualizeArgsSchema,
@@ -1495,18 +1495,18 @@ export const grepWarehouseColumnsToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolGrepWarehouseColumnsOutputSchema },
 });
 
-export const verifyDbtChangeToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'verifyDbtChange',
-    typeof toolVerifyDbtChangeArgsSchema,
-    typeof toolVerifyDbtChangeArgsSchema,
-    typeof toolVerifyDbtChangeOutputSchema
+export const verifyToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'verify',
+    typeof toolVerifyArgsSchema,
+    typeof toolVerifyArgsSchema,
+    typeof toolVerifyOutputSchema
 > = defineTool({
-    name: 'verifyDbtChange',
+    name: 'verify',
     title: 'Check dbt change',
-    description: TOOL_VERIFY_DBT_CHANGE_DESCRIPTION,
+    description: TOOL_VERIFY_DESCRIPTION,
     availability: ['agent'],
-    inputSchema: toolVerifyDbtChangeArgsSchema,
-    agent: { outputSchema: toolVerifyDbtChangeOutputSchema },
+    inputSchema: toolVerifyArgsSchema,
+    agent: { outputSchema: toolVerifyOutputSchema },
 });
 
 export const describeWarehouseTableToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -2096,7 +2096,7 @@ type AgentToolDefinitionsByName = {
     listWarehouseTables: typeof listWarehouseTablesToolDefinition;
     describeWarehouseTable: typeof describeWarehouseTableToolDefinition;
     grepWarehouseColumns: typeof grepWarehouseColumnsToolDefinition;
-    verifyDbtChange: typeof verifyDbtChangeToolDefinition;
+    verify: typeof verifyToolDefinition;
     listKnowledgeDocuments: typeof listKnowledgeDocumentsToolDefinition;
     getKnowledgeDocumentContent: typeof getKnowledgeDocumentContentToolDefinition;
     readPinnedThread: typeof readPinnedThreadToolDefinition;
@@ -2163,7 +2163,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     listWarehouseTables: listWarehouseTablesToolDefinition,
     describeWarehouseTable: describeWarehouseTableToolDefinition,
     grepWarehouseColumns: grepWarehouseColumnsToolDefinition,
-    verifyDbtChange: verifyDbtChangeToolDefinition,
+    verify: verifyToolDefinition,
     listKnowledgeDocuments: listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContent: getKnowledgeDocumentContentToolDefinition,
     readPinnedThread: readPinnedThreadToolDefinition,
@@ -2237,7 +2237,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     listWarehouseTablesToolDefinition,
     describeWarehouseTableToolDefinition,
     grepWarehouseColumnsToolDefinition,
-    verifyDbtChangeToolDefinition,
+    verifyToolDefinition,
     listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContentToolDefinition,
     readPinnedThreadToolDefinition,
