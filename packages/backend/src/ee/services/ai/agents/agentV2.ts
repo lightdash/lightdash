@@ -213,6 +213,7 @@ import { getAgentLogContext, withToolCallLogContext } from './agentLogContext';
 import { getBoundContentPreload } from './boundContentPreload';
 import { pruneSupersededContentReads } from './contentReadRetention';
 import { getMcpActiveTools } from './mcpToolGating';
+import { withOrderedContentWrites } from './orderedContentWrites';
 import { compactChartDiscovery, getPreviousQueryUuid } from './previousQuery';
 import { withRollingCacheBreakpoint } from './promptCache';
 import { buildQueryRetryStepOverride } from './queryRetryCap';
@@ -3095,15 +3096,17 @@ const prepareAgentTurn = async ({
             ),
         );
     }
-    tools = withToolCallLogContext(
-        reportEarlyToolProgress
-            ? withEarlyToolProgress(
-                  intentToolGate.tools,
-                  dependencies.updateProgress,
-                  args.execution.mode === 'deep_research',
-              )
-            : intentToolGate.tools,
-        getAgentLogContext(args),
+    tools = withOrderedContentWrites(
+        withToolCallLogContext(
+            reportEarlyToolProgress
+                ? withEarlyToolProgress(
+                      intentToolGate.tools,
+                      dependencies.updateProgress,
+                      args.execution.mode === 'deep_research',
+                  )
+                : intentToolGate.tools,
+            getAgentLogContext(args),
+        ),
     );
     const messages = getAgentMessages(
         args,
