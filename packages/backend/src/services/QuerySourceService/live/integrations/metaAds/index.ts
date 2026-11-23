@@ -88,9 +88,24 @@ export const metaAdsIntegration = defineLiveIntegration({
         oauth: 'needs_review',
     },
     paging: { description: 'Insights pages results with cursors.' },
-    rateLimiting: {
-        description:
-            'Load is counted per app and ad account; Meta publishes no fixed number.',
+    rateLimits: {
+        concurrentCalls: 3,
+        callsPerSecond: null,
+        buckets: [
+            {
+                id: 'minute',
+                label: 'per minute',
+                windowMs: 60_000,
+                capacity: 60,
+            },
+            {
+                id: 'hour',
+                label: 'per hour',
+                windowMs: 3_600_000,
+                capacity: 1_000,
+            },
+        ],
+        note: 'Meta scores load per app and ad account and publishes no fixed number.',
     },
     useCases: metaAdsUseCases,
     validate: ({ adAccountId }) => {
