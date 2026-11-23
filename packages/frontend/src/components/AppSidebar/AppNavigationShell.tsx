@@ -1,5 +1,6 @@
 import { AppShell, useAppShellResize } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
+import { IconClock, IconTestPipe } from '@tabler/icons-react';
 import { clamp } from 'es-toolkit/compat';
 import { type FC, type ReactNode } from 'react';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
@@ -20,6 +21,8 @@ import { useNavBarState } from '../NavBar/useNavBarState';
 import { AppSidebar } from './AppSidebar';
 import classes from './AppSidebar.module.css';
 import { APP_SIDEBAR_ID } from './appSidebarNavigation';
+import { ImpersonationNotch } from './ImpersonationNotch';
+import { NoticeGutter } from './NoticeGutter';
 import { PreviewGutter } from './PreviewGutter';
 import { useAppSidebarCollapse } from './useAppSidebarCollapse';
 import { useIsLeftNavigationShown } from './useIsLeftNavigationShown';
@@ -55,7 +58,27 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
         hasBanner,
         banner,
         previewNotice,
+        trialNotice,
+        hasSampleDataNotice,
+        isImpersonating,
     } = useNavBarState();
+    // The strip above the page holds whichever of these applies; the rules
+    // that decide them never let two apply at once. Impersonation is the
+    // exception and marks the page itself.
+    const hasGutter =
+        previewNotice !== null ||
+        trialNotice !== null ||
+        hasSampleDataNotice ||
+        isImpersonating;
+    const showsSampleDataNotice =
+        previewNotice === null && trialNotice === null && hasSampleDataNotice;
+    // Impersonation and sample data change what the whole page means, so the
+    // page itself is outlined; impersonation's mark wins when both apply.
+    const pageOutline = isImpersonating
+        ? 'impersonation'
+        : showsSampleDataNotice
+          ? 'sample-data'
+          : 'none';
     const { isCollapsed, setIsCollapsed } = useAppSidebarCollapse();
     const [storedWidth, setStoredWidth] = useLocalStorage<number>({
         key: APP_SIDEBAR_WIDTH_STORAGE_KEY,
@@ -89,7 +112,8 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
             data-rounded-page={!isFullscreen}
             // A preview is named in a gutter above the page only, so the
             // sidebar runs the full height beside it.
-            layout={previewNotice ? 'alt' : 'default'}
+            layout={hasGutter ? 'alt' : 'default'}
+            data-page-outline={pageOutline}
             onPointerUpCapture={blurResizeEdge}
             classNames={{ resizeHandle: classes.resizeHandle }}
             // The sidebar never turns into Mantine's full-width mobile
@@ -100,7 +124,7 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
                 collapsed: { desktop: isFullscreen, mobile: isFullscreen },
             }}
             header={{
-                height: previewNotice
+                height: hasGutter
                     ? APP_PREVIEW_GUTTER_HEIGHT
                     : hasBanner
                       ? BANNER_HEIGHT
@@ -117,8 +141,39 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
                         isSidebarCollapsed={isCollapsed}
                     />
                 )}
+                {!previewNotice && trialNotice && (
+                    <NoticeGutter
+                        tone="warning"
+                        icon={IconClock}
+                        title="Trial ended"
+                        detail={
+                            trialNotice.isExpired
+                                ? 'Queries are disabled. Contact sales to reactivate.'
+                                : 'Contact sales to keep your workspace'
+                        }
+                        action={{
+                            label: 'Contact sales',
+                            to: 'mailto:sales@lightdash.com',
+                            isExternal: true,
+                        }}
+                    />
+                )}
+                {showsSampleDataNotice && (
+                    <NoticeGutter
+                        tone="info"
+                        icon={IconTestPipe}
+                        title="Sample data"
+                        detail="A demo project to look around in while you get set up"
+                        action={{
+                            label: 'Connect your data',
+                            to: '/onboarding/data-source',
+                            isExternal: false,
+                        }}
+                    />
+                )}
+                {isImpersonating && <ImpersonationNotch />}
                 <NavBarRoot hasVisibleFixedNavbar={false} hasBanner={hasBanner}>
-                    {!previewNotice && banner}
+                    {!hasGutter && banner}
                     <SharedSignInExpiryListener />
                 </NavBarRoot>
             </AppShell.Header>
