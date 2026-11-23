@@ -53,7 +53,7 @@ export const PreviewGutter: FC<Props> = ({
                         aria-hidden={!showUpstreamName}
                     >
                         <Box className={classes.upstreamContent}>
-                            <Text fz="sm" truncate maw={200}>
+                            <Text fz="xs" truncate maw={200}>
                                 {upstreamProject.name}
                             </Text>
                             <MantineIcon
@@ -65,10 +65,14 @@ export const PreviewGutter: FC<Props> = ({
                         </Box>
                     </Box>
                 )}
-                <MantineIcon icon={IconTools} className={classes.previewIcon} />
+                <MantineIcon
+                    icon={IconTools}
+                    size={14}
+                    className={classes.previewIcon}
+                />
                 <Box className={classes.label}>
                     <Text
-                        fz="sm"
+                        fz="xs"
                         fw={600}
                         truncate
                         miw={0}
