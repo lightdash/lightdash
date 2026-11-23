@@ -71,6 +71,7 @@ export type HubspotBuiltInColumn = (typeof HUBSPOT_BUILT_IN_COLUMNS)[number];
 const BUILT_IN_PROPERTIES = new Set([
     'hs_object_id',
     'createdate',
+    'hs_createdate',
     'hs_lastmodifieddate',
     'lastmodifieddate',
 ]);
@@ -131,6 +132,8 @@ const OBJECT_LABELS: Record<HubspotObject, string> = {
     deals: 'Deals',
     contacts: 'Contacts',
     companies: 'Companies',
+    tickets: 'Tickets',
+    leads: 'Leads',
 };
 
 /**
@@ -156,6 +159,9 @@ export const HUBSPOT_EXPLORES = HUBSPOT_OBJECTS.map(toObjectExplore) as [
     LiveExploreDefinition,
     ...LiveExploreDefinition[],
 ];
+
+/** Why a scan couldn't read an object's properties, kept in place of the list. */
+const unreadSchema = z.object({ error: z.string() });
 
 /** One object's property list from a scan; anything else reads as none. */
 export const readHubspotProperties = (
@@ -211,6 +217,16 @@ const PROPERTY_RULES: Record<
 
 const MAX_SCANNED_PROPERTIES = 400;
 const MAX_LISTED_OPTIONS = 15;
+/**
+ * Pipelines and stages whose values are ids (tickets' stages are 1, 2, ...),
+ * so their descriptions list every value with its label.
+ */
+const PIPELINE_PROPERTIES = new Set([
+    'pipeline',
+    'dealstage',
+    'hs_pipeline',
+    'hs_pipeline_stage',
+]);
 // Internal names are lowercase letters, digits and underscores
 const PROPERTY_NAME = /^[a-z][a-z0-9_]*$/;
 
@@ -222,6 +238,13 @@ const USEFUL_HS_PROPERTIES = new Set([
     'hs_forecast_amount',
     'hs_lead_status',
     'hs_analytics_source',
+    'hs_pipeline',
+    'hs_pipeline_stage',
+    'hs_ticket_priority',
+    'hs_ticket_category',
+    'hs_lead_name',
+    'hs_lead_type',
+    'hs_lead_label',
 ]);
 
 export const isInternalHubspotField = (apiName: string) =>
@@ -258,13 +281,16 @@ const propertiesSchema = z.object({
 type HubspotProperty = z.infer<typeof propertiesSchema>['results'][number];
 
 const describeProperty = ({
+    name,
     label,
     description,
     type,
     fieldType,
     options,
 }: HubspotProperty) => {
-    const listed = (options ?? []).slice(0, MAX_LISTED_OPTIONS);
+    const listed = PIPELINE_PROPERTIES.has(name)
+        ? (options ?? [])
+        : (options ?? []).slice(0, MAX_LISTED_OPTIONS);
     const more = (options ?? []).length - listed.length;
     // HubSpot's own descriptions often end without a full stop
     const own = description?.trim().replace(/([^.!?])$/, '$1.');
@@ -296,6 +322,13 @@ export const withHubspotPropertyFields = (
     definition: LiveExploreDefinition,
     properties: unknown,
 ): LiveExploreDefinition => {
+    const unread = unreadSchema.safeParse(properties);
+    if (unread.success) {
+        return {
+            ...definition,
+            description: `${definition.description} Unavailable: the last scan couldn't read ${definition.name}. ${unread.data.error}`,
+        };
+    }
     const parsed = propertiesSchema.safeParse(properties);
     if (!parsed.success) {
         return definition;

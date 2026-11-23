@@ -1,9 +1,12 @@
 import {
     ApiConnectorType,
     DimensionType,
+    getErrorMessage,
     getHubspotPropertiesPath,
     getHubspotSearchPath,
     HUBSPOT_OBJECTS,
+    TooManyRequestsError,
+    UnexpectedServerError,
     type HubspotObject,
 } from '@lightdash/common';
 import { z } from 'zod';
@@ -139,7 +142,8 @@ const toPropertyName = (name: string, object: HubspotObject): string => {
         case 'id':
             return 'hs_object_id';
         case 'createdAt':
-            return 'createdate';
+            // Leads only have HubSpot's newer name for it
+            return object === 'leads' ? 'hs_createdate' : 'createdate';
         case 'updatedAt':
             // Contacts kept their original name for it
             return object === 'contacts'
@@ -328,15 +332,25 @@ export const runHubspotQuery = async ({
 };
 
 /**
+ * Errors that say the object can't be read with this token or portal, as
+ * opposed to HubSpot being briefly unavailable.
+ */
+const isObjectUnavailable = (error: unknown) =>
+    !(error instanceof TooManyRequestsError) &&
+    !(error instanceof UnexpectedServerError);
+
+/**
  * Reads each object's properties, which become its explore's fields: one
- * call per object. The private app needs read access to all three.
+ * call per object. An object the token can't read (a missing scope, or
+ * leads without Sales Hub Professional) keeps why in place of its list, so
+ * the others still build; the scan fails only when none can be read.
  */
 export const scanHubspotProperties = async ({
     calls,
 }: {
     calls: LiveCalls;
 }): Promise<LiveScanResult> => {
-    const lists = await Promise.all(
+    const lists = await Promise.allSettled(
         HUBSPOT_OBJECTS.map((object) =>
             calls.fetch(
                 {
@@ -348,9 +362,24 @@ export const scanHubspotProperties = async ({
             ),
         ),
     );
+    const failure = lists.find(
+        (list): list is PromiseRejectedResult =>
+            list.status === 'rejected' && !isObjectUnavailable(list.reason),
+    );
+    if (failure || lists.every((list) => list.status === 'rejected')) {
+        throw (failure ?? (lists[0] as PromiseRejectedResult)).reason;
+    }
     return {
         hubspotProperties: Object.fromEntries(
-            HUBSPOT_OBJECTS.map((object, index) => [object, lists[index]]),
+            HUBSPOT_OBJECTS.map((object, index) => {
+                const list = lists[index];
+                return [
+                    object,
+                    list.status === 'fulfilled'
+                        ? list.value
+                        : { error: getErrorMessage(list.reason) },
+                ];
+            }),
         ),
     };
 };

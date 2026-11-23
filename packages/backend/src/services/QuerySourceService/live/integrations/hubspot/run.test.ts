@@ -25,7 +25,7 @@ const response = (
 ): LiveHttpResponse => ({ status, headers, body });
 
 const connect = (
-    object: 'deals' | 'contacts',
+    object: 'deals' | 'contacts' | 'tickets' | 'leads',
     ...responses: LiveHttpResponse[]
 ) => {
     const send = vi.fn();
@@ -53,6 +53,20 @@ const run = (
         query: JSON.stringify({ object: source.object, ...request }),
         limit,
     });
+
+/** HubSpot's 403 for a token without the leads scope. */
+const MISSING_LEADS_SCOPE = {
+    status: 'error',
+    message:
+        'This app hasn’t been granted all required scopes to make this call.',
+    category: 'MISSING_SCOPES',
+    errors: [
+        {
+            message: 'One or more of the following scopes are required.',
+            context: { requiredGranularScopes: ['crm.objects.leads.read'] },
+        },
+    ],
+};
 
 const deals = (count: number, from = 0) =>
     Array.from({ length: count }, (_, index) => hubspotDeal(`${from + index}`));
@@ -318,6 +332,8 @@ describe('hubspotIntegration scan and test', () => {
             response(HUBSPOT_DEAL_PROPERTIES),
             response({ results: [] }),
             response({ results: [] }),
+            response({ results: [] }),
+            response({ results: [] }),
         );
 
         await expect(source.scan()).resolves.toEqual({
@@ -325,14 +341,97 @@ describe('hubspotIntegration scan and test', () => {
                 deals: HUBSPOT_DEAL_PROPERTIES,
                 contacts: { results: [] },
                 companies: { results: [] },
+                tickets: { results: [] },
+                leads: { results: [] },
             },
         });
         expect(send.mock.calls.map(([request]) => request.path)).toEqual([
             '/crm/v3/properties/deals',
             '/crm/v3/properties/contacts',
             '/crm/v3/properties/companies',
+            '/crm/v3/properties/tickets',
+            '/crm/v3/properties/leads',
         ]);
     });
+
+    it('keeps why an object is unreadable and still scans the others', async () => {
+        const { source } = connect(
+            'deals',
+            response(HUBSPOT_DEAL_PROPERTIES),
+            response({ results: [] }),
+            response({ results: [] }),
+            response({ results: [] }),
+            response(MISSING_LEADS_SCOPE, 403),
+        );
+
+        const scan = await source.scan();
+
+        expect(scan.hubspotProperties).toMatchObject({
+            deals: HUBSPOT_DEAL_PROPERTIES,
+            tickets: { results: [] },
+            leads: {
+                error: expect.stringContaining('crm.objects.leads.read'),
+            },
+        });
+    });
+
+    it('fails the scan when no object can be read', async () => {
+        const { source } = connect(
+            'deals',
+            ...Array.from({ length: 5 }, () =>
+                response(
+                    { message: 'Authentication credentials not found.' },
+                    401,
+                ),
+            ),
+        );
+        await expect(source.scan()).rejects.toThrow('access token');
+    });
+
+    it('fails the scan when HubSpot is briefly unavailable, keeping the last one', async () => {
+        const { source } = connect(
+            'deals',
+            response(HUBSPOT_DEAL_PROPERTIES),
+            response({ message: 'Too many requests' }, 429),
+            response({ results: [] }),
+            response({ results: [] }),
+            response({ results: [] }),
+        );
+        await expect(source.scan()).rejects.toBeInstanceOf(
+            TooManyRequestsError,
+        );
+    });
+
+    it.each([
+        ['tickets', 'createdate'],
+        ['leads', 'hs_createdate'],
+    ] as const)(
+        'searches %s by their own created-date property',
+        async (object, propertyName) => {
+            const { source, send } = connect(
+                object,
+                response(hubspotSearchPage([], 0)),
+            );
+            await run(source, {
+                kind: 'count',
+                filters: [
+                    { propertyName: 'createdAt', operator: 'GTE', value: '1' },
+                ],
+            });
+            expect(send.mock.calls[0][0]).toMatchObject({
+                path: `/crm/v3/objects/${object}/search`,
+                body: {
+                    filterGroups: [
+                        {
+                            filters: [
+                                { propertyName, operator: 'GTE', value: '1' },
+                            ],
+                        },
+                    ],
+                },
+            });
+        },
+    );
 
     it('reads a request for another object only on that object', async () => {
         const { source, send } = connect(
@@ -377,6 +476,15 @@ describe('toHubspotError', () => {
         expect(error).toBeInstanceOf(WarehouseConnectionError);
         expect(error.message).toContain('crm.objects.deals.read');
         expect(error.message).toContain('crm.schemas.companies.read');
+        expect(error.message).toContain('tickets: tickets');
+        expect(error.message).toContain('Sales Hub Professional');
+    });
+
+    it('names the scope HubSpot says the call needed', () => {
+        const error = toHubspotError(response(MISSING_LEADS_SCOPE, 403));
+        expect(error.message).toContain(
+            'This call needs crm.objects.leads.read.',
+        );
     });
 
     it('says when to retry on 429', () => {
