@@ -6,8 +6,10 @@
  * a choice or button as soon as it is used.
  */
 import {
+    getLiveIntegrationCatalogEntry,
     LIVE_SOURCE_AI_HINT_MAX_LENGTH,
     LIVE_SOURCE_CACHE_TTL_MAX_SECONDS,
+    type LiveSourceSignInMode,
 } from '@lightdash/common';
 import {
     Button,
@@ -95,6 +97,96 @@ const formatPurgedAt = (purgedAt: Date | null | undefined) =>
 type Values = LiveSourceAccessValues & {
     /** Seconds, as the select holds it. */
     ttl: string;
+};
+
+/**
+ * Whether queries run with the source's one sign-in or each viewer's own,
+ * for integrations that can sign in each viewer.
+ */
+const SignInModeRow: FC<{
+    projectUuid: string;
+    connection: LiveSourceConnection;
+}> = ({ projectUuid, connection }) => {
+    const updateSource = useUpdateExternalConnection(
+        LIVE_SOURCE_UPDATE_MESSAGES,
+    );
+    const saved: LiveSourceSignInMode = connection.signInMode ?? 'shared';
+    /** The mode being saved; the saved one shows otherwise. */
+    const [pending, setPending] = useState<LiveSourceSignInMode | null>(null);
+    /** The mode last asked about; it stays while the dialog closes. */
+    const [asked, setAsked] = useState<LiveSourceSignInMode>('shared');
+    const [isConfirming, setIsConfirming] = useState(false);
+    const mode = pending ?? saved;
+    const integration = getLiveIntegrationCatalogEntry(
+        connection.apiSource.connector,
+    ).label;
+    const save = (next: LiveSourceSignInMode) => {
+        setPending(next);
+        updateSource.mutate(
+            {
+                projectUuid,
+                connectionUuid: connection.externalConnectionUuid,
+                data: { signInMode: next },
+            },
+            { onSettled: () => setPending(null) },
+        );
+    };
+    const choose = (value: string) => {
+        const next: LiveSourceSignInMode =
+            value === 'per_user' ? 'per_user' : 'shared';
+        if (next === mode) return;
+        // Either way changes whose data people and deliveries get
+        setAsked(next);
+        setIsConfirming(true);
+    };
+    return (
+        <>
+            <SettingsRow
+                label="Who signs in"
+                hint={
+                    mode === 'per_user'
+                        ? `Each viewer connects their own ${integration} account. Scheduled deliveries show their creator's data`
+                        : `Everyone sees what this source's ${integration} sign-in sees`
+                }
+            >
+                <SegmentedControl
+                    size="xs"
+                    w={240}
+                    disabled={updateSource.isLoading}
+                    data={[
+                        { value: 'shared', label: 'Shared sign-in' },
+                        { value: 'per_user', label: 'Each viewer' },
+                    ]}
+                    value={mode}
+                    onChange={choose}
+                />
+            </SettingsRow>
+            <MantineModal
+                opened={isConfirming}
+                onClose={() => setIsConfirming(false)}
+                title={
+                    asked === 'per_user'
+                        ? 'Have each viewer sign in?'
+                        : 'Use one shared sign-in?'
+                }
+                role="alertdialog"
+                description={
+                    asked === 'per_user'
+                        ? `Everyone connects their own ${integration} account before they see data from this source. Scheduled deliveries fail until their creator connects. Service accounts, embeds and Slack link previews stop getting data, and so does the Slack agent unless Slack signs people in to Lightdash.`
+                        : `Everyone will see what this source's ${integration} sign-in sees, and every viewer's own sign-in is forgotten.`
+                }
+                confirmLabel={
+                    asked === 'per_user'
+                        ? 'Have each viewer sign in'
+                        : 'Use shared sign-in'
+                }
+                onConfirm={() => {
+                    setIsConfirming(false);
+                    save(asked);
+                }}
+            />
+        </>
+    );
 };
 
 /** The saved token, or a new one in its place, and a check that it works. */
@@ -442,6 +534,14 @@ export const LiveSourceSettings: FC<{
                                 Sign in with PostHog
                             </Button>
                         </SettingsRow>
+                    ) : null}
+                    {getLiveIntegrationCatalogEntry(
+                        connection.apiSource.connector,
+                    ).userSignIn ? (
+                        <SignInModeRow
+                            projectUuid={projectUuid}
+                            connection={connection}
+                        />
                     ) : null}
                     {accountField ? saveFooter(accessKeys) : null}
                 </SettingsCard>

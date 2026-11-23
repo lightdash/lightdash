@@ -13,9 +13,11 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { LD_FIELD_COLORS } from '../../../theme';
 import { SectionName } from '../../../types/Events';
+import { ConnectLiveSourceAction } from '../../common/ConnectLiveSourceAction';
 import { ConnectWarehouseAction } from '../../common/ConnectWarehouseAction';
 import { EmptyState } from '../../common/EmptyState';
 import EmptyStateLoader from '../../common/EmptyStateLoader';
+import { getQueryErrorText } from '../../common/liveSourceSignInError';
 import MantineIcon from '../../common/MantineIcon';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { RefreshButton } from '../../RefreshButton';
@@ -234,7 +236,7 @@ export const ExploreErrorState = ({
             description={
                 <Fragment>
                     <Text className={classes.errorMessage}>
-                        {errorDetail?.message ||
+                        {getQueryErrorText(errorDetail) ||
                             'There was an error loading the results'}
                     </Text>
                     {errorDetail?.message &&
@@ -258,6 +260,7 @@ export const ExploreErrorState = ({
             }
         >
             <ConnectWarehouseAction error={errorDetail} />
+            <ConnectLiveSourceAction error={errorDetail} />
         </EmptyState>
     );
 };
