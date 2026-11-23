@@ -47,6 +47,8 @@ export type LiveIntegration<
         headers?: Record<string, string> | null;
     };
     limits: LiveLimits;
+    /** A source's own limits, when its settings set them; omitted, every source gets `limits`. */
+    limitsFor?: (settings: ApiSourceOf<C>) => LiveLimits;
     capabilities: LiveCapabilities;
     /** The first is the wide model; scans and field edits apply to it and to `scan.models`. */
     explores: readonly [LiveExploreDefinition, ...LiveExploreDefinition[]];

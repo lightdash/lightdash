@@ -77,6 +77,10 @@ describe('live integration specs', () => {
               "rating": "easy",
               "score": 6,
             },
+            "hydra": {
+              "rating": "easy",
+              "score": 6,
+            },
             "linkedin_ads": {
               "rating": "hard",
               "score": 1,

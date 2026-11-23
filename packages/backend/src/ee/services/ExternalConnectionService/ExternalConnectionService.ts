@@ -166,6 +166,7 @@ import {
     type GoogleConnectorType,
 } from './googleOAuth';
 import { type GoogleServiceAccountTokenProvider } from './GoogleServiceAccountTokenProvider';
+import { fetchFromHydra } from './hydraFetch';
 import {
     buildLinkedInAdsAuthorizeUrl,
     getLinkedInAdsOAuthRedirectUri,
@@ -2480,7 +2481,8 @@ export class ExternalConnectionService extends BaseService {
         const connection = withApiSourceAccessRules(storedConnection);
         let callsThisQuery = 0;
         const integration = getLiveIntegration(apiSource.connector);
-        const { label, limits } = integration;
+        const { label } = integration;
+        const limits = integration.limitsFor?.(apiSource) ?? integration.limits;
         const usage: LiveCallUsage = {
             apiCalls: 0,
             responseBytes: 0,
@@ -4148,17 +4150,31 @@ export class ExternalConnectionService extends BaseService {
             headers['Content-Type'] = 'application/json';
         }
 
-        // Delegate to the SSRF-hardened fetch.
+        // Delegate to the SSRF-hardened fetch. Hydra, the test integration,
+        // answers in-process and never reaches the network.
+        const { apiSource } = connection;
         const fetchResource = () =>
-            secureFetch(url, {
-                method: req.method,
-                body,
-                headers,
-                timeoutMs: connection.timeoutMs,
-                maxResponseBytes: connection.responseMaxBytes,
-                allowedContentTypes: connection.allowedContentTypes,
-                allowedPrivateHostCidrs: this.allowedPrivateHostCidrs,
-            });
+            apiSource?.connector === ApiConnectorType.HYDRA
+                ? fetchFromHydra({
+                      connectionUuid: connection.externalConnectionUuid,
+                      settings: apiSource,
+                      secret,
+                      timeoutMs: connection.timeoutMs,
+                      request: {
+                          method: req.method === 'GET' ? 'GET' : 'POST',
+                          path: validatedPath,
+                          body: req.body,
+                      },
+                  })
+                : secureFetch(url, {
+                      method: req.method,
+                      body,
+                      headers,
+                      timeoutMs: connection.timeoutMs,
+                      maxResponseBytes: connection.responseMaxBytes,
+                      allowedContentTypes: connection.allowedContentTypes,
+                      allowedPrivateHostCidrs: this.allowedPrivateHostCidrs,
+                  });
 
         let fetched;
         try {

@@ -8,12 +8,14 @@ import {
 import { ATTIO_TOKEN_FORM } from './attioConnection';
 import { GITHUB_TOKEN_FORM } from './githubConnection';
 import { HUBSPOT_TOKEN_FORM } from './hubspotConnection';
+import { HYDRA_TOKEN_FORM } from './hydraConnection';
 import attioIcon from './icons/attio.svg';
 import githubIcon from './icons/github.svg';
 import googleAdsIcon from './icons/google-ads.svg';
 import googleAnalyticsIcon from './icons/google-analytics.svg';
 import googleSearchConsoleIcon from './icons/google-search-console.svg';
 import hubspotIcon from './icons/hubspot.svg';
+import hydraIcon from './icons/hydra.svg';
 import jiraIcon from './icons/jira.svg';
 import linkedinAdsIcon from './icons/linkedin-ads.svg';
 import metaAdsIcon from './icons/meta-ads.svg';
@@ -70,6 +72,7 @@ const ICONS: Record<string, string> = {
     [ApiConnectorType.ATTIO]: attioIcon,
     [ApiConnectorType.HUBSPOT]: hubspotIcon,
     [ApiConnectorType.SALESFORCE]: salesforceIcon,
+    [ApiConnectorType.HYDRA]: hydraIcon,
     shopify: shopifyIcon,
     stripe: stripeIcon,
     mixpanel: mixpanelIcon,
@@ -96,6 +99,7 @@ const DISPLAY_ORDER = [
     ApiConnectorType.ATTIO,
     ApiConnectorType.HUBSPOT,
     ApiConnectorType.SALESFORCE,
+    ApiConnectorType.HYDRA,
 ] as const satisfies readonly ApiConnectorType[];
 
 /** The form of each integration connected with an account id and a token. */
@@ -105,6 +109,7 @@ const TOKEN_FORMS: Partial<Record<ApiConnectorType, TokenLiveSourceForm>> = {
     [ApiConnectorType.PYLON]: PYLON_TOKEN_FORM,
     [ApiConnectorType.ATTIO]: ATTIO_TOKEN_FORM,
     [ApiConnectorType.HUBSPOT]: HUBSPOT_TOKEN_FORM,
+    [ApiConnectorType.HYDRA]: HYDRA_TOKEN_FORM,
 };
 
 const toSetup = (entry: LiveIntegrationCatalogEntry): LiveSourceSetup => {

@@ -220,6 +220,27 @@ export const LIVE_INTEGRATION_CATALOG: {
         }),
         getTarget: () => 'Salesforce org',
     },
+    [ApiConnectorType.HYDRA]: {
+        id: 'hydra',
+        label: 'Hydra',
+        defaultName: 'Hydra',
+        messageLabel: 'Hydra',
+        agentLabel: 'Hydra',
+        description: 'Test integration with seeded events and users',
+        setup: 'token',
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.HYDRA),
+            latencyMs: z.number().int().min(0).max(120_000),
+            errorRate: z.number().min(0).max(1),
+            retryAfterEvery: z.number().int().min(0),
+            retryAfterSeconds: z.number().int().min(0).max(3_600),
+            failAuth: z.boolean(),
+            rowCount: z.number().int().min(0).max(100_000),
+            callsPerMinute: z.number().int().min(1),
+            callsPerHour: z.number().int().min(1),
+        }),
+        getTarget: () => 'Hydra test data',
+    },
 };
 
 /** One integration's catalog entry, for a source of any connector. */

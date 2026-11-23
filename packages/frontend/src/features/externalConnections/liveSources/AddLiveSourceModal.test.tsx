@@ -31,6 +31,7 @@ const onPick = vi.fn();
 const renderModal = ({
     canUseLinkedInAds = true,
     canUseSalesforce = true,
+    canUseHydra = false,
 } = {}) =>
     renderWithProviders(
         <MemoryRouter>
@@ -41,6 +42,7 @@ const renderModal = ({
                 canUseGoogle
                 canUseLinkedInAds={canUseLinkedInAds}
                 canUseSalesforce={canUseSalesforce}
+                canUseHydra={canUseHydra}
                 onPick={onPick}
             />
         </MemoryRouter>,
@@ -97,6 +99,16 @@ describe('AddLiveSourceModal', () => {
         expect(screen.queryByText('Jira')).not.toBeInTheDocument();
         expect(screen.queryByText('Coming soon')).not.toBeInTheDocument();
         expect(screen.getByText('PostHog')).toBeInTheDocument();
+        // Hydra, the test integration, only where the server registers it
+        expect(screen.queryByText('Hydra')).not.toBeInTheDocument();
+    });
+
+    it('offers Hydra where the server registers it', async () => {
+        renderModal({ canUseHydra: true });
+
+        await userEvent.click(screen.getByText('Hydra'));
+
+        expect(onPick).toHaveBeenCalledWith('hydra');
     });
 
     it('asks for a source name only after Request a live source is clicked', async () => {
