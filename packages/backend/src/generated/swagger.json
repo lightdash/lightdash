@@ -17980,6 +17980,90 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ExternalConnectionRateLimitBucket": {
+                "properties": {
+                    "resetsAt": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "When the current window ends, ISO; null when no window is open."
+                    },
+                    "used": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Calls in the current window; 0 when no window is open."
+                    },
+                    "capacity": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "windowMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "label": {
+                        "type": "string",
+                        "description": "As declared, such as \"per hour\"."
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "resetsAt",
+                    "used",
+                    "capacity",
+                    "windowMs",
+                    "label",
+                    "id"
+                ],
+                "type": "object",
+                "description": "One of an integration's declared limits, with Lightdash's calls in its current window."
+            },
+            "ExternalConnectionRateLimitUsage": {
+                "properties": {
+                    "limitedUntil": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "When the vendor's pause ends, ISO; null when it hasn't paused the integration."
+                    },
+                    "buckets": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnectionRateLimitBucket"
+                        },
+                        "type": "array",
+                        "description": "Shortest window first."
+                    },
+                    "checkedAt": {
+                        "type": "string"
+                    },
+                    "integrationLabel": {
+                        "type": "string",
+                        "description": "The integration's name, such as HubSpot."
+                    }
+                },
+                "required": [
+                    "limitedUntil",
+                    "buckets",
+                    "checkedAt",
+                    "integrationLabel"
+                ],
+                "type": "object",
+                "description": "Lightdash's own calls against an integration's declared rate limits, as of\n`checkedAt`. Other apps on the same vendor account aren't counted."
+            },
+            "ApiExternalConnectionRateLimitUsageResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExternalConnectionRateLimitUsage"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ExternalConnectionLinkedApp": {
                 "properties": {
                     "aliases": {
@@ -81592,7 +81676,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.376.0",
+        "version": "3.377.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
