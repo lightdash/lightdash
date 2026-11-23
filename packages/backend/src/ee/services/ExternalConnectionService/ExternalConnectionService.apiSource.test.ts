@@ -1228,7 +1228,7 @@ describe('ExternalConnectionService live source explores', () => {
         const [explore] =
             projectModel.replaceApiSourceExplores.mock.calls[0][2];
         expect(explore.name).toBe('product_analytics_events');
-        expect(explore.label).toContain('Renamed');
+        expect(explore.groupLabel).toContain('Renamed');
     });
 
     it("doesn't build a changed target from the old target's last scan", async () => {
