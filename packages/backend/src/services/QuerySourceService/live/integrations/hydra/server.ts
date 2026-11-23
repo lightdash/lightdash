@@ -1,9 +1,11 @@
 import {
     HYDRA_ACCOUNT_PATH,
     HYDRA_REPORT_PATH,
+    withHydraDefaults,
     type HydraApiSource,
+    type HydraMockResponse,
     type HydraRateLimits,
-    type HydraScriptStep,
+    type HydraSettings,
 } from '@lightdash/common';
 import { z } from 'zod';
 import type { LiveHttpRequest, LiveHttpResponse } from '../../types';
@@ -103,13 +105,15 @@ const getBuckets = (limits: HydraRateLimits): Bucket[] => [
     ...limits.buckets,
 ];
 
-const matchesStep = ({ calls }: HydraScriptStep, callNumber: number) => {
-    const [from, to] = calls.split('-');
-    if (to === undefined) return callNumber === Number(from);
-    return (
-        callNumber >= Number(from) && (to === '' || callNumber <= Number(to))
-    );
-};
+const matchesCall = (
+    { call, fromCall, toCall }: HydraMockResponse,
+    callNumber: number,
+) =>
+    call !== undefined
+        ? callNumber === call
+        : fromCall !== undefined &&
+          callNumber >= fromCall &&
+          (toCall === undefined || callNumber <= toCall);
 
 /** A call Hydra let run past the source's timeout; the caller fails it. */
 export class HydraTimeoutError extends Error {}
@@ -117,7 +121,7 @@ export class HydraTimeoutError extends Error {}
 /**
  * Hydra's API, answered in-process: nothing goes over the network. Each call
  * is refused past the vendor limits, then waits, fails or answers as the
- * source's settings and script say, reading rows seeded from its token.
+ * source's settings and mock responses say, reading rows seeded from its token.
  */
 export const createHydraServer = ({
     now = () => new Date(),
@@ -211,16 +215,16 @@ export const createHydraServer = ({
     };
 
     const refuse = (
-        { onLimit }: HydraApiSource,
+        { onLimit }: HydraSettings,
         time: number,
         refusedUntil: number,
     ): LiveHttpResponse => {
         const headers: Record<string, string> = {};
-        if (onLimit.retryAfter === 'seconds') {
+        if (onLimit.retryAfterFormat === 'seconds') {
             headers['retry-after'] = String(
                 Math.max(1, Math.ceil((refusedUntil - time) / 1_000)),
             );
-        } else if (onLimit.retryAfter === 'date') {
+        } else if (onLimit.retryAfterFormat === 'date') {
             headers['retry-after'] = new Date(refusedUntil).toUTCString();
         }
         return json(
@@ -231,7 +235,7 @@ export const createHydraServer = ({
     };
 
     const answer = (
-        settings: HydraApiSource,
+        settings: HydraSettings,
         token: string,
         request: HydraCall['request'],
     ): LiveHttpResponse => {
@@ -278,8 +282,14 @@ export const createHydraServer = ({
 
     const call = async (
         source: SourceState,
-        { settings, token, request, timeoutMs = Infinity }: HydraCall,
+        {
+            settings: apiSource,
+            token,
+            request,
+            timeoutMs = Infinity,
+        }: HydraCall,
     ): Promise<LiveHttpResponse> => {
+        const settings = withHydraDefaults(apiSource);
         const callNumber = source.callNumber + 1;
         // eslint-disable-next-line no-param-reassign
         source.callNumber = callNumber;
@@ -310,15 +320,15 @@ export const createHydraServer = ({
             }
             if (waitMs > 0) await sleep(waitMs);
 
-            const step = settings.script.find((candidate) =>
-                matchesStep(candidate, callNumber),
+            const mock = settings.mockResponses.find((candidate) =>
+                matchesCall(candidate, callNumber),
             );
-            if (step && step.respond !== 'ok') {
-                const { status, retryAfterSeconds, body } = step.respond;
+            if (mock && mock.status !== 200) {
+                const { status, retryAfterSeconds, body } = mock;
                 return json(
                     status,
                     body ?? {
-                        message: `Scripted ${status} on call ${callNumber}`,
+                        message: `Hydra answered ${status} on call ${callNumber}`,
                     },
                     retryAfterSeconds === undefined
                         ? {}
@@ -330,7 +340,8 @@ export const createHydraServer = ({
                     message: 'The sign-in token was rejected',
                 });
             }
-            if (!step && random() < settings.errorRate) {
+            // A mocked 200 answers as usual, skipping injected failures
+            if (!mock && random() < settings.errorRate) {
                 return json(500, { message: 'Injected server error' });
             }
             return answer(settings, token, request);

@@ -2,7 +2,7 @@ import {
     ApiConnectorType,
     getHydraSettingsProblem,
     HYDRA_ACCOUNT_PATH,
-    HYDRA_DEFAULT_SETTINGS,
+    HYDRA_DEFAULT_SOURCE,
     HYDRA_ORIGIN,
     HYDRA_REPORT_PATH,
     LIVE_INTEGRATION_CATALOG,
@@ -95,7 +95,7 @@ export const hydraIntegration = defineLiveIntegration({
         description:
             "One call returns up to 10,000 groups, or the source's pageSize, and says where the next page starts.",
     },
-    rateLimits: getHydraDeclaredLimits(HYDRA_DEFAULT_SETTINGS),
+    rateLimits: getHydraDeclaredLimits(HYDRA_DEFAULT_SOURCE),
     useCases: hydraUseCases,
     validate: (settings) => {
         const problem = getHydraSettingsProblem(settings);

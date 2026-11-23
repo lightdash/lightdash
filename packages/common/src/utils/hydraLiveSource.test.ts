@@ -1,57 +1,140 @@
+import { ApiConnectorType } from '../types/querySources';
 import {
     formatHydraBehaviour,
     getHydraSettingsProblem,
     HYDRA_DEFAULT_SETTINGS,
+    HYDRA_DEFAULT_SOURCE,
     parseHydraBehaviour,
+    withHydraDefaults,
 } from './hydraLiveSource';
 
-describe('Hydra behaviour', () => {
-    it('reads blank as the defaults', () => {
-        expect(parseHydraBehaviour('  ')).toEqual(HYDRA_DEFAULT_SETTINGS);
+const hydra = (settings: Record<string, unknown> = {}) => ({
+    connector: ApiConnectorType.HYDRA,
+    ...settings,
+});
+
+describe('Hydra settings', () => {
+    it('fills in every setting a source leaves out', () => {
+        expect(withHydraDefaults(HYDRA_DEFAULT_SOURCE)).toEqual(
+            HYDRA_DEFAULT_SETTINGS,
+        );
+        expect(
+            withHydraDefaults({ ...HYDRA_DEFAULT_SOURCE, latencyMs: 500 }),
+        ).toEqual({ ...HYDRA_DEFAULT_SETTINGS, latencyMs: 500 });
     });
 
-    it('reads what it formats', () => {
-        const settings = {
-            ...HYDRA_DEFAULT_SETTINGS,
-            latencyMs: 250,
-            errorRate: 0.25,
-            failAuth: true,
-            pageSize: 50,
-        };
-        expect(parseHydraBehaviour(formatHydraBehaviour(settings))).toEqual(
-            settings,
+    it('finds no problem with a source that sets nothing, or everything', () => {
+        expect(getHydraSettingsProblem(HYDRA_DEFAULT_SOURCE)).toBeNull();
+        expect(
+            getHydraSettingsProblem(hydra({ ...HYDRA_DEFAULT_SETTINGS })),
+        ).toBeNull();
+    });
+
+    it.each([
+        [
+            { latencyMs: -1 },
+            'latencyMs must be a whole number from 0 to 120000',
+        ],
+        [{ errorRate: 2 }, 'errorRate must be a number from 0 to 1'],
+        [{ pageSize: 10_001 }, 'pageSize must be 0, or from 10 to 10000'],
+        [{ failAuth: 'yes' }, 'failAuth must be true or false'],
+        [{ speed: 1 }, 'speed is not a Hydra setting'],
+        [
+            {
+                onLimit: { status: 200, retryAfterFormat: 'none' },
+            },
+            expect.stringMatching(/^onLimit\.status: /),
+        ],
+        [
+            {
+                mockResponses: [{ call: 1, fromCall: 2, status: 429 }],
+            },
+            'mockResponses.0 must set call, or fromCall',
+        ],
+        [
+            { mockResponses: [{ call: 1, status: 200, body: {} }] },
+            'mockResponses.0 must not set retryAfterSeconds or body with status 200',
+        ],
+        [
+            { mockResponses: [{ fromCall: 3, toCall: 2, status: 503 }] },
+            'mockResponses.0 must not set toCall before fromCall',
+        ],
+    ])('names the field and what it allows for %o', (settings, problem) => {
+        expect(getHydraSettingsProblem(hydra(settings))).toEqual(problem);
+    });
+
+    describe('caps what one call does', () => {
+        const bucket = (id: string) => ({ id, windowMs: 60_000, capacity: 1 });
+        const limits = (buckets: unknown[]) => ({
+            vendorLimits: {
+                concurrentCalls: null,
+                callsPerSecond: null,
+                buckets,
+            },
+        });
+
+        it.each([
+            [
+                limits(['a', 'b', 'c', 'd', 'e', 'f'].map(bucket)),
+                'vendorLimits.buckets must have at most 5 entries',
+            ],
+            [
+                limits([bucket('a'), bucket('a')]),
+                'vendorLimits.buckets must have unique ids',
+            ],
+            [
+                limits([bucket('second')]),
+                'vendorLimits.buckets.0.id must not be second',
+            ],
+            [
+                limits([bucket('x'.repeat(41))]),
+                expect.stringMatching(/^vendorLimits\.buckets\.0\.id: /),
+            ],
+            [
+                {
+                    mockResponses: Array.from({ length: 51 }, (_, index) => ({
+                        call: index + 1,
+                        status: 503,
+                    })),
+                },
+                'mockResponses must have at most 50 entries',
+            ],
+        ])('refuses %#', (settings, problem) => {
+            expect(getHydraSettingsProblem(hydra(settings))).toEqual(problem);
+        });
+    });
+});
+
+describe('Hydra behaviour', () => {
+    it('reads blank as a source that sets nothing', () => {
+        expect(parseHydraBehaviour('  ')).toEqual(HYDRA_DEFAULT_SOURCE);
+    });
+
+    it('reads key=value pairs into only those settings, and writes them back', () => {
+        const source = parseHydraBehaviour(
+            'latencyMs=250, errorRate=0.25 failAuth=true',
+        );
+        expect(source).toEqual(
+            hydra({ latencyMs: 250, errorRate: 0.25, failAuth: true }),
+        );
+        expect(formatHydraBehaviour(source!)).toBe(
+            'latencyMs=250 errorRate=0.25 failAuth=true',
         );
     });
 
-    it('writes only the keys that differ from the defaults', () => {
-        expect(formatHydraBehaviour(HYDRA_DEFAULT_SETTINGS)).toBe('');
-        expect(
-            formatHydraBehaviour({
-                ...HYDRA_DEFAULT_SETTINGS,
-                latencyMs: 3000,
-            }),
-        ).toBe('latencyMs=3000');
-    });
-
-    it('writes and reads JSON once a key needs it', () => {
-        const settings = {
-            ...HYDRA_DEFAULT_SETTINGS,
+    it('writes and reads JSON once a setting needs it', () => {
+        const source = hydra({
             latencyMs: 100,
             declaredLimits: null,
-            script: [
-                {
-                    calls: '2',
-                    respond: { status: 429, retryAfterSeconds: 3 },
-                },
-            ],
-        };
-        const text = formatHydraBehaviour(settings);
+            mockResponses: [{ call: 2, status: 429, retryAfterSeconds: 3 }],
+        });
+        const text = formatHydraBehaviour(source as never);
         expect(JSON.parse(text)).toEqual({
             latencyMs: 100,
             declaredLimits: null,
-            script: settings.script,
+            mockResponses: [{ call: 2, status: 429, retryAfterSeconds: 3 }],
         });
-        expect(parseHydraBehaviour(text)).toEqual(settings);
+        expect(parseHydraBehaviour(text)).toEqual(source);
     });
 
     it.each([
@@ -63,49 +146,12 @@ describe('Hydra behaviour', () => {
         'failAuth=yes',
         'vendorLimits=1',
         'latencyMs=999999',
-        '{"speed": 1}',
-        '{"script": [{"calls": "0-", "respond": "ok"}]}',
-        '{not json',
         'rowCount=a=b',
+        '{"speed": 1}',
+        '{"mockResponses": [{"call": 0, "status": 200}]}',
+        '[1]',
+        '{not json',
     ])('refuses %s', (text) => {
         expect(parseHydraBehaviour(text)).toBeNull();
-    });
-
-    it.each([
-        [
-            { latencyMs: -1 },
-            'latencyMs must be a whole number from 0 to 120000',
-        ],
-        [{ errorRate: 2 }, 'errorRate must be a number from 0 to 1'],
-        [{ pageSize: 10_001 }, 'pageSize must be 0, or from 10 to 10000'],
-        [
-            { onLimit: { status: 200, retryAfter: 'none', body: null } },
-            expect.stringMatching(/^onLimit\.status: /),
-        ],
-        [
-            {
-                vendorLimits: {
-                    concurrentCalls: null,
-                    callsPerSecond: null,
-                    buckets: [
-                        { id: 'minute', windowMs: 60_000, capacity: 1 },
-                        { id: 'minute', windowMs: 60_000, capacity: 2 },
-                    ],
-                },
-            },
-            'vendorLimits.buckets must have unique ids',
-        ],
-        [{ failAuth: 'yes' }, 'failAuth must be true or false'],
-    ])('names the field and its range for %o', (overrides, problem) => {
-        expect(
-            getHydraSettingsProblem({
-                ...HYDRA_DEFAULT_SETTINGS,
-                ...overrides,
-            }),
-        ).toEqual(problem);
-    });
-
-    it('finds no problem with the defaults', () => {
-        expect(getHydraSettingsProblem(HYDRA_DEFAULT_SETTINGS)).toBeNull();
     });
 });

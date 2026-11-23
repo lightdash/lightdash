@@ -1,5 +1,5 @@
 import {
-    HYDRA_DEFAULT_SETTINGS,
+    HYDRA_DEFAULT_SOURCE,
     TooManyRequestsError,
     type HydraApiSource,
 } from '@lightdash/common';
@@ -10,7 +10,7 @@ const START = Date.parse('2026-11-23T12:00:00Z');
 
 const settingsWith = (
     overrides: Partial<HydraApiSource> = {},
-): HydraApiSource => ({ ...HYDRA_DEFAULT_SETTINGS, ...overrides });
+): HydraApiSource => ({ ...HYDRA_DEFAULT_SOURCE, ...overrides });
 
 const ONE_PER_TWO_SECONDS = settingsWith({
     vendorLimits: {
@@ -136,7 +136,7 @@ describe('Hydra vendor limits', () => {
             ...ONE_PER_TWO_SECONDS,
             onLimit: {
                 status: 403,
-                retryAfter: 'date' as const,
+                retryAfterFormat: 'date' as const,
                 body: { code: 'rate_limited', message: 'Slow down' },
             },
         };
@@ -180,10 +180,10 @@ describe('Hydra stats', () => {
         expect(server.getStats('source-2')).toMatchObject({ calls: 1 });
     });
 
-    it('starts call numbers over after a reset, for scripts', async () => {
+    it('starts call numbers over after a reset, for mock responses', async () => {
         const { server, call } = buildServer();
         const settings = settingsWith({
-            script: [{ calls: '1', respond: { status: 503 } }],
+            mockResponses: [{ call: 1, status: 503 }],
         });
         expect((await call(settings)).status).toBe(503);
         expect((await call(settings)).status).toBe(200);

@@ -1,4 +1,4 @@
-import { ApiConnectorType, HYDRA_DEFAULT_SETTINGS } from '@lightdash/common';
+import { ApiConnectorType, HYDRA_DEFAULT_SOURCE } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { HYDRA_TOKEN_FORM } from './hydraConnection';
 import {
@@ -19,7 +19,7 @@ describe('hydraConnection', () => {
             type: 'bearer_token',
             origin: 'https://hydra.invalid',
             secret: 'alice',
-            apiSource: HYDRA_DEFAULT_SETTINGS,
+            apiSource: HYDRA_DEFAULT_SOURCE,
             allowedMethods: ['GET', 'POST'],
             allowedPathPrefixes: ['/v1/report', '/v1/account'],
         });
@@ -35,7 +35,7 @@ describe('hydraConnection', () => {
         ).toEqual({
             name: 'Hydra',
             apiSource: {
-                ...HYDRA_DEFAULT_SETTINGS,
+                connector: ApiConnectorType.HYDRA,
                 latencyMs: 500,
                 pageSize: 20,
                 failAuth: true,
@@ -46,7 +46,7 @@ describe('hydraConnection', () => {
     it('shows only the changed keys of a saved source and checks edits', () => {
         const line = HYDRA_TOKEN_FORM.getAccountId({
             apiSource: {
-                ...HYDRA_DEFAULT_SETTINGS,
+                ...HYDRA_DEFAULT_SOURCE,
                 connector: ApiConnectorType.HYDRA,
                 errorRate: 0.5,
             },
@@ -56,7 +56,9 @@ describe('hydraConnection', () => {
         expect(HYDRA_TOKEN_FORM.account.isValid('errorRate=2')).toBe(false);
         expect(HYDRA_TOKEN_FORM.account.isValid('speed=fast')).toBe(false);
         expect(
-            HYDRA_TOKEN_FORM.account.isValid('{"declaredLimits": null}'),
+            HYDRA_TOKEN_FORM.account.isValid(
+                '{"declaredLimits": null, "mockResponses": [{"call": 2, "status": 429}]}',
+            ),
         ).toBe(true);
     });
 });

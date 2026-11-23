@@ -1,4 +1,4 @@
-import { HYDRA_DEFAULT_SETTINGS, type HydraApiSource } from '@lightdash/common';
+import { HYDRA_DEFAULT_SOURCE, type HydraApiSource } from '@lightdash/common';
 import { createHydraServer } from '../../../services/QuerySourceService/live/integrations/hydra/server';
 import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
 import { fetchFromHydra } from './hydraFetch';
@@ -6,7 +6,7 @@ import { fetchFromHydra } from './hydraFetch';
 const NOW = Date.parse('2026-11-23T12:00:20Z');
 
 const settingsWith = (overrides: Partial<HydraApiSource> = {}) => ({
-    ...HYDRA_DEFAULT_SETTINGS,
+    ...HYDRA_DEFAULT_SOURCE,
     ...overrides,
 });
 
@@ -40,11 +40,8 @@ describe('fetchFromHydra', () => {
     it('passes a 429 Retry-After header through', async () => {
         const fetched = await accountCall(
             settingsWith({
-                script: [
-                    {
-                        calls: '1-',
-                        respond: { status: 429, retryAfterSeconds: 9 },
-                    },
+                mockResponses: [
+                    { fromCall: 1, status: 429, retryAfterSeconds: 9 },
                 ],
             }),
         );

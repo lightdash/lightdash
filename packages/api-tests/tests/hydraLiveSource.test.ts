@@ -1,13 +1,14 @@
 import {
+    ApiConnectorType,
     FeatureFlags,
     HYDRA_ACCOUNT_PATH,
-    HYDRA_DEFAULT_SETTINGS,
     HYDRA_ORIGIN,
     HYDRA_REPORT_PATH,
     SEED_PROJECT,
     type ApiExecuteAsyncMetricQueryResults,
     type CreateExternalConnection,
     type ExternalConnection,
+    type ExternalConnectionApiUsage,
     type HealthState,
     type HydraApiSource,
     type ResultsCacheProjectSettings,
@@ -38,16 +39,36 @@ type QueryOutcome = {
     error: string | null;
 };
 
+type HydraSettingsInput = Omit<HydraApiSource, 'connector'>;
+
+/** A Hydra source's settings; any left out take their defaults. */
+const hydra = (settings: HydraSettingsInput = {}): HydraApiSource => ({
+    connector: ApiConnectorType.HYDRA,
+    ...settings,
+});
+
+/** The calls Lightdash sent a source, retries included, across logged queries. */
+const getApiCalls = async (admin: ApiClient, connectionUuid: string) => {
+    const resp = await admin.get<Body<ExternalConnectionApiUsage[]>>(
+        `${connectionsUrl}/api-usage`,
+    );
+    return (
+        resp.body.results.find(
+            (usage) => usage.externalConnectionUuid === connectionUuid,
+        )?.apiCalls ?? 0
+    );
+};
+
 const hydraSourceBody = (
     name: string,
     token: string,
-    settings: Partial<HydraApiSource> = {},
+    settings: HydraSettingsInput = {},
 ): CreateExternalConnection => ({
     name: `Hydra ${name} ${runId}`,
     type: 'bearer_token',
     origin: HYDRA_ORIGIN,
     secret: token,
-    apiSource: { ...HYDRA_DEFAULT_SETTINGS, ...settings },
+    apiSource: hydra(settings),
     allowedMethods: ['GET', 'POST'],
     allowedPathPrefixes: [HYDRA_REPORT_PATH, HYDRA_ACCOUNT_PATH],
     allowedContentTypes: ['application/json'],
@@ -58,7 +79,7 @@ const createHydraSource = async (
     admin: ApiClient,
     name: string,
     token: string,
-    settings: Partial<HydraApiSource> = {},
+    settings: HydraSettingsInput = {},
 ) => {
     const resp = await admin.post<Body<ExternalConnection>>(
         connectionsUrl,
@@ -150,9 +171,9 @@ describe('Hydra, the test integration', () => {
     let clearFlag = false;
     let restoreCache: boolean | null = null;
 
-    const setBehaviour = async (settings: Partial<HydraApiSource>) => {
+    const setBehaviour = async (settings: HydraSettingsInput) => {
         const resp = await admin.patch(`${connectionsUrl}/${source.uuid}`, {
-            apiSource: { ...HYDRA_DEFAULT_SETTINGS, ...settings },
+            apiSource: hydra(settings),
         });
         expect(resp.status).toBe(200);
     };
@@ -306,12 +327,15 @@ describe('Hydra, the test integration', () => {
 
         const updated = await admin.patch<{ error: { message: string } }>(
             `${connectionsUrl}/${source.uuid}`,
-            { apiSource: { ...HYDRA_DEFAULT_SETTINGS, ...invalid } },
+            { apiSource: hydra(invalid) },
             { failOnStatusCode: false },
         );
         expect(updated.status).toBe(400);
         expect(updated.body.error.message).toBe(message);
     });
+
+    // Each test below uses a new source, so its calls count from 1 and
+    // its API calls are its own
 
     it.each([
         ['a 429 with Retry-After', { status: 429, retryAfterSeconds: 2 }],
@@ -323,25 +347,25 @@ describe('Hydra, the test integration', () => {
                 body: { code: 'rate_limited', message: 'Slow down' },
             },
         ],
-    ])('waits out %s and retries the call', async (_name, respond) => {
+    ])('waits out %s and retries the call', async (_name, mock) => {
         const limited = await createHydraSource(
             admin,
-            `retry${respond.status}`,
+            `retry${mock.status}`,
             'erin',
-            { script: [{ calls: '1', respond }] },
+            { mockResponses: [{ call: 1, ...mock }] },
         );
         created.push(limited.uuid);
         const result = await runQuery(admin, limited.events, {
             invalidateCache: true,
         });
         expect(result.status).toBe('ready');
+        // The refused call, then the retry
+        expect(await getApiCalls(admin, limited.uuid)).toBe(2);
     });
 
     it('gives up after its retries while Hydra keeps refusing', async () => {
         const limited = await createHydraSource(admin, 'refusing', 'frank', {
-            script: [
-                { calls: '1-', respond: { status: 429, retryAfterSeconds: 1 } },
-            ],
+            mockResponses: [{ fromCall: 1, status: 429, retryAfterSeconds: 1 }],
         });
         created.push(limited.uuid);
         const result = await runQuery(admin, limited.events, {
@@ -349,6 +373,8 @@ describe('Hydra, the test integration', () => {
         });
         expect(result.status).not.toBe('ready');
         expect(result.error).toMatch(/Hydra rate limit reached/);
+        // The first call and two retries
+        expect(await getApiCalls(admin, limited.uuid)).toBe(3);
     });
 
     it("shows the vendor's refusal when Lightdash declares no limits to hold", async () => {
@@ -370,6 +396,29 @@ describe('Hydra, the test integration', () => {
         });
         expect(second.status).not.toBe('ready');
         expect(second.error).toMatch(/Hydra rate limit reached/);
+        // Nothing declared holds, so the refusal is not retried
+        expect(await getApiCalls(admin, limited.uuid)).toBe(2);
+    });
+
+    it('keeps calls under declared limits that match the vendor, so it never refuses', async () => {
+        const limited = await createHydraSource(admin, 'paced', 'heidi', {
+            vendorLimits: {
+                concurrentCalls: 1,
+                callsPerSecond: null,
+                buckets: [{ id: 'burst', windowMs: 3_000, capacity: 1 }],
+            },
+        });
+        created.push(limited.uuid);
+        const startedAt = Date.now();
+        const results = await Promise.all(
+            [0, 1].map(() =>
+                runQuery(admin, limited.events, { invalidateCache: true }),
+            ),
+        );
+        expect(results.map(({ status }) => status)).toEqual(['ready', 'ready']);
+        // The gate held the second call for the window instead of sending it
+        expect(Date.now() - startedAt).toBeGreaterThanOrEqual(2_500);
+        expect(await getApiCalls(admin, limited.uuid)).toBe(2);
     });
 
     it('reads a big report a page at a time', async () => {
@@ -385,5 +434,7 @@ describe('Hydra, the test integration', () => {
         });
         expect(result.status).toBe('ready');
         expect(result.rows).toHaveLength(60);
+        // 61 rows asked for, 20 a page
+        expect(await getApiCalls(admin, paged.uuid)).toBe(4);
     });
 });

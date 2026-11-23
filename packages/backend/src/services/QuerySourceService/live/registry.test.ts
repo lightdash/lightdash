@@ -1,6 +1,6 @@
 import {
     ApiConnectorType,
-    HYDRA_DEFAULT_SETTINGS,
+    HYDRA_DEFAULT_SOURCE,
     HYDRA_ENABLED_ENV,
     ParameterError,
     type ExternalConnectionApiSource,
@@ -66,7 +66,7 @@ const SAMPLE_SETTINGS: {
     [ApiConnectorType.ATTIO]: { connector: ApiConnectorType.ATTIO },
     [ApiConnectorType.HUBSPOT]: { connector: ApiConnectorType.HUBSPOT },
     [ApiConnectorType.SALESFORCE]: { connector: ApiConnectorType.SALESFORCE },
-    [ApiConnectorType.HYDRA]: HYDRA_DEFAULT_SETTINGS,
+    [ApiConnectorType.HYDRA]: HYDRA_DEFAULT_SOURCE,
 };
 
 const SERVER_ERROR: LiveHttpResponse = {
@@ -183,13 +183,13 @@ describe('Hydra, the test integration', () => {
             ParameterError,
         );
         // A source saved while it was on reads as no live source
-        expect(parseStoredApiSource(HYDRA_DEFAULT_SETTINGS)).toBeNull();
+        expect(parseStoredApiSource(HYDRA_DEFAULT_SOURCE)).toBeNull();
         expect(isLiveIntegrationRegistered(ApiConnectorType.PYLON)).toBe(true);
 
         vi.stubEnv(HYDRA_ENABLED_ENV, 'true');
         expect(isLiveIntegrationRegistered(ApiConnectorType.HYDRA)).toBe(true);
-        expect(parseStoredApiSource(HYDRA_DEFAULT_SETTINGS)).toEqual(
-            HYDRA_DEFAULT_SETTINGS,
+        expect(parseStoredApiSource(HYDRA_DEFAULT_SOURCE)).toEqual(
+            HYDRA_DEFAULT_SOURCE,
         );
     });
 });

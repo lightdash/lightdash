@@ -2,7 +2,7 @@ import {
     ApiConnectorType,
     formatHydraBehaviour,
     HYDRA_ACCOUNT_PATH,
-    HYDRA_DEFAULT_SETTINGS,
+    HYDRA_DEFAULT_SOURCE,
     HYDRA_ORIGIN,
     HYDRA_REPORT_PATH,
     parseHydraBehaviour,
@@ -31,7 +31,7 @@ export const HYDRA_TOKEN_FORM = {
     tokenLabel: 'Sign-in token',
     tokenHint: 'Any token works, and each one reads its own rows',
     toApiSource: (behaviour) =>
-        parseHydraBehaviour(behaviour) ?? HYDRA_DEFAULT_SETTINGS,
+        parseHydraBehaviour(behaviour) ?? HYDRA_DEFAULT_SOURCE,
     getAccountId: ({ apiSource }) =>
         apiSource?.connector === ApiConnectorType.HYDRA
             ? formatHydraBehaviour(apiSource)

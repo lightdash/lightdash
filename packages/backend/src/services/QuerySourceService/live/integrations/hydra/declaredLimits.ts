@@ -1,4 +1,8 @@
-import { type HydraApiSource, type HydraRateLimits } from '@lightdash/common';
+import {
+    withHydraDefaults,
+    type HydraApiSource,
+    type HydraRateLimits,
+} from '@lightdash/common';
 import { type LiveRateLimits } from '../../spec/types';
 
 // The gate always caps calls in flight; "no cap" is one no test reaches
@@ -29,10 +33,10 @@ const toLiveRateLimits = ({
  * vendor limits, its own, or none. Set them apart from the vendor's to test
  * the gate against an API stricter or looser than declared.
  */
-export const getHydraDeclaredLimits = ({
-    vendorLimits,
-    declaredLimits,
-}: HydraApiSource): LiveRateLimits => {
+export const getHydraDeclaredLimits = (
+    source: HydraApiSource,
+): LiveRateLimits => {
+    const { vendorLimits, declaredLimits } = withHydraDefaults(source);
     const declared =
         declaredLimits === 'vendor' ? vendorLimits : declaredLimits;
     return toLiveRateLimits(

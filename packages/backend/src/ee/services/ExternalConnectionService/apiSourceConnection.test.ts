@@ -1,7 +1,7 @@
 import {
     ApiConnectorType,
     HYDRA_ACCOUNT_PATH,
-    HYDRA_DEFAULT_SETTINGS,
+    HYDRA_DEFAULT_SOURCE,
     HYDRA_ORIGIN,
     HYDRA_REPORT_PATH,
     ParameterError,
@@ -278,7 +278,7 @@ describe('Hydra connections', () => {
             origin: HYDRA_ORIGIN,
             allowedPathPrefixes: [HYDRA_REPORT_PATH, HYDRA_ACCOUNT_PATH],
             apiSource: {
-                ...HYDRA_DEFAULT_SETTINGS,
+                ...HYDRA_DEFAULT_SOURCE,
                 ...overrides,
             } as ExternalConnectionApiSource,
         });

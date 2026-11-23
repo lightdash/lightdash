@@ -1,6 +1,6 @@
 import {
     FilterOperator,
-    HYDRA_DEFAULT_SETTINGS,
+    HYDRA_DEFAULT_SOURCE,
     ParameterError,
     TooManyRequestsError,
     UnexpectedServerError,
@@ -23,7 +23,7 @@ import { createHydraServer, type HydraServer } from './server';
 const NOW = new Date('2026-11-23T12:00:00Z');
 
 const settingsWith = (overrides: Partial<HydraApiSource> = {}) => ({
-    ...HYDRA_DEFAULT_SETTINGS,
+    ...HYDRA_DEFAULT_SOURCE,
     ...overrides,
 });
 
@@ -31,7 +31,7 @@ const [EVENTS, USERS] = buildLiveExplores({
     connectionUuid: '9b0c3f6e-0d0a-4c55-9a26-5e6d4b7c2a11',
     sourceName: 'hydra',
     name: 'Hydra',
-    apiSource: HYDRA_DEFAULT_SETTINGS,
+    apiSource: HYDRA_DEFAULT_SOURCE,
     scannedFields: [],
     edits: getInitialLiveSourceFieldEdits({
         scannedFields: [],
@@ -243,15 +243,12 @@ describe('Hydra through the shared engine', () => {
         expect(send).toHaveBeenCalledTimes(1);
     });
 
-    it('answers the calls its script names, then as usual', async () => {
+    it('answers its mock responses for the calls they name, then as usual', async () => {
         const { run } = connect({
             settings: settingsWith({
-                script: [
-                    { calls: '1', respond: 'ok' },
-                    {
-                        calls: '2',
-                        respond: { status: 429, retryAfterSeconds: 7 },
-                    },
+                mockResponses: [
+                    { call: 1, status: 200 },
+                    { call: 2, status: 429, retryAfterSeconds: 7 },
                 ],
             }),
         });
