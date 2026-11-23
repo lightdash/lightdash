@@ -1,5 +1,6 @@
 import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
+import { getPageScrollTop } from '../../utils/pageScroller';
 import {
     GRID_BREAKPOINTS,
     GRID_CONTAINER_PADDING,
@@ -53,7 +54,8 @@ export const useGridStyles = ({
             setObservedWidth(visibleGrid.offsetWidth);
             setCanvasTop(
                 Math.round(
-                    visibleGrid.getBoundingClientRect().top + window.scrollY,
+                    visibleGrid.getBoundingClientRect().top +
+                        getPageScrollTop(),
                 ),
             );
         });

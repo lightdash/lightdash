@@ -1,6 +1,7 @@
 import { ActionIcon, Affix, Transition } from '@mantine/core';
 import { IconArrowUp } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { getPageScroller } from '../../utils/pageScroller';
 import { SCROLL_TO_TOP_SIZE } from './Dashboard/dashboard.constants';
 import MantineIcon from './MantineIcon';
 
@@ -10,7 +11,7 @@ type ScrollToTopProps = {
      */
     show: boolean;
     /**
-     * Optional scroll container. Defaults to window scrolling.
+     * Optional scroll container. Defaults to what the page scrolls in.
      */
     scrollContainer?: HTMLElement | null;
     /**
@@ -29,17 +30,10 @@ export const ScrollToTop: FC<ScrollToTopProps> = ({
     bottom = 24,
 }) => {
     const handleScrollToTop = () => {
-        if (!scrollContainer) {
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth',
-            });
-        } else {
-            scrollContainer.scrollTo({
-                top: 0,
-                behavior: 'smooth',
-            });
-        }
+        (scrollContainer ?? getPageScroller()).scrollTo({
+            top: 0,
+            behavior: 'smooth',
+        });
     };
 
     return (

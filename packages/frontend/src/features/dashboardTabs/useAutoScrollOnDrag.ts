@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { getPageScroller } from '../../utils/pageScroller';
 
 const THRESHOLD = 80;
 const MAX_SPEED = 18;
@@ -47,7 +48,7 @@ export const useAutoScrollOnDrag = () => {
             }
 
             if (delta !== 0) {
-                window.scrollBy(0, delta);
+                getPageScroller().scrollBy(0, delta);
             }
         }
 
