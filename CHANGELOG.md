@@ -1,3 +1,11 @@
+# [3.372.0](https://github.com/lightdash/lightdash/compare/3.371.5...3.372.0) (2026-11-23)
+
+
+### Features
+
+* add a connect warehouse action to missing-credentials errors ([#33249](https://github.com/lightdash/lightdash/issues/33249)) ([da3f4b5](https://github.com/lightdash/lightdash/commit/da3f4b5cba4fa596f21e21d1cac989fb4cd862b5))
+* prompt for required warehouse credentials on home and in data apps ([#33245](https://github.com/lightdash/lightdash/issues/33245)) ([40eab81](https://github.com/lightdash/lightdash/commit/40eab8193d1e4c7cf401ff5a51b24e8e0bfdb1e5))
+
 ## [3.371.5](https://github.com/lightdash/lightdash/compare/3.371.4...3.371.5) (2026-11-23)
 
 
