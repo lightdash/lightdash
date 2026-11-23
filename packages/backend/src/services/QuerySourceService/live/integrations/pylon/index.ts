@@ -109,9 +109,23 @@ export const pylonIntegration = defineLiveIntegration({
         description:
             'Search returns up to 1,000 records a page, with a cursor.',
     },
-    rateLimiting: {
-        description:
-            '120 calls a minute per search endpoint, per workspace; no limit on calls at once.',
+    rateLimits: {
+        concurrentCalls: 3,
+        callsPerSecond: 2,
+        buckets: [
+            {
+                id: 'minute',
+                label: 'per minute',
+                windowMs: 60_000,
+                capacity: 100,
+            },
+            {
+                id: 'hour',
+                label: 'per hour',
+                windowMs: 3_600_000,
+                capacity: 3_000,
+            },
+        ],
     },
     useCases: pylonUseCases,
     validate: () => {},

@@ -115,9 +115,24 @@ export const salesforceIntegration = defineLiveIntegration({
         description:
             'Records come in batches of up to 2,000, followed by a next-records URL; aggregate queries return up to 2,000 groups.',
     },
-    rateLimiting: {
-        description:
-            "API calls per 24 hours per org (15,000 on Developer Edition, 100,000 and up on paid), shared with the org's other apps.",
+    rateLimits: {
+        concurrentCalls: 2,
+        callsPerSecond: null,
+        buckets: [
+            {
+                id: 'hour',
+                label: 'per hour',
+                windowMs: 3_600_000,
+                capacity: 500,
+            },
+            {
+                id: 'day',
+                label: 'per day',
+                windowMs: 86_400_000,
+                capacity: 2_000,
+            },
+        ],
+        note: "The org's daily API allowance is shared with its other apps.",
     },
     useCases: salesforceUseCases,
     validate: () => {},

@@ -113,9 +113,24 @@ export const githubIntegration = defineLiveIntegration({
         description:
             'Search returns 100 results a page and stops at 1,000 results.',
     },
-    rateLimiting: {
-        description:
-            'Search: 30 calls a minute per token. REST: 5,000 calls an hour.',
+    rateLimits: {
+        concurrentCalls: 3,
+        callsPerSecond: null,
+        buckets: [
+            {
+                id: 'minute',
+                label: 'per minute',
+                windowMs: 60_000,
+                capacity: 30,
+            },
+            {
+                id: 'hour',
+                label: 'per hour',
+                windowMs: 3_600_000,
+                capacity: 1_800,
+            },
+        ],
+        note: 'Search allows 30 calls a minute per token; REST allows 5,000 an hour.',
     },
     useCases: githubUseCases,
     validate: ({ owner, repo }) => {
