@@ -1996,7 +1996,7 @@ export class AiWritebackService extends BaseService {
         const error =
             ran.error ??
             (ran.edits.length > 0
-                ? 'read cannot change files, so nothing was saved. Save the change with editDbtProject.'
+                ? 'read cannot change files, so nothing was saved. Save the change with write.'
                 : null);
         this.logger.info('AI writeback read script ran', {
             event: 'ai_writeback.script.read',

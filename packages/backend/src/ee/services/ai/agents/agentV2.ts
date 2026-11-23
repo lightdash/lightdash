@@ -8,6 +8,7 @@ import {
     describeSemanticLayerProposals,
     Explore,
     getErrorMessage,
+    isDbtWriteToolName,
     isSqlApprovalToolCall,
     toolProposeSemanticLayerChangeOutputSchema,
     type AiDeepResearchBudget,
@@ -1402,7 +1403,7 @@ export const getStudioCardResponse = (
         last.toolCalls
             .filter(
                 ({ toolName, input }) =>
-                    toolName === 'editDbtProject' &&
+                    isDbtWriteToolName(toolName) &&
                     !!input &&
                     typeof input === 'object' &&
                     'script' in input,
@@ -2261,6 +2262,13 @@ export const getAgentTools = (
             getEditDbtProject({
                 editDbtProject: dependencies.editDbtProject,
                 acceptsScript: args.semanticStudioCodeMode,
+                name: 'editDbtProject',
+            }),
+        write: () =>
+            getEditDbtProject({
+                editDbtProject: dependencies.editDbtProject,
+                acceptsScript: args.semanticStudioCodeMode,
+                name: 'write',
             }),
         editProjectContext: () =>
             getEditProjectContext({
@@ -2831,7 +2839,7 @@ export const getAgentMessages = (
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         semanticStudioCodeMode: args.semanticStudioCodeMode,
-        semanticStudioLibraries: loadout.withheldToolNames.size > 0,
+        semanticStudioBuilder: loadout.withheldToolNames.size > 0,
         semanticStudioProjectMap: args.semanticStudioProjectMap,
         semanticStudioQueriesDraft: loadout.toolNames.has('runMetricQuery'),
         slackLinksOnly: args.slackLinksOnly,

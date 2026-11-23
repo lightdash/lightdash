@@ -21058,6 +21058,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 case 'editProjectContext':
                 case 'syncDbtProject':
                     return 'Preparing the semantic-layer changes...';
+                case 'write':
+                    return 'Saving the change...';
                 case 'generateDataApp':
                 case 'iterateDataApp':
                     return 'Starting the data app build...';

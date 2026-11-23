@@ -341,10 +341,10 @@ describe('resolveLoadout', () => {
         expect(dbt.toolNames.has('readSemanticModel')).toBe(false);
         expect([...dbt.toolNames].sort()).toEqual([
             'askUser',
-            'editDbtProject',
             'read',
             'runSql',
             'verify',
+            'write',
         ]);
         expect(dbt.withheldToolNames.has('grepFields')).toBe(true);
         expect(dbt.withheldToolNames.has('listWarehouseTables')).toBe(true);

@@ -1,4 +1,5 @@
 import {
+    isDbtWriteToolName,
     isToolEditDbtProjectResult,
     type AiAgentThread,
 } from '@lightdash/common';
@@ -30,9 +31,7 @@ export const getOpenProposal = (
         // A save that failed leaves the proposal to be saved again.
         if (
             !hasFailed &&
-            reply.toolCalls.some(
-                ({ toolName }) => toolName === 'editDbtProject',
-            )
+            reply.toolCalls.some(({ toolName }) => isDbtWriteToolName(toolName))
         )
             return [];
         const diffs = [...(reply.message ?? '').matchAll(DIFF_BLOCK)].map(

@@ -124,6 +124,7 @@ import {
 } from './toolEditContentArgs';
 import {
     TOOL_EDIT_DBT_PROJECT_DESCRIPTION,
+    TOOL_WRITE_DESCRIPTION,
     toolEditDbtProjectArgsSchema,
     toolEditDbtProjectOutputSchema,
 } from './toolEditDbtProjectArgs';
@@ -1317,6 +1318,20 @@ export const editDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolEditDbtProjectOutputSchema },
 });
 
+export const writeToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'write',
+    typeof toolEditDbtProjectArgsSchema,
+    typeof toolEditDbtProjectArgsSchema,
+    typeof toolEditDbtProjectOutputSchema
+> = defineTool({
+    name: 'write',
+    title: 'Save dbt change',
+    description: TOOL_WRITE_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolEditDbtProjectArgsSchema,
+    agent: { outputSchema: toolEditDbtProjectOutputSchema },
+});
+
 export const editProjectContextToolDefinition: ToolDefinitionWithoutMcpOutput<
     'editProjectContext',
     typeof toolEditProjectContextArgsSchema,
@@ -2100,6 +2115,7 @@ type AgentToolDefinitionsByName = {
     listDataAppThemes: typeof listDataAppThemesToolDefinition;
     listDataAppConnections: typeof listDataAppConnectionsToolDefinition;
     editDbtProject: typeof editDbtProjectToolDefinition;
+    write: typeof writeToolDefinition;
     editProjectContext: typeof editProjectContextToolDefinition;
     proposeSemanticLayerChange: typeof proposeSemanticLayerChangeToolDefinition;
     listChanges: typeof listChangesToolDefinition;
@@ -2168,6 +2184,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     listDataAppThemes: listDataAppThemesToolDefinition,
     listDataAppConnections: listDataAppConnectionsToolDefinition,
     editDbtProject: editDbtProjectToolDefinition,
+    write: writeToolDefinition,
     editProjectContext: editProjectContextToolDefinition,
     proposeSemanticLayerChange: proposeSemanticLayerChangeToolDefinition,
     listChanges: listChangesToolDefinition,
@@ -2243,6 +2260,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     listDataAppThemesToolDefinition,
     listDataAppConnectionsToolDefinition,
     editDbtProjectToolDefinition,
+    writeToolDefinition,
     editProjectContextToolDefinition,
     proposeSemanticLayerChangeToolDefinition,
     listChangesToolDefinition,

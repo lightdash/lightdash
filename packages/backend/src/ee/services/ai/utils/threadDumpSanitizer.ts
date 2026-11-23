@@ -41,6 +41,7 @@ const DUMP_TOOL_RESULT_POLICIES = {
     listDataAppThemes: 'keep',
     listDataAppConnections: 'keep',
     editDbtProject: 'keep',
+    write: 'keep',
     proposeSemanticLayerChange: 'keep',
     listChanges: 'keep',
     readSemanticModel: 'keep',

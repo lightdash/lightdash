@@ -5,9 +5,9 @@ import {
 } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-export const TOOL_VERIFY_DESCRIPTION = `Check a change you saved with editDbtProject, in the same turn. check "compile" waits for your latest save to reach the pull request branch, then for the branch's dbt compile, up to a minute, and returns whether it compiled and which models failed to load.
+export const TOOL_VERIFY_DESCRIPTION = `Check a change you saved with write, in the same turn. check "compile" waits for your latest save to reach the pull request branch, then for the branch's dbt compile, up to a minute, and returns whether it compiled and which models failed to load.
 
-Call it after a save that adds a model or changes SQL, before you tell the person the change works; a change to YAML alone is already checked when it is saved. When it fails, fix it with editDbtProject and check again. When it is still running after a minute, say so: a failure is sent to you once it finishes.`;
+Call it after a save that adds a model or changes SQL, before you tell the person the change works; a change to YAML alone is already checked when it is saved. When it fails, fix it with write and check again. When it is still running after a minute, say so: a failure is sent to you once it finishes.`;
 
 export const toolVerifyArgsSchema = createToolSchema()
     .extend({

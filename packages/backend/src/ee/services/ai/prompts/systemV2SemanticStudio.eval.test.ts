@@ -139,7 +139,7 @@ const runAsk = async (prompt: string, canRunSql: boolean) => {
                 codeMode: false,
                 projectMap: null,
                 sections: [],
-                libraries: false,
+                builder: false,
             },
             canQueryDraft: false,
         }),

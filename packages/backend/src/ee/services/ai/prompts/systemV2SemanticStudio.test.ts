@@ -36,7 +36,7 @@ describe('getSemanticStudioSystemPrompt', () => {
                 codeMode: false,
                 projectMap: null,
                 sections: ['## Repository context\nroot hint'],
-                libraries: false,
+                builder: false,
             },
         });
         expect(prompt).toContain('```diff');
@@ -54,7 +54,7 @@ describe('getSemanticStudioSystemPrompt', () => {
                 codeMode: false,
                 projectMap: null,
                 sections: [],
-                libraries: false,
+                builder: false,
             },
         });
         expect(prompt).toContain('## Warehouse');
@@ -72,7 +72,7 @@ describe('getSemanticStudioSystemPrompt', () => {
                 codeMode: false,
                 projectMap: null,
                 sections: [],
-                libraries: false,
+                builder: false,
             },
         });
         expect(prompt).not.toContain('## Warehouse');
@@ -87,7 +87,7 @@ describe('getSemanticStudioSystemPrompt', () => {
                 codeMode: false,
                 projectMap: null,
                 sections: [],
-                libraries: false,
+                builder: false,
             },
         });
         expect(prompt).toContain('editDbtProject');
@@ -102,7 +102,7 @@ describe('getSemanticStudioSystemPrompt', () => {
             saves: true,
             codeMode: true,
             sections: [],
-            libraries: false,
+            builder: false,
         };
         const mapped = getSemanticStudioSystemPrompt({
             ...base,
@@ -129,14 +129,14 @@ describe('getSemanticStudioSystemPrompt', () => {
                 codeMode: true,
                 projectMap: null,
                 sections: [],
-                libraries: false,
+                builder: false,
             },
         });
         expect(prompt).toContain('with a script that makes it');
         expect(prompt).toContain('yaml.set');
     });
 
-    it('names the lookups as functions inside read when they live there', () => {
+    it('has the builder save with write and name its lookups as functions inside read', () => {
         const prompt = getSemanticStudioSystemPrompt({
             ...base,
             warehouse: { type: 'duckdb', schema: 'main' },
@@ -145,12 +145,15 @@ describe('getSemanticStudioSystemPrompt', () => {
                 codeMode: true,
                 projectMap: null,
                 sections: [],
-                libraries: true,
+                builder: true,
             },
         });
         expect(prompt).toContain('layer.impact in read');
         expect(prompt).toContain('warehouse.columns in read');
+        expect(prompt).toContain('Save with write');
+        expect(prompt).toContain('numerator cast to a decimal');
         [
+            'editDbtProject',
             'exploreRepo',
             'analyzeFieldImpact',
             'listChanges',

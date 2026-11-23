@@ -98,6 +98,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             ? {
                   tools: [
                       'read',
+                      'write',
                       'verify',
                       ...onlyIf(input.canRunSql, ['runSql']),
                   ],
@@ -116,6 +117,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
                       ...onlyIf(hasProjectContextTool(input), [
                           'loadProjectContext',
                       ]),
+                      'editDbtProject',
                       'listWorkstreams',
                       'getPullRequestDiff',
                       // Publishing the draft recompiles the project, and the person discards it from the page.
