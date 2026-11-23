@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { createContext, useContext, useRef } from 'react';
+import { useStoredStudioThread } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { DEVELOPMENT_VIEW_HEADER, PUBLISHED_VIEW } from './developmentView';
@@ -181,6 +182,7 @@ export const useCheckOut = (projectUuid: string) => {
     const action = useStudioWorkspaceAction(projectUuid);
     const { shown, isSwitching } = useStudioCheckout();
     const { showToastApiError } = useToaster();
+    const [, setStoredThread] = useStoredStudioThread(projectUuid);
     const isBusy = action.isLoading || isSwitching;
     const onError = (title: string) => (error: ApiError) => {
         showToastApiError({ title, apiError: error.error });
@@ -211,7 +213,11 @@ export const useCheckOut = (projectUuid: string) => {
                 kind: 'start',
                 body: { threadUuid: null, name: 'Untitled' },
             },
-            { onError: onError('Could not start a draft') },
+            {
+                // A new draft starts its own chat.
+                onSuccess: () => setStoredThread(null),
+                onError: onError('Could not start a draft'),
+            },
         );
     };
     return { checkOut, createChange, isBusy, isError: action.isError };

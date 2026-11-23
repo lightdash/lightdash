@@ -11,6 +11,10 @@ const PEEK_LINES = 4;
 // A new file longer than this opens folded, the rest a click away.
 const FOLD_LINES = 40;
 
+// A hairline marks a changed line, rather than Pierre's 4px bar, and the code starts under its header.
+const THIN_BARS_CSS =
+    "[data-indicators='bars'] [data-column-number]::before { width: 2px !important; } pre { padding-top: 0 !important; }";
+
 const CONTEXT_LINES = { full: 2, compact: 1, peek: 1, whole: 100_000 };
 
 const PlainYaml: FC<{ content: string; isPeek: boolean }> = ({
@@ -92,10 +96,12 @@ export const ChangeDiff: FC<{
             </Box>
         );
     }
-    // Virtualizer is the scroll viewport. The file's name colours it as YAML.
+    // The overview scrolls as one page, so only a diff with its own scroll viewport is virtualized.
+    const Viewport = variant === 'full' ? Box : Virtualizer;
+    // The file's name colours it as YAML.
     return (
         <>
-            <Virtualizer {...viewport}>
+            <Viewport {...viewport}>
                 {/* The diff does not redraw when its contents change under the same file name. */}
                 <MultiFileDiff
                     key={`${change.contentBefore}\0${change.contentAfter}`}
@@ -117,9 +123,10 @@ export const ChangeDiff: FC<{
                         lineDiffType: 'word',
                         parseDiffOptions: { context: CONTEXT_LINES[variant] },
                         theme,
+                        unsafeCSS: THIN_BARS_CSS,
                     }}
                 />
-            </Virtualizer>
+            </Viewport>
             {isFolded ? (
                 <Button
                     size="compact-xs"

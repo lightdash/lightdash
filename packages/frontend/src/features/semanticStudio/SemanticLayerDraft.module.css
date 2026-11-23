@@ -30,6 +30,7 @@
 
 /* Stays in view while its diff scrolls under it. */
 .modelHead {
+    min-height: 45px;
     position: sticky;
     top: 0;
     z-index: 1;
