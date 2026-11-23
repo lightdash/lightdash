@@ -1970,6 +1970,7 @@ export class AiWritebackService extends BaseService {
             this.logger.info('AI writeback script fell back to the sandbox', {
                 event: 'ai_writeback.script.fallback',
                 projectUuid,
+                aiThreadUuid: args.aiThreadUuid ?? null,
                 dryRun,
                 reason,
             });
@@ -2351,6 +2352,7 @@ export class AiWritebackService extends BaseService {
             this.logger.info('AI writeback script timed', {
                 event: 'ai_writeback.script.timed',
                 projectUuid,
+                aiThreadUuid: args.aiThreadUuid ?? null,
                 dryRun,
                 outcome,
                 stage,
