@@ -82,9 +82,11 @@ import { CompileInterruptedError } from '../../../scheduler/compileShutdown';
 import { BaseService } from '../../../services/BaseService';
 import {
     readCompiledDbtManifest,
+    readCompiledDbtProjectMap,
     saveCompiledDbtManifest,
     type CompiledDbtManifest,
 } from '../../../services/ProjectService/compiledDbtManifest';
+import { describeDbtProjectMap } from '../../../services/ProjectService/dbtProjectMap';
 import {
     type IncrementalCompileResult,
     type ProjectService,
@@ -114,7 +116,6 @@ import {
     type DbtScriptChange,
     type DbtScriptCheck,
 } from './codeMode/dbtManifestPatch';
-import { describeDbtProjectMap } from './dbtProjectMap';
 import {
     checkedExploresFileId,
     dbtChangeFingerprint,
@@ -1761,6 +1762,12 @@ export class SemanticStudioService extends BaseService {
     /** The dbt project's layout from its last compile, for the agent's prompt; null when none is stored. */
     async getDbtProjectMap(projectUuid: string): Promise<string | null> {
         try {
+            const stored = await readCompiledDbtProjectMap(
+                this.fileStorageClient,
+                projectUuid,
+            );
+            if (stored) return stored.map;
+            // A manifest saved before maps were stored; its next compile stores one.
             const compiled = await readCompiledDbtManifest(
                 this.fileStorageClient,
                 projectUuid,
