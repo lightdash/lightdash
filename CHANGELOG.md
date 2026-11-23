@@ -1,3 +1,10 @@
+## [3.371.1](https://github.com/lightdash/lightdash/compare/3.371.0...3.371.1) (2026-11-23)
+
+
+### Bug Fixes
+
+* **dashboards:** clear shortcut hints when the modifier release is never seen ([#33217](https://github.com/lightdash/lightdash/issues/33217)) ([0b684f0](https://github.com/lightdash/lightdash/commit/0b684f05f073a95141db7610d27f40b5ae61bfd0))
+
 # [3.371.0](https://github.com/lightdash/lightdash/compare/3.370.0...3.371.0) (2026-11-23)
 
 
