@@ -218,9 +218,9 @@ const Stat: FC<{
     title?: string;
     /** Shown after the label, such as an info icon. */
     labelExtra?: ReactNode;
-    /** Marks the value red, such as a rate limit that is full. */
-    alert?: boolean;
-}> = ({ label, value, detail, title, labelExtra, alert }) => (
+    /** Colours the value: red for a full rate limit, orange for a warning. */
+    tone?: 'danger' | 'warning';
+}> = ({ label, value, detail, title, labelExtra, tone }) => (
     <Box className={classes.stat}>
         <span className={classes.statLabel}>
             {label}
@@ -228,7 +228,7 @@ const Stat: FC<{
         </span>
         <span
             className={classes.statValue}
-            data-alert={alert || undefined}
+            data-tone={tone}
             title={title ?? (detail ? `${value} (${detail})` : value)}
         >
             {value}
@@ -306,7 +306,7 @@ export const LiveSourceSummary: FC<{
                 label="Cache"
                 value={
                     isProjectCacheOff
-                        ? 'Not cached'
+                        ? 'Disabled'
                         : formatFreshness(freshness.seconds)
                 }
                 detail={isProjectCacheOff ? null : row.usage.cacheHitsLabel}
@@ -315,13 +315,14 @@ export const LiveSourceSummary: FC<{
                         ? 'Results caching is off for this project'
                         : cachingTitle
                 }
+                tone={isProjectCacheOff ? 'warning' : undefined}
             />
             <Stat
                 label="Rate limit"
                 value={rateLimit.value}
                 detail={rateLimit.detail}
                 title={rateLimit.title}
-                alert={rateLimit.limitReached}
+                tone={rateLimit.limitReached ? 'danger' : undefined}
             />
         </Box>
     );
