@@ -1256,6 +1256,56 @@ describe('ExternalConnectionService live source explores', () => {
         ).toHaveBeenCalledTimes(2);
     });
 
+    it('moves a key source to another region and project with a new key', async () => {
+        const target = {
+            connector: ApiConnectorType.POSTHOG,
+            projectId: '999',
+        } as const;
+        const { service, externalConnectionModel } = buildService();
+        externalConnectionModel.update.mockResolvedValue(
+            posthogConnection({
+                origin: 'https://us.posthog.com',
+                apiSource: target,
+            }),
+        );
+
+        await service.update(account, 'proj-1', 'conn-1', {
+            origin: 'https://us.posthog.com',
+            apiSource: target,
+            secret: 'phx_us',
+        });
+
+        expect(externalConnectionModel.update).toHaveBeenCalledWith(
+            'conn-1',
+            expect.anything(),
+            expect.objectContaining({
+                origin: 'https://us.posthog.com',
+                secret: 'phx_us',
+                apiSource: target,
+                allowedPathPrefixes: expect.arrayContaining([
+                    '/api/projects/999/query/',
+                ]),
+            }),
+        );
+        expect(
+            externalConnectionModel.purgeLiveSourceCache,
+        ).toHaveBeenCalledExactlyOnceWith('conn-1', expect.any(Date));
+    });
+
+    it('asks for the key again to move a key source to another region', async () => {
+        const { service, externalConnectionModel } = buildService();
+
+        await expect(
+            service.update(account, 'proj-1', 'conn-1', {
+                origin: 'https://us.posthog.com',
+            }),
+        ).rejects.toThrow('Re-enter the secret to change the origin');
+        expect(externalConnectionModel.update).not.toHaveBeenCalled();
+        expect(
+            externalConnectionModel.purgeLiveSourceCache,
+        ).not.toHaveBeenCalled();
+    });
+
     it('keeps reusing results after a rename', async () => {
         respondToScan('ok');
         const { service, externalConnectionModel } = buildService();
