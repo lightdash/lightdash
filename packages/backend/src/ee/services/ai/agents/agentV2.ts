@@ -213,6 +213,7 @@ import { getAgentLogContext, withToolCallLogContext } from './agentLogContext';
 import { pruneSupersededContentReads } from './contentReadRetention';
 import { getMcpActiveTools } from './mcpToolGating';
 import { compactChartDiscovery, getPreviousQueryUuid } from './previousQuery';
+import { withRollingCacheBreakpoint } from './promptCache';
 import { buildQueryRetryStepOverride } from './queryRetryCap';
 import { createQueryToolCallRepair } from './queryToolCallRepair';
 import {
@@ -1808,15 +1809,6 @@ export const buildPrepareStep = ({
                 `Step ${stepNumber} for prompt UUID ${args.promptUuid}: replaced ${replacedReads} earlier content read(s) with stubs`,
             );
         }
-        if (
-            stepMessages === messages &&
-            extraMessages.length === 0 &&
-            activeTools === undefined &&
-            stepBudgetOverride === undefined
-        ) {
-            return forced;
-        }
-
         const stepActiveTools = stepBudgetOverride?.activeTools ?? activeTools;
 
         return {
@@ -1827,7 +1819,10 @@ export const buildPrepareStep = ({
             ...(stepBudgetOverride?.toolChoice !== undefined
                 ? { toolChoice: stepBudgetOverride.toolChoice }
                 : {}),
-            messages: [...stepMessages, ...extraMessages],
+            messages: withRollingCacheBreakpoint([
+                ...stepMessages,
+                ...extraMessages,
+            ]),
         };
     };
 };
