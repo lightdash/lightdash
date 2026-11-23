@@ -77,6 +77,7 @@ import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
 import type { DbAiPromptTurnDecision } from '../../../database/entities/ai';
 import type { DataAppRead } from '../../AiAgentToolsService/dataAppRead';
 import type { DataAppBuildStatusSource } from '../../AppGenerateService/AppGenerateService';
+import type { BranchCompileCheck } from '../../SemanticStudioService/branchCompileCheck';
 import type { SemanticLayerDraftProposal } from '../../SemanticStudioService/SemanticStudioService';
 import type { RepoCodeSearchMatch } from '../repoFs/RepoFs';
 import { AiAgentSkill } from '../skills/types';
@@ -1085,6 +1086,11 @@ export type ProposeSemanticLayerChangeFn = (
     models: SemanticLayerDraftModelInput[],
     changeName: string | null,
 ) => Promise<SemanticLayerDraftProposal>;
+
+/** Waits for the agent's latest save to its pull request and the branch compile after it. */
+export type VerifyFn = (args: {
+    check: 'compile';
+}) => Promise<BranchCompileCheck>;
 
 /** The YAML of one model as the person's draft leaves it, and every model's name so a wrong name can be corrected. */
 export type ReadSemanticModelFn = (name: string) => Promise<{

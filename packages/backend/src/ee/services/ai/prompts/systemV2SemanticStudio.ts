@@ -48,6 +48,7 @@ const getDbtSaveCodeMode = (mapped: boolean) => `${getDbtRead(mapped)}
 - Save with editDbtProject, one call per change, with a script that makes it and a prompt that says the same change in words: the files, the models and fields, and what each becomes.
 - Write the script from the files as you read them: use yaml.set and yaml.push for YAML, so the rest of each file stays as it is, and repo.write only for a whole new file such as a new model's SQL. Put each field where that file already keeps its kind. If the tool says the script failed, fix it from the error and call again; tell the person only if it still fails.
 - Pass a null script only when the change needs dbt itself to run, such as checking new SQL against the warehouse; the slower sandbox makes that change instead.
+- A change to YAML alone is checked when it is saved, but only dbt checks one that adds a model or changes SQL: after saving it, call verify before you end the turn. If it fails, fix it with editDbtProject and check again; tell the person only if it still fails.
 ${DBT_SAVE_RULES}`;
 
 const getDbtChangeRules = (

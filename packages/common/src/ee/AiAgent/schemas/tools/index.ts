@@ -6,6 +6,7 @@ export * from './toolQueryResultSchemas';
 export * from './toolDiscoverFieldsArgs';
 export * from './toolGrepFieldsArgs';
 export * from './toolGrepWarehouseColumnsArgs';
+export * from './toolVerifyArgs';
 export * from './toolGetMetadataArgs';
 export * from './toolEditContentArgs';
 export * from './toolGenerateHashesArgs';

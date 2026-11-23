@@ -122,6 +122,7 @@ import {
     UpdateSlackMessageFn,
     UpdateUserNameFn,
     ValidateContentFn,
+    VerifyFn,
     WaitForSqlApprovalFn,
 } from './aiAgentDependencies';
 
@@ -506,6 +507,7 @@ export type AiAgentDependencies = {
     /** Runs a metric query on the person's draft over what is published. */
     runDraftQuery: RunAsyncQueryFn;
     readSemanticModel: ReadSemanticModelFn;
+    verify: VerifyFn;
     syncDbtProject: SyncDbtProjectFn;
     exploreRepo: ExploreRepoFn;
     discoverRepos: DiscoverReposFn;
