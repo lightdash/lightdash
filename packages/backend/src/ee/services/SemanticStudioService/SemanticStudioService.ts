@@ -112,7 +112,12 @@ import {
     type DbtScriptChange,
     type DbtScriptCheck,
 } from './codeMode/dbtManifestPatch';
-import { dbtTryOutFileId, type DbtTryOut } from './dbtTryOut';
+import {
+    checkedExploresFileId,
+    dbtChangeFingerprint,
+    dbtTryOutFileId,
+    type DbtTryOut,
+} from './dbtTryOut';
 import {
     DraftChecker,
     usesAnyModel,
@@ -1268,15 +1273,18 @@ export class SemanticStudioService extends BaseService {
             patch.changedModels.map((name) => [name, name]),
         );
         const reachedNames = new Set(reached);
-        const explores = (
+        const lightdashConfigYaml = await change.readHead(
+            'lightdash.config.yml',
+        );
+        const compiledExplores =
             await this.projectService.compileExploresFromManifest(
                 user,
                 projectUuid,
                 patch.manifest,
-                await change.readHead('lightdash.config.yml'),
+                lightdashConfigYaml,
                 uniqueIds,
-            )
-        ).filter((explore) =>
+            );
+        const explores = compiledExplores.filter((explore) =>
             isExploreError(explore)
                 ? reachedNames.has(explore.name)
                 : usesAnyModel(explore, changed),
@@ -1331,6 +1339,15 @@ export class SemanticStudioService extends BaseService {
                 return { status: 'failed', error: found.join('. ') };
             }
         }
+        await this.keepCheckedExplores(
+            projectUuid,
+            dbtChangeFingerprint(
+                compiled.commitSha,
+                files,
+                lightdashConfigYaml,
+            ),
+            compiledExplores,
+        );
         return {
             status: 'passed',
             changedModels: patch.changedModels,
@@ -1457,19 +1474,32 @@ export class SemanticStudioService extends BaseService {
                 advance.changedModels,
             );
             const reachedNames = new Set(reached);
+            const lightdashConfigYaml = await checkout.readFileAt(
+                `${root}lightdash.config.yml`,
+                checkout.headSha,
+            );
+            const checked =
+                reached.length === 0
+                    ? null
+                    : await this.takeCheckedExplores(
+                          projectUuid,
+                          dbtChangeFingerprint(
+                              stored.commitSha,
+                              advance.changes,
+                              lightdashConfigYaml,
+                          ),
+                      );
             const compiled =
                 reached.length === 0
                     ? []
-                    : await this.projectService.compileExploresFromManifest(
+                    : (checked ??
+                      (await this.projectService.compileExploresFromManifest(
                           user,
                           projectUuid,
                           manifest,
-                          await checkout.readFileAt(
-                              `${root}lightdash.config.yml`,
-                              checkout.headSha,
-                          ),
+                          lightdashConfigYaml,
                           uniqueIds,
-                      );
+                      )));
             if (compiled.some(isExploreError)) {
                 return full('An explore the change reaches does not compile');
             }
@@ -1527,6 +1557,7 @@ export class SemanticStudioService extends BaseService {
             });
             log({
                 mode: 'incremental',
+                compiledFrom: checked ? 'checked_change' : 'manifest',
                 files: advance.files,
                 changedModels: advance.changedModels.length,
                 explores: explores.length,
@@ -1541,6 +1572,49 @@ export class SemanticStudioService extends BaseService {
         } catch (error) {
             if (error instanceof CompileInterruptedError) throw error;
             return full(`It failed: ${getErrorMessage(error)}`);
+        }
+    }
+
+    /** Keeps what a passed check compiled to, so the compile after the change merges can skip compiling it again. */
+    private async keepCheckedExplores(
+        projectUuid: string,
+        fingerprint: string,
+        explores: (Explore | ExploreError)[],
+    ): Promise<void> {
+        if (!this.fileStorageClient.isEnabled()) return;
+        // Checks whose change never merges leave their file behind; they are a few explores each.
+        await this.fileStorageClient
+            .uploadTxt(
+                Buffer.from(JSON.stringify(explores)),
+                checkedExploresFileId(projectUuid, fingerprint),
+            )
+            .catch((error: unknown) => {
+                this.logger.warn(
+                    `SemanticStudio: failed to keep a checked change's explores: ${getErrorMessage(error)}`,
+                );
+            });
+    }
+
+    /** What a check compiled the same change to, removed once read; null when no check left it. */
+    private async takeCheckedExplores(
+        projectUuid: string,
+        fingerprint: string,
+    ): Promise<(Explore | ExploreError)[] | null> {
+        if (!this.fileStorageClient.isEnabled()) return null;
+        const fileId = `${checkedExploresFileId(projectUuid, fingerprint)}.txt`;
+        try {
+            const { stream } =
+                await this.fileStorageClient.getFileStream(fileId);
+            const explores: unknown = JSON.parse(await text(stream));
+            await this.fileStorageClient.deleteFile(fileId).catch(() => {});
+            return Array.isArray(explores) ? explores : null;
+        } catch (error) {
+            if (!(error instanceof NotFoundError)) {
+                this.logger.warn(
+                    `SemanticStudio: failed to read a checked change's explores: ${getErrorMessage(error)}`,
+                );
+            }
+            return null;
         }
     }
 
