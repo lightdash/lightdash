@@ -9,6 +9,7 @@ import {
     ExternalConnectionSamplesTableName,
     ExternalConnectionSecretsTableName,
     ExternalConnectionsTableName,
+    ExternalConnectionUserCredentialsTableName,
 } from '../database/entities/externalConnections';
 import {
     ExternalConnectionModel,
@@ -683,15 +684,21 @@ describe('ExternalConnectionModel', () => {
                 .response([makeDbConnection()]);
             tracker.on.update(ExternalConnectionsTableName).response(1);
             tracker.on.delete(ExternalConnectionSecretsTableName).response(1);
+            tracker.on
+                .delete(ExternalConnectionUserCredentialsTableName)
+                .response(1);
 
             await model.update(CONNECTION_UUID, USER_UUID, {
                 origin: 'https://attacker.example.com',
             });
 
-            expect(tracker.history.delete).toHaveLength(1);
-            expect(tracker.history.delete[0].sql).toContain(
-                ExternalConnectionSecretsTableName,
-            );
+            // Viewers' own sign-ins were for the old origin too
+            expect(tracker.history.delete.map(({ sql }) => sql)).toEqual([
+                expect.stringContaining(ExternalConnectionSecretsTableName),
+                expect.stringContaining(
+                    ExternalConnectionUserCredentialsTableName,
+                ),
+            ]);
         });
 
         it('deletes the stored secret when an OAuth credential destination changes without a replacement', async () => {
