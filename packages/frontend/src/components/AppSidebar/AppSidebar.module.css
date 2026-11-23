@@ -19,7 +19,30 @@
 
 .header {
     display: flex;
-    padding-inline: rem(2px);
+    align-items: center;
+    gap: rem(4px);
+}
+
+.logo {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: rem(32px);
+    height: rem(32px);
+
+    & :is(svg, img) {
+        width: rem(24px);
+        height: rem(24px);
+        border-radius: rem(6px);
+        object-fit: contain;
+    }
+}
+
+/* The rail is one control wide, so the header stacks. */
+.sidebar[data-collapsed='true'] .header {
+    flex-direction: column;
+    align-items: flex-start;
 }
 
 .sectionLabel {
@@ -31,24 +54,9 @@
     color: var(--mantine-color-dimmed);
 }
 
-/* Labels are hidden in the rail and fade back in when it expands. Collapsing
-   has no transition: the rail clips them at once. */
+/* The rail clips the labels, so they are hidden rather than cut mid-letter. */
 .sidebar[data-collapsed='true'] :is(.sectionLabel, .itemLabel) {
     opacity: 0;
-    transform: translateX(rem(-4px));
-}
-
-.sidebar[data-collapsed='false'][data-animated='true']
-    :is(.sectionLabel, .itemLabel) {
-    transition:
-        opacity 200ms cubic-bezier(0.23, 1, 0.32, 1),
-        transform 200ms cubic-bezier(0.23, 1, 0.32, 1);
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .sidebar :is(.sectionLabel, .itemLabel) {
-        transform: none;
-    }
 }
 
 .sidebar[data-collapsed='true'] .item {

@@ -55,12 +55,7 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
         hasBanner,
         banner,
     } = useNavBarState();
-    const {
-        isCollapsed,
-        isAnimated,
-        toggleWithPointer,
-        setCollapsedInstantly,
-    } = useAppSidebarCollapse();
+    const { isCollapsed, setIsCollapsed } = useAppSidebarCollapse();
     const [storedWidth, setStoredWidth] = useLocalStorage<number>({
         key: APP_SIDEBAR_WIDTH_STORAGE_KEY,
         defaultValue: APP_SIDEBAR_WIDTH,
@@ -81,7 +76,7 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
             resize.navbar.reset();
         },
         onCollapseChange: (section, collapsed) => {
-            if (section === 'navbar') setCollapsedInstantly(collapsed);
+            if (section === 'navbar') setIsCollapsed(collapsed);
         },
     });
 
@@ -117,8 +112,6 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
                 }
                 projectUrlIdentifier={projectUrlIdentifier}
                 isCollapsed={isCollapsed}
-                isAnimated={isAnimated}
-                onToggle={toggleWithPointer}
             />
             <AppShell.Main>{children}</AppShell.Main>
         </AppShell>

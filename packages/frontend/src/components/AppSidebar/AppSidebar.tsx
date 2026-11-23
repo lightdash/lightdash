@@ -1,18 +1,17 @@
 import {
-    ActionIcon,
     AppShell,
     Box,
     NavLink,
     Text,
     Tooltip,
+    UnstyledButton,
 } from '@mantine/core';
-import {
-    IconLayoutSidebarLeftCollapse,
-    IconLayoutSidebarLeftExpand,
-} from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link, useLocation } from 'react-router';
-import MantineIcon from '../common/MantineIcon';
+import { NavBarLogo } from '../NavBar/NavBarLogo';
+import { NavBarPortalContext } from '../NavBar/NavBarPortalContext';
+import ProjectCredentialsSwitcher from '../NavBar/ProjectCredentialsSwitcher';
+import ProjectSwitcher from '../NavBar/ProjectSwitcher';
 import classes from './AppSidebar.module.css';
 import {
     APP_SIDEBAR_ID,
@@ -24,16 +23,12 @@ type Props = {
     projectUuid: string | undefined;
     projectUrlIdentifier: string | undefined;
     isCollapsed: boolean;
-    isAnimated: boolean;
-    onToggle: () => void;
 };
 
 export const AppSidebar: FC<Props> = ({
     projectUuid,
     projectUrlIdentifier,
     isCollapsed,
-    isAnimated,
-    onToggle,
 }) => {
     const { pathname } = useLocation();
     const activeItem = getActiveAppSidebarItem(pathname);
@@ -41,7 +36,9 @@ export const AppSidebar: FC<Props> = ({
         projectUuid,
         projectUrlIdentifier,
     });
-    const toggleLabel = isCollapsed ? 'Expand sidebar' : 'Collapse sidebar';
+    const homeUrl = projectUrlIdentifier
+        ? `/projects/${projectUrlIdentifier}/home`
+        : '/';
 
     return (
         <AppShell.Navbar
@@ -50,24 +47,25 @@ export const AppSidebar: FC<Props> = ({
             className={classes.sidebar}
             withBorder={false}
             data-collapsed={isCollapsed}
-            data-animated={isAnimated}
         >
             <Box className={classes.content}>
                 <Box className={classes.header}>
-                    <ActionIcon
-                        onClick={onToggle}
-                        aria-label={toggleLabel}
-                        aria-expanded={!isCollapsed}
-                        aria-keyshortcuts="Control+B Meta+B"
+                    <UnstyledButton
+                        component={Link}
+                        to={homeUrl}
+                        aria-label="Home"
+                        className={classes.logo}
                     >
-                        <MantineIcon
-                            icon={
-                                isCollapsed
-                                    ? IconLayoutSidebarLeftExpand
-                                    : IconLayoutSidebarLeftCollapse
-                            }
-                        />
-                    </ActionIcon>
+                        <NavBarLogo />
+                    </UnstyledButton>
+                    {!isCollapsed && (
+                        <ProjectSwitcher layout="sidebar" portalTarget={null} />
+                    )}
+                    {/* The top navbar's forced-dark subtree is not on screen
+                        here, so its menus open on the page instead. */}
+                    <NavBarPortalContext.Provider value="body">
+                        <ProjectCredentialsSwitcher />
+                    </NavBarPortalContext.Provider>
                 </Box>
                 {sections.map((section) => (
                     <Box key={section.key}>
