@@ -21676,14 +21676,19 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
     private async hasTrustedSlackPromptIdentity(
         prompt: SlackPrompt,
     ): Promise<boolean> {
-        const installation =
-            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
-                prompt.organizationUuid,
+        try {
+            const installation =
+                await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                    prompt.organizationUuid,
+                );
+            return (
+                !!installation?.aiRequireOAuth ||
+                (await this.isSlackChannelServiceAccountPrompt(prompt))
             );
-        return (
-            !!installation?.aiRequireOAuth ||
-            this.isSlackChannelServiceAccountPrompt(prompt)
-        );
+        } catch {
+            // Unknown counts as the installer; the reply reports its own errors
+            return false;
+        }
     }
 
     private async generateSlackPromptReply(
