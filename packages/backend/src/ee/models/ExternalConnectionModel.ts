@@ -535,6 +535,9 @@ export class ExternalConnectionModel {
                         allow_data_app_builder_linking:
                             src.allow_data_app_builder_linking,
                         forward_user_identity: src.forward_user_identity,
+                        // A copy of a source where each viewer signs in keeps
+                        // asking each viewer; their sign-ins are not copied
+                        sign_in_mode: src.sign_in_mode,
                         instructions: src.instructions,
                         allowed_path_prefixes: JSON.stringify(
                             src.allowed_path_prefixes,
