@@ -151,13 +151,14 @@ export const splitSqlStatements = (sql: string): string[] => {
     return statements;
 };
 
+// Any `;` or a later `*/` (nested block comments) could hide a second statement, so those keep their limit.
 export const isMetadataStatement = (sql: string): boolean => {
-    const statements = attachCommentOnlyStatements(splitSqlStatements(sql));
+    const statement = sql.trim().replace(/[;\s]+$/, '');
+    const body = statement.slice(skipLeadingComments(statement));
     return (
-        statements.length === 1 &&
-        METADATA_STATEMENT_PATTERN.test(
-            statements[0].slice(skipLeadingComments(statements[0])),
-        )
+        !statement.includes(';') &&
+        !body.includes('*/') &&
+        METADATA_STATEMENT_PATTERN.test(body)
     );
 };
 

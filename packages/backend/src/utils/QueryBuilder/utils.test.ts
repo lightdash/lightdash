@@ -1024,7 +1024,7 @@ describe('applyLimitToSqlQuery', () => {
     it.each([
         ['DESCRIBE TABLE my_table', 'DESCRIBE TABLE my_table'],
         ['SHOW CREATE TABLE my_table;', 'SHOW CREATE TABLE my_table'],
-        ["SHOW TABLES LIKE 'a;b'", "SHOW TABLES LIKE 'a;b'"],
+        ['DESCRIBE my_table ;;  ', 'DESCRIBE my_table'],
         ['-- inspect\n  desc my_table', 'desc my_table'],
     ])(
         'should not add a limit to metadata statement %s',
@@ -1057,6 +1057,16 @@ describe('applyLimitToSqlQuery', () => {
             'EXPLAIN ANALYZE DELETE FROM my_table',
             'EXPLAIN ANALYZE DELETE FROM my_table LIMIT 1',
         ],
+        [
+            "SHOW TABLES LIKE 'a\\'; SELECT * FROM big_table --'",
+            "SHOW TABLES LIKE 'a\\'; SELECT * FROM big_table LIMIT 1",
+        ],
+        [
+            'SHOW x # ; SELECT * FROM big_table',
+            'SHOW x # ; SELECT * FROM big_table LIMIT 1',
+        ],
+        ["SHOW TABLES LIKE 'a;b'", "SHOW TABLES LIKE 'a;b' LIMIT 1"],
+        ['DESCRIBE my_table; -- note', 'DESCRIBE my_table LIMIT 1'],
     ])('should still limit %s', (sqlQuery, expected) => {
         expect(applyLimitToSqlQuery({ sqlQuery, limit: 1 })).toBe(expected);
     });
