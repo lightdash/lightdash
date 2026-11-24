@@ -129,15 +129,18 @@ const MAX_LISTED_COLUMNS = 30;
 export const findMistypedDimensions = (
     dimensions: { name: string; type: DimensionType; sql: string }[],
     columns: Map<string, DimensionType>,
-): { name: string; type: DimensionType; columnType: DimensionType }[] =>
+): {
+    name: string;
+    type: DimensionType;
+    column: string;
+    columnType: DimensionType;
+}[] =>
     dimensions.flatMap(({ name, type, sql }) => {
         const column = PLAIN_COLUMN.exec(sql)?.[1];
-        const columnType =
-            column === undefined
-                ? undefined
-                : columns.get(column.toLowerCase());
+        if (column === undefined) return [];
+        const columnType = columns.get(column.toLowerCase());
         return columnType !== undefined && columnType !== type
-            ? [{ name, type, columnType }]
+            ? [{ name, type, column, columnType }]
             : [];
     });
 

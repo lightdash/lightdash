@@ -158,7 +158,7 @@ const compileDocuments = async (
     return { explores, quote: warehouseSqlBuilder.getFieldQuoteChar() };
 };
 
-/** The fields of a model whose SQL a change adds or alters, by name; null when it leaves the fields, tables and joins as they were. */
+/** The fields of a model a change can break, by name: new or altered SQL, every field on a new table, and those reading a changed join; null when nothing is. */
 const findTouchedFields = (
     explore: Explore,
     before: Explore,
@@ -166,26 +166,38 @@ const findTouchedFields = (
     const base = explore.tables[explore.baseTable];
     const was = before.tables[before.baseTable];
     const fields = [
-        ...Object.values(base.dimensions).filter(
-            ({ name, compiledSql }) =>
-                was.dimensions[name]?.compiledSql !== compiledSql,
-        ),
-        ...Object.values(base.metrics).filter(
-            ({ name, compiledSql }) =>
-                was.metrics[name]?.compiledSql !== compiledSql,
-        ),
-    ].map(({ name }) => name);
-    const from = ({ tables, baseTable, joinedTables }: Explore) =>
-        JSON.stringify([
-            tables[baseTable].sqlTable,
-            joinedTables.map(({ table, compiledSqlOn }) => [
-                tables[table].sqlTable,
-                compiledSqlOn,
-            ]),
-        ]);
-    return fields.length === 0 && from(explore) === from(before)
+        ...Object.values(base.dimensions).map((field) => ({
+            ...field,
+            wasSql: was.dimensions[field.name]?.compiledSql,
+        })),
+        ...Object.values(base.metrics).map((field) => ({
+            ...field,
+            wasSql: was.metrics[field.name]?.compiledSql,
+        })),
+    ];
+    if (base.sqlTable !== was.sqlTable) {
+        return new Set(fields.map(({ name }) => name));
+    }
+    const joinOf = ({ tables, joinedTables }: Explore, table: string) => {
+        const join = joinedTables.find((joined) => joined.table === table);
+        return join && [tables[table].sqlTable, join.compiledSqlOn];
+    };
+    const changedJoins = new Set(
+        explore.joinedTables
+            .map(({ table }) => table)
+            .filter(
+                (table) =>
+                    !isEqual(joinOf(explore, table), joinOf(before, table)),
+            ),
+    );
+    const touched = fields.filter(
+        ({ compiledSql, wasSql, tablesReferences }) =>
+            wasSql !== compiledSql ||
+            (tablesReferences ?? []).some((table) => changedJoins.has(table)),
+    );
+    return touched.length === 0 && changedJoins.size === 0
         ? null
-        : new Set(fields);
+        : new Set(touched.map(({ name }) => name));
 };
 
 /** Checks drafted models against the compiler, the query builder and the warehouse before they may go live. */
@@ -983,7 +995,10 @@ GROUP BY ${aliases.join(', ')}
         // The catalog knows a table's columns, so a wrong name or type is caught before any query, in the same words on every warehouse.
         const inCatalog = new Set<string>();
         // Dimensions the change leaves alone that do not fit their column, which is the usual cause of a model that already fails.
-        const mistypedAlready = new Map<string, string>();
+        const mistypedAlready = new Map<
+            string,
+            ReturnType<typeof findMistypedDimensions>
+        >();
         await Promise.all(
             [...writes].map(async ([name, contents]) => {
                 if (contents === null) return;
@@ -1001,12 +1016,7 @@ GROUP BY ${aliases.join(', ')}
                     (dimension) =>
                         !changed.get(name)?.dimensions.has(dimension.name),
                 );
-                if (untouched.length > 0) {
-                    mistypedAlready.set(
-                        name,
-                        `${untouched.map((dimension) => `${dimension.name} reads a ${dimension.columnType} column but is typed ${dimension.type}`).join(', ')}.`,
-                    );
-                }
+                mistypedAlready.set(name, untouched);
                 const error = findColumnError(
                     name,
                     contents,
@@ -1101,11 +1111,20 @@ GROUP BY ${aliases.join(', ')}
                 return;
             }
             const already = alreadyFailing.get(name);
+            // Name a mistyped field only when the warehouse's error points at it.
+            const mentioned = new Set(
+                already?.toLowerCase().split(/\W+/) ?? [],
+            );
+            const cause = (mistypedAlready.get(name) ?? []).filter(
+                ({ name: dimension, column }) =>
+                    mentioned.has(dimension.toLowerCase()) ||
+                    mentioned.has(column.toLowerCase()),
+            );
             const modelNotes = [
                 ...(already === undefined
                     ? []
                     : [
-                          `${name} already had a problem before this change, which leaves it as it was. ${mistypedAlready.get(name) ?? already}`,
+                          `${name} already had a problem before this change, which leaves it as it was. ${cause.length > 0 ? `${cause.map((dimension) => `${dimension.name} reads a ${dimension.columnType} column but is typed ${dimension.type}`).join(', ')}.` : already}`,
                       ]),
                 ...measure.notes,
             ];
