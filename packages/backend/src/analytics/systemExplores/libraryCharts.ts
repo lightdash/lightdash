@@ -82,10 +82,6 @@ export const libraryChartFields: Record<
         ],
         required: ['value'],
     },
-    'word-cloud': {
-        fields: ['word', 'size', 'colorBy'],
-        required: ['word', 'size'],
-    },
 };
 
 // Option names each supported type accepts. An option added after the type was first bound carries the
@@ -169,13 +165,6 @@ export const libraryChartOptions: Record<
         // label also takes {target}, {value} and {field_id}
         progressWidth: '0.8.4',
         progressHeight: '0.8.4',
-    },
-    'word-cloud': {
-        ...sinceFirstBinding(
-            'colorMode singleColor rotationMode spiral minFontSize maxFontSize sizeScale maxWords caseMode showLegend',
-        ),
-        // Hides the line under the cloud that counts its words
-        showCaption: '0.4.1',
     },
 };
 

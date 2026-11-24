@@ -13,6 +13,7 @@ import {
 import { adoptionChartSpecs, adoptionDashboardSpec } from './adoptionDashboard';
 import { agentEvaluationsChartSpecs } from './agentEvaluationsDashboard';
 import { analyticsColorPalette } from './analyticsColorPalette';
+import { SPARKLINE_CARD_ROWS } from './chartBuilders';
 import { contentChartSpecs, contentDashboardSpec } from './contentDashboard';
 import { dataAppsChartSpecs, dataAppsDashboardSpec } from './dataAppsDashboard';
 import { embedChartSpecs, embedDashboardSpec } from './embedDashboard';
@@ -654,7 +655,7 @@ export const buildUsageDashboards = (
                     const summary = hasSummaryTrend && index < 2;
                     let h = 7;
                     if (isRow) h = section.rowHeight ?? 7;
-                    else if (isKpiRow) h = 4;
+                    else if (isKpiRow) h = SPARKLINE_CARD_ROWS;
                     // Compact breakdowns keep a short viewport; longer results
                     // remain available through the table's existing scroll.
                     else if (
@@ -709,7 +710,7 @@ export const buildUsageDashboards = (
                         nextY += h;
                 });
                 if (isRow) y = sectionY + (section.rowHeight ?? 7);
-                else if (isKpiRow) y = sectionY + 4;
+                else if (isKpiRow) y = sectionY + SPARKLINE_CARD_ROWS;
                 else if (isVisualPair) y = sectionY + 7;
                 else y = nextY;
             }

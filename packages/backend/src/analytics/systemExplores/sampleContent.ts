@@ -20,7 +20,11 @@ import {
     modelProviderColors,
     modelTierRanks,
 } from './analyticsColorPalette';
-import { heatmapColorClamp, heatmapColorClampNote } from './chartBuilders';
+import {
+    heatmapColorClamp,
+    heatmapColorClampNote,
+    SPARKLINE_CARD_ROWS,
+} from './chartBuilders';
 import { withEmbedRankingPresentation } from './embedDashboard';
 import { trendRows } from './homeDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
@@ -1067,7 +1071,7 @@ const queriesTabs: { slug: string; name: string; rows: QueriesRow[] }[] = [
                     'Queries and the people running them. These tiles follow the Date filter.',
                 ),
             },
-            { charts: ['queries', 'query-users'], h: 4 },
+            { charts: ['queries', 'query-users'], h: SPARKLINE_CARD_ROWS },
             { charts: ['queries-by-day', 'active-users-by-day'], h: 8 },
             {
                 note: titledNote(
@@ -1096,7 +1100,10 @@ const queriesTabs: { slug: string; name: string; rows: QueriesRow[] }[] = [
                     'Warehouse time is how long the warehouse took to run a query. Response time is how long Lightdash took to answer, warehouse included; each tile says which it shows.',
                 ),
             },
-            { charts: ['avg-execution-time', 'p90-execution-time'], h: 4 },
+            {
+                charts: ['avg-execution-time', 'p90-execution-time'],
+                h: SPARKLINE_CARD_ROWS,
+            },
             { charts: ['query-latency-by-day'], h: 8 },
             {
                 note: titledNote(

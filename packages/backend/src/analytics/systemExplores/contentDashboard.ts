@@ -85,7 +85,7 @@ export const contentChartSpecs: UsageChartSpec[] = [
         key: 'content-viewers-latest-day',
         name: 'People viewing content',
         description:
-            'People who viewed a chart, dashboard or data app on the latest day in the selected period.',
+            'People who viewed a chart or a dashboard on the latest day in the selected period. Data app loads are counted on Data apps.',
         explore: 'content_reach',
         day,
         metric: 'content_reach_distinct_viewers',
@@ -95,7 +95,7 @@ export const contentChartSpecs: UsageChartSpec[] = [
         key: 'content-views',
         name: 'Content views',
         description:
-            'Views of charts, dashboards and data apps in the selected period. Reloads add views.',
+            'Views of charts and dashboards in the selected period; reloads add views. Data app loads are counted on Data apps.',
         explore: 'content_reach',
         day,
         metric: 'content_reach_qualifying_views',

@@ -101,52 +101,6 @@ export const usageChartSpecs: UsageChartSpec[] = [
         sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
     },
     {
-        key: 'most-used-fields-cloud',
-        name: 'Most-used fields, sized by queries',
-        description: 'Fields sized by distinct queries in the selected period.',
-        explore: 'semantic_usage',
-        dimensions: ['semantic_usage_field_label'],
-        metrics: ['semantic_usage_total_queries'],
-        filters: [
-            {
-                field: 'semantic_usage_field_kind',
-                values: ['metric', 'dimension'],
-            },
-        ],
-        limit: 20,
-        sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
-        visualization: 'bar',
-        xField: 'semantic_usage_field_label',
-        flipAxes: true,
-        libraryChart: {
-            slug: 'word-cloud',
-            minVersion: '0.4.1',
-            fieldMapping: {
-                word: 'semantic_usage_field_label',
-                size: 'semantic_usage_total_queries',
-            },
-            optionValues: {
-                showLegend: false,
-                colorMode: 'shade',
-                rotationMode: 'none',
-                showCaption: false,
-            },
-            query: {
-                dimensions: ['semantic_usage_field_label'],
-                metrics: ['semantic_usage_total_queries'],
-                sorts: [
-                    {
-                        fieldId: 'semantic_usage_total_queries',
-                        descending: true,
-                    },
-                ],
-                limit: 80,
-                description:
-                    'Fields sized by distinct queries in the selected period.',
-            },
-        },
-    },
-    {
         key: 'people-using-fields',
         name: 'Field use by person',
         description:

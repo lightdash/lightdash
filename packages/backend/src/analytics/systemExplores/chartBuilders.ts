@@ -9,6 +9,10 @@ import { usageFieldLabels } from './usageFieldLabels';
 type Base = Pick<UsageChartSpec, 'key' | 'name' | 'description' | 'explore'> &
     Partial<Pick<UsageChartSpec, 'filters' | 'timezone' | 'fieldLabels'>>;
 
+// Grid rows a card with a sparkline needs. One row less and the trend line is cut off at the bottom of
+// the tile. Every layout that places such a card uses this, and a test checks none is shorter.
+export const SPARKLINE_CARD_ROWS = 4;
+
 // A headline card: the plain version is a big number, the library version adds the daily trend behind it.
 // A sum is safe to total over days. A distinct count or an average is not, so it shows the latest day in
 // both versions.
@@ -551,38 +555,3 @@ export const ranking = ({
         },
     };
 };
-
-// Names sized by a count. The plain version is a bar chart of the largest.
-export const cloud = ({
-    word,
-    metric,
-    ...spec
-}: Base & { word: string; metric: string }): UsageChartSpec => ({
-    ...spec,
-    dimensions: [word],
-    metrics: [metric],
-    limit: 20,
-    sorts: [{ fieldId: metric, descending: true }],
-    visualization: 'bar',
-    xField: word,
-    flipAxes: true,
-    libraryChart: {
-        slug: 'word-cloud',
-        minVersion: '0.4.1',
-        fieldMapping: { word, size: metric },
-        // One colour, strongest for the biggest word, every word level, no word count under it
-        optionValues: {
-            showLegend: false,
-            colorMode: 'shade',
-            rotationMode: 'none',
-            showCaption: false,
-        },
-        query: {
-            dimensions: [word],
-            metrics: [metric],
-            sorts: [{ fieldId: metric, descending: true }],
-            limit: 80,
-            description: spec.description,
-        },
-    },
-});
