@@ -1,4 +1,5 @@
 import {
+    ChartType,
     getMissingRequiredParameters,
     SessionStorageKeys,
     type DashboardTileRenderRequest,
@@ -217,7 +218,11 @@ export const useExplorerQueryManager = ({
         !mergeReplacesQuery,
         queryUuidHistory,
         setQueryUuidHistory,
-        { progressiveFirstPage: !minimal },
+        {
+            progressiveFirstPage:
+                !minimal &&
+                unsavedChartVersion.chartConfig.type === ChartType.TABLE,
+        },
     );
     const { query, queryResults } = mainQueryExecutor;
 
