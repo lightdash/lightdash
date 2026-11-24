@@ -44312,6 +44312,19 @@
             },
             "SemanticLayerDrafter": {
                 "properties": {
+                    "canDiscard": {
+                        "type": "boolean",
+                        "description": "Whether the viewer may discard this model's part of their draft: a project admin, once it is stale."
+                    },
+                    "isStale": {
+                        "type": "boolean",
+                        "description": "No activity for a week or more."
+                    },
+                    "lastActiveAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "When they last added to their draft."
+                    },
                     "paths": {
                         "items": {
                             "type": "string"
@@ -44320,9 +44333,19 @@
                     },
                     "name": {
                         "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
                     }
                 },
-                "required": ["paths", "name"],
+                "required": [
+                    "canDiscard",
+                    "isStale",
+                    "lastActiveAt",
+                    "paths",
+                    "name",
+                    "userUuid"
+                ],
                 "type": "object",
                 "description": "Someone else with a draft of a model, and the parts of it they are changing."
             },
@@ -44415,6 +44438,21 @@
             },
             "SemanticLayerSettledDraftChange": {
                 "properties": {
+                    "discardedBy": {
+                        "properties": {
+                            "at": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["at", "name"],
+                        "type": "object",
+                        "nullable": true,
+                        "description": "A project admin who discarded it as stale; null when its owner settled it."
+                    },
                     "models": {
                         "items": {
                             "type": "string"
@@ -44436,6 +44474,7 @@
                     }
                 },
                 "required": [
+                    "discardedBy",
                     "models",
                     "pullRequestUrl",
                     "status",
@@ -45028,6 +45067,43 @@
             },
             "ApiSemanticLayerDraftApplyResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftApplyResult_"
+            },
+            "SemanticLayerOthersDraftModel": {
+                "properties": {
+                    "contentAfter": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null when their draft removes the model."
+                    },
+                    "contentBefore": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null when their draft creates the model."
+                    },
+                    "model": {
+                        "type": "string"
+                    }
+                },
+                "required": ["contentAfter", "contentBefore", "model"],
+                "type": "object",
+                "description": "One model as someone else's draft leaves it, against what is live; read-only."
+            },
+            "ApiSuccess_SemanticLayerOthersDraftModel_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerOthersDraftModel"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticLayerOthersDraftModelResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerOthersDraftModel_"
             },
             "SemanticLayerDraftMoveDirection": {
                 "type": "string",
@@ -81515,7 +81591,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.389.0",
+        "version": "3.390.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -96979,6 +97055,118 @@
                     {
                         "in": "path",
                         "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "model",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/drafts/{ownerUuid}/models/{model}": {
+            "get": {
+                "operationId": "getOthersSemanticLayerDraftModel",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticLayerOthersDraftModelResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "One model as someone else's draft leaves it, read-only.",
+                "summary": "Get another person's semantic layer draft of a model",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "ownerUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "model",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "discardOthersSemanticLayerDraftModel",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Takes one model out of someone else's draft; only a project admin, once the draft has had no activity for 7 days.",
+                "summary": "Discard one model from another person's stale semantic layer draft",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "ownerUuid",
                         "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UUID"

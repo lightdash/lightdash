@@ -1,3 +1,15 @@
+# [3.390.0](https://github.com/lightdash/lightdash/compare/3.389.0...3.390.0) (2026-11-24)
+
+
+### Features
+
+* **semantic-studio:** explain someone else's draft on a model and let you see it ([#33344](https://github.com/lightdash/lightdash/issues/33344)) ([02f106e](https://github.com/lightdash/lightdash/commit/02f106ef2ce6a038ec52c1e372f08a9fccfea440))
+* **semantic-studio:** list a metric view's columns from its describe, never a probe ([#33346](https://github.com/lightdash/lightdash/issues/33346)) ([855f8d3](https://github.com/lightdash/lightdash/commit/855f8d34f9374336e6c577069cd4e0548d79d0f6))
+* **semantic-studio:** record who discarded a stale draft ([#33355](https://github.com/lightdash/lightdash/issues/33355)) ([4b89890](https://github.com/lightdash/lightdash/commit/4b89890575bbdbc6b9f6e80257f3401558d5e6dd))
+* **semantic-studio:** return a metric view's definition as parsed fields from describeWarehouseTable ([#33358](https://github.com/lightdash/lightdash/issues/33358)) ([560063d](https://github.com/lightdash/lightdash/commit/560063dcbec36605b894de2b4c7a6ebcacd8e533))
+* **semantic-studio:** return allowlisted table metadata from describeWarehouseTable ([#33341](https://github.com/lightdash/lightdash/issues/33341)) ([b09a460](https://github.com/lightdash/lightdash/commit/b09a460c4313e2eb0ac97df8a3ff9f08246b0956))
+* **semantic-studio:** use warehouse comments for descriptions and AI hints, and never offer a hand edit around a rejection ([#33345](https://github.com/lightdash/lightdash/issues/33345)) ([e07c4dd](https://github.com/lightdash/lightdash/commit/e07c4ddcf48f1b9147d85e94f7cbdbc581418400))
+
 # [3.389.0](https://github.com/lightdash/lightdash/compare/3.388.0...3.389.0) (2026-11-24)
 
 
