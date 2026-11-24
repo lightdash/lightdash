@@ -51,26 +51,12 @@ import {
     getPromptContextItemKey,
 } from './contentReferenceUtils';
 import { deleteMentionBeforeCaret } from './mentionBackspace';
-import { repositionOnResize } from './repositionOnResize';
+import { composerAnchorRect, repositionOnResize } from './mentionPopup';
 
 const CONTENT_MENTION_NAME = 'contentMention';
 const MIN_CONTENT_SEARCH_QUERY_LENGTH = 2;
 
 const contentMentionPluginKey = new PluginKey('contentMention');
-
-const DOM_RECT_FALLBACK: DOMRect = {
-    bottom: 0,
-    height: 0,
-    left: 0,
-    right: 0,
-    top: 0,
-    width: 0,
-    x: 0,
-    y: 0,
-    toJSON() {
-        return {};
-    },
-};
 
 type ContentMentionGroup = 'thread' | 'current' | 'dashboardTile' | 'search';
 
@@ -806,7 +792,7 @@ const generateContentMentionSuggestion = (
 
                 popup = tippy('body', {
                     getReferenceClientRect: () =>
-                        props.clientRect?.() ?? DOM_RECT_FALLBACK,
+                        composerAnchorRect(props.editor, props.clientRect?.()),
                     appendTo: () => document.body,
                     content: component.element,
                     showOnCreate: true,
@@ -836,7 +822,7 @@ const generateContentMentionSuggestion = (
                 });
                 popup?.setProps({
                     getReferenceClientRect: () =>
-                        props.clientRect?.() ?? DOM_RECT_FALLBACK,
+                        composerAnchorRect(props.editor, props.clientRect?.()),
                 });
             },
             onKeyDown: (props) => {
