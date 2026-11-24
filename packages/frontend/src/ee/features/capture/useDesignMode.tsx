@@ -1007,10 +1007,19 @@ export const useDesignMode = (
                     (b) => b.id === bubbleId,
                 );
                 if (state !== 'on' || bubble?.input !== 'mic') return;
+                // The next hold starts a new bubble while this one is sent.
+                dispatch({ type: 'handOff', bubbleId });
                 finishRef.current(bubbleId, '', heard);
             });
         });
-    }, [endRecording, flushInk, forgetHover, grabWhenQuiet, refreshInk]);
+    }, [
+        dispatch,
+        endRecording,
+        flushInk,
+        forgetHover,
+        grabWhenQuiet,
+        refreshInk,
+    ]);
 
     const onHover = useCallback((point: Point | null) => {
         const ask = hoverAskRef.current;
@@ -1133,7 +1142,9 @@ export const useDesignMode = (
             const owns = spoken !== null;
             const recordingPromise = spoken ?? Promise.resolve(null);
 
-            queueRef.current = queueRef.current.then(async () => {
+            // Waits for this bubble's marks to land, then sends beside the
+            // queue, so marks for the next bubble never wait on a send.
+            const sendNow = async () => {
                 let sending = false;
                 // Sending is the last moment the page is known to be as marked.
                 const pictures = picturesOf(bubbleId);
@@ -1199,6 +1210,7 @@ export const useDesignMode = (
                             bubbleId,
                             input: 'text',
                         });
+                        dispatch({ type: 'handBack', bubbleId });
                         if (marks.length === 0) {
                             showToastWarning('Nothing to send yet');
                         }
@@ -1303,6 +1315,9 @@ export const useDesignMode = (
                 } finally {
                     finishingRef.current.delete(bubbleId);
                 }
+            };
+            queueRef.current = queueRef.current.then(() => {
+                sendNow().catch(() => {});
             });
         },
         [
@@ -1458,8 +1473,6 @@ export const useDesignMode = (
     const onEscape = useCallback((): boolean => {
         const s = sessionRef.current;
         const active = activeCollection(s)?.bubble ?? null;
-        // A send in flight is left alone: the bubble is no longer unsent.
-        if (active?.status === 'sending') return false;
         const unsent =
             active && active.status !== 'queued'
                 ? active
@@ -1469,6 +1482,8 @@ export const useDesignMode = (
                           b.status === 'picking-agent',
                   );
         if (unsent) discard(unsent.id);
+        // A send in flight is left alone: leaving now would lose it.
+        else if (s.bubbles.some((b) => b.status === 'sending')) return false;
         else setOn(false);
         return true;
     }, [discard, setOn]);

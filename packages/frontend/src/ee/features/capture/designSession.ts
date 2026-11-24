@@ -78,6 +78,10 @@ export type DesignAction =
           agentUuid: string;
       }
     | { type: 'sendFailed'; bubbleId: string }
+    /** A bubble on its way out frees the page for the next one. */
+    | { type: 'handOff'; bubbleId: string }
+    /** A bubble that was not sent after all takes marks again, if the page is free. */
+    | { type: 'handBack'; bubbleId: string }
     | { type: 'discard'; bubbleId: string }
     | { type: 'close'; bubbleId: string };
 
@@ -150,8 +154,8 @@ export const visibleBubbles = (
         (b) =>
             b.status !== 'thread' ||
             b.homeTabUuid === tabUuid ||
-            // A reply being collected follows the user, like an unsent bubble.
-            (activeBubbleId(s) === b.id && b.collection !== null),
+            // A reply being collected or sent follows the user, like an unsent bubble.
+            b.collection !== null,
     );
 
 /** What stays on the page when Design Mode is left: sent conversations, without unsent work. */
@@ -342,8 +346,8 @@ export const designSessionReducer = (
                 ? { ...next, active: PAGE }
                 : next;
         }
-        case 'sendStarted':
-            return updateBubble(s, action.bubbleId, (b) =>
+        case 'sendStarted': {
+            const next = updateBubble(s, action.bubbleId, (b) =>
                 b.collection &&
                 (b.status === 'collecting' || b.status === 'thread')
                     ? {
@@ -357,6 +361,23 @@ export const designSessionReducer = (
                       }
                     : b,
             );
+            // The page takes the next marks while this one is sent.
+            return next !== s && activeBubbleId(s) === action.bubbleId
+                ? { ...next, active: PAGE }
+                : next;
+        }
+        case 'handOff':
+            return activeBubbleId(s) === action.bubbleId
+                ? { ...s, active: PAGE }
+                : s;
+        case 'handBack': {
+            const bubble = s.bubbles.find((b) => b.id === action.bubbleId);
+            return s.active.kind === 'page' &&
+                bubble?.status === 'collecting' &&
+                bubble.collection
+                ? { ...s, active: { kind: 'bubble', bubbleId: bubble.id } }
+                : s;
+        }
         case 'minimise': {
             const bubble = s.bubbles.find((b) => b.id === action.bubbleId);
             if (!bubble || !canMinimise(bubble)) return s;
@@ -397,8 +418,8 @@ export const designSessionReducer = (
                 ? { ...next, active: PAGE }
                 : next;
         }
-        case 'sendFailed':
-            return updateBubble(s, action.bubbleId, (b) =>
+        case 'sendFailed': {
+            const next = updateBubble(s, action.bubbleId, (b) =>
                 b.status === 'picking-agent' || b.status === 'sending'
                     ? b.threadId
                         ? { ...b, status: 'thread', sendFailed: true }
@@ -406,6 +427,11 @@ export const designSessionReducer = (
                           { ...b, ...OPEN, status: 'collecting' }
                     : b,
             );
+            return designSessionReducer(next, {
+                type: 'handBack',
+                bubbleId: action.bubbleId,
+            });
+        }
         case 'discard': {
             const bubble = s.bubbles.find((b) => b.id === action.bubbleId);
             if (!bubble) return s;

@@ -382,7 +382,7 @@ describe('designSessionReducer', () => {
         expect(s.bubbles.find((b) => b.id === 'a')?.status).toBe('queued');
     });
 
-    it('canStartHold is false while a bubble is sending', () => {
+    it('the page takes the next hold while a bubble is sending', () => {
         let s = run(empty, ...hold('a', 0));
         expect(canStartHold(s)).toBe(true);
         s = run(s, {
@@ -391,7 +391,30 @@ describe('designSessionReducer', () => {
             needsPicker: false,
             minimise: false,
         });
-        expect(canStartHold(s)).toBe(false);
+        expect(s.active).toEqual({ kind: 'page' });
+        expect(canStartHold(s)).toBe(true);
+        // Marks made now open a second bubble.
+        s = run(s, ...hold('b', 0));
+        expect(s.bubbles.map((b) => [b.id, b.status])).toEqual([
+            ['a', 'sending'],
+            ['b', 'collecting'],
+        ]);
+    });
+
+    it('a send that fails takes marks again only if the page is still free', () => {
+        const sending = run(empty, ...hold('a', 0), {
+            type: 'sendStarted',
+            bubbleId: 'a',
+            needsPicker: false,
+            minimise: false,
+        });
+        expect(
+            run(sending, { type: 'sendFailed', bubbleId: 'a' }).active,
+        ).toEqual({ kind: 'bubble', bubbleId: 'a' });
+        expect(
+            run(sending, ...hold('b', 0), { type: 'sendFailed', bubbleId: 'a' })
+                .active,
+        ).toEqual({ kind: 'bubble', bubbleId: 'b' });
     });
 
     it('inputChanged turns a mic bubble into a text box, keeping its marks', () => {

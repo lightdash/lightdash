@@ -8,6 +8,7 @@ import {
     type DesignPayload,
     type DesignSendResult,
     type DesignSurface,
+    type TranscriptWord,
 } from './types';
 import { useDesignMode } from './useDesignMode';
 
@@ -283,6 +284,42 @@ describe('useDesignMode', () => {
         );
     });
 
+    it('a new hold right after a spoken release marks a second bubble, and both send', async () => {
+        const audio = () => ({
+            audio: new Blob(['audio'], { type: 'audio/webm' }),
+            startedAtMs: performance.now(),
+        });
+        let transcribed: (words: TranscriptWord[]) => void = () => {};
+        transcribe.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    transcribed = resolve;
+                }),
+        );
+        transcribe.mockResolvedValue([
+            { startMs: 0, endMs: 300, text: 'second' },
+        ]);
+        stopVoice.mockImplementation(async () => audio());
+        await turnOn(true);
+        await drawMark();
+        await waitFor(() => expect(transcribe).toHaveBeenCalledTimes(1));
+        // The first is still being transcribed: the page is already free.
+        expect(onSend).not.toHaveBeenCalled();
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles).toHaveLength(2));
+        await act(async () => {
+            transcribed([{ startMs: 0, endMs: 300, text: 'first' }]);
+        });
+        await waitFor(() => expect(onSend).toHaveBeenCalledTimes(2));
+        // The second did not wait for the first, so it went out first.
+        const [second, first] = onSend.mock.calls.map(([sent]) => sent);
+        expect(first.bubbleId).not.toBe(second.bubbleId);
+        expect(first.summary).toContain('first');
+        expect(second.summary).toContain('second');
+        expect(first.marks).toHaveLength(1);
+        expect(second.marks).toHaveLength(1);
+    });
+
     it('with the mic on, releasing with no marks drops the recording and opens nothing', async () => {
         stopVoice.mockResolvedValue({
             audio: new Blob(['audio'], { type: 'audio/webm' }),
@@ -403,7 +440,7 @@ describe('useDesignMode', () => {
         expect(transcribe).not.toHaveBeenCalled();
     });
 
-    it('while a spoken reply is on its way out, neither the Mic button nor the key starts a recording', async () => {
+    it('while a spoken reply is on its way out, its Mic button does nothing and the key marks a new bubble', async () => {
         await turnOn();
         const id = await sendFirst();
         await act(async () => {
@@ -423,8 +460,9 @@ describe('useDesignMode', () => {
         await act(async () => {
             api.arm(id, 'mic');
         });
+        expect(api.session.active).toEqual({ kind: 'page' });
         await keyDown({ key: 'Alt', altKey: true });
-        expect(api.holding).toBe(false);
+        expect(api.holding).toBe(true);
         await keyUp({ key: 'Alt' });
         await act(async () => {
             stopped(null);
