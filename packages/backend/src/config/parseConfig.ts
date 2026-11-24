@@ -1767,6 +1767,7 @@ export type LightdashConfig = {
     maxPayloadSize: string;
     httpServer: {
         keepAliveTimeoutMs: number;
+        responseCompressionEnabled: boolean;
     };
     query: {
         maxLimit: number;
@@ -3834,6 +3835,8 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'HTTP_KEEP_ALIVE_TIMEOUT_MS',
                 ) ?? 620_000,
+            responseCompressionEnabled:
+                process.env.HTTP_RESPONSE_COMPRESSION_ENABLED !== 'false',
         },
         query: {
             underlyingDataMaxDimensions:

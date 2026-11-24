@@ -119,6 +119,7 @@ import {
 import { BaseController } from '../../controllers/baseController';
 import { type ApiGetAsyncQueryResultsResponse } from '../../controllers/v2/QueryController';
 import Logger from '../../logging/logger';
+import { compressResultsPage } from '../../middlewares/responseCompression/responseCompression';
 import { parseLightdashClient } from '../../utils/clientHeader';
 import { type AiAgentCoderService } from '../services/AiAgentCoderService/AiAgentCoderService';
 import { type AiAgentMemoryService } from '../services/AiAgentMemoryService/AiAgentMemoryService';
@@ -1950,6 +1951,7 @@ export class AiAgentController extends BaseController {
      * @summary Get AI agent node citation query results
      */
     @Middlewares([
+        compressResultsPage,
         allowApiKeyAuthentication,
         isAuthenticated,
         requireOAuthScopeOperation(
@@ -2215,6 +2217,7 @@ export class AiAgentController extends BaseController {
     }
 
     @Middlewares([
+        compressResultsPage,
         allowApiKeyAuthentication,
         isAuthenticated,
         requireOAuthScopeOperation('AiAgentController.getArtifactQueryResults'),
