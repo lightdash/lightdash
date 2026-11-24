@@ -145,9 +145,12 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
                           'readSemanticModel',
                           'proposeSemanticLayerChange',
                       ]),
-                      ...onlyIf(input.semanticStudioKeepsContext, [
-                          'draftProjectContext',
-                      ]),
+                      // Agents read published context only where project context is on.
+                      ...onlyIf(
+                          input.semanticStudioKeepsContext &&
+                              input.projectContextEnabled,
+                          ['draftProjectContext'],
+                      ),
                       // A dbt draft compiles after the turn, so a query there could read what is published and pass for the draft.
                       ...onlyIf(
                           input.semanticStudioDrafts && input.enableDataAccess,

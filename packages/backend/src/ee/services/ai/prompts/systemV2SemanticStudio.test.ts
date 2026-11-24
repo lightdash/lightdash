@@ -89,6 +89,14 @@ describe('Semantic Studio prompt names only what its loadout offers', () => {
             'a draft project with no repository',
             { semanticStudioKeepsContext: true },
         ],
+        [
+            'a draft project with no repository and project context off',
+            {
+                semanticStudioKeepsContext: true,
+                projectContextEnabled: false,
+                aiAgentMemoryEnabled: true,
+            },
+        ],
         ['a draft project without data access', { enableDataAccess: false }],
         ['a draft project without SQL', { canRunSql: false }],
         ['the dbt builder', { semanticStudioDrafts: false }],
@@ -161,6 +169,28 @@ describe('getSemanticStudioSystemPrompt', () => {
                 studio: { ...draft, canQueryDraft: true },
             }),
         ).toContain('runMetricQuery');
+    });
+
+    it('leaves out drafting project context when project context is off', () => {
+        const prompt = (projectContextEnabled: boolean) => {
+            const loadout = resolveLoadout({
+                ...studioInput,
+                semanticStudioKeepsContext: true,
+                projectContextEnabled,
+            });
+            return getSemanticStudioSystemPrompt({
+                ...base,
+                studio: getSemanticStudioTurn(loadout, {
+                    drafts: true,
+                    projectMap: null,
+                    siteUrl: '',
+                    repoFsRoot: null,
+                    repoFsSupportsCodeSearch: false,
+                }),
+            });
+        };
+        expect(prompt(true)).toContain('add it with draftProjectContext');
+        expect(prompt(false)).not.toContain('draftProjectContext');
     });
 
     it('explains drafting project context only when the thread can', () => {

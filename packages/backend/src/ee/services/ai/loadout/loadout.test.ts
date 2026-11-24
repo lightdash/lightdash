@@ -401,6 +401,21 @@ describe('resolveLoadout', () => {
         expect(resolveLoadout(fullInput).toolNames.has('verify')).toBe(false);
     });
 
+    it('offers drafting project context only where project context is on', () => {
+        expect(
+            resolveLoadout(inputs.semantic_studio).toolNames.has(
+                'draftProjectContext',
+            ),
+        ).toBe(true);
+        const off = resolveLoadout({
+            ...inputs.semantic_studio,
+            projectContextEnabled: false,
+            aiAgentMemoryEnabled: true,
+        });
+        expect(off.toolNames.has('draftProjectContext')).toBe(false);
+        expect(getStudioAbilities(off).canDraftContext).toBe(false);
+    });
+
     test.each<[string, LoadoutInput, LoadoutBase]>([
         ['classic by default', fullInput, 'classic'],
         ['composer with the composer flag', inputs.composer, 'composer'],
