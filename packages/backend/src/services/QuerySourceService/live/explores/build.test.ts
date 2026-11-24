@@ -12,7 +12,9 @@ import {
     type ItemsMap,
     type MetricQuery,
 } from '@lightdash/common';
+import { HYDRA_USERS_EXPLORE } from '../integrations/hydra/explores';
 import { compileSearchConsoleQuery } from '../integrations/searchConsole/compile';
+import { SEARCH_CONSOLE_PERFORMANCE_EXPLORE } from '../integrations/searchConsole/explores';
 import { SEARCH_CONSOLE_MAX_QUERY_ROWS } from '../integrations/searchConsole/run';
 import { type LiveScanResult } from '../types';
 import {
@@ -238,7 +240,16 @@ describe('switching explores off and editing them', () => {
         ).toEqual([]);
     });
 
-    it('applies label and description overrides, and adds the explore hint last', () => {
+    it('adds the built-in explore hint after the source hints', () => {
+        const [, users] = hydra({});
+        expect(users.aiHint).toEqual([
+            'Hydra target',
+            'Source hint',
+            HYDRA_USERS_EXPLORE.aiHint,
+        ]);
+    });
+
+    it("applies label and description overrides, and replaces the built-in hint with the admin's", () => {
         const [, users] = hydra({
             users: {
                 label: 'Customers',
@@ -654,6 +665,22 @@ describe('definition hashes', () => {
         );
     });
 
+    it('changes the hash when a built-in explore hint changes', () => {
+        const hashOf = () => {
+            getLiveDefinitionHashes.cache.clear?.();
+            return getLiveDefinitionHashes(ApiConnectorType.HYDRA).users;
+        };
+        const { aiHint } = HYDRA_USERS_EXPLORE;
+        const before = hashOf();
+        try {
+            HYDRA_USERS_EXPLORE.aiHint = `${aiHint} Count seats per workspace.`;
+            expect(hashOf()).not.toBe(before);
+        } finally {
+            HYDRA_USERS_EXPLORE.aiHint = aiHint;
+            getLiveDefinitionHashes.cache.clear?.();
+        }
+    });
+
     it('stores the same hash when a field edit changes the explore', () => {
         const apiSource = {
             connector: ApiConnectorType.SEARCH_CONSOLE,
@@ -768,13 +795,18 @@ describe('explore AI hints', () => {
         expect(hinted.aiHint).toEqual([
             'Search Console site https://example.com/',
             'EU store',
+            SEARCH_CONSOLE_PERFORMANCE_EXPLORE.aiHint,
         ]);
         expect(hinted.apiSource?.definitionHash).toBe(
             plain.apiSource?.definitionHash,
         );
         // A source hint must not leak onto the fields
         Object.values(hinted.tables.site_performance.dimensions).forEach(
-            (dimension) => expect(dimension.aiHint).toBeUndefined(),
+            (dimension) =>
+                expect(dimension.aiHint).toBe(
+                    plain.tables.site_performance.dimensions[dimension.name]
+                        .aiHint,
+                ),
         );
     });
 });

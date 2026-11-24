@@ -15,6 +15,7 @@ import {
     type LiveSourceFieldEdits,
     type LiveSourceFieldState,
 } from '../../../services/QuerySourceService/live/explores/fields';
+import { POSTHOG_EVENTS_EXPLORE } from '../../../services/QuerySourceService/live/integrations/postHog/explores';
 import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
@@ -1287,6 +1288,7 @@ describe('ExternalConnectionService live source explores', () => {
             expect(explore.aiHint).toEqual([
                 'PostHog project 303731, EU region',
                 'EU project',
+                POSTHOG_EVENTS_EXPLORE.aiHint,
             ]);
         });
 
@@ -1516,7 +1518,7 @@ describe('ExternalConnectionService live source explores', () => {
                         inUse: true,
                         canEditFields: true,
                         usedByChartCount: 5,
-                        aiHint: null,
+                        aiHint: POSTHOG_EVENTS_EXPLORE.aiHint,
                         lastEdit: null,
                     }),
                 ]);
@@ -1606,10 +1608,11 @@ describe('ExternalConnectionService live source explores', () => {
                         },
                     ],
                 );
+                // Clearing the admin's hint brings back the built-in one
                 expect(cleared.explores[0]).toMatchObject({
                     label: 'Events',
                     description: 'Every tracked event',
-                    aiHint: null,
+                    aiHint: POSTHOG_EVENTS_EXPLORE.aiHint,
                 });
             });
 
@@ -2149,6 +2152,7 @@ describe('ExternalConnectionService live source explores', () => {
         expect(explore.aiHint).toEqual([
             expect.stringContaining('Default project'),
             'EU project',
+            POSTHOG_EVENTS_EXPLORE.aiHint,
         ]);
     });
 

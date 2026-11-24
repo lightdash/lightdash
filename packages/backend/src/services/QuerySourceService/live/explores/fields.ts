@@ -294,7 +294,7 @@ export const listLiveSourceFields = ({
             label: edit?.label ?? field.definition.label,
             description:
                 edit?.description ?? field.definition.description ?? '',
-            aiHint: edit?.aiHint ?? null,
+            aiHint: edit?.aiHint ?? field.definition.aiHint ?? null,
             group: edit?.group ?? null,
             isBuiltIn: field.isBuiltIn,
             isInternal: field.isInternal,
