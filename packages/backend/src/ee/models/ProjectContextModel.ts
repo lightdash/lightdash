@@ -1,6 +1,8 @@
 import {
+    loadProjectContextFile,
     PROJECT_CONTEXT_FILE_VERSION,
     ProjectContextEntry,
+    serializeProjectContextFile,
     upsertProjectContextEntries,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -41,7 +43,7 @@ export class ProjectContextModel {
             .merge(['version', 'entries', 'updated_at']);
     }
 
-    /** Puts each entry in place of the one with its id, or adds it; one writer at a time per project, so concurrent publishes keep each other's entries. */
+    /** Puts each entry in place of the one with its id, or adds it; one writer at a time per project, so concurrent publishes keep each other's entries unless they share an id, where the last one wins. Throws a ParseError, writing nothing, when the merged file fails its schema. */
     async upsertEntries(
         projectUuid: string,
         entries: ProjectContextEntry[],
@@ -57,6 +59,7 @@ export class ProjectContextModel {
                 row ? (row.entries as ProjectContextEntry[]) : [],
                 entries,
             );
+            loadProjectContextFile(serializeProjectContextFile(merged));
             await this.replaceEntriesForProject(projectUuid, merged, trx);
             return merged;
         });

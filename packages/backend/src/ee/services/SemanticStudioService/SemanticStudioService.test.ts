@@ -11,6 +11,7 @@ import {
     MetricType,
     NotFoundError,
     ParameterError,
+    ParseError,
     ProjectType,
     SupportedDbtAdapter,
     upsertProjectContextEntries,
@@ -3540,5 +3541,55 @@ describe('project context in the draft', () => {
             ),
         ).rejects.toThrow(/Invalid lightdash.project_context.yml/);
         expect(context.drafts).toEqual([]);
+    });
+
+    it('refuses a publish whose merged context fails the schema, and keeps the draft', async () => {
+        const context = setup();
+        await context.service.draftProjectContextEntry(
+            deployer,
+            PROJECT_UUID,
+            active,
+            null,
+            null,
+        );
+        context.upsertEntries.mockRejectedValueOnce(
+            new ParseError('Invalid lightdash.project_context.yml: bad entry'),
+        );
+        await expect(
+            context.service.applyDraft(deployer, PROJECT_UUID, null),
+        ).rejects.toThrow(
+            /cannot be published: Invalid lightdash.project_context.yml: bad entry/,
+        );
+        expect(context.drafts).toHaveLength(1);
+    });
+
+    it('keeps drafted context and says why once the project keeps its models in a repository', async () => {
+        const context = setup({ dbtConnection: MODELS_IN_GITHUB });
+        await context.service.proposeDraftChange(
+            repoWriter,
+            PROJECT_UUID,
+            [draftModel(REVENUE_YAML)],
+            null,
+            null,
+        );
+        context.draftWorkspaces.set(
+            'draft-2',
+            context.draftWorkspaces.get('draft-1') ?? null,
+        );
+        context.drafts.push({
+            draftChangeUuid: 'draft-2',
+            baseVersions: null,
+            projectContextEntries: [hr],
+            promptUuid: null,
+            question: null,
+            createdAt: new Date(),
+            models: [],
+        });
+        await expect(
+            context.service.applyDraft(repoWriter, PROJECT_UUID, null),
+        ).rejects.toThrow(/now keeps it in lightdash.project_context.yml/);
+        expect(context.openPullRequest).not.toHaveBeenCalled();
+        expect(context.upsertEntries).not.toHaveBeenCalled();
+        expect(context.drafts).toHaveLength(2);
     });
 });

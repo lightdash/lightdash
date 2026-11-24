@@ -1,4 +1,5 @@
 import {
+    ParseError,
     PROJECT_CONTEXT_FILE_VERSION,
     type ProjectContextEntry,
 } from '@lightdash/common';
@@ -82,5 +83,23 @@ describe('ProjectContextModel', () => {
         expect(tracker.history.insert[0].bindings).toContain(
             JSON.stringify([kept, updated, added]),
         );
+    });
+
+    test('writes nothing when the merged document fails the project context schema', async () => {
+        tracker.on.any(/pg_advisory_xact_lock/).responseOnce([]);
+        tracker.on.select(ProjectContextDocumentTableName).responseOnce([]);
+
+        await expect(
+            model.upsertEntries(PROJECT_UUID, [
+                {
+                    id: 'empty',
+                    kind: 'definition',
+                    content: '',
+                    terms: [],
+                    objects: [],
+                },
+            ]),
+        ).rejects.toThrow(ParseError);
+        expect(tracker.history.insert).toHaveLength(0);
     });
 });

@@ -17,6 +17,7 @@ import {
     normalizeWorkspaceName,
     NotFoundError,
     ParameterError,
+    ParseError,
     parseModelDocument,
     ProjectType,
     readModelPart,
@@ -2112,11 +2113,23 @@ export class SemanticStudioService extends BaseService {
             const contextEntries = draft.changes.flatMap(
                 ({ projectContextEntries }) => projectContextEntries ?? [],
             );
-            if (model === null && !draft.repo && contextEntries.length > 0) {
-                await this.projectContextModel.upsertEntries(
-                    projectUuid,
-                    contextEntries,
-                );
+            if (model === null && contextEntries.length > 0) {
+                if (draft.repo) {
+                    throw new ParameterError(
+                        'This draft has project context, but this project now keeps it in lightdash.project_context.yml in its repository. Discard the project context change and publish again; nothing was published.',
+                    );
+                }
+                try {
+                    await this.projectContextModel.upsertEntries(
+                        projectUuid,
+                        contextEntries,
+                    );
+                } catch (error) {
+                    if (!(error instanceof ParseError)) throw error;
+                    throw new ParameterError(
+                        `The project context in this draft cannot be published: ${error.message}. Change the entry and publish again; nothing was published.`,
+                    );
+                }
             }
             // Nothing left to write: what the draft asked for is live already.
             if (!check.explores) {
