@@ -1,3 +1,10 @@
+## [3.381.1](https://github.com/lightdash/lightdash/compare/3.381.0...3.381.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* keep the credentials prompt closed after it is dismissed ([#33298](https://github.com/lightdash/lightdash/issues/33298)) ([4d6da6b](https://github.com/lightdash/lightdash/commit/4d6da6be448a455f6fd677ae616ad00f343c1d24))
+
 # [3.381.0](https://github.com/lightdash/lightdash/compare/3.380.0...3.381.0) (2026-11-24)
 
 

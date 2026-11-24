@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "3.381.0",
-  "previousVersion": "3.380.0",
-  "releaseDate": "2026-11-24T09:24:06.803Z",
+  "version": "3.381.1",
+  "previousVersion": "3.381.0",
+  "releaseDate": "2026-11-24T10:04:34.046Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -17,18 +17,9 @@
   "api": {
     "rest": {
       "checked": true,
-      "breaking": true,
-      "changes": [
-        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid} — removed the required property `results/allOf[#/components/schemas/Omit_AiArtifact.chartConfig-or-dashboardConfig_]/verifiedAt` from the response with the `200` status",
-        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid} — removed the required property `results/allOf[#/components/schemas/Omit_AiArtifact.chartConfig-or-dashboardConfig_]/verifiedByUserUuid` from the response with the `200` status",
-        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid} — removed the required property `results/allOf[#/components/schemas/Omit_AiArtifact.chartConfig-or-dashboardConfig_]/verifiedAt` from the response with the `200` status",
-        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid} — removed the required property `results/allOf[#/components/schemas/Omit_AiArtifact.chartConfig-or-dashboardConfig_]/verifiedByUserUuid` from the response with the `200` status",
-        "PATCH /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/verified — api path removed without deprecation",
-        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — removed the required property `results/allOf[subschema #2]/messages/items/anyOf[#/components/schemas/AiAgentMessageAssistant]/referencedArtifacts` from the response with the `200` status",
-        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-artifacts — api path removed without deprecation",
-        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-questions — api path removed without deprecation"
-      ],
-      "breakingCount": 8,
+      "breaking": false,
+      "changes": [],
+      "breakingCount": 0,
       "advisories": [],
       "advisoryCount": 0
     },
@@ -51,68 +42,5 @@
     "requiredStops": []
   },
   "declaredBreaks": [],
-  "declaredAdvisories": [
-    {
-      "id": "ai-agent-artifact-verified-fields-removed",
-      "reason": "Removes AI agent verified answers: AI artifact responses from GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid} and .../versions/{versionUuid} no longer carry verifiedByUserUuid and verifiedAt. They marked an answer verified for the chart verify toggle, which is removed together with verified answers. Only that toggle in the Lightdash web app read them. An old tab reads the missing fields as verified and shows a stale verified icon until refresh; clicking it already gets a 404.",
-      "requiredStop": false,
-      "impact": {
-        "kind": "no-external-callers",
-        "firstPartyOnly": "The chart verify toggle in the Lightdash web app was the only reader of verifiedByUserUuid and verifiedAt on AI artifacts. An old tab shows a stale verified icon until refresh.",
-        "covers": {
-          "rest": [
-            "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}",
-            "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}"
-          ],
-          "mcp": []
-        }
-      }
-    },
-    {
-      "id": "ai-agent-referenced-artifacts-field-removed",
-      "reason": "Removes AI agent referenced answers: assistant messages in GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} no longer carry referencedArtifacts. The field listed the verified answers a reply drew on; verified answers are removed and no new references have been recorded since retrieval stopped. Only the Lightdash web app's chat bubble read it, to append Referenced answers links, and it stops reading it in the same change. An old tab treats the missing field like null and shows no links.",
-      "requiredStop": false,
-      "impact": {
-        "kind": "no-external-callers",
-        "firstPartyOnly": "The Lightdash web app's agent chat bubble was the only reader of referencedArtifacts. An old tab handles the missing field as null and simply shows no Referenced answers links.",
-        "covers": {
-          "rest": [
-            "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}"
-          ],
-          "mcp": []
-        }
-      }
-    },
-    {
-      "id": "ai-agent-verified-answers-endpoints-removed",
-      "reason": "Removes AI agent verified answers: GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-artifacts and PATCH .../artifacts/{artifactUuid}/versions/{versionUuid}/verified are deleted. Only the Lightdash web app's agent settings Verified answers tab and chart verify toggle called them; both are removed in the same change. During a rolling update an old browser tab gets a 404 from that tab or toggle until refresh; nothing else is affected.",
-      "requiredStop": false,
-      "impact": {
-        "kind": "no-external-callers",
-        "firstPartyOnly": "The Lightdash web app's agent settings Verified answers tab and the chart verify toggle are the only callers. Old tabs see a 404 on those controls until refresh.",
-        "covers": {
-          "rest": [
-            "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-artifacts",
-            "PATCH /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/verified"
-          ],
-          "mcp": []
-        }
-      }
-    },
-    {
-      "id": "ai-agent-verified-questions-endpoint-removed",
-      "reason": "Removes AI agent verified questions: GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-questions is deleted. Only the Lightdash web app and its embedded agent UI called it, to show suggested-question chips on a new thread; the chips are removed in the same change. During a rolling update an old tab's request fails and the chips do not show until refresh. Hosts embedding the agent with an already-published SDK in native render mode keep calling it and get a non-fatal 404 in their onError on each new thread until they upgrade the SDK; iframe embeds are unaffected. Asking questions still works everywhere.",
-      "requiredStop": false,
-      "impact": {
-        "kind": "no-external-callers",
-        "firstPartyOnly": "The Lightdash new-thread page, in the app and in embedded agents, is the only caller. Old tabs show no suggested questions until refresh; native-mode SDK hosts on an older SDK version see a non-fatal 404 in onError until they upgrade.",
-        "covers": {
-          "rest": [
-            "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-questions"
-          ],
-          "mcp": []
-        }
-      }
-    }
-  ]
+  "declaredAdvisories": []
 }
