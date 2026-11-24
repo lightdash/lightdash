@@ -1,3 +1,10 @@
+## [3.384.1](https://github.com/lightdash/lightdash/compare/3.384.0...3.384.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* **scheduler:** resolve filters outside chart query results ([#32375](https://github.com/lightdash/lightdash/issues/32375)) ([b2d37b2](https://github.com/lightdash/lightdash/commit/b2d37b258b806428e089bef72f55d33c8aa22274))
+
 # [3.384.0](https://github.com/lightdash/lightdash/compare/3.383.2...3.384.0) (2026-11-24)
 
 
