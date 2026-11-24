@@ -39,7 +39,7 @@ const HINT =
     'Opens Explore over this page with your changes. Only you see them until they are merged.';
 
 /** Explore over the page with the person's changes; the app reads them only while it is open. */
-export const TryIt: FC<{
+const TryIt: FC<{
     projectUuid: string;
     models: string[];
     previewProjectUuid: string | null;

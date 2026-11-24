@@ -22,10 +22,6 @@ import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { cannotApply } from '../../../../../../features/semanticStudio/draftState';
 import { FieldChangeIcon } from '../../../../../../features/semanticStudio/KindTypeIcon';
 import {
-    MetricPreview,
-    type MetricPreviewModel,
-} from '../../../../../../features/semanticStudio/MetricPreview';
-import {
     describeModelChange,
     DRAFT_PARAM,
     DRAFT_REVIEW,
@@ -281,36 +277,6 @@ export const TurnSummaryCard: FC<{
         return modelUrl(model);
     };
     const issues = listTurnIssues(proposals);
-    // The latest clean draft shows its metrics working, so trying it needs no Explore.
-    const previews: MetricPreviewModel[] =
-        isLatest && phase.kind === 'draft' && !phase.error
-            ? groups.flatMap(
-                  ({
-                      model,
-                      change,
-                      removed,
-                      fields,
-                  }): MetricPreviewModel[] => {
-                      if (removed) return [];
-                      if (change === 'new') {
-                          return [{ model, isNew: true, metrics: null }];
-                      }
-                      const metrics = fields
-                          .filter(
-                              (field) =>
-                                  field.kind === 'metric' &&
-                                  field.change !== 'removed',
-                          )
-                          .map(({ name, change: kind }) => ({
-                              name,
-                              isNew: kind === 'new',
-                          }));
-                      return metrics.length > 0
-                          ? [{ model, isNew: false, metrics }]
-                          : [];
-                  },
-              )
-            : [];
     const isDraft = phase.kind === 'draft';
     const conflicts = (draft?.models ?? []).filter(
         ({ reconciliation }) => reconciliation?.state === 'conflict',
@@ -538,17 +504,6 @@ export const TurnSummaryCard: FC<{
             safety={safety}
             isLatest={isLatest}
             actions={actions}
-            preview={
-                previews.length > 0 && draft ? (
-                    <MetricPreview
-                        projectUuid={projectUuid}
-                        models={previews}
-                        cacheKey={draft.changes
-                            .map(({ draftChangeUuid }) => draftChangeUuid)
-                            .join()}
-                    />
-                ) : null
-            }
             isGone={phase.kind === 'gone'}
             isSettled={
                 phase.kind === 'published' ||

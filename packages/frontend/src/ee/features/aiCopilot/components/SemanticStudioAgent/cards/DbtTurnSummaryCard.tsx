@@ -95,7 +95,6 @@ const DraftTurnCard: FC<{
     projectUuid: string;
     models: string[];
     previewProjectUuid: string | null;
-    cacheKey: string;
     note: string | null;
     safety: Safety | null;
     files: DiffFile[];
@@ -106,7 +105,6 @@ const DraftTurnCard: FC<{
     projectUuid,
     models,
     previewProjectUuid,
-    cacheKey,
     note,
     safety,
     files,
@@ -157,7 +155,6 @@ const DraftTurnCard: FC<{
                         projectUuid={projectUuid}
                         model={model}
                         previewProjectUuid={previewProjectUuid}
-                        cacheKey={cacheKey}
                         isCompiled={safety?.state === 'done'}
                     />
                 ))}
@@ -455,7 +452,6 @@ export const DbtTurnSummaryCard: FC<{
                         : changedModels
                 }
                 previewProjectUuid={current?.previewProjectUuid ?? null}
-                cacheKey={commitSha ?? prUrl}
                 note={note}
                 safety={getSafety(latestCompile)}
                 files={files}
