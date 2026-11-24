@@ -987,7 +987,7 @@ export const getInstallationToken = async (
     installationId: string,
 ): Promise<string> => (await getInstallationAccessToken(installationId)).token;
 
-// Installation tokens last about an hour; reuse one until 5 minutes before it expires.
+// Installation tokens last about an hour
 const INSTALLATION_TOKEN_REUSE_MARGIN_MS = 5 * 60 * 1000;
 const installationTokens = new Map<
     string,

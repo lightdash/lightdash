@@ -810,18 +810,23 @@ type McpServerConnectionArgs = {
     bearerTokenProvider?: AiAgentMcpServer['bearerTokenProvider'];
 };
 
+const hasBearerCredential = (
+    mcpServer: Pick<
+        McpServerConnectionArgs,
+        'resolvedCredential' | 'bearerTokenProvider'
+    >,
+): boolean =>
+    !!mcpServer.bearerTokenProvider ||
+    (mcpServer.resolvedCredential?.type === 'bearer' &&
+        !!mcpServer.resolvedCredential.bearerToken);
+
 const getBearerToken = async (
     mcpServer: McpServerConnectionArgs,
 ): Promise<string | undefined> => {
     if (mcpServer.authType === 'bearer' && mcpServer.bearerTokenProvider) {
         return mcpServer.bearerTokenProvider();
     }
-    if (
-        mcpServer.authType === 'bearer' &&
-        (!mcpServer.resolvedCredential ||
-            mcpServer.resolvedCredential.type !== 'bearer' ||
-            !mcpServer.resolvedCredential.bearerToken)
-    ) {
+    if (mcpServer.authType === 'bearer' && !hasBearerCredential(mcpServer)) {
         throw new Error(
             `MCP server "${mcpServer.name}" is missing bearer credentials`,
         );
@@ -879,13 +884,7 @@ const getUnavailableMcpStatus = (
     mcpServer: AiAgentMcpServer,
     error: Error,
 ): AiMcpServerConnectionStatus => {
-    if (
-        mcpServer.authType === 'bearer' &&
-        !mcpServer.bearerTokenProvider &&
-        (!mcpServer.resolvedCredential ||
-            mcpServer.resolvedCredential.type !== 'bearer' ||
-            !mcpServer.resolvedCredential.bearerToken)
-    ) {
+    if (mcpServer.authType === 'bearer' && !hasBearerCredential(mcpServer)) {
         return 'not_connected';
     }
 
@@ -1288,11 +1287,7 @@ const hasRuntimeCredential = (mcpServer: AiAgentMcpServer): boolean => {
         case 'none':
             return true;
         case 'bearer':
-            return (
-                !!mcpServer.bearerTokenProvider ||
-                (mcpServer.resolvedCredential?.type === 'bearer' &&
-                    !!mcpServer.resolvedCredential.bearerToken)
-            );
+            return hasBearerCredential(mcpServer);
         case 'oauth': {
             const tokens =
                 mcpServer.resolvedCredential?.type === 'oauth'
