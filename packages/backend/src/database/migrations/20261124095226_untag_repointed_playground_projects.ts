@@ -21,7 +21,5 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(): Promise<void> {
-    throw new Error(
-        'irreversible: which projects carried the sample-data tag is lost',
-    );
+    throw new Error('irreversible: the cleared sample-data tags are lost');
 }
