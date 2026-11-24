@@ -246,7 +246,6 @@ import {
     type ToolGenerateDataAppTerminalResult,
     type ToolRunQueryArgsTransformed,
     type UUID,
-    type VerifiedContentListItem,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -12016,31 +12015,6 @@ export class AiAgentService extends BaseService {
             ...artifact.chartConfig,
             vizConfig: parsed.vizConfig,
         });
-    }
-
-    async getVerifiedSavedArtifactContent(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<VerifiedContentListItem[]> {
-        const project = await this.projectModel.getSummary(projectUuid);
-
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('ContentVerification', {
-                    organizationUuid: project.organizationUuid,
-                    projectUuid,
-                    metadata: { projectUuid },
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'You do not have permission to view verified content',
-            );
-        }
-
-        return this.aiAgentModel.getVerifiedSavedArtifactContent(projectUuid);
     }
 
     /**

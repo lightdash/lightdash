@@ -1282,8 +1282,6 @@ export type AiArtifact = {
     chartConfig: AiChartArtifactConfig | null;
     dashboardConfig: ToolDashboardV2Args | null;
     versionCreatedAt: Date;
-    verifiedByUserUuid: string | null;
-    verifiedAt: Date | null;
 };
 
 export const isAiSqlChartArtifactConfig = (
@@ -1357,27 +1355,6 @@ export type ApiAiAgentVisualizeSlackSendResponse = {
         permalink: string | null;
     };
 };
-
-export type AiAgentVerifiedArtifact = {
-    artifactUuid: string;
-    versionUuid: string;
-    artifactType: 'chart' | 'dashboard';
-    title: string | null;
-    description: string | null;
-    verifiedAt: Date;
-    verifiedBy: {
-        userUuid: string;
-        firstName: string;
-        lastName: string;
-    };
-    referenceCount: number;
-    threadUuid: string;
-    promptUuid: string | null;
-};
-
-export type ApiAiAgentVerifiedArtifactsResponse = ApiSuccess<
-    KnexPaginatedData<AiAgentVerifiedArtifact[]>
->;
 
 export type AiAgentEvaluationPrompt = {
     evalPromptUuid: string;

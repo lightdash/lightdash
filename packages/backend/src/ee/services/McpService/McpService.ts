@@ -5435,27 +5435,7 @@ export class McpService extends BaseService {
                         user,
                         projectUuid,
                     );
-                // Pre-bridge AI-verified artifacts only exist in ai_artifact_versions
-                const artifactVerifiedContent =
-                    await this.aiAgentService.getVerifiedSavedArtifactContent(
-                        user,
-                        projectUuid,
-                    );
-                const verifiedContentKeys = new Set(
-                    verifiedContent.map(
-                        (item) => `${item.contentType}:${item.contentUuid}`,
-                    ),
-                );
-                const mergedVerifiedContent = [
-                    ...verifiedContent,
-                    ...artifactVerifiedContent.filter(
-                        (item) =>
-                            !verifiedContentKeys.has(
-                                `${item.contentType}:${item.contentUuid}`,
-                            ),
-                    ),
-                ];
-                const scopedVerifiedContent = mergedVerifiedContent.filter(
+                const scopedVerifiedContent = verifiedContent.filter(
                     ({ spaceUuid }) =>
                         McpService.hasAgentSpaceAccess(
                             effectiveScope.spaceAccess,
