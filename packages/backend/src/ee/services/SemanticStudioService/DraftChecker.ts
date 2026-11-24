@@ -499,7 +499,6 @@ export class DraftChecker {
         try {
             // With no field to plan, the tables and joins still are.
             if (dimensions.length === 0 && metrics.length === 0) {
-                if (metricViews.size > 0) return null;
                 await this.projectService.runSqlQuery(
                     user,
                     projectUuid,
