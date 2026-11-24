@@ -47,6 +47,16 @@ export const toolProposeSemanticLayerChangeArgsSchema = z.object({
                     .describe(
                         'YAML mapping of what to add or change on this model, without `name` or `type`; null when the entry only removes.',
                     ),
+                fromMetricView: z
+                    .object({
+                        table: z.string(),
+                        schema: z.string().nullable(),
+                        database: z.string().nullable(),
+                    })
+                    .nullable()
+                    .describe(
+                        'A metric view, named as describeWarehouseTable takes it, to import whole: the model gets every dimension and measure with the labels, descriptions, synonyms and definitions the warehouse holds, so `yaml` must be null. On a model that already exists it fills in what is missing and updates the rest. Null otherwise.',
+                    ),
                 remove: z
                     .array(
                         z

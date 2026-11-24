@@ -3,12 +3,16 @@ import {
     draftProjectContextToolDefinition,
     endsTurnOnCard,
     listChangesToolDefinition,
+    METRIC_VIEW_TABLE_TYPE,
+    ParameterError,
     proposeSemanticLayerChangeToolDefinition,
     readSemanticModelToolDefinition,
+    type SemanticLayerDraftModelInput,
     type SemanticLayerProposal,
     type SemanticLayerProposalItemResult,
     type StudioChangeSummary,
     type ToolDraftProjectContextOutput,
+    type ToolProposeSemanticLayerChangeArgs,
     type ToolProposeSemanticLayerChangeOutput,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -16,7 +20,9 @@ import {
     findMetricsToRun,
     findNewModelAdvice,
 } from '../../SemanticStudioService/draftLint';
+import { buildMetricViewModelYaml } from '../../SemanticStudioService/metricViewModel';
 import type {
+    DescribeWarehouseTableFn,
     DraftProjectContextFn,
     ProposeSemanticLayerChangeFn,
     ReadSemanticModelFn,
@@ -60,11 +66,54 @@ const renderProposedModel = (
 /** A model can escape the quotes inside a string it writes; the card shows text, so they are plain again. */
 const unescapeQuotes = (text: string): string => text.replaceAll('\\"', '"');
 
+type ProposedModel = ToolProposeSemanticLayerChangeArgs['models'][number];
+
+/** Turns an entry that imports a metric view into the fragment built from the warehouse's description of it. */
+const resolveMetricViewImport = async (
+    { fromMetricView, ...model }: ProposedModel,
+    describeWarehouseTable: DescribeWarehouseTableFn,
+    readSemanticModel: ReadSemanticModelFn,
+): Promise<SemanticLayerDraftModelInput> => {
+    if (fromMetricView === null) return model;
+    if (model.yaml !== null) {
+        throw new ParameterError(
+            `${model.name}: give either yaml or fromMetricView, not both. Import the metric view first, then propose changes to it.`,
+        );
+    }
+    const [described, existing] = await Promise.all([
+        describeWarehouseTable(fromMetricView),
+        readSemanticModel(model.name),
+    ]);
+    if (described.metadata?.tableType !== METRIC_VIEW_TABLE_TYPE) {
+        throw new ParameterError(
+            `${fromMetricView.table} is not a metric view, so write its model as yaml from describeWarehouseTable.`,
+        );
+    }
+    return {
+        ...model,
+        yaml: buildMetricViewModelYaml({
+            sqlFrom: [
+                described.resolvedDatabase,
+                described.resolvedSchema,
+                fromMetricView.table,
+            ]
+                .filter((part) => part !== null)
+                .join('.'),
+            metadata: described.metadata,
+            existingModelYaml: existing.content,
+        }),
+    };
+};
+
 export const getProposeSemanticLayerChange = ({
     proposeSemanticLayerChange,
+    describeWarehouseTable,
+    readSemanticModel,
     canRunMetrics,
 }: {
     proposeSemanticLayerChange: ProposeSemanticLayerChangeFn;
+    describeWarehouseTable: DescribeWarehouseTableFn;
+    readSemanticModel: ReadSemanticModelFn;
     /** Whether the agent can run a metric on the draft, so a changed one is checked on real rows before the turn ends. */
     canRunMetrics: boolean;
 }) =>
@@ -73,7 +122,18 @@ export const getProposeSemanticLayerChange = ({
         execute: async ({ models, changeName, note, options }) => {
             try {
                 const { results, diffs, draftChangeUuid, startedChange } =
-                    await proposeSemanticLayerChange(models, changeName);
+                    await proposeSemanticLayerChange(
+                        await Promise.all(
+                            models.map((model) =>
+                                resolveMetricViewImport(
+                                    model,
+                                    describeWarehouseTable,
+                                    readSemanticModel,
+                                ),
+                            ),
+                        ),
+                        changeName,
+                    );
                 const advised = results.map((result) => {
                     const created = diffs.find(
                         ({ model, contentBefore }) =>

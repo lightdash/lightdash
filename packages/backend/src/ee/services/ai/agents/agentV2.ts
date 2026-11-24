@@ -2248,6 +2248,8 @@ export const getAgentTools = (
             getProposeSemanticLayerChange({
                 proposeSemanticLayerChange:
                     dependencies.proposeSemanticLayerChange,
+                describeWarehouseTable: dependencies.describeWarehouseTable,
+                readSemanticModel: dependencies.readSemanticModel,
                 canRunMetrics: getStudioAbilities(loadout).canRunMetrics,
             }),
         listChanges: () => getListChanges(dependencies.listChanges),
