@@ -231,7 +231,6 @@ const runAsk = async (prompt: string, canRunSql: boolean) => {
                 drafts: false,
                 hasRepository: true,
                 projectMap: null,
-                siteUrl: '',
                 repoFsRoot: '.',
                 repoFsSupportsCodeSearch: true,
             }),
