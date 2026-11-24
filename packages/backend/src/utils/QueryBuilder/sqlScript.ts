@@ -72,10 +72,7 @@ const isHoistableStatement = (statement: string): boolean =>
     );
 
 /** Metadata statements return a result set but can't take a LIMIT or be wrapped. */
-const METADATA_STATEMENT_PATTERN = /^(describe|desc|show|explain)\b/i;
-
-export const isMetadataStatement = (sql: string): boolean =>
-    METADATA_STATEMENT_PATTERN.test(sql.slice(skipLeadingComments(sql)));
+const METADATA_STATEMENT_PATTERN = /^(describe|desc|show)\b/i;
 
 const attachCommentOnlyStatements = (statements: string[]): string[] => {
     const grouped = statements.reduce<{
@@ -152,6 +149,16 @@ export const splitSqlStatements = (sql: string): string[] => {
     }
     pushStatement(sql.length);
     return statements;
+};
+
+export const isMetadataStatement = (sql: string): boolean => {
+    const statements = attachCommentOnlyStatements(splitSqlStatements(sql));
+    return (
+        statements.length === 1 &&
+        METADATA_STATEMENT_PATTERN.test(
+            statements[0].slice(skipLeadingComments(statements[0])),
+        )
+    );
 };
 
 export type SqlScript =

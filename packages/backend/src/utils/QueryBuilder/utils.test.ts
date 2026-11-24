@@ -1024,10 +1024,8 @@ describe('applyLimitToSqlQuery', () => {
     it.each([
         ['DESCRIBE TABLE my_table', 'DESCRIBE TABLE my_table'],
         ['SHOW CREATE TABLE my_table;', 'SHOW CREATE TABLE my_table'],
-        [
-            '-- inspect\n  explain select * from my_table',
-            'explain select * from my_table',
-        ],
+        ["SHOW TABLES LIKE 'a;b'", "SHOW TABLES LIKE 'a;b'"],
+        ['-- inspect\n  desc my_table', 'desc my_table'],
     ])(
         'should not add a limit to metadata statement %s',
         (sqlQuery, expected) => {
@@ -1041,13 +1039,26 @@ describe('applyLimitToSqlQuery', () => {
         },
     );
 
-    it('should still limit a select after a metadata statement check', () => {
-        expect(
-            applyLimitToSqlQuery({
-                sqlQuery: 'SELECT description FROM my_table',
-                limit: 1,
-            }),
-        ).toBe('SELECT description FROM my_table LIMIT 1');
+    it.each([
+        [
+            'SELECT description FROM my_table',
+            'SELECT description FROM my_table LIMIT 1',
+        ],
+        [
+            'SHOW search_path; SELECT * FROM my_table',
+            'SHOW search_path; SELECT * FROM my_table LIMIT 1',
+        ],
+        [
+            'DESCRIBE my_table; DELETE FROM my_table',
+            'DESCRIBE my_table; DELETE FROM my_table LIMIT 1',
+        ],
+        ['EXPLAIN SELECT 1', 'EXPLAIN SELECT 1 LIMIT 1'],
+        [
+            'EXPLAIN ANALYZE DELETE FROM my_table',
+            'EXPLAIN ANALYZE DELETE FROM my_table LIMIT 1',
+        ],
+    ])('should still limit %s', (sqlQuery, expected) => {
+        expect(applyLimitToSqlQuery({ sqlQuery, limit: 1 })).toBe(expected);
     });
 });
 

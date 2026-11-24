@@ -146,7 +146,9 @@ describe('isMetadataStatement', () => {
         'desc my_table',
         'SHOW CREATE TABLE my_table',
         'show server_version;',
-        'EXPLAIN SELECT 1',
+        'DESCRIBE TABLE my_table; -- inspect',
+        "SHOW TABLES LIKE 'a;b'",
+        'SHOW COLUMNS IN "my;table"',
         '  \n  DESCRIBE TABLE my_table',
         '-- inspect the table\nDESCRIBE TABLE my_table',
         '/* inspect */ SHOW TABLES',
@@ -160,6 +162,10 @@ describe('isMetadataStatement', () => {
         'SELECT description FROM my_table',
         '-- SHOW TABLES\nSELECT 1',
         'SET x = 1; SHOW TABLES',
+        'SHOW search_path; SELECT * FROM my_table',
+        'DESCRIBE my_table; DELETE FROM my_table',
+        'EXPLAIN SELECT 1',
+        'EXPLAIN ANALYZE DELETE FROM my_table',
         'showcase_table',
     ])('ignores %s', (sql) => {
         expect(isMetadataStatement(sql)).toBe(false);
