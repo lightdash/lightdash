@@ -534,7 +534,8 @@ export const DraftDevelopmentBar: FC<{
     }, [draft, isEmpty, isPreviewing, setIsPreviewing]);
     if (isEmpty) return null;
     const reviewing = searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW;
-    const blocked = isAgentWorking || cannotApply(draft, null);
+    const isInvalid = cannotApply(draft, null);
+    const blocked = isAgentWorking || isInvalid;
     const conflicts = countConflicts(draft, null);
     // A removed model has nothing to open.
     const showsPublish = conflicts === 0 && hasPublishable;
@@ -648,8 +649,19 @@ export const DraftDevelopmentBar: FC<{
                         >
                             <Button
                                 size="xs"
-                                data-disabled={blocked || undefined}
+                                leftSection={
+                                    isAgentWorking ? (
+                                        <Loader
+                                            size={12}
+                                            color="currentColor"
+                                        />
+                                    ) : null
+                                }
+                                data-disabled={
+                                    (!isAgentWorking && isInvalid) || undefined
+                                }
                                 aria-disabled={blocked}
+                                aria-busy={isAgentWorking}
                                 onClick={() => {
                                     if (!blocked) setPublishing(true);
                                 }}

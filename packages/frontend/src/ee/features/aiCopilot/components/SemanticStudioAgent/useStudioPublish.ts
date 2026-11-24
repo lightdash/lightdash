@@ -126,5 +126,6 @@ export const useStudioPublish = (
         mergesHere,
         branch,
         step,
+        isAgentWorking,
     };
 };
