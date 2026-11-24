@@ -128,6 +128,14 @@ const runAsk = async (prompt: string, rejectWith: string | null) => {
             }),
             proposeSemanticLayerChange: getProposeSemanticLayerChange({
                 canRunMetrics: false,
+                describeWarehouseTable: async () => {
+                    throw new Error('no warehouse in this eval');
+                },
+                readSemanticModel: async (name) => ({
+                    content: readDraft().get(name) ?? null,
+                    inDraft: false,
+                    modelNames: [...readDraft().keys()],
+                }),
                 proposeSemanticLayerChange: async (models) => {
                     proposals.push(models);
                     if (rejectWith !== null) {

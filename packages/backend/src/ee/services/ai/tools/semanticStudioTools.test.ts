@@ -1,12 +1,20 @@
 import {
     describeSemanticLayerProposals,
+    DimensionType,
+    METRIC_VIEW_TABLE_TYPE,
     toolDraftProjectContextOutputSchema,
     toolProposeSemanticLayerChangeArgsSchema,
     toolProposeSemanticLayerChangeOutputSchema,
     toolReadSemanticModelOutputSchema,
+    WarehouseTableType,
+    WarehouseTypes,
     type StudioChangeSummary,
+    type WarehouseTableMetadata,
 } from '@lightdash/common';
-import type { ProposeSemanticLayerChangeFn } from '../types/aiAgentDependencies';
+import type {
+    DescribeWarehouseTableFn,
+    ProposeSemanticLayerChangeFn,
+} from '../types/aiAgentDependencies';
 import {
     getDraftProjectContext,
     getListChanges,
@@ -25,6 +33,32 @@ vi.mock('../../../../logging/logger', () => ({
     default: { error: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
+const metricView = (isMeasure: boolean): WarehouseTableMetadata => ({
+    tableType: isMeasure ? METRIC_VIEW_TABLE_TYPE : WarehouseTableType.TABLE,
+    comment: null,
+    columns: [
+        {
+            name: 'Order Count',
+            type: DimensionType.NUMBER,
+            comment: 'Orders placed.',
+            isMeasure,
+        },
+    ],
+    definition: null,
+    metricView: null,
+});
+
+let described = metricView(true);
+
+const describeWarehouseTable: DescribeWarehouseTableFn = async () => ({
+    columns: [],
+    resolvedSchema: 'analytics',
+    resolvedDatabase: 'catalog',
+    partitioning: null,
+    metadata: described,
+    warehouseType: WarehouseTypes.DATABRICKS,
+});
+
 const callOptions = {
     messages: [],
     toolCallId: 'tool-call-1',
@@ -33,17 +67,36 @@ const callOptions = {
 
 const propose = async (
     proposeSemanticLayerChange: ProposeSemanticLayerChangeFn,
-    yaml: string,
+    yaml: string | null,
     canRunMetrics = false,
+    fromMetricView: {
+        table: string;
+        schema: null;
+        database: null;
+    } | null = null,
 ) => {
     const tool = getProposeSemanticLayerChange({
         proposeSemanticLayerChange,
+        describeWarehouseTable,
+        readSemanticModel: async () => ({
+            content: null,
+            inDraft: false,
+            modelNames: [],
+        }),
         canRunMetrics,
     });
     if (!tool.execute) throw new Error('tool has no execute');
     const output = await tool.execute(
         {
-            models: [{ name: 'orders', yaml, remove: [], removeModel: false }],
+            models: [
+                {
+                    name: 'orders',
+                    yaml,
+                    fromMetricView,
+                    remove: [],
+                    removeModel: false,
+                },
+            ],
             changeName: null,
             note: 'Counts refunds too.',
             options: ['Leave refunds out'],
@@ -74,6 +127,7 @@ it('takes only a path that names a part of a model to remove', () => {
                 {
                     name: 'orders',
                     yaml: null,
+                    fromMetricView: null,
                     remove: [path],
                     removeModel: false,
                 },
@@ -104,6 +158,85 @@ it('takes only a path that names a part of a model to remove', () => {
 });
 
 describe('getProposeSemanticLayerChange', () => {
+    describe('importing a metric view', () => {
+        const table = { table: 'order_metrics', schema: null, database: null };
+        const nothingProposed = {
+            results: [],
+            diffs: [],
+            draftChangeUuid: null,
+            startedChange: null,
+        };
+
+        it('proposes the model built from the warehouse description', async () => {
+            described = metricView(true);
+            const proposed = vi.fn<ProposeSemanticLayerChangeFn>(
+                async () => nothingProposed,
+            );
+
+            await propose(proposed, null, false, table);
+
+            const [[model]] = proposed.mock.calls[0];
+            expect(model).toEqual({
+                name: 'orders',
+                yaml: [
+                    'sql_from: catalog.analytics.order_metrics',
+                    'dimensions: []',
+                    'metrics:',
+                    '  order_count:',
+                    '    type: number',
+                    '    sql: MEASURE(`Order Count`)',
+                    '    label: Order Count',
+                    '    description: Orders placed.',
+                    '',
+                ].join('\n'),
+                remove: [],
+                removeModel: false,
+            });
+        });
+
+        it('refuses a metric view that takes parameters', async () => {
+            described = {
+                ...metricView(true),
+                metricView: {
+                    source: null,
+                    filter: null,
+                    parameterized: true,
+                    dimensions: [],
+                    measures: [],
+                    joins: [],
+                },
+            };
+            const proposed = vi.fn<ProposeSemanticLayerChangeFn>(
+                async () => nothingProposed,
+            );
+
+            const output = await propose(proposed, null, false, table);
+
+            expect(proposed).not.toHaveBeenCalled();
+            expect(output.result).toContain('takes parameters');
+        });
+
+        it.each([
+            [
+                'a table that is not a metric view',
+                false,
+                null,
+                'not a metric view',
+            ],
+            ['yaml given with it', true, 'label: Orders', 'not both'],
+        ])('proposes nothing for %s', async (_, isMeasure, yaml, reason) => {
+            described = metricView(isMeasure);
+            const proposed = vi.fn<ProposeSemanticLayerChangeFn>(
+                async () => nothingProposed,
+            );
+
+            const output = await propose(proposed, yaml, false, table);
+
+            expect(proposed).not.toHaveBeenCalled();
+            expect(output.result).toContain(reason);
+        });
+    });
+
     it('reports a passing model as ready, with its diff and its place in the draft', async () => {
         const output = await propose(
             async () => ({

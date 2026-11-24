@@ -1,4 +1,4 @@
-import { assertUnreachable } from '@lightdash/common';
+import { assertUnreachable, WarehouseTypes } from '@lightdash/common';
 import { getStudioAbilities, type Loadout } from '../loadout';
 import {
     readLibraryPath,
@@ -198,6 +198,10 @@ const getDraftWarehouseSection = (
         ? `## Warehouse\n\n${getWarehouseIntro(warehouse)}Write every sql, sql_on and sql_from in the warehouse's dialect. Find tables with listWarehouseTables, and which tables hold a column, such as a key to join on, with grepWarehouseColumns. Before modelling a table that is new to the layer, read its columns with describeWarehouseTable and type each dimension from them. It also returns the warehouse's comments: a table's comment becomes the model's description and a column's comment its field's, unless the person says otherwise, so read them there rather than asking for them. Synonyms and comments in a view's or metric view's definition become ai_hint, and a metric view's definition is the source for which measures exist. Use runSql only to check real values, such as whether a key is unique.`
         : "## Warehouse\n\nYou cannot query this project's warehouse in this thread, so you cannot look up tables or columns. Ask the person for a table's name and columns before modelling it.";
 
+const METRIC_VIEWS = `## Metric views
+
+When describeWarehouseTable says a table is a metric view, model it with one proposeSemanticLayerChange entry that sets fromMetricView. That brings in every dimension and measure with the labels, descriptions and synonyms the warehouse holds, so never write those fields yourself or ask the person to paste the definition. The same entry brings a model that already exists up to date with its metric view. The warehouse only evaluates a measure through MEASURE(), so leave each imported metric's sql as it comes. When the view's comment or a date's comment states its grain, such as one row per month, follow the import with a proposal that sets that date's time_intervals to that grain and coarser.`;
+
 /** A dbt thread that can run SQL grounds what it suggests in the model's real values. */
 const getDbtWarehouseSection = (
     warehouse: SemanticStudioWarehouse,
@@ -243,6 +247,9 @@ export const getSemanticStudioSystemPrompt = ({
                         studio.canDraftContext,
                     ),
                     getDraftWarehouseSection(warehouse),
+                    ...(warehouse?.type === WarehouseTypes.DATABRICKS
+                        ? [METRIC_VIEWS]
+                        : []),
                 ];
             case 'dbt':
                 return [

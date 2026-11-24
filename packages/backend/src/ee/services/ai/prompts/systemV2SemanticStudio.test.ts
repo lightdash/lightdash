@@ -247,6 +247,22 @@ describe('getSemanticStudioSystemPrompt', () => {
         expect(noSql).not.toContain('runSql');
     });
 
+    it('explains metric views only to a draft on Databricks', () => {
+        const onDatabricks = getSemanticStudioSystemPrompt({
+            ...base,
+            warehouse: { type: 'databricks', schema: null },
+            studio: draft,
+        });
+        expect(onDatabricks).toContain('## Metric views');
+        expect(onDatabricks).toContain('fromMetricView');
+
+        const elsewhere = getSemanticStudioSystemPrompt({
+            ...base,
+            studio: draft,
+        });
+        expect(elsewhere).not.toContain('Metric views');
+    });
+
     it('includes the project layout only when one is stored', () => {
         expect(
             getSemanticStudioSystemPrompt({
