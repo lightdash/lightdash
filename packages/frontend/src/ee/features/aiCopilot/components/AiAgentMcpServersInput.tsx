@@ -743,6 +743,10 @@ export const AiAgentMcpServersInput = ({
     const [attachSelection, setAttachSelection] = useState<string[]>([]);
     const [expandedMcpServers, setExpandedMcpServers] = useState<string[]>([]);
     const [isPersistingSelection, setIsPersistingSelection] = useState(false);
+    // Optimistically listed as attached, but not saved yet: their tools 404 until then.
+    const [attachingMcpServerUuids, setAttachingMcpServerUuids] = useState<
+        string[]
+    >([]);
     const [editingTokenMcpServer, setEditingTokenMcpServer] =
         useState<AiMcpServer | null>(null);
     const [mcpServerTokenEstimates, setMcpServerTokenEstimates] = useState<
@@ -941,6 +945,9 @@ export const AiAgentMcpServersInput = ({
 
             isPersistingSelectionRef.current = true;
             setIsPersistingSelection(true);
+            setAttachingMcpServerUuids(
+                nextValue.filter((uuid) => !previousValue.includes(uuid)),
+            );
             onChange(nextValue);
 
             try {
@@ -960,6 +967,7 @@ export const AiAgentMcpServersInput = ({
             } finally {
                 isPersistingSelectionRef.current = false;
                 setIsPersistingSelection(false);
+                setAttachingMcpServerUuids([]);
             }
         },
         [agentUuid, onChange, onPersistedChange, updateAgentMcpServers],
@@ -1522,9 +1530,13 @@ export const AiAgentMcpServersInput = ({
                                     mcpServer.uuid,
                                 );
                                 const isPersistedAttachment =
-                                    persistedMcpServerUuids?.includes(
+                                    (persistedMcpServerUuids?.includes(
                                         mcpServer.uuid,
-                                    ) ?? false;
+                                    ) ??
+                                        false) &&
+                                    !attachingMcpServerUuids.includes(
+                                        mcpServer.uuid,
+                                    );
                                 const sharingPolicyLabel =
                                     getMcpOAuthSharingPolicyLabel({
                                         authType: mcpServer.authType,
