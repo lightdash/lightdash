@@ -53,6 +53,8 @@ export const withOrderedContentWrites = (tools: ToolSet): ToolSet => {
                 } finally {
                     if (dashboard.success && failed)
                         failedDashboards.add(dashboard.data.content.slug);
+                    else if (dashboard.success)
+                        failedDashboards.delete(dashboard.data.content.slug);
                 }
             };
             return [

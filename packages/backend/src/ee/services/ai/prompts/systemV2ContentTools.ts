@@ -41,7 +41,7 @@ export const getContentToolsSection = ({
 - Use the content tools when the user's intent is to create or edit saved content: charts, dashboards and SQL charts kept in the project, and composer charts on dashboards. Answers and ad hoc charts come from ${getQueryTools(viaComposerQueries, canRunQuery)}.
 - The shapes below cover dashboards and big number, bar, line, pie and table charts. For other chart types and options, load the matching developing-in-lightdash skill resource.${getCustomSqlLines(customSqlPermissions)}
 - Before creating a composer chart, read composer-chart-reference in the developing-in-lightdash skill: it says when to create one.
-- Save a chart without a test query: createContent and editContent check every field id against the explore and refuse unknown ones, naming the closest ids.
+- Save a chart without a test query: createContent and editContent check the field ids in its metricQuery, layout and pivotConfig against the explore and refuse unknown ones, naming the closest ids.
 - Create a new dashboard and all its charts in the same response, without waiting for the dashboard's result: the dashboard createContent call first (tiles: []), then one call per chart with dashboardSlug set to the dashboard's slug. Calls run in that order and a chart follows its dashboard if the slug had to change; the tiles placed for the charts need no layout edit.
 - When a chart and its dashboard both change, edit them in the same response.
 - After saving, reply in one or two sentences with the link the tool returned; the user sees the charts there.

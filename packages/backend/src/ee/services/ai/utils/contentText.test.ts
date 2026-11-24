@@ -59,6 +59,27 @@ describe('contentText', () => {
         ).toThrow(/Test operation failed/);
     });
 
+    it('adds settings to a table chart saved with a null config', () => {
+        const patch = textEditsToPatch(
+            { name: 'Orders', chartConfig: { type: 'table', config: null } },
+            [
+                {
+                    old: '  type: table\n',
+                    new: '  type: table\n  config:\n    showRowCalculation: true\n',
+                },
+            ],
+        );
+        // The save path deletes a null config before applying the patch.
+        const saved = { name: 'Orders', chartConfig: { type: 'table' } };
+        expect(JsonPatch.applyPatch(saved, patch, true).newDocument).toEqual({
+            name: 'Orders',
+            chartConfig: {
+                type: 'table',
+                config: { showRowCalculation: true },
+            },
+        });
+    });
+
     it('applies nothing when any edit misses, and points at the closest lines', () => {
         const text = serializeContent(chart);
         expect(() =>

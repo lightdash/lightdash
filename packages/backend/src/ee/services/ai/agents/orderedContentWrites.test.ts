@@ -68,6 +68,33 @@ describe('withOrderedContentWrites', () => {
         expect(other).toMatchObject({ metadata: { status: 'success' } });
     });
 
+    it('saves charts for a dashboard whose create succeeded on retry', async () => {
+        let dashboardCalls = 0;
+        const tools = withOrderedContentWrites({
+            createContent: {
+                execute: async (input: { type: string }) => {
+                    if (input.type === 'dashboard') dashboardCalls += 1;
+                    return {
+                        metadata: {
+                            status: dashboardCalls === 1 ? 'error' : 'success',
+                        },
+                    };
+                },
+            },
+        } as unknown as ToolSet);
+        const execute = tools.createContent.execute as Execute;
+        const dashboard = { type: 'dashboard', content: { slug: 'd' } };
+
+        await execute(dashboard, {});
+        await execute(dashboard, {});
+        await expect(
+            execute(
+                { type: 'chart', content: { slug: 'c1', dashboardSlug: 'd' } },
+                {},
+            ),
+        ).resolves.toMatchObject({ metadata: { status: 'success' } });
+    });
+
     it('keeps going after a failed write', async () => {
         const tools = withOrderedContentWrites({
             editContent: {

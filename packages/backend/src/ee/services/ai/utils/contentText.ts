@@ -41,6 +41,15 @@ const toJsonValue = (value: unknown): unknown => {
     return value;
 };
 
+// Saves drop a null chartConfig.config (table charts), so the view does too.
+const withoutNullChartConfig = (value: unknown): unknown => {
+    if (value === null || typeof value !== 'object' || !('config' in value))
+        return value;
+    if (value.config !== null) return value;
+    const { config: _config, ...chartConfig } = value;
+    return chartConfig;
+};
+
 /** The view of content the model reads and edits: content minus read-only keys. */
 export const toContentView = (content: object): Record<string, unknown> =>
     Object.fromEntries(
@@ -48,7 +57,14 @@ export const toContentView = (content: object): Record<string, unknown> =>
             .filter(
                 ([key, value]) => !HIDDEN_KEYS.has(key) && value !== undefined,
             )
-            .map(([key, value]) => [key, toJsonValue(value)]),
+            .map(([key, value]) => [
+                key,
+                toJsonValue(
+                    key === 'chartConfig'
+                        ? withoutNullChartConfig(value)
+                        : value,
+                ),
+            ]),
     );
 
 /** Stable YAML for a content view: the exact text edits match against. */
