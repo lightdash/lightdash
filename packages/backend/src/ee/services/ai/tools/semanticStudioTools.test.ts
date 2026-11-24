@@ -194,6 +194,52 @@ describe('getProposeSemanticLayerChange', () => {
             });
         });
 
+        it('says which technical columns came in hidden', async () => {
+            described = {
+                ...metricView(true),
+                columns: [
+                    {
+                        name: 'etl_insert_date',
+                        type: DimensionType.TIMESTAMP,
+                        comment: null,
+                        isMeasure: false,
+                    },
+                ],
+                metricView: {
+                    source: null,
+                    filter: null,
+                    parameterized: false,
+                    dimensions: [],
+                    measures: [],
+                    joins: [],
+                },
+            };
+
+            const output = await propose(
+                async () => ({
+                    ...nothingProposed,
+                    results: [
+                        {
+                            model: 'orders',
+                            status: 'ready',
+                            changes: [],
+                            refusals: [],
+                            error: null,
+                            rejection: null,
+                            notes: [],
+                        },
+                    ],
+                }),
+                null,
+                false,
+                table,
+            );
+
+            expect(output.result).toContain(
+                'orders: 1 technical column(s) came in hidden (etl_insert_date)',
+            );
+        });
+
         it.each([
             [
                 'a table that is not a metric view',

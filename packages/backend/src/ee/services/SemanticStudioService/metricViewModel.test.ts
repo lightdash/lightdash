@@ -98,7 +98,7 @@ const build = (existingModelYaml: string | null = null) =>
             sqlFrom: 'catalog.schema.subscription_metrics',
             metadata,
             existingModelYaml,
-        }),
+        }).yaml,
     );
 
 describe('buildMetricViewModelYaml', () => {
@@ -126,6 +126,7 @@ describe('buildMetricViewModelYaml', () => {
                     name: 'etl_insert_date',
                     type: 'timestamp',
                     sql: '${TABLE}.etl_insert_date',
+                    hidden: true,
                 },
             ],
             metrics: {
@@ -175,13 +176,80 @@ describe('buildMetricViewModelYaml', () => {
         ]);
     });
 
+    it('hides a technical column only when it is new to the model and not named in the definition', () => {
+        const technical = (name: string) => ({
+            name,
+            type: DimensionType.STRING,
+            comment: null,
+            isMeasure: false,
+        });
+        const { yaml, hidden } = buildMetricViewModelYaml({
+            sqlFrom: 'catalog.schema.subscription_metrics',
+            metadata: {
+                ...metadata,
+                columns: [
+                    ...metadata.columns,
+                    technical('PLAN_SR_KEY'),
+                    technical('IS_DELETED_IND'),
+                    technical('INTEGRATION_ID'),
+                    technical('updated_reason'),
+                ],
+            },
+            existingModelYaml: [
+                'dimensions:',
+                '  - name: etl_insert_date',
+                '    type: timestamp',
+                '    sql: ${TABLE}.etl_insert_date',
+            ].join('\n'),
+        });
+
+        expect(hidden).toEqual([
+            'plan_sr_key',
+            'is_deleted_ind',
+            'integration_id',
+        ]);
+        expect(
+            parse(yaml)
+                .dimensions.filter((d: { hidden?: boolean }) => d.hidden)
+                .map(({ name }: { name: string }) => name),
+        ).toEqual(hidden);
+    });
+
+    it.each([
+        ["DATE_TRUNC('MONTH', order_date)", ['MONTH', 'QUARTER', 'YEAR']],
+        ["date_trunc('quarter', order_date)", ['QUARTER', 'YEAR']],
+        ["DATE_TRUNC('WEEK', order_date)", ['WEEK']],
+        ['DATE(month_key)', undefined],
+    ])('offers only the grains %s supports', (expr, timeIntervals) => {
+        const [dimension] = parse(
+            buildMetricViewModelYaml({
+                sqlFrom: 'catalog.schema.subscription_metrics',
+                metadata: {
+                    ...metadata,
+                    metricView: metadata.metricView && {
+                        ...metadata.metricView,
+                        dimensions: [
+                            {
+                                ...metadata.metricView.dimensions[0],
+                                expr,
+                            },
+                        ],
+                    },
+                },
+                existingModelYaml: null,
+            }).yaml,
+        ).dimensions;
+
+        expect(dimension.time_intervals).toEqual(timeIntervals);
+    });
+
     it('still ports every column when the definition did not parse', () => {
         const model = parse(
             buildMetricViewModelYaml({
                 sqlFrom: 'catalog.schema.subscription_metrics',
                 metadata: { ...metadata, metricView: null },
                 existingModelYaml: null,
-            }),
+            }).yaml,
         );
 
         expect(model.dimensions).toHaveLength(3);

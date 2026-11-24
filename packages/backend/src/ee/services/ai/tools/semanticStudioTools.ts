@@ -73,8 +73,8 @@ const resolveMetricViewImport = async (
     { fromMetricView, ...model }: ProposedModel,
     describeWarehouseTable: DescribeWarehouseTableFn,
     readSemanticModel: ReadSemanticModelFn,
-): Promise<SemanticLayerDraftModelInput> => {
-    if (fromMetricView === null) return model;
+): Promise<{ model: SemanticLayerDraftModelInput; hidden: string[] }> => {
+    if (fromMetricView === null) return { model, hidden: [] };
     if (model.yaml !== null) {
         throw new ParameterError(
             `${model.name}: give either yaml or fromMetricView, not both. Import the metric view first, then propose changes to it.`,
@@ -89,20 +89,18 @@ const resolveMetricViewImport = async (
             `${fromMetricView.table} is not a metric view, so write its model as yaml from describeWarehouseTable.`,
         );
     }
-    return {
-        ...model,
-        yaml: buildMetricViewModelYaml({
-            sqlFrom: [
-                described.resolvedDatabase,
-                described.resolvedSchema,
-                fromMetricView.table,
-            ]
-                .filter((part) => part !== null)
-                .join('.'),
-            metadata: described.metadata,
-            existingModelYaml: existing.content,
-        }),
-    };
+    const { yaml, hidden } = buildMetricViewModelYaml({
+        sqlFrom: [
+            described.resolvedDatabase,
+            described.resolvedSchema,
+            fromMetricView.table,
+        ]
+            .filter((part) => part !== null)
+            .join('.'),
+        metadata: described.metadata,
+        existingModelYaml: existing.content,
+    });
+    return { model: { ...model, yaml }, hidden };
 };
 
 export const getProposeSemanticLayerChange = ({
@@ -121,19 +119,32 @@ export const getProposeSemanticLayerChange = ({
         ...proposeSemanticLayerChangeToolDefinition.for('agent'),
         execute: async ({ models, changeName, note, options }) => {
             try {
+                const resolved = await Promise.all(
+                    models.map((model) =>
+                        resolveMetricViewImport(
+                            model,
+                            describeWarehouseTable,
+                            readSemanticModel,
+                        ),
+                    ),
+                );
                 const { results, diffs, draftChangeUuid, startedChange } =
                     await proposeSemanticLayerChange(
-                        await Promise.all(
-                            models.map((model) =>
-                                resolveMetricViewImport(
-                                    model,
-                                    describeWarehouseTable,
-                                    readSemanticModel,
-                                ),
-                            ),
-                        ),
+                        resolved.map(({ model }) => model),
                         changeName,
                     );
+                const hiddenLines = resolved.flatMap(({ model, hidden }) =>
+                    hidden.length > 0 &&
+                    results.some(
+                        (result) =>
+                            result.model === model.name &&
+                            result.status === 'ready',
+                    )
+                        ? [
+                              `${model.name}: ${hidden.length} technical column(s) came in hidden (${hidden.join(', ')}). Say so in one sentence; the person can show one by removing its hidden key in the Code tab.`,
+                          ]
+                        : [],
+                );
                 const advised = results.map((result) => {
                     const created = diffs.find(
                         ({ model, contentBefore }) =>
@@ -183,6 +194,7 @@ export const getProposeSemanticLayerChange = ({
                         ...advised.map(({ result, advice, metricsToRun }) =>
                             renderProposedModel(result, advice, metricsToRun),
                         ),
+                        ...hiddenLines,
                         ...(startedChange
                             ? [
                                   `Started draft "${startedChange.name}" and checked it out.`,
