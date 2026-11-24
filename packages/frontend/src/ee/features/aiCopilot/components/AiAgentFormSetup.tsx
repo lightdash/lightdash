@@ -74,7 +74,6 @@ import { useAiOrganizationSettings } from '../hooks/useAiOrganizationSettings';
 import { useAiProviderCredentials } from '../hooks/useAiProviderCredentials';
 import { useDeleteAiAgentMutation } from '../hooks/useProjectAiAgents';
 import { useGetAgentExploreAccessSummary } from '../hooks/useUserAgentPreferences';
-import { AgentLiveSourcesSelect } from './AgentLiveSourcesSelect';
 import { AgentSettingsSection } from './AgentSettingsSection';
 import { AgentSettingsSubsection } from './AgentSettingsSubsection';
 import AiAgentAsCodeModal from './AiAgentAsCodeModal';
@@ -99,7 +98,6 @@ const formSchema = z.object({
         }),
     ),
     tags: z.array(z.string()).nullable(),
-    liveSourceUuids: z.array(z.string()).nullable(),
     instruction: z.string().nullable(),
     imageUrl: z.string().url().nullable(),
     groupAccess: z.array(z.string()),
@@ -257,7 +255,6 @@ export const AiAgentFormSetup = ({
         projectUuid!,
         {
             tags: form.values.tags,
-            liveSourceUuids: form.values.liveSourceUuids,
         },
     );
 
@@ -326,9 +323,6 @@ export const AiAgentFormSetup = ({
         FeatureFlags.AiThreadRetention,
     );
 
-    const liveSourcesFlagQuery = useServerFeatureFlag(
-        FeatureFlags.ApiQuerySources,
-    );
     const composeSqlRunnerFlagQuery = useServerFeatureFlag(
         FeatureFlags.ComposeSqlRunner,
     );
@@ -878,28 +872,6 @@ export const AiAgentFormSetup = ({
                         </AgentSettingsSubsection>
 
                         <Divider />
-
-                        {liveSourcesFlagQuery.data?.enabled && (
-                            <>
-                                <AgentSettingsSubsection
-                                    title="Integrations"
-                                    description="Choose which integrations the agent can answer from. Tags only limit dbt explores; this limits integrations. The agent still queries as the person asking, so their access applies."
-                                >
-                                    <AgentLiveSourcesSelect
-                                        projectUuid={projectUuid}
-                                        value={form.values.liveSourceUuids}
-                                        onChange={(value) => {
-                                            form.setFieldValue(
-                                                'liveSourceUuids',
-                                                value,
-                                            );
-                                        }}
-                                    />
-                                </AgentSettingsSubsection>
-
-                                <Divider />
-                            </>
-                        )}
 
                         <AgentSettingsSubsection
                             title="Spaces"

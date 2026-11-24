@@ -71,6 +71,7 @@ import {
     type LiveSourceConnection,
 } from './liveSourceRows';
 import classes from './LiveSources.module.css';
+import { LiveSourceTagsCard } from './LiveSourceTagsCard';
 
 const WINDOW_SECONDS = [
     0,
@@ -496,6 +497,11 @@ export const LiveSourceSettings: FC<{
                     </SettingsRow>
                     {saveFooter(['name', 'aiHint'])}
                 </SettingsCard>
+
+                <LiveSourceTagsCard
+                    projectUuid={projectUuid}
+                    connection={connection}
+                />
 
                 <SettingsCard title="Data">
                     <SettingsRow label="Fields" hint={fieldsHint}>

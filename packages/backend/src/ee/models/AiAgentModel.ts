@@ -878,7 +878,6 @@ export class AiAgentModel {
                 providerCredentialUuid: `${AiAgentTableName}.ai_organization_provider_credential_uuid`,
                 version: `${AiAgentTableName}.version`,
                 threadRetentionHours: `${AiAgentTableName}.thread_retention_hours`,
-                liveSourceUuids: `${AiAgentTableName}.live_source_uuids`,
                 groupAccess: this.database.raw(`
                     COALESCE(
                         (SELECT json_agg(group_uuid)
@@ -1042,7 +1041,6 @@ export class AiAgentModel {
                 providerCredentialUuid: `${AiAgentTableName}.ai_organization_provider_credential_uuid`,
                 version: `${AiAgentTableName}.version`,
                 threadRetentionHours: `${AiAgentTableName}.thread_retention_hours`,
-                liveSourceUuids: `${AiAgentTableName}.live_source_uuids`,
                 groupAccess: this.database.raw(`
                     COALESCE(
                         (SELECT json_agg(group_uuid)
@@ -2493,7 +2491,6 @@ export class AiAgentModel {
             | 'mcpServerUuids'
             | 'threadRetentionHours'
         > & {
-            liveSourceUuids?: string[] | null;
             organizationUuid: string;
             slug?: string;
             imageUrl?: string | null;
@@ -2537,7 +2534,6 @@ export class AiAgentModel {
                         args.providerCredentialUuid ?? null,
                     version: args.version,
                     thread_retention_hours: args.threadRetentionHours ?? null,
-                    live_source_uuids: args.liveSourceUuids ?? null,
                 })
                 .returning('*');
 
@@ -2657,7 +2653,6 @@ export class AiAgentModel {
                     agent.ai_organization_provider_credential_uuid,
                 version: agent.version,
                 threadRetentionHours: agent.thread_retention_hours,
-                liveSourceUuids: agent.live_source_uuids ?? null,
             };
         });
     }
@@ -2754,9 +2749,6 @@ export class AiAgentModel {
                         : {}),
                     ...(args.threadRetentionHours !== undefined
                         ? { thread_retention_hours: args.threadRetentionHours }
-                        : {}),
-                    ...(args.liveSourceUuids !== undefined
-                        ? { live_source_uuids: args.liveSourceUuids }
                         : {}),
                 })
                 .returning('*');
@@ -2980,7 +2972,6 @@ export class AiAgentModel {
                     agent.ai_organization_provider_credential_uuid,
                 version: agent.version,
                 threadRetentionHours: agent.thread_retention_hours,
-                liveSourceUuids: agent.live_source_uuids ?? null,
             };
         });
     }

@@ -22,6 +22,8 @@ describeContentAsCodeSchemaContract({
         'projectUuid',
         // Saved from the connection picker of a live API source.
         'targetLabel',
+        // A live API source's tags, set in the app like its AI hint.
+        'tags',
         // Carried by the document as `authType`.
         'type',
         'updatedAt',

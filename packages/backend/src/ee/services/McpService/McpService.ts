@@ -645,7 +645,6 @@ export type ExtraContext = {
 
 type McpEffectiveScope = {
     tags: string[] | null;
-    liveSourceUuids: string[] | null;
     spaceAccess: string[] | null;
     agentUuid: string | null;
     agentName: string | null;
@@ -1305,7 +1304,6 @@ export class McpService extends BaseService {
             catalogSearchContext: CatalogSearchContext.MCP,
             defaultQueryExecutionContext,
             tags: effectiveScope.tags,
-            liveSourceUuids: effectiveScope.liveSourceUuids,
             spaceAccess: effectiveScope.spaceAccess,
             readOnlySpaceUuids: [],
             threadBinding: null,
@@ -5674,7 +5672,6 @@ export class McpService extends BaseService {
         if (!user || !agentUuid) {
             return {
                 tags: null,
-                liveSourceUuids: null,
                 spaceAccess: null,
                 agentUuid: null,
                 agentName: null,
@@ -5690,7 +5687,6 @@ export class McpService extends BaseService {
         );
         return {
             tags: agent.tags,
-            liveSourceUuids: agent.liveSourceUuids,
             spaceAccess: agent.spaceAccess,
             agentUuid: agent.uuid,
             agentName: agent.name,

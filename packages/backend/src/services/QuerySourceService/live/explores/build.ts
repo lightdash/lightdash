@@ -185,6 +185,7 @@ const buildDefinitionExplore = (
         | 'connectionUuid'
         | 'definitionHash'
         | 'aiHint'
+        | 'tags'
     >,
 ) => {
     const { baseVersion, capabilities } = getLiveBaseLayer(connector);
@@ -303,6 +304,7 @@ export const buildLiveExplores = ({
     scannedFields,
     edits,
     aiHint,
+    tags,
 }: {
     connectionUuid: string;
     sourceName: string;
@@ -312,6 +314,8 @@ export const buildLiveExplores = ({
     edits: LiveSourceFieldEdits;
     /** The target first, then the admin's text. */
     aiHint?: string[];
+    /** The source's tags, carried by each of its explores. */
+    tags?: string[];
 }): Explore[] => {
     const { definitions } = getLiveBaseLayer(apiSource.connector);
     const scannedModels = getLiveScannedModels(apiSource.connector);
@@ -327,6 +331,7 @@ export const buildLiveExplores = ({
             connectionUuid,
             definitionHash: definitionHashes[definition.name],
             aiHint,
+            tags,
         });
     return definitions.map((definition) => {
         const scanned = scannedModels.find(

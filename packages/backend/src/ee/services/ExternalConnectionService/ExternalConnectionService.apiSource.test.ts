@@ -95,6 +95,7 @@ const buildService = ({
         fields: null,
         aiHint: null,
         targetLabel: null,
+        tags: [],
     };
     const externalConnectionModel = {
         findByUuid: vi
@@ -1319,6 +1320,100 @@ describe('ExternalConnectionService live source explores', () => {
         });
     });
 
+    describe('tags', () => {
+        it('stores trimmed, unique tags and puts them on the explores', async () => {
+            const { service, projectModel, externalConnectionModel } =
+                buildService();
+            externalConnectionModel.getLiveSourceFieldState.mockResolvedValue({
+                lastScan: null,
+                fields: {},
+                aiHint: null,
+                targetLabel: null,
+                tags: ['marketing', 'web'],
+            });
+            await service.update(account, 'proj-1', 'conn-1', {
+                tags: [' marketing ', 'web', 'marketing', '  '],
+            });
+
+            expect(externalConnectionModel.update).toHaveBeenCalledWith(
+                'conn-1',
+                expect.anything(),
+                expect.objectContaining({ tags: ['marketing', 'web'] }),
+            );
+            expect(mockSecureFetch).not.toHaveBeenCalled();
+            const [explore] =
+                projectModel.replaceApiSourceExplores.mock.calls[0][2];
+            expect(explore.tags).toEqual(['marketing', 'web']);
+        });
+
+        it('refuses tags on a connection that is not a live source', async () => {
+            const { service, externalConnectionModel } = buildService({
+                connections: [
+                    {
+                        ...posthogConnection(),
+                        kind: 'data_app',
+                        apiSource: null,
+                    } as ExternalConnection,
+                ],
+            });
+            await expect(
+                service.update(account, 'proj-1', 'conn-1', { tags: ['a'] }),
+            ).rejects.toThrow('Only live data sources have tags');
+            expect(externalConnectionModel.update).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            [
+                'too many tags',
+                Array.from({ length: 21 }, (_, i) => `t${i}`),
+                'at most 20 tags',
+            ],
+            ['a tag that is too long', ['x'.repeat(101)], 'at most 100'],
+        ])('rejects %s', async (_case, tags, message) => {
+            const { service, externalConnectionModel } = buildService();
+            await expect(
+                service.update(account, 'proj-1', 'conn-1', { tags }),
+            ).rejects.toThrow(message);
+            expect(externalConnectionModel.update).not.toHaveBeenCalled();
+        });
+
+        it('puts the old tags back when the explores fail to rebuild', async () => {
+            const { service, projectModel, externalConnectionModel } =
+                buildService({
+                    connections: [posthogConnection({ tags: ['finance'] })],
+                });
+            projectModel.replaceApiSourceExplores.mockRejectedValue(
+                new Error('db down'),
+            );
+            await expect(
+                service.update(account, 'proj-1', 'conn-1', {
+                    tags: ['marketing'],
+                }),
+            ).rejects.toThrow('db down');
+
+            expect(externalConnectionModel.update).toHaveBeenLastCalledWith(
+                'conn-1',
+                expect.anything(),
+                { tags: ['finance'] },
+            );
+        });
+
+        it('only logs a failed rebuild when the tags stay the same', async () => {
+            const { service, projectModel, externalConnectionModel } =
+                buildService({
+                    connections: [posthogConnection({ tags: ['finance'] })],
+                });
+            projectModel.replaceApiSourceExplores.mockRejectedValue(
+                new Error('db down'),
+            );
+            await service.update(account, 'proj-1', 'conn-1', {
+                tags: ['finance'],
+            });
+
+            expect(externalConnectionModel.update).toHaveBeenCalledOnce();
+        });
+    });
+
     describe('rebuilding after a code change', () => {
         const refs = [
             {
@@ -1597,6 +1692,7 @@ describe('ExternalConnectionService live source explores', () => {
         apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '303731' },
         sourceName: 'posthog',
         fieldEdits: null,
+        tags: [],
         aiHint: null,
         targetLabel: null,
         ...overrides,

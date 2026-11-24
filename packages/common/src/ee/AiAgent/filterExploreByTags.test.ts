@@ -1,5 +1,5 @@
 import { ExploreType } from '../../types/explore';
-import { filterExploreByTags } from './filterExploreByTags';
+import { filterExploreByTags, isTaggedForAgent } from './filterExploreByTags';
 
 describe('AiService', () => {
     test('should throw when explore does not have a base table', async () => {
@@ -711,21 +711,41 @@ describe('AiService', () => {
         ).toBeUndefined();
     });
 
-    test('should return live data source explores untouched when AI tags are configured', async () => {
-        const explore = {
+    describe('live data source explores', () => {
+        const liveExplore = (tags: string[]) => ({
             type: ExploreType.API_SOURCE,
             baseTable: 'google_analytics_report',
-            tags: [],
+            tags,
             tables: {
                 google_analytics_report: {
                     dimensions: { date: {} },
                     metrics: { sessions: {} },
                 },
             },
-        };
-        expect(
-            filterExploreByTags({ availableTags: ['ai-enabled'], explore }),
-        ).toEqual(explore);
+        });
+
+        test('shows one whose source shares a tag with the agent', () => {
+            const explore = liveExplore(['marketing']);
+            expect(
+                filterExploreByTags({ availableTags: ['marketing'], explore }),
+            ).toEqual(explore);
+        });
+
+        test('hides an untagged one from an agent limited to tags', () => {
+            expect(
+                filterExploreByTags({
+                    availableTags: ['marketing'],
+                    explore: liveExplore([]),
+                }),
+            ).toBeUndefined();
+        });
+
+        test('shows every one to an agent without tags', () => {
+            const explore = liveExplore([]);
+            expect(
+                filterExploreByTags({ availableTags: null, explore }),
+            ).toEqual(explore);
+        });
     });
 
     test('should still hide untagged virtual explores when AI tags are configured', async () => {
@@ -742,5 +762,17 @@ describe('AiService', () => {
                 },
             }),
         ).toBeUndefined();
+    });
+
+    describe('isTaggedForAgent', () => {
+        test.each([
+            ['an agent without tags', ['marketing'], null, true],
+            ['an agent with empty tags', [], [], true],
+            ['a shared tag', ['marketing', 'web'], ['web'], true],
+            ['no shared tag', ['marketing'], ['finance'], false],
+            ['an untagged source', null, ['finance'], false],
+        ])('%s', (_case, tags, availableTags, expected) => {
+            expect(isTaggedForAgent(tags, availableTags)).toBe(expected);
+        });
     });
 });

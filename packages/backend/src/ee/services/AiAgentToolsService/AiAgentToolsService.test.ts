@@ -320,7 +320,6 @@ function makeRuntimeContext(
         catalogSearchContext: CatalogSearchContext.AI_AGENT,
         defaultQueryExecutionContext: QueryExecutionContext.AI,
         tags: null,
-        liveSourceUuids: null,
         spaceAccess: null,
         readOnlySpaceUuids: [],
         threadBinding: null,
@@ -1845,7 +1844,6 @@ describe('AiAgentToolsService', () => {
                 user,
                 projectUuid,
                 availableTags: ['ai'],
-                liveSourceUuids: null,
             }),
         ).resolves.toEqual([expect.objectContaining({ name: 'public' })]);
 
@@ -1854,7 +1852,6 @@ describe('AiAgentToolsService', () => {
                 user,
                 projectUuid,
                 availableTags: ['ai'],
-                liveSourceUuids: null,
                 userAttributeOverrides: { access_level: ['2'] },
             }),
         ).resolves.toEqual([
@@ -1895,7 +1892,6 @@ describe('AiAgentToolsService', () => {
                         user: { ...defaultSessionUser, ...user },
                         projectUuid,
                         availableTags: null,
-                        liveSourceUuids: null,
                         exploreNames,
                     }),
             );
@@ -1935,7 +1931,6 @@ describe('AiAgentToolsService', () => {
             user,
             projectUuid,
             availableTags: ['ai'],
-            liveSourceUuids: null,
         });
 
         expect(Object.keys(explore.tables.orders.dimensions)).toEqual([
@@ -1946,112 +1941,47 @@ describe('AiAgentToolsService', () => {
         ]);
     });
 
-    describe("agent's integrations", () => {
-        const liveExplore = (name: string, connectionUuid: string) => ({
-            ...makeExplore({ name }),
+    describe('live data source explores', () => {
+        const liveExplore = (
+            name: string,
+            connectionUuid: string,
+            tags: string[] = [],
+        ) => ({
+            ...makeExplore({ name, tags }),
             type: ExploreType.API_SOURCE,
             apiSource: { connectionUuid } as Explore['apiSource'],
         });
-        const service = () =>
-            makeService({
-                explores: {
-                    orders: makeExplore({ name: 'orders' }),
-                    ga4_sessions: liveExplore('ga4_sessions', 'ga4-uuid'),
-                    hubspot_deals: liveExplore('hubspot_deals', 'hubspot-uuid'),
-                },
-            });
-        const listNames = async (liveSourceUuids: string[] | null) =>
+        const listNames = async (availableTags: string[] | null) =>
             (
-                await service().getAvailableExplores({
-                    user,
-                    projectUuid,
-                    availableTags: null,
-                    liveSourceUuids,
-                })
+                await makeService({
+                    explores: {
+                        orders: makeExplore({ name: 'orders', tags: ['ai'] }),
+                        ga4_sessions: liveExplore('ga4_sessions', 'ga4-uuid', [
+                            'ai',
+                        ]),
+                        hubspot_deals: liveExplore(
+                            'hubspot_deals',
+                            'hubspot-uuid',
+                        ),
+                    },
+                }).getAvailableExplores({ user, projectUuid, availableTags })
             )
                 .map((explore) => explore.name)
                 .sort();
 
-        it('keeps every integration under "All"', async () => {
+        it("keeps only the live explores that share an agent's tag", async () => {
+            await expect(listNames(['ai'])).resolves.toEqual([
+                'ga4_sessions',
+                'orders',
+            ]);
+        });
+
+        it('keeps every live explore for an agent without tags', async () => {
             await expect(listNames(null)).resolves.toEqual([
                 'ga4_sessions',
                 'hubspot_deals',
                 'orders',
             ]);
-        });
-
-        it('keeps no integration under "None"', async () => {
-            await expect(listNames([])).resolves.toEqual(['orders']);
-        });
-
-        it('keeps only the chosen integrations, ignoring deleted ones', async () => {
-            await expect(
-                listNames(['ga4-uuid', 'deleted-uuid']),
-            ).resolves.toEqual(['ga4_sessions', 'orders']);
-        });
-
-        it('refuses an excluded integration like a hidden explore', async () => {
-            await expect(
-                service().getExplore({
-                    user,
-                    projectUuid,
-                    availableTags: null,
-                    liveSourceUuids: ['ga4-uuid'],
-                    exploreName: 'hubspot_deals',
-                }),
-            ).rejects.toThrow(
-                /Explore "hubspot_deals" is not available\..*Do not retry this explore/,
-            );
-        });
-
-        it.each([
-            ['runs a saved chart on a chosen integration', 'ga4_sessions'],
-            [
-                'refuses a saved chart on an excluded integration',
-                'hubspot_deals',
-            ],
-        ])('%s', async (_case, exploreName) => {
-            const executeSavedChartQueryAndGetResults = vi
-                .fn()
-                .mockResolvedValue({ rows: [] });
-            const runtime = makeService({
-                explores: {
-                    ga4_sessions: liveExplore('ga4_sessions', 'ga4-uuid'),
-                    hubspot_deals: liveExplore('hubspot_deals', 'hubspot-uuid'),
-                },
-                savedChartService: {
-                    get: vi.fn().mockResolvedValue({
-                        uuid: 'chart-uuid',
-                        spaceUuid: 'space-uuid',
-                        metricQuery: {
-                            exploreName,
-                            dimensions: [],
-                            metrics: [],
-                        },
-                    }),
-                },
-                asyncQueryService: { executeSavedChartQueryAndGetResults },
-            }).createRuntime(
-                makeRuntimeContext({
-                    tags: null,
-                    liveSourceUuids: ['ga4-uuid'],
-                }),
-            );
-
-            const run = runtime.runSavedChartQuery({
-                chartUuid: 'chart-uuid',
-                dashboardSlug: null,
-                limit: 100,
-            });
-
-            if (exploreName === 'ga4_sessions') {
-                await expect(run).resolves.toEqual({ rows: [] });
-            } else {
-                await expect(run).rejects.toThrow(NotFoundError);
-                expect(
-                    executeSavedChartQueryAndGetResults,
-                ).not.toHaveBeenCalled();
-            }
         });
     });
 
@@ -2117,14 +2047,12 @@ describe('AiAgentToolsService', () => {
         const listNames = async (
             service: AiAgentToolsService,
             availableTags: string[] | null = null,
-            liveSourceUuids: string[] | null = null,
         ) =>
             (
                 await service.getAvailableExplores({
                     user,
                     projectUuid,
                     availableTags,
-                    liveSourceUuids,
                 })
             )
                 .map((explore) => explore.name)
@@ -2163,7 +2091,6 @@ describe('AiAgentToolsService', () => {
                     user,
                     projectUuid,
                     availableTags: null,
-                    liveSourceUuids: null,
                     exploreName: 'orders',
                 }),
             ).resolves.toMatchObject({ name: 'orders' });
@@ -2172,7 +2099,6 @@ describe('AiAgentToolsService', () => {
                     user,
                     projectUuid,
                     availableTags: null,
-                    liveSourceUuids: null,
                     exploreName: 'customers',
                 }),
             ).rejects.toThrow(NotFoundError);
@@ -2189,7 +2115,6 @@ describe('AiAgentToolsService', () => {
                     user,
                     projectUuid,
                     availableTags: null,
-                    liveSourceUuids: null,
                     exploreName: 'customers',
                 }),
             ).rejects.toThrow(
@@ -2214,7 +2139,6 @@ describe('AiAgentToolsService', () => {
                     user,
                     projectUuid,
                     availableTags: null,
-                    liveSourceUuids: null,
                     exploreName: 'customers',
                 }),
             ).rejects.toThrow(NotFoundError);
@@ -3895,7 +3819,7 @@ describe('AiAgentToolsService', () => {
 
         it.each([
             [
-                'runs one on a chosen integration',
+                'runs one on an integration sharing a tag',
                 'ga4_sessions',
                 'ga4_sessions_date',
                 true,
@@ -3907,20 +3831,25 @@ describe('AiAgentToolsService', () => {
                 false,
             ],
             [
-                'refuses one on an excluded integration',
+                'refuses one on an integration without the tag',
                 'hubspot_deals',
                 'hubspot_deals_date',
                 false,
             ],
         ])(
-            '%s for an agent limited to some integrations',
+            '%s for an agent limited to tags',
             async (_case, exploreName, fieldId, runs) => {
                 const run = vi.fn().mockResolvedValue({
                     queries: [{ nodeId: 'joined', queryUuid: 'joined-query' }],
                 });
-                const liveExplore = (name: string, connectionUuid: string) => ({
+                const liveExplore = (
+                    name: string,
+                    connectionUuid: string,
+                    tags: string[],
+                ) => ({
                     ...makeExplore({
                         name,
+                        tags,
                         dimensions: {
                             date: {
                                 fieldType: FieldType.DIMENSION,
@@ -3935,10 +3864,13 @@ describe('AiAgentToolsService', () => {
                 });
                 const runtime = makeService({
                     explores: {
-                        ga4_sessions: liveExplore('ga4_sessions', 'ga4-uuid'),
+                        ga4_sessions: liveExplore('ga4_sessions', 'ga4-uuid', [
+                            'ai',
+                        ]),
                         hubspot_deals: liveExplore(
                             'hubspot_deals',
                             'hubspot-uuid',
+                            [],
                         ),
                     },
                     dashboardService: {
@@ -3974,9 +3906,7 @@ describe('AiAgentToolsService', () => {
                         }),
                         getQueryExecutionStats: vi.fn().mockResolvedValue(null),
                     },
-                }).createRuntime(
-                    makeRuntimeContext({ liveSourceUuids: ['ga4-uuid'] }),
-                );
+                }).createRuntime(makeRuntimeContext({ tags: ['ai'] }));
 
                 const query = runtime.runComposerChartQuery({
                     chartSlug: 'revenue-vs-target',
@@ -5700,6 +5630,78 @@ describe('AiAgentToolsService runComposerQueries', () => {
             rowCount: 1,
         });
     });
+
+    it.each([
+        ['runs', 'ga4-uuid', true],
+        ['refuses', 'hubspot-uuid', false],
+    ])(
+        '%s an integration node for an agent limited to tags by its explores tags',
+        async (_case, connectionUuid, runs) => {
+            const executeSourceQueries = vi
+                .fn()
+                .mockResolvedValue({ queries: submissions });
+            const liveExplore = (
+                name: string,
+                uuid: string,
+                tags: string[],
+            ) => ({
+                ...makeExplore({ name, tags }),
+                type: ExploreType.API_SOURCE,
+                apiSource: { connectionUuid: uuid } as Explore['apiSource'],
+            });
+            const service = makeService({
+                explores: {
+                    ga4_sessions: liveExplore('ga4_sessions', 'ga4-uuid', [
+                        'ai',
+                    ]),
+                    hubspot_deals: liveExplore(
+                        'hubspot_deals',
+                        'hubspot-uuid',
+                        [],
+                    ),
+                },
+                querySourceService: {
+                    executeSourceQueries,
+                    getSourceQueryStatuses: vi
+                        .fn()
+                        .mockResolvedValue(readyStatuses),
+                },
+                asyncQueryService: {
+                    getAsyncQueryResults: vi
+                        .fn()
+                        .mockResolvedValue(readyResults),
+                },
+            });
+
+            const result = service
+                .createRuntime(makeRuntimeContext({ tags: ['ai'] }))
+                .runComposerQueries({
+                    queries: [
+                        {
+                            sourceType: QuerySourceType.API,
+                            nodeId: 'orders',
+                            connectionUuid,
+                            payload: {},
+                        },
+                        composerQueries[1],
+                    ] as SourceQuery[],
+                    terminalNodeId: 'joined',
+                    otherUnreadNodeIds: [],
+                    sampleNodeIds: [],
+                });
+
+            if (runs) {
+                await expect(result).resolves.toMatchObject({
+                    status: 'success',
+                });
+            } else {
+                await expect(result).rejects.toThrow(
+                    'Integration "hubspot-uuid" is not available to this agent',
+                );
+                expect(executeSourceQueries).not.toHaveBeenCalled();
+            }
+        },
+    );
 
     it("reads every node's status once the terminal is ready", async () => {
         const getSourceQueryStatuses = vi.fn().mockResolvedValue({
