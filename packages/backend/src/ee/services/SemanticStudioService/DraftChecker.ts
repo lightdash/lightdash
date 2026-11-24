@@ -7,6 +7,7 @@ import {
     getItemId,
     isExploreError,
     JoinRelationship,
+    METRIC_VIEW_TABLE_TYPE,
     MetricType,
     parseModelDocument,
     preAggregatePostProcessor,
@@ -86,6 +87,7 @@ type TableFacts = {
     /** Column types by lower-cased name. */
     columns: Map<string, DimensionType>;
     partitioning: TablePartitioning | null;
+    isMetricView: boolean;
 };
 
 // Computed over the result set, so they cannot be selected on their own.
@@ -459,12 +461,28 @@ export class DraftChecker {
         // Misses errors only a real value raises, such as a bad cast; run one row if that matters.
         const noRows = (sqlTable: string) =>
             `(SELECT * FROM ${sqlTable} AS no_rows WHERE 1 = 0${partitionFilters.get(sqlTable) ?? ''})`;
+        const metricViews = new Set(
+            (
+                await Promise.all(
+                    tables.map(async ({ sqlTable }) =>
+                        (await this.findTableFacts(user, projectUuid, sqlTable))
+                            ?.isMetricView
+                            ? [sqlTable]
+                            : [],
+                    ),
+                )
+            ).flat(),
+        );
+        // A metric view refuses SELECT * in a subquery, so it is read directly and the whole statement reads no rows
+        const source = (sqlTable: string) =>
+            metricViews.has(sqlTable) ? sqlTable : noRows(sqlTable);
         const from = [
-            `${noRows(base.sqlTable)} AS ${alias(base.name)}`,
+            `${source(base.sqlTable)} AS ${alias(base.name)}`,
             ...joins.map(
                 (join) =>
-                    `LEFT JOIN ${noRows(explore.tables[join.table].sqlTable)} AS ${alias(join.table)} ON ${join.compiledSqlOn}`,
+                    `LEFT JOIN ${source(explore.tables[join.table].sqlTable)} AS ${alias(join.table)} ON ${join.compiledSqlOn}`,
             ),
+            ...(metricViews.size > 0 ? ['WHERE 1 = 0', 'GROUP BY ALL'] : []),
         ].join('\n');
         const select = (expressions: string[]) =>
             `SELECT ${expressions.map((sql, index) => `${sql} AS c${index}`).join(',\n')}\nFROM ${from}`;
@@ -481,6 +499,7 @@ export class DraftChecker {
         try {
             // With no field to plan, the tables and joins still are.
             if (dimensions.length === 0 && metrics.length === 0) {
+                if (metricViews.size > 0) return null;
                 await this.projectService.runSqlQuery(
                     user,
                     projectUuid,
@@ -668,7 +687,7 @@ export class DraftChecker {
                 reference,
             );
             if (!table) return null;
-            const { fields, partitioning } =
+            const { fields, partitioning, metadata } =
                 await this.projectService.describeWarehouseTable(
                     user,
                     projectUuid,
@@ -688,6 +707,7 @@ export class DraftChecker {
                     ]),
                 ),
                 partitioning,
+                isMetricView: metadata?.tableType === METRIC_VIEW_TABLE_TYPE,
             };
         })().catch(() => null);
         this.tableFacts.set(memoKey, { at: Date.now(), facts });

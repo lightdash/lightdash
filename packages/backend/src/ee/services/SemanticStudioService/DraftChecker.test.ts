@@ -1,6 +1,7 @@
 import {
     DimensionType,
     isExploreError,
+    METRIC_VIEW_TABLE_TYPE,
     PartitionType,
     WarehouseTableType,
     WarehouseTypes,
@@ -54,6 +55,8 @@ const warehouse: {
     /** What the catalog says every table it knows holds. */
     columns: Record<string, DimensionType>;
     partitioning: TablePartitioning | null;
+    /** Whether the catalog's tables are metric views. */
+    isMetricView: boolean;
     /** Why the warehouse refuses to plan a query, or null when it plans it. */
     planError: (sql: string) => string | null;
 } = {
@@ -64,6 +67,7 @@ const warehouse: {
     catalog: {},
     columns: { id: DimensionType.NUMBER },
     partitioning: null,
+    isMetricView: false,
     planError: () => null,
 };
 
@@ -100,7 +104,15 @@ const checker = (type: WarehouseTypes = WarehouseTypes.POSTGRES) =>
             fields: warehouse.columns,
             nativeTypes: {},
             partitioning: warehouse.partitioning,
-            metadata: null,
+            metadata: warehouse.isMetricView
+                ? {
+                      tableType: METRIC_VIEW_TABLE_TYPE,
+                      comment: null,
+                      columns: [],
+                      definition: null,
+                      metricView: null,
+                  }
+                : null,
             warehouseType: WarehouseTypes.POSTGRES,
         }),
         compileQuery: async () => ({
@@ -120,6 +132,7 @@ describe('DraftChecker.compile', () => {
         warehouse.catalog = {};
         warehouse.columns = { id: DimensionType.NUMBER };
         warehouse.partitioning = null;
+        warehouse.isMetricView = false;
         warehouse.planError = () => null;
         queryBuilder.errors = [];
     });
@@ -780,6 +793,81 @@ ${metrics}`;
                 new Map([['orders', contents]]),
             );
         };
+
+        test('a table is still planned through the wrapper that reads no rows', async () => {
+            await check(model('orders'));
+            expect(warehouse.queries).toEqual([
+                'SELECT "orders".id AS c0\nFROM (SELECT * FROM public.orders AS no_rows WHERE 1 = 0) AS "orders"',
+            ]);
+        });
+
+        describe('on a metric view', () => {
+            const metricViewModel = `${model('orders')}metrics:
+  order_count:
+    type: number
+    sql: MEASURE(\`Order Count\`)
+`;
+            // The warehouse's rules for a metric view: no SELECT *, no subquery, measures only through MEASURE()
+            const refuseAsMetricView = (sql: string) => {
+                if (/select\s+\*|from\s*\(/i.test(sql)) {
+                    return 'a metric view cannot be read with SELECT * or through a subquery';
+                }
+                const unknown = /MEASURE\(`(?!Order Count`)([^`]+)`\)/.exec(
+                    sql,
+                );
+                return unknown ? `no measure named ${unknown[1]}` : null;
+            };
+            beforeEach(() => {
+                warehouse.isMetricView = true;
+                warehouse.planError = refuseAsMetricView;
+            });
+
+            test('its dimensions and MEASURE() metrics are planned directly over no rows', async () => {
+                const { rejected } = await check(metricViewModel);
+
+                expect(rejected.size).toBe(0);
+                expect(warehouse.queries).toEqual([
+                    'SELECT "orders".id AS c0\nFROM public.orders AS "orders"\nWHERE 1 = 0\nGROUP BY ALL',
+                    'SELECT MEASURE(`Order Count`) AS c0\nFROM public.orders AS "orders"\nWHERE 1 = 0\nGROUP BY ALL',
+                ]);
+            });
+
+            test('a measure the view does not have is still rejected', async () => {
+                const { rejected } = await check(
+                    metricViewModel.replace('Order Count', 'Order Total'),
+                );
+
+                expect(rejected.get('orders')).toEqual({
+                    kind: 'warehouse_refused',
+                    detail: 'no measure named Order Total',
+                });
+            });
+
+            test('a join between metric views is planned directly, not refused', async () => {
+                warehouse.catalog = {
+                    shop: { public: { orders: table, customers: table } },
+                };
+                const { rejected } = await checker().check(
+                    user,
+                    'project',
+                    new Map(),
+                    new Map([
+                        [
+                            'orders',
+                            `${metricViewModel}joins:\n  - join: customers\n    sql_on: \${orders.id} = \${customers.id}\n`,
+                        ],
+                        ['customers', model('customers')],
+                    ]),
+                );
+
+                expect(rejected.size).toBe(0);
+                expect(
+                    warehouse.queries.find((sql) => sql.includes('LEFT JOIN')),
+                ).toContain(
+                    'FROM public.orders AS "orders"\nLEFT JOIN public.customers AS "customers" ON ("orders".id) = ("customers".id)\nWHERE 1 = 0\nGROUP BY ALL',
+                );
+            });
+        });
 
         test('a column that is not there is named, with the ones that are, before any query', async () => {
             warehouse.columns = {
