@@ -5,6 +5,11 @@ const EASE_OUT = 'cubic-bezier(0.23, 1, 0.32, 1)';
 const FAR_PX = 48;
 const NUDGE_PX = 8;
 
+// A control that is a different element in each layout shares a key across
+// them, so it still counts as one thing that moved.
+const getRelocationKey = (button: HTMLElement): Element | string =>
+    button.dataset.relocationKey ?? button;
+
 /**
  * Slides the container's buttons from where they were to where a layout
  * change put them, each time `layoutKey` changes.
@@ -13,14 +18,14 @@ export const useRelocationAnimation = <T extends HTMLElement>(
     layoutKey: boolean,
 ) => {
     const container = useRef<T>(null);
-    const positions = useRef(new Map<Element, DOMRect>());
+    const positions = useRef(new Map<Element | string, DOMRect>());
 
     const measure = useCallback(() => {
         const node = container.current;
         if (!node) return;
         positions.current = new Map(
             Array.from(node.querySelectorAll('button')).map((button) => [
-                button,
+                getRelocationKey(button),
                 button.getBoundingClientRect(),
             ]),
         );
@@ -44,7 +49,7 @@ export const useRelocationAnimation = <T extends HTMLElement>(
             return;
         }
         node.querySelectorAll('button').forEach((button) => {
-            const before = positions.current.get(button);
+            const before = positions.current.get(getRelocationKey(button));
             if (!before) return;
             const after = button.getBoundingClientRect();
             const dx = before.left - after.left;

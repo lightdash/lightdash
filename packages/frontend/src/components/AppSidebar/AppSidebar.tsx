@@ -68,6 +68,7 @@ export const AppSidebar: FC<Props> = ({
     const isHeadwayEnabled = health.data?.headway?.enabled === true;
     const mobileSignInOpener = useRef<(() => void) | null>(null);
     const footerRef = useRelocationAnimation<HTMLDivElement>(isCollapsed);
+    const topRef = useRelocationAnimation<HTMLDivElement>(isCollapsed);
     const os = useOs();
     const searchShortcut = os === 'macos' || os === 'ios' ? '⌘K' : 'Ctrl K';
     const homeUrl = projectUrlIdentifier
@@ -89,6 +90,7 @@ export const AppSidebar: FC<Props> = ({
                         type="button"
                         label="Search"
                         aria-label="Search content and settings"
+                        data-relocation-key="search"
                         leftSection={<MantineIcon icon={IconSearch} />}
                         rightSection={
                             <Text span className={classes.shortcut}>
@@ -116,7 +118,7 @@ export const AppSidebar: FC<Props> = ({
             data-collapsed={isCollapsed}
         >
             <Box className={classes.content}>
-                <Box className={classes.top}>
+                <Box ref={topRef} className={classes.top}>
                     <Box className={classes.header}>
                         <UnstyledButton
                             component={Link}
@@ -147,6 +149,7 @@ export const AppSidebar: FC<Props> = ({
                                     >
                                         <UnstyledButton
                                             aria-label="Search content and settings"
+                                            data-relocation-key="search"
                                             className={classes.searchTrigger}
                                             onClick={onOpen}
                                         >
