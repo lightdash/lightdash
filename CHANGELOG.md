@@ -1,3 +1,17 @@
+# [3.387.0](https://github.com/lightdash/lightdash/compare/3.386.1...3.387.0) (2026-11-24)
+
+
+### Bug Fixes
+
+* **semantic-studio:** skip the warehouse plan for edits that only change metadata ([#33339](https://github.com/lightdash/lightdash/issues/33339)) ([ca3cdea](https://github.com/lightdash/lightdash/commit/ca3cdeadc31b3e9934b367869b161a55754186c1))
+* **sql-runner:** don't add a row limit to DESCRIBE / SHOW statements ([#33340](https://github.com/lightdash/lightdash/issues/33340)) ([376ff6b](https://github.com/lightdash/lightdash/commit/376ff6bf70a406ef9ce9565c47c00c484f60715e))
+
+
+### Features
+
+* **live-sources:** add HubSpot pipeline stages and dropdown labels ([#33317](https://github.com/lightdash/lightdash/issues/33317)) ([9e2ad58](https://github.com/lightdash/lightdash/commit/9e2ad58c082201bd0ec2e55ddb0113813c233ecf))
+* **semantic-studio:** give draft rejections a kind, plain copy and the raw error behind Details ([#33348](https://github.com/lightdash/lightdash/issues/33348)) ([b9893e7](https://github.com/lightdash/lightdash/commit/b9893e7afa12e7a16c69bd86dc95be416e9ccc4b))
+
 ## [3.386.1](https://github.com/lightdash/lightdash/compare/3.386.0...3.386.1) (2026-11-24)
 
 

@@ -20986,6 +20986,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                valueLabels: { ref: 'Record_string.string_' },
                 filterOperators: {
                     dataType: 'array',
                     array: { dataType: 'refEnum', ref: 'FilterOperator' },
