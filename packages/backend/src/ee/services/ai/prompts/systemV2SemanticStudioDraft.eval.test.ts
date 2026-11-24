@@ -128,6 +128,7 @@ const runAsk = async (prompt: string, rejectWith: string | null) => {
             }),
             proposeSemanticLayerChange: getProposeSemanticLayerChange({
                 canRunMetrics: false,
+                metricViewCheck: null,
                 describeWarehouseTable: async () => {
                     throw new Error('no warehouse in this eval');
                 },

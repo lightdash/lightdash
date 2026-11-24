@@ -31,6 +31,11 @@ import type {
     ReadSemanticModelFn,
 } from '../types/aiAgentDependencies';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
+import {
+    checkMetricViewImport,
+    type MetricViewCheck,
+    type MetricViewCheckDependencies,
+} from './metricViewCheck';
 
 const renderProposedModel = (
     {
@@ -43,6 +48,7 @@ const renderProposedModel = (
     }: SemanticLayerProposalItemResult,
     advice: string[],
     metricsToRun: string[],
+    metricViewCheck: MetricViewCheck | null,
 ): string =>
     [
         `${model}: ${status}`,
@@ -64,6 +70,7 @@ const renderProposedModel = (
                   `  check: run ${metricsToRun.join(', ')} once with runMetricQuery, which reads the draft. A null, a zero or a total the table cannot produce means the definition is wrong: propose the fix. Otherwise go on with what the person asked, or end the turn when nothing is left.`,
               ]
             : []),
+        ...(metricViewCheck?.lines ?? []),
     ].join('\n');
 
 /** A model can escape the quotes inside a string it writes; the card shows text, so they are plain again. */
@@ -120,12 +127,15 @@ export const getProposeSemanticLayerChange = ({
     describeWarehouseTable,
     readSemanticModel,
     canRunMetrics,
+    metricViewCheck,
 }: {
     proposeSemanticLayerChange: ProposeSemanticLayerChangeFn;
     describeWarehouseTable: DescribeWarehouseTableFn;
     readSemanticModel: ReadSemanticModelFn;
     /** Whether the agent can run a metric on the draft, so a changed one is checked on real rows before the turn ends. */
     canRunMetrics: boolean;
+    /** Runs an imported metric view on the draft and straight from the view; null when the thread cannot run both. */
+    metricViewCheck: MetricViewCheckDependencies | null;
 }) =>
     tool({
         ...proposeSemanticLayerChangeToolDefinition.for('agent'),
@@ -149,32 +159,50 @@ export const getProposeSemanticLayerChange = ({
                         ),
                         changeName,
                     );
-                const advised = results.map((result) => {
-                    const created = diffs.find(
-                        ({ model, contentBefore }) =>
-                            model === result.model && contentBefore === null,
-                    );
-                    const isReady = result.status === 'ready';
-                    return {
-                        result,
-                        advice:
-                            isReady && created?.contentAfter
-                                ? findNewModelAdvice(
-                                      result.model,
-                                      created.contentAfter,
-                                      metricViewModels.has(result.model),
-                                  )
-                                : [],
-                        metricsToRun:
-                            isReady && canRunMetrics
-                                ? findMetricsToRun(
-                                      result.model,
-                                      result.changes,
-                                      created?.contentAfter ?? null,
-                                  )
-                                : [],
-                    };
-                });
+                const advised = await Promise.all(
+                    results.map(async (result) => {
+                        const created = diffs.find(
+                            ({ model, contentBefore }) =>
+                                model === result.model &&
+                                contentBefore === null,
+                        );
+                        const isReady = result.status === 'ready';
+                        const after = diffs.find(
+                            ({ model }) => model === result.model,
+                        )?.contentAfter;
+                        const viewCheck =
+                            isReady &&
+                            metricViewCheck &&
+                            metricViewModels.has(result.model) &&
+                            after
+                                ? await checkMetricViewImport(metricViewCheck, {
+                                      model: result.model,
+                                      modelYaml: after,
+                                      today: new Date(),
+                                  })
+                                : null;
+                        return {
+                            result,
+                            viewCheck,
+                            advice:
+                                isReady && created?.contentAfter
+                                    ? findNewModelAdvice(
+                                          result.model,
+                                          created.contentAfter,
+                                          metricViewModels.has(result.model),
+                                      )
+                                    : [],
+                            metricsToRun:
+                                isReady && canRunMetrics && !viewCheck
+                                    ? findMetricsToRun(
+                                          result.model,
+                                          result.changes,
+                                          created?.contentAfter ?? null,
+                                      )
+                                    : [],
+                        };
+                    }),
+                );
                 const metadata: SemanticLayerProposal = {
                     status: 'success',
                     models: results,
@@ -184,8 +212,10 @@ export const getProposeSemanticLayerChange = ({
                     needsFollowUp:
                         moreToDo ||
                         advised.some(
-                            ({ advice, metricsToRun }) =>
-                                advice.length > 0 || metricsToRun.length > 0,
+                            ({ advice, metricsToRun, viewCheck }) =>
+                                advice.length > 0 ||
+                                metricsToRun.length > 0 ||
+                                viewCheck?.mismatched === true,
                         ),
                     note:
                         draftChangeUuid && note !== null
@@ -198,8 +228,14 @@ export const getProposeSemanticLayerChange = ({
                     : "This joined the person's draft. Nothing is published until they publish the draft.";
                 const output: ToolProposeSemanticLayerChangeOutput = {
                     result: [
-                        ...advised.map(({ result, advice, metricsToRun }) =>
-                            renderProposedModel(result, advice, metricsToRun),
+                        ...advised.map(
+                            ({ result, advice, metricsToRun, viewCheck }) =>
+                                renderProposedModel(
+                                    result,
+                                    advice,
+                                    metricsToRun,
+                                    viewCheck,
+                                ),
                         ),
                         ...(startedChange
                             ? [

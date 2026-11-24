@@ -2255,6 +2255,14 @@ export const getAgentTools = (
                 describeWarehouseTable: dependencies.describeWarehouseTable,
                 readSemanticModel: dependencies.readSemanticModel,
                 canRunMetrics: getStudioAbilities(loadout).canRunMetrics,
+                metricViewCheck:
+                    getStudioAbilities(loadout).canRunMetrics &&
+                    loadout.toolNames.has('runSql')
+                        ? {
+                              runDraftQuery: dependencies.runDraftQuery,
+                              runSqlJob: queryDependencies.runSqlJob,
+                          }
+                        : null,
             }),
         listChanges: () => getListChanges(dependencies.listChanges),
         readSemanticModel: () =>
