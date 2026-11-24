@@ -249,7 +249,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'review-candidates-activity-and-known-dependencies',
                 0,
-                5,
+                4,
                 36,
                 8,
                 null,
