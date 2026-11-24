@@ -37,7 +37,6 @@ import {
     useRefreshLiveSourceFields,
 } from '../hooks/useLiveSourceFields';
 import { useTestConnection } from '../hooks/useTestConnection';
-import { useTestConnectionConfig } from '../hooks/useTestConnectionConfig';
 import {
     LIVE_SOURCE_UPDATE_MESSAGES,
     useUpdateExternalConnection,
@@ -45,6 +44,7 @@ import {
 import {
     getAccountField,
     getLiveSourceAccess,
+    getLiveSourceTestRequest,
     getTokenLabel,
     toLiveSourceAccessUpdate,
     toLiveSourceAccessValues,
@@ -58,18 +58,9 @@ import {
     type LiveSourceConnection,
 } from './liveSourceRows';
 import classes from './LiveSources.module.css';
-import {
-    SettingsCard,
-    SettingsRow,
-    TestOutcome,
-} from './LiveSourceSettingsRows';
+import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
 import rowClasses from './LiveSourceSettingsRows.module.css';
-import {
-    normalizeAccountId,
-    toTokenLiveSourceCreatePayload,
-    toTokenLiveSourceUpdatePayload,
-    type TokenLiveSourceForm,
-} from './tokenLiveSource';
+import { LiveSourceTestRow } from './LiveSourceTestRow';
 
 const WINDOW_SECONDS = [
     0,
@@ -98,69 +89,20 @@ type Values = LiveSourceAccessValues & {
 
 /** The saved token, or a new one typed in its place to save with the card. */
 const TokenRow: FC<{
-    projectUuid: string;
-    connection: LiveSourceConnection;
     label: string;
-    /** Only token integrations know a small read to test with. */
-    tokenForm: TokenLiveSourceForm | null;
     form: UseFormReturnType<Values>;
-}> = ({ projectUuid, connection, label, tokenForm, form }) => {
-    const testSaved = useTestConnection();
-    const testNew = useTestConnectionConfig();
-    const { values } = form;
-    const usesSavedToken = values.token.trim() === '';
-    const test = usesSavedToken ? testSaved : testNew;
-    const handleTest = (definition: TokenLiveSourceForm) => {
-        const request = definition.getTestRequest(
-            normalizeAccountId(definition, values.accountId),
-        );
-        if (usesSavedToken) {
-            testSaved.mutate({
-                projectUuid,
-                connectionUuid: connection.externalConnectionUuid,
-                config: toTokenLiveSourceUpdatePayload(definition, values),
-                ...request,
-            });
-            return;
-        }
-        testNew.mutate({
-            projectUuid,
-            config: toTokenLiveSourceCreatePayload(definition, values),
-            ...request,
-        });
-    };
-    return (
-        <SettingsRow
-            label={label}
-            hint={
-                test.data && !test.isLoading ? (
-                    <TestOutcome response={test.data} />
-                ) : (
-                    'Saved and encrypted, never shown again'
-                )
-            }
-        >
-            <PasswordInput
-                size="xs"
-                w={240}
-                aria-label={`New ${label}`}
-                placeholder="Leave empty to keep the saved key"
-                autoComplete="off"
-                {...form.getInputProps('token')}
-            />
-            {tokenForm ? (
-                <Button
-                    size="xs"
-                    variant="default"
-                    loading={test.isLoading}
-                    onClick={() => handleTest(tokenForm)}
-                >
-                    Test
-                </Button>
-            ) : null}
-        </SettingsRow>
-    );
-};
+}> = ({ label, form }) => (
+    <SettingsRow label={label} hint="Saved and encrypted, never shown again">
+        <PasswordInput
+            size="xs"
+            w={240}
+            aria-label={`New ${label}`}
+            placeholder="Leave empty to keep the saved key"
+            autoComplete="off"
+            {...form.getInputProps('token')}
+        />
+    </SettingsRow>
+);
 
 export const LiveSourceSettings: FC<{
     projectUuid: string;
@@ -190,6 +132,7 @@ export const LiveSourceSettings: FC<{
     const updateSource = useUpdateExternalConnection(
         LIVE_SOURCE_UPDATE_MESSAGES,
     );
+    const testSource = useTestConnection({ showErrorToast: false });
     const [isPurgeOpen, setIsPurgeOpen] = useState(false);
     const { data: projectCache } = useResultsCacheStatus(projectUuid);
     /** The project doesn't cache results, so the source has nothing to tune or clear. */
@@ -224,15 +167,7 @@ export const LiveSourceSettings: FC<{
         if (keys.every((key) => values[key].trim() === saved[key].trim()))
             return;
         if (keys.some((key) => form.validateField(key).hasError)) return;
-        // A saved key is never sent to another region, so moving needs a new one
-        if (
-            keys.includes('region') &&
-            values.region !== saved.region &&
-            values.token.trim() === ''
-        ) {
-            form.setFieldError('token', 'Enter a key for the new region');
-            return;
-        }
+        if (keys.includes('region') && needsKeyForRegion()) return;
         const changed = Object.fromEntries(
             keys.map((key) => [key, values[key].trim()]),
         );
@@ -260,6 +195,48 @@ export const LiveSourceSettings: FC<{
             (key) =>
                 form.values[key].trim() !== form.getInitialValues()[key].trim(),
         );
+
+    /** A saved key is never sent to another region, so moving needs a new one. */
+    const needsKeyForRegion = () => {
+        const { values } = form;
+        if (
+            values.region === form.getInitialValues().region ||
+            values.token.trim() !== ''
+        )
+            return false;
+        form.setFieldError('token', 'Enter a key for the new region');
+        return true;
+    };
+
+    const isAccessChanged = accessKeys.length > 0 && isChanged(accessKeys);
+    const testRequest = getLiveSourceTestRequest(
+        connection,
+        access,
+        form.values,
+    );
+
+    /** Tests the Access card as edited, so a new key can be tried before saving. */
+    const handleTest = () => {
+        if (!testRequest) return;
+        if (isAccessChanged) {
+            if (accessKeys.some((key) => form.validateField(key).hasError))
+                return;
+            if (isPostHogKey && needsKeyForRegion()) return;
+        }
+        testSource.mutate({
+            ...params,
+            ...testRequest,
+            ...(isAccessChanged
+                ? {
+                      config: toLiveSourceAccessUpdate(
+                          connection,
+                          access,
+                          form.values,
+                      ),
+                  }
+                : {}),
+        });
+    };
 
     const revert = (keys: (keyof LiveSourceAccessValues)[]) => {
         keys.forEach((key) => {
@@ -358,15 +335,7 @@ export const LiveSourceSettings: FC<{
                         </SettingsRow>
                     ) : null}
                     {tokenLabel ? (
-                        <TokenRow
-                            projectUuid={projectUuid}
-                            connection={connection}
-                            label={tokenLabel}
-                            tokenForm={
-                                access.kind === 'token' ? access.form : null
-                            }
-                            form={form}
-                        />
+                        <TokenRow label={tokenLabel} form={form} />
                     ) : (
                         <SettingsRow
                             label="Account"
@@ -396,6 +365,18 @@ export const LiveSourceSettings: FC<{
                                 Sign in with PostHog
                             </Button>
                         </SettingsRow>
+                    ) : null}
+                    {testRequest ? (
+                        <LiveSourceTestRow
+                            hint={
+                                isAccessChanged
+                                    ? 'Checks your unsaved changes above'
+                                    : 'Checks the saved access'
+                            }
+                            test={testSource}
+                            onTest={handleTest}
+                            inputs={accessKeys.map((key) => form.values[key])}
+                        />
                     ) : null}
                     {accessKeys.length > 0 ? saveFooter(accessKeys) : null}
                 </SettingsCard>

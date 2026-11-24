@@ -7,7 +7,7 @@ import {
     LIVE_INTEGRATION_CATALOG,
     type AmplitudeRegion,
 } from '@lightdash/common';
-import { Button, PasswordInput, SegmentedControl, Stack } from '@mantine/core';
+import { PasswordInput, SegmentedControl, Stack } from '@mantine/core';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import { useCreateExternalConnection } from '../hooks/useCreateExternalConnection';
@@ -19,12 +19,9 @@ import {
     useAmplitudeConnectionForm,
 } from './amplitudeConnection';
 import { LiveSourceTitle } from './LiveSourceIcon';
-import {
-    SettingsCard,
-    SettingsRow,
-    TestOutcome,
-} from './LiveSourceSettingsRows';
+import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
 import { LiveSourceSetupCard } from './LiveSourceSetupCard';
+import { LiveSourceTestRow } from './LiveSourceTestRow';
 import { NewLiveSourceDetails } from './NewLiveSourceDetails';
 
 /** Matches the fields of the Details card below. */
@@ -46,7 +43,7 @@ export const AmplitudeConnectionModal: FC<Props> = ({
 }) => {
     const form = useAmplitudeConnectionForm();
     const createMutation = useCreateExternalConnection();
-    const testMutation = useTestConnectionConfig();
+    const testMutation = useTestConnectionConfig({ showErrorToast: false });
     const sourceId = useNewSourceId({
         projectUuid,
         connector: CONNECTOR,
@@ -129,13 +126,7 @@ export const AmplitudeConnectionModal: FC<Props> = ({
                     </SettingsRow>
                     <SettingsRow
                         label="Secret key"
-                        hint={
-                            testMutation.data ? (
-                                <TestOutcome response={testMutation.data} />
-                            ) : (
-                                'Shown once, when Amplitude creates it'
-                            )
-                        }
+                        hint="Shown once, when Amplitude creates it"
                     >
                         <PasswordInput
                             w={FIELD_WIDTH}
@@ -143,15 +134,17 @@ export const AmplitudeConnectionModal: FC<Props> = ({
                             aria-label="Secret key"
                             {...form.getInputProps('secretKey')}
                         />
-                        <Button
-                            size="xs"
-                            variant="default"
-                            onClick={handleTest}
-                            loading={testMutation.isLoading}
-                        >
-                            Test
-                        </Button>
                     </SettingsRow>
+                    <LiveSourceTestRow
+                        hint="Checks the details above, without saving"
+                        test={testMutation}
+                        onTest={handleTest}
+                        inputs={[
+                            form.values.region,
+                            form.values.apiKey,
+                            form.values.secretKey,
+                        ]}
+                    />
                 </SettingsCard>
 
                 <NewLiveSourceDetails
