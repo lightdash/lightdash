@@ -1,14 +1,17 @@
-import { type AiAgentMessageUser } from '@lightdash/common';
+import {
+    UNTITLED_WORKSPACE_NAME,
+    type AiAgentMessageUser,
+} from '@lightdash/common';
 import { useEffect, useRef } from 'react';
+import { useStoredStudioThread } from '../../../../../features/semanticStudio/studioChange';
 import { splitStudioChatCode } from '../../../../../features/semanticStudio/studioChatRefs';
 import {
+    findActiveWorkspace,
+    findThreadWorkspace,
     useStudioWorkspaceAction,
     useStudioWorkspaces,
 } from '../../../../../features/semanticStudio/useStudioWorkspaces';
-import {
-    useStoredStudioThread,
-    useStudioThread,
-} from './useSemanticStudioChat';
+import { useStudioThread } from './useSemanticStudioChat';
 
 const NAME_LENGTH = 60;
 
@@ -20,7 +23,7 @@ export const nameFromRequest = (request: string | undefined): string => {
             .split('\n')
             .map((text) => text.trim())
             .find((text) => text && !/, lines \d+ to \d+:$/.test(text)) ?? '';
-    if (!line) return 'Untitled';
+    if (!line) return UNTITLED_WORKSPACE_NAME;
     const named = line.charAt(0).toUpperCase() + line.slice(1);
     return named.length > NAME_LENGTH
         ? `${named.slice(0, NAME_LENGTH - 1).trimEnd()}…`
@@ -40,7 +43,7 @@ export const useSyncStudioWorkspace = (
     const [stored, setStored] = useStoredStudioThread(projectUuid);
     const { data: workspaces } = useStudioWorkspaces(projectUuid);
     const action = useStudioWorkspaceAction(projectUuid);
-    const active = workspaces?.mine.find(({ isActive }) => isActive) ?? null;
+    const active = findActiveWorkspace(workspaces);
 
     const followed = useRef<string | null>(null);
     useEffect(() => {
@@ -73,9 +76,7 @@ export const useSyncStudioWorkspace = (
     useEffect(() => {
         if (!syncThread || !stored || !hasChanges || !workspaces || isLoading)
             return;
-        const own = workspaces.mine.find(
-            ({ threadUuid }) => threadUuid === stored.threadUuid,
-        );
+        const own = findThreadWorkspace(workspaces.mine, stored.threadUuid);
         if (own?.isActive || started.current === stored.threadUuid) return;
         started.current = stored.threadUuid;
         mutate({
@@ -101,14 +102,12 @@ export const useSyncStudioWorkspace = (
     useEffect(() => {
         if (!syncThread || !stored || !title || !workspaces || isLoading)
             return;
-        const own = workspaces.mine.find(
-            ({ threadUuid }) => threadUuid === stored.threadUuid,
-        );
+        const own = findThreadWorkspace(workspaces.mine, stored.threadUuid);
         if (!own || own.name === title) return;
         // A workspace the server started before the chat had a title is named for no request.
         if (
             own.name !== nameFromRequest(firstRequest?.message) &&
-            own.name !== nameFromRequest(undefined)
+            own.name !== UNTITLED_WORKSPACE_NAME
         ) {
             return;
         }

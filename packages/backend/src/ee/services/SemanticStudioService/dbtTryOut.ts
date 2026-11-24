@@ -1,6 +1,12 @@
-import { type Explore, type ExploreError } from '@lightdash/common';
-import { createHash } from 'crypto';
-import { type DbtFileChange } from './codeMode/dbtManifestPatch';
+import {
+    NotFoundError,
+    type Explore,
+    type ExploreError,
+    type SemanticStudioWorkspace,
+} from '@lightdash/common';
+import { text } from 'node:stream/consumers';
+import { type SemanticStudioWorkspaceModel } from '../../models/SemanticStudioWorkspaceModel';
+import { type StudioFileStorage } from './checkedExplores';
 
 /** What is stored for a person's latest dbt change: the pull request it went to, and what it compiles to. */
 export type DbtTryOut = {
@@ -8,35 +14,112 @@ export type DbtTryOut = {
     explores: (Explore | ExploreError)[];
 };
 
+type TryOutOwner = { projectUuid: string; userUuid: string };
+
+/** The workspace a try-out is read for: its conversation names the file, its pull request vouches for an older one. */
+type TryOutWorkspace = Pick<
+    SemanticStudioWorkspace,
+    'threadUuid' | 'pullRequest'
+>;
+
 /** One try-out per conversation, so each workspace keeps its own; null is where one was kept before workspaces. */
-export const dbtTryOutFileId = (
-    projectUuid: string,
-    userUuid: string,
+const dbtTryOutFileId = (
+    { projectUuid, userUuid }: TryOutOwner,
     threadUuid: string | null,
 ) =>
     `semantic-studio-dbt-try-out/${projectUuid}/${userUuid}${threadUuid ? `/${threadUuid}` : ''}`;
 
-/** Identifies a change by the commit its manifest was compiled at and the content it leaves; equal fingerprints compile to the same explores. */
-export const dbtChangeFingerprint = (
-    compiledCommitSha: string,
-    changes: DbtFileChange[],
-    lightdashConfigYaml: string | null,
-) =>
-    createHash('sha256')
-        .update(
-            JSON.stringify([
-                compiledCommitSha,
-                lightdashConfigYaml,
-                changes
-                    .filter(({ base, next }) => base !== next)
-                    .sort((a, b) => (a.path < b.path ? -1 : 1))
-                    .map(({ path, next }) => [path, next]),
-            ]),
-        )
-        .digest('hex');
+/** Keeps what a code-mode change compiled to as the conversation's try-out, until the preview project is built. */
+export const saveDbtTryOut = async (
+    storage: StudioFileStorage,
+    owner: TryOutOwner,
+    threadUuid: string | null,
+    tryOut: DbtTryOut,
+): Promise<void> => {
+    if (!storage.isEnabled()) return;
+    await storage.uploadTxt(
+        Buffer.from(JSON.stringify(tryOut)),
+        dbtTryOutFileId(owner, threadUuid),
+    );
+};
 
-/** What a checked change compiled to, kept so the compile after its merge can reuse it. */
-export const checkedExploresFileId = (
-    projectUuid: string,
-    fingerprint: string,
-) => `semantic-studio-checked-explores/${projectUuid}/${fingerprint}`;
+const readDbtTryOutFile = async (
+    storage: StudioFileStorage,
+    fileId: string,
+): Promise<DbtTryOut | null> => {
+    try {
+        const { stream } = await storage.getFileStream(`${fileId}.txt`);
+        const tryOut: DbtTryOut = JSON.parse(await text(stream));
+        return Array.isArray(tryOut.explores) ? tryOut : null;
+    } catch (error) {
+        if (error instanceof NotFoundError || error instanceof SyntaxError)
+            return null;
+        throw error;
+    }
+};
+
+/** The try-out of the person's active workspace; without one, their latest change from before workspaces. */
+const readDbtTryOut = async (
+    storage: StudioFileStorage,
+    owner: TryOutOwner,
+    active: TryOutWorkspace | null,
+): Promise<{ fileId: string; tryOut: DbtTryOut } | null> => {
+    if (!storage.isEnabled()) return null;
+    if (active?.threadUuid) {
+        const fileId = dbtTryOutFileId(owner, active.threadUuid);
+        const tryOut = await readDbtTryOutFile(storage, fileId);
+        if (tryOut) return { fileId, tryOut };
+    }
+    const legacyId = dbtTryOutFileId(owner, null);
+    const legacy = await readDbtTryOutFile(storage, legacyId);
+    // An older try-out belongs to the active workspace only when it is for that workspace's pull request.
+    if (!legacy || (active && legacy.prUrl !== active.pullRequest?.url)) {
+        return null;
+    }
+    return { fileId: legacyId, tryOut: legacy };
+};
+
+/** Forgets this person's try-out once its pull request is merged or closed. */
+export const retireDbtTryOut = async (
+    storage: StudioFileStorage,
+    owner: TryOutOwner,
+    active: TryOutWorkspace | null,
+    prUrl: string,
+): Promise<void> => {
+    const found = await readDbtTryOut(storage, owner, active);
+    if (found?.tryOut.prUrl !== prUrl) return;
+    await storage.deleteFile(`${found.fileId}.txt`);
+};
+
+/** The explores of the person's checked-out dbt change: its last branch compile, else its try-out. */
+export const findDbtDraftExplores = async (
+    {
+        storage,
+        workspaceModel,
+    }: {
+        storage: StudioFileStorage;
+        workspaceModel: Pick<
+            SemanticStudioWorkspaceModel,
+            'findActive' | 'findBranchCompile'
+        >;
+    },
+    owner: TryOutOwner,
+): Promise<Map<string, Explore | ExploreError> | null> => {
+    const active = await workspaceModel.findActive(owner);
+    const compile = active
+        ? await workspaceModel.findBranchCompile(active.workspaceUuid)
+        : null;
+    // Models the branch removes still show until it merges.
+    if (compile?.explores) {
+        return new Map(
+            compile.explores.map((explore) => [explore.name, explore]),
+        );
+    }
+    const found = await readDbtTryOut(storage, owner, active);
+    // Models the change removes still show; the preview shows removals.
+    return found
+        ? new Map(
+              found.tryOut.explores.map((explore) => [explore.name, explore]),
+          )
+        : null;
+};

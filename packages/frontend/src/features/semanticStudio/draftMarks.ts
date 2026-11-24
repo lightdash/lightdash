@@ -15,7 +15,7 @@ export type DraftMarks = {
 };
 
 /** What one publish did to a model: created or changed it, and its fields. */
-export type PublishedModel = { kind: ChangeKind; fields: FieldChange[] };
+type PublishedModel = { kind: ChangeKind; fields: FieldChange[] };
 
 // Read once for the page: every row asking the draft itself costs a subscription per row.
 export const DraftMarksContext = createContext<DraftMarks>({

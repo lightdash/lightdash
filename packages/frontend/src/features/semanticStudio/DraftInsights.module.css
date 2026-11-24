@@ -130,7 +130,7 @@ details:not([open]) > .sectionTitle {
     font-family: var(--mantine-font-family-monospace);
     font-weight: 600;
     text-align: center;
-    color: var(--mantine-color-orange-text);
+    color: var(--mantine-color-yellow-text);
 }
 
 .publishGlyph[data-change='new'] {

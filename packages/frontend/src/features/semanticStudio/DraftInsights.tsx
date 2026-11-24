@@ -39,7 +39,9 @@ import { useTimeAgo } from '../../hooks/useTimeAgo';
 import classes from './DraftInsights.module.css';
 import { describePublisher } from './draftState';
 import { FieldChangeIcon } from './KindTypeIcon';
+import { LineCounts } from './LineCounts';
 import {
+    CHANGE_GLYPHS,
     CHANGE_KIND_LABELS,
     describeModelChange,
     getChangeKind,
@@ -55,7 +57,6 @@ import {
     useSemanticLayerDraftUsage,
     usePublishMode,
 } from './useSemanticLayerModel';
-import { LineCounts } from './WorkbenchRail';
 
 const listNames = (names: string[]): string =>
     names.length <= 2
@@ -760,8 +761,6 @@ export const PublishChecklist: FC<{
     );
 };
 
-const GLYPHS = { new: '+', changed: '~', removed: '−' };
-
 const describeUse = ({
     charts,
     dashboards,
@@ -836,7 +835,7 @@ export const PublishSummary: FC<{
                                         data-change={part.change}
                                         aria-hidden
                                     >
-                                        {GLYPHS[part.change]}
+                                        {CHANGE_GLYPHS[part.change]}
                                     </Text>
                                     <FieldChangeIcon field={part} />
                                     <Text fz="sm" truncate>

@@ -126,7 +126,7 @@ const draftedFields = (
     ].map((field) => ({ ...field, draftState: states.get(field.id) ?? null }));
 };
 
-export type ExploreDetails = {
+type ExploreDetails = {
     ymlPath: string | null;
     joinedTables: string[];
     visibleTo: string | null;

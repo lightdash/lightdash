@@ -1,3 +1,38 @@
+# [3.383.0](https://github.com/lightdash/lightdash/compare/3.382.0...3.383.0) (2026-11-24)
+
+
+### Features
+
+* **live-sources:** test access from the Access card when adding a source and in settings ([#33307](https://github.com/lightdash/lightdash/issues/33307)) ([a0e7845](https://github.com/lightdash/lightdash/commit/a0e7845648c0ea0ae4f0d228ecf5fa7e45b1a060))
+
+# [3.382.0](https://github.com/lightdash/lightdash/compare/3.381.3...3.382.0) (2026-11-24)
+
+
+### Features
+
+* **semantic-studio:** compact draft row in the project switcher that opens the change ([#33309](https://github.com/lightdash/lightdash/issues/33309)) ([2e1bbdd](https://github.com/lightdash/lightdash/commit/2e1bbdd4b1ee627c6e2b240b61cebcd3bcefa63a))
+
+## [3.381.3](https://github.com/lightdash/lightdash/compare/3.381.2...3.381.3) (2026-11-24)
+
+
+### Bug Fixes
+
+* **semantic-studio:** close remaining links and fix merge, PR and publish edge cases ([#33276](https://github.com/lightdash/lightdash/issues/33276)) ([a1fa729](https://github.com/lightdash/lightdash/commit/a1fa729f04f04728c2aff8947db48a59b9772097))
+
+## [3.381.2](https://github.com/lightdash/lightdash/compare/3.381.1...3.381.2) (2026-11-24)
+
+
+### Bug Fixes
+
+* **frontend:** only show groups tip to users who can manage groups ([#33302](https://github.com/lightdash/lightdash/issues/33302)) ([3a8533f](https://github.com/lightdash/lightdash/commit/3a8533ff0b25970b4906408b4f07c6df79f83447))
+
+## [3.381.1](https://github.com/lightdash/lightdash/compare/3.381.0...3.381.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* keep the credentials prompt closed after it is dismissed ([#33298](https://github.com/lightdash/lightdash/issues/33298)) ([4d6da6b](https://github.com/lightdash/lightdash/commit/4d6da6be448a455f6fd677ae616ad00f343c1d24))
+
 # [3.381.0](https://github.com/lightdash/lightdash/compare/3.380.0...3.381.0) (2026-11-24)
 
 

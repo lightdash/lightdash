@@ -76,6 +76,7 @@ export * from './skillValidation';
 export * from './filterExploreByTags';
 export * from './projectContext';
 export * from './requestTypes';
+export * from './semanticStudioProposals';
 export * from './schemas';
 export * from './schemas/agentReadiness';
 export * from './schemas/agentSuggestions';

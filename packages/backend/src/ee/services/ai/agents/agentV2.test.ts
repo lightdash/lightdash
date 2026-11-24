@@ -60,6 +60,7 @@ import {
     getRecentQueryFieldIds,
     getStepBudgetOverride,
     getStudioCardResponse,
+    getTurnFastResponse,
     normalizeToolOutput,
     recordAgentStepUsage,
     resolveAgentLoadout,
@@ -4439,10 +4440,11 @@ describe('withStudioCardReply', () => {
                 ],
             },
         ];
-        expect(
-            getStudioCardResponse(saved({ prompt: 'x', script: null })),
-        ).toBe('Saved the change to the draft.');
-        expect(getStudioCardResponse(saved({ prompt: 'x' }))).toBeNull();
+        const steps = saved({ prompt: 'x', script: null });
+        expect(getTurnFastResponse(false, null, steps, '', true)).toBe(
+            'Saved the change to the draft.',
+        );
+        expect(getTurnFastResponse(false, null, steps, '', false)).toBeNull();
     });
 
     it('names the changed models when a change ends the turn with nothing written', () => {

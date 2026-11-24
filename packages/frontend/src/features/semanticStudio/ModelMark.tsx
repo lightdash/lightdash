@@ -5,7 +5,7 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { DraftMarksContext } from './draftMarks';
 import { describeFieldChanges } from './modelCode';
 import { pullRequestNumberOf } from './urls';
-import classes from './WorkbenchView.module.css';
+import classes from './WorkbenchMainPane.module.css';
 
 /** Where this person's latest change to a model stands: waiting in a pull request, or published on this visit. */
 export const ModelMark: FC<{ model: string }> = ({ model }) => {

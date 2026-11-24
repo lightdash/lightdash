@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { applyProposal, fileBefore, proposedPathOf } from './proposedFile';
+import { patchPathOf } from '../writeback/splitPatch';
+import { applyProposal, fileBefore } from './proposedFile';
 
 const file = [
     'models:',
@@ -26,7 +27,7 @@ const patch = `--- a/models/orders.yml
 
 describe('applyProposal', () => {
     it('applies each hunk where its lines are, not where it says', () => {
-        expect(proposedPathOf(patch)).toBe('models/orders.yml');
+        expect(patchPathOf(patch)).toBe('models/orders.yml');
         expect(applyProposal([patch], 'models/orders.yml', file)).toBe(
             file
                 .replace(

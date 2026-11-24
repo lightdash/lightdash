@@ -1,6 +1,15 @@
+import { assertUnreachable } from '@lightdash/common';
+import { getStudioAbilities, type Loadout } from '../loadout';
+import {
+    readLibraryPath,
+    type ReadLibraryToolName,
+} from '../tools/readLibraries';
+import { getAiWritebackSection } from './systemV2AiWriteback';
+import { getRepoFsSection } from './systemV2RepoFs';
+
 /** How the prompt names a lookup: its own tool, or, for the builder that saves, its function inside read. */
-const lookup = (saves: boolean, tool: string, fn: string) =>
-    saves ? `${fn} in read` : tool;
+const lookup = (saves: boolean, tool: ReadLibraryToolName) =>
+    saves ? `${readLibraryPath(tool)} in read` : tool;
 
 const SEES = `The person sees your text, so write it in their terms and name fields by their label. A message may name the model or field they have open; "this" means that one.`;
 
@@ -29,14 +38,75 @@ const getModelling = (grain: string) => `## Modelling
 - A metric is reusable: a condition that defines the measure stays in the metric, and a condition that only picks one question's slice stays out. Counting entities across rows is count_distinct on their id, and a ratio is two metrics and a number metric that divides them, with the numerator cast to a decimal in the warehouse's dialect, because many warehouses divide two counts as integers and round the result to 0.
 - Give a metric the format its values need: a currency for money, a percent for a ratio, and two decimals for an average.`;
 
-/** How a dbt project's Studio thread changes things: the builder saves to the draft's branch when the person can write to the repository, and otherwise the thread proposes a diff. */
-export type SemanticStudioDbtTurn = {
-    /** The builder: it saves with write, and its lookups live inside read. */
-    saves: boolean;
-    /** The repository sections that apply to this turn. */
-    sections: string[];
-    /** The project's layout from its last compile; null when none is stored. */
-    projectMap: string | null;
+/** What a Studio thread can do, read once from its loadout and Studio's status. */
+export type SemanticStudioTurn =
+    | {
+          /** A project that keeps a draft, changed through proposals. */
+          kind: 'draft';
+          /** Whether the thread can run a metric query, which reads the person's draft. */
+          canQueryDraft: boolean;
+          /** False only for a project with no repository, which has nowhere to keep project context. */
+          hasRepository: boolean;
+      }
+    | {
+          /** A dbt project, which keeps no draft and is changed in its repository. */
+          kind: 'dbt';
+          /** build saves a dbt change to the draft's branch with write, its lookups inside read; propose proposes a diff. */
+          mode: 'propose' | 'build';
+          /** The project's layout from its last compile; null when none is stored. */
+          projectMap: string | null;
+          /** The repository sections the loadout adds. */
+          sections: string[];
+      };
+
+type DbtStudioTurn = Extract<SemanticStudioTurn, { kind: 'dbt' }>;
+
+/** A Studio thread that keeps a draft was given draft tools; any other is a dbt thread, and only it reads the repository. */
+export const getSemanticStudioTurn = (
+    loadout: Pick<Loadout, 'toolNames' | 'promptSections'>,
+    args: {
+        drafts: boolean;
+        hasRepository: boolean;
+        projectMap: string | null;
+        siteUrl: string;
+        repoFsRoot: string | null;
+        repoFsSupportsCodeSearch: boolean;
+    },
+): SemanticStudioTurn => {
+    const { promptSections } = loadout;
+    const { builder, canRunMetrics } = getStudioAbilities(loadout);
+    if (args.drafts) {
+        return {
+            kind: 'draft',
+            canQueryDraft: canRunMetrics,
+            hasRepository: args.hasRepository,
+        };
+    }
+    return {
+        kind: 'dbt',
+        mode: builder ? 'build' : 'propose',
+        projectMap: args.projectMap,
+        sections: [
+            ...(promptSections.has('aiWriteback')
+                ? [
+                      getAiWritebackSection({
+                          // The pull request card offers linking, so the reply stays short.
+                          attribution: null,
+                          siteUrl: args.siteUrl,
+                          canEditContent: false,
+                      }),
+                  ]
+                : []),
+            ...(promptSections.has('repoFs')
+                ? [
+                      getRepoFsSection({
+                          root: args.repoFsRoot,
+                          supportsCodeSearch: args.repoFsSupportsCodeSearch,
+                      }),
+                  ]
+                : []),
+        ],
+    };
 };
 
 const DBT_READ_SURVEY = `- This project's models are built by dbt, so its semantic layer lives in the repository's YAML and SQL. Read before you change: the model's YAML and SQL, how the project lays out its files and names things, and the project and package configuration when a model is not where the default layout would put it.`;
@@ -62,33 +132,36 @@ const getDbtSave = (mapped: boolean) => `${getDbtRead(mapped)}
 - A change to YAML alone is checked when it is saved, but only dbt checks one that adds a model or changes SQL: after saving it, call verify before you end the turn. If it fails, fix it with write and check again; tell the person only if it still fails.
 - When the person asks for a change, read what it touches, then save it in the same turn. Keep it to what was asked. Questions and ideas are not requests: answer them, and when you suggest a change, describe it in a sentence and save it once they say yes.
 - Leave prUrl and startNewPullRequest null, so the change joins this draft's branch while it is open and starts one otherwise. requestedBy is user_asked for a change they asked for and offer_accepted for one you suggested and they accepted.
-${getImpact('layer.impact in read')} When saved charts use it, ask before you save.
+${getImpact(lookup(true, 'analyzeFieldImpact'))} When saved charts use it, ask before you save.
 ${IN_DRAFT} Once saved, the draft compiles and the bar above this chat lets them try it and publish it.
 ${getCardIsReply('After saving,', "save's note")}`;
 
 const getDbtSections = ({
-    saves,
+    mode,
     sections,
     projectMap,
-}: SemanticStudioDbtTurn): string[] => [
-    `## What the person sees
+}: DbtStudioTurn): string[] => {
+    const saves = mode === 'build';
+    return [
+        `## What the person sees
 
 ${SEES} ${
-        saves
-            ? 'A change you save joins their draft, which lives on its own branch of the repository, and shows as a card in this chat. Published stays as it is until they publish the draft.'
-            : 'A proposed change shows as a diff in your reply. Nothing changes in this project until someone with access to the repository makes it.'
-    }
+            saves
+                ? 'A change you save joins their draft, which lives on its own branch of the repository, and shows as a card in this chat. Published stays as it is until they publish the draft.'
+                : 'A proposed change shows as a diff in your reply. Nothing changes in this project until someone with access to the repository makes it.'
+        }
 
 ## How to change the layer
 
 ${saves ? getDbtSave(projectMap !== null) : getDbtProposal(projectMap !== null)}
-- Use ${lookup(saves, 'listChanges', 'layer.changes')} to see the person's open drafts and which one is checked out.
+- Use ${lookup(saves, 'listChanges')} to see the person's open drafts and which one is checked out.
 ${REPLY_STYLE}
 
 ${getModelling('A model is one table at one grain, and its label says what one row is.')}`,
-    ...(projectMap ? [`## Project layout\n\n${projectMap}`] : []),
-    ...sections,
-];
+        ...(projectMap ? [`## Project layout\n\n${projectMap}`] : []),
+        ...sections,
+    ];
+};
 
 const DRAFT_QUERY = `
 - runMetricQuery reads the draft, so it runs a metric as your proposals leave it, with no approval. When a proposal comes back with a check, run those metrics in one query, alone or split by one dimension that should divide them. A null, a zero or a total the table cannot produce means the definition is wrong: fix it in one follow-up proposal. A number that looks right needs no comment.
@@ -145,7 +218,7 @@ const getDbtWarehouseSection = (
     `## Warehouse
 
 ${getWarehouseIntro(warehouse)}Write every sql in the warehouse's dialect.
-- ${lookup(saves, 'grepWarehouseColumns', 'warehouse.columns')} finds which tables hold a column, such as a key a model could join on; it reads no rows and needs no approval.
+- ${lookup(saves, 'grepWarehouseColumns')} finds which tables hold a column, such as a key a model could join on; it reads no rows and needs no approval.
 - Before you suggest a new metric or dimension, or answer what is worth adding to a model, look at the model's real values with runSql: the distinct values of a column a metric would filter on, how often a column it reads is null, whether its key is unique. Names alone can suggest a filter on a value that never occurs.
 - Every runSql call costs the person an approval click and warehouse time. Make one call that checks every column at once, not one call per column, and a second only when the first leaves the suggestion open. Each query reads a bounded sample rather than the whole table, in this shape:
 \`\`\`sql
@@ -162,9 +235,7 @@ export const getSemanticStudioSystemPrompt = ({
     instructions,
     projectContext,
     warehouse,
-    dbt,
-    canQueryDraft,
-    hasRepository,
+    studio,
 }: {
     agentName: string;
     date: string;
@@ -173,26 +244,38 @@ export const getSemanticStudioSystemPrompt = ({
     projectContext: string | null;
     /** Null when the person cannot run SQL, so the agent cannot look at tables. */
     warehouse: SemanticStudioWarehouse | null;
-    /** Set on a dbt project, which keeps no draft; null for a project that does. */
-    dbt: SemanticStudioDbtTurn | null;
-    /** Whether the thread can run a metric query, which reads the person's draft. */
-    canQueryDraft: boolean;
-    /** False only for a project with no repository, which has nowhere to keep project context. */
-    hasRepository: boolean;
-}): string =>
-    [
+    studio: SemanticStudioTurn;
+}): string => {
+    const getWorkflowSections = (): string[] => {
+        switch (studio.kind) {
+            case 'draft':
+                return [
+                    getDraftSections(
+                        studio.canQueryDraft,
+                        studio.hasRepository,
+                    ),
+                    getDraftWarehouseSection(warehouse),
+                ];
+            case 'dbt':
+                return [
+                    ...getDbtSections(studio),
+                    warehouse
+                        ? getDbtWarehouseSection(
+                              warehouse,
+                              studio.mode === 'build',
+                          )
+                        : '',
+                ];
+            default:
+                return assertUnreachable(studio, 'Unknown Studio workflow');
+        }
+    };
+    return [
         `You are ${agentName}, working beside a person in Semantic Studio, the page where they read and change this project's semantic layer. You help them understand a model and change it. Today is ${date}.`,
-        ...(dbt
-            ? [
-                  ...getDbtSections(dbt),
-                  warehouse ? getDbtWarehouseSection(warehouse, dbt.saves) : '',
-              ]
-            : [
-                  getDraftSections(canQueryDraft, hasRepository),
-                  getDraftWarehouseSection(warehouse),
-              ]),
+        ...getWorkflowSections(),
         instructions,
         projectContext ? `## Project context\n${projectContext}` : '',
     ]
         .filter(Boolean)
         .join('\n\n');
+};

@@ -154,6 +154,10 @@ export const AI_THREAD_CREATED_FROM = [
 ] as const;
 export type AiThreadCreatedFrom = (typeof AI_THREAD_CREATED_FROM)[number];
 
+export const isSemanticStudioThread = (
+    createdFrom: AiThreadCreatedFrom | undefined,
+): createdFrom is 'semantic_studio' => createdFrom === 'semantic_studio';
+
 // Subsets use indexed access over const arrays (not Exclude<>, which tsoa
 // can't resolve at API boundaries); `satisfies` keeps each subset inside the
 // canonical union.
