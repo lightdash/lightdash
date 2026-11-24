@@ -1,5 +1,22 @@
-import { DbtProjectType } from '@lightdash/common';
-import { Box, Button, Group, Stack, Text, Title, Tooltip } from '@mantine/core';
+import {
+    assertUnreachable,
+    DbtProjectType,
+    FeatureFlags,
+    type Project,
+    type SemanticLayerStatus,
+} from '@lightdash/common';
+import {
+    Anchor,
+    Box,
+    Button,
+    Group,
+    Paper,
+    Skeleton,
+    Stack,
+    Text,
+    Title,
+    Tooltip,
+} from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import {
@@ -8,16 +25,18 @@ import {
 } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
 import { WarehouseLogoStack } from '../../components/ProjectConnection/ProjectConnectFlow/WarehouseLogoStack';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
+import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { useProject } from '../../hooks/useProject';
-import { useTables } from '../sqlRunner/hooks/useTables';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import classes from './EmptyProject.module.css';
 import sharedClasses from './shared.module.css';
+import { describeBlocker, deploysWithCli } from './studioBlocker';
 import { StudioDraftIllustration } from './StudioDraftIllustration';
-import { STUDIO_STARTERS } from './studioStarters';
 import { getNewAgentUrl } from './urls';
 import { useAddSource, WAREHOUSE_OPTION } from './useAddSource';
-import { useCanEditSemanticLayer } from './useSemanticLayerModel';
+import { useSemanticLayerStatus } from './useSemanticLayerModel';
 import { type ViewModel } from './useSemanticStudio';
+import { modelTablePrompt, useWarehouseSummary } from './warehouseSummary';
 
 // ---------------------------------------------------------------------------
 // Empty project
@@ -126,43 +145,109 @@ const StartFromLiveSource: FC<{ view: ViewModel }> = ({ view }) => {
     );
 };
 
-/** What the agent will read from, so an empty page still shows the project is connected. */
-const WarehouseLine: FC<{
-    view: ViewModel;
-    onAsk: ((prompt: string) => void) | null;
-}> = ({ view, onAsk }) => {
-    const { data: project } = useProject(view.project.id);
-    const { data: catalog } = useTables({ projectUuid: view.project.id });
-    const type = project?.warehouseConnection?.type;
-    if (!type || !catalog) return null;
-    const schemas = Object.entries(catalog).flatMap(([, database]) =>
-        Object.entries(database),
-    );
-    const tableCount = schemas.reduce(
-        (sum, [, tables]) => sum + Object.keys(tables).length,
-        0,
-    );
-    if (tableCount === 0) return null;
-    const where = schemas.length === 1 ? ` in ${schemas[0][0]}` : '';
-    const text = `${getWarehouseLabel(type) ?? 'Warehouse'} · ${tableCount} ${tableCount === 1 ? 'table' : 'tables'}${where}`;
-    const icon = getWarehouseIcon(type, 16);
-    return onAsk ? (
-        <Button
-            size="xs"
-            variant="subtle"
-            color="gray"
-            leftSection={icon}
-            onClick={() => onAsk(STUDIO_STARTERS[0].prompt)}
-        >
-            {text}
-        </Button>
-    ) : (
-        <Group gap={6} c="dimmed" fz="xs">
-            {icon}
-            {text}
-        </Group>
+const SEMANTIC_LAYER_LINE =
+    'A semantic layer defines your tables and metrics once, so every chart, dashboard and answer calculates them the same way.';
+
+const CARD_TABLES = 5;
+
+/** What the warehouse holds; each table starts the chat when onModel is given, otherwise the card is read-only. */
+const WarehouseCard: FC<{
+    projectUuid: string;
+    onModel: ((prompt: string) => void) | null;
+}> = ({ projectUuid, onModel }) => {
+    const { type, summary } = useWarehouseSummary(projectUuid);
+    if (!type) return null;
+    const details = [
+        summary?.location ?? null,
+        summary
+            ? `${summary.tableCount} ${summary.tableCount === 1 ? 'table' : 'tables'}`
+            : null,
+    ].filter((detail) => detail !== null);
+    const tables = summary?.tables.slice(0, CARD_TABLES) ?? [];
+    const showsSchema = summary?.location?.includes('.') !== true;
+    return (
+        <Paper p="md" w="100%" ta="left" aria-label="Warehouse">
+            <Group gap="xs" wrap="nowrap">
+                {getWarehouseIcon(type, 16)}
+                <Text fz="sm" fw={500}>
+                    {getWarehouseLabel(type) ?? 'Warehouse'}
+                </Text>
+                {details.length > 0 ? (
+                    <Text fz="xs" c="dimmed" truncate>
+                        {details.join(' · ')}
+                    </Text>
+                ) : null}
+            </Group>
+            {tables.length > 0 ? (
+                <Stack gap={0} mt="xs">
+                    {tables.map((table) => (
+                        <Group
+                            key={table.reference}
+                            justify="space-between"
+                            wrap="nowrap"
+                            className={classes.tableRow}
+                        >
+                            <Text fz="sm" truncate>
+                                {table.name}
+                                {showsSchema ? (
+                                    <Text span inherit c="dimmed">
+                                        {` in ${table.schema}`}
+                                    </Text>
+                                ) : null}
+                            </Text>
+                            {onModel ? (
+                                <Button
+                                    size="xs"
+                                    variant="subtle"
+                                    flex="0 0 auto"
+                                    aria-label={`Model ${table.name}`}
+                                    onClick={() =>
+                                        onModel(modelTablePrompt(table))
+                                    }
+                                >
+                                    Model this
+                                </Button>
+                            ) : null}
+                        </Group>
+                    ))}
+                </Stack>
+            ) : null}
+        </Paper>
     );
 };
+
+/** Code as a second way in, for those who can deploy. */
+const CliLine: FC = () => {
+    const isEmbedded = useIsEmbedded();
+    return (
+        <Text fz="xs" c="dimmed">
+            Prefer code? Define models in YAML and deploy with{' '}
+            {isEmbedded ? (
+                'the CLI'
+            ) : (
+                <Anchor
+                    href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy"
+                    target="_blank"
+                    inherit
+                >
+                    the CLI
+                </Anchor>
+            )}
+            .
+        </Text>
+    );
+};
+
+const EmptyProjectSkeleton: FC = () => (
+    <Box className={classes.starter} aria-busy="true" aria-label="Loading">
+        <Stack align="center" gap="lg" w="100%" maw={520}>
+            <Skeleton h={22} w={240} />
+            <Skeleton h={12} w="80%" />
+            <Skeleton h={44} radius="md" />
+            <Skeleton h={160} radius="md" />
+        </Stack>
+    </Box>
+);
 
 export const BuildFirstModel: FC<{
     view: ViewModel;
@@ -177,90 +262,159 @@ export const BuildFirstModel: FC<{
             <Stack gap="xs" align="center" ta="center" maw={480}>
                 <Title order={3}>Build your semantic layer</Title>
                 <Text c="dimmed" fz="sm">
-                    Define your metrics once, and every chart, dashboard and
-                    answer calculates them the same way.
+                    {SEMANTIC_LAYER_LINE}
                 </Text>
             </Stack>
-            <WarehouseLine view={view} onAsk={onAsk} />
             {firstRequest}
+            <Box w="100%" maw={520}>
+                <WarehouseCard projectUuid={view.project.id} onModel={onAsk} />
+            </Box>
             <StartFromLiveSource view={view} />
         </Stack>
     </Box>
 );
 
-export const EmptyProject: FC<{ view: ViewModel; hasAgents: boolean }> = ({
-    view,
-    hasAgents,
-}) => {
+type EmptyState =
+    | 'loading'
+    | 'noWarehouse'
+    | 'connectedProject'
+    | 'editingOff'
+    | 'cannotEdit'
+    | 'noAgent';
+
+/** Which starting screen applies, checked in order; the chat screen is chosen before this one renders. */
+const getEmptyState = ({
+    project,
+    isFlagLoading,
+    isEditingOn,
+    status,
+    isLoadingAgents,
+}: {
+    project: Project | undefined;
+    isFlagLoading: boolean;
+    isEditingOn: boolean;
+    status: SemanticLayerStatus | undefined;
+    isLoadingAgents: boolean;
+}): EmptyState => {
+    if (!project) return 'loading';
+    if (!project.warehouseConnection) return 'noWarehouse';
+    if (project.dbtConnection.type !== DbtProjectType.NONE)
+        return 'connectedProject';
+    if (isFlagLoading) return 'loading';
+    if (!isEditingOn) return 'editingOff';
+    if (!status) return 'loading';
+    if (!status.enabled) return 'cannotEdit';
+    if (isLoadingAgents) return 'loading';
+    return 'noAgent';
+};
+
+const NO_ROLE_COPY =
+    'Building the semantic layer needs the Developer or Admin role on this project. Ask a project admin.';
+
+export const EmptyProject: FC<{
+    view: ViewModel;
+    isLoadingAgents: boolean;
+}> = ({ view, isLoadingAgents }) => {
     const { options, pathOf } = useAddSource(view);
     const { data: project } = useProject(view.project.id);
-    const canEdit = useCanEditSemanticLayer(view.project.id);
+    const flag = useServerFeatureFlag(FeatureFlags.SemanticStudioEditing);
+    const status = useSemanticLayerStatus(view.project.id);
     const isCopilotEnabled =
         useAiOrganizationSettings().data?.isCopilotEnabled === true;
-    if (!project) return null;
-
-    const hasWarehouse = !!project.warehouseConnection;
+    const state = getEmptyState({
+        project,
+        isFlagLoading: flag.isInitialLoading,
+        isEditingOn: flag.data?.enabled === true,
+        status,
+        isLoadingAgents,
+    });
     const connect = options.find(({ key }) => key === WAREHOUSE_OPTION);
-    const hasAgent = canEdit && hasAgents;
-    const hasConnectedProject =
-        project.dbtConnection.type !== DbtProjectType.NONE;
-    const getCopy = () => {
-        if (!hasWarehouse) {
-            return {
-                title: 'Connect a warehouse to start',
-                description: `Your metrics are built from the data in your warehouse. ${connect ? 'Add its credentials in project settings.' : 'Ask a project admin to connect one.'}`,
-            };
-        }
-        if (hasConnectedProject) {
-            return {
-                title: 'No models yet',
-                description:
-                    'Your tables and metrics come from the connected project. They show up here after it refreshes.',
-            };
-        }
-        if (canEdit && !hasAgent && isCopilotEnabled) {
-            return {
-                title: 'Build your semantic layer',
-                description:
-                    'An agent reads your warehouse and drafts tables and metrics for you to review. Create one to start.',
-            };
-        }
-        return {
-            title: 'Build your semantic layer',
-            description:
-                'Define your tables and metrics in YAML files, then deploy them with the CLI.',
-        };
-    };
-    const { title, description } = getCopy();
-    return (
-        <Box className={classes.starter}>
-            <Stack align="center" gap="xl" w="100%" maw={460} ta="center">
-                <StarterModelCode showWarehouses={!hasWarehouse} />
-                <Stack gap="xs" align="center">
-                    <Title order={3}>{title}</Title>
-                    <Text c="dimmed" fz="sm">
-                        {description}
-                    </Text>
-                </Stack>
-                {connect ? (
-                    <Button component={Link} to={pathOf(connect) ?? ''}>
-                        Connect a warehouse
-                    </Button>
-                ) : null}
-                {hasWarehouse &&
-                !hasConnectedProject &&
-                !hasAgent &&
-                canEdit &&
-                isCopilotEnabled ? (
-                    <Button
-                        component={Link}
-                        to={getNewAgentUrl(view.project.id)}
+    const canDeploy = status !== undefined && deploysWithCli(status.blocker);
+    const blocker = status?.blocker ?? null;
+
+    switch (state) {
+        case 'loading':
+            return <EmptyProjectSkeleton />;
+        case 'noWarehouse':
+        case 'connectedProject':
+            return (
+                <Box className={classes.starter}>
+                    <Stack
+                        align="center"
+                        gap="xl"
+                        w="100%"
+                        maw={460}
+                        ta="center"
                     >
-                        Create an agent
-                    </Button>
-                ) : null}
-                <StartFromSources view={view} />
-            </Stack>
-        </Box>
-    );
+                        <StarterModelCode
+                            showWarehouses={state === 'noWarehouse'}
+                        />
+                        {state === 'noWarehouse' ? (
+                            <Stack gap="xs" align="center">
+                                <Title order={3}>
+                                    Connect a warehouse to start
+                                </Title>
+                                <Text c="dimmed" fz="sm">
+                                    {`Your metrics are built from the data in your warehouse. ${connect ? 'Add its credentials in project settings.' : 'Ask a project admin to connect one.'}`}
+                                </Text>
+                            </Stack>
+                        ) : (
+                            <Stack gap="xs" align="center">
+                                <Title order={3}>No models yet</Title>
+                                <Text c="dimmed" fz="sm">
+                                    Your tables and metrics come from the
+                                    connected project. They show up here after
+                                    it refreshes.
+                                </Text>
+                            </Stack>
+                        )}
+                        {connect ? (
+                            <Button component={Link} to={pathOf(connect) ?? ''}>
+                                Connect a warehouse
+                            </Button>
+                        ) : null}
+                        <StartFromSources view={view} />
+                    </Stack>
+                </Box>
+            );
+        case 'editingOff':
+        case 'cannotEdit':
+        case 'noAgent':
+            return (
+                <Box className={classes.starter}>
+                    <Stack align="center" gap="lg" w="100%" maw={520}>
+                        <Stack gap="xs" align="center" ta="center" maw={480}>
+                            <Title order={3}>Build your semantic layer</Title>
+                            <Text c="dimmed" fz="sm">
+                                {state === 'editingOff'
+                                    ? "Semantic layer editing isn't turned on for this organization."
+                                    : state === 'cannotEdit' && blocker
+                                      ? blocker === 'no_access'
+                                          ? NO_ROLE_COPY
+                                          : describeBlocker(blocker)
+                                      : SEMANTIC_LAYER_LINE}
+                            </Text>
+                        </Stack>
+                        <WarehouseCard
+                            projectUuid={view.project.id}
+                            onModel={null}
+                        />
+                        {state === 'noAgent' && isCopilotEnabled ? (
+                            <Button
+                                component={Link}
+                                to={getNewAgentUrl(view.project.id)}
+                            >
+                                Create an agent to draft models for you
+                            </Button>
+                        ) : null}
+                        <StartFromSources view={view} />
+                        {state !== 'editingOff' && canDeploy ? (
+                            <CliLine />
+                        ) : null}
+                    </Stack>
+                </Box>
+            );
+        default:
+            return assertUnreachable(state, 'Unknown empty state');
+    }
 };
