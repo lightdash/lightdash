@@ -1,3 +1,18 @@
+# [3.392.0](https://github.com/lightdash/lightdash/compare/3.391.1...3.392.0) (2026-11-24)
+
+
+### Bug Fixes
+
+* **semantic-studio:** import metric views with clean labels and hidden date parts ([#33381](https://github.com/lightdash/lightdash/issues/33381)) ([6e3128c](https://github.com/lightdash/lightdash/commit/6e3128c88e3444c7537831c6ec2fef0ab08c59d3))
+* **semantic-studio:** let the agent finish the person's request after a proposal ([#33382](https://github.com/lightdash/lightdash/issues/33382)) ([b7585f8](https://github.com/lightdash/lightdash/commit/b7585f83732951bfebe314f3eebbde1a103e8860))
+* **semantic-studio:** name a draft from its first change instead of leaving it untitled ([#33386](https://github.com/lightdash/lightdash/issues/33386)) ([24a34b3](https://github.com/lightdash/lightdash/commit/24a34b360e444ae3cd0d5685abba2f532b2dea0f))
+
+
+### Features
+
+* **semantic-studio:** check a metric view import against the view by period ([#33384](https://github.com/lightdash/lightdash/issues/33384)) ([0ee2afc](https://github.com/lightdash/lightdash/commit/0ee2afc1acb3b1ca9f43103c513feb67de21dc8c))
+* **semantic-studio:** summarise long draft change lists ([#33380](https://github.com/lightdash/lightdash/issues/33380)) ([a24f41e](https://github.com/lightdash/lightdash/commit/a24f41e05851125c10fb0085ebbe8eb5734a27e9))
+
 ## [3.391.1](https://github.com/lightdash/lightdash/compare/3.391.0...3.391.1) (2026-11-24)
 
 
