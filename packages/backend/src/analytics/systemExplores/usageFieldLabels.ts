@@ -61,6 +61,7 @@ export const usageFieldLabels: Record<string, string> = {
     data_app_events_event_name: 'Event',
     data_app_events_event_name_name: 'Event',
     ai_usage_model: 'Model',
+    ai_usage_model_name: 'Model',
     ai_usage_feature_name: 'Feature',
     tool_activity_event_ts_day: 'Day',
     tool_activity_total_calls: 'Tool calls',

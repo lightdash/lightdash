@@ -226,10 +226,10 @@ export const dataAppsChartSpecs: UsageChartSpec[] = [
             'Tokens used to generate data apps, by builder and model. Tokens cannot yet be linked to individual data apps or builds.',
         explore: 'ai_usage',
         by: 'ai_usage_user_name',
-        then: 'ai_usage_model',
+        then: 'ai_usage_model_name',
         dimensions: [
             'ai_usage_user_name',
-            'ai_usage_model',
+            'ai_usage_model_name',
             'ai_usage_user_id',
         ],
         metrics: ['ai_usage_total_tokens_used', 'ai_usage_total_ai_calls'],

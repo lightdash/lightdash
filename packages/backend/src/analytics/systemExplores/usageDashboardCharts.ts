@@ -3,7 +3,7 @@ import {
     FilterOperator,
     TableCalculationType,
 } from '@lightdash/common';
-import { modelProviderColors } from './analyticsColorPalette';
+import { modelProviderColors, modelTierRanks } from './analyticsColorPalette';
 import { numberCard } from './chartBuilders';
 import { monthlyQueryComparisonCharts } from './monthlyQueryComparisonCharts';
 import type { UsageChartSpec } from './usageDashboardTypes';
@@ -704,7 +704,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         explore: 'ai_usage',
         dimensions: [
             'ai_usage_user_name',
-            'ai_usage_model',
+            'ai_usage_model_name',
             'ai_usage_feature_name',
             'ai_usage_user_id',
         ],
@@ -725,14 +725,15 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.18.4',
+            minVersion: '0.18.7',
             fieldMapping: {
                 x: 'ai_usage_user_name',
                 m1: 'ai_usage_total_tokens_used',
-                splitBy: 'ai_usage_model',
+                splitBy: 'ai_usage_model_name',
             },
             optionValues: {
                 splitColorGroups: modelProviderColors,
+                splitShadeRank: modelTierRanks,
                 xName: 'Person',
                 yName: 'Tokens',
                 seriesType: 'bar',
@@ -743,7 +744,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 xLabelRotate: 45,
             },
             query: {
-                dimensions: ['ai_usage_user_name', 'ai_usage_model'],
+                dimensions: ['ai_usage_user_name', 'ai_usage_model_name'],
                 metrics: ['ai_usage_total_tokens_used'],
                 sorts: [
                     {
@@ -762,7 +763,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         name: 'Tokens by feature and model',
         description: '',
         explore: 'ai_usage',
-        dimensions: ['ai_usage_feature_name', 'ai_usage_model'],
+        dimensions: ['ai_usage_feature_name', 'ai_usage_model_name'],
         metrics: ['ai_usage_total_tokens_used'],
         limit: 100,
         sorts: [
@@ -775,7 +776,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             slug: 'heatmap',
             minVersion: '0.5.0',
             fieldMapping: {
-                x: 'ai_usage_model',
+                x: 'ai_usage_model_name',
                 y: 'ai_usage_feature_name',
                 value: 'ai_usage_total_tokens_used',
             },
@@ -786,12 +787,13 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 legendFormat: 'compact',
             },
             // Columns keep the order the rows arrive in: providers by their tokens, then each
-            // provider's models by theirs
+            // provider's models from the most powerful tier down
             query: {
                 dimensions: [
                     'ai_usage_feature_name',
-                    'ai_usage_model',
+                    'ai_usage_model_name',
                     'ai_usage_model_provider',
+                    'ai_usage_model_tier',
                 ],
                 metrics: ['ai_usage_total_tokens_used'],
                 tableCalculations: [
@@ -805,18 +807,20 @@ export const usageChartSpecs: UsageChartSpec[] = [
                         name: 'model_tokens',
                         displayName: 'Model tokens',
                         type: TableCalculationType.NUMBER,
-                        sql: 'SUM(${ai_usage.total_tokens_used}) OVER (PARTITION BY ${ai_usage.model})',
+                        sql: 'SUM(${ai_usage.total_tokens_used}) OVER (PARTITION BY ${ai_usage.model_name})',
                     },
                 ],
                 sorts: [
                     { fieldId: 'provider_tokens', descending: true },
                     { fieldId: 'ai_usage_model_provider', descending: false },
+                    // The more powerful model first within a provider, as its darker shade elsewhere
+                    { fieldId: 'ai_usage_model_tier', descending: false },
                     { fieldId: 'model_tokens', descending: true },
                     { fieldId: 'ai_usage_total_tokens_used', descending: true },
                 ],
                 limit: 500,
                 description:
-                    'Tokens for each feature and model in the selected period. Models are grouped by provider.',
+                    'Tokens for each feature and model in the selected period. Models are grouped by provider, the most powerful first.',
             },
         },
     },

@@ -1442,16 +1442,16 @@ describe('Tokens by feature and model', () => {
             ).getRowObjectsJS();
             // The heatmap keeps its columns in the order the rows arrive
             // Grouped by the provider in the model's name, so Claude through Bedrock sits with Anthropic
-            expect([...new Set(rows.map((row) => row.ai_usage_model))]).toEqual(
-                [
-                    'us.anthropic.claude-b',
-                    'claude-a',
-                    'gpt-big',
-                    'gpt-small',
-                    'gemini-x',
-                    'my-deployment',
-                ],
-            );
+            expect([
+                ...new Set(rows.map((row) => row.ai_usage_model_name)),
+            ]).toEqual([
+                'us.anthropic.claude-b',
+                'claude-a',
+                'gpt-big',
+                'gpt-small',
+                'gemini-x',
+                'my-deployment',
+            ]);
             expect([
                 ...new Set(rows.map((row) => row.ai_usage_model_provider)),
             ]).toEqual(['Anthropic', 'OpenAI', 'Google', 'Other']);

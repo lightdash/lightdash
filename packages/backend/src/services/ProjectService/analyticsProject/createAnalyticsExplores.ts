@@ -36,7 +36,11 @@ import {
     agentRequestStartsMetrics,
     agentRequestStartsSql,
 } from '../../../analytics/systemExplores/agentRequests';
-import { modelProviders } from '../../../analytics/systemExplores/analyticsColorPalette';
+import {
+    modelDisplayNameSql,
+    modelProviders,
+    modelTierRankSql,
+} from '../../../analytics/systemExplores/analyticsColorPalette';
 import {
     contentHealthColumns,
     contentHealthMetrics,
@@ -705,6 +709,30 @@ export const createAnalyticsExplores = (): Explore[] => {
                     .join(
                         ' ',
                     )} WHEN ${table.dimensions.model.sql} IS NULL THEN NULL ELSE 'Other' END`,
+            };
+        }
+        if (name === 'ai_usage') {
+            // The name a reader sees, without a trailing date stamp. Charts group by it.
+            table.dimensions.model_name = {
+                ...table.dimensions.model,
+                name: 'model_name',
+                label: 'Model',
+                description:
+                    'Model name without the date stamp some providers add, so claude-haiku-4-5-20251001 reads claude-haiku-4-5. Filter on Model (recorded name).',
+                sql: modelDisplayNameSql(table.dimensions.model.sql),
+            };
+            table.dimensions.model.label = 'Model (recorded name)';
+            table.dimensions.model_tier = {
+                ...table.dimensions.model,
+                name: 'model_tier',
+                label: 'Model tier',
+                type: DimensionType.NUMBER,
+                description:
+                    "Place of the model among its provider's tiers: 0 is the most powerful, such as Opus or Ultra. A model with no known tier comes last.",
+                sql: modelTierRankSql(
+                    table.dimensions.model.sql,
+                    table.dimensions.model_provider.sql,
+                ),
             };
         }
         if (name === 'query_events') {

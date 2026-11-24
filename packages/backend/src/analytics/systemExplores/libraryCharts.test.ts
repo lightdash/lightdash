@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { createAnalyticsExplores } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import { buildAiTokenDashboard } from './aiTokenDashboard';
-import { modelProviderColors } from './analyticsColorPalette';
+import { modelProviderColors, modelTierRanks } from './analyticsColorPalette';
 import {
     libraryChartFields,
     withLibraryCharts,
@@ -507,7 +507,7 @@ describe('model colours', () => {
                 [
                     modelBinding.fieldMapping.splitBy,
                     modelBinding.fieldMapping.x,
-                ].includes('ai_usage_model'),
+                ].includes('ai_usage_model_name'),
         );
         expect(byModel.map(([slug]) => slug).sort()).toEqual([
             'lightdash-analytics-overview-ai-calls-by-day',
@@ -518,8 +518,12 @@ describe('model colours', () => {
         ]);
         byModel.forEach(([, modelBinding]) =>
             expect(modelBinding).toMatchObject({
-                minVersion: '0.18.4',
-                optionValues: { splitColorGroups: modelProviderColors },
+                minVersion: '0.18.7',
+                optionValues: {
+                    splitColorGroups: modelProviderColors,
+                    // Darker for the more powerful model
+                    splitShadeRank: modelTierRanks,
+                },
             }),
         );
         // Label=prefixes=#hex rules, with the name forms each provider route records
@@ -624,8 +628,8 @@ describe('legacyLibraryChartBindings', () => {
                 analyticsLibraryChartBindings.get(`${prefix}${key}`),
             ).toMatchObject({
                 slug: 'customizable-cartesian-chart',
-                minVersion: '0.18.4',
-                fieldMapping: { x: 'ai_usage_model' },
+                minVersion: '0.18.7',
+                fieldMapping: { x: 'ai_usage_model_name' },
                 optionValues: {
                     seriesType: 'bar',
                     orientation: 'horizontal',

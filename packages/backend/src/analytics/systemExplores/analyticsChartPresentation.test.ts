@@ -1,9 +1,19 @@
+import { DuckDBInstance } from '@duckdb/node-api';
 import { ChartType } from '@lightdash/common';
 import { buildAiTokenDashboard } from './aiTokenDashboard';
 import { withAnalyticsChartPresentation } from './analyticsChartPresentation';
-import { analyticsColorPalette } from './analyticsColorPalette';
+import {
+    analyticsColorPalette,
+    modelDisplayNameSql,
+    modelProviderColors,
+    modelProviders,
+    modelTierRank,
+    modelTierRanks,
+    modelTierRankSql,
+} from './analyticsColorPalette';
 import {
     analyticsContentAsCode,
+    analyticsLibraryChartBindings,
     analyticsSampleDashboards,
 } from './sampleContent';
 import { buildUsageDashboards } from './usageDashboards';
@@ -265,5 +275,96 @@ describe('built-in chart colours', () => {
         expect(JSON.stringify(chart.chartConfig)).toContain(
             JSON.stringify([...managed, '#868e96']),
         );
+    });
+});
+
+describe('model tiers', () => {
+    it('ranks a model by the longest tier word that matches a whole part of its name', () => {
+        const ranks = Object.fromEntries(
+            [
+                'claude-opus-5',
+                'claude-sonnet-5',
+                'us.anthropic.claude-haiku-4-5-20251001',
+                'gpt-6-astra',
+                'gpt-6-sol',
+                'gpt-5-mini',
+                'gpt-5',
+                'gemini-3-ultra',
+                'gemini-3.8-flash',
+                'gemini-3.8-flash-lite',
+                'my-azure-deployment',
+            ].map((model) => [model, modelTierRank(model)]),
+        );
+        expect(ranks).toEqual({
+            'claude-opus-5': 0,
+            'claude-sonnet-5': 1,
+            'us.anthropic.claude-haiku-4-5-20251001': 2,
+            'gpt-6-astra': 0,
+            'gpt-6-sol': 2,
+            'gpt-5-mini': 5,
+            // No tier word: after every tier of its provider
+            'gpt-5': 8,
+            'gemini-3-ultra': 0,
+            // "mini" is not a part of "gemini", and "flash-lite" is its own tier below "flash"
+            'gemini-3.8-flash': 2,
+            'gemini-3.8-flash-lite': 3,
+            // No known provider
+            'my-azure-deployment': 99,
+        });
+    });
+
+    it('gives the query, the inline charts and the chart option the same ranking', async () => {
+        const models = [
+            'claude-opus-5',
+            'claude-haiku-4-5-20251001',
+            'gpt-5-mini',
+            'gemini-3.8-flash-lite',
+            'gemini-3.8-flash',
+            'my-azure-deployment',
+        ];
+        const instance = await DuckDBInstance.create(':memory:');
+        const db = await instance.connect();
+        try {
+            const providerSql = `CASE ${modelProviders
+                .map(
+                    ({ label, prefixes }) =>
+                        `WHEN ${prefixes.map((prefix) => `starts_with(lower(m), '${prefix}')`).join(' OR ')} THEN '${label}'`,
+                )
+                .join(' ')} ELSE 'Other' END`;
+            const rows = (
+                await db.runAndReadAll(
+                    `SELECT m, ${modelTierRankSql('m', 'p')} AS tier, ${modelDisplayNameSql('m')} AS shown
+                     FROM (SELECT m, ${providerSql} AS p FROM (SELECT unnest([${models.map((model) => `'${model}'`).join(',')}]) AS m))`,
+                )
+            ).getRowObjectsJS();
+            rows.forEach((row) =>
+                expect(Number(row.tier)).toBe(modelTierRank(String(row.m))),
+            );
+            expect(
+                rows.find(({ m }) => m === 'claude-haiku-4-5-20251001')!.shown,
+            ).toBe('claude-haiku-4-5');
+            expect(rows.find(({ m }) => m === 'gpt-5-mini')!.shown).toBe(
+                'gpt-5-mini',
+            );
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
+        // The chart option is the constant itself, and the inline charts carry the same words
+        const spec = JSON.stringify(getTokenSpec('model-daily'));
+        modelTierRanks
+            .split(/[;,]/)
+            .forEach((word) =>
+                expect(spec).toContain(`(^|[^a-z0-9])${word}($|[^a-z0-9])`),
+            );
+        const shaded = [...analyticsLibraryChartBindings.values()].filter(
+            ({ optionValues }) =>
+                optionValues.splitColorGroups === modelProviderColors,
+        );
+        expect(shaded).toHaveLength(5);
+        shaded.forEach(({ optionValues, minVersion }) => {
+            expect(optionValues.splitShadeRank).toBe(modelTierRanks);
+            expect(minVersion).toBe('0.18.7');
+        });
     });
 });

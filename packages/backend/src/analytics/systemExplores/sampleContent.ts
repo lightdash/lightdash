@@ -18,6 +18,7 @@ import {
 import {
     analyticsColorPalette,
     modelProviderColors,
+    modelTierRanks,
 } from './analyticsColorPalette';
 import { withEmbedRankingPresentation } from './embedDashboard';
 import { trendRows } from './homeDashboard';
@@ -190,12 +191,13 @@ const chart = (
 // The models as horizontal bars in the order of the query, each in the colour of its provider.
 const modelRanking = (metric: string): LibraryChartBinding => ({
     slug: 'customizable-cartesian-chart',
-    minVersion: '0.18.4',
-    fieldMapping: { x: 'ai_usage_model', m1: metric },
+    minVersion: '0.18.7',
+    fieldMapping: { x: 'ai_usage_model_name', m1: metric },
     optionValues: {
         seriesType: 'bar',
         orientation: 'horizontal',
         splitColorGroups: modelProviderColors,
+        splitShadeRank: modelTierRanks,
         showDataLabels: true,
         lightdashLabels: false,
         showAxisTitles: false,
@@ -384,27 +386,34 @@ const aiUsageContent = {
                 description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
-                    minVersion: '0.18.4',
+                    minVersion: '0.18.7',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         m1: 'ai_usage_total_ai_calls',
-                        splitBy: 'ai_usage_model',
+                        splitBy: 'ai_usage_model_name',
                     },
                     optionValues: {
                         seriesType: 'bar',
                         stack: 'normal',
                         splitSort: 'total',
                         splitColorGroups: modelProviderColors,
+                        splitShadeRank: modelTierRanks,
                         xAxisType: 'time',
                         xTimeFormat: '{MMM} {d}',
                         xName: 'Day',
                         yName: 'AI calls',
                     },
                     query: {
-                        dimensions: ['ai_usage_event_ts_day', 'ai_usage_model'],
+                        dimensions: [
+                            'ai_usage_event_ts_day',
+                            'ai_usage_model_name',
+                        ],
                         metrics: ['ai_usage_total_ai_calls'],
                         sorts: [
-                            { fieldId: 'ai_usage_model', descending: false },
+                            {
+                                fieldId: 'ai_usage_model_name',
+                                descending: false,
+                            },
                             {
                                 fieldId: 'ai_usage_event_ts_day',
                                 descending: false,
@@ -428,27 +437,34 @@ const aiUsageContent = {
                 description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
-                    minVersion: '0.18.4',
+                    minVersion: '0.18.7',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         m1: 'ai_usage_total_tokens_used',
-                        splitBy: 'ai_usage_model',
+                        splitBy: 'ai_usage_model_name',
                     },
                     optionValues: {
                         seriesType: 'bar',
                         stack: 'normal',
                         splitSort: 'total',
                         splitColorGroups: modelProviderColors,
+                        splitShadeRank: modelTierRanks,
                         xAxisType: 'time',
                         xTimeFormat: '{MMM} {d}',
                         xName: 'Day',
                         yName: 'Tokens',
                     },
                     query: {
-                        dimensions: ['ai_usage_event_ts_day', 'ai_usage_model'],
+                        dimensions: [
+                            'ai_usage_event_ts_day',
+                            'ai_usage_model_name',
+                        ],
                         metrics: ['ai_usage_total_tokens_used'],
                         sorts: [
-                            { fieldId: 'ai_usage_model', descending: false },
+                            {
+                                fieldId: 'ai_usage_model_name',
+                                descending: false,
+                            },
                             {
                                 fieldId: 'ai_usage_event_ts_day',
                                 descending: false,
@@ -465,7 +481,7 @@ const aiUsageContent = {
             'Tokens by model (top 10)',
             'ai_usage',
             'total_tokens_used',
-            'model',
+            'model_name',
             {
                 visualization: 'bar',
                 colors: ['#7950F2'],
@@ -481,7 +497,7 @@ const aiUsageContent = {
             'AI calls by model (top 10)',
             'ai_usage',
             'total_ai_calls',
-            'model',
+            'model_name',
             {
                 visualization: 'bar',
                 colors: ['#339AF0'],
@@ -826,7 +842,8 @@ export const analyticsSampleDashboards = [
                 'Queries by cache hit',
                 'query_events',
                 'total_queries',
-                'cache_hit',
+                // The plain-name field: queries with no cache information read Not recorded
+                'cache_hit_name',
                 {
                     visualization: 'donut',
                     description:
