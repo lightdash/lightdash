@@ -1,5 +1,6 @@
 import {
     DASHBOARD_GRID_CLASS,
+    DashboardTileTypes,
     FilterOperator,
     type DashboardFilterRule,
     type DashboardFilterRuleOverride,
@@ -131,6 +132,18 @@ const AnalyticsDashboardEmbed = ({
               ]
             : []),
     ];
+    // A tab whose charts all keep their own period has nothing for the date range to change, so the
+    // range is not offered there. A tile the filter does not name follows it by default
+    const shownTab = chosenTab ?? tabs[0]?.uuid;
+    const tabFollowsDate =
+        !!dateFilter &&
+        (dashboard.data?.tiles ?? []).some(
+            (tile) =>
+                (tabs.length <= 1 || tile.tabUuid === shownTab) &&
+                (tile.type === DashboardTileTypes.SAVED_CHART ||
+                    tile.type === DashboardTileTypes.SQL_CHART) &&
+                dateFilter.tileTargets?.[tile.uuid] !== false,
+        );
     const path = `/minimal/projects/${projectUrlIdentifier}/dashboards/${slug}`;
     // The tabs are offered here, in the style of this page, so the dashboard is asked to leave its own out
     const query = `?hideTabs=true${
@@ -195,9 +208,9 @@ const AnalyticsDashboardEmbed = ({
                         gap="md"
                         className={`${classes.filterControls} ${classes.dashboardControls}`}
                     >
-                        {dateFilter && controls.dateNote}
+                        {tabFollowsDate && controls.dateNote}
                         {projectFilter && controls.project}
-                        {dateFilter && controls.date}
+                        {tabFollowsDate && controls.date}
                     </Group>
                 )}
             </Group>
