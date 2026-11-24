@@ -5,17 +5,22 @@
  */
 import {
     ApiConnectorType,
+    POSTHOG_TEST_QUERY,
+    type ApiTestExternalConnectionRequest,
     type UpdateExternalConnection,
 } from '@lightdash/common';
+import { AMPLITUDE_TEST_REQUEST } from './amplitudeConnection';
 import { getLiveSource } from './liveSourceCatalog';
 import { type LiveSourceConnection } from './liveSourceRows';
 import {
+    getPostHogQueryPath,
     POSTHOG_PROJECT_ID_FIELD,
     toPostHogFormValues,
     toPostHogUpdatePayload,
     type PostHogRegion,
 } from './postHogConnection';
 import {
+    normalizeAccountId,
     toTokenLiveSourceUpdatePayload,
     type TokenLiveSourceForm,
 } from './tokenLiveSource';
@@ -146,5 +151,39 @@ export const toLiveSourceAccessUpdate = (
         case 'signedIn':
         default:
             return { name: values.name.trim(), aiHint };
+    }
+};
+
+/**
+ * The small read that tests a saved source, with its account as edited, or
+ * null when the integration has none the app knows.
+ */
+export const getLiveSourceTestRequest = (
+    connection: LiveSourceConnection,
+    access: LiveSourceAccess,
+    values: LiveSourceAccessValues,
+): Omit<ApiTestExternalConnectionRequest, 'config'> | null => {
+    if (access.kind === 'token')
+        return access.form.getTestRequest(
+            normalizeAccountId(access.form, values.accountId),
+        );
+    const { apiSource } = connection;
+    switch (apiSource.connector) {
+        case ApiConnectorType.POSTHOG:
+            return {
+                method: 'POST',
+                path: getPostHogQueryPath(
+                    access.kind === 'posthogKey'
+                        ? values.accountId.trim()
+                        : apiSource.projectId,
+                ),
+                body: {
+                    query: { kind: 'HogQLQuery', query: POSTHOG_TEST_QUERY },
+                },
+            };
+        case ApiConnectorType.AMPLITUDE:
+            return AMPLITUDE_TEST_REQUEST;
+        default:
+            return null;
     }
 };
