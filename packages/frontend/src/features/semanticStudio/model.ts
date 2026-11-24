@@ -8,7 +8,7 @@ import { type ChangeKind } from './modelCode';
 
 export type Kind = 'modelled' | 'sqlViews' | 'files' | 'live';
 
-const KIND_ORDER: Kind[] = ['modelled', 'sqlViews', 'files', 'live'];
+export const KIND_ORDER: Kind[] = ['modelled', 'sqlViews', 'files', 'live'];
 
 /**
  * Names match the rest of the product: "Warehouse" for the semantic layer,
@@ -44,7 +44,7 @@ const kindLabel = (project: Project, kind: Kind): string =>
             : 'dbt project'
         : KIND_LABELS[kind];
 
-export type SourceType = 'dbt' | 'sqlView' | 'csv' | 'sheets' | 'live';
+type SourceType = 'dbt' | 'sqlView' | 'csv' | 'sheets' | 'live';
 
 export type WarehouseConnection = {
     /** WarehouseTypes value, such as `bigquery`. */
@@ -484,7 +484,7 @@ export const pageNodes = (
 };
 
 /** Flattens the expanded part of a tree into rows for a virtual list. */
-export type TreeRow = { node: TreeNode; depth: number };
+type TreeRow = { node: TreeNode; depth: number };
 
 export const flattenTree = (
     nodes: TreeNode[],
@@ -540,7 +540,7 @@ export const containerOf = (ref: NodeRef): NodeRef =>
 // ---------------------------------------------------------------------------
 // Search: flat results with their path
 
-export type SearchGroup = 'Sources' | 'Folders' | 'Explores' | 'Fields';
+type SearchGroup = 'Sources' | 'Folders' | 'Explores' | 'Fields';
 
 const SEARCH_GROUPS: readonly SearchGroup[] = [
     'Sources',

@@ -66,6 +66,12 @@ export const buildLoadout = (
 export const resolveLoadout = (input: LoadoutInput): Loadout =>
     buildLoadout(selectLoadoutBase(input), input, applicableAddOns(input));
 
+/** What a Semantic Studio loadout lets the agent do, read the same way by its prompt and its tools. */
+export const getStudioAbilities = (loadout: Pick<Loadout, 'toolNames'>) => ({
+    builder: loadout.toolNames.has('read'),
+    canRunMetrics: loadout.toolNames.has('runMetricQuery'),
+});
+
 /** The loadout's built-in skills, then the agent's custom skills. */
 export const getAvailableSkills = (
     args: Pick<AiAgentArgs, 'builtInSkills' | 'customSkills'>,

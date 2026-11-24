@@ -1,3 +1,7 @@
+import {
+    DEVELOPMENT_PREVIEW_HEADER,
+    DEVELOPMENT_VIEW_HEADER,
+} from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
@@ -5,14 +9,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../../providers/ReactQuery/createQueryClient';
 import {
     clearDevelopmentView,
-    DEVELOPMENT_PREVIEW_HEADER,
-    DEVELOPMENT_VIEW_HEADER,
     getDevelopmentViewHeaders,
     pinDevelopmentView,
     PUBLISHED_VIEW,
     useCheckedOutView,
     useDevelopmentView,
 } from './developmentView';
+import { CHECKOUT_KEY, DRAFT_KEY } from './studioQueryKeys';
 
 const at = (path: string) => window.history.pushState({}, '', path);
 
@@ -96,21 +99,19 @@ describe('the development view of a checked-out draft', () => {
         const key = ['tables', 'orders', 'p-1'];
         at('/projects/p-1/semantic-layer');
         queryClient.setQueryData(key, 'published');
-        queryClient.setQueryData(['semantic-studio-checkout', 'p-1'], 'a');
+        queryClient.setQueryData([CHECKOUT_KEY, 'p-1'], 'a');
         localStorage.setItem('lightdash-checked-out-project', 'p-1');
         expect(queryClient.getQueryData(key)).toBeUndefined();
         at('/projects/p-1/tables/orders');
         expect(queryClient.getQueryData(key)).toBeUndefined();
-        expect(
-            queryClient.getQueryData(['semantic-studio-checkout', 'p-1']),
-        ).toBe('a');
+        expect(queryClient.getQueryData([CHECKOUT_KEY, 'p-1'])).toBe('a');
         clearDevelopmentView();
         expect(queryClient.getQueryData(key)).toBe('published');
     });
 
     it('reads one draft in either view, so leaving a draft never brings back an older copy of it', () => {
         const queryClient = createQueryClient();
-        const key = ['semantic-layer-draft', 'p-1'];
+        const key = [DRAFT_KEY, 'p-1'];
         at('/projects/p-1/semantic-layer');
         queryClient.setQueryData(key, 'one change');
         localStorage.setItem('lightdash-checked-out-project', 'p-1');
@@ -144,7 +145,7 @@ describe('the development view of a checked-out draft', () => {
         const key = ['project', 'p-1'];
         at('/projects/p-1/semantic-layer');
         queryClient.setQueryData(key, 'published');
-        queryClient.setQueryData(['semantic-studio-checkout', 'p-1'], 'a');
+        queryClient.setQueryData([CHECKOUT_KEY, 'p-1'], 'a');
         const access = ['ai-access', 'p-1', null, 'me'];
         queryClient.setQueryData(access, 'allowed');
         const { result } = renderHook(() => useDevelopmentView(), {

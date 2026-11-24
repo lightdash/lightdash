@@ -8,6 +8,7 @@ import {
     ExternalSourceStatus,
     ExternalSourceType,
     getExternalSourceDisplayName,
+    getLegacyLiveSourceName,
     isSummaryExploreError,
     type ExternalConnectionListItem,
     type ExternalSource,
@@ -84,7 +85,10 @@ const externalSource = (source: ExternalSource): Source => ({
 const liveSourceName = (connection: ExternalConnectionListItem) =>
     connection.liveSourceName ??
     (connection.apiSource
-        ? `${connection.apiSource.connector}_${connection.externalConnectionUuid.replace(/-/g, '').slice(0, 8)}`
+        ? getLegacyLiveSourceName(
+              connection.apiSource.connector,
+              connection.externalConnectionUuid,
+          )
         : null);
 
 const liveSource = (connection: ExternalConnectionListItem): Source => ({

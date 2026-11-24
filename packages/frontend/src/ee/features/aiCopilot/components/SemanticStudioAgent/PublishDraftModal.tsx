@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { rememberGoingLive } from '../../../../../features/semanticStudio/useGoingLive';
-import { usePublishCheckout } from '../../../../../features/semanticStudio/useStudioWorkspaces';
+import { usePublishCheckout } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 
 /** Confirms merging a dbt draft's pull request, which everyone sees once the project compiles. */
 export const PublishDraftModal: FC<{

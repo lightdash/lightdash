@@ -80,6 +80,12 @@ export enum ApiConnectorType {
     HYDRA = 'hydra',
 }
 
+/** The source name of sources built before names were stored, from their id. */
+export const getLegacyLiveSourceName = (
+    connector: ApiConnectorType,
+    connectionUuid: string,
+) => `${connector}_${connectionUuid.replace(/-/g, '').slice(0, 8)}`;
+
 /**
  * What an api query asks its connector to run. Only `query` exists: a query
  * in the connector's own language, such as HogQL for PostHog. APIs without a
