@@ -985,7 +985,13 @@ describe('SemanticStudioService', () => {
                     null,
                 );
             expect(results[0].status).toBe('failed');
-            expect(results[0].error).toContain('This would break orders');
+            expect(results[0].error).toContain(
+                'This change would break orders',
+            );
+            expect(results[0].rejection).toMatchObject({
+                kind: 'breaks_joining_model',
+                models: ['orders'],
+            });
             expect(draftChangeUuid).toBeNull();
         });
 
@@ -2211,7 +2217,11 @@ dimensions:
         expect(outcome.results[1]).toMatchObject({
             model: 'missing',
             status: 'failed',
-            error: 'The warehouse rejected this model: relation "public.missing" does not exist',
+            error: 'The warehouse refused missing when it was checked. relation "public.missing" does not exist',
+            rejection: {
+                kind: 'warehouse_refused',
+                detail: 'relation "public.missing" does not exist',
+            },
         });
         expect(runSqlQuery.mock.calls.map(([, , sql]) => sql)).toEqual(
             expect.arrayContaining([
@@ -2261,9 +2271,12 @@ dimensions:
             model: 'orders',
             status: 'failed',
         });
-        expect(outcome.results[1].error).toContain(
-            'This model does not work in a query: Tried to reference a dimension',
-        );
+        expect(outcome.results[1]).toMatchObject({
+            error: expect.stringContaining(
+                "orders can't be used in a query as written. Tried to reference a dimension",
+            ),
+            rejection: { kind: 'query_builder' },
+        });
         const groupings = compileQuery.mock.calls
             .map(([{ body }]) => body)
             .filter(({ metrics }) => metrics.includes('orders_revenue'))

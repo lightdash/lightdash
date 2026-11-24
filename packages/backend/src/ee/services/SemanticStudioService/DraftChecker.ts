@@ -17,6 +17,7 @@ import {
     type Explore,
     type ExploreError,
     type MetricQuery,
+    type SemanticStudioRejection,
     type SessionUser,
     type TablePartitioning,
 } from '@lightdash/common';
@@ -60,7 +61,7 @@ type Compiled = { explores: (Explore | ExploreError)[]; quote: string };
 
 export type DraftCheck = {
     /** Why each model that failed a check was left out. */
-    rejected: Map<string, string>;
+    rejected: Map<string, SemanticStudioRejection>;
     /** What passed, with measured join relationships written in; null content removes the model. */
     writes: Map<string, string | null>;
     /** The live models with `writes` on top, compiled; null when nothing passed. */
@@ -129,6 +130,18 @@ export const usesAnyModel = (
     Object.values(explore.tables).some(({ name, originalName }) =>
         models.has(originalName ?? name),
     );
+
+/** Why a model fails on its own, as opposed to what it does to others or to access. */
+type ModelRejection = Extract<
+    SemanticStudioRejection,
+    { kind: 'query_builder' | 'warehouse_refused' | 'already_failing' }
+>;
+
+/** A failure the warehouse plan found, in the words a dbt compile check shows. */
+const describeWarehouseError = (rejection: ModelRejection) =>
+    rejection.kind === 'query_builder'
+        ? rejection.detail
+        : `The warehouse rejected this model: ${rejection.detail}`;
 
 const describeErrors = (errored: ExploreError[]): string =>
     errored
@@ -364,13 +377,14 @@ export class DraftChecker {
         if (queryError) {
             return `This model does not work in a query: ${queryError}`;
         }
-        return this.findWarehouseError(
+        const error = await this.findWarehouseError(
             user,
             projectUuid,
             explore,
             quote,
             changedDimensions,
         );
+        return error === null ? null : describeWarehouseError(error);
     }
 
     /** Has the warehouse plan a model's dimensions, metrics and joins over no rows, so it scans nothing; returns why it cannot be used, if so. */
@@ -382,7 +396,7 @@ export class DraftChecker {
         changedDimensions: Set<string>,
         /** The fields and joins to plan, with the joins those fields read; null plans them all. */
         only: Touched | null = null,
-    ): Promise<string | null> {
+    ): Promise<ModelRejection | null> {
         const base = explore.tables[explore.baseTable];
         const alias = (name: string) => `${quote}${name}${quote}`;
         const planned = ({ name }: { name: string }) =>
@@ -499,7 +513,10 @@ export class DraftChecker {
                         : [];
                 });
                 if (mistyped.length > 0) {
-                    return `${mistyped.map(({ name, columnType }) => `${name} reads a ${columnType} column`).join(', ')}, but ${mistyped.length === 1 ? 'is' : 'are'} typed differently. Use the column's type, or cast in sql to change it.`;
+                    return {
+                        kind: 'query_builder',
+                        detail: `${mistyped.map(({ name, columnType }) => `${name} reads a ${columnType} column`).join(', ')}, but ${mistyped.length === 1 ? 'is' : 'are'} typed differently. Use the column's type, or cast in sql to change it.`,
+                    };
                 }
             }
             if (metrics.length > 0) {
@@ -512,7 +529,10 @@ export class DraftChecker {
             }
             return null;
         } catch (error) {
-            return `The warehouse rejected this model: ${getErrorMessage(error)}`;
+            return {
+                kind: 'warehouse_refused',
+                detail: getErrorMessage(error),
+            };
         }
     }
 
@@ -528,7 +548,7 @@ export class DraftChecker {
         findBefore: () => Promise<Explore | null>,
         quote: string,
         changedDimensions: Set<string>,
-    ): Promise<{ error: string | null; already: string | null }> {
+    ): Promise<{ error: ModelRejection | null; already: string | null }> {
         const queryError = await this.findQueryError(
             user,
             projectUuid,
@@ -536,7 +556,7 @@ export class DraftChecker {
         );
         if (queryError) {
             return {
-                error: `This model does not work in a query: ${queryError}`,
+                error: { kind: 'query_builder', detail: queryError },
                 already: null,
             };
         }
@@ -558,18 +578,26 @@ export class DraftChecker {
             new Set(),
         );
         if (already === null) return { error, already: null };
+        const alreadyMessage = describeWarehouseError(already);
         const touched = findTouched(explore, before, changedDimensions);
-        if (touched === null) return { error: null, already };
+        if (touched === null) return { error: null, already: alreadyMessage };
+        const touchedError = await this.findWarehouseError(
+            user,
+            projectUuid,
+            explore,
+            quote,
+            changedDimensions,
+            touched,
+        );
+        // The same refusal as on what is live is the model's old failure, not one the change brought.
+        const isOldFailure =
+            touchedError?.kind === 'warehouse_refused' &&
+            touchedError.detail === already.detail;
         return {
-            error: await this.findWarehouseError(
-                user,
-                projectUuid,
-                explore,
-                quote,
-                changedDimensions,
-                touched,
-            ),
-            already,
+            error: isOldFailure
+                ? { kind: 'already_failing', detail: touchedError.detail }
+                : touchedError,
+            already: alreadyMessage,
         };
     }
 
@@ -756,7 +784,7 @@ GROUP BY ${aliases.join(', ')}
         storedContents: string | null,
         quote: string,
     ): Promise<
-        | { error: string }
+        | { error: SemanticStudioRejection }
         | { relationships: Map<string, JoinRelationship>; notes: string[] }
     > {
         const relationships = new Map<string, JoinRelationship>();
@@ -896,7 +924,10 @@ GROUP BY ${aliases.join(', ')}
                     );
                 } else if (key.duplicates > 0) {
                     return {
-                        error: `primary_key ${primaryKey.join(', ')} is not unique, so it cannot identify a row. Remove it or name the column that does.`,
+                        error: {
+                            kind: 'query_builder',
+                            detail: `primary_key ${primaryKey.join(', ')} is not unique, so it cannot identify a row. Remove it or name the column that does.`,
+                        },
                     };
                 }
                 if (key && isEstimate(key)) {
@@ -914,7 +945,10 @@ GROUP BY ${aliases.join(', ')}
                 )
             ) {
                 return {
-                    error: `A one-to-many join on ${explore.name} multiplies its rows, and its metrics are only protected from that with a primary_key. Keep primary_key, or remove the join first.`,
+                    error: {
+                        kind: 'query_builder',
+                        detail: `A one-to-many join on ${explore.name} multiplies its rows, and its metrics are only protected from that with a primary_key. Keep primary_key, or remove the join first.`,
+                    },
                 };
             }
             const measured = await Promise.all(
@@ -923,7 +957,11 @@ GROUP BY ${aliases.join(', ')}
                     .map((join) => measureJoin(join)),
             );
             const failed = measured.find((join) => join?.error);
-            if (failed?.error) return { error: failed.error };
+            if (failed?.error) {
+                return {
+                    error: { kind: 'query_builder', detail: failed.error },
+                };
+            }
             measured.forEach((join) => {
                 if (join?.isUnchecked) {
                     notes.push(
@@ -946,7 +984,10 @@ GROUP BY ${aliases.join(', ')}
             return { relationships, notes };
         } catch (error) {
             return {
-                error: `The warehouse could not check this model's keys: ${getErrorMessage(error)}`,
+                error: {
+                    kind: 'warehouse_refused',
+                    detail: getErrorMessage(error),
+                },
             };
         }
     }
@@ -975,14 +1016,14 @@ GROUP BY ${aliases.join(', ')}
         proposed: Map<string, string | null>,
     ): Promise<DraftCheck> {
         const writes = new Map(proposed);
-        const rejected = new Map<string, string>();
+        const rejected = new Map<string, SemanticStudioRejection>();
         const notes = new Map<string, string[]>();
-        const reject = (model: string, error: string) => {
+        const reject = (model: string, rejection: SemanticStudioRejection) => {
             writes.delete(model);
-            rejected.set(model, error);
+            rejected.set(model, rejection);
         };
-        const rejectAll = (error: string) =>
-            [...writes.keys()].forEach((model) => reject(model, error));
+        const rejectAll = (rejection: SemanticStudioRejection) =>
+            [...writes.keys()].forEach((model) => reject(model, rejection));
 
         // A model that fails to compile is dropped, then the rest compiles again because another may have joined it.
         const compile = async (): Promise<Compiled | null> => {
@@ -996,10 +1037,12 @@ GROUP BY ${aliases.join(', ')}
                 .filter(({ name }) => writes.has(name));
             if (own.length > 0) {
                 own.forEach((explore) =>
-                    reject(
-                        explore.name,
-                        explore.errors.map(({ message }) => message).join('; '),
-                    ),
+                    reject(explore.name, {
+                        kind: 'query_builder',
+                        detail: explore.errors
+                            .map(({ message }) => message)
+                            .join('; '),
+                    }),
                 );
                 return compile();
             }
@@ -1009,7 +1052,11 @@ GROUP BY ${aliases.join(', ')}
                 compiled.explores,
             );
             if (newlyBroken.length === 0) return compiled;
-            rejectAll(`This would break ${describeErrors(newlyBroken)}`);
+            rejectAll({
+                kind: 'breaks_joining_model',
+                models: newlyBroken.map(({ name }) => name),
+                detail: describeErrors(newlyBroken),
+            });
             return null;
         };
 
@@ -1030,7 +1077,9 @@ GROUP BY ${aliases.join(', ')}
             ),
         );
         changed.forEach(({ metricError }, name) => {
-            if (metricError) reject(name, metricError);
+            if (metricError) {
+                reject(name, { kind: 'query_builder', detail: metricError });
+            }
         });
         // The catalog knows a table's columns, so a wrong name or type is caught before any query, in the same words on every warehouse.
         const inCatalog = new Set<string>();
@@ -1063,7 +1112,8 @@ GROUP BY ${aliases.join(', ')}
                     facts.columns,
                     changed.get(name)?.dimensions ?? new Set(),
                 );
-                if (error) reject(name, error);
+                if (error)
+                    reject(name, { kind: 'query_builder', detail: error });
             }),
         );
         [...writes].forEach(([name, contents]) => {
@@ -1071,10 +1121,11 @@ GROUP BY ${aliases.join(', ')}
             if (contents === null || stored === undefined) return;
             const lost = findAccessLoss(stored, contents);
             if (lost.length > 0) {
-                reject(
-                    name,
-                    `This would change who can see ${lost.join(', ')}, which cannot be changed here.`,
-                );
+                reject(name, {
+                    kind: 'access_change',
+                    fields: lost,
+                    detail: null,
+                });
             }
         });
 
@@ -1119,7 +1170,13 @@ GROUP BY ${aliases.join(', ')}
         );
         unusable.forEach(({ name, error }) => {
             if (writes.has(name)) reject(name, error);
-            else rejectAll(`This would break ${name}: ${error}`);
+            else {
+                rejectAll({
+                    kind: 'breaks_joining_model',
+                    models: [name],
+                    detail: error.detail,
+                });
+            }
         });
         const afterUse = unusable.length > 0 ? await compile() : afterCompile;
         if (!afterUse) return { rejected, writes, explores: null, notes };

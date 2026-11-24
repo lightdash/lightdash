@@ -173,6 +173,40 @@ pre_aggregates:
         expect(compiles.count).toBe(1);
     });
 
+    test('a change that breaks a model joining it is rejected for that model', async () => {
+        warehouse.planError = (sql) =>
+            sql.includes('LEFT JOIN') && sql.includes('public.moved')
+                ? 'cannot join moved'
+                : null;
+        const joined = `${model('orders')}joins:
+  - join: customers
+    relationship: many-to-one
+    sql_on: \${orders.id} = \${customers.id}
+`;
+        const { rejected } = await checker().check(
+            user,
+            'project',
+            new Map([
+                ['orders', joined],
+                ['customers', model('customers')],
+            ]),
+            new Map([
+                [
+                    'customers',
+                    model('customers').replace(
+                        'public.customers',
+                        'public.moved',
+                    ),
+                ],
+            ]),
+        );
+        expect(rejected.get('customers')).toEqual({
+            kind: 'breaks_joining_model',
+            models: ['orders'],
+            detail: 'cannot join moved',
+        });
+    });
+
     test('an explore uses a model it joins under an alias', async () => {
         const joined = `${model('orders')}joins:
   - join: customers
@@ -213,16 +247,21 @@ pre_aggregates:
                 new Map([['orders', guarded]]),
                 model('orders'),
             );
-            expect(rejected.get('orders')).toBe(
-                'This would change who can see dimensions.id, which cannot be changed here.',
-            );
+            expect(rejected.get('orders')).toEqual({
+                kind: 'access_change',
+                fields: ['dimensions.id'],
+                detail: null,
+            });
         });
 
         test('a number metric that aggregates in its own sql is rejected', async () => {
             const { rejected } = await check(new Map(), withMetrics(RATIO));
-            expect(rejected.get('orders')).toContain(
-                'per_order is a number metric that aggregates in its own sql',
-            );
+            expect(rejected.get('orders')).toEqual({
+                kind: 'query_builder',
+                detail: expect.stringContaining(
+                    'per_order is a number metric that aggregates in its own sql',
+                ),
+            });
         });
 
         test('a number metric that combines other metrics passes', async () => {
@@ -254,9 +293,10 @@ pre_aggregates:
         test('a dimension typed differently from its column is rejected, unless it casts', async () => {
             columnTypes.fields = { C0: { type: DimensionType.TIMESTAMP } };
             const { rejected } = await check(new Map(), model('orders'));
-            expect(rejected.get('orders')).toBe(
-                "id reads a timestamp column, but is typed differently. Use the column's type, or cast in sql to change it.",
-            );
+            expect(rejected.get('orders')).toEqual({
+                kind: 'query_builder',
+                detail: "id reads a timestamp column, but is typed differently. Use the column's type, or cast in sql to change it.",
+            });
 
             const cast = model('orders').replace(
                 '${TABLE}.id',
@@ -466,9 +506,10 @@ pre_aggregates:
                     ],
                 ]),
             );
-            expect(rejected.get('orders')).toBe(
-                'The warehouse rejected this model: orders_v2 has no id',
-            );
+            expect(rejected.get('orders')).toEqual({
+                kind: 'warehouse_refused',
+                detail: 'orders_v2 has no id',
+            });
         });
 
         test('a change to a join plans the fields that read the joined model', async () => {
@@ -503,9 +544,10 @@ joins:
                     ],
                 ]),
             );
-            expect(rejected.get('orders')).toBe(
-                'The warehouse rejected this model: the join cannot read name',
-            );
+            expect(rejected.get('orders')).toEqual({
+                kind: 'warehouse_refused',
+                detail: 'the join cannot read name',
+            });
         });
 
         test('a change to a dimension type alone is checked, though its sql is the same', async () => {
@@ -531,9 +573,10 @@ metrics:
                 new Map([['orders', labelled('string')]]),
                 new Map([['orders', labelled('number')]]),
             );
-            expect(rejected.get('orders')).toBe(
-                "label reads a string column, but is typed differently. Use the column's type, or cast in sql to change it.",
-            );
+            expect(rejected.get('orders')).toEqual({
+                kind: 'query_builder',
+                detail: "label reads a string column, but is typed differently. Use the column's type, or cast in sql to change it.",
+            });
         });
 
         test('a join that already fails does not block a change that does not read it', async () => {
@@ -572,9 +615,10 @@ ${metrics}`;
                 broken,
                 withMetric('NO_SUCH_FN(${TABLE}.id)'),
             );
-            expect(rejected.get('orders')).toBe(
-                'The warehouse rejected this model: no such function',
-            );
+            expect(rejected.get('orders')).toEqual({
+                kind: 'warehouse_refused',
+                detail: 'no such function',
+            });
         });
 
         test.each(Object.values(WarehouseTypes))(
@@ -597,15 +641,19 @@ ${metrics}`;
                 );
                 expect(
                     (await run('${TABLE}.born')).rejected.get('orders'),
-                ).toBe('The warehouse rejected this model: cannot read born');
+                ).toEqual({
+                    kind: 'already_failing',
+                    detail: 'cannot read born',
+                });
             },
         );
 
         test('a change that brings the failure is rejected for it', async () => {
             const { rejected } = await check(model('orders'), broken);
-            expect(rejected.get('orders')).toBe(
-                'The warehouse rejected this model: cannot truncate text',
-            );
+            expect(rejected.get('orders')).toEqual({
+                kind: 'warehouse_refused',
+                detail: 'cannot truncate text',
+            });
             expect((await check(null, broken)).rejected.size).toBe(1);
         });
     });
@@ -630,18 +678,22 @@ ${metrics}`;
             const { rejected } = await check(
                 model('orders').replace('${TABLE}.id', '${TABLE}.amount'),
             );
-            expect(rejected.get('orders')).toBe(
-                'orders reads amount, which is not a column of its table. Its columns: id, total.',
-            );
+            expect(rejected.get('orders')).toEqual({
+                kind: 'query_builder',
+                detail: 'orders reads amount, which is not a column of its table. Its columns: id, total.',
+            });
             expect(warehouse.queries).toEqual([]);
         });
 
         test('a dimension typed differently from its column is rejected before any query', async () => {
             warehouse.columns = { id: DimensionType.TIMESTAMP };
             const { rejected } = await check(model('orders'));
-            expect(rejected.get('orders')).toContain(
-                'id reads a timestamp column, but is typed differently.',
-            );
+            expect(rejected.get('orders')).toEqual({
+                kind: 'query_builder',
+                detail: expect.stringContaining(
+                    'id reads a timestamp column, but is typed differently.',
+                ),
+            });
             expect(warehouse.queries).toEqual([]);
         });
 

@@ -43,6 +43,7 @@ import {
     useSemanticLayerDraft,
 } from '../../../../../../features/semanticStudio/useSemanticLayerModel';
 import { ISSUE_KINDS, listProposalIssues, type Issue } from './proposalIssues';
+import { RejectionDetails } from './RejectionDetails';
 import classes from './SemanticLayerProposalCard.module.css';
 import { useRefreshUnknownDraftChanges } from './useRefreshUnknownDraftChanges';
 
@@ -145,7 +146,9 @@ const ModelSection: FC<{
 };
 
 /** One thing about a proposal that did not go as asked, under the model it is about. */
-const IssueRow: FC<{ issue: Issue }> = ({ issue: { kind, model, detail } }) => {
+const IssueRow: FC<{ issue: Issue }> = ({
+    issue: { kind, model, detail, rejection },
+}) => {
     const { icon, color, label } = ISSUE_KINDS[kind];
     return (
         <Box className={classes.section}>
@@ -170,6 +173,9 @@ const IssueRow: FC<{ issue: Issue }> = ({ issue: { kind, model, detail } }) => {
                     <Text fz="xs" c="dimmed" className={classes.issueDetail}>
                         {detail}
                     </Text>
+                    {rejection?.detail ? (
+                        <RejectionDetails detail={rejection.detail} />
+                    ) : null}
                 </Box>
             </Group>
         </Box>

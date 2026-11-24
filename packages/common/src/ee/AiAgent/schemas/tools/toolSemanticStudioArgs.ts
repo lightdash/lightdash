@@ -4,7 +4,10 @@ import {
     MODEL_FRAGMENT_REFUSAL_REASONS,
 } from '../../../../lightdash/applyModelFragment';
 import { parseRemovablePartPath } from '../../../../lightdash/diffModelDocuments';
-import { type SemanticLayerDraftItemResult } from '../../../../types/semanticStudio';
+import {
+    type SemanticLayerDraftItemResult,
+    type SemanticStudioRejection,
+} from '../../../../types/semanticStudio';
 import {
     baseOutputMetadataSchema,
     structuredToolOutputSchema,
@@ -89,9 +92,29 @@ export type ToolProposeSemanticLayerChangeArgs = z.infer<
 export const TOOL_READ_SEMANTIC_MODEL_DESCRIPTION =
     "Read one model's YAML as the person's draft leaves it, which is what a proposal builds on. An unknown name returns the name of every model.";
 
+const rejectionSchema: z.ZodType<SemanticStudioRejection> =
+    z.discriminatedUnion('kind', [
+        z.object({ kind: z.literal('query_builder'), detail: z.string() }),
+        z.object({ kind: z.literal('warehouse_refused'), detail: z.string() }),
+        z.object({
+            kind: z.literal('breaks_joining_model'),
+            models: z.array(z.string()),
+            detail: z.string(),
+        }),
+        z.object({
+            kind: z.literal('access_change'),
+            fields: z.array(z.string()),
+            detail: z.null(),
+        }),
+        z.object({ kind: z.literal('already_failing'), detail: z.string() }),
+    ]);
+
 // Typed as the draft's item result so the two cannot drift apart.
 const proposalItemResultSchema: z.ZodType<
-    Omit<SemanticLayerDraftItemResult, 'notes'> & { notes?: string[] }
+    Omit<SemanticLayerDraftItemResult, 'notes'> & {
+        notes?: string[];
+        rejection?: SemanticStudioRejection | null;
+    }
 > = z.object({
     model: z.string(),
     status: z.enum(['ready', 'unchanged', 'failed']),
@@ -108,6 +131,8 @@ const proposalItemResultSchema: z.ZodType<
         }),
     ),
     error: z.string().nullable(),
+    // Absent on results stored before rejections had a kind, which then show only `error`.
+    rejection: rejectionSchema.nullish(),
     // Absent on results stored before notes existed.
     notes: z.array(z.string()).optional(),
 });

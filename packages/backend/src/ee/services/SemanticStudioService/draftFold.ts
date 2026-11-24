@@ -202,6 +202,7 @@ export const foldProposal = (
                     error:
                         result.error ??
                         `None of this change to ${result.model} was added, because part of it could not be applied.`,
+                    rejection: null,
                     notes: [],
                 };
             }
@@ -214,6 +215,7 @@ export const foldProposal = (
                       changes,
                       refusals: [],
                       error: null,
+                      rejection: null,
                       notes: [],
                   }
                 : {
@@ -222,6 +224,7 @@ export const foldProposal = (
                       changes: [],
                       refusals: [],
                       error: null,
+                      rejection: null,
                       notes: [],
                   };
         }),

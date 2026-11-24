@@ -6,6 +6,7 @@ import {
     doModelPathsOverlap,
     FeatureFlags,
     ForbiddenError,
+    formatSemanticStudioRejection,
     getErrorMessage,
     getItemId,
     isChartValidationError,
@@ -47,6 +48,7 @@ import {
     type SemanticLayerStatus,
     type SemanticLayerStoredModels,
     type SemanticLayerTouchedField,
+    type SemanticStudioRejection,
     type SemanticStudioWorkspace,
     type SemanticStudioWorkspacePullRequestState,
     type SemanticStudioWorkspaces,
@@ -723,6 +725,18 @@ export class SemanticStudioService extends BaseService {
         return byModel;
     }
 
+    /** Records which kind of check left each model out; the detail can quote the warehouse, so it stays out. */
+    private logRejections(
+        projectUuid: string,
+        rejected: Map<string, SemanticStudioRejection>,
+    ) {
+        rejected.forEach(({ kind }, model) => {
+            this.logger.info(
+                `Semantic Studio check left out ${model} in ${projectUuid}: ${kind}`,
+            );
+        });
+    }
+
     /** Runs a write again when another one landed first. */
     private async retryOnConflict<T>(
         projectUuid: string,
@@ -767,19 +781,24 @@ export class SemanticStudioService extends BaseService {
         const results = proposed.results.map(
             (result): SemanticLayerProposalItemResult => {
                 if (result.status !== 'ready') return result;
-                const error = check.rejected.get(result.model);
-                return error === undefined
+                const rejection = check.rejected.get(result.model);
+                return rejection === undefined
                     ? { ...result, notes: check.notes.get(result.model) ?? [] }
                     : {
                           model: result.model,
                           status: 'failed',
                           changes: [],
                           refusals: [],
-                          error,
+                          error: formatSemanticStudioRejection(
+                              result.model,
+                              rejection,
+                          ),
+                          rejection,
                           notes: [],
                       };
             },
         );
+        this.logRejections(projectUuid, check.rejected);
         return { results, writes: check.writes };
     }
 
@@ -1984,11 +2003,12 @@ export class SemanticStudioService extends BaseService {
                 draft.writes,
             );
             if (check.rejected.size > 0) {
+                this.logRejections(projectUuid, check.rejected);
                 return {
                     exploreCount: null,
-                    failures: [...check.rejected].map(([name, error]) => ({
+                    failures: [...check.rejected].map(([name, rejection]) => ({
                         model: name,
-                        error,
+                        error: formatSemanticStudioRejection(name, rejection),
                     })),
                     pullRequestUrl: null,
                     merge: null,
