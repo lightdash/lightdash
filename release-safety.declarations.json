@@ -37,6 +37,21 @@
             "reason": "The graduated WriteBackCustomBinDimensions member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this temporary rollout flag must remove it when upgrading; supported custom-bin write-back is now available without a flag.",
             "requiredStop": false
         },
+        "ai-agent-verified-answers-endpoints-removed": {
+            "reason": "Removes AI agent verified answers: GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-artifacts and PATCH .../artifacts/{artifactUuid}/versions/{versionUuid}/verified are deleted. Only the Lightdash web app's agent settings Verified answers tab and chart verify toggle called them; both are removed in the same change. During a rolling update an old browser tab gets a 404 from that tab or toggle until refresh; nothing else is affected.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "The Lightdash web app's agent settings Verified answers tab and the chart verify toggle are the only callers. Old tabs see a 404 on those controls until refresh.",
+                "covers": {
+                    "rest": [
+                        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-artifacts",
+                        "PATCH /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/verified"
+                    ],
+                    "mcp": []
+                }
+            }
+        },
         "mobile-push-installation-uuid-path-params": {
             "reason": "PUT and DELETE /api/v1/mobile/push-notifications/installations/{installationUuid} now validate installationUuid as a UUID and reject other strings with a 400. Installation identifiers are server-generated UUIDs, and only the Lightdash mobile apps call these endpoints with the identifier they received, so no existing caller is affected.",
             "requiredStop": false

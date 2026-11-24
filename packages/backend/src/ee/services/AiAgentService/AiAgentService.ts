@@ -838,9 +838,6 @@ type ThreadAttachments = {
     threadFiles: Map<string, { content: string; path: string }>;
     threadImages: Map<string, ResolvedThreadImage>;
 };
-type ThreadAttachmentsLoader = (
-    contextMap: Map<string, AiPromptContext>,
-) => Promise<ThreadAttachments>;
 
 type ChartTurnContext = {
     latest: Awaited<
@@ -9023,20 +9020,10 @@ export class AiAgentService extends BaseService {
                 targetThreadMessages,
                 applicableCompaction?.compacted_through_ai_prompt_uuid ?? null,
             );
-        // Both history builds below cover the same messages: read the images once.
-        let threadAttachments: Promise<ThreadAttachments> | null = null;
-        const loadThreadAttachments: ThreadAttachmentsLoader = (contextMap) => {
-            threadAttachments ??= this.getThreadAttachments(
-                prompt.threadUuid,
-                contextMap,
-                threadImages,
-            );
-            return threadAttachments;
-        };
         const chatHistoryMessages = await this.getChatHistoryFromThreadMessages(
             compactedThreadMessages,
             {
-                loadThreadAttachments,
+                threadImages,
                 projectUuid: agent.projectUuid,
                 currentPromptUuid: prompt.promptUuid,
                 fastDecisionsEnabled: !!(await this.getPromptDecisionClient(
@@ -13518,8 +13505,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             threadUuid: string;
             /** The answering agent's space limits, to flag pinned items it cannot read. */
             agentScope?: { user: SessionUser; spaceAccess: string[] } | null;
-            /** Lets several history builds of one turn share a single read of the images. */
-            loadThreadAttachments?: ThreadAttachmentsLoader;
+            /** 'omit' names the attached images without reading them from storage. */
+            threadImages?: 'load' | 'omit';
         },
     ): Promise<ModelMessage[]> {
         const promptUuids = threadMessages.map(
@@ -13529,13 +13516,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             await this.aiAgentModel.getContextForPromptUuids(promptUuids);
         const [{ threadFiles, threadImages }, outsideAgentSpaces] =
             await Promise.all([
-                options.loadThreadAttachments
-                    ? options.loadThreadAttachments(contextMap)
-                    : this.getThreadAttachments(
-                          options.threadUuid,
-                          contextMap,
-                          'load',
-                      ),
+                this.getThreadAttachments(
+                    options.threadUuid,
+                    contextMap,
+                    options.threadImages ?? 'load',
+                ),
                 this.findPinnedOutsideAgentSpaces(
                     contextMap,
                     options.projectUuid,
