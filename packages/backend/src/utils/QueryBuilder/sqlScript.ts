@@ -72,7 +72,7 @@ const isHoistableStatement = (statement: string): boolean =>
     );
 
 /** Metadata statements return a result set but can't take a LIMIT or be wrapped. */
-const METADATA_STATEMENT_PATTERN = /^(describe|desc|show|explain|list)\b/i;
+const METADATA_STATEMENT_PATTERN = /^(describe|desc|show|explain)\b/i;
 
 export const isMetadataStatement = (sql: string): boolean =>
     METADATA_STATEMENT_PATTERN.test(sql.slice(skipLeadingComments(sql)));

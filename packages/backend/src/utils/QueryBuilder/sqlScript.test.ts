@@ -147,7 +147,6 @@ describe('isMetadataStatement', () => {
         'SHOW CREATE TABLE my_table',
         'show server_version;',
         'EXPLAIN SELECT 1',
-        'LIST @my_stage',
         '  \n  DESCRIBE TABLE my_table',
         '-- inspect the table\nDESCRIBE TABLE my_table',
         '/* inspect */ SHOW TABLES',
