@@ -1,17 +1,17 @@
 /**
- * Checks that a live data source can read from its integration: a small read
- * with its access settings, and what came back. Adding a source and its
- * settings show the same card, right below Access.
+ * Checks that a live data source can read from its integration with a small
+ * read. Adding a source and its settings show the same card, right below
+ * Access. The outcome takes the place of the hint: a short green line when it
+ * works, the integration's message when it doesn't.
  */
 import {
     type ApiError,
     type ExternalConnectionTestResponse,
 } from '@lightdash/common';
-import { Box, Button, Group, Text } from '@mantine/core';
-import { IconAlertCircleFilled } from '@tabler/icons-react';
+import { Button, Group, Text } from '@mantine/core';
+import { IconCircleCheckFilled } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { ConnectionTestResult } from '../components/ConnectionTestResult';
 import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
 import classes from './LiveSourceSettingsRows.module.css';
 
@@ -27,26 +27,66 @@ type Props = {
     onTest: () => void;
 };
 
-/** A request the server refused, such as a key that may not go to a new region. */
-const TestError: FC<{ message: string }> = ({ message }) => (
-    <Group gap="xs" wrap="nowrap" align="flex-start" role="alert" c="red">
-        <MantineIcon
-            icon={IconAlertCircleFilled}
-            className={classes.testErrorIcon}
-        />
-        <Text fz="sm">{message}</Text>
-    </Group>
-);
+type Outcome = { ok: true; message: string } | { ok: false; message: string };
+
+const getOutcome = (
+    data: ExternalConnectionTestResponse | undefined,
+    error: ApiError | null,
+): Outcome | null => {
+    if (data) {
+        const check = data.liveCheck;
+        const ok = check?.ok ?? data.status < 300;
+        if (ok) return { ok, message: check?.summary ?? 'Works' };
+        return {
+            ok,
+            message:
+                check?.detail ??
+                check?.summary ??
+                `Failed with status ${data.status}`,
+        };
+    }
+    if (error) return { ok: false, message: error.error.message };
+    return null;
+};
 
 export const LiveSourceTestCard: FC<Props> = ({ hint, test, onTest }) => {
-    const result = test.isLoading ? null : test.data ? (
-        <ConnectionTestResult response={test.data} />
-    ) : test.error ? (
-        <TestError message={test.error.error.message} />
-    ) : null;
+    const outcome = test.isLoading ? null : getOutcome(test.data, test.error);
     return (
         <SettingsCard title="Test">
-            <SettingsRow label="Test access" hint={hint}>
+            <SettingsRow
+                label="Test access"
+                hint={
+                    outcome?.ok ? (
+                        <Group
+                            gap={4}
+                            wrap="nowrap"
+                            role="status"
+                            c="green"
+                            className={classes.testOutcome}
+                        >
+                            <MantineIcon
+                                icon={IconCircleCheckFilled}
+                                size={12}
+                            />
+                            <Text span inherit>
+                                {outcome.message}
+                            </Text>
+                        </Group>
+                    ) : outcome ? (
+                        <Text
+                            span
+                            inherit
+                            role="alert"
+                            c="red"
+                            className={classes.testOutcome}
+                        >
+                            {outcome.message}
+                        </Text>
+                    ) : (
+                        hint
+                    )
+                }
+            >
                 <Button
                     size="xs"
                     variant="default"
@@ -56,7 +96,6 @@ export const LiveSourceTestCard: FC<Props> = ({ hint, test, onTest }) => {
                     Test
                 </Button>
             </SettingsRow>
-            {result ? <Box className={classes.testResult}>{result}</Box> : null}
         </SettingsCard>
     );
 };

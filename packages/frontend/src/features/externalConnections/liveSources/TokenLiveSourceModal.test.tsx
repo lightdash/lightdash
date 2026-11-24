@@ -79,12 +79,8 @@ describe('TokenLiveSourceModal', () => {
         };
         renderModal();
 
-        const result = screen.getByRole('status');
-        expect(result).toHaveTextContent(
-            "Signed in, but this account can't read from HubSpot",
-        );
-        expect(result).toHaveTextContent(
-            'HubSpot rejected the access token. Check its scopes.',
+        expect(screen.getByRole('alert')).toHaveTextContent(
+            /^HubSpot rejected the access token\. Check its scopes\.$/,
         );
     });
 

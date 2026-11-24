@@ -41,12 +41,22 @@
     color: var(--mantine-color-dimmed);
 }
 
-.testErrorIcon {
-    flex: none;
+.testOutcome {
+    display: inline-flex;
+    animation: testOutcomeIn 200ms ease-out;
 }
 
-.testResult {
-    padding: 0 14px 14px;
+@keyframes testOutcomeIn {
+    from {
+        opacity: 0;
+        transform: translateY(2px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .testOutcome {
+        animation: none;
+    }
 }
 
 .settingsCode {
