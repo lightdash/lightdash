@@ -107,6 +107,8 @@ type Hold = {
     newBubbleId: string;
     /** The mic this hold started for a new bubble, with its first stroke or pick. */
     voice: Promise<VoiceState> | null;
+    /** Clicks and the release settle one after another, so marks keep their order. */
+    settled: Promise<void>;
 };
 
 const viewportRect = (): DOMRect =>
@@ -521,8 +523,10 @@ export const useDesignMode = (
         [dropRecording],
     );
 
+    // A released hold whose ink waits on a click still being answered.
+    const releasedHoldRef = useRef<Hold | null>(null);
     const refreshInk = useCallback(() => {
-        const hold = holdRef.current;
+        const hold = holdRef.current ?? releasedHoldRef.current;
         const live = hold
             ? hold.current
                 ? [...hold.strokes, hold.current]
@@ -880,6 +884,7 @@ export const useDesignMode = (
             lastPick: null,
             newBubbleId: uuidv4(),
             voice: null,
+            settled: Promise.resolve(),
         };
         refreshInk();
     }, [forgetHover, postponeGrab, refreshInk]);
@@ -895,16 +900,23 @@ export const useDesignMode = (
         [beginRecording],
     );
 
-    // The strokes drawn since the last pick become one ink mark.
+    // The strokes drawn since the last pick become one ink mark: all of them,
+    // or only those drawn before a click (`drawnBefore`).
     const flushInk = useCallback(
-        (hold: Hold) => {
-            const strokes = hold.current
+        (hold: Hold, drawnBefore: Stroke[] | null) => {
+            const pending = hold.current
                 ? [...hold.strokes, hold.current]
                 : hold.strokes;
+            const strokes = drawnBefore
+                ? pending.filter((stroke) => drawnBefore.includes(stroke))
+                : pending;
             if (strokes.length === 0) return;
             const ink = { ...hold };
-            hold.strokes = [];
-            hold.current = null;
+            hold.strokes = hold.strokes.filter(
+                (stroke) => !strokes.includes(stroke),
+            );
+            if (hold.current && strokes.includes(hold.current))
+                hold.current = null;
             hold.marked = true;
             hold.lastPick = null;
             hold.startAbs = performance.now();
@@ -937,9 +949,15 @@ export const useDesignMode = (
         forgetHover();
         lastActivityRef.current = Date.now();
         grabWhenQuiet();
-        flushInk(hold);
+        releasedHoldRef.current = hold;
         refreshInk();
-        if (!hold.marked) abandon(hold);
+        hold.settled = hold.settled.then(() => {
+            if (releasedHoldRef.current === hold)
+                releasedHoldRef.current = null;
+            flushInk(hold, null);
+            refreshInk();
+            if (!hold.marked) abandon(hold);
+        });
     }, [abandon, flushInk, forgetHover, grabWhenQuiet, refreshInk]);
 
     const onHover = useCallback((point: Point | null) => {
@@ -998,26 +1016,34 @@ export const useDesignMode = (
             const hold = holdRef.current;
             const pickAt = surfaceRef.current?.pickAt ?? null;
             if (!hold || !pickAt) return;
-            // Ink drawn before this click is the mark before it.
-            flushInk(hold);
             refreshInk();
             forgetHover();
-            const pick: Hold = { ...hold };
-            hold.startAbs = performance.now();
-            const found = pickAt(holdPoint(hold, point)).then(
-                (hit) => {
-                    if (!hit) return null;
-                    const pickKey = `${hit.target.kind}:${hit.target.id}`;
-                    if (hold.lastPick === pickKey) return null;
-                    hold.lastPick = pickKey;
-                    hold.marked = true;
-                    if (holdRef.current === hold) startHoldVoice(hold);
-                    pick.voice = hold.voice;
-                    return hit;
-                },
-                () => null,
-            );
-            commit(pick, { kind: 'pick', found, endAbs: performance.now() });
+            const drawnBefore = [...hold.strokes];
+            const clickedAbs = performance.now();
+            const found = pickAt(holdPoint(hold, point)).catch(() => null);
+            hold.settled = hold.settled.then(async () => {
+                const hit = await found;
+                // A click on nothing leaves the ink around it one mark.
+                if (!hit) return;
+                const pickKey = `${hit.target.kind}:${hit.target.id}`;
+                const inkBefore = hold.strokes.some((stroke) =>
+                    drawnBefore.includes(stroke),
+                );
+                if (!inkBefore && hold.lastPick === pickKey) return;
+                // Ink drawn before this click is the mark before it.
+                flushInk(hold, drawnBefore);
+                refreshInk();
+                hold.lastPick = pickKey;
+                hold.marked = true;
+                if (holdRef.current === hold) startHoldVoice(hold);
+                const pick: Hold = { ...hold, startAbs: clickedAbs };
+                hold.startAbs = performance.now();
+                commit(pick, {
+                    kind: 'pick',
+                    found: Promise.resolve(hit),
+                    endAbs: clickedAbs,
+                });
+            });
         },
         [commit, flushInk, forgetHover, refreshInk, startHoldVoice],
     );

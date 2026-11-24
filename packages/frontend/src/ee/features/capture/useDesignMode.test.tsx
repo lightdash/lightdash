@@ -819,6 +819,26 @@ describe('useDesignMode', () => {
             expect(grabDomFrame).not.toHaveBeenCalled();
         });
 
+        it('a click on nothing between strokes leaves them one mark', async () => {
+            await turnOn();
+            await keyDown({ key: 'Alt', altKey: true });
+            drag([
+                [10, 70],
+                [40, 90],
+            ]);
+            pickAt.mockResolvedValueOnce(null);
+            click(20, 30);
+            drag([
+                [50, 70],
+                [80, 90],
+            ]);
+            await keyUp({ key: 'Alt' });
+            await waitFor(() => expect(collected()).toHaveLength(1));
+            await act(async () => {});
+            expect(collected()).toHaveLength(1);
+            expect(collected()[0].strokes).toHaveLength(2);
+        });
+
         it('hovering with Option held outlines what a click would pick, and a stroke hides it', async () => {
             await turnOn();
             await keyDown({ key: 'Alt', altKey: true });
