@@ -20,7 +20,10 @@ import {
     findMetricsToRun,
     findNewModelAdvice,
 } from '../../SemanticStudioService/draftLint';
-import { buildMetricViewModelYaml } from '../../SemanticStudioService/metricViewModel';
+import {
+    buildMetricViewModelYaml,
+    quoteIdentifier,
+} from '../../SemanticStudioService/metricViewModel';
 import type {
     DescribeWarehouseTableFn,
     DraftProjectContextFn,
@@ -89,15 +92,22 @@ const resolveMetricViewImport = async (
             `${fromMetricView.table} is not a metric view, so write its model as yaml from describeWarehouseTable.`,
         );
     }
+    if (described.metadata.metricView?.parameterized) {
+        throw new ParameterError(
+            `${fromMetricView.table} takes parameters, so it is queried as a table function and cannot be a model's table. Tell the person it cannot be imported yet.`,
+        );
+    }
     return {
         ...model,
         yaml: buildMetricViewModelYaml({
+            modelName: model.name,
             sqlFrom: [
                 described.resolvedDatabase,
                 described.resolvedSchema,
                 fromMetricView.table,
             ]
-                .filter((part) => part !== null)
+                .flatMap((part) => (part === null ? [] : [part]))
+                .map(quoteIdentifier)
                 .join('.'),
             metadata: described.metadata,
             existingModelYaml: existing.content,

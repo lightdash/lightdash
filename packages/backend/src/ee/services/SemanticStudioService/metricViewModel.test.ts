@@ -4,7 +4,23 @@ import {
     type WarehouseTableMetadata,
 } from '@lightdash/common';
 import { parse } from 'yaml';
-import { buildMetricViewModelYaml } from './metricViewModel';
+import { buildMetricViewModelYaml, quoteIdentifier } from './metricViewModel';
+
+type Column = WarehouseTableMetadata['columns'][number];
+
+const dimension = (name: string, comment: string | null = null): Column => ({
+    name,
+    type: DimensionType.STRING,
+    comment,
+    isMeasure: false,
+});
+
+const measure = (name: string, comment: string | null = null): Column => ({
+    name,
+    type: DimensionType.NUMBER,
+    comment,
+    isMeasure: true,
+});
 
 // An invented metric view, shaped like a described one
 const metadata: WarehouseTableMetadata = {
@@ -12,35 +28,12 @@ const metadata: WarehouseTableMetadata = {
     comment: 'Subscription movements by month',
     columns: [
         {
-            name: 'record_month',
+            ...dimension('record_month', 'First day of the month.'),
             type: DimensionType.DATE,
-            comment: 'First day of the month.',
-            isMeasure: false,
         },
-        {
-            name: 'Plan Tier',
-            type: DimensionType.STRING,
-            comment: null,
-            isMeasure: false,
-        },
-        {
-            name: 'etl_insert_date',
-            type: DimensionType.TIMESTAMP,
-            comment: null,
-            isMeasure: false,
-        },
-        {
-            name: 'Opening Base',
-            type: DimensionType.NUMBER,
-            comment: null,
-            isMeasure: true,
-        },
-        {
-            name: 'net_churn_rate',
-            type: DimensionType.NUMBER,
-            comment: null,
-            isMeasure: true,
-        },
+        dimension('Plan Tier'),
+        measure('Opening Base'),
+        measure('net_churn_rate'),
     ],
     definition: null,
     metricView: {
@@ -92,14 +85,41 @@ const metadata: WarehouseTableMetadata = {
     },
 };
 
-const build = (existingModelYaml: string | null = null) =>
+const build = (
+    existingModelYaml: string | null = null,
+    described: WarehouseTableMetadata = metadata,
+) =>
     parse(
         buildMetricViewModelYaml({
+            modelName: 'subscriptions',
             sqlFrom: 'catalog.schema.subscription_metrics',
-            metadata,
+            metadata: described,
             existingModelYaml,
         }),
     );
+
+const EXISTING = `type: model
+name: subscriptions
+sql_from: catalog.schema.subscription_metrics
+dimensions:
+  - name: tier
+    type: string
+    sql: \${TABLE}.\`Plan Tier\`
+    label: Plan
+    metrics:
+      latest_tier:
+        type: max
+        sql: \${TABLE}.\`Plan Tier\`
+metrics:
+  starting_base:
+    type: number
+    sql: MEASURE(\`Opening Base\`)
+    description: The base we report to the board.
+  net_churn_rate:
+    type: number
+    sql: MEASURE(net_churn_rate)
+    description: Churn as a share of the opening base.
+`;
 
 describe('buildMetricViewModelYaml', () => {
     it('ports every column with its label, description and synonyms', () => {
@@ -121,11 +141,6 @@ describe('buildMetricViewModelYaml', () => {
                     sql: '${TABLE}.`Plan Tier`',
                     label: 'Plan Tier',
                     description: 'Commercial tier of the plan.',
-                },
-                {
-                    name: 'etl_insert_date',
-                    type: 'timestamp',
-                    sql: '${TABLE}.etl_insert_date',
                 },
             ],
             metrics: {
@@ -150,45 +165,72 @@ describe('buildMetricViewModelYaml', () => {
         });
     });
 
-    it('updates the fields of an existing model in place, under the names it already uses', () => {
-        const model = build(
-            [
-                'sql_from: catalog.schema.subscription_metrics',
-                'dimensions:',
-                '  - name: tier',
-                '    type: string',
-                '    sql: ${TABLE}.`Plan Tier`',
-                'metrics:',
-                '  starting_base:',
-                '    type: number',
-                '    sql: MEASURE(`Opening Base`)',
-            ].join('\n'),
-        );
+    it('updates an existing model in place, under the names it already uses', () => {
+        const model = build(EXISTING);
 
         expect(model.sql_from).toBeUndefined();
         expect(
             model.dimensions.map(({ name }: { name: string }) => name),
-        ).toEqual(['record_month', 'tier', 'etl_insert_date']);
+        ).toEqual(['record_month', 'tier']);
         expect(Object.keys(model.metrics)).toEqual([
             'starting_base',
             'net_churn_rate',
         ]);
     });
 
-    it('still ports every column when the definition did not parse', () => {
-        const model = parse(
-            buildMetricViewModelYaml({
-                sqlFrom: 'catalog.schema.subscription_metrics',
-                metadata: { ...metadata, metricView: null },
-                existingModelYaml: null,
-            }),
-        );
+    it('leaves a label or description someone wrote where the warehouse has none', () => {
+        const model = build(EXISTING);
+        const tier = model.dimensions[1];
 
-        expect(model.dimensions).toHaveLength(3);
+        // No display name in the warehouse, so the hand-written label is not sent
+        expect(tier.label).toBeUndefined();
+        // No comment in the warehouse, so the definition alone does not replace it
+        expect(model.metrics.net_churn_rate.description).toBeUndefined();
+        // A warehouse comment does replace it
+        expect(model.metrics.starting_base.description).toContain(
+            'Active subscriptions at the start of the period.',
+        );
+    });
+
+    it('gives columns that reduce to the same or to no name a distinct one', () => {
+        const model = build(null, {
+            ...metadata,
+            metricView: null,
+            columns: [
+                dimension('Order Date'),
+                dimension('order-date'),
+                dimension('売上'),
+                dimension('数量'),
+                measure('order_date'),
+            ],
+        });
+
+        expect(
+            model.dimensions.map(({ name }: { name: string }) => name),
+        ).toEqual(['order_date', 'order_date_2', 'field', 'field_2']);
+        expect(model.dimensions[2].label).toBe('売上');
+        expect(Object.keys(model.metrics)).toEqual(['order_date_3']);
+    });
+
+    it('still ports every column when the definition did not parse', () => {
+        const model = build(null, { ...metadata, metricView: null });
+
+        expect(model.dimensions).toHaveLength(2);
         expect(model.metrics.opening_base).toEqual({
             type: 'number',
             sql: 'MEASURE(`Opening Base`)',
             label: 'Opening Base',
         });
+    });
+});
+
+describe('quoteIdentifier', () => {
+    it.each([
+        ['orders', 'orders'],
+        ['Plan Tier', '`Plan Tier`'],
+        ['my-catalog', '`my-catalog`'],
+        ['odd`name', '`odd``name`'],
+    ])('quotes %s as %s', (name, quoted) => {
+        expect(quoteIdentifier(name)).toBe(quoted);
     });
 });

@@ -1,4 +1,4 @@
-import { assertUnreachable } from '@lightdash/common';
+import { assertUnreachable, WarehouseTypes } from '@lightdash/common';
 import { getStudioAbilities, type Loadout } from '../loadout';
 import {
     readLibraryPath,
@@ -200,7 +200,7 @@ const getDraftWarehouseSection = (
 
 const METRIC_VIEWS = `## Metric views
 
-When describeWarehouseTable says a table is a metric view, model it with one proposeSemanticLayerChange entry that sets fromMetricView. That brings in every dimension and measure with the labels, descriptions and synonyms the warehouse holds, so never write those fields yourself or ask the person to paste the definition. The same entry brings a model that already exists up to date with its metric view. The warehouse only evaluates a measure through MEASURE(), so leave each imported metric's sql as it comes.`;
+When describeWarehouseTable says a table is a metric view, model it with one proposeSemanticLayerChange entry that sets fromMetricView. That brings in every dimension and measure with the labels, descriptions and synonyms the warehouse holds, so never write those fields yourself or ask the person to paste the definition. The same entry brings a model that already exists up to date with its metric view. The warehouse only evaluates a measure through MEASURE(), so leave each imported metric's sql as it comes. When the view's comment or a date's comment states its grain, such as one row per month, follow the import with a proposal that sets that date's time_intervals to that grain and coarser.`;
 
 /** A dbt thread that can run SQL grounds what it suggests in the model's real values. */
 const getDbtWarehouseSection = (
@@ -247,7 +247,9 @@ export const getSemanticStudioSystemPrompt = ({
                         studio.canDraftContext,
                     ),
                     getDraftWarehouseSection(warehouse),
-                    ...(warehouse ? [METRIC_VIEWS] : []),
+                    ...(warehouse?.type === WarehouseTypes.DATABRICKS
+                        ? [METRIC_VIEWS]
+                        : []),
                 ];
             case 'dbt':
                 return [

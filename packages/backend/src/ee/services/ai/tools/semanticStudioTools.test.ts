@@ -194,6 +194,28 @@ describe('getProposeSemanticLayerChange', () => {
             });
         });
 
+        it('refuses a metric view that takes parameters', async () => {
+            described = {
+                ...metricView(true),
+                metricView: {
+                    source: null,
+                    filter: null,
+                    parameterized: true,
+                    dimensions: [],
+                    measures: [],
+                    joins: [],
+                },
+            };
+            const proposed = vi.fn<ProposeSemanticLayerChangeFn>(
+                async () => nothingProposed,
+            );
+
+            const output = await propose(proposed, null, false, table);
+
+            expect(proposed).not.toHaveBeenCalled();
+            expect(output.result).toContain('takes parameters');
+        });
+
         it.each([
             [
                 'a table that is not a metric view',

@@ -15,7 +15,9 @@ import { toModelPath } from './draftFold';
 const AGGREGATE_CALL =
     /\b(sum|count|avg|min|max|median|count_if|approx_count_distinct|percentile_cont|percentile_disc|array_agg|string_agg|listagg)\s*\(/i;
 
-const metricsOf = (model: LightdashModel): [string, LightdashModelMetric][] => [
+export const metricsOf = (
+    model: LightdashModel,
+): [string, LightdashModelMetric][] => [
     ...model.dimensions.flatMap(({ metrics }) => Object.entries(metrics ?? {})),
     ...Object.entries(model.metrics ?? {}),
 ];
