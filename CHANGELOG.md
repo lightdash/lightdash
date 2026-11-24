@@ -1,3 +1,10 @@
+# [3.382.0](https://github.com/lightdash/lightdash/compare/3.381.3...3.382.0) (2026-11-24)
+
+
+### Features
+
+* **semantic-studio:** compact draft row in the project switcher that opens the change ([#33309](https://github.com/lightdash/lightdash/issues/33309)) ([2e1bbdd](https://github.com/lightdash/lightdash/commit/2e1bbdd4b1ee627c6e2b240b61cebcd3bcefa63a))
+
 ## [3.381.3](https://github.com/lightdash/lightdash/compare/3.381.2...3.381.3) (2026-11-24)
 
 
