@@ -1,4 +1,7 @@
-import { type WarehouseTablesCatalog } from '@lightdash/common';
+import {
+    getTableListingFailure,
+    type WarehouseTablesCatalog,
+} from '@lightdash/common';
 import { useProject } from '../../hooks/useProject';
 import { useTables } from '../sqlRunner/hooks/useTables';
 import { STUDIO_STARTERS } from './studioStarters';
@@ -60,12 +63,13 @@ export const getStudioStarters = (
     ];
 };
 
-/** The project's warehouse and what its catalog lists; summary is null until listed or when listing fails. */
+/** The project's warehouse and what its catalog lists; summary is null until listed or when listing fails, and listingFailure says why it failed. */
 export const useWarehouseSummary = (projectUuid: string) => {
     const { data: project } = useProject(projectUuid);
-    const { data: catalog } = useTables({ projectUuid });
+    const { data: catalog, error } = useTables({ projectUuid });
     return {
         type: project?.warehouseConnection?.type ?? null,
         summary: catalog ? summarizeWarehouseCatalog(catalog) : null,
+        listingFailure: error ? getTableListingFailure(error.error) : null,
     };
 };

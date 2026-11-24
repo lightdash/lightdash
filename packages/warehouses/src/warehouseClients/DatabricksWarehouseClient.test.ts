@@ -6,6 +6,9 @@ import {
     getCatalogNestedColumnShape,
     getCatalogNestedColumnsUnavailableReason,
     getCatalogTimestampDomain,
+    TABLE_LISTING_FAILED_CODE,
+    WarehouseQueryError,
+    WarehouseTableListingError,
 } from '@lightdash/common';
 import {
     DatabricksErrorCondition,
@@ -973,5 +976,96 @@ describe('DatabricksWarehouseClient getAllTables', () => {
                 tableType: 'materialized_view',
             },
         ]);
+    });
+
+    const failListing = (message: string) => {
+        const warehouse = new DatabricksWarehouseClient({
+            ...credentials,
+            catalog: 'catalog_a',
+        });
+        vi.spyOn(warehouse, 'runQuery').mockRejectedValueOnce(
+            new WarehouseQueryError(message),
+        );
+        return warehouse.getAllTables();
+    };
+
+    // Wording from the Databricks error conditions reference and knowledge base, with placeholder names.
+    it.each([
+        [
+            "[INSUFFICIENT_PERMISSIONS] Insufficient privileges: User does not have USE SCHEMA on Schema 'catalog_a.schema_a'. SQLSTATE: 42501",
+            {
+                kind: 'missing_privilege',
+                privilege: 'USE SCHEMA',
+                catalog: 'catalog_a',
+                schema: 'schema_a',
+            },
+        ],
+        [
+            "PERMISSION_DENIED: User does not have USE CATALOG on Catalog 'catalog_a'.",
+            {
+                kind: 'missing_privilege',
+                privilege: 'USE CATALOG',
+                catalog: 'catalog_a',
+                schema: null,
+            },
+        ],
+        [
+            '[INSUFFICIENT_PERMISSIONS] User does not have USE SCHEMA on Schema `schema_a`.',
+            {
+                kind: 'missing_privilege',
+                privilege: 'USE SCHEMA',
+                catalog: null,
+                schema: 'schema_a',
+            },
+        ],
+        [
+            "[INSUFFICIENT_PERMISSIONS_SECURABLE] User does not have permission SELECT on Table 'catalog_a.schema_a.table_a'. SQLSTATE: 42501",
+            {
+                kind: 'missing_privilege',
+                privilege: 'SELECT',
+                catalog: 'catalog_a',
+                schema: 'schema_a',
+            },
+        ],
+        [
+            "[INSUFFICIENT_PERMISSIONS] Insufficient privileges: 'catalog_a.schema_a'. SQLSTATE: 42501",
+            {
+                kind: 'missing_privilege',
+                privilege: null,
+                catalog: 'catalog_a',
+                schema: 'schema_a',
+            },
+        ],
+        [
+            '[TABLE_OR_VIEW_NOT_FOUND] The table or view `information_schema`.`tables` cannot be found. Verify the spelling and correctness of the schema and catalog. SQLSTATE: 42P01; line 3 pos 17',
+            { kind: 'no_information_schema', catalog: 'catalog_a' },
+        ],
+        [
+            '[SCHEMA_NOT_FOUND] The schema `information_schema` cannot be found. Verify the spelling and correctness of the schema and catalog. SQLSTATE: 42704',
+            { kind: 'no_information_schema', catalog: 'catalog_a' },
+        ],
+        [
+            "[NO_SUCH_CATALOG_EXCEPTION] Catalog 'catalog_b' was not found. Please verify the catalog name and then retry the query or command again. SQLSTATE: 42704",
+            { kind: 'catalog_not_found', catalog: 'catalog_b' },
+        ],
+        [
+            '[CATALOG_NOT_FOUND] The catalog `catalog_b` not found. Consider to set the SQL config `spark.sql.catalog.catalog_b` to a catalog plugin. SQLSTATE: 42P08',
+            { kind: 'catalog_not_found', catalog: 'catalog_b' },
+        ],
+    ])('maps %s to a listing reason', async (message, failure) => {
+        await expect(failListing(message)).rejects.toMatchObject({
+            name: 'WarehouseQueryError',
+            message,
+            failure: { ...failure, message },
+            data: { code: TABLE_LISTING_FAILED_CODE },
+        });
+    });
+
+    it('rethrows a failure it has no reason for unchanged', async () => {
+        const message =
+            '[TABLE_OR_VIEW_NOT_FOUND] The table or view `schema_a`.`table_a` cannot be found. SQLSTATE: 42P01';
+        const error = await failListing(message).catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(WarehouseQueryError);
+        expect(error).not.toBeInstanceOf(WarehouseTableListingError);
     });
 });
