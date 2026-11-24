@@ -1,3 +1,12 @@
+# [3.391.0](https://github.com/lightdash/lightdash/compare/3.390.1...3.391.0) (2026-11-24)
+
+
+### Features
+
+* **semantic-studio:** import a metric view as one complete model ([#33366](https://github.com/lightdash/lightdash/issues/33366)) ([8e74223](https://github.com/lightdash/lightdash/commit/8e74223bbaf673b33ce93d20398b704c04b2c1b8))
+* **semantic-studio:** plan a metric view model directly in the draft check ([#33368](https://github.com/lightdash/lightdash/issues/33368)) ([66e8210](https://github.com/lightdash/lightdash/commit/66e8210f4713d422c461bc550b8d01b67224b950))
+* **semantic-studio:** start the builder with one click when the project has no agent ([#33369](https://github.com/lightdash/lightdash/issues/33369)) ([f59b15f](https://github.com/lightdash/lightdash/commit/f59b15ff2097b61f292f1673dde1846a3f8f9d53))
+
 ## [3.390.1](https://github.com/lightdash/lightdash/compare/3.390.0...3.390.1) (2026-11-24)
 
 
