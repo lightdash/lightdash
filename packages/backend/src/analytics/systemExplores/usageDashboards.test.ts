@@ -122,14 +122,6 @@ describe('built-in usage dashboards', () => {
                 ).toBe('');
             }
         }
-        const scatter = charts.find(({ slug }) =>
-            slug.endsWith(
-                '-high-compute-dashboards-audience-versus-warehouse-time',
-            ),
-        )!;
-        expect(scatter.metricQuery.dimensions).not.toContain(
-            'content_health_content_url',
-        );
     });
 
     const aiTokens = analyticsContentAsCode.find(
@@ -935,7 +927,10 @@ describe('built-in usage dashboards', () => {
                         `lightdash-analytics-query-activity-${key}`,
             )!;
         const slow = tile('latency', 'slow-dashboards-tail-latency-and-demand');
-        expect([slow.x, slow.w, slow.h]).toEqual([0, 36, 9]);
+        // Beside the table of what each dashboard costs to run
+        expect([slow.x, slow.w, slow.h]).toEqual([0, 18, 9]);
+        const cost = tile('latency', 'dashboards-warehouse-and-response-time');
+        expect([cost.x, cost.w, cost.h]).toEqual([18, 18, 9]);
     });
 
     it('leaves the query calendar chart unchanged', () => {
@@ -1009,7 +1004,10 @@ describe('built-in usage dashboards', () => {
         const captioned = spec.tabs.flatMap(({ sections }) =>
             sections.filter(({ caption }) => caption).map(({ title }) => title),
         );
-        expect(captioned).toEqual(['Response latency', 'Most-used fields']);
+        expect(captioned).toEqual([
+            'Which dashboards are slow or expensive?',
+            'Most-used fields',
+        ]);
         spec.tabs.forEach((tab) => {
             const notes = dashboard.tiles.filter(
                 (tile) =>
@@ -1735,12 +1733,15 @@ describe('display fixes', () => {
         expect(completionConfig?.yAxis?.[0].name).toBe('Agent requests');
         expect(completionConfig?.series?.[0].name).toBe('Agent requests');
         const slow = bySlug(
-            'lightdash-analytics-query-activity-slow-dashboards-tail-latency-and-demand',
+            'lightdash-analytics-query-activity-dashboards-warehouse-and-response-time',
         );
         if (slow.chartConfig.type !== ChartType.TABLE)
             throw new Error('Expected table');
         expect(slow.chartConfig.config?.columns).toMatchObject({
             query_events_dashboard_name: { name: 'Dashboard' },
+            query_events_total_warehouse_execution_time_s: {
+                name: 'Warehouse time (s)',
+            },
             query_events_total_queries: { name: 'Queries' },
             query_events_p95_response_time_s: {
                 name: 'P95 response time (s)',

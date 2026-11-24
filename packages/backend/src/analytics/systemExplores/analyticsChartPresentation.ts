@@ -7,7 +7,10 @@ import {
     type ChartAsCode,
     type ConditionalFormattingConfig,
 } from '@lightdash/common';
-import { analyticsColorPalette } from './analyticsColorPalette';
+import {
+    analyticsColorPalette,
+    ownerStatusColors,
+} from './analyticsColorPalette';
 import { monthLabel } from './monthlyQueryComparisonCharts';
 
 // A shared visual vocabulary for managed content. Queries and identity fields
@@ -217,13 +220,7 @@ export const withAnalyticsChartPresentation = (
                     isDonut: true,
                     showLegend: true,
                     // The slices are named by the plain-name field
-                    groupColorOverrides: {
-                        'Active member': positive,
-                        Deactivated: caution,
-                        'No owner': colors[0],
-                        'Not a member': colors[2],
-                        'Unknown owner': '#868E96',
-                    },
+                    groupColorOverrides: ownerStatusColors,
                 },
             },
         };

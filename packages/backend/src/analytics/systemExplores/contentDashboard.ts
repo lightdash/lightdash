@@ -4,6 +4,7 @@ import {
     TableCalculationType,
 } from '@lightdash/common';
 import { caution, positive, waiting } from './analyticsChartPresentation';
+import { ownerStatusColors } from './analyticsColorPalette';
 import { card, numberCard, ranking, stackedByDay } from './chartBuilders';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
 
@@ -333,8 +334,10 @@ export const contentChartSpecs: UsageChartSpec[] = [
         // A list to act on: one row for each item, the ones nothing uses first and the oldest of those
         // at the top. Text columns, so it is a plain table in both versions.
         key: 'review-candidates-activity-and-known-dependencies',
-        name: 'What could be cleaned up?',
-        description: `Up to 200 items nobody has viewed, queried or loaded since recording began; check the ones nothing else uses first, listed oldest at the top. ${allHistory}`,
+        name: 'Never viewed: what could be cleaned up?',
+        // Two ideas kept apart: nobody has opened any of these, and some are still pointed at
+        description:
+            'Up to 200 items nobody has viewed, queried or loaded in all recorded history, oldest first. Still linked from says whether a dashboard or a schedule still points at the item, which is a reason to keep it.',
         explore: 'content_health',
         dimensions: [
             'content_health_content_name',
@@ -343,6 +346,8 @@ export const contentChartSpecs: UsageChartSpec[] = [
             'content_health_space_name',
             'content_health_created_at_day',
             'content_health_activity_status',
+            // What can point at an item depends on what it is
+            'content_health_content_type',
             'content_health_content_id',
             'content_health_project_id',
         ],
@@ -363,11 +368,12 @@ export const contentChartSpecs: UsageChartSpec[] = [
             whereItLives,
             createdOn,
             {
-                name: 'used_by',
-                displayName: 'Used by',
-                // A count that was never recorded is nothing known, the same as none
+                // Not who viewed it: what still points at it. A chart can sit on dashboards and be
+                // sent by schedules; a dashboard can only be sent by schedules.
+                name: 'linked_from',
+                displayName: 'Still linked from',
                 type: TableCalculationType.STRING,
-                sql: `CASE WHEN COALESCE(\${content_health.total_dashboard_references}, 0) = 0 AND COALESCE(\${content_health.total_enabled_schedules}, 0) = 0 THEN 'Nothing' ELSE concat_ws(', ', CASE WHEN COALESCE(\${content_health.total_dashboard_references}, 0) = 1 THEN '1 dashboard' WHEN COALESCE(\${content_health.total_dashboard_references}, 0) > 1 THEN CAST(COALESCE(\${content_health.total_dashboard_references}, 0) AS VARCHAR) || ' dashboards' END, CASE WHEN COALESCE(\${content_health.total_enabled_schedules}, 0) = 1 THEN '1 schedule' WHEN COALESCE(\${content_health.total_enabled_schedules}, 0) > 1 THEN CAST(COALESCE(\${content_health.total_enabled_schedules}, 0) AS VARCHAR) || ' schedules' END) END`,
+                sql: `CASE WHEN \${content_health.content_type} = 'dashboard' THEN COALESCE(CASE WHEN COALESCE(\${content_health.total_enabled_schedules}, 0) = 1 THEN '1 schedule' WHEN COALESCE(\${content_health.total_enabled_schedules}, 0) > 1 THEN CAST(COALESCE(\${content_health.total_enabled_schedules}, 0) AS VARCHAR) || ' schedules' END, 'No schedule') WHEN COALESCE(\${content_health.total_dashboard_references}, 0) = 0 AND COALESCE(\${content_health.total_enabled_schedules}, 0) = 0 THEN 'No dashboard or schedule' ELSE concat_ws(', ', CASE WHEN COALESCE(\${content_health.total_dashboard_references}, 0) = 1 THEN '1 dashboard' WHEN COALESCE(\${content_health.total_dashboard_references}, 0) > 1 THEN CAST(COALESCE(\${content_health.total_dashboard_references}, 0) AS VARCHAR) || ' dashboards' END, CASE WHEN COALESCE(\${content_health.total_enabled_schedules}, 0) = 1 THEN '1 schedule' WHEN COALESCE(\${content_health.total_enabled_schedules}, 0) > 1 THEN CAST(COALESCE(\${content_health.total_enabled_schedules}, 0) AS VARCHAR) || ' schedules' END) END`,
             },
             {
                 // Items nothing uses first
@@ -382,6 +388,7 @@ export const contentChartSpecs: UsageChartSpec[] = [
             'content_health_space_name',
             'content_health_created_at_day',
             'content_health_activity_status',
+            'content_health_content_type',
             'content_health_total_dashboard_references',
             'content_health_total_enabled_schedules',
             'review_order',
@@ -391,11 +398,12 @@ export const contentChartSpecs: UsageChartSpec[] = [
             'content_health_content_type_name',
             whereItLives.name,
             createdOn.name,
-            'used_by',
+            'linked_from',
             'content_health_project_name',
             'content_health_space_name',
             'content_health_created_at_day',
             'content_health_activity_status',
+            'content_health_content_type',
             'content_health_content_id',
             'content_health_project_id',
             'content_health_total_dashboard_references',
@@ -451,6 +459,10 @@ export const contentChartSpecs: UsageChartSpec[] = [
                 showAxisTitles: false,
                 showLegend: false,
                 yIntegerTicks: true,
+                // One colour for each status, by its name
+                splitColorGroups: Object.entries(ownerStatusColors)
+                    .map(([name, color]) => `${name}=${name}=${color}`)
+                    .join(';'),
             },
             query: null,
         },
@@ -529,34 +541,6 @@ export const contentChartSpecs: UsageChartSpec[] = [
             content_health_total_observed_views: 'Views',
         },
     },
-    ranking({
-        key: 'high-compute-dashboards-audience-versus-warehouse-time',
-        name: 'Dashboards by warehouse time (top 25)',
-        description:
-            'Top 25 dashboards by warehouse execution time (s), across all recorded history. The date filter does not apply.',
-        explore: 'content_health',
-        by: 'content_health_content_name',
-        dimensions: [
-            'content_health_content_name',
-            'content_health_observed_viewers',
-            'content_health_content_id',
-            'content_health_project_id',
-        ],
-        metrics: [
-            'content_health_total_warehouse_execution_time_s',
-            'content_health_total_observed_queries',
-        ],
-        filters: [
-            { field: 'content_health_content_type', values: ['dashboard'] },
-        ],
-        limit: 25,
-        libraryLimit: 25,
-        fieldLabels: { content_health_content_name: 'Dashboard' },
-        visualization: 'scatter',
-        xField: 'content_health_observed_viewers',
-        yFields: ['content_health_total_warehouse_execution_time_s'],
-        libraryDescription: `Top 25 dashboards by warehouse execution time (s), with the queries they ran. ${allHistory}`,
-    }),
 ];
 
 export const contentDashboardSpec: UsageDashboardSpec = {
@@ -654,7 +638,7 @@ export const contentDashboardSpec: UsageDashboardSpec = {
         },
         {
             key: 'ownership',
-            name: 'Ownership & compute',
+            name: 'Ownership',
             sections: [
                 {
                     title: 'Current ownership',
@@ -673,16 +657,6 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                     layout: 'row',
                     // About eight rows, more by scrolling
                     rowHeight: 7,
-                },
-                {
-                    title: 'Warehouse time by dashboard',
-                    description:
-                        'Time the warehouse spent running queries. The same execution time can be attributed to both a chart and a dashboard.',
-                    charts: [
-                        'high-compute-dashboards-audience-versus-warehouse-time',
-                    ],
-                    layout: 'row',
-                    rowHeight: 8,
                 },
             ],
         },

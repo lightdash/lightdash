@@ -138,11 +138,14 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                 name: 'Response time & failures',
                 sections: [
                     {
-                        title: 'Response latency',
+                        title: 'Which dashboards are slow or expensive?',
                         caption: true,
                         description:
-                            'P95 response time is the time the backend took to respond, before the browser draws the result. A blank means the timing is unknown.',
-                        charts: ['slow-dashboards-tail-latency-and-demand'],
+                            'P95 response time is how long the backend took to respond, before the browser draws the result. Warehouse time is what the queries cost to run.',
+                        charts: [
+                            'slow-dashboards-tail-latency-and-demand',
+                            'dashboards-warehouse-and-response-time',
+                        ],
                         layout: 'row',
                         rowHeight: 9,
                     },

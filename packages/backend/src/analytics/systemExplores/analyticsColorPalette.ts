@@ -145,3 +145,14 @@ export const analyticsColorPalette = {
         '#EDE9FE',
     ],
 } satisfies Required<CreateColorPalette>;
+
+// The status of a dashboard's owner, in the same colour wherever it is drawn: green for an owner who is
+// still a member, a soft red for one who was deactivated, amber for one who is not a member, and grey
+// where there is no owner or the owner is unknown.
+export const ownerStatusColors: Record<string, string> = {
+    'Active member': '#34D399',
+    Deactivated: '#FB7185',
+    'Not a member': '#FBBF24',
+    'No owner': '#9CA3AF',
+    'Unknown owner': '#9CA3AF',
+};
