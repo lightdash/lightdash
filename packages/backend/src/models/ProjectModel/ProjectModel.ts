@@ -6329,6 +6329,26 @@ export class ProjectModel {
         }));
     }
 
+    /** Projects tagged as sample data, whatever their connection is now. */
+    async getPlaygroundProjectUuids(): Promise<string[]> {
+        const rows = await this.database(ProjectTableName)
+            .select('project_uuid')
+            .where('provisioning_source', 'playground')
+            .orderBy('project_id');
+        return rows.map((row) => row.project_uuid);
+    }
+
+    /** Turns a sample data project into an ordinary one. */
+    async clearPlaygroundProvisioning(projectUuid: string): Promise<void> {
+        await this.database(ProjectTableName)
+            .update({
+                provisioning_source: null,
+                playground_bundle_version: null,
+            })
+            .where('project_uuid', projectUuid)
+            .andWhere('provisioning_source', 'playground');
+    }
+
     /** Records when any server first saw a bundle version and returns that time. */
     async recordPlaygroundBundleVersionSeen(version: string): Promise<Date> {
         await this.database(PlaygroundBundleVersionsTableName)
