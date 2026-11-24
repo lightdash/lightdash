@@ -242,9 +242,16 @@ describe('analytics sample content', () => {
                 'All usage',
                 'Completeness & attribution',
             ]);
-            // The Date and Project filters reach the any-period tiles only
-            const [date] = dashboard.filters!.dimensions!;
+            // The Date filter reaches the any-period tiles only. The Project filter reaches every chart
+            const [date, project] = dashboard.filters!.dimensions!;
             expect(date.label).toBe('Date');
+            expect(project.label).toBe('Project');
+            charts.forEach(({ slug }) =>
+                expect(project.tileTargets?.[slug]).toEqual({
+                    fieldId: 'ai_usage_project_id',
+                    tableName: 'ai_usage',
+                }),
+            );
             charts.forEach(({ slug }) =>
                 expect(date.tileTargets?.[slug] !== false).toBe(
                     dashboard.tiles.some(
