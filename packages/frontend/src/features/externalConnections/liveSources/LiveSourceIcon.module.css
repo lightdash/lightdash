@@ -1,0 +1,6 @@
+/* A one-colour mark drawn dark: lighten it on a dark background. */
+.mono {
+    @mixin dark {
+        filter: invert(1);
+    }
+}

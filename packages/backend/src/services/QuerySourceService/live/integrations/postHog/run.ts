@@ -253,7 +253,7 @@ export const toPostHogError = (
         case 401:
         case 403:
             return new WarehouseConnectionError(
-                `PostHog rejected the API key for project ${projectId}. Check that the key has the Query Read scope and belongs to the connection's region (US or EU).`,
+                `PostHog rejected the API key. Check that the key has the Query Read scope and belongs to the connection's region (US or EU).`,
             );
         case 404:
             return new WarehouseConnectionError(

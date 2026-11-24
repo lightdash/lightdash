@@ -2,6 +2,8 @@ import {
     createAgentInputSchema,
     editDbtProjectToolDefinition,
     toolEditDbtProjectCodeModeArgsSchema,
+    writeToolDefinition,
+    type DbtWriteToolName,
     type ToolEditDbtProjectOutput,
     type ToolEditDbtProjectStructuredContent,
 } from '@lightdash/common';
@@ -19,6 +21,8 @@ type Dependencies = {
     editDbtProject: EditDbtProjectFn;
     /** Semantic Studio with code mode on: the change can come as a script. */
     acceptsScript: boolean;
+    /** write in Semantic Studio's builder, editDbtProject everywhere else. */
+    name: DbtWriteToolName;
 };
 
 type EditDbtProjectMetadata = ToolEditDbtProjectOutput['metadata'];
@@ -32,14 +36,22 @@ type ErrorResult = ExecuteToolErrorResult<
     Extract<EditDbtProjectMetadata, { status: 'error' }>
 >;
 
-const toolDefinition = editDbtProjectToolDefinition.for('agent');
+const definitions = {
+    editDbtProject: editDbtProjectToolDefinition.for('agent'),
+    write: writeToolDefinition.for('agent'),
+};
 
 export const getEditDbtProject = ({
     editDbtProject,
     acceptsScript,
-}: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    name,
+}: Dependencies) => {
+    const stillOpening =
+        name === 'write'
+            ? 'Until it is saved, pr.list in read shows it as a change still being saved.'
+            : 'Until it opens, listWorkstreams shows it as a change still being opened.';
+    return tool({
+        ...definitions[name],
         ...(acceptsScript
             ? {
                   inputSchema: createAgentInputSchema(
@@ -60,7 +72,7 @@ export const getEditDbtProject = ({
             if (requestedBy === 'agent_initiated') {
                 return {
                     ...toolFailure(
-                        'No pull request was opened: the user did not ask for a repository change. Make what they asked for now with the tools that edit content inside this project, offer the repository change in one sentence, and call editDbtProject with requestedBy offer_accepted once they say yes.',
+                        `No pull request was opened: the user did not ask for a repository change. Make what they asked for now with the tools that edit content inside this project, offer the repository change in one sentence, and call ${name} with requestedBy offer_accepted once they say yes.`,
                     ),
                     metadata: { status: 'error', errorCode: 'unknown' },
                 };
@@ -81,7 +93,7 @@ export const getEditDbtProject = ({
                 });
                 if (started.status === 'script_failed') {
                     const failure = toolFailure(
-                        `The script did not run, so nothing was saved: ${started.error}${started.logs.length > 0 ? `\nconsole.log:\n${started.logs.join('\n')}` : ''}\nFix the script and call editDbtProject again.`,
+                        `The script did not run, so nothing was saved: ${started.error}${started.logs.length > 0 ? `\nconsole.log:\n${started.logs.join('\n')}` : ''}\nFix the script and call ${name} again.`,
                     );
                     return {
                         ...failure,
@@ -91,12 +103,12 @@ export const getEditDbtProject = ({
                 const { aiWritebackRunUuid, inSandbox, diffs } = started;
 
                 const studioResult = inSandbox
-                    ? 'Started the change. It needs dbt to run, so it is saved in a sandbox and takes a few minutes; the pull request opens in the background. Tell the person it will take a few minutes, briefly. Until it opens, listWorkstreams shows it as a change still being opened.'
-                    : 'Started saving the change to the draft. Its card shows the person the files, your note, your options and when it is saved, so write nothing more. Until it is saved, listWorkstreams shows it as a change still being opened.';
+                    ? `Started the change. It needs dbt to run, so it is saved in a sandbox and takes a few minutes; the pull request opens in the background. Tell the person it will take a few minutes, briefly. ${stillOpening}`
+                    : `Started saving the change to the draft. Its card shows the person the files, your note, your options and when it is saved, so write nothing more. ${stillOpening}`;
                 return {
                     result: acceptsScript
                         ? studioResult
-                        : 'Started the change; the pull request opens in the background. Acknowledge it briefly. Until it opens, listWorkstreams shows it as a change still being opened.',
+                        : `Started the change; the pull request opens in the background. Acknowledge it briefly. ${stillOpening}`,
                     metadata: {
                         status: 'pending',
                         aiWritebackRunUuid,
@@ -117,3 +129,4 @@ export const getEditDbtProject = ({
         },
         toModelOutput: ({ output }) => toModelOutput(output),
     });
+};

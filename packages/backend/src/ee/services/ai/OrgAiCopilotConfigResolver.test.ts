@@ -32,16 +32,13 @@ const baseConfig: CopilotConfig = aiCopilotConfigSchema.parse({
     threadDumpEnabled: false,
     debugLoggingEnabled: false,
     askAiButtonEnabled: false,
-    embeddingEnabled: false,
     maxQueryLimit: 100,
     runSqlMaxLimit: 100,
     defaultProvider: 'openai',
-    defaultEmbeddingModelProvider: 'openai',
     providers: {
         openai: {
             apiKey: 'instance-openai-key',
             modelName: 'gpt-5.4',
-            embeddingModelName: 'text-embedding-3-small',
             useChatCompletions: false,
         },
     },
@@ -54,16 +51,13 @@ const bothProvidersConfig: CopilotConfig = aiCopilotConfigSchema.parse({
     threadDumpEnabled: false,
     debugLoggingEnabled: false,
     askAiButtonEnabled: false,
-    embeddingEnabled: false,
     maxQueryLimit: 100,
     runSqlMaxLimit: 100,
     defaultProvider: 'openai',
-    defaultEmbeddingModelProvider: 'openai',
     providers: {
         openai: {
             apiKey: 'instance-openai-key',
             modelName: 'gpt-5.4',
-            embeddingModelName: 'text-embedding-3-small',
             useChatCompletions: false,
         },
         anthropic: { apiKey: 'instance-anthropic-key' },
@@ -110,11 +104,9 @@ const bedrockConfig: CopilotConfig = aiCopilotConfigSchema.parse({
     threadDumpEnabled: false,
     debugLoggingEnabled: false,
     askAiButtonEnabled: false,
-    embeddingEnabled: false,
     maxQueryLimit: 100,
     runSqlMaxLimit: 100,
     defaultProvider: 'bedrock',
-    defaultEmbeddingModelProvider: 'openai',
     providers: {
         bedrock: {
             apiKey: 'instance-bedrock-key',

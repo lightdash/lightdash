@@ -42,6 +42,8 @@ export const BaseResponse: HealthState = {
     hasLinear: true,
     hasPostHogOAuth: false,
     hasLinkedInAdsOAuth: false,
+    hasSalesforceOAuth: false,
+    hasHydraLiveSource: false,
     hasGoogleLiveSources: false,
     hasHeadlessBrowser: false,
     hasSlack: false,

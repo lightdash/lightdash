@@ -191,8 +191,7 @@ import {
     type FieldValueSearchResult,
     type Filters,
     type InvalidateExploresResultsCache,
-    type LiveSourceInternalErrorCode,
-    type LiveSourceUpstreamErrorCode,
+    type LiveSourceErrorCode,
     type MergeQueryChart,
     type MergeQueryExecutionMode,
     type Organization,
@@ -417,8 +416,8 @@ import {
 } from '../QuerySourceService/live/explores/build';
 import { toLiveQueryError } from '../QuerySourceService/live/explores/definition';
 import {
+    getLiveQueryFailure,
     getLiveQueryOutcome,
-    getLiveSourceQueryErrorCode,
     isLiveSourceErrorReportable,
     type LiveQueryOutcome,
 } from '../QuerySourceService/live/query/outcome';
@@ -615,6 +614,16 @@ export type RunnableCompiledMergeQuery = ApiCompiledMergeQueryResults & {
 };
 
 const SCHEDULED_CHART_DISPATCH_RETRY_MS = 30_000;
+
+// How long a live query waits for the same request already running before
+// calling the integration itself. Covers the slowest integration timeout
+// plus its rate limit waits; a row older than this is treated as stuck.
+const LIVE_IN_FLIGHT_WAIT_MS = 120_000;
+
+/** What a live query can answer from instead of calling its integration. */
+type LiveResultReuse =
+    | { kind: 'stored'; stored: StoredLiveResult }
+    | { kind: 'in_flight'; queryUuid: string };
 
 const isRunnableCompiledMergeQuery = (
     compiled: ApiCompiledMergeQueryResults,
@@ -1478,6 +1487,10 @@ export class AsyncQueryService extends ProjectService {
         aiPlan: AiExecutionPlan | null;
         warehouseCredentials: ResolvedWarehouseCredentials;
     }): Promise<PreAggregationRoutingDecision> {
+        // Live explores have no warehouse to materialize into
+        if (explore.type === ExploreType.API_SOURCE) {
+            return { target: 'warehouse' };
+        }
         const identityChecksEnabled =
             identityEnabled ?? (await this.isResultIdentityEnabled(account));
         const bypassPreAggregates =
@@ -13158,6 +13171,7 @@ export class AsyncQueryService extends ProjectService {
             account,
             projectUuid,
             apiSource.connectionUuid,
+            context,
         );
         const compiled = compileLiveMetricQuery({
             explore,
@@ -13300,7 +13314,7 @@ export class AsyncQueryService extends ProjectService {
         // results: with it off, every query calls the integration.
         const { cacheEnabled } =
             await this.projectModel.getResultsCacheSettings(projectUuid);
-        const reusable =
+        const reuse =
             invalidateCache || !cacheEnabled
                 ? null
                 : await this.findReusableApiResult(
@@ -13308,6 +13322,7 @@ export class AsyncQueryService extends ProjectService {
                       cacheKey,
                       source,
                   );
+        const reusable = reuse?.kind === 'stored' ? reuse.stored : null;
 
         const queryCreatedAt = new Date();
         const { queryUuid } = await this.createQueryHistory(
@@ -13360,21 +13375,47 @@ export class AsyncQueryService extends ProjectService {
             return { queryUuid, reusable };
         }
 
-        void this.runLiveQuery({
-            account,
-            queryUuid,
-            projectUuid,
-            organizationUuid,
-            source,
-            payload,
-            limit,
-            cacheKey,
-            context,
-            queryCreatedAt,
-            fields: history.fields,
-            exploreName: history.explore?.name ?? null,
-            toResult,
-        }).catch((e) => {
+        const run = () =>
+            this.runLiveQuery({
+                account,
+                queryUuid,
+                projectUuid,
+                organizationUuid,
+                source,
+                payload,
+                limit,
+                cacheKey,
+                context,
+                queryCreatedAt,
+                fields: history.fields,
+                exploreName: history.explore?.name ?? null,
+                toResult,
+            });
+        const answer =
+            reuse?.kind === 'in_flight'
+                ? this.answerAfterInFlightLiveQuery({
+                      inFlightQueryUuid: reuse.queryUuid,
+                      projectUuid,
+                      source,
+                      complete: (stored) =>
+                          this.completeLiveQueryFromStored({
+                              account,
+                              queryUuid,
+                              projectUuid,
+                              organizationUuid,
+                              source,
+                              payload,
+                              limit,
+                              cacheKey,
+                              context,
+                              queryCreatedAt,
+                              fields: history.fields,
+                              stored,
+                          }),
+                      run,
+                  })
+                : run();
+        void answer.catch((e) => {
             this.logger.error(
                 `Async api query ${queryUuid} failed outside its error path: ${getErrorMessage(
                     e,
@@ -13383,6 +13424,41 @@ export class AsyncQueryService extends ProjectService {
         });
 
         return { queryUuid, reusable: null };
+    }
+
+    /**
+     * Waits for the same request already running and answers from its rows,
+     * so tiles loading together make one integration call. Calls the
+     * integration itself when that query fails, is cancelled or outlasts
+     * the wait.
+     */
+    private async answerAfterInFlightLiveQuery({
+        inFlightQueryUuid,
+        projectUuid,
+        source,
+        complete,
+        run,
+    }: {
+        inFlightQueryUuid: string;
+        projectUuid: string;
+        source: MeteredLiveSource;
+        complete: (stored: StoredLiveResult) => Promise<void>;
+        run: () => Promise<void>;
+    }): Promise<void> {
+        const finished = await this.queryHistoryModel
+            .pollForQueryCompletion({
+                queryUuid: inFlightQueryUuid,
+                account: null,
+                projectUuid,
+                timeoutMs: LIVE_IN_FLIGHT_WAIT_MS,
+                throwOnCancelled: false,
+                throwOnError: false,
+            })
+            .catch(() => null);
+        const stored = finished
+            ? toStoredLiveResult(finished, source.cache)
+            : null;
+        return stored ? complete(stored) : run();
     }
 
     /** Answers a live query with rows another query already fetched, without calling the integration. */
@@ -13468,6 +13544,7 @@ export class AsyncQueryService extends ProjectService {
             query: payload.query,
             rowLimit: limit,
             outcome: 'ok',
+            errorCode: null,
             errorMessage: null,
             durationMs: Date.now() - queryCreatedAt.getTime(),
             rowCount: stored.totalRowCount,
@@ -13530,6 +13607,7 @@ export class AsyncQueryService extends ProjectService {
                     call: Pick<
                         LiveQueryCall,
                         | 'outcome'
+                        | 'errorCode'
                         | 'errorMessage'
                         | 'rowCount'
                         | 'columnCount'
@@ -13546,16 +13624,23 @@ export class AsyncQueryService extends ProjectService {
                         ...call,
                     });
                 try {
-                    const result = await this.traceComposerQueryStage(
-                        'api',
-                        'execute',
-                        {
-                            op: 'http.client',
-                            name: 'api.query.execute',
-                            attributes,
-                        },
-                        () => this.executeLiveRequest(source, payload, limit),
-                    );
+                    const { result, shaped } =
+                        await this.traceComposerQueryStage(
+                            'api',
+                            'execute',
+                            {
+                                op: 'http.client',
+                                name: 'api.query.execute',
+                                attributes,
+                            },
+                            () =>
+                                this.executeLiveRequest(
+                                    source,
+                                    payload,
+                                    limit,
+                                    toResult,
+                                ),
+                        );
                     executeMs = Date.now() - startedAt;
                     span.setAttributes({
                         'lightdash.rowCount': result.rows.length,
@@ -13566,7 +13651,6 @@ export class AsyncQueryService extends ProjectService {
                             : {}),
                     });
 
-                    const shaped = toResult(result);
                     const resultsStorageClient =
                         this.getResultsStorageClientForContext(context);
                     if (!resultsStorageClient.isEnabled) {
@@ -13647,6 +13731,7 @@ export class AsyncQueryService extends ProjectService {
                     });
                     logCall({
                         outcome: 'ok',
+                        errorCode: null,
                         errorMessage: null,
                         rowCount: shaped.rows.length,
                         columnCount: Object.keys(shaped.columns).length,
@@ -13661,8 +13746,7 @@ export class AsyncQueryService extends ProjectService {
                     );
                 } catch (e) {
                     const message = getErrorMessage(e);
-                    const outcome = getLiveQueryOutcome(e);
-                    const errorCode = getLiveSourceQueryErrorCode(outcome);
+                    const { outcome, errorCode } = getLiveQueryFailure(e);
                     span.setAttributes({
                         'lightdash.error': message,
                         ...(errorCode
@@ -13747,6 +13831,7 @@ export class AsyncQueryService extends ProjectService {
                     });
                     logCall({
                         outcome,
+                        errorCode,
                         errorMessage: message,
                         rowCount: null,
                         columnCount: null,
@@ -13757,28 +13842,63 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
-    /** The latest result for the same live query, when its rows are fresh enough to reuse. */
+    /**
+     * The latest result for the same live query when its rows are fresh
+     * enough to reuse, otherwise the same request still running.
+     */
     private async findReusableApiResult(
         projectUuid: string,
         cacheKey: string,
         source: MeteredLiveSource,
-    ): Promise<StoredLiveResult | null> {
+    ): Promise<LiveResultReuse | null> {
+        // Only finished rows: a newer running or failed row for the same
+        // request must not hide a fresh result
         const latest = await this.queryHistoryModel.findMostRecentByCacheKey(
             cacheKey,
             projectUuid,
-            { excludeAgentProduced: false },
+            {
+                excludeAgentProduced: false,
+                statuses: [QueryHistoryStatus.READY],
+                requireResultsFile: true,
+            },
         );
-        return latest
+        const stored = latest
             ? toStoredLiveResult(latest.queryHistory, source.cache)
+            : null;
+        if (stored) {
+            return { kind: 'stored', stored };
+        }
+        const running = await this.queryHistoryModel.findMostRecentByCacheKey(
+            cacheKey,
+            projectUuid,
+            {
+                excludeAgentProduced: false,
+                statuses: [
+                    QueryHistoryStatus.PENDING,
+                    QueryHistoryStatus.QUEUED,
+                    QueryHistoryStatus.EXECUTING,
+                ],
+                createdAfter: new Date(Date.now() - LIVE_IN_FLIGHT_WAIT_MS),
+            },
+        );
+        return running
+            ? { kind: 'in_flight', queryUuid: running.queryUuid }
             : null;
     }
 
-    /** One live query, measured by outcome; rethrows what it caught. */
+    /**
+     * One live query, shaped into result rows and measured by outcome, so a
+     * refusal of the rows read counts as one; rethrows what it caught.
+     */
     private async executeLiveRequest(
         source: MeteredLiveSource,
         payload: ApiSourcePayload,
         limit: number,
-    ): Promise<LiveQueryResult> {
+        toResult: ApiResultShaper,
+    ): Promise<{
+        result: LiveQueryResult;
+        shaped: ReturnType<ApiResultShaper>;
+    }> {
         const connectorType = source.integration.connector;
         const startedAt = Date.now();
         this.prometheusMetrics?.trackApiSourceInflight(connectorType, 1);
@@ -13787,6 +13907,7 @@ export class AsyncQueryService extends ProjectService {
                 query: payload.query,
                 limit,
             });
+            const shaped = toResult(result);
             this.prometheusMetrics?.observeApiSourceRequest(
                 connectorType,
                 'ok',
@@ -13797,7 +13918,7 @@ export class AsyncQueryService extends ProjectService {
                     connectorType,
                 );
             }
-            return result;
+            return { result, shaped };
         } catch (error) {
             this.prometheusMetrics?.observeApiSourceRequest(
                 connectorType,
@@ -13835,10 +13956,7 @@ export class AsyncQueryService extends ProjectService {
         connector: ApiConnectorType;
         queryCreatedAt: Date;
         outcome: LiveQueryOutcome;
-        errorCode?:
-            | LiveSourceInternalErrorCode
-            | LiveSourceUpstreamErrorCode
-            | null;
+        errorCode?: LiveSourceErrorCode | null;
         errorMessage: string | null;
         totalRowCount: number | null;
         columnsCount: number | null;
@@ -16193,6 +16311,7 @@ export class AsyncQueryService extends ProjectService {
             sourceTitleById,
             dateZoomBySourceId,
             authority,
+            sourcesRunAsNodes: true,
         });
         if (!isRunnableCompiledMergeQuery(compiled)) {
             throw new ParameterError(

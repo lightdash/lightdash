@@ -54,6 +54,7 @@ import {
     type ReactNode,
 } from 'react';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
+import { ConnectWarehouseAction } from '../../../components/common/ConnectWarehouseAction';
 import MantineIcon from '../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../components/common/ResizableSplitter';
 import { updateChartSortBy } from '../../../components/DataViz/store/actions/commonChartActions';
@@ -76,6 +77,7 @@ import {
     useSqlQueryCostEstimate,
 } from '../../../hooks/useQueryCostEstimate';
 import { SHARED_SIGN_IN_RECONNECTED } from '../../../hooks/useReconnectSharedSignIn';
+import { WAREHOUSE_CREDENTIALS_CONNECTED } from '../../../hooks/userWarehouseCredentials/warehouseCredentialsError';
 import useApp from '../../../providers/App/useApp';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { Parameters, useParameters } from '../../parameters';
@@ -197,9 +199,10 @@ const EmptyResultsHints: FC = () => {
 
 const QueryErrorBlock: FC<{
     message: string;
+    error: { name?: string };
     position: MonacoHighlightChar | undefined;
     onReveal: (position: MonacoHighlightChar) => void;
-}> = ({ message, position, onReveal }) => (
+}> = ({ message, error, position, onReveal }) => (
     <Stack gap="xs" className={styles.errorBlock}>
         <Group gap="xs" wrap="nowrap" align="flex-start">
             <MantineIcon icon={IconAlertCircle} color="red" />
@@ -225,6 +228,7 @@ const QueryErrorBlock: FC<{
                     </Button>
                 )}
             </CopyButton>
+            <ConnectWarehouseAction error={error} />
         </Group>
     </Stack>
 );
@@ -470,7 +474,7 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
     );
 
     useEffect(() => {
-        const retryFailedRun = (event: Event) => {
+        const takeFailedRun = (event: Event) => {
             const failedRun = lastFailedRun.current;
             if (
                 !(event instanceof CustomEvent) ||
@@ -480,21 +484,46 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                     ? failedRun.args.projectUuid !== projectUuid
                     : failedRun.projectUuid !== projectUuid)
             )
-                return;
+                return null;
             lastFailedRun.current = null;
+            return failedRun;
+        };
+        const retryFailedRun = (event: Event) => {
+            const failedRun = takeFailedRun(event);
+            if (!failedRun) return;
             if (failedRun.kind === 'sql') {
                 void dispatch(runSqlQuery(failedRun.args));
             } else {
                 void dispatch(prepareAndFetchChartData({ forceRefresh: true }));
             }
         };
+        // The cost estimate may have failed on the missing credentials too,
+        // so this retry goes back through the cost confirmation
+        const retryWithNewCredentials = (event: Event) => {
+            const failedRun = takeFailedRun(event);
+            if (!failedRun) return;
+            if (failedRun.kind === 'sql') {
+                void handleRunQuery(failedRun.args.sql);
+            } else {
+                void dispatch(prepareAndFetchChartData({ forceRefresh: true }));
+            }
+        };
         window.addEventListener(SHARED_SIGN_IN_RECONNECTED, retryFailedRun);
-        return () =>
+        window.addEventListener(
+            WAREHOUSE_CREDENTIALS_CONNECTED,
+            retryWithNewCredentials,
+        );
+        return () => {
             window.removeEventListener(
                 SHARED_SIGN_IN_RECONNECTED,
                 retryFailedRun,
             );
-    }, [dispatch, projectUuid]);
+            window.removeEventListener(
+                WAREHOUSE_CREDENTIALS_CONNECTED,
+                retryWithNewCredentials,
+            );
+        };
+    }, [dispatch, projectUuid, handleRunQuery]);
 
     useQueryErrorToast(queryError, queryErrorProjectUuid);
 
@@ -1199,6 +1228,7 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                                 )}
                                 {queryError && !isLoadingSqlQuery && (
                                     <QueryErrorBlock
+                                        error={queryError}
                                         message={
                                             queryError.message ??
                                             'Unknown error'

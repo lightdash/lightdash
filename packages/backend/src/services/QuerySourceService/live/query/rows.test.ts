@@ -63,6 +63,10 @@ describe('readRowsWithinCap', () => {
         ).rejects.toThrow(
             new ParameterError(
                 'This Source query has more than 300 rows, the most one query can read, so its result would be incomplete. Narrow the date range, add a filter or remove a dimension.',
+                {
+                    liveSourceErrorCode: 'live_source.refused.row_limit',
+                    liveSourceErrorCodes: ['live_source.refused.row_limit'],
+                },
             ),
         );
     });

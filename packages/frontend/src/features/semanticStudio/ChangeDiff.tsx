@@ -1,13 +1,20 @@
 import { type SemanticLayerModelChange } from '@lightdash/common';
-import { Box, Text, useComputedColorScheme } from '@mantine/core';
+import { Box, Button, Text, useComputedColorScheme } from '@mantine/core';
 import { MultiFileDiff, Virtualizer } from '@pierre/diffs/react';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
+import { pierreThemeFor } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
 import classes from './ChangeDiff.module.css';
 import { findPeekStart } from './modelCode';
 
 const YAML_KEY = /^(\s*(?:- )?[^\s:]+:)(.*)$/;
 
 const PEEK_LINES = 4;
+// A new file longer than this opens folded, the rest a click away.
+const FOLD_LINES = 40;
+
+// A hairline marks a changed line, rather than Pierre's 4px bar, and the code starts under its header.
+const THIN_BARS_CSS =
+    "[data-indicators='bars'] [data-column-number]::before { width: 2px !important; } [data-code] { padding-block: 0 !important; }";
 
 const CONTEXT_LINES = { full: 2, compact: 1, peek: 1, whole: 100_000 };
 
@@ -58,14 +65,22 @@ export const ChangeDiff: FC<{
 }> = ({ modelName, change, variant }) => {
     const compact = variant === 'compact' || variant === 'peek';
     const colorScheme = useComputedColorScheme('light');
+    const [isUnfolded, setIsUnfolded] = useState(false);
+    const lineCount =
+        change.contentBefore === null && change.contentAfter !== null
+            ? change.contentAfter.split('\n').length
+            : 0;
+    const isFolded =
+        variant === 'full' && !isUnfolded && lineCount > FOLD_LINES;
     const name = `${modelName}.yml`;
-    const theme = colorScheme === 'dark' ? 'pierre-dark' : 'pierre-light';
     const viewport = {
         className:
             variant === 'whole'
                 ? `${classes.diffViewport} ${classes.whole}`
                 : classes.diffViewport,
         'data-compact': compact || undefined,
+        'data-full': variant === 'full' || undefined,
+        'data-folded': isFolded || undefined,
     };
     if (
         compact &&
@@ -81,32 +96,47 @@ export const ChangeDiff: FC<{
             </Box>
         );
     }
-    // Virtualizer is the scroll viewport. The file's name colours it as YAML.
+    // The overview scrolls as one page, so only a diff with its own scroll viewport is virtualized.
+    const Viewport = variant === 'full' ? Box : Virtualizer;
+    // The file's name colours it as YAML.
     return (
-        <Virtualizer {...viewport}>
-            {/* The diff does not redraw when its contents change under the same file name. */}
-            <MultiFileDiff
-                key={`${change.contentBefore}\0${change.contentAfter}`}
-                oldFile={{
-                    name,
-                    contents: change.contentBefore ?? '',
-                }}
-                newFile={{
-                    name,
-                    contents: change.contentAfter ?? '',
-                }}
-                className={classes.diffHost}
-                options={{
-                    diffStyle: 'unified',
-                    overflow: compact ? 'scroll' : 'wrap',
-                    disableFileHeader: true,
-                    hunkSeparators: 'simple',
-                    diffIndicators: 'bars',
-                    lineDiffType: 'word',
-                    parseDiffOptions: { context: CONTEXT_LINES[variant] },
-                    theme,
-                }}
-            />
-        </Virtualizer>
+        <>
+            <Viewport {...viewport}>
+                {/* The diff does not redraw when its contents change under the same file name. */}
+                <MultiFileDiff
+                    key={`${change.contentBefore}\0${change.contentAfter}`}
+                    oldFile={{
+                        name,
+                        contents: change.contentBefore ?? '',
+                    }}
+                    newFile={{
+                        name,
+                        contents: change.contentAfter ?? '',
+                    }}
+                    options={{
+                        diffStyle: 'unified',
+                        overflow: compact ? 'scroll' : 'wrap',
+                        disableFileHeader: true,
+                        hunkSeparators: 'simple',
+                        diffIndicators: 'bars',
+                        lineDiffType: 'word',
+                        parseDiffOptions: { context: CONTEXT_LINES[variant] },
+                        ...pierreThemeFor(colorScheme),
+                        unsafeCSS: THIN_BARS_CSS,
+                    }}
+                />
+            </Viewport>
+            {isFolded ? (
+                <Button
+                    size="compact-xs"
+                    variant="subtle"
+                    color="gray"
+                    className={classes.unfold}
+                    onClick={() => setIsUnfolded(true)}
+                >
+                    Show all {lineCount} lines
+                </Button>
+            ) : null}
+        </>
     );
 };

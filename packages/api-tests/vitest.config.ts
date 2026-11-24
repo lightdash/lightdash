@@ -24,6 +24,8 @@ const serialFiles = [
     'tests/attributes.test.ts',
     'tests/catalog.test.ts',
     'tests/resultsCacheSettings.test.ts',
+    // Turns the seed project's results cache on for live results.
+    'tests/hydraLiveSource.test.ts',
     'tests/contentAsCode.test.ts',
 ];
 

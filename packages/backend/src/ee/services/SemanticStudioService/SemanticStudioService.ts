@@ -51,6 +51,8 @@ import {
     type SemanticLayerStatus,
     type SemanticLayerStoredModels,
     type SemanticLayerTouchedField,
+    type SemanticStudioBranchCompileFollowUp,
+    type SemanticStudioBranchCompileFollowUpBody,
     type SemanticStudioCheckout,
     type SemanticStudioSourceFile,
     type SemanticStudioSources,
@@ -65,6 +67,7 @@ import {
 import { groupBy } from 'es-toolkit/compat';
 import { createHash } from 'node:crypto';
 import { text } from 'node:stream/consumers';
+import { setTimeout as delay } from 'node:timers/promises';
 import {
     type LightdashAnalytics,
     type SemanticStudioActivity,
@@ -80,15 +83,18 @@ import { CompileInterruptedError } from '../../../scheduler/compileShutdown';
 import { BaseService } from '../../../services/BaseService';
 import {
     readCompiledDbtManifest,
+    readCompiledDbtProjectMap,
     saveCompiledDbtManifest,
     type CompiledDbtManifest,
 } from '../../../services/ProjectService/compiledDbtManifest';
+import { describeDbtProjectMap } from '../../../services/ProjectService/dbtProjectMap';
 import {
     type IncrementalCompileResult,
     type ProjectService,
 } from '../../../services/ProjectService/ProjectService';
 import { type ValidationService } from '../../../services/ValidationService/ValidationService';
 import { runWithConcurrency } from '../../../utils/runWithConcurrency';
+import { startStepTimings } from '../../../utils/stepTimings';
 import {
     ModelDocumentsChangedError,
     type ChangeSetSource,
@@ -104,6 +110,10 @@ import { type AiWritebackService } from '../AiWritebackService/AiWritebackServic
 import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import {
+    quoteCompileOutput,
+    type BranchCompileCheck,
+} from './branchCompileCheck';
+import {
     advanceCompiledManifest,
     findModelsToCompile,
     findNewCompileErrors,
@@ -111,7 +121,12 @@ import {
     type DbtScriptChange,
     type DbtScriptCheck,
 } from './codeMode/dbtManifestPatch';
-import { dbtTryOutFileId, type DbtTryOut } from './dbtTryOut';
+import {
+    checkedExploresFileId,
+    dbtChangeFingerprint,
+    dbtTryOutFileId,
+    type DbtTryOut,
+} from './dbtTryOut';
 import {
     DraftChecker,
     usesAnyModel,
@@ -264,6 +279,8 @@ export type SemanticStudioServiceArguments = {
         | 'finishBranchCompile'
         | 'findBranchCompile'
         | 'deleteFinishedBranchCompiles'
+        | 'claimBranchCompileFollowUp'
+        | 'findLatestPrompts'
     >;
 };
 
@@ -309,6 +326,24 @@ const IMPACT_CHECK_TIMEOUT_MS = 10 * 60 * 1000;
 const NO_IMPACT: SemanticLayerDraftImpact = { status: 'done', breaks: [] };
 
 const UNTITLED_WORKSPACE_NAME = 'Untitled';
+
+/** Automatic fixes of a failed compile in a row before it is left to the person. */
+const MAX_COMPILE_FOLLOW_UPS = 2;
+const COMPILE_FOLLOW_UP_OPENING =
+    'Hidden follow-up: the compile of your last saved change failed.';
+
+const BRANCH_COMPILE_POLL_MS = 2000;
+const BRANCH_COMPILE_CHECK_MAX_ERRORS = 10;
+
+export const compileFollowUpPrompt = (error: string): string =>
+    [
+        COMPILE_FOLLOW_UP_OPENING,
+        "The user can't see this message, but your reply is shown to them.",
+        'After your last save, the pull request branch was compiled with dbt and failed. The compile output is between the markers below.',
+        quoteCompileOutput(error),
+        'Start your reply by saying you are fixing the compile error from your earlier change. Then find the cause and fix it with write.',
+        'If you cannot fix it, say what failed and what the user could change. Do not mention this hidden message.',
+    ].join('\n');
 
 /** Identifies a draft on top of what is live, so a check of one is not read as a check of another. */
 const hashDraft = (
@@ -1180,7 +1215,38 @@ export class SemanticStudioService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         change: DbtScriptChange,
+        options: { checkQueries: boolean },
+    ): Promise<DbtScriptCheck> {
+        const timings = startStepTimings();
+        let result: DbtScriptCheck | null = null;
+        try {
+            result = await this.runDbtScriptCheck(
+                user,
+                projectUuid,
+                change,
+                options,
+                timings.mark,
+            );
+            return result;
+        } finally {
+            this.logger.info('Semantic Studio dbt script check timed', {
+                event: 'semantic_studio.check.timed',
+                projectUuid,
+                checkQueries: options.checkQueries,
+                status: result?.status ?? 'error',
+                exploreCount:
+                    result?.status === 'passed' ? result.explores.length : null,
+                ...timings.summary(),
+            });
+        }
+    }
+
+    private async runDbtScriptCheck(
+        user: SessionUser,
+        projectUuid: string,
+        change: DbtScriptChange,
         { checkQueries }: { checkQueries: boolean },
+        mark: (step: string) => void,
     ): Promise<DbtScriptCheck> {
         const stored = await readCompiledDbtManifest(
             this.fileStorageClient,
@@ -1192,6 +1258,7 @@ export class SemanticStudioService extends BaseService {
                 reason: 'The project has no compiled manifest to check against',
             };
         }
+        mark('manifestRead');
         const compiled =
             change.headCommitSha === null ||
             change.headCommitSha === stored.commitSha
@@ -1202,6 +1269,7 @@ export class SemanticStudioService extends BaseService {
                       change.headCommitSha,
                       change,
                   );
+        mark('manifestAdvance');
         const since = await change.listChangedSince(compiled.commitSha);
         if (since === null) {
             return {
@@ -1219,7 +1287,9 @@ export class SemanticStudioService extends BaseService {
                     : await change.readHead(path),
             })),
         );
+        mark('diffRead');
         const patch = patchManifest(compiled.manifest, files);
+        mark('patch');
         if (patch.status === 'unsupported') return patch;
         if (patch.changedModels.length === 0) {
             return { status: 'passed', changedModels: [], explores: [] };
@@ -1232,15 +1302,18 @@ export class SemanticStudioService extends BaseService {
             patch.changedModels.map((name) => [name, name]),
         );
         const reachedNames = new Set(reached);
-        const explores = (
+        const lightdashConfigYaml = await change.readHead(
+            'lightdash.config.yml',
+        );
+        const compiledExplores =
             await this.projectService.compileExploresFromManifest(
                 user,
                 projectUuid,
                 patch.manifest,
-                await change.readHead('lightdash.config.yml'),
+                lightdashConfigYaml,
                 uniqueIds,
-            )
-        ).filter((explore) =>
+            );
+        const explores = compiledExplores.filter((explore) =>
             isExploreError(explore)
                 ? reachedNames.has(explore.name)
                 : usesAnyModel(explore, changed),
@@ -1251,6 +1324,7 @@ export class SemanticStudioService extends BaseService {
             explores.map(({ name }) => name),
         );
         const broken = findNewCompileErrors(explores, live);
+        mark('compile');
         if (broken.length > 0) {
             return {
                 status: 'failed',
@@ -1288,11 +1362,21 @@ export class SemanticStudioService extends BaseService {
                         return `${explore.name}: ${error}`;
                     }),
             );
+            mark('plan');
             const found = errors.filter((error) => error !== null);
             if (found.length > 0) {
                 return { status: 'failed', error: found.join('. ') };
             }
         }
+        await this.keepCheckedExplores(
+            projectUuid,
+            dbtChangeFingerprint(
+                compiled.commitSha,
+                files,
+                lightdashConfigYaml,
+            ),
+            compiledExplores,
+        );
         return {
             status: 'passed',
             changedModels: patch.changedModels,
@@ -1419,19 +1503,32 @@ export class SemanticStudioService extends BaseService {
                 advance.changedModels,
             );
             const reachedNames = new Set(reached);
+            const lightdashConfigYaml = await checkout.readFileAt(
+                `${root}lightdash.config.yml`,
+                checkout.headSha,
+            );
+            const checked =
+                reached.length === 0
+                    ? null
+                    : await this.takeCheckedExplores(
+                          projectUuid,
+                          dbtChangeFingerprint(
+                              stored.commitSha,
+                              advance.changes,
+                              lightdashConfigYaml,
+                          ),
+                      );
             const compiled =
                 reached.length === 0
                     ? []
-                    : await this.projectService.compileExploresFromManifest(
+                    : (checked ??
+                      (await this.projectService.compileExploresFromManifest(
                           user,
                           projectUuid,
                           manifest,
-                          await checkout.readFileAt(
-                              `${root}lightdash.config.yml`,
-                              checkout.headSha,
-                          ),
+                          lightdashConfigYaml,
                           uniqueIds,
-                      );
+                      )));
             if (compiled.some(isExploreError)) {
                 return full('An explore the change reaches does not compile');
             }
@@ -1489,6 +1586,7 @@ export class SemanticStudioService extends BaseService {
             });
             log({
                 mode: 'incremental',
+                compiledFrom: checked ? 'checked_change' : 'manifest',
                 files: advance.files,
                 changedModels: advance.changedModels.length,
                 explores: explores.length,
@@ -1503,6 +1601,49 @@ export class SemanticStudioService extends BaseService {
         } catch (error) {
             if (error instanceof CompileInterruptedError) throw error;
             return full(`It failed: ${getErrorMessage(error)}`);
+        }
+    }
+
+    /** Keeps what a passed check compiled to, so the compile after the change merges can skip compiling it again. */
+    private async keepCheckedExplores(
+        projectUuid: string,
+        fingerprint: string,
+        explores: (Explore | ExploreError)[],
+    ): Promise<void> {
+        if (!this.fileStorageClient.isEnabled()) return;
+        // Checks whose change never merges leave their file behind; they are a few explores each.
+        await this.fileStorageClient
+            .uploadTxt(
+                Buffer.from(JSON.stringify(explores)),
+                checkedExploresFileId(projectUuid, fingerprint),
+            )
+            .catch((error: unknown) => {
+                this.logger.warn(
+                    `SemanticStudio: failed to keep a checked change's explores: ${getErrorMessage(error)}`,
+                );
+            });
+    }
+
+    /** What a check compiled the same change to, removed once read; null when no check left it. */
+    private async takeCheckedExplores(
+        projectUuid: string,
+        fingerprint: string,
+    ): Promise<(Explore | ExploreError)[] | null> {
+        if (!this.fileStorageClient.isEnabled()) return null;
+        const fileId = `${checkedExploresFileId(projectUuid, fingerprint)}.txt`;
+        try {
+            const { stream } =
+                await this.fileStorageClient.getFileStream(fileId);
+            const explores: unknown = JSON.parse(await text(stream));
+            await this.fileStorageClient.deleteFile(fileId).catch(() => {});
+            return Array.isArray(explores) ? explores : null;
+        } catch (error) {
+            if (!(error instanceof NotFoundError)) {
+                this.logger.warn(
+                    `SemanticStudio: failed to read a checked change's explores: ${getErrorMessage(error)}`,
+                );
+            }
+            return null;
         }
     }
 
@@ -1616,10 +1757,33 @@ export class SemanticStudioService extends BaseService {
      * request, as a refresh would; nothing for a change that is not theirs or a
      * project that is not dbt in a repository.
      */
+    /** The dbt project's layout from its last compile, for the agent's prompt; null when none is stored. */
+    async getDbtProjectMap(projectUuid: string): Promise<string | null> {
+        try {
+            const stored = await readCompiledDbtProjectMap(
+                this.fileStorageClient,
+                projectUuid,
+            );
+            if (stored) return stored.map;
+            // A manifest saved before maps were stored; its next compile stores one.
+            const compiled = await readCompiledDbtManifest(
+                this.fileStorageClient,
+                projectUuid,
+            );
+            return compiled ? describeDbtProjectMap(compiled.manifest) : null;
+        } catch (error) {
+            this.logger.warn(
+                `SemanticStudio: could not read the project map of ${projectUuid}: ${getErrorMessage(error)}`,
+            );
+            return null;
+        }
+    }
+
     async queueBranchCompile(
         user: SessionUser,
         projectUuid: string,
         prUrl: string,
+        requestedBy: 'agent' | 'person',
     ): Promise<void> {
         const status = await this.getStatus(user, projectUuid);
         if (!status.enabled || status.appliesAs !== 'dbt_pull_request') return;
@@ -1636,6 +1800,7 @@ export class SemanticStudioService extends BaseService {
             user,
             projectUuid,
             workspace.workspaceUuid,
+            requestedBy,
         );
     }
 
@@ -1643,9 +1808,13 @@ export class SemanticStudioService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         workspaceUuid: string,
+        requestedBy: 'agent' | 'person',
     ): Promise<void> {
         const compileRequestUuid =
-            await this.workspaceModel.requestBranchCompile(workspaceUuid);
+            await this.workspaceModel.requestBranchCompile(
+                workspaceUuid,
+                requestedBy === 'agent',
+            );
         const { organizationUuid } = await this.projectModel.get(projectUuid);
         await this.schedulerClient.compileSemanticStudioBranch({
             organizationUuid,
@@ -1672,7 +1841,12 @@ export class SemanticStudioService extends BaseService {
             return compile;
         }
         try {
-            await this.requestBranchCompile(user, projectUuid, workspaceUuid);
+            await this.requestBranchCompile(
+                user,
+                projectUuid,
+                workspaceUuid,
+                'person',
+            );
         } catch (error) {
             this.logger.warn(
                 `SemanticStudio: could not start the compile of workspace ${workspaceUuid}: ${getErrorMessage(error)}`,
@@ -1709,6 +1883,8 @@ export class SemanticStudioService extends BaseService {
                 hasExplores: compile.explores !== null,
                 requestedAt: compile.requested_at,
                 compiledAt: compile.compiled_at,
+                compileRequestUuid: compile.compile_request_uuid,
+                requestedByAgent: compile.requested_by_agent,
             },
         };
     }
@@ -1742,8 +1918,187 @@ export class SemanticStudioService extends BaseService {
             user,
             projectUuid,
             active.workspaceUuid,
+            'person',
         );
         return this.getCheckout(user, projectUuid);
+    }
+
+    /**
+     * The hidden prompt that sends a failed compile of the agent's last save back to
+     * the agent, once per compile; null when the person spoke since, a turn is still
+     * running, or the agent already had its tries.
+     */
+    async claimBranchCompileFollowUp(
+        user: SessionUser,
+        projectUuid: string,
+        {
+            compileRequestUuid,
+            threadUuid,
+        }: SemanticStudioBranchCompileFollowUpBody,
+    ): Promise<SemanticStudioBranchCompileFollowUp | null> {
+        const status = await this.getStatus(user, projectUuid);
+        if (!status.enabled || status.appliesAs !== 'dbt_pull_request') {
+            return null;
+        }
+        const active = await this.workspaceModel.findActive({
+            projectUuid,
+            userUuid: user.userUuid,
+        });
+        if (active?.threadUuid !== threadUuid || !active.agentUuid) {
+            return null;
+        }
+        const compile = await this.workspaceModel.findBranchCompile(
+            active.workspaceUuid,
+        );
+        if (
+            !compile ||
+            compile.compile_request_uuid !== compileRequestUuid ||
+            compile.status !== 'failed' ||
+            !compile.requested_by_agent ||
+            compile.error === null
+        ) {
+            return null;
+        }
+        const prompts = await this.workspaceModel.findLatestPrompts(
+            active.threadUuid,
+            MAX_COMPILE_FOLLOW_UPS + 1,
+        );
+        const latest = prompts[0];
+        const spokeSince = prompts.some(
+            (prompt) =>
+                !prompt.hidden && prompt.created_at > compile.requested_at,
+        );
+        const firstOther = prompts.findIndex(
+            (prompt) =>
+                !prompt.hidden ||
+                !prompt.prompt.startsWith(COMPILE_FOLLOW_UP_OPENING),
+        );
+        const followUpsInARow = firstOther === -1 ? prompts.length : firstOther;
+        if (
+            !latest ||
+            latest.responded_at === null ||
+            spokeSince ||
+            followUpsInARow >= MAX_COMPILE_FOLLOW_UPS
+        ) {
+            return null;
+        }
+        const claimed = await this.workspaceModel.claimBranchCompileFollowUp(
+            active.workspaceUuid,
+            compileRequestUuid,
+        );
+        if (!claimed) return null;
+        this.logger.info('Semantic Studio compile follow-up claimed', {
+            event: 'semantic_studio.branch_compile.follow_up',
+            projectUuid,
+            workspaceUuid: active.workspaceUuid,
+            compileRequestUuid,
+            attempt: followUpsInARow + 1,
+        });
+        return {
+            agentUuid: active.agentUuid,
+            threadUuid: active.threadUuid,
+            prompt: compileFollowUpPrompt(compile.error),
+        };
+    }
+
+    /**
+     * Waits for the agent's latest save on this thread's pull request and for the
+     * branch compile after it, so the agent can check its change in the same turn.
+     */
+    async waitForBranchCompile(
+        user: SessionUser,
+        projectUuid: string,
+        {
+            threadUuid,
+            isSaving,
+            timeoutMs,
+        }: {
+            threadUuid: string;
+            isSaving: () => Promise<boolean>;
+            timeoutMs: number;
+        },
+    ): Promise<BranchCompileCheck> {
+        const startedAt = Date.now();
+        const check = await this.pollBranchCompile(user, projectUuid, {
+            threadUuid,
+            isSaving,
+            deadline: startedAt + timeoutMs,
+        });
+        this.logger.info('Semantic Studio branch compile checked', {
+            event: 'semantic_studio.branch_compile.checked',
+            projectUuid,
+            status: check.status,
+            waitedMs: Date.now() - startedAt,
+        });
+        return check;
+    }
+
+    private async pollBranchCompile(
+        user: SessionUser,
+        projectUuid: string,
+        {
+            threadUuid,
+            isSaving,
+            deadline,
+        }: {
+            threadUuid: string;
+            isSaving: () => Promise<boolean>;
+            deadline: number;
+        },
+    ): Promise<BranchCompileCheck> {
+        const status = await this.getStatus(user, projectUuid);
+        if (!status.enabled || status.appliesAs !== 'dbt_pull_request') {
+            return { status: 'unavailable' };
+        }
+        const active = await this.workspaceModel.findActive({
+            projectUuid,
+            userUuid: user.userUuid,
+        });
+        if (active?.threadUuid !== threadUuid)
+            return { status: 'nothing_saved' };
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            // eslint-disable-next-line no-await-in-loop
+            const saving = await isSaving();
+            const compile = saving
+                ? null
+                : // eslint-disable-next-line no-await-in-loop
+                  await this.workspaceModel.findBranchCompile(
+                      active.workspaceUuid,
+                  );
+            if (!saving && !compile) return { status: 'nothing_saved' };
+            if (compile?.status === 'failed') {
+                // The agent sees this failure now, so it is not sent back again after the turn.
+                // eslint-disable-next-line no-await-in-loop
+                await this.workspaceModel.claimBranchCompileFollowUp(
+                    active.workspaceUuid,
+                    compile.compile_request_uuid,
+                );
+                return {
+                    status: 'failed',
+                    error: compile.error ?? 'The compile failed.',
+                };
+            }
+            if (compile?.status === 'ready') {
+                return {
+                    status: 'ready',
+                    exploreErrors: (compile.explores ?? [])
+                        .filter(isExploreError)
+                        .slice(0, BRANCH_COMPILE_CHECK_MAX_ERRORS)
+                        .map((explore) => ({
+                            name: explore.name,
+                            errors: explore.errors.map(
+                                ({ message }) => message,
+                            ),
+                        })),
+                };
+            }
+            if (Date.now() >= deadline) {
+                return { status: saving ? 'saving' : 'compiling' };
+            }
+            // eslint-disable-next-line no-await-in-loop
+            await delay(BRANCH_COMPILE_POLL_MS);
+        }
     }
 
     /** Publishes the checked-out dbt draft: merges its pull request once its branch compiled, and the project refreshes. */
@@ -1813,52 +2168,86 @@ export class SemanticStudioService extends BaseService {
         workspaceUuid,
         compileRequestUuid,
     }: CompileSemanticStudioBranchPayload): Promise<void> {
+        const timings = startStepTimings();
+        let outcome: 'ready' | 'failed' | 'no_pull_request' | 'no_branch' =
+            'failed';
+        let counts = { exploreCount: 0, exploreErrorCount: 0 };
+        let dbtTimings: Record<string, number | null> = {};
         const fail = (branch: string | null, error: string) =>
             this.workspaceModel.finishBranchCompile(
                 workspaceUuid,
                 compileRequestUuid,
                 { status: 'failed', branch, error },
             );
-        const workspace = await this.workspaceModel.find(
-            workspaceUuid,
-            userUuid,
-        );
-        const prUrl = workspace?.pullRequest?.url ?? null;
-        if (!workspace || workspace.finishedAt || prUrl === null) {
-            await fail(null, 'This draft has no open pull request to compile.');
-            return;
-        }
-        let branch: string;
         try {
-            branch = await this.aiWritebackService.findPullRequestBranch(
-                organizationUuid,
-                projectUuid,
-                prUrl,
+            const workspace = await this.workspaceModel.find(
+                workspaceUuid,
+                userUuid,
             );
-        } catch (error) {
-            this.logger.warn(
-                `SemanticStudio: could not read the branch of ${prUrl}: ${getErrorMessage(error)}`,
-            );
-            await fail(
-                null,
-                "Could not read this draft's branch. Its pull request may be merged, closed or in another repository.",
-            );
-            return;
-        }
-        try {
-            const explores =
-                await this.projectService.compileExploresFromBranch(
-                    { userUuid, organizationUuid },
-                    projectUuid,
-                    branch,
+            const prUrl = workspace?.pullRequest?.url ?? null;
+            if (!workspace || workspace.finishedAt || prUrl === null) {
+                outcome = 'no_pull_request';
+                await fail(
+                    null,
+                    'This draft has no open pull request to compile.',
                 );
-            await this.workspaceModel.finishBranchCompile(
+                return;
+            }
+            let branch: string;
+            try {
+                branch = await this.aiWritebackService.findPullRequestBranch(
+                    organizationUuid,
+                    projectUuid,
+                    prUrl,
+                );
+            } catch (error) {
+                this.logger.warn(
+                    `SemanticStudio: could not read the branch of ${prUrl}: ${getErrorMessage(error)}`,
+                );
+                outcome = 'no_branch';
+                await fail(
+                    null,
+                    "Could not read this draft's branch. Its pull request may be merged, closed or in another repository.",
+                );
+                return;
+            }
+            timings.mark('branchLookup');
+            try {
+                const compiled =
+                    await this.projectService.compileExploresFromBranch(
+                        { userUuid, organizationUuid },
+                        projectUuid,
+                        branch,
+                    );
+                timings.mark('compile');
+                dbtTimings = compiled.timings;
+                const exploreErrorCount =
+                    compiled.explores.filter(isExploreError).length;
+                counts = {
+                    exploreCount: compiled.explores.length - exploreErrorCount,
+                    exploreErrorCount,
+                };
+                await this.workspaceModel.finishBranchCompile(
+                    workspaceUuid,
+                    compileRequestUuid,
+                    { status: 'ready', branch, explores: compiled.explores },
+                );
+                timings.mark('save');
+                outcome = 'ready';
+            } catch (error) {
+                await fail(branch, getErrorMessage(error));
+            }
+        } finally {
+            this.logger.info('Semantic Studio branch compile timed', {
+                event: 'semantic_studio.branch_compile.timed',
+                projectUuid,
                 workspaceUuid,
                 compileRequestUuid,
-                { status: 'ready', branch, explores },
-            );
-        } catch (error) {
-            await fail(branch, getErrorMessage(error));
+                outcome,
+                ...counts,
+                ...dbtTimings,
+                ...timings.summary(),
+            });
         }
     }
 
@@ -3288,11 +3677,11 @@ export class SemanticStudioService extends BaseService {
             this.checkDbtScriptChange(user, projectUuid, change, {
                 checkQueries: false,
             });
-        const save = (dryRun: boolean, checked: boolean) =>
+        const save = (dryRun: boolean) =>
             this.aiWritebackService.saveWithScript(args, script, {
                 dryRun,
                 assertPublishAllowed: null,
-                checkDbt: checked ? compile : null,
+                checkDbt: compile,
                 expectedSource:
                     revision === undefined ? null : { path, revision },
             });
@@ -3305,8 +3694,7 @@ export class SemanticStudioService extends BaseService {
             }
             throw error;
         };
-        // Null means only dbt can check the change, so it is committed unchecked.
-        const dryRun = await save(true, true).catch(forPerson);
+        const dryRun = await save(true).catch(forPerson);
         const trackFailed = () =>
             this.track(user, projectUuid, {
                 event: 'semantic_studio.change_failed',
@@ -3320,8 +3708,7 @@ export class SemanticStudioService extends BaseService {
             trackFailed();
             return { status: 'failed', error: dryRun.error };
         }
-        const checked = dryRun !== null;
-        const saved = await save(false, checked).catch(forPerson);
+        const saved = await save(false).catch(forPerson);
         if (saved === null) {
             throw new ParameterError(
                 'This draft cannot take hand edits. Ask for the change in the chat, or go back to Published and edit there to start a new draft.',
@@ -3385,13 +3772,16 @@ export class SemanticStudioService extends BaseService {
                 );
             });
         }
-        await this.queueBranchCompile(user, projectUuid, savedPrUrl).catch(
-            (error: unknown) => {
-                this.logger.warn(
-                    `SemanticStudio: failed to queue a compile after a hand edit: ${getErrorMessage(error)}`,
-                );
-            },
-        );
+        await this.queueBranchCompile(
+            user,
+            projectUuid,
+            savedPrUrl,
+            'person',
+        ).catch((error: unknown) => {
+            this.logger.warn(
+                `SemanticStudio: failed to queue a compile after a hand edit: ${getErrorMessage(error)}`,
+            );
+        });
         // A preview built by an earlier round would otherwise keep showing the pull request without this edit.
         await this.writebackPreviewService
             .createPreviewForPullRequest({
@@ -3426,17 +3816,21 @@ export class SemanticStudioService extends BaseService {
             prUrl: savedPrUrl,
             prAction: saved.result.prAction === 'opened' ? 'opened' : 'updated',
             commitSha,
-            checked,
+            checked: saved.checked,
             revision: createHash('sha256').update(content).digest('hex'),
         };
     }
 
-    async listChanges(user: SessionUser, projectUuid: string) {
+    async listChanges(
+        user: SessionUser,
+        projectUuid: string,
+        threadUuid: string | null,
+    ) {
         await this.assertCanUseStudio(user, projectUuid);
-        return this.workspaceModel.listChanges({
-            projectUuid,
-            userUuid: user.userUuid,
-        });
+        return this.workspaceModel.listChanges(
+            { projectUuid, userUuid: user.userUuid },
+            threadUuid,
+        );
     }
 
     async listWorkspaces(

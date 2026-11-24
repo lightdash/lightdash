@@ -42,6 +42,8 @@ import { ChatElementsUtils } from './utils';
 
 type Props = {
     thread: AiAgentThread;
+    /** Shown in the thread right after its last message, scrolling with it. */
+    afterMessages?: ReactNode;
     promptUuid?: string;
     agentName?: string;
     height?: string | number;
@@ -108,6 +110,7 @@ const CompactionDivider = () => (
 
 export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     thread,
+    afterMessages,
     height = '100%',
     enableAutoScroll = false,
     children,
@@ -363,6 +366,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                 onRunAgain={onRunDeepResearchAgain}
                             />
                         )}
+                        {afterMessages}
                     </Stack>
 
                     {enableAutoScroll && projectUuid && agentUuid ? (

@@ -74,6 +74,10 @@ export enum ApiConnectorType {
     PYLON = 'pylon',
     ATTIO = 'attio',
     HUBSPOT = 'hubspot',
+    SALESFORCE = 'salesforce',
+    AMPLITUDE = 'amplitude',
+    /** A test integration the tests control; registered only when turned on. */
+    HYDRA = 'hydra',
 }
 
 /**

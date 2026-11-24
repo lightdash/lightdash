@@ -1,4 +1,5 @@
 import {
+    getLiveSourceErrorOrigin,
     ParameterError,
     TimeoutError,
     TooManyRequestsError,
@@ -8,11 +9,14 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    getLiveQueryFailure,
     getLiveQueryOutcome,
     getLiveSourceQueryErrorCode,
     isLiveSourceErrorReportable,
     LIVE_QUERY_OUTCOMES,
 } from './outcome';
+import { refuseLiveQuery } from './refuse';
+import { tooManyRowsError } from './rows';
 
 describe('getLiveQueryOutcome', () => {
     it.each([
@@ -25,6 +29,45 @@ describe('getLiveQueryOutcome', () => {
         [new Error('S3 is not enabled'), 'internal_error'],
     ])('buckets %s as %s', (error, outcome) => {
         expect(getLiveQueryOutcome(error)).toBe(outcome);
+    });
+});
+
+describe('getLiveQueryFailure', () => {
+    it('files a row-cap refusal as a refusal, by its code', () => {
+        const { errorCode } = getLiveQueryFailure(
+            tooManyRowsError({ label: 'Pylon', maxRows: 1_000 }),
+        );
+        expect(errorCode).toBe('live_source.refused.row_limit');
+        expect(getLiveSourceErrorOrigin(errorCode!)).toBe('refused');
+        expect(isLiveSourceErrorReportable(errorCode!)).toBe(false);
+    });
+
+    it('keeps the code a refusal was thrown with', () => {
+        expect(
+            getLiveQueryFailure(
+                refuseLiveQuery('live_source.refused.call_budget', 'too many'),
+            ).errorCode,
+        ).toBe('live_source.refused.call_budget');
+    });
+
+    it('files our own concurrency limit as internal, without a Sentry issue', () => {
+        const failure = getLiveQueryFailure(
+            new TooManyRequestsError('busy', {
+                liveSourceErrorCode: 'live_source.internal.concurrency_limit',
+            }),
+        );
+        expect(failure).toEqual({
+            outcome: 'rate_limited',
+            errorCode: 'live_source.internal.concurrency_limit',
+        });
+        expect(isLiveSourceErrorReportable(failure.errorCode!)).toBe(false);
+    });
+
+    it('falls back to the outcome code for errors without one', () => {
+        expect(getLiveQueryFailure(new ParameterError('blocked'))).toEqual({
+            outcome: 'invalid_request',
+            errorCode: 'live_source.internal.invalid_request',
+        });
     });
 });
 

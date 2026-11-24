@@ -22,6 +22,12 @@ export const LIVE_SOURCE_DEFAULT_CACHE_TTL_SECONDS: Record<
     [ApiConnectorType.PYLON]: DEFAULT_CACHE_TTL_SECONDS,
     [ApiConnectorType.ATTIO]: DEFAULT_CACHE_TTL_SECONDS,
     [ApiConnectorType.HUBSPOT]: DEFAULT_CACHE_TTL_SECONDS,
+    // Calls count against the org's daily API limit, shared with its other apps
+    [ApiConnectorType.SALESFORCE]: DEFAULT_CACHE_TTL_SECONDS,
+    // Queries count against a cost budget per hour, shared with other clients
+    [ApiConnectorType.AMPLITUDE]: DEFAULT_CACHE_TTL_SECONDS,
+    // Like every other source, so cache tests see the default window
+    [ApiConnectorType.HYDRA]: DEFAULT_CACHE_TTL_SECONDS,
 };
 
 /** 0 makes every query call the integration. */

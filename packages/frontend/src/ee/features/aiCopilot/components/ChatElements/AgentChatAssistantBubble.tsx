@@ -6,6 +6,8 @@ import {
     DBT_SAVE_CARD_REPLY,
     describeSemanticLayerProposals,
     getEditDbtProjectCardExtras,
+    DBT_WRITE_TOOL_NAMES,
+    isDbtWriteToolName,
     isToolEditDbtProjectResult,
     isToolProposeSemanticLayerChangeResult,
     isToolEditRepoResult,
@@ -576,25 +578,10 @@ const AssistantBubbleContent: FC<{
         ? `The agent finished without a response.${canRetry ? ' You can try again.' : ''}`
         : displayErrorMessage;
 
-    const baseMessageContent =
+    const messageContent =
         isStreaming && streamingState
             ? streamingState.content
             : message.message || streamedContent;
-
-    const referencedArtifactsMarkdown =
-        !isStreaming &&
-        !isPending &&
-        message.referencedArtifacts &&
-        message.referencedArtifacts.length > 0
-            ? `\n\nReferenced answers: ${message.referencedArtifacts
-                  .map(
-                      (artifact) =>
-                          `[${artifact.title}](#artifact-link#artifact-uuid-${artifact.artifactUuid}#version-uuid-${artifact.versionUuid}#artifact-type-${artifact.artifactType})`,
-                  )
-                  .join(', ')}`
-            : '';
-
-    const messageContent = baseMessageContent + referencedArtifactsMarkdown;
     const resolvedNodes = useAiAgentThreadComposerNodes({
         projectUuid,
         agentUuid,
@@ -634,7 +621,7 @@ const AssistantBubbleContent: FC<{
         if (writebackResult) return { metadata: writebackResult.metadata };
 
         const livePart = findLiveToolPart(streamingState?.parts, [
-            'editDbtProject',
+            ...DBT_WRITE_TOOL_NAMES,
         ]);
         const liveOutput = livePart?.toolResult as
             | ToolEditDbtProjectOutput
@@ -903,8 +890,9 @@ const AssistantBubbleContent: FC<{
                                         streamingState?.decidedToolCallIds ??
                                         [],
                                 }}
+                                extra={quietCards ? artifactSlot : null}
                             />
-                            {artifactSlot}
+                            {quietCards ? null : artifactSlot}
                             {latestTextSeg ? (
                                 <Box
                                     className={styles.streamPart}
@@ -972,8 +960,9 @@ const AssistantBubbleContent: FC<{
                                 ),
                                 isLive: isStreaming,
                             }}
+                            extra={quietCards ? artifactSlot : null}
                         />
-                        {artifactSlot}
+                        {quietCards ? null : artifactSlot}
                         {hasAnswerText ? (
                             <Box
                                 // Walkthrough: the answer in words (persisted).
@@ -1068,8 +1057,8 @@ const AssistantBubbleContent: FC<{
                     isLatest={isLastMessage}
                     note={
                         getEditDbtProjectCardExtras(
-                            message.toolCalls.findLast(
-                                ({ toolName }) => toolName === 'editDbtProject',
+                            message.toolCalls.findLast(({ toolName }) =>
+                                isDbtWriteToolName(toolName),
                             )?.toolArgs,
                         ).note
                     }

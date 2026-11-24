@@ -14,6 +14,7 @@ import {
 } from '@lightdash/common';
 import {
     getApiName,
+    getLiveDefinitionName,
     getLiveExplore,
     type LiveCompiledRequest,
 } from '../../explores/definition';
@@ -23,6 +24,7 @@ import {
     isAttioChoiceProperty,
     parseAttioApiName,
 } from './attributes';
+import { toAttioObject } from './explores';
 import { type AttioRequest, type AttioSort } from './run';
 
 type AttioCondition = Record<string, unknown>;
@@ -281,6 +283,7 @@ export const compileAttioQuery = ({
         typeOf,
     );
     const request: AttioRequest = {
+        object: toAttioObject(getLiveDefinitionName(explore)),
         columns,
         ...(filter ? { filter } : {}),
         ...(sorts ? { sorts } : {}),

@@ -1,4 +1,4 @@
-import { getItemId, type Explore } from '@lightdash/common';
+import { getItemId, TimeFrames, type Explore } from '@lightdash/common';
 import { useQueries } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
@@ -36,10 +36,10 @@ export const useModelFieldChanges = (
     const changes = useMemo(
         () =>
             // A model that is new has no live version to read.
-            mine.data && (live.data || live.isError)
-                ? diffModelFields(live.data ?? null, mine.data)
+            mine.data && live.data !== undefined
+                ? diffModelFields(live.data, mine.data)
                 : null,
-        [live.data, live.isError, mine.data],
+        [live.data, mine.data],
     );
     return { live: live.data ?? null, mine: mine.data ?? null, changes };
 };
@@ -66,7 +66,32 @@ export const findChangedFieldIds = (
 };
 
 /** A field a change touches, as Explore names it; a removed one is named from the live version. */
-export type ChangedField = FieldChange & { fieldId: string; isMetric: boolean };
+export type ChangedField = FieldChange & {
+    fieldId: string;
+    isMetric: boolean;
+    /** The date it is a grain of, or is the base of; null for anything else. */
+    date: { base: string; grain: TimeFrames | null } | null;
+};
+
+const grainRank = (grain: TimeFrames | null) => {
+    if (grain === TimeFrames.MONTH) return 0;
+    return grain === null ? 2 : 1;
+};
+
+/** One field per date, at month when it has one, so a date's grains read as one change. */
+export const withOneGrainPerDate = (fields: ChangedField[]) => {
+    const shown = new Map<string, { field: ChangedField; rank: number }>();
+    fields.forEach((field) => {
+        if (!field.date || field.date.grain === TimeFrames.RAW) return;
+        const rank = grainRank(field.date.grain);
+        const current = shown.get(field.date.base);
+        if (!current || rank < current.rank) {
+            shown.set(field.date.base, { field, rank });
+        }
+    });
+    const kept = new Set([...shown.values()].map(({ field }) => field));
+    return fields.filter((field) => !field.date || kept.has(field));
+};
 
 const describeChangedFields = (
     live: Explore | null,
@@ -78,9 +103,22 @@ const describeChangedFields = (
         if (!table) return [];
         const name = change.key.slice(table.name.length + 1);
         const metric = table.metrics[name];
-        const field = metric ?? table.dimensions[name];
+        const dimension = metric ? undefined : table.dimensions[name];
+        const field = metric ?? dimension;
         if (!field || field.hidden) return [];
-        return [{ ...change, fieldId: getItemId(field), isMetric: !!metric }];
+        const base = dimension?.isIntervalBase
+            ? name
+            : dimension?.timeIntervalBaseDimensionName;
+        return [
+            {
+                ...change,
+                fieldId: getItemId(field),
+                isMetric: !!metric,
+                date: base
+                    ? { base, grain: dimension?.timeInterval ?? null }
+                    : null,
+            },
+        ];
     });
 
 /** What each changed model's fields become, by model; null until every model's versions are read. */

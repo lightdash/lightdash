@@ -184,7 +184,7 @@ Migrate to the v2 async query flow: [Execute dashboard chart](https://docs.light
     }
 
     /**
-     * Get chart version history from last 30 days
+     * Get all stored versions of a chart, oldest first
      * @summary Get chart version history
      * @param chartUuid chartUuid for the chart
      * @param req express request

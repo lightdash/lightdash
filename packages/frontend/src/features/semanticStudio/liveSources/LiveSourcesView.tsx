@@ -8,31 +8,25 @@ import {
     Box,
     Button,
     Group,
-    Menu,
     Paper,
     Stack,
     Text,
     Title,
+    Tooltip,
 } from '@mantine/core';
+import { IconInfoCircle, IconPlus, IconSettings } from '@tabler/icons-react';
 import {
-    IconClockHour4,
-    IconDots,
-    IconPencil,
-    IconPlus,
-    IconRefresh,
-    IconRefreshDot,
-    IconReload,
-    IconTrash,
-} from '@tabler/icons-react';
-import { type FC, type KeyboardEvent, type MouseEvent } from 'react';
+    type FC,
+    type KeyboardEvent,
+    type MouseEvent,
+    type ReactNode,
+} from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useResultsCacheStatus } from '../../../hooks/useProjectResultsCacheSettings';
 import { useExternalConnectionApiUsage } from '../../externalConnections/hooks/useExternalConnectionApiUsage';
+import { useExternalConnectionRateLimitUsage } from '../../externalConnections/hooks/useExternalConnectionRateLimitUsage';
 import { useExternalConnections } from '../../externalConnections/hooks/useExternalConnections';
-import {
-    useLiveSourceFields,
-    useRefreshLiveSourceFields,
-} from '../../externalConnections/hooks/useLiveSourceFields';
+import { useLiveSourceFields } from '../../externalConnections/hooks/useLiveSourceFields';
 import { formatChartCount } from '../../externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../../externalConnections/liveSources/LiveSourceIcon';
 import { useLiveSourceActions } from './liveSourceActions';
@@ -44,115 +38,30 @@ import {
     type LiveSourceConnection,
 } from './liveSourceRows';
 import classes from './LiveSources.module.css';
+import { getRateLimitStat } from './rateLimitFormat';
 
 const stopPropagation = (event: MouseEvent) => event.stopPropagation();
 
-/** Refresh fields, edit, sign in again and delete: one source's controls. */
-const LiveSourceMenu: FC<{
-    projectUuid: string;
+/** Opens one source's settings, in the table: an icon. */
+const LiveSourceSettingsIcon: FC<{
     connection: LiveSourceConnection;
-    /** The page header shows Refresh fields as its own button. */
-    withRefresh?: boolean;
-}> = ({ projectUuid, connection, withRefresh = true }) => {
-    const actions = useLiveSourceActions();
-    const refreshFields = useRefreshLiveSourceFields({
-        projectUuid,
-        connectionUuid: connection.externalConnectionUuid,
-    });
-    if (!actions) return null;
-    const reconnect = actions.getReconnect(connection);
-    return (
-        <Menu position="bottom-end" withinPortal>
-            <Menu.Target>
-                <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    size="sm"
-                    aria-label={`Actions for ${connection.name}`}
-                    onClick={stopPropagation}
-                >
-                    <MantineIcon icon={IconDots} />
-                </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown onClick={stopPropagation}>
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconPencil} />}
-                    onClick={() => actions.edit(connection)}
-                >
-                    Edit
-                </Menu.Item>
-                {withRefresh ? (
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconReload} />}
-                        disabled={refreshFields.isLoading}
-                        onClick={() => refreshFields.mutate()}
-                    >
-                        Refresh fields
-                    </Menu.Item>
-                ) : null}
-                {reconnect ? (
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconRefresh} />}
-                        onClick={reconnect}
-                    >
-                        Sign in again
-                    </Menu.Item>
-                ) : null}
-                <Menu.Divider />
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconClockHour4} />}
-                    onClick={() => actions.cacheSettings(connection)}
-                >
-                    Cache settings
-                </Menu.Item>
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconRefreshDot} />}
-                    onClick={() => actions.purgeCache(connection)}
-                >
-                    Purge cache
-                </Menu.Item>
-                <Menu.Divider />
-                <Menu.Item
-                    color="red"
-                    leftSection={<MantineIcon icon={IconTrash} />}
-                    onClick={() => actions.remove(connection)}
-                >
-                    Delete
-                </Menu.Item>
-            </Menu.Dropdown>
-        </Menu>
-    );
-};
-
-/** The page header's controls for one source. */
-export const LiveSourceHeaderActions: FC<{
-    projectUuid: string;
-    connection: LiveSourceConnection;
-}> = ({ projectUuid, connection }) => {
-    const refreshFields = useRefreshLiveSourceFields({
-        projectUuid,
-        connectionUuid: connection.externalConnectionUuid,
-    });
-    return (
-        <>
-            <Button
-                size="xs"
-                variant="subtle"
-                color="gray"
-                leftSection={<MantineIcon icon={IconReload} size={14} />}
-                loading={refreshFields.isLoading}
-                onClick={() => refreshFields.mutate()}
-            >
-                Refresh fields
-            </Button>
-            <LiveSourceMenu
-                projectUuid={projectUuid}
-                connection={connection}
-                withRefresh={false}
-            />
-        </>
-    );
-};
+    onOpenSettings: (connectionUuid: string) => void;
+}> = ({ connection, onOpenSettings }) => (
+    <Tooltip label="Settings" withinPortal>
+        <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="sm"
+            aria-label={`Settings for ${connection.name}`}
+            onClick={(event) => {
+                stopPropagation(event);
+                onOpenSettings(connection.externalConnectionUuid);
+            }}
+        >
+            <MantineIcon icon={IconSettings} />
+        </ActionIcon>
+    </Tooltip>
+);
 
 const EmptyLiveSources: FC = () => {
     const actions = useLiveSourceActions();
@@ -180,11 +89,37 @@ const EmptyLiveSources: FC = () => {
     );
 };
 
+/**
+ * Says how far back usage goes: the query history retention window, which
+ * each usage row carries. With no usage yet, it names the window instead.
+ */
+const UsageWindowInfo: FC<{ windowDays: number | undefined }> = ({
+    windowDays,
+}) => {
+    const label =
+        windowDays === undefined
+            ? 'Usage over the query history retention window'
+            : `Usage over the last ${windowDays} days`;
+    return (
+        <Tooltip label={label} withinPortal>
+            <MantineIcon
+                icon={IconInfoCircle}
+                size={12}
+                color="dimmed"
+                className={classes.usageInfo}
+                aria-label={label}
+            />
+        </Tooltip>
+    );
+};
+
 /** Every live data source, with how much it was used; a row opens it. */
 export const LiveSourcesTable: FC<{
     projectUuid: string;
     onOpen: (connectionUuid: string) => void;
-}> = ({ projectUuid, onOpen }) => {
+    onOpenSettings: (connectionUuid: string) => void;
+}> = ({ projectUuid, onOpen, onOpenSettings }) => {
+    const canManage = useLiveSourceActions() !== null;
     const { data: connections } = useExternalConnections(projectUuid);
     const { data: usage } = useExternalConnectionApiUsage(projectUuid);
     const rows = toLiveSourceRows(connections ?? [], usage);
@@ -203,14 +138,19 @@ export const LiveSourcesTable: FC<{
             <Box className={classes.row} data-head role="row">
                 <span role="columnheader">Integration</span>
                 <span role="columnheader">Name</span>
-                <span role="columnheader" className={classes.number}>
+                <span
+                    role="columnheader"
+                    className={`${classes.number} ${classes.headWithInfo}`}
+                >
                     Data read
+                    <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
                 </span>
-                <span role="columnheader" className={classes.number}>
+                <span
+                    role="columnheader"
+                    className={`${classes.number} ${classes.headWithInfo}`}
+                >
                     API calls
-                </span>
-                <span role="columnheader" className={classes.number}>
-                    Median latency
+                    <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
                 </span>
                 <span />
             </Box>
@@ -243,23 +183,30 @@ export const LiveSourcesTable: FC<{
                     <span role="cell" className={classes.number}>
                         {used.dataRead}
                     </span>
-                    <span role="cell" className={classes.number}>
-                        {used.apiCalls}
-                    </span>
-                    <Text
-                        span
+                    <span
                         role="cell"
-                        fz={13}
                         className={classes.number}
-                        c={used.medianLatency ? undefined : 'dimmed'}
+                        title={
+                            used.medianLatency
+                                ? `${used.apiCalls} calls, median latency ${used.medianLatency}`
+                                : undefined
+                        }
                     >
-                        {used.medianLatency ?? '—'}
-                    </Text>
+                        {used.apiCalls}
+                        {used.medianLatency ? (
+                            <span className={classes.statDetail}>
+                                {' '}
+                                ({used.medianLatency})
+                            </span>
+                        ) : null}
+                    </span>
                     <Box role="cell">
-                        <LiveSourceMenu
-                            projectUuid={projectUuid}
-                            connection={connection}
-                        />
+                        {canManage ? (
+                            <LiveSourceSettingsIcon
+                                connection={connection}
+                                onOpenSettings={onOpenSettings}
+                            />
+                        ) : null}
                     </Box>
                 </Box>
             ))}
@@ -273,11 +220,19 @@ const Stat: FC<{
     value: string;
     detail?: string | null;
     title?: string;
-}> = ({ label, value, detail, title }) => (
+    /** Shown after the label, such as an info icon. */
+    labelExtra?: ReactNode;
+    /** Colours the value: red for a full rate limit, orange for a warning. */
+    tone?: 'danger' | 'warning';
+}> = ({ label, value, detail, title, labelExtra, tone }) => (
     <Box className={classes.stat}>
-        <span className={classes.statLabel}>{label}</span>
+        <span className={classes.statLabel}>
+            {label}
+            {labelExtra}
+        </span>
         <span
             className={classes.statValue}
+            data-tone={tone}
             title={title ?? (detail ? `${value} (${detail})` : value)}
         >
             {value}
@@ -299,13 +254,18 @@ export const LiveSourceSummary: FC<{
         connectionUuid: connection.externalConnectionUuid,
     });
     const { data: projectCache } = useResultsCacheStatus(projectUuid);
+    const { data: rateLimits } = useExternalConnectionRateLimitUsage({
+        projectUuid,
+        connectionUuid: connection.externalConnectionUuid,
+    });
+    const rateLimit = getRateLimitStat(rateLimits);
     const isProjectCacheOff = projectCache?.enabled === false;
     const row = toLiveSourceRow(connection, usage);
     const freshness = getLiveSourceFreshness(connection);
     const cachingTitle =
         freshness.seconds === 0
             ? 'Every query calls the integration'
-            : `A result answers the same query for everyone for ${formatFreshness(freshness.seconds)}${freshness.isDefault ? ', the default' : ''}`;
+            : `A result answers the same query for everyone for ${formatFreshness(freshness.seconds)}`;
     // Every explore whose fields can be curated, not only the first
     const allFields = fields?.explores.flatMap((explore) => explore.fields);
     const inUse = allFields?.filter((field) => field.inUse).length;
@@ -318,21 +278,30 @@ export const LiveSourceSummary: FC<{
                 <Stat label="Explore" value={fields?.exploreName ?? '—'} />
             )}
             <Stat
-                label="Access"
+                label="Fields in use"
                 value={
-                    connection.type === 'oauth_authorization_code'
-                        ? 'Signed in'
-                        : 'API key'
+                    allFields && inUse !== undefined
+                        ? `${inUse.toLocaleString()} of ${allFields.length.toLocaleString()}`
+                        : '—'
                 }
             />
             <Stat
                 label="Used by"
                 value={fields ? formatChartCount(fields.usedByChartCount) : '—'}
             />
-            <Stat label="Data read" value={row.usage.dataRead} />
+            <Stat
+                label="Data read"
+                value={row.usage.dataRead}
+                labelExtra={
+                    <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
+                }
+            />
             <Stat
                 label="API calls"
                 value={row.usage.apiCalls}
+                labelExtra={
+                    <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
+                }
                 detail={row.usage.medianLatency}
                 title={
                     row.usage.medianLatency
@@ -341,10 +310,10 @@ export const LiveSourceSummary: FC<{
                 }
             />
             <Stat
-                label="Caching"
+                label="Cache"
                 value={
                     isProjectCacheOff
-                        ? 'Not cached'
+                        ? 'Disabled'
                         : formatFreshness(freshness.seconds)
                 }
                 detail={isProjectCacheOff ? null : row.usage.cacheHitsLabel}
@@ -353,14 +322,14 @@ export const LiveSourceSummary: FC<{
                         ? 'Results caching is off for this project'
                         : cachingTitle
                 }
+                tone={isProjectCacheOff ? 'warning' : undefined}
             />
             <Stat
-                label="Fields in use"
-                value={
-                    allFields && inUse !== undefined
-                        ? `${inUse.toLocaleString()} of ${allFields.length.toLocaleString()}`
-                        : '—'
-                }
+                label="Rate limit"
+                value={rateLimit.value}
+                detail={rateLimit.detail}
+                title={rateLimit.title}
+                tone={rateLimit.limitReached ? 'danger' : undefined}
             />
         </Box>
     );

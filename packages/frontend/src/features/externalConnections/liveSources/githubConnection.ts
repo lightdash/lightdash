@@ -16,16 +16,12 @@ const splitRepository = (repository: string) => {
 };
 
 export const GITHUB_TOKEN_FORM = {
-    label: 'GitHub',
-    defaultName: 'GitHub',
-    description:
-        'AI agents read pull requests, issues and contributors of one repository live. Use a fine-grained personal access token with read access to Metadata, Issues and Pull requests for that repository.',
     origin: GITHUB_ORIGIN,
     account: {
         label: 'Repository',
-        description: 'The owner and name, as in github.com/owner/name',
+        description: 'As owner/name',
         placeholder: 'lightdash/lightdash',
-        invalidMessage: 'Enter the repository as owner/name',
+        invalidMessage: 'Use the owner/name format',
         // Accept a pasted repository URL
         normalize: (value) =>
             value

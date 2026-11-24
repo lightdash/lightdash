@@ -1,4 +1,9 @@
-import { SupportedDbtAdapter, WeekDay, type Explore } from '@lightdash/common';
+import {
+    ExploreType,
+    SupportedDbtAdapter,
+    WeekDay,
+    type Explore,
+} from '@lightdash/common';
 import { enhanceExploresForPreAggregates } from './enhanceExploresForPreAggregates';
 import { generatePreAggregateExplores } from './generatePreAggregateExplores';
 
@@ -42,5 +47,28 @@ describe('pre-aggregate connection week starts', () => {
                 .mocked(generatePreAggregateExplores)
                 .mock.calls.map(([args]) => args.startOfWeek),
         ).toEqual([WeekDay.MONDAY, WeekDay.WEDNESDAY, null]);
+    });
+});
+
+describe('pre-aggregates on live explores', () => {
+    it('drops them with a warning instead of generating explores', () => {
+        vi.mocked(generatePreAggregateExplores).mockClear();
+        const [explore, ...rest] = enhanceExploresForPreAggregates({
+            explores: [{ ...source('ga4'), type: ExploreType.API_SOURCE }],
+            enabled: true,
+            startOfWeek: null,
+        });
+        expect(rest).toEqual([]);
+        expect(generatePreAggregateExplores).not.toHaveBeenCalled();
+        expect(explore).toMatchObject({
+            preAggregates: [],
+            warnings: [
+                {
+                    message: expect.stringContaining(
+                        "Pre-aggregates aren't supported on live explores",
+                    ),
+                },
+            ],
+        });
     });
 });

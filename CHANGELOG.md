@@ -1,3 +1,345 @@
+## [3.381.1](https://github.com/lightdash/lightdash/compare/3.381.0...3.381.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* keep the credentials prompt closed after it is dismissed ([#33298](https://github.com/lightdash/lightdash/issues/33298)) ([4d6da6b](https://github.com/lightdash/lightdash/commit/4d6da6be448a455f6fd677ae616ad00f343c1d24))
+
+# [3.381.0](https://github.com/lightdash/lightdash/compare/3.380.0...3.381.0) (2026-11-24)
+
+
+### Features
+
+* **ai-agents:** remove verified answer plumbing ([#33290](https://github.com/lightdash/lightdash/issues/33290)) ([7841c41](https://github.com/lightdash/lightdash/commit/7841c41fcb440ebc495018d48b9969d7b1789029))
+* **ai-agents:** remove verified answer types and column reads ([#33291](https://github.com/lightdash/lightdash/issues/33291)) ([a8d414c](https://github.com/lightdash/lightdash/commit/a8d414c51cedd2a336ddd9a6ebe9d20d75ab2731))
+* **ai-agents:** remove verified questions ([#33289](https://github.com/lightdash/lightdash/issues/33289)) ([f460d9f](https://github.com/lightdash/lightdash/commit/f460d9f1e567033611422de28eec880e749061c0))
+* **ai-agents:** stop using verified answers ([#33288](https://github.com/lightdash/lightdash/issues/33288)) ([f9633b8](https://github.com/lightdash/lightdash/commit/f9633b8490194cc42dafaa8184d97022fd8c1c43))
+
+# [3.380.0](https://github.com/lightdash/lightdash/compare/3.379.1...3.380.0) (2026-11-24)
+
+
+### Bug Fixes
+
+* **ai-agents:** fetch the GitHub App token only when a GitHub tool is called ([#33294](https://github.com/lightdash/lightdash/issues/33294)) ([220d637](https://github.com/lightdash/lightdash/commit/220d6373a9dcb28eeeafaf1af44eb1162fb27ed9))
+
+
+### Features
+
+* **ai-agents:** connect MCP servers on demand so answers stream without waiting ([#33070](https://github.com/lightdash/lightdash/issues/33070)) ([97dfff2](https://github.com/lightdash/lightdash/commit/97dfff23885ea578c154e3d34d4d5f7b1368be28))
+
+## [3.379.1](https://github.com/lightdash/lightdash/compare/3.379.0...3.379.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* **ai:** wait for MCP attach to save before fetching its tools ([#33297](https://github.com/lightdash/lightdash/issues/33297)) ([5dcac5e](https://github.com/lightdash/lightdash/commit/5dcac5e589b6d2a155cbd29ee5fd33a820fd49a6))
+
+# [3.379.0](https://github.com/lightdash/lightdash/compare/3.378.1...3.379.0) (2026-11-24)
+
+
+### Features
+
+* **ai:** simplify MCP server controls in agent settings ([#33296](https://github.com/lightdash/lightdash/issues/33296)) ([b8c3ce6](https://github.com/lightdash/lightdash/commit/b8c3ce69095328fe40c327f5a565e4e20ff0c56f))
+
+## [3.378.1](https://github.com/lightdash/lightdash/compare/3.378.0...3.378.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* **ai:** keep @-mention menu on screen above the composer ([#33286](https://github.com/lightdash/lightdash/issues/33286)) ([15ae9c7](https://github.com/lightdash/lightdash/commit/15ae9c70787d6a1afc4824ee302a880f16187b4d))
+
+# [3.378.0](https://github.com/lightdash/lightdash/compare/3.377.0...3.378.0) (2026-11-23)
+
+
+### Bug Fixes
+
+* **live-sources:** save a PostHog key with its region and project ([#33282](https://github.com/lightdash/lightdash/issues/33282)) ([a990bc0](https://github.com/lightdash/lightdash/commit/a990bc014a3ae9101c5a31e5ea9b6c5c60401b99)), closes [#33281](https://github.com/lightdash/lightdash/issues/33281)
+
+
+### Features
+
+* **live-sources:** add Amplitude events, users, funnels and retention ([#33261](https://github.com/lightdash/lightdash/issues/33261)) ([6552823](https://github.com/lightdash/lightdash/commit/6552823992816cfe026b31d16320d8719decbc84))
+
+# [3.377.0](https://github.com/lightdash/lightdash/compare/3.376.1...3.377.0) (2026-11-23)
+
+
+### Features
+
+* **live-sources:** show rate-limit usage and reset times on source pages ([#33270](https://github.com/lightdash/lightdash/issues/33270)) ([79657a0](https://github.com/lightdash/lightdash/commit/79657a0bbe24e99301788202fa0b577f172e6860))
+
+## [3.376.1](https://github.com/lightdash/lightdash/compare/3.376.0...3.376.1) (2026-11-23)
+
+
+### Bug Fixes
+
+* **live-sources:** show single-explore sources as folders in the explore sidebar ([#33272](https://github.com/lightdash/lightdash/issues/33272)) ([47edb44](https://github.com/lightdash/lightdash/commit/47edb441f8a9dd0e4c62cde7dcf2367250c72b89))
+
+# [3.376.0](https://github.com/lightdash/lightdash/compare/3.375.0...3.376.0) (2026-11-23)
+
+
+### Features
+
+* **live-sources:** Hydra enforces vendor limits apart from the limits Lightdash declares ([#33267](https://github.com/lightdash/lightdash/issues/33267)) ([7aea920](https://github.com/lightdash/lightdash/commit/7aea92029a05b04c9647dc20f18abf71b9fff0fc))
+
+# [3.375.0](https://github.com/lightdash/lightdash/compare/3.374.1...3.375.0) (2026-11-23)
+
+
+### Bug Fixes
+
+* **live-sources:** refuse out-of-range Hydra settings with a 400 ([#33260](https://github.com/lightdash/lightdash/issues/33260)) ([11fdc71](https://github.com/lightdash/lightdash/commit/11fdc711e1b73149b30ca61fdd7835a14b59ddfd))
+
+
+### Features
+
+* **live-sources:** calls wait their turn within each integration's rate limits ([#33198](https://github.com/lightdash/lightdash/issues/33198)) ([2076a8d](https://github.com/lightdash/lightdash/commit/2076a8d534ad6428c1d3b4046735350d88b8f320))
+* **live-sources:** each caller sets how long its queries may wait for rate limits ([#33200](https://github.com/lightdash/lightdash/issues/33200)) ([cc98e36](https://github.com/lightdash/lightdash/commit/cc98e36fadf9ba135b87c5d0d9c40abe1ab6b4d4))
+* **live-sources:** wait out the vendor's Retry-After and hold other calls ([#33199](https://github.com/lightdash/lightdash/issues/33199)) ([edbf954](https://github.com/lightdash/lightdash/commit/edbf95489e982a999612c56add17df58ecbae874))
+
+## [3.374.1](https://github.com/lightdash/lightdash/compare/3.374.0...3.374.1) (2026-11-23)
+
+
+### Bug Fixes
+
+* **semantic-studio:** smoother flow for projects without a repository ([#33254](https://github.com/lightdash/lightdash/issues/33254)) ([baaac51](https://github.com/lightdash/lightdash/commit/baaac51c1ddb438d2a84cdda6680d56b2466a523))
+
+# [3.374.0](https://github.com/lightdash/lightdash/compare/3.373.0...3.374.0) (2026-11-23)
+
+
+### Features
+
+* **live-sources:** add HubSpot tickets and leads explores ([#33253](https://github.com/lightdash/lightdash/issues/33253)) ([0778fcd](https://github.com/lightdash/lightdash/commit/0778fcda1d1897962269d01db7dfe41efb55ad05))
+
+# [3.373.0](https://github.com/lightdash/lightdash/compare/3.372.0...3.373.0) (2026-11-23)
+
+
+### Features
+
+* **live-sources:** add Hydra, a test integration tests control ([#33248](https://github.com/lightdash/lightdash/issues/33248)) ([6019402](https://github.com/lightdash/lightdash/commit/601940286f3c005d79ccff42bce9d607066af9d1))
+
+# [3.372.0](https://github.com/lightdash/lightdash/compare/3.371.5...3.372.0) (2026-11-23)
+
+
+### Features
+
+* add a connect warehouse action to missing-credentials errors ([#33249](https://github.com/lightdash/lightdash/issues/33249)) ([da3f4b5](https://github.com/lightdash/lightdash/commit/da3f4b5cba4fa596f21e21d1cac989fb4cd862b5))
+* prompt for required warehouse credentials on home and in data apps ([#33245](https://github.com/lightdash/lightdash/issues/33245)) ([40eab81](https://github.com/lightdash/lightdash/commit/40eab8193d1e4c7cf401ff5a51b24e8e0bfdb1e5))
+
+## [3.371.5](https://github.com/lightdash/lightdash/compare/3.371.4...3.371.5) (2026-11-23)
+
+
+### Bug Fixes
+
+* **live-sources:** reuse in-flight and finished results for same-query tiles ([#33244](https://github.com/lightdash/lightdash/issues/33244)) ([84fc7e5](https://github.com/lightdash/lightdash/commit/84fc7e55166e8e7874a652d9093854388275bffe))
+
+## [3.371.4](https://github.com/lightdash/lightdash/compare/3.371.3...3.371.4) (2026-11-23)
+
+
+### Bug Fixes
+
+* **semantic-studio:** quieter merged drafts and an in-page first ask ([#33247](https://github.com/lightdash/lightdash/issues/33247)) ([534f0bf](https://github.com/lightdash/lightdash/commit/534f0bf1295abe7cc34ceb6f19219730d2f89808))
+
+## [3.371.3](https://github.com/lightdash/lightdash/compare/3.371.2...3.371.3) (2026-11-23)
+
+
+### Bug Fixes
+
+* **semantic-studio:** find the dbt project's layout on manifests from dbt before 1.6 ([#33238](https://github.com/lightdash/lightdash/issues/33238)) ([9aec897](https://github.com/lightdash/lightdash/commit/9aec89740a301e72e41d2ce03ff1667c6c787bcf))
+
+## [3.371.2](https://github.com/lightdash/lightdash/compare/3.371.1...3.371.2) (2026-11-23)
+
+
+### Bug Fixes
+
+* **semantic-studio:** a draft card waits for the compile instead of saying no field changed ([#33237](https://github.com/lightdash/lightdash/issues/33237)) ([b290aaa](https://github.com/lightdash/lightdash/commit/b290aaaf33907dd4309e7925db788d4697e9697b))
+
+## [3.371.1](https://github.com/lightdash/lightdash/compare/3.371.0...3.371.1) (2026-11-23)
+
+
+### Bug Fixes
+
+* **dashboards:** clear shortcut hints when the modifier release is never seen ([#33217](https://github.com/lightdash/lightdash/issues/33217)) ([0b684f0](https://github.com/lightdash/lightdash/commit/0b684f05f073a95141db7610d27f40b5ae61bfd0))
+
+# [3.371.0](https://github.com/lightdash/lightdash/compare/3.370.0...3.371.0) (2026-11-23)
+
+
+### Features
+
+* **semantic-studio:** give the builder agent a read tool for its pull request branch ([#33224](https://github.com/lightdash/lightdash/issues/33224)) ([0799b64](https://github.com/lightdash/lightdash/commit/0799b64a7f7f5560edb900c051f9f3f684b0c683))
+* **semantic-studio:** give the builder write in place of editDbtProject ([#33233](https://github.com/lightdash/lightdash/issues/33233)) ([8117c8a](https://github.com/lightdash/lightdash/commit/8117c8ad1bf33952fe87af28ebde5d1fa99f001f))
+* **semantic-studio:** give the builder's read tool layer and warehouse libraries ([#33228](https://github.com/lightdash/lightdash/issues/33228)) ([bafc479](https://github.com/lightdash/lightdash/commit/bafc479c1c26613ade26f1de76c104154d41f1cd))
+* **semantic-studio:** let the builder agent check its dbt change in the same turn ([#33223](https://github.com/lightdash/lightdash/issues/33223)) ([ca1eae1](https://github.com/lightdash/lightdash/commit/ca1eae12d89b746b923123d6bea0eaa4c6edac2f))
+* **semantic-studio:** offer the dbt builder only read, write, verify and runSql ([#33231](https://github.com/lightdash/lightdash/issues/33231)) ([f9a21e4](https://github.com/lightdash/lightdash/commit/f9a21e4f5d8891b5b7fedab5a0a0afeddd90741d))
+
+# [3.370.0](https://github.com/lightdash/lightdash/compare/3.369.2...3.370.0) (2026-11-23)
+
+
+### Features
+
+* **semantic-studio:** give the dbt agent the project's layout from its last compile ([#33209](https://github.com/lightdash/lightdash/issues/33209)) ([2320c24](https://github.com/lightdash/lightdash/commit/2320c24a79e151713023db2c1c650f83dca8084c))
+
+## [3.369.2](https://github.com/lightdash/lightdash/compare/3.369.1...3.369.2) (2026-11-23)
+
+
+### Bug Fixes
+
+* **dashboards:** make the controls bar Hide work without the edit toolbar ([#33229](https://github.com/lightdash/lightdash/issues/33229)) ([671c695](https://github.com/lightdash/lightdash/commit/671c6954f73d0c3dd76fa0ccf9b977295be5b2ee))
+
+## [3.369.1](https://github.com/lightdash/lightdash/compare/3.369.0...3.369.1) (2026-11-23)
+
+
+### Bug Fixes
+
+* **live-sources:** show what to fix when a source test fails ([#33205](https://github.com/lightdash/lightdash/issues/33205)) ([22e5e36](https://github.com/lightdash/lightdash/commit/22e5e36d42a9fd1d0f1fbcd4d2675aac00b49355))
+
+# [3.369.0](https://github.com/lightdash/lightdash/compare/3.368.0...3.369.0) (2026-11-23)
+
+
+### Bug Fixes
+
+* **dashboards:** group the edit toolbar's zoom, background and filter controls ([#33216](https://github.com/lightdash/lightdash/issues/33216)) ([2dc3134](https://github.com/lightdash/lightdash/commit/2dc31340daa8dc5eca2db851623e25197715fbe7))
+* **dashboards:** let editors collapse the controls bar from the bar itself ([#33215](https://github.com/lightdash/lightdash/issues/33215)) ([59cfb47](https://github.com/lightdash/lightdash/commit/59cfb470c9ce276d0ef8410242324a5e090f0f92))
+* **scheduler:** show the delivery message in Google Chat cards ([#33218](https://github.com/lightdash/lightdash/issues/33218)) ([c84f48f](https://github.com/lightdash/lightdash/commit/c84f48fe1939780fc47a0a7f087ab943a2973c88))
+* **tables:** wrap long unbroken values in expanded table cells ([#33211](https://github.com/lightdash/lightdash/issues/33211)) ([4c78658](https://github.com/lightdash/lightdash/commit/4c78658c5c816ef65eaaf191b2411b464531f52e))
+
+
+### Features
+
+* **dashboards:** default the dashboard editor canvas to a dotted background ([#33214](https://github.com/lightdash/lightdash/issues/33214)) ([2f23fdf](https://github.com/lightdash/lightdash/commit/2f23fdfbad4d930336cd2f9277d068ecc116eefa))
+
+# [3.368.0](https://github.com/lightdash/lightdash/compare/3.367.4...3.368.0) (2026-11-23)
+
+
+### Features
+
+* **semantic-studio:** send a failed branch compile back to the agent to fix ([#33212](https://github.com/lightdash/lightdash/issues/33212)) ([e025e8f](https://github.com/lightdash/lightdash/commit/e025e8fe696c45b6537fa4ea9928e0c8d6e3d7cc))
+
+
+### Performance Improvements
+
+* **semantic-studio:** log step timings for each branch compile ([#33210](https://github.com/lightdash/lightdash/issues/33210)) ([9666d3b](https://github.com/lightdash/lightdash/commit/9666d3b4d2618e662429c0c31947ce22cfb41f82))
+
+## [3.367.4](https://github.com/lightdash/lightdash/compare/3.367.3...3.367.4) (2026-11-23)
+
+
+### Bug Fixes
+
+* **semantic-studio:** commit an agent's dbt change the quick check cannot verify ([#33208](https://github.com/lightdash/lightdash/issues/33208)) ([d94b5cc](https://github.com/lightdash/lightdash/commit/d94b5cca4f26079b5cb7d6aefd0622bb56b17acd))
+
+
+### Performance Improvements
+
+* **semantic-studio:** reuse what a checked change compiled to when it merges unchanged ([#33206](https://github.com/lightdash/lightdash/issues/33206)) ([7e20553](https://github.com/lightdash/lightdash/commit/7e20553245845f4695ca794e5571257b6b031eb6))
+
+## [3.367.3](https://github.com/lightdash/lightdash/compare/3.367.2...3.367.3) (2026-11-23)
+
+
+### Bug Fixes
+
+* **semantic-studio:** one line for a live data source's cache when project caching is off ([#33196](https://github.com/lightdash/lightdash/issues/33196)) ([2ee5f8b](https://github.com/lightdash/lightdash/commit/2ee5f8b4d2e2790882182aa3f9a73f678f89dee5))
+
+## [3.367.2](https://github.com/lightdash/lightdash/compare/3.367.1...3.367.2) (2026-11-23)
+
+
+### Performance Improvements
+
+* **semantic-studio:** log per-step timings for scripted saves, checks and the compile after a merge ([#33204](https://github.com/lightdash/lightdash/issues/33204)) ([dc5cf58](https://github.com/lightdash/lightdash/commit/dc5cf588aff82ebcc99ef0ef155124a2eec20428))
+
+## [3.367.1](https://github.com/lightdash/lightdash/compare/3.367.0...3.367.1) (2026-11-23)
+
+
+### Bug Fixes
+
+* **semantic-studio:** count pane views once the draft and checkout load ([#33203](https://github.com/lightdash/lightdash/issues/33203)) ([fa5678f](https://github.com/lightdash/lightdash/commit/fa5678ff6b9879dad89563eb67a4e59a4260a4b2))
+
+# [3.367.0](https://github.com/lightdash/lightdash/compare/3.366.0...3.367.0) (2026-11-23)
+
+
+### Features
+
+* **explorer:** enable undo and redo for everyone ([#33066](https://github.com/lightdash/lightdash/issues/33066)) ([becb2f7](https://github.com/lightdash/lightdash/commit/becb2f7e6f6968e8e8475455001cefa99c2b0c1a))
+
+# [3.366.0](https://github.com/lightdash/lightdash/compare/3.365.0...3.366.0) (2026-11-22)
+
+
+### Features
+
+* **live-sources:** describe integration rate limits as data ([#33197](https://github.com/lightdash/lightdash/issues/33197)) ([2874692](https://github.com/lightdash/lightdash/commit/28746921924adb573208c340228e59f9f4f194d7))
+
+# [3.365.0](https://github.com/lightdash/lightdash/compare/3.364.0...3.365.0) (2026-11-22)
+
+
+### Features
+
+* **live-sources:** add a source with the same rows as its settings, plainer copy ([#33171](https://github.com/lightdash/lightdash/issues/33171)) ([0fbde3b](https://github.com/lightdash/lightdash/commit/0fbde3b52a3bc47a27fcb8d1cb599f03a59c5b89))
+* **live-sources:** explore prefix for LinkedIn Ads and Salesforce sign-in ([#33174](https://github.com/lightdash/lightdash/issues/33174)) ([c81c979](https://github.com/lightdash/lightdash/commit/c81c979cc48956f6b0dc08eca683fdb0ec6991b8))
+* **semantic-studio:** live data source settings in their own tab, one-page scroll ([#33169](https://github.com/lightdash/lightdash/issues/33169)) ([2e72090](https://github.com/lightdash/lightdash/commit/2e72090659fddb27a5f40320b2b2fbfae9812e2e)), closes [#33168](https://github.com/lightdash/lightdash/issues/33168)
+
+# [3.364.0](https://github.com/lightdash/lightdash/compare/3.363.0...3.364.0) (2026-11-22)
+
+
+### Features
+
+* **live-sources:** let composer merge nodes join live data sources ([#32936](https://github.com/lightdash/lightdash/issues/32936)) ([d4ee02d](https://github.com/lightdash/lightdash/commit/d4ee02d91b41c439e105f0688ad16651173aafe8))
+
+# [3.363.0](https://github.com/lightdash/lightdash/compare/3.362.0...3.363.0) (2026-11-22)
+
+
+### Bug Fixes
+
+* **live-sources:** let Salesforce sandbox orgs sign in at test.salesforce.com ([#33148](https://github.com/lightdash/lightdash/issues/33148)) ([db16777](https://github.com/lightdash/lightdash/commit/db167771c9bc80070cf848dd8e4ced4a59cbabbd))
+* **live-sources:** refuse Salesforce totals grouped by Record ID ([#33147](https://github.com/lightdash/lightdash/issues/33147)) ([2ba1f2c](https://github.com/lightdash/lightdash/commit/2ba1f2ca2784ef14db6350aed4754345547ac9f3))
+* **live-sources:** say why Search Console refuses a clicks sort grouped by date ([#33149](https://github.com/lightdash/lightdash/issues/33149)) ([7704a27](https://github.com/lightdash/lightdash/commit/7704a279464f8f35e9f2ce8c4643d325292486d0))
+
+
+### Features
+
+* **live-sources:** add Attio stage entered at and owner name fields ([#33161](https://github.com/lightdash/lightdash/issues/33161)) ([18b94d5](https://github.com/lightdash/lightdash/commit/18b94d54047071e770569a3b11b1d02ad5086221)), closes [#33125](https://github.com/lightdash/lightdash/issues/33125)
+* **live-sources:** add Pylon SLA, timing, priority, CSAT comment and linked issue fields ([#33152](https://github.com/lightdash/lightdash/issues/33152)) ([24c3c1f](https://github.com/lightdash/lightdash/commit/24c3c1f7da6f32f213484e10bafa259c7a913ed9))
+* **live-sources:** add Search Console search appearance and search type ([#33150](https://github.com/lightdash/lightdash/issues/33150)) ([4d637a4](https://github.com/lightdash/lightdash/commit/4d637a475e2b807b3eec3e1c262353a164c14270))
+* **live-sources:** add week and month grains to Pylon issue dates ([#33151](https://github.com/lightdash/lightdash/issues/33151)) ([cbe6f9c](https://github.com/lightdash/lightdash/commit/cbe6f9c14423282db26b4f80a5132140ceced544))
+* **live-sources:** delete live data source call log rows past the query history retention window ([#33154](https://github.com/lightdash/lightdash/issues/33154)) ([7b2d3df](https://github.com/lightdash/lightdash/commit/7b2d3dfa0e3444cbf4bdbf7f7229ee029b72dbfd))
+* **live-sources:** read five Attio standard objects from one source ([#33160](https://github.com/lightdash/lightdash/issues/33160)) ([a5f646d](https://github.com/lightdash/lightdash/commit/a5f646ded79e0a98e1b795e3e7eb564136375013)), closes [#33127](https://github.com/lightdash/lightdash/issues/33127)
+
+# [3.362.0](https://github.com/lightdash/lightdash/compare/3.361.1...3.362.0) (2026-11-21)
+
+
+### Features
+
+* **live-sources:** add a spec and use cases to every live integration ([#33133](https://github.com/lightdash/lightdash/issues/33133)) ([69e4d55](https://github.com/lightdash/lightdash/commit/69e4d5533ec6e00b791b9b0650d8391edce7f798))
+* **live-sources:** add the hydra skill for live integrations ([#33142](https://github.com/lightdash/lightdash/issues/33142)) ([939bae7](https://github.com/lightdash/lightdash/commit/939bae735269da7349b33e3018ba96c6398c3b90))
+
+
+### Reverts
+
+* restore the request path on the fetch analytics event ([#33143](https://github.com/lightdash/lightdash/issues/33143)) ([c1911af](https://github.com/lightdash/lightdash/commit/c1911af042ef7879037130eeba707785787d2acb)), closes [#33135](https://github.com/lightdash/lightdash/issues/33135)
+
+## [3.361.1](https://github.com/lightdash/lightdash/compare/3.361.0...3.361.1) (2026-11-21)
+
+
+### Bug Fixes
+
+* **external-connections:** drop the request path from the fetch analytics event ([#33135](https://github.com/lightdash/lightdash/issues/33135)) ([a25b8e8](https://github.com/lightdash/lightdash/commit/a25b8e8b180f95e6ead2a836511841359579eb81))
+* **live-sources:** apply Pylon null filters and filter first response on the column's minutes ([#33138](https://github.com/lightdash/lightdash/issues/33138)) ([5cefc4c](https://github.com/lightdash/lightdash/commit/5cefc4ce6bcd989cbbd17b2b816f11e5e1ed5eb0))
+* **live-sources:** count PostHog sessions without empty IDs and type min or max of a date as a date ([#33139](https://github.com/lightdash/lightdash/issues/33139)) ([3dc5381](https://github.com/lightdash/lightdash/commit/3dc53814c0603209ada1f42f27375e1384bb0038))
+* **live-sources:** file row-cap and call-budget refusals as refusals in telemetry ([#33136](https://github.com/lightdash/lightdash/issues/33136)) ([2ec010f](https://github.com/lightdash/lightdash/commit/2ec010f8720cc6dc7253092ba7e307a9fe6ffee9))
+* **live-sources:** keep the GitHub account out of rate-limit messages ([#33140](https://github.com/lightdash/lightdash/issues/33140)) ([5361560](https://github.com/lightdash/lightdash/commit/5361560fd8e112d122f71770d17041754a7e9b22))
+* **live-sources:** stop adding up GA4 sessions and users in totals ([#33137](https://github.com/lightdash/lightdash/issues/33137)) ([316cf1e](https://github.com/lightdash/lightdash/commit/316cf1e6c9962858aa261a4e31c01447bc28a41d))
+* **live-sources:** turn pre-aggregates off for live explores ([#33134](https://github.com/lightdash/lightdash/issues/33134)) ([2820ce6](https://github.com/lightdash/lightdash/commit/2820ce63c2cf8e27f9c0e64adc2c92611839d7a8))
+
+# [3.361.0](https://github.com/lightdash/lightdash/compare/3.360.0...3.361.0) (2026-11-21)
+
+
+### Features
+
+* **live-sources:** read four Salesforce objects from one source ([#33102](https://github.com/lightdash/lightdash/issues/33102)) ([f86d724](https://github.com/lightdash/lightdash/commit/f86d7245fcd54789f1fc63ca92e3ba2402ca4fdc)), closes [#33101](https://github.com/lightdash/lightdash/issues/33101)
+
+# [3.360.0](https://github.com/lightdash/lightdash/compare/3.359.1...3.360.0) (2026-11-21)
+
+
+### Features
+
+* **live-sources:** add Salesforce integration with SOQL aggregation ([#32992](https://github.com/lightdash/lightdash/issues/32992)) ([9391c6d](https://github.com/lightdash/lightdash/commit/9391c6d17d398da8c7cd30ef41e6f91533b441b9)), closes [#32991](https://github.com/lightdash/lightdash/issues/32991)
+
 ## [3.359.1](https://github.com/lightdash/lightdash/compare/3.359.0...3.359.1) (2026-11-20)
 
 

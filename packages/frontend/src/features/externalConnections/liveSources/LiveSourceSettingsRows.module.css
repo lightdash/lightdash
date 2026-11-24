@@ -1,0 +1,84 @@
+/* A source's settings: the summary's card, one row per setting. */
+.settings {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    background: var(--mantine-color-body);
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.settingsRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    min-height: 56px;
+    padding: 10px 14px;
+}
+
+.settingsRow + .settingsRow {
+    border-top: 1px solid
+        light-dark(var(--mantine-color-ldGray-1), var(--mantine-color-dark-5));
+}
+
+.settingsTitle {
+    padding-left: 2px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--mantine-color-dimmed);
+}
+
+.settingsLabel {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.settingsHint {
+    font-size: 12px;
+    color: var(--mantine-color-dimmed);
+}
+
+.testOutcomeIcon {
+    flex: none;
+}
+
+.settingsCode {
+    font-size: 12px;
+}
+
+.settingsFooter {
+    padding: 10px 14px;
+    border-top: 1px solid
+        light-dark(var(--mantine-color-ldGray-1), var(--mantine-color-dark-5));
+}
+
+/* The scopes a source's key needs. */
+.setup {
+    padding: 12px 14px;
+}
+
+.scope {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 12px;
+    background: light-dark(
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-dark-6)
+    );
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+}
+
+.scope:hover {
+    background: light-dark(
+        var(--mantine-color-ldGray-1),
+        var(--mantine-color-dark-5)
+    );
+}

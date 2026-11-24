@@ -1,4 +1,4 @@
-import { DimensionType, FilterOperator } from '@lightdash/common';
+import { DimensionType, FilterOperator, TimeFrames } from '@lightdash/common';
 import type {
     LiveDimensionDefinition,
     LiveExploreDefinition,
@@ -59,6 +59,42 @@ const text = (
 
 const date = (name: string, label: string, description: string) =>
     dimension(name, label, DimensionType.DATE, PYLON_DATE_FILTERS, description);
+
+/**
+ * A date of an issue with its week and month, worked out per issue from the
+ * day. The grains take no filters of their own: the day filters them.
+ */
+const withGrains = (
+    name: string,
+    label: string,
+    description: string,
+): LiveDimensionDefinition[] => [
+    {
+        ...date(name, label, description),
+        // The day is its own grain, grouped with the coarser ones
+        timeInterval: { base: name, grain: TimeFrames.DAY },
+    },
+    {
+        ...dimension(
+            `${name}_week`,
+            `${label} week`,
+            DimensionType.DATE,
+            [],
+            `Monday of the week, in UTC. Filter ${label} to choose the weeks.`,
+        ),
+        timeInterval: { base: name, grain: TimeFrames.WEEK },
+    },
+    {
+        ...dimension(
+            `${name}_month`,
+            `${label} month`,
+            DimensionType.DATE,
+            [],
+            `First day of the month, in UTC. Filter ${label} to choose the months.`,
+        ),
+        timeInterval: { base: name, grain: TimeFrames.MONTH },
+    },
+];
 
 export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
     name: 'issues',
@@ -123,13 +159,17 @@ export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
             PYLON_VALUE_FILTERS,
             'The issue tags, comma separated. "Is" keeps issues with any of the tags.',
         ),
-        date('created_at', 'Created', 'The day the issue was created, in UTC.'),
-        date(
+        ...withGrains(
+            'created_at',
+            'Created',
+            'The day the issue was created, in UTC.',
+        ),
+        ...withGrains(
             'updated_at',
             'Updated',
             'The day the issue last changed, in UTC.',
         ),
-        date(
+        ...withGrains(
             'resolved_at',
             'Resolved',
             'The day the issue was last resolved, in UTC.',
@@ -161,6 +201,97 @@ export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
             DimensionType.NUMBER,
             [],
             'The CSAT score the customer gave, when they answered the survey.',
+        ),
+        dimension(
+            'csat_comment',
+            'CSAT comment',
+            DimensionType.STRING,
+            [],
+            'What the customer wrote with their CSAT score, when they wrote anything.',
+        ),
+        dimension(
+            'first_response_due',
+            'First response due',
+            DimensionType.TIMESTAMP,
+            [],
+            "The issue's first response SLA deadline, in UTC. Empty without an SLA.",
+        ),
+        dimension(
+            'first_response_breached',
+            'First response breached',
+            DimensionType.BOOLEAN,
+            [],
+            'Whether the first reply came after its SLA deadline, or there is none yet and the deadline has passed. Empty without an SLA.',
+        ),
+        dimension(
+            'resolution_due',
+            'Resolution due',
+            DimensionType.TIMESTAMP,
+            [],
+            "The issue's resolution SLA deadline, in UTC. Empty without an SLA.",
+        ),
+        dimension(
+            'resolution_breached',
+            'Resolution breached',
+            DimensionType.BOOLEAN,
+            [],
+            'Whether the issue was resolved after its SLA deadline, or is still open and the deadline has passed. Empty without an SLA.',
+        ),
+        dimension(
+            'next_reply_due',
+            'Next reply due',
+            DimensionType.TIMESTAMP,
+            [],
+            "The issue's next reply SLA deadline, in UTC. Empty without one.",
+        ),
+        dimension(
+            'first_resolved_at',
+            'First resolved',
+            DimensionType.DATE,
+            [],
+            'The day the issue was first resolved, in UTC; Resolved is the last time.',
+        ),
+        dimension(
+            'business_first_response_minutes',
+            'First response (business minutes)',
+            DimensionType.NUMBER,
+            [],
+            'Business-hours minutes from creation to the first reply from the team. Empty before a reply.',
+        ),
+        dimension(
+            'business_resolution_hours',
+            'Resolution time (business hours)',
+            DimensionType.NUMBER,
+            [],
+            'Business hours from creation to resolution. Empty while open.',
+        ),
+        dimension(
+            'created_time',
+            'Created time',
+            DimensionType.TIMESTAMP,
+            [],
+            'When the issue was created, with the time, in UTC. Filter by Created.',
+        ),
+        dimension(
+            'priority',
+            'Priority',
+            DimensionType.STRING,
+            [],
+            'The issue\'s "priority" custom field. Empty when the workspace has none.',
+        ),
+        dimension(
+            'linked_issue_sources',
+            'Linked issue sources',
+            DimensionType.STRING,
+            [],
+            'Where the linked engineering issues live, such as linear or github, comma separated.',
+        ),
+        dimension(
+            'linked_issue_links',
+            'Linked issue links',
+            DimensionType.STRING,
+            [],
+            'Links to the linked engineering issues, comma separated.',
         ),
     ],
     metrics: [],

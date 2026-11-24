@@ -209,10 +209,13 @@ export const getSystemPromptV2 = (
         // Whether the repo host supports server-side code search (GitHub yes,
         // GitLab no). Defaults true; when false the prompt steers off `search`.
         repoFsSupportsCodeSearch?: boolean;
-        // Semantic Studio saves its change with a code mode script.
-        semanticStudioCodeMode?: boolean;
+        semanticStudioBuilder?: boolean;
+        // A Studio dbt project's layout from its last compile.
+        semanticStudioProjectMap?: string | null;
         // Semantic Studio can run a metric query, which reads the person's draft.
         semanticStudioQueriesDraft?: boolean;
+        // False only for a Studio project with no repository.
+        semanticStudioHasRepository?: boolean;
         // Org Slack setting: the answer may not carry query results into Slack.
         slackLinksOnly?: boolean;
         canRunSql?: boolean;
@@ -236,8 +239,10 @@ export const getSystemPromptV2 = (
         siteUrl = '',
         repoFsRoot = null,
         repoFsSupportsCodeSearch = true,
-        semanticStudioCodeMode = false,
+        semanticStudioBuilder = false,
+        semanticStudioProjectMap = null,
         semanticStudioQueriesDraft = false,
+        semanticStudioHasRepository = true,
         promptSections = NO_PROMPT_SECTIONS,
         slackChannelId = null,
         slackLinksOnly = false,
@@ -331,11 +336,14 @@ export const getSystemPromptV2 = (
     let projectContextContent =
         'No project context has been configured for this project.';
     if (promptSections.has('projectContext') && args.hasProjectContext) {
+        const contextTool = semanticStudioBuilder
+            ? '`layer.context` in read'
+            : '`loadProjectContext`';
         const projectContextDefinition =
             'This project has curated business context: acronyms, definitions, rules and conventions that are not in the field metadata.';
         projectContextContent = args.projectContextPreloaded
-            ? `${projectContextDefinition} The entries relevant to this request are already preloaded: apply them before discovery, as authoritative over your own assumptions. They are a partial selection: load more with \`loadProjectContext\` for missing definitions, additional scope or conflicting rules, not to reload the preloaded entries.`
-            : `${projectContextDefinition} Load it with \`loadProjectContext\` before discovery, since it can change which explore, field or filter value you use, and treat it as authoritative over your own assumptions.`;
+            ? `${projectContextDefinition} The entries relevant to this request are already preloaded: apply them before discovery, as authoritative over your own assumptions. They are a partial selection: load more with ${contextTool} for missing definitions, additional scope or conflicting rules, not to reload the preloaded entries.`
+            : `${projectContextDefinition} Load it with ${contextTool} before discovery, since it can change which explore, field or filter value you use, and treat it as authoritative over your own assumptions.`;
     }
 
     const AVAILABLE_EXPLORES_INLINE_LIMIT = 15;
@@ -363,17 +371,13 @@ export const getSystemPromptV2 = (
                 agentName,
                 date,
                 instructions,
-                // The shared wording for no explores tells the agent to answer from SQL or give up.
-                availableExplores:
-                    args.availableExplores.length === 0
-                        ? 'None yet: this project has no models.'
-                        : availableExploresContent,
                 projectContext:
                     promptSections.has('projectContext') &&
                     args.hasProjectContext
                         ? projectContextContent
                         : null,
                 canQueryDraft: semanticStudioQueriesDraft,
+                hasRepository: semanticStudioHasRepository,
                 warehouse: promptSections.has('runSql')
                     ? {
                           type: args.warehouseType ?? null,
@@ -386,7 +390,7 @@ export const getSystemPromptV2 = (
                     promptSections.has('aiWriteback')
                         ? {
                               saves: promptSections.has('aiWriteback'),
-                              codeMode: semanticStudioCodeMode,
+                              projectMap: semanticStudioProjectMap,
                               sections: [
                                   ...(promptSections.has('aiWriteback')
                                       ? [

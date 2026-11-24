@@ -266,8 +266,9 @@ export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
             MetricType.COUNT_DISTINCT,
             // Sessions can span days, so daily counts overlap
             { aggregation: 'non_additive' },
-            '${TABLE}.$session_id',
-            'Distinct sessions.',
+            // Events without a session have an empty session ID
+            "nullIf(${TABLE}.$session_id, '')",
+            'Distinct sessions; events without a session are not counted.',
         ),
     ],
     maxDimensions: null,

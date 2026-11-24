@@ -25,7 +25,6 @@ type PrivateService = {
         conversation: {
             messageHistory: [];
             compactionSummary: null;
-            resolveMessageHistory: () => Promise<[]>;
         },
         options: {
             prompt: unknown;
@@ -166,7 +165,7 @@ describe('Document runtime access', () => {
                     findClaimableByUser: vi.fn().mockResolvedValue([]),
                 },
                 lightdashConfig: {
-                    ai: { copilot: { embeddingEnabled: false } },
+                    ai: { copilot: {} },
                 },
                 aiOrganizationSettingsService: {
                     isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),
@@ -249,7 +248,6 @@ describe('Document runtime access', () => {
                     {
                         messageHistory: [],
                         compactionSummary: null,
-                        resolveMessageHistory: async () => [],
                     },
                     {
                         prompt,

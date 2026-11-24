@@ -2,9 +2,11 @@ import {
     ApiConnectorType,
     assertUnreachable,
     DimensionType,
+    getEffectiveItemType,
     getItemId,
     getItemMap,
     isDimension,
+    isMetric,
     SupportedDbtAdapter,
     UnexpectedServerError,
     type Explore,
@@ -229,7 +231,8 @@ export const getLiveDefinitionHashes = memoize(
                                     'source',
                                     definition.name,
                                 ),
-                                label: 'source',
+                                label: definition.label,
+                                groupLabel: 'source',
                                 connectionUuid: 'connection',
                                 // A placeholder, so a change to how hints
                                 // are built still changes the hash
@@ -313,15 +316,14 @@ export const buildLiveExplores = ({
     const { definitions } = getLiveBaseLayer(apiSource.connector);
     const scannedModels = getLiveScannedModels(apiSource.connector);
     const definitionHashes = getLiveDefinitionHashes(apiSource.connector);
-    const isSingle = definitions.length === 1;
     const build = (definition: LiveExploreDefinition) =>
         buildDefinitionExplore(apiSource.connector, {
             definition,
             exploreName: getLiveExploreName(sourceName, definition.name),
-            // One explore is the source; several are named by their model
-            // and grouped under the source
-            label: isSingle ? label : definition.label,
-            ...(isSingle ? {} : { groupLabel: label }),
+            // Every explore is named by its model and grouped under the
+            // source, even when the source has only one
+            label: definition.label,
+            groupLabel: label,
             connectionUuid,
             definitionHash: definitionHashes[definition.name],
             aiHint,
@@ -509,6 +511,26 @@ export const assertLiveResultComplete = ({
     }
 };
 
+/**
+ * A result column's type: a dimension's own, or a metric's, where a minimum
+ * or maximum of a date stays a date.
+ */
+const toResultColumnType = (
+    field: ItemsMap[string] | undefined,
+    fields: ItemsMap,
+): DimensionType => {
+    if (!field) return DimensionType.NUMBER;
+    if (isDimension(field)) return field.type;
+    // Custom metrics carry their base dimension's type
+    if (isMetric(field) && field.baseDimensionType) {
+        return field.baseDimensionType;
+    }
+    const type = getEffectiveItemType(field, fields);
+    return type === DimensionType.DATE || type === DimensionType.TIMESTAMP
+        ? type
+        : DimensionType.NUMBER;
+};
+
 /** The connector's rows as result rows keyed by field id, sorted and limited. */
 export const toLiveResult = ({
     compiled,
@@ -540,13 +562,7 @@ export const toLiveResult = ({
             const field = fields[fieldId];
             return [
                 fieldId,
-                {
-                    reference: fieldId,
-                    type:
-                        field && isDimension(field)
-                            ? field.type
-                            : DimensionType.NUMBER,
-                },
+                { reference: fieldId, type: toResultColumnType(field, fields) },
             ];
         }),
     );

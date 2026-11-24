@@ -29,6 +29,7 @@ import {
     toPostHogError,
 } from './run';
 import { summarizePostHogTest } from './testSummary';
+import { postHogUseCases } from './useCases';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.POSTHOG];
 const LABEL = CATALOG.messageLabel;
@@ -53,12 +54,7 @@ export const postHogIntegration = defineLiveIntegration({
         // GET reads the property definitions the semantic layer scans
         methods: ['POST', 'GET'],
     }),
-    // PostHog's query API limits per PostHog project: 3 at once, 240 a
-    // minute, 2,400 an hour.
     limits: {
-        concurrentCalls: 3,
-        callsPerMinute: 240,
-        callsPerHour: 2_400,
         callsPerQuery: 1,
         // PostHog can queue a query for 30s before running it for up to 10s.
         timeoutMs: 45_000,
@@ -95,6 +91,42 @@ export const postHogIntegration = defineLiveIntegration({
     },
     explores: [POSTHOG_EVENTS_EXPLORE],
     plannedModelNames: ['persons', 'sessions'],
+    level: {
+        value: 5,
+        description: 'HogQL is SQL, so PostHog totals everything itself.',
+    },
+    auth: {
+        description: 'No vendor review is needed.',
+        testWith: 'test_account',
+        needs: ['gmail'],
+        token: true,
+        oauth: 'no_review',
+    },
+    paging: {
+        description:
+            '100 rows by default; up to 50,000 rows per query with an explicit LIMIT.',
+    },
+    // PostHog's query API limits per PostHog project: 3 at once, 240 a
+    // minute, 2,400 an hour.
+    rateLimits: {
+        concurrentCalls: 3,
+        callsPerSecond: null,
+        buckets: [
+            {
+                id: 'minute',
+                label: 'per minute',
+                windowMs: 60_000,
+                capacity: 240,
+            },
+            {
+                id: 'hour',
+                label: 'per hour',
+                windowMs: 3_600_000,
+                capacity: 2_400,
+            },
+        ],
+    },
+    useCases: postHogUseCases,
     validate: ({ projectId }) => {
         if (!POSTHOG_PROJECT_ID.test(projectId)) {
             throw new ParameterError('The PostHog project ID must be a number');

@@ -59,8 +59,8 @@ it('keeps only the latest request, keeps good explores through a failure, and dr
     const workspaceUuid = workspace.semantic_studio_workspace_uuid;
     const model = new SemanticStudioWorkspaceModel({ database });
 
-    const first = await model.requestBranchCompile(workspaceUuid);
-    const second = await model.requestBranchCompile(workspaceUuid);
+    const first = await model.requestBranchCompile(workspaceUuid, false);
+    const second = await model.requestBranchCompile(workspaceUuid, false);
     expect(
         await model.finishBranchCompile(workspaceUuid, first, {
             status: 'ready',
@@ -76,7 +76,7 @@ it('keeps only the latest request, keeps good explores through a failure, and dr
         }),
     ).toBe(true);
 
-    const third = await model.requestBranchCompile(workspaceUuid);
+    const third = await model.requestBranchCompile(workspaceUuid, true);
     expect(await model.findBranchCompile(workspaceUuid)).toMatchObject({
         status: 'compiling',
         error: null,
@@ -92,6 +92,20 @@ it('keeps only the latest request, keeps good explores through a failure, and dr
         branch: 'change',
         error: 'Compilation Error',
         explores: [explore('orders')],
+    });
+    expect(await model.claimBranchCompileFollowUp(workspaceUuid, second)).toBe(
+        false,
+    );
+    expect(await model.claimBranchCompileFollowUp(workspaceUuid, third)).toBe(
+        true,
+    );
+    expect(await model.claimBranchCompileFollowUp(workspaceUuid, third)).toBe(
+        false,
+    );
+    await model.requestBranchCompile(workspaceUuid, true);
+    expect(await model.findBranchCompile(workspaceUuid)).toMatchObject({
+        requested_by_agent: true,
+        follow_up_claimed_at: null,
     });
 
     await model.deleteFinishedBranchCompiles(project.project_uuid);

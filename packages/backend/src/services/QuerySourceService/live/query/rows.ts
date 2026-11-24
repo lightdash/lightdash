@@ -1,4 +1,5 @@
-import { ParameterError } from '@lightdash/common';
+import { type ParameterError } from '@lightdash/common';
+import { refuseLiveQuery } from './refuse';
 
 /**
  * The error every live data source gives when a query has more rows than one
@@ -11,7 +12,8 @@ export const tooManyRowsError = ({
     label: string;
     maxRows: number;
 }): ParameterError =>
-    new ParameterError(
+    refuseLiveQuery(
+        'live_source.refused.row_limit',
         `This ${label} query has more than ${maxRows.toLocaleString(
             'en-US',
         )} rows, the most one query can read, so its result would be incomplete. Narrow the date range, add a filter or remove a dimension.`,

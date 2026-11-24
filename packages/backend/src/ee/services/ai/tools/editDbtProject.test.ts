@@ -42,7 +42,11 @@ describe('getEditDbtProject', () => {
         const editDbtProject = vi.fn();
 
         const output = await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject, acceptsScript: false }),
+            getEditDbtProject({
+                editDbtProject,
+                acceptsScript: false,
+                name: 'editDbtProject',
+            }),
             { requestedBy: 'agent_initiated' },
         );
 
@@ -65,7 +69,11 @@ describe('getEditDbtProject', () => {
             });
 
             const output = await executeEditDbtProject(
-                getEditDbtProject({ editDbtProject, acceptsScript: false }),
+                getEditDbtProject({
+                    editDbtProject,
+                    acceptsScript: false,
+                    name: 'editDbtProject',
+                }),
                 { requestedBy },
             );
 
@@ -82,7 +90,11 @@ describe('getEditDbtProject', () => {
         });
 
         await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject, acceptsScript: false }),
+            getEditDbtProject({
+                editDbtProject,
+                acceptsScript: false,
+                name: 'editDbtProject',
+            }),
             {
                 startNewPullRequest: true,
             },
@@ -101,7 +113,11 @@ describe('getEditDbtProject', () => {
         });
 
         await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject, acceptsScript: false }),
+            getEditDbtProject({
+                editDbtProject,
+                acceptsScript: false,
+                name: 'editDbtProject',
+            }),
             {
                 startNewPullRequest: null,
             },
@@ -120,7 +136,11 @@ describe('getEditDbtProject', () => {
         });
 
         await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject, acceptsScript: false }),
+            getEditDbtProject({
+                editDbtProject,
+                acceptsScript: false,
+                name: 'editDbtProject',
+            }),
         );
 
         expect(editDbtProject).toHaveBeenCalledWith(
@@ -137,7 +157,11 @@ describe('getEditDbtProject', () => {
         });
 
         const output = await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject, acceptsScript: false }),
+            getEditDbtProject({
+                editDbtProject,
+                acceptsScript: false,
+                name: 'editDbtProject',
+            }),
         );
 
         expect(output.metadata).toEqual({
@@ -159,7 +183,11 @@ describe('getEditDbtProject', () => {
         });
 
         const output = await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject, acceptsScript: false }),
+            getEditDbtProject({
+                editDbtProject,
+                acceptsScript: false,
+                name: 'editDbtProject',
+            }),
         );
 
         expect(toolEditDbtProjectOutputSchema.safeParse(output).success).toBe(
@@ -175,7 +203,11 @@ describe('getEditDbtProject', () => {
             .mockRejectedValue(new Error('Unable to enqueue writeback'));
 
         const output = await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject, acceptsScript: false }),
+            getEditDbtProject({
+                editDbtProject,
+                acceptsScript: false,
+                name: 'editDbtProject',
+            }),
         );
 
         expect(output.metadata).toEqual({
@@ -202,11 +234,19 @@ describe('getEditDbtProject', () => {
         });
 
         await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject, acceptsScript: true }),
+            getEditDbtProject({
+                editDbtProject,
+                acceptsScript: true,
+                name: 'editDbtProject',
+            }),
             { script: 'yaml.set()' },
         );
         await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject, acceptsScript: false }),
+            getEditDbtProject({
+                editDbtProject,
+                acceptsScript: false,
+                name: 'editDbtProject',
+            }),
             { script: 'yaml.set()' },
         );
 
@@ -224,7 +264,11 @@ describe('getEditDbtProject', () => {
         });
 
         const output = await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject, acceptsScript: true }),
+            getEditDbtProject({
+                editDbtProject,
+                acceptsScript: true,
+                name: 'editDbtProject',
+            }),
             { script: 'yaml.remove()' },
         );
 
@@ -252,6 +296,7 @@ describe('getEditDbtProject', () => {
                     diffs,
                 }),
                 acceptsScript: true,
+                name: 'write',
             }),
             { script: 'yaml.set()' },
         );
@@ -283,6 +328,7 @@ describe('getEditDbtProject', () => {
                         aiWritebackRunUuid: 'run-1',
                     }),
                     acceptsScript: true,
+                    name: 'write',
                 }),
                 { script: 'yaml.set()' },
             );

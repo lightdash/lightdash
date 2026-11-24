@@ -107,7 +107,7 @@ const SOURCES = [
         date: 'created_at',
     },
     {
-        apiSource: { connector: ApiConnectorType.ATTIO, object: 'deals' },
+        apiSource: { connector: ApiConnectorType.ATTIO },
         // Built-in fields only: attributes come from a scan. No metrics.
         fields: { dimension: 'record_id', other: 'record_id' },
         date: 'created_at',
@@ -123,6 +123,16 @@ const SOURCES = [
         },
         date: 'created_at',
         selectsDimension: false,
+    },
+    {
+        apiSource: { connector: ApiConnectorType.SALESFORCE },
+        // Built-in fields only: the object's fields come from a scan
+        fields: {
+            dimension: 'record_id',
+            other: 'created_at_day',
+            metric: 'count',
+        },
+        date: 'created_at',
     },
 ] as const;
 
@@ -527,11 +537,13 @@ const CASES: Case[] = [
     {
         name: 'a date operator the API lacks',
         code: 'live_source.refused.date_operator',
-        // GitHub, Attio and HubSpot have no date range, so their dates are ordinary filters
+        // GitHub, Attio, HubSpot and Salesforce have no date range, so their dates are ordinary filters
         codes: {
             [ApiConnectorType.GITHUB]: 'live_source.refused.filter_operator',
             [ApiConnectorType.ATTIO]: 'live_source.refused.filter_operator',
             [ApiConnectorType.HUBSPOT]: 'live_source.refused.filter_operator',
+            [ApiConnectorType.SALESFORCE]:
+                'live_source.refused.filter_operator',
         },
         query: (connector) => ({
             filters: {

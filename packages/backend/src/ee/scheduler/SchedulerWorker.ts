@@ -134,6 +134,8 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     findAiUsageLedgerRetainedOrganizations: () => Promise<string[]>;
 };
 
+const API_SOURCE_RATE_LIMIT_RETENTION_MS = 2 * 24 * 60 * 60 * 1000;
+
 export class CommercialSchedulerWorker extends SchedulerWorker {
     // Saves this worker is running, so one a shutdown cuts short fails now and not when the sweep finds it.
     private readonly activeWritebackRuns = new Map<
@@ -419,6 +421,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 },
             },
             {
+                task: EE_SCHEDULER_TASKS.CLEAN_API_SOURCE_RATE_LIMITS,
+                pattern: '20 1 * * *', // 01:20 UTC daily
+                options: {
+                    backfillPeriod: 24 * 3600 * 1000,
+                    maxAttempts: 3,
+                },
+            },
+            {
                 task: EE_SCHEDULER_TASKS.CLEAN_DATA_APP_ANALYSES,
                 pattern: '55 0 * * *', // 00:55 UTC daily
                 options: {
@@ -546,6 +556,19 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     );
                 Logger.info(
                     `Rate counter cleanup completed. Analysis windows deleted: ${analysis}; external connection windows deleted: ${external}; live source windows deleted: ${apiSource}`,
+                );
+            },
+            [EE_SCHEDULER_TASKS.CLEAN_API_SOURCE_RATE_LIMITS]: async () => {
+                // Rows are reused in place, so only deleted integrations leave rows behind.
+                const cutoff = new Date(
+                    Date.now() - API_SOURCE_RATE_LIMIT_RETENTION_MS,
+                );
+                const deleted =
+                    await this.externalConnectionModel.deleteApiSourceRateLimitsBefore(
+                        cutoff,
+                    );
+                Logger.info(
+                    `Live data source rate-limit cleanup completed. Rows deleted: ${deleted}`,
                 );
             },
             [EE_SCHEDULER_TASKS.CLEAN_DATA_APP_ANALYSES]: async (
@@ -803,18 +826,6 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 payload,
             ) => {
                 await this.semanticStudioService.compileBranch(payload);
-            },
-            [EE_SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: async (
-                payload,
-                _helpers,
-            ) => {
-                await this.aiAgentService.embedArtifactVersion(payload);
-            },
-            [EE_SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: async (
-                payload,
-                _helpers,
-            ) => {
-                await this.aiAgentService.generateArtifactQuestion(payload);
             },
             [EE_SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: async (
                 payload,

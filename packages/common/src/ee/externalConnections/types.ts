@@ -72,19 +72,141 @@ export type PylonApiSource = {
     connector: ApiConnectorType.PYLON;
 };
 
+/** The Attio standard objects a source reads, one explore each, companies first. */
+export const ATTIO_OBJECTS = [
+    'companies',
+    'people',
+    'deals',
+    'users',
+    'workspaces',
+] as const;
+export type AttioObject = (typeof ATTIO_OBJECTS)[number];
+
+/** The access token picks the Attio workspace, so nothing else is set. */
 export type AttioApiSource = {
     connector: ApiConnectorType.ATTIO;
-    /** The slug of the Attio object the source reads, e.g. companies or deals. */
-    object: string;
 };
 
 /** The HubSpot CRM objects a source reads, one explore each. */
-export const HUBSPOT_OBJECTS = ['deals', 'contacts', 'companies'] as const;
+export const HUBSPOT_OBJECTS = [
+    'deals',
+    'contacts',
+    'companies',
+    'tickets',
+    'leads',
+] as const;
 export type HubspotObject = (typeof HUBSPOT_OBJECTS)[number];
+
+/**
+ * The private app scopes that read one object's records and properties.
+ * Tickets predate HubSpot's granular scopes; leads need Sales Hub
+ * Professional or Enterprise.
+ */
+export const getHubspotReadScopes = (object: HubspotObject): string[] => {
+    switch (object) {
+        case 'tickets':
+            return ['tickets'];
+        case 'leads':
+            return ['crm.objects.leads.read'];
+        default:
+            return [`crm.objects.${object}.read`, `crm.schemas.${object}.read`];
+    }
+};
 
 /** The private app's token picks the HubSpot account, so nothing else is set. */
 export type HubspotApiSource = {
     connector: ApiConnectorType.HUBSPOT;
+};
+
+/** The Salesforce objects a source reads, one explore each, Opportunity first. */
+export const SALESFORCE_OBJECTS = [
+    'Opportunity',
+    'Account',
+    'Lead',
+    'Contact',
+] as const;
+export type SalesforceObject = (typeof SALESFORCE_OBJECTS)[number];
+
+/** One sign-in reads every object in SALESFORCE_OBJECTS, so nothing else is set. */
+export type SalesforceApiSource = {
+    connector: ApiConnectorType.SALESFORCE;
+};
+
+/**
+ * An Amplitude project; its API key and secret key pick it, and the
+ * connection's origin says whether its data lives in the US or the EU.
+ */
+export type AmplitudeApiSource = {
+    connector: ApiConnectorType.AMPLITUDE;
+};
+
+/**
+ * Hydra, the test integration: its rows are seeded from the sign-in token,
+ * and these settings make its fake API slow, fail, page or rate limit.
+ * Every setting is optional; one left out takes its default
+ * (`HYDRA_DEFAULT_SETTINGS`).
+ */
+export type HydraApiSource = {
+    connector: ApiConnectorType.HYDRA;
+    /** Events seeded per sign-in token, over the last 90 days. */
+    rowCount?: number;
+    /** Rows per call, 10 or more; a bigger report takes several calls. 0 never pages. */
+    pageSize?: number;
+    /** Milliseconds each call waits before answering. */
+    latencyMs?: number;
+    /** Up to this many milliseconds more, at random, per call. */
+    jitterMs?: number;
+    /** Share of calls, 0 to 1, that fail with a 500. */
+    errorRate?: number;
+    /** Every call answers 401, as a revoked sign-in would. */
+    failAuth?: boolean;
+    /** The limits Hydra's API enforces, refusing calls past them; null enforces none. */
+    vendorLimits?: HydraRateLimits | null;
+    /** How Hydra refuses a call past `vendorLimits`. */
+    onLimit?: HydraOnLimit;
+    /**
+     * The limits Lightdash keeps the source's calls under: "vendor" copies
+     * `vendorLimits`, and null declares none.
+     */
+    declaredLimits?: 'vendor' | HydraRateLimits | null;
+    /** Fake answers a test sets for given calls, counted per source from 1; the first match wins. */
+    mockResponses?: HydraMockResponse[];
+};
+
+/** A Hydra source's settings with every default filled in. */
+export type HydraSettings = Required<Omit<HydraApiSource, 'connector'>>;
+
+/** Rate limits, in the shape the rate-limit gate reads. */
+export type HydraRateLimits = {
+    /** Calls in flight at once; null for no cap. */
+    concurrentCalls: number | null;
+    callsPerSecond: number | null;
+    /** Fixed windows of calls, like a minute or an hour: up to 5, unique ids, "second" kept for `callsPerSecond`. */
+    buckets: { id: string; windowMs: number; capacity: number }[];
+};
+
+export type HydraOnLimit = {
+    status: number;
+    /** How Retry-After is written: as seconds, as an HTTP date, or left out. */
+    retryAfterFormat: 'seconds' | 'date' | 'none';
+    /** The body Hydra answers; `{"code": "rate_limited"}` marks a throttle in a non-429. */
+    body?: Record<string, unknown>;
+};
+
+/**
+ * A fake answer a test sets for one call (`call`) or a range (`fromCall`, and `toCall`
+ * or every call after). Status 200 answers as usual, skipping `errorRate`;
+ * 400 to 599 is answered as given.
+ */
+export type HydraMockResponse = {
+    call?: number;
+    fromCall?: number;
+    toCall?: number;
+    status: number;
+    /** Sent as Retry-After; error statuses only. */
+    retryAfterSeconds?: number;
+    /** The error body; error statuses only. */
+    body?: Record<string, unknown>;
 };
 
 /** Connector settings of a live source; the server fixes its access rules. */
@@ -99,7 +221,10 @@ export type ExternalConnectionApiSource =
     | GithubApiSource
     | PylonApiSource
     | AttioApiSource
-    | HubspotApiSource;
+    | HubspotApiSource
+    | SalesforceApiSource
+    | AmplitudeApiSource
+    | HydraApiSource;
 
 /** The settings of one integration's sources. */
 export type ApiSourceOf<C extends ApiConnectorType> = Extract<
@@ -149,13 +274,46 @@ export const PYLON_ACCOUNTS_SEARCH_PATH = '/accounts/search';
 export const PYLON_CONTACTS_SEARCH_PATH = '/contacts/search';
 export const PYLON_USERS_PATH = '/users';
 
+/** Never resolves: Hydra answers in-process, so nothing is sent to it. */
+export const HYDRA_ORIGIN = 'https://hydra.invalid';
+export const HYDRA_REPORT_PATH = '/v1/report';
+export const HYDRA_ACCOUNT_PATH = '/v1/account';
+/** Set to "true" to register Hydra; it is absent everywhere otherwise. */
+export const HYDRA_ENABLED_ENV = 'LIVE_SOURCES_HYDRA_ENABLED';
+
 export const ATTIO_ORIGIN = 'https://api.attio.com';
+/** Owner names; reading them needs the user_management:read scope. */
+export const ATTIO_WORKSPACE_MEMBERS_PATH = '/v2/workspace_members';
 
 export const getAttioAttributesPath = (object: string) =>
     `/v2/objects/${object}/attributes`;
 
 export const getAttioRecordsQueryPath = (object: string) =>
     `/v2/objects/${object}/records/query`;
+
+/** Amplitude's Dashboard REST API, by where the project's data lives. */
+export const AMPLITUDE_REGION_ORIGINS = {
+    us: 'https://amplitude.com',
+    eu: 'https://analytics.eu.amplitude.com',
+} as const;
+export type AmplitudeRegion = keyof typeof AMPLITUDE_REGION_ORIGINS;
+
+export const getAmplitudeRegion = (origin: string): AmplitudeRegion =>
+    origin.replace(/\/+$/, '') === AMPLITUDE_REGION_ORIGINS.eu ? 'eu' : 'us';
+
+/** The Dashboard REST API endpoints a source reads. */
+export const AMPLITUDE_PATHS = {
+    segmentation: '/api/2/events/segmentation',
+    users: '/api/2/users',
+    funnels: '/api/2/funnels',
+    retention: '/api/2/retention',
+    sessionLength: '/api/2/sessions/average',
+    sessionsPerUser: '/api/2/sessions/peruser',
+    eventsList: '/api/2/events/list',
+} as const;
+
+/** Amplitude signs Dashboard REST API calls in with HTTP Basic: the API key, then the secret key. */
+export const AMPLITUDE_AUTH_HEADER = 'Authorization';
 
 export const HUBSPOT_ORIGIN = 'https://api.hubapi.com';
 
@@ -164,6 +322,51 @@ export const getHubspotPropertiesPath = (object: string) =>
 
 export const getHubspotSearchPath = (object: string) =>
     `/crm/v3/objects/${object}/search`;
+/** Every Salesforce call goes to this REST API version, so responses keep one shape. */
+export const SALESFORCE_API_VERSION = 'v62.0';
+
+/** Production orgs sign in at login.salesforce.com, sandboxes at test.salesforce.com. */
+export const SALESFORCE_ENVIRONMENTS = ['production', 'sandbox'] as const;
+export type SalesforceEnvironment = (typeof SALESFORCE_ENVIRONMENTS)[number];
+
+export const isSalesforceEnvironment = (
+    value: unknown,
+): value is SalesforceEnvironment =>
+    SALESFORCE_ENVIRONMENTS.includes(value as SalesforceEnvironment);
+
+/** Where people sign in to a Salesforce org. */
+export const SALESFORCE_LOGIN_ORIGINS: Record<SalesforceEnvironment, string> = {
+    production: 'https://login.salesforce.com',
+    sandbox: 'https://test.salesforce.com',
+};
+
+export const getSalesforceTokenUrl = (environment: SalesforceEnvironment) =>
+    `${SALESFORCE_LOGIN_ORIGINS[environment]}/services/oauth2/token`;
+
+/** The environment a saved source signed in to, from its token URL; null for any other URL. */
+export const getSalesforceEnvironment = (
+    tokenUrl: string | null,
+): SalesforceEnvironment | null =>
+    SALESFORCE_ENVIRONMENTS.find(
+        (environment) => getSalesforceTokenUrl(environment) === tokenUrl,
+    ) ?? null;
+
+export const SALESFORCE_QUERY_PATH = `/services/data/${SALESFORCE_API_VERSION}/query`;
+export const SALESFORCE_LIMITS_PATH = `/services/data/${SALESFORCE_API_VERSION}/limits`;
+
+export const getSalesforceDescribePath = (object: string) =>
+    `/services/data/${SALESFORCE_API_VERSION}/sobjects/${object}/describe`;
+
+/** Salesforce's shared login hosts, which never serve an org's API. */
+const SALESFORCE_SHARED_LOGIN_ORIGINS = Object.values(SALESFORCE_LOGIN_ORIGINS);
+
+/** An org's own API host, as its sign-in returns it: a My Domain such as https://acme.my.salesforce.com. */
+const SALESFORCE_INSTANCE_ORIGIN =
+    /^https:\/\/[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*\.salesforce\.com$/;
+
+export const isSalesforceInstanceOrigin = (origin: string) =>
+    SALESFORCE_INSTANCE_ORIGIN.test(origin.toLowerCase()) &&
+    !SALESFORCE_SHARED_LOGIN_ORIGINS.includes(origin.toLowerCase());
 
 /** HTTP methods an admin can opt a connection into. Single source of truth for
  *  the backend validation allowlist and the frontend method pickers. */
@@ -585,9 +788,11 @@ export type ApiListExternalConnectionSamplesResponse = {
     results: ExternalConnectionSample[];
 };
 
-/** What a live source has sent its integration across every logged query. */
+/** What a live source has sent its integration across the logged queries in the usage window. */
 export type ExternalConnectionApiUsage = {
     externalConnectionUuid: string;
+    /** How many days back the usage goes: the query history retention window. */
+    windowDays: number;
     apiCalls: number;
     /** Queries a stored result answered without calling the integration. */
     cacheHits: number;
@@ -599,6 +804,38 @@ export type ExternalConnectionApiUsage = {
 export type ApiExternalConnectionApiUsageResponse = {
     status: 'ok';
     results: ExternalConnectionApiUsage[];
+};
+
+/** One of an integration's declared limits, with Lightdash's calls in its current window. */
+export type ExternalConnectionRateLimitBucket = {
+    id: string;
+    /** As declared, such as "per hour". */
+    label: string;
+    windowMs: number;
+    capacity: number;
+    /** Calls in the current window; 0 when no window is open. */
+    used: number;
+    /** When the current window ends, ISO; null when no window is open. */
+    resetsAt: string | null;
+};
+
+/**
+ * Lightdash's own calls against an integration's declared rate limits, as of
+ * `checkedAt`. Other apps on the same vendor account aren't counted.
+ */
+export type ExternalConnectionRateLimitUsage = {
+    /** The integration's name, such as HubSpot. */
+    integrationLabel: string;
+    checkedAt: string;
+    /** Shortest window first. */
+    buckets: ExternalConnectionRateLimitBucket[];
+    /** When the vendor's pause ends, ISO; null when it hasn't paused the integration. */
+    limitedUntil: string | null;
+};
+
+export type ApiExternalConnectionRateLimitUsageResponse = {
+    status: 'ok';
+    results: ExternalConnectionRateLimitUsage;
 };
 
 export type ApiSourceSchemaEvent = {

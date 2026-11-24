@@ -65,7 +65,6 @@ function buildService() {
     };
     const getThread = vi.fn();
     const findThreadMessages = vi.fn().mockResolvedValue([]);
-    const getVerifiedQuestions = vi.fn().mockResolvedValue([]);
     const getCopilotConfig = vi.fn().mockResolvedValue({});
     const featureFlagGet = vi.fn().mockResolvedValue({ enabled: false });
     const getSpaces = vi.fn().mockResolvedValue([]);
@@ -75,7 +74,7 @@ function buildService() {
     const service = new AiAgentService({
         analytics: { track },
         prometheusMetrics: metrics,
-        aiAgentModel: { getThread, findThreadMessages, getVerifiedQuestions },
+        aiAgentModel: { getThread, findThreadMessages },
         orgAiCopilotConfigResolver: {
             getCopilotConfig,
             resolveFastModel: vi
@@ -120,7 +119,6 @@ function buildService() {
         getAvailableExplores,
         getThread,
         findThreadMessages,
-        getVerifiedQuestions,
         getSpaces,
         getCopilotConfig,
         getWarehouseTables,

@@ -3,8 +3,7 @@ import { type FC, type ReactNode } from 'react';
 import { BetaBadge } from '../../../components/common/BetaBadge';
 import { isLiveSourceBeta } from './liveSourceBeta';
 
-const TOOLTIP =
-    'Live data sources are in beta. Query support and fields may change.';
+const TOOLTIP = 'In beta, so queries and fields may still change';
 
 /** The Beta badge on every surface that names a live data source. */
 export const LiveSourceBetaBadge: FC = () =>

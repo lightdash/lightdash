@@ -480,7 +480,10 @@ import {
     ProjectAdapter,
     TrackingParams,
 } from '../../types';
-import { type DbtManifestFetchResult } from '../../types';
+import {
+    type DbtManifestFetchResult,
+    type DbtSourcePreparation,
+} from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import {
     captureAgentConnectionTask,
@@ -547,6 +550,7 @@ import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/
 import { type PermissionsService } from '../PermissionsService/PermissionsService';
 import { compileLiveMetricQuery } from '../QuerySourceService/live/explores/build';
 import { assertLiveQuery } from '../QuerySourceService/live/explores/definition';
+import { getLiveIntegration } from '../QuerySourceService/live/registry';
 import { resolveCliPreviewDeploy } from '../resolveCliPreviewDeploy';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
@@ -8485,11 +8489,29 @@ export class ProjectService
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
         projectUuid: string,
         branch: string,
-    ): Promise<(Explore | ExploreError)[]> {
+    ): Promise<{
+        explores: (Explore | ExploreError)[];
+        timings: DbtSourcePreparation['timings'] & { dbtCompileMs: number };
+    }> {
         return this.withCompileAdapter(
             projectUuid,
             user,
-            ({ adapter }) => adapter.compileAllExplores(undefined, false, true),
+            async ({ adapter }) => {
+                const { timings } = await adapter.prepareDbtSource();
+                const startedAt = Date.now();
+                const explores = await adapter.compileAllExplores(
+                    undefined,
+                    false,
+                    true,
+                );
+                return {
+                    explores,
+                    timings: {
+                        ...timings,
+                        dbtCompileMs: Date.now() - startedAt,
+                    },
+                };
+            },
             [],
             branch,
         );
@@ -10534,6 +10556,12 @@ export class ProjectService
         userAttributeOverrides?: UserAttributeValueMap;
         /** Composer only: names a source of a shared explore by its node title, not its slot. */
         sourceTitleById?: Record<string, string>;
+        /**
+         * Composer only: each source is a node that already runs at its own
+         * limit, so a live data source can be a source; its rows are joined
+         * in DuckDB.
+         */
+        sourcesRunAsNodes?: boolean;
         /** Composer only: the date zoom each metric source's leg runs with. */
         dateZoomBySourceId?: Record<string, DateZoom>;
     }): Promise<ApiCompiledMergeQueryResults> {
@@ -10795,6 +10823,47 @@ export class ProjectService
                         id: source.id,
                         sql: null,
                         metricQuery: null,
+                        valueColumns,
+                        missingParameters: [],
+                        parameterReferences: [],
+                        usedParametersValues: {},
+                        originBySourceColumn,
+                    };
+                }
+
+                // A live data source leg runs on its integration as its own
+                // query, and the join reads its rows in DuckDB like a stored
+                // result; it has no SQL. It gets the refusals it would get alone.
+                const explore = exploreBySourceId[source.id];
+                if (
+                    args.sourcesRunAsNodes &&
+                    explore?.type === ExploreType.API_SOURCE
+                ) {
+                    const { integration } = assertLiveQuery(
+                        explore,
+                        resolvedMetricQuery,
+                        {
+                            dateZoomGranularity:
+                                args.dateZoomBySourceId?.[source.id]
+                                    ?.granularity,
+                        },
+                    );
+                    // A leg cut short at the integration's cap would join
+                    // as if its missing rows did not exist
+                    const { label, limits } = getLiveIntegration(integration);
+                    if (resolvedMetricQuery.limit > limits.maxRows) {
+                        throw new ParameterError(
+                            `Merge source "${source.id}" asks for ${resolvedMetricQuery.limit.toLocaleString(
+                                'en-US',
+                            )} rows, but one ${label} query returns at most ${limits.maxRows.toLocaleString(
+                                'en-US',
+                            )}. Lower its limit or narrow it with a filter.`,
+                        );
+                    }
+                    return {
+                        id: source.id,
+                        sql: null,
+                        metricQuery: resolvedMetricQuery,
                         valueColumns,
                         missingParameters: [],
                         parameterReferences: [],

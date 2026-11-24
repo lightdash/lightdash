@@ -110,14 +110,29 @@ const buildService = ({
         create: vi.fn().mockResolvedValue(connections[0]),
         update: vi.fn().mockResolvedValue(connections[0]),
         softDelete: vi.fn().mockResolvedValue(undefined),
-        tryAcquireApiSourceCallLease: vi.fn().mockResolvedValue(true),
-        tryCountApiSourceCall: vi.fn().mockResolvedValue(true),
-        releaseApiSourceCallLease: vi.fn().mockResolvedValue(undefined),
+        chargeApiSourceRateBuckets: vi.fn().mockResolvedValue({
+            charged: true,
+            now: new Date(),
+            windows: [],
+        }),
+        refundApiSourceRateBuckets: vi.fn().mockResolvedValue(undefined),
+        holdApiSourceRateBuckets: vi.fn().mockResolvedValue(undefined),
+        bookApiSourceRateTurn: vi.fn().mockImplementation(async () => ({
+            booked: true,
+            turnAt: new Date(),
+            now: new Date(),
+        })),
+        tryTakeApiSourceRateSlot: vi.fn().mockResolvedValue(true),
+        releaseApiSourceRateSlot: vi.fn().mockResolvedValue(undefined),
         insertApiSourceCall: vi.fn().mockResolvedValue(undefined),
         setLiveSourceCacheTtl: vi.fn().mockResolvedValue(undefined),
         purgeLiveSourceCache: vi.fn().mockResolvedValue(undefined),
         rotateSecret: vi.fn().mockResolvedValue(undefined),
         getApiSourceUsage: vi.fn().mockResolvedValue([]),
+        getApiSourceRateUsage: vi.fn().mockResolvedValue({
+            now: new Date('2026-11-23T14:00:00.000Z'),
+            buckets: [],
+        }),
         setApiSourceSchema: vi.fn().mockResolvedValue(undefined),
         getApiSourceSchemas: vi.fn().mockResolvedValue(new Map()),
         listDeletedLiveSources: vi.fn().mockResolvedValue(deletedSources),
@@ -303,7 +318,12 @@ beforeEach(() => {
 describe('ExternalConnectionService api sources', () => {
     it('runs a PostHog query through the guarded fetch with the stored key', async () => {
         const { service } = buildService();
-        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
+        const source = await service.getLiveSource(
+            account,
+            'proj-1',
+            'conn-1',
+            60_000,
+        );
 
         const result = await runLiveRequest(source, {
             query: 'SELECT 1 AS a',
@@ -323,7 +343,7 @@ describe('ExternalConnectionService api sources', () => {
             connections: [posthogConnection({ apiSource: null })],
         });
         await expect(
-            service.getLiveSource(account, 'proj-1', 'conn-1'),
+            service.getLiveSource(account, 'proj-1', 'conn-1', 60_000),
         ).rejects.toThrow(ParameterError);
     });
 
@@ -332,14 +352,14 @@ describe('ExternalConnectionService api sources', () => {
             connections: [posthogConnection({ kind: 'data_app' })],
         });
         await expect(
-            service.getLiveSource(account, 'proj-1', 'conn-1'),
+            service.getLiveSource(account, 'proj-1', 'conn-1', 60_000),
         ).rejects.toThrow(ParameterError);
     });
 
     it('refuses an account that cannot view the connection', async () => {
         const { service } = buildService({ canView: false });
         await expect(
-            service.getLiveSource(account, 'proj-1', 'conn-1'),
+            service.getLiveSource(account, 'proj-1', 'conn-1', 60_000),
         ).rejects.toThrow(ForbiddenError);
     });
 
@@ -348,7 +368,12 @@ describe('ExternalConnectionService api sources', () => {
             new SecureFetchError('timeout', 'timed out'),
         );
         const { service } = buildService();
-        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
+        const source = await service.getLiveSource(
+            account,
+            'proj-1',
+            'conn-1',
+            60_000,
+        );
         await expect(
             runLiveRequest(source, { query: 'SELECT 1 AS a', limit: 10 }),
         ).rejects.toThrow(TimeoutError);
@@ -356,7 +381,12 @@ describe('ExternalConnectionService api sources', () => {
 
     it('logs a finished query with what its calls cost', async () => {
         const { service, externalConnectionModel, analytics } = buildService();
-        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
+        const source = await service.getLiveSource(
+            account,
+            'proj-1',
+            'conn-1',
+            60_000,
+        );
         await runLiveRequest(source, { query: 'SELECT 1 AS a', limit: 10 });
         const { bodyText } = await mockSecureFetch.mock.results[0].value;
 
@@ -366,6 +396,7 @@ describe('ExternalConnectionService api sources', () => {
             query: 'SELECT 1 AS a',
             rowLimit: 10,
             outcome: 'ok',
+            errorCode: null,
             errorMessage: null,
             durationMs: 120,
             rowCount: 1,
@@ -426,7 +457,12 @@ describe('ExternalConnectionService api sources', () => {
         externalConnectionModel.insertApiSourceCall.mockRejectedValue(
             new Error('database is down'),
         );
-        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
+        const source = await service.getLiveSource(
+            account,
+            'proj-1',
+            'conn-1',
+            60_000,
+        );
         await expect(
             runLiveRequest(source, { query: 'SELECT 1 AS a', limit: 10 }),
         ).rejects.toThrow(TimeoutError);
@@ -443,6 +479,7 @@ describe('ExternalConnectionService api sources', () => {
                 query: 'SELECT 1 AS a',
                 rowLimit: 10,
                 outcome: 'timeout',
+                errorCode: 'live_source.upstream.timeout',
                 errorMessage: 'timed out',
                 durationMs: 45_000,
                 rowCount: null,
@@ -453,9 +490,14 @@ describe('ExternalConnectionService api sources', () => {
         ).resolves.toBeUndefined();
     });
 
-    it('tells a failure of ours from the integration failing', async () => {
+    it('tells a refusal and a failure of ours from the integration failing', async () => {
         const { service, analytics } = buildService();
-        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
+        const source = await service.getLiveSource(
+            account,
+            'proj-1',
+            'conn-1',
+            60_000,
+        );
         const call = {
             queryUuid: 'query-3',
             context: QueryExecutionContext.AI,
@@ -469,8 +511,21 @@ describe('ExternalConnectionService api sources', () => {
             cacheHit: false,
         };
 
-        await source.logCall({ ...call, outcome: 'timeout' });
-        await source.logCall({ ...call, outcome: 'invalid_request' });
+        await source.logCall({
+            ...call,
+            outcome: 'timeout',
+            errorCode: 'live_source.upstream.timeout',
+        });
+        await source.logCall({
+            ...call,
+            outcome: 'invalid_request',
+            errorCode: 'live_source.internal.invalid_request',
+        });
+        await source.logCall({
+            ...call,
+            outcome: 'invalid_request',
+            errorCode: 'live_source.refused.row_limit',
+        });
 
         const tracked = analytics.trackAccount.mock.calls.map(
             ([, event]) => event.properties,
@@ -484,12 +539,21 @@ describe('ExternalConnectionService api sources', () => {
                 errorOrigin: 'internal',
                 errorCode: 'live_source.internal.invalid_request',
             }),
+            expect.objectContaining({
+                errorOrigin: 'refused',
+                errorCode: 'live_source.refused.row_limit',
+            }),
         ]);
     });
 
     it('logs a reused result as a cache hit that made no API calls', async () => {
         const { service, externalConnectionModel, analytics } = buildService();
-        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
+        const source = await service.getLiveSource(
+            account,
+            'proj-1',
+            'conn-1',
+            60_000,
+        );
 
         await source.logCall({
             queryUuid: 'query-2',
@@ -497,6 +561,7 @@ describe('ExternalConnectionService api sources', () => {
             query: 'SELECT 1 AS a',
             rowLimit: 10,
             outcome: 'ok',
+            errorCode: null,
             errorMessage: null,
             durationMs: 8,
             rowCount: 1,
@@ -549,6 +614,53 @@ describe('ExternalConnectionService api sources', () => {
     });
 });
 
+describe('ExternalConnectionService rate-limit usage', () => {
+    it('reads the shared buckets of the source under its integration limits', async () => {
+        const { service, externalConnectionModel } = buildService();
+        const usage = await service.getApiSourceRateLimitUsage(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+
+        expect(
+            externalConnectionModel.getApiSourceRateUsage,
+        ).toHaveBeenCalledWith('conn-1');
+        expect(usage).toMatchObject({
+            checkedAt: '2026-11-23T14:00:00.000Z',
+            limitedUntil: null,
+        });
+    });
+
+    it('refuses an account that cannot view the source', async () => {
+        const { service, externalConnectionModel } = buildService({
+            canView: false,
+        });
+        await expect(
+            service.getApiSourceRateLimitUsage(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow(ForbiddenError);
+        expect(
+            externalConnectionModel.getApiSourceRateUsage,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('refuses a connection that is not a live data source', async () => {
+        const { service } = buildService({
+            connections: [posthogConnection({ apiSource: null })],
+        });
+        await expect(
+            service.getApiSourceRateLimitUsage(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    it('refuses while live sources are off', async () => {
+        const { service } = buildService({ liveSourcesEnabled: false });
+        await expect(
+            service.getApiSourceRateLimitUsage(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow();
+    });
+});
+
 describe('ExternalConnectionService api source schema scans', () => {
     it('scans events and property keys in two calls and stores the result', async () => {
         mockSecureFetch
@@ -592,12 +704,63 @@ describe('ExternalConnectionService api source schema scans', () => {
         });
         expect(mockSecureFetch).toHaveBeenCalledTimes(2);
         expect(
-            externalConnectionModel.tryCountApiSourceCall,
+            externalConnectionModel.chargeApiSourceRateBuckets,
         ).toHaveBeenCalled();
         expect(externalConnectionModel.setApiSourceSchema).toHaveBeenCalledWith(
             'conn-1',
             scan,
         );
+    });
+
+    it('waits out a 429 part-way through a scan and keeps what it read', async () => {
+        mockSecureFetch
+            .mockResolvedValueOnce(
+                postHogQueryResponse(
+                    [
+                        ['event_name', 'String'],
+                        ['event_count', 'UInt64'],
+                    ],
+                    [['$pageview', 1200]],
+                ),
+            )
+            .mockResolvedValueOnce({
+                status: 429,
+                contentType: 'application/json',
+                headers: { 'retry-after': '0' },
+                bodyText: JSON.stringify({ detail: 'Slow down' }),
+                truncated: false,
+            })
+            .mockResolvedValueOnce(
+                postHogQueryResponse(
+                    [
+                        ['property_key', 'String'],
+                        ['occurrences', 'UInt64'],
+                    ],
+                    [['$browser', 900]],
+                ),
+            );
+        const { service, externalConnectionModel } = buildService();
+        externalConnectionModel.chargeApiSourceRateBuckets.mockResolvedValue({
+            charged: true,
+            now: new Date(),
+            windows: [{ bucketId: 'minute', windowStartedAt: new Date() }],
+        });
+
+        const scan = await service.scanApiSourceSchema(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+
+        expect(scan).toMatchObject({
+            status: 'ready',
+            events: [{ name: '$pageview', count: 1200 }],
+            propertyKeys: ['$browser'],
+        });
+        expect(mockSecureFetch).toHaveBeenCalledTimes(3);
+        expect(
+            externalConnectionModel.holdApiSourceRateBuckets,
+        ).toHaveBeenCalledOnce();
     });
 
     it('stores a failed scan when PostHog refuses the key', async () => {
@@ -815,6 +978,7 @@ describe('ExternalConnectionService live source cache', () => {
             account,
             'proj-1',
             'conn-1',
+            60_000,
         );
         expect(source.cache).toEqual({
             scope: { kind: 'source' },
@@ -837,6 +1001,7 @@ describe('ExternalConnectionService live source cache', () => {
             account,
             'proj-1',
             'conn-1',
+            60_000,
         );
         expect(source.cache).toMatchObject({ ttlSeconds: 900, purgedAt });
     });
@@ -1027,7 +1192,8 @@ describe('ExternalConnectionService live source explores', () => {
         const [explore] =
             projectModel.replaceApiSourceExplores.mock.calls[0][2];
         expect(explore.name).toBe('product_analytics_events');
-        expect(explore.label).toContain('Renamed');
+        // The source's name labels the folder; the explore keeps its model's
+        expect(explore.groupLabel).toContain('Renamed');
     });
 
     it("doesn't build a changed target from the old target's last scan", async () => {
@@ -1088,6 +1254,56 @@ describe('ExternalConnectionService live source explores', () => {
         expect(
             externalConnectionModel.purgeLiveSourceCache,
         ).toHaveBeenCalledTimes(2);
+    });
+
+    it('moves a key source to another region and project with a new key', async () => {
+        const target = {
+            connector: ApiConnectorType.POSTHOG,
+            projectId: '999',
+        } as const;
+        const { service, externalConnectionModel } = buildService();
+        externalConnectionModel.update.mockResolvedValue(
+            posthogConnection({
+                origin: 'https://us.posthog.com',
+                apiSource: target,
+            }),
+        );
+
+        await service.update(account, 'proj-1', 'conn-1', {
+            origin: 'https://us.posthog.com',
+            apiSource: target,
+            secret: 'phx_us',
+        });
+
+        expect(externalConnectionModel.update).toHaveBeenCalledWith(
+            'conn-1',
+            expect.anything(),
+            expect.objectContaining({
+                origin: 'https://us.posthog.com',
+                secret: 'phx_us',
+                apiSource: target,
+                allowedPathPrefixes: expect.arrayContaining([
+                    '/api/projects/999/query/',
+                ]),
+            }),
+        );
+        expect(
+            externalConnectionModel.purgeLiveSourceCache,
+        ).toHaveBeenCalledExactlyOnceWith('conn-1', expect.any(Date));
+    });
+
+    it('asks for the key again to move a key source to another region', async () => {
+        const { service, externalConnectionModel } = buildService();
+
+        await expect(
+            service.update(account, 'proj-1', 'conn-1', {
+                origin: 'https://us.posthog.com',
+            }),
+        ).rejects.toThrow('Re-enter the secret to change the origin');
+        expect(externalConnectionModel.update).not.toHaveBeenCalled();
+        expect(
+            externalConnectionModel.purgeLiveSourceCache,
+        ).not.toHaveBeenCalled();
     });
 
     it('keeps reusing results after a rename', async () => {
@@ -1962,6 +2178,7 @@ describe('ExternalConnectionService live source explores', () => {
             account,
             'proj-1',
             'conn-1',
+            60_000,
         );
         expect(source.integration.connector).toBe(ApiConnectorType.POSTHOG);
     });

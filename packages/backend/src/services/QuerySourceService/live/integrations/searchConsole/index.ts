@@ -25,6 +25,7 @@ import {
     SEARCH_CONSOLE_SITES_PATH,
     searchConsoleRequestSchema,
 } from './run';
+import { searchConsoleUseCases } from './useCases';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.SEARCH_CONSOLE];
 const LABEL = CATALOG.messageLabel;
@@ -42,11 +43,7 @@ export const searchConsoleIntegration = defineLiveIntegration({
         pathPrefixes: [SEARCH_CONSOLE_SITES_PATH],
         methods: ['POST'],
     }),
-    // Search Analytics allows 1,200 queries a minute per site and per user.
     limits: {
-        concurrentCalls: 5,
-        callsPerMinute: 600,
-        callsPerHour: 20_000,
         callsPerQuery: 1,
         timeoutMs: 30_000,
         maxRows: SEARCH_CONSOLE_MAX_QUERY_ROWS,
@@ -75,6 +72,39 @@ export const searchConsoleIntegration = defineLiveIntegration({
     },
     explores: [SEARCH_CONSOLE_PERFORMANCE_EXPLORE],
     plannedModelNames: ['search_appearance'],
+    level: { value: 3, description: 'Reports return totals per dimension.' },
+    auth: {
+        description:
+            'Needs Google verification of the scope; unverified apps show a warning screen and are capped at 100 users.',
+        testWith: 'real_account',
+        needs: ['gmail', 'invite'],
+        token: false,
+        oauth: 'needs_review',
+    },
+    paging: {
+        description:
+            'One call returns up to 25,000 rows; startRow pages beyond that.',
+    },
+    // Search Analytics allows 1,200 queries a minute per site and per user.
+    rateLimits: {
+        concurrentCalls: 5,
+        callsPerSecond: null,
+        buckets: [
+            {
+                id: 'minute',
+                label: 'per minute',
+                windowMs: 60_000,
+                capacity: 600,
+            },
+            {
+                id: 'hour',
+                label: 'per hour',
+                windowMs: 3_600_000,
+                capacity: 20_000,
+            },
+        ],
+    },
+    useCases: searchConsoleUseCases,
     validate: ({ siteUrl }) => {
         if (!SITE_URL.test(siteUrl)) {
             throw new ParameterError(

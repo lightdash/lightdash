@@ -1,28 +1,37 @@
 import { z } from 'zod';
 import {
+    getHubspotReadScopes,
+    HUBSPOT_OBJECTS,
     type ApiSourceOf,
     type ExternalConnectionApiSource,
 } from '../ee/externalConnections/types';
 import { ApiConnectorType } from '../types/querySources';
+import { HYDRA_SETTINGS_SCHEMA } from './hydraLiveSource';
 
 /** How an admin connects a source, which decides the dialog it opens. */
 export type LiveSourceSetupKind =
     | 'google'
     | 'posthog'
     | 'token'
-    | 'linkedin_ads';
+    | 'linkedin_ads'
+    | 'salesforce'
+    | 'amplitude';
 
 type LiveIntegrationCatalogFields<C extends ApiConnectorType> = {
     /** Stable id, sent with analytics events. */
     id: string;
     /** The name people see when adding and listing sources. */
     label: string;
+    /** What a new source is called until someone renames it. */
+    defaultName: string;
     /** The name refusals and API errors use. */
     messageLabel: string;
     /** The name AI agents read and repeat. */
     agentLabel: string;
     description: string;
     setup: LiveSourceSetupKind;
+    /** Exact scope or permission names a key needs, for sources added with one. */
+    scopes?: readonly string[];
     /** The settings a source stores; checked against the API type. */
     settings: z.ZodType<ApiSourceOf<C>>;
     /** What one source reads, shown wherever it is listed. */
@@ -41,10 +50,12 @@ export const LIVE_INTEGRATION_CATALOG: {
     [ApiConnectorType.POSTHOG]: {
         id: 'posthog',
         label: 'PostHog',
+        defaultName: 'PostHog',
         messageLabel: 'PostHog',
         agentLabel: 'PostHog',
-        description: 'Product events, persons and sessions with HogQL',
+        description: 'Events, persons and sessions',
         setup: 'posthog',
+        scopes: ['query:read'],
         settings: z.object({
             connector: z.literal(ApiConnectorType.POSTHOG),
             projectId: z.string(),
@@ -55,6 +66,7 @@ export const LIVE_INTEGRATION_CATALOG: {
     [ApiConnectorType.SEARCH_CONSOLE]: {
         id: 'google_search_console',
         label: 'Google Search Console',
+        defaultName: 'Search Console',
         messageLabel: 'Search Console',
         agentLabel: 'Search Console',
         description: 'Search clicks, impressions, CTR and position',
@@ -69,9 +81,10 @@ export const LIVE_INTEGRATION_CATALOG: {
     [ApiConnectorType.GA4]: {
         id: 'google_analytics',
         label: 'Google Analytics 4',
+        defaultName: 'Google Analytics',
         messageLabel: 'Google Analytics',
         agentLabel: 'Google Analytics 4',
-        description: 'Users, sessions, events and revenue for a property',
+        description: 'Users, sessions, events and revenue',
         setup: 'google',
         settings: z.object({
             connector: z.literal(ApiConnectorType.GA4),
@@ -83,10 +96,12 @@ export const LIVE_INTEGRATION_CATALOG: {
     [ApiConnectorType.META_ADS]: {
         id: 'meta_ads',
         label: 'Meta Ads',
+        defaultName: 'Meta Ads',
         messageLabel: 'Meta Ads',
         agentLabel: 'Meta Ads',
         description: 'Facebook and Instagram ad performance',
         setup: 'token',
+        scopes: ['ads_read'],
         settings: z.object({
             connector: z.literal(ApiConnectorType.META_ADS),
             adAccountId: z.string(),
@@ -96,6 +111,7 @@ export const LIVE_INTEGRATION_CATALOG: {
     [ApiConnectorType.GOOGLE_ADS]: {
         id: 'google_ads',
         label: 'Google Ads',
+        defaultName: 'Google Ads',
         messageLabel: 'Google Ads',
         agentLabel: 'Google Ads',
         description: 'Campaign spend, clicks and conversions',
@@ -110,6 +126,7 @@ export const LIVE_INTEGRATION_CATALOG: {
     [ApiConnectorType.YOUTUBE_ANALYTICS]: {
         id: 'youtube_analytics',
         label: 'YouTube Analytics',
+        defaultName: 'YouTube Analytics',
         messageLabel: 'YouTube Analytics',
         agentLabel: 'YouTube Analytics',
         description: 'Channel views, watch time and subscribers',
@@ -123,6 +140,7 @@ export const LIVE_INTEGRATION_CATALOG: {
     [ApiConnectorType.LINKEDIN_ADS]: {
         id: 'linkedin_ads',
         label: 'LinkedIn Ads',
+        defaultName: 'LinkedIn Ads',
         messageLabel: 'LinkedIn Ads',
         agentLabel: 'LinkedIn Ads',
         description: 'Campaign reach, clicks and leads',
@@ -136,10 +154,12 @@ export const LIVE_INTEGRATION_CATALOG: {
     [ApiConnectorType.GITHUB]: {
         id: 'github',
         label: 'GitHub',
+        defaultName: 'GitHub',
         messageLabel: 'GitHub',
         agentLabel: 'GitHub',
-        description: 'Pull requests, issues and contributors of a repository',
+        description: 'Pull requests, issues and contributors',
         setup: 'token',
+        scopes: ['Metadata', 'Issues', 'Pull requests'],
         settings: z.object({
             connector: z.literal(ApiConnectorType.GITHUB),
             owner: z.string(),
@@ -150,6 +170,7 @@ export const LIVE_INTEGRATION_CATALOG: {
     [ApiConnectorType.PYLON]: {
         id: 'pylon',
         label: 'Pylon',
+        defaultName: 'Pylon',
         messageLabel: 'Pylon',
         agentLabel: 'Pylon',
         description: 'Support issues, accounts and contacts',
@@ -162,27 +183,67 @@ export const LIVE_INTEGRATION_CATALOG: {
     [ApiConnectorType.ATTIO]: {
         id: 'attio',
         label: 'Attio',
+        defaultName: 'Attio',
         messageLabel: 'Attio',
         agentLabel: 'Attio',
-        description: 'Records of one CRM object, such as companies or deals',
+        description: 'Companies, people, deals and workspaces',
         setup: 'token',
         settings: z.object({
             connector: z.literal(ApiConnectorType.ATTIO),
-            object: z.string(),
         }),
-        getTarget: ({ object }) => `Object ${object}`,
+        getTarget: () => 'Attio workspace',
     },
     [ApiConnectorType.HUBSPOT]: {
         id: 'hubspot',
         label: 'HubSpot',
+        defaultName: 'HubSpot',
         messageLabel: 'HubSpot',
         agentLabel: 'HubSpot',
-        description: 'Deals, contacts and companies from your CRM',
+        description:
+            'Deals, contacts, companies, tickets and leads from your CRM',
         setup: 'token',
+        scopes: HUBSPOT_OBJECTS.flatMap(getHubspotReadScopes),
         settings: z.object({
             connector: z.literal(ApiConnectorType.HUBSPOT),
         }),
         getTarget: () => 'HubSpot account',
+    },
+    [ApiConnectorType.SALESFORCE]: {
+        id: 'salesforce',
+        label: 'Salesforce',
+        defaultName: 'Salesforce',
+        messageLabel: 'Salesforce',
+        agentLabel: 'Salesforce',
+        description: 'Opportunities, accounts, leads and contacts',
+        setup: 'salesforce',
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.SALESFORCE),
+        }),
+        getTarget: () => 'Salesforce org',
+    },
+    [ApiConnectorType.AMPLITUDE]: {
+        id: 'amplitude',
+        label: 'Amplitude',
+        defaultName: 'Amplitude',
+        messageLabel: 'Amplitude',
+        agentLabel: 'Amplitude',
+        description: 'Events, active users, funnels, retention and sessions',
+        setup: 'amplitude',
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.AMPLITUDE),
+        }),
+        getTarget: () => 'Amplitude project',
+    },
+    [ApiConnectorType.HYDRA]: {
+        id: 'hydra',
+        label: 'Hydra',
+        defaultName: 'Hydra',
+        messageLabel: 'Hydra',
+        agentLabel: 'Hydra',
+        description: 'Test integration with seeded events and users',
+        setup: 'token',
+        settings: HYDRA_SETTINGS_SCHEMA,
+        getTarget: () => 'Hydra test data',
     },
 };
 
@@ -219,17 +280,12 @@ export const REQUESTABLE_LIVE_INTEGRATIONS = [
     {
         id: 'shopify',
         label: 'Shopify',
-        description: 'Orders, products and sales with ShopifyQL',
+        description: 'Orders, products and sales',
     },
     {
         id: 'stripe',
         label: 'Stripe',
         description: 'Payments, subscriptions and revenue',
-    },
-    {
-        id: 'salesforce',
-        label: 'Salesforce',
-        description: 'Accounts, opportunities and pipeline with SOQL',
     },
     {
         id: 'mixpanel',
@@ -239,6 +295,6 @@ export const REQUESTABLE_LIVE_INTEGRATIONS = [
     {
         id: 'jira',
         label: 'Jira',
-        description: 'Issues, sprints and cycle time with JQL',
+        description: 'Issues, sprints and cycle time',
     },
 ] as const;

@@ -18,11 +18,12 @@ import {
 import { WorkerPoolContextProvider } from '@pierre/diffs/react';
 import {
     IconAlertTriangle,
+    IconChevronDown,
     IconDots,
     IconExternalLink,
     IconEye,
     IconFileCode,
-    IconPlayerPlay,
+    IconPencil,
 } from '@tabler/icons-react';
 import { sortBy, uniqBy } from 'es-toolkit/compat';
 import { useContext, useEffect, useRef, useState, type FC } from 'react';
@@ -34,7 +35,6 @@ import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
-import { TryIt } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/TryItButton';
 import { useStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
@@ -44,7 +44,6 @@ import { useDevelopmentView } from './developmentView';
 import {
     ChangeQueue,
     DraftUsage,
-    MetricComparison,
     ModelNotices,
     PublishChecklist,
     PublishSummary,
@@ -57,7 +56,6 @@ import {
     count,
     countChangedLines,
     countPublishedChanges,
-    describeModelChange,
     DRAFT_PARAM,
     DRAFT_REVIEW,
     getChangeKind,
@@ -202,17 +200,21 @@ export const ApplyModal: FC<{
                 new Map(
                     scoped.map((entry) => [
                         entry.model,
-                        listFieldChanges(
-                            entry.model,
-                            draft.changes.flatMap((change) =>
-                                change.models
-                                    .filter(
-                                        (part) => part.model === entry.model,
-                                    )
-                                    .flatMap((part) => part.changes),
+                        {
+                            kind: getChangeKind(entry),
+                            fields: listFieldChanges(
+                                entry.model,
+                                draft.changes.flatMap((change) =>
+                                    change.models
+                                        .filter(
+                                            (part) =>
+                                                part.model === entry.model,
+                                        )
+                                        .flatMap((part) => part.changes),
+                                ),
+                                entry,
                             ),
-                            entry,
-                        ),
+                        },
                     ]),
                 ),
             );
@@ -476,7 +478,6 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const [publishing, setPublishing] = useState(false);
     const [discarding, setDiscarding] = useState(false);
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
-    const [isTrying, setIsTrying] = useState(false);
     const discard = useDiscardSemanticLayerDraft(projectUuid);
     const { startNewThread } = useStudioAgent(projectUuid);
     const asPullRequest = usePublishMode(projectUuid) === 'pull_request';
@@ -497,9 +498,62 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const blocked = cannotApply(draft, null);
     const conflicts = countConflicts(draft, null);
     // A removed model has nothing to open.
+    const showsPublish = conflicts === 0 && draft.models.length > 0;
     const tryModel =
         draft.models.find((entry) => getChangeKind(entry) !== 'removed')
             ?.model ?? null;
+    const moreMenu = (
+        <Menu position="bottom-end" withinPortal>
+            <Menu.Target>
+                {showsPublish ? (
+                    <Button
+                        size="xs"
+                        px={6}
+                        aria-label="More actions"
+                        className={classes.publishMore}
+                    >
+                        <MantineIcon icon={IconChevronDown} />
+                    </Button>
+                ) : (
+                    <ActionIcon
+                        size="md"
+                        aria-label="More actions"
+                        variant="subtle"
+                        color="gray"
+                    >
+                        <MantineIcon icon={IconDots} />
+                    </ActionIcon>
+                )}
+            </Menu.Target>
+            <Menu.Dropdown>
+                {tryModel ? (
+                    <Menu.Item
+                        component={Link}
+                        to={`/projects/${projectUuid}/tables/${encodeURIComponent(tryModel)}`}
+                    >
+                        Open in Explore
+                    </Menu.Item>
+                ) : null}
+                <Menu.Item
+                    disabled={
+                        check.isLoading || impact.data?.status === 'checking'
+                    }
+                    onClick={() => {
+                        check.mutate(undefined);
+                        setSearchParams({
+                            [DRAFT_PARAM]: DRAFT_REVIEW,
+                        });
+                    }}
+                >
+                    Check saved charts and dashboards
+                </Menu.Item>
+                <Menu.Divider />
+                <Menu.Item color="red" onClick={() => setDiscarding(true)}>
+                    Discard draft
+                </Menu.Item>
+            </Menu.Dropdown>
+        </Menu>
+    );
     return (
         <>
             <DevelopmentBar
@@ -511,26 +565,6 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                     )
                 }
             >
-                {tryModel ? (
-                    <Tooltip
-                        multiline
-                        w={240}
-                        label="Opens Explore over this page with your changes. Only you see them until you publish."
-                    >
-                        <Button
-                            size="xs"
-                            variant="subtle"
-                            color="gray"
-                            flex="none"
-                            leftSection={
-                                <MantineIcon icon={IconPlayerPlay} size={12} />
-                            }
-                            onClick={() => setIsTrying(true)}
-                        >
-                            Try it
-                        </Button>
-                    </Tooltip>
-                ) : null}
                 {conflicts > 0 ? (
                     <Tooltip label="Someone published to a part you changed too. Choose which version to keep, then publish.">
                         <Button
@@ -561,65 +595,28 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                             Resolve {count(conflicts, 'conflict')}
                         </Button>
                     </Tooltip>
-                ) : draft.models.length > 0 ? (
-                    <Tooltip
-                        label="Some changes no longer pass their checks."
-                        disabled={!blocked}
-                    >
-                        <Button
-                            size="xs"
-                            data-disabled={blocked || undefined}
-                            onClick={() => {
-                                if (!blocked) setPublishing(true);
-                            }}
-                        >
-                            {asPullRequest ? sendLabel : 'Publish'}
-                        </Button>
-                    </Tooltip>
                 ) : null}
-                <Menu position="bottom-end" withinPortal>
-                    <Menu.Target>
-                        <ActionIcon
-                            size="md"
-                            aria-label="More actions"
-                            variant="subtle"
-                            color="gray"
+                {showsPublish ? (
+                    <Button.Group>
+                        <Tooltip
+                            label="Some changes no longer pass their checks."
+                            disabled={!blocked}
                         >
-                            <MantineIcon icon={IconDots} />
-                        </ActionIcon>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                        {tryModel ? (
-                            <Menu.Item
-                                component={Link}
-                                to={`/projects/${projectUuid}/tables/${encodeURIComponent(tryModel)}`}
+                            <Button
+                                size="xs"
+                                data-disabled={blocked || undefined}
+                                onClick={() => {
+                                    if (!blocked) setPublishing(true);
+                                }}
                             >
-                                Open in Explore
-                            </Menu.Item>
-                        ) : null}
-                        <Menu.Item
-                            disabled={
-                                check.isLoading ||
-                                impact.data?.status === 'checking'
-                            }
-                            onClick={() => {
-                                check.mutate(undefined);
-                                setSearchParams({
-                                    [DRAFT_PARAM]: DRAFT_REVIEW,
-                                });
-                            }}
-                        >
-                            Check saved charts and dashboards
-                        </Menu.Item>
-                        <Menu.Divider />
-                        <Menu.Item
-                            color="red"
-                            onClick={() => setDiscarding(true)}
-                        >
-                            Discard draft
-                        </Menu.Item>
-                    </Menu.Dropdown>
-                </Menu>
+                                {asPullRequest ? sendLabel : 'Publish'}
+                            </Button>
+                        </Tooltip>
+                        {moreMenu}
+                    </Button.Group>
+                ) : (
+                    moreMenu
+                )}
                 {discarding ? (
                     <MantineModal
                         opened
@@ -649,17 +646,6 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                     />
                 ) : null}
             </DevelopmentBar>
-            {isTrying ? (
-                <TryIt
-                    projectUuid={projectUuid}
-                    models={draft.models
-                        .filter((entry) => getChangeKind(entry) !== 'removed')
-                        .map(({ model }) => model)}
-                    previewProjectUuid={null}
-                    prUrl={null}
-                    onClose={() => setIsTrying(false)}
-                />
-            ) : null}
         </>
     );
 };
@@ -697,12 +683,15 @@ type DraftProps = { projectUuid: string; draft: SemanticLayerDraft };
 type DraftReviewProps = DraftProps & {
     /** Hands a request to the agent beside the review. */
     onAskAgent: (prompt: string) => void;
+    /** Opens a model's file in the code view. */
+    onOpenFile: (model: string) => void;
 };
 
 export const DraftReview: FC<DraftReviewProps> = ({
     projectUuid,
     draft,
     onAskAgent,
+    onOpenFile,
 }) => {
     const publishesHere = usePublishMode(projectUuid) === 'live';
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
@@ -736,10 +725,6 @@ export const DraftReview: FC<DraftReviewProps> = ({
                 highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
             >
                 {models.map((modelChange) => {
-                    const { title, subtitle } = describeModelChange(
-                        modelChange.model,
-                        modelChange,
-                    );
                     const fields = listPublishedParts(draft, modelChange);
                     return (
                         <Box
@@ -747,7 +732,7 @@ export const DraftReview: FC<DraftReviewProps> = ({
                             component="section"
                             className={classes.model}
                         >
-                            {/* A file's header, as an editor shows one: its name, what it models, how much moved. */}
+                            {/* A file's header, as an editor shows one: its name and how much moved. */}
                             <Group
                                 className={classes.modelHead}
                                 gap="xs"
@@ -762,26 +747,27 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                     fz="sm"
                                     fw={500}
                                     truncate
-                                    flex={1}
                                     miw={0}
                                 >
                                     {modelChange.model}.yml
-                                    <Text span inherit fw={400} c="dimmed">
-                                        {` · ${[
-                                            title,
-                                            subtitle ??
-                                                (fields.length === 0
-                                                    ? CHANGE_KIND_LABELS[
-                                                          getChangeKind(
-                                                              modelChange,
-                                                          )
-                                                      ]
-                                                    : null),
-                                        ]
-                                            .filter(Boolean)
-                                            .join(' · ')}`}
-                                    </Text>
                                 </Text>
+                                <Button
+                                    size="compact-xs"
+                                    variant="light"
+                                    color="gray"
+                                    flex="none"
+                                    className={classes.editFile}
+                                    leftSection={
+                                        <MantineIcon icon={IconPencil} />
+                                    }
+                                    aria-label={`Edit ${modelChange.model}.yml`}
+                                    onClick={() =>
+                                        onOpenFile(modelChange.model)
+                                    }
+                                >
+                                    Edit
+                                </Button>
+                                <Box flex={1} />
                                 <LineCounts
                                     counts={countChangedLines(modelChange)}
                                 />
@@ -863,11 +849,6 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                     variant="full"
                                 />
                             )}
-                            <MetricComparison
-                                projectUuid={projectUuid}
-                                draft={draft}
-                                model={modelChange}
-                            />
                         </Box>
                     );
                 })}
@@ -877,6 +858,7 @@ export const DraftReview: FC<DraftReviewProps> = ({
                 projectUuid={projectUuid}
                 draft={draft}
                 onAskAgent={onAskAgent}
+                className={classes.model}
             />
         </Stack>
     );

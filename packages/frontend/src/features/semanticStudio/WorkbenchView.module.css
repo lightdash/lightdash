@@ -387,6 +387,16 @@
     max-width: none;
 }
 
+/* Browsing scrolls as one page: header, summary and lists together. */
+.main[data-page-scroll] {
+    overflow-y: auto;
+}
+
+.main[data-page-scroll] > .mainBody {
+    flex: 1 0 auto;
+    overflow: visible;
+}
+
 .mainHeader {
     flex: none;
     display: flex;
@@ -544,6 +554,11 @@
 /* The open file's line counts and unsaved mark, like an editor tab. */
 .sourceCounts {
     font-variant-numeric: tabular-nums;
+}
+
+.readOnly {
+    display: flex;
+    align-items: center;
 }
 
 .unsavedDot {

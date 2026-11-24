@@ -31,6 +31,7 @@ import {
     runGithubQuery,
 } from './run';
 import { summarizeGithubTest } from './testSummary';
+import { githubUseCases } from './useCases';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.GITHUB];
 const LABEL = CATALOG.messageLabel;
@@ -57,12 +58,7 @@ export const githubIntegration = defineLiveIntegration({
             'User-Agent': 'Lightdash',
         },
     }),
-    // Search allows 30 calls a minute per token, the tightest of GitHub's
-    // limits; the REST API allows 5,000 an hour.
     limits: {
-        concurrentCalls: 3,
-        callsPerMinute: 30,
-        callsPerHour: 1_800,
         callsPerQuery: GITHUB_CALLS_PER_QUERY,
         timeoutMs: 30_000,
         maxRows: GITHUB_MAX_QUERY_ROWS,
@@ -96,6 +92,44 @@ export const githubIntegration = defineLiveIntegration({
         GITHUB_CONTRIBUTORS_EXPLORE,
     ],
     plannedModelNames: ['workflow_runs', 'releases'],
+    level: {
+        value: 2,
+        description:
+            'Search returns a total count per filter; nothing else is totalled.',
+    },
+    auth: {
+        description: 'No vendor review is needed.',
+        testWith: 'test_account',
+        needs: ['gmail', 'phone'],
+        token: true,
+        oauth: 'no_review',
+    },
+    paging: {
+        description:
+            'Search returns 100 results a page and stops at 1,000 results.',
+    },
+    // Search allows 30 calls a minute per token, the tightest of GitHub's
+    // limits; the REST API allows 5,000 an hour.
+    rateLimits: {
+        concurrentCalls: 3,
+        callsPerSecond: null,
+        buckets: [
+            {
+                id: 'minute',
+                label: 'per minute',
+                windowMs: 60_000,
+                capacity: 30,
+            },
+            {
+                id: 'hour',
+                label: 'per hour',
+                windowMs: 3_600_000,
+                capacity: 1_800,
+            },
+        ],
+        note: 'Search allows 30 calls a minute per token; REST allows 5,000 an hour.',
+    },
+    useCases: githubUseCases,
     validate: ({ owner, repo }) => {
         if (!GITHUB_OWNER.test(owner)) {
             throw new ParameterError(

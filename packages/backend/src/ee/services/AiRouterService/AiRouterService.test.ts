@@ -137,7 +137,6 @@ const createCandidate = (
         name: overrides.name,
         description: overrides.description ?? null,
         explores: [`${overrides.name.toLowerCase()}_explore`],
-        verifiedQuestions: [`${overrides.name} question`],
         instruction: overrides.instruction ?? null,
     },
 });
