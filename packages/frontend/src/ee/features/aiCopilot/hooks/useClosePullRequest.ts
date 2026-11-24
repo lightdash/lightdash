@@ -1,6 +1,7 @@
 import { type ApiError, type ClosePullRequestResult } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type LightdashApi } from '../../../../api';
+import { PULL_REQUEST_CI_CHECKS_KEY } from '../../../../features/semanticStudio/studioQueryKeys';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
@@ -32,7 +33,7 @@ export const useClosePullRequest = (projectUuid: string) => {
         onSuccess: (_result, { prUrl }) => {
             showToastSuccess({ title: 'Pull request closed' });
             void queryClient.invalidateQueries({
-                queryKey: ['pullRequestCiChecks', projectUuid, prUrl],
+                queryKey: [PULL_REQUEST_CI_CHECKS_KEY, projectUuid, prUrl],
             });
             // Refresh the in-thread workstreams panel too so its PR badge flips
             // to "Closed" — that query is keyed by thread, not prUrl (#41).

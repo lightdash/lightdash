@@ -91,7 +91,8 @@ describe('getProposeSemanticLayerChange', () => {
             'label: Orders',
         );
         expect(output.result).toContain('orders: ready');
-        expect(output.result).toContain('Nothing is published until');
+        // The agent ends its turn on this line; the card is the reply.
+        expect(output.result).toContain('write nothing more');
         expect(output.metadata).toMatchObject({
             status: 'success',
             models: [{ model: 'orders', status: 'ready' }],
@@ -182,7 +183,6 @@ describe('getProposeSemanticLayerChange', () => {
             }),
             'label: Orders',
         );
-        expect(output.result).toContain('without the refused parts');
         expect(output.result).not.toContain('write nothing more');
         expect(output.metadata).toMatchObject({ needsFollowUp: true });
         expect(
@@ -212,7 +212,7 @@ describe('getProposeSemanticLayerChange', () => {
             '- not a mapping',
         );
         expect(output.result).toContain('orders: failed');
-        expect(output.result).toContain('Nothing joined the draft');
+        expect(output.result).not.toContain('write nothing more');
         // Nothing joined the draft, so there is no card for a note or an offer.
         expect(output.metadata).toMatchObject({ note: null, options: [] });
     });

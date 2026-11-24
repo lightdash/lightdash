@@ -6,6 +6,7 @@ import {
     PUBLISHED_HEADERS,
 } from './developmentView';
 import { diffModelFields, type FieldChange } from './modelFieldDiff';
+import { MODEL_VERSION_KEY } from './studioQueryKeys';
 
 type LightdashApi = ReturnType<typeof useLightdashApi>;
 
@@ -17,7 +18,7 @@ export const modelVersionQuery = (
     headers: Record<string, string>,
     enabled = true,
 ) => ({
-    queryKey: ['semantic-studio-model-version', projectUuid, model, headers],
+    queryKey: [MODEL_VERSION_KEY, projectUuid, model, headers],
     // A model with no such version is a value, so a refetch never drops back to loading with nothing.
     queryFn: () =>
         lightdashApi<Explore>({

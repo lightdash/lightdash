@@ -47,12 +47,7 @@ import {
     toJoinGraph,
     type JoinTableNode,
 } from './joinGraph';
-import {
-    toModelLineage,
-    withLineage,
-    type LineageCard,
-    type LineageRole,
-} from './lineageGraph';
+import { toModelLineage, withLineage, type LineageCard } from './lineageGraph';
 
 type TableNodeData = JoinTableNode & {
     /** Another table is selected and this one is off its path to the base. */
@@ -67,14 +62,6 @@ type ModelNodeData = LineageCard & { isDimmed: boolean };
 type ModelFlowNode = Node<ModelNodeData, 'model'>;
 
 type FlowNode = TableFlowNode | ModelFlowNode;
-
-const LINEAGE_ROLE_LABELS: Record<LineageRole, string> = {
-    base: 'Base table',
-    joined: 'Joined table',
-    upstream: 'dbt model',
-    downstream: 'Downstream dbt model',
-    other: 'dbt model',
-};
 
 /** Global so the stylesheet can target them; edges take no CSS module class. */
 const EDGE_ACTIVE_CLASS = 'join-edge-active';
@@ -256,7 +243,7 @@ const ModelNode: FC<NodeProps<ModelFlowNode>> = ({ data }) => (
         </Group>
         <Group gap="xs" wrap="nowrap" className={classes.nodeFooter}>
             <Text component="span" fz="xs" c="dimmed">
-                {LINEAGE_ROLE_LABELS[data.role]}
+                dbt model
             </Text>
         </Group>
         <Handle

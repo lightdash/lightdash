@@ -1,5 +1,7 @@
 import {
-    isToolProposeSemanticLayerChangeResult,
+    getDraftChangeUuids,
+    getProposalPhase,
+    getSavedProposals,
     type ApiAiAgentThreadResponse,
     type SemanticLayerDraft,
 } from '@lightdash/common';
@@ -12,25 +14,14 @@ export const getClosedChange = (
     draft: SemanticLayerDraft | undefined,
 ): ClosedChange | null => {
     if (!draft || draft.changes.length > 0) return null;
-    const uuids = thread.messages.flatMap((message) =>
+    const proposals = thread.messages.flatMap((message) =>
         message.role === 'assistant'
-            ? message.toolResults
-                  .filter(isToolProposeSemanticLayerChangeResult)
-                  .flatMap(({ metadata }) =>
-                      metadata.draftChangeUuid
-                          ? [metadata.draftChangeUuid]
-                          : [],
-                  )
+            ? getSavedProposals(message.toolResults)
             : [],
     );
-    const applied = draft.settled.filter(
-        ({ draftChangeUuid, status }) =>
-            status === 'applied' && uuids.includes(draftChangeUuid),
-    );
-    if (applied.length === 0) return null;
-    return {
-        pullRequestUrl:
-            applied.find(({ pullRequestUrl }) => pullRequestUrl)
-                ?.pullRequestUrl ?? null,
-    };
+    const phase = getProposalPhase(draft, getDraftChangeUuids(proposals), {
+        pullRequestFrom: 'any_applied',
+    });
+    if (phase.kind === 'pull_request') return { pullRequestUrl: phase.url };
+    return phase.kind === 'applied' ? { pullRequestUrl: null } : null;
 };

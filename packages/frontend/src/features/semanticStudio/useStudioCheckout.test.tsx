@@ -7,7 +7,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { draftModel, draftOf, workspaceOf } from './studioCheckout.mock';
-import { WORKSPACES_KEY } from './useSemanticLayerModel';
+import { WORKSPACES_KEY } from './studioQueryKeys';
 import {
     foldDraftExplores,
     StudioCheckoutProvider,

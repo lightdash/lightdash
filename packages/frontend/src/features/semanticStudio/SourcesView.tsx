@@ -44,17 +44,14 @@ import {
 import { useSearchParams } from 'react-router';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
+import useTracking from '../../providers/Tracking/useTracking';
+import { EventName } from '../../types/Events';
+import tabClasses from './ModelTabs.module.css';
 import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
     pierreThemeFor,
-} from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
-import { splitPatchIntoFiles } from '../../ee/features/aiCopilot/components/ChatElements/ToolCalls/splitPatch';
-import { type StoredThread } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
-import { useWholePullRequestDiff } from '../../ee/features/aiCopilot/hooks/usePullRequestDiff';
-import useTracking from '../../providers/Tracking/useTracking';
-import { EventName } from '../../types/Events';
-import tabClasses from './ModelTabs.module.css';
+} from './pierreDiffConfig';
 import {
     createEditor,
     editorOptionsFor,
@@ -62,29 +59,19 @@ import {
     type Attached,
 } from './pierreEditor';
 import { applyProposal, fileBefore, proposedPathOf } from './proposedFile';
+import classes from './SourcesView.module.css';
+import { splitPatchIntoFiles } from './splitPatch';
+import { type StoredThread } from './studioChange';
 import { type StudioChatRef } from './studioChatRefs';
+import { keepUnsaved, unsavedEditKey, unsavedEdits } from './unsavedEdits';
+import { useWholePullRequestDiff } from './usePullRequestDiff';
 import {
     SOURCE_PARAM,
     useSaveStudioSource,
     useStudioSourceFile,
     useStudioSources,
 } from './useStudioSources';
-import classes from './WorkbenchView.module.css';
-
-// Unsaved edits live for the tab only; leaving the page warns while any are kept.
-const unsavedEdits = new Map<
-    string,
-    { text: string; revision: string | null }
->();
-let warnsOnLeave = false;
-const keepUnsaved = (key: string, text: string, revision: string | null) => {
-    unsavedEdits.set(key, { text, revision });
-    if (warnsOnLeave) return;
-    warnsOnLeave = true;
-    window.addEventListener('beforeunload', (event) => {
-        if (unsavedEdits.size > 0) event.preventDefault();
-    });
-};
+import workbenchClasses from './WorkbenchView.module.css';
 
 /** Where the code view reads from and saves to: a change's pull request, or live. */
 export type SourcesTarget = {
@@ -295,8 +282,8 @@ export const SourcesRail: FC<{
     );
     const [search, setSearch] = useState('');
     return (
-        <Box className={classes.rail}>
-            <Box className={classes.railHeader}>
+        <Box className={workbenchClasses.rail}>
+            <Box className={workbenchClasses.railHeader}>
                 <TextInput
                     size="xs"
                     flex={1}
@@ -442,7 +429,7 @@ export const SourcePane: FC<{
     const [offered, setOffered] = useState<string | null>(null);
     const codeRef = useRef<Attached | null>(null);
     // An edit belongs to the file of the change it was made on: switching either keeps it there, and switching back brings it back.
-    const editKey = `${target.projectUuid}\n${target.prUrl ?? ''}\n${path ?? ''}`;
+    const editKey = unsavedEditKey(target.projectUuid, target.prUrl, path);
     // What was just saved is that file on that change, so it shows while the change is read again.
     const [justSaved, setJustSaved] = useState<{
         key: string;
@@ -562,13 +549,21 @@ export const SourcePane: FC<{
                         return;
                     }
                     setJustSaved({
-                        key: `${target.projectUuid}\n${result.prUrl}\n${path}`,
+                        key: unsavedEditKey(
+                            target.projectUuid,
+                            result.prUrl,
+                            path,
+                        ),
                         content: value,
                         revision: result.revision,
                     });
                     unsavedEdits.delete(savedKey);
                     // A save from live moves to its new change, and what is typed in another live file comes along.
-                    const liveKey = `${target.projectUuid}\n\n${open.current.path ?? ''}`;
+                    const liveKey = unsavedEditKey(
+                        target.projectUuid,
+                        null,
+                        open.current.path,
+                    );
                     const typed = unsavedEdits.get(open.current.key);
                     if (
                         target.prUrl === null &&
@@ -578,7 +573,11 @@ export const SourcePane: FC<{
                     ) {
                         unsavedEdits.delete(open.current.key);
                         keepUnsaved(
-                            `${target.projectUuid}\n${result.prUrl}\n${open.current.path ?? ''}`,
+                            unsavedEditKey(
+                                target.projectUuid,
+                                result.prUrl,
+                                open.current.path,
+                            ),
                             typed.text,
                             typed.revision,
                         );

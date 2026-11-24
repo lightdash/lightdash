@@ -1,9 +1,9 @@
 import { Badge, Box, Group, Stack, Text } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
+import { type StudioPullRequest } from '../../../../../features/semanticStudio/studioChange';
 import { DiffMarkdownCodeBlock } from '../ChatElements/DiffMarkdownCodeBlock';
 import { PullRequestChanges } from './PullRequestChanges';
 import classes from './SemanticStudioAgent.module.css';
-import { type StudioPullRequest } from './useStudioPullRequest';
 
 /** Everything a dbt project's conversation has changed and not made live: what it proposes now, then what its pull request holds. */
 export const StudioChanges: FC<{

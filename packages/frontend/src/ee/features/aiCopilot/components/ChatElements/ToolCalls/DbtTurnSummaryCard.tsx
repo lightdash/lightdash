@@ -31,18 +31,24 @@ import {
     VIEW_PARAM,
 } from '../../../../../../features/semanticStudio/modelCode';
 import { ModelFieldChanges } from '../../../../../../features/semanticStudio/ModelFieldChanges';
+import {
+    getModelOfFile,
+    getModelsOfFiles,
+    splitPatchIntoFiles,
+    type DiffFile,
+} from '../../../../../../features/semanticStudio/splitPatch';
 import { TaskIcon } from '../../../../../../features/semanticStudio/TaskRow';
-import { draftActions } from '../../../../../../features/semanticStudio/turnActions';
+import { getSemanticStudioUrl } from '../../../../../../features/semanticStudio/urls';
+import { usePullRequestDiff } from '../../../../../../features/semanticStudio/usePullRequestDiff';
+import { useDraftCheckout } from '../../../../../../features/semanticStudio/useSemanticLayerModel';
+import { useStudioWorkspaces } from '../../../../../../features/semanticStudio/useStudioWorkspaces';
+import { draftActions } from '../../SemanticStudioAgent/cards/turnActions';
 import {
     TurnCard,
     type Safety,
     type TurnGroup,
-} from '../../../../../../features/semanticStudio/TurnCard';
-import classes from '../../../../../../features/semanticStudio/TurnSummaryCard.module.css';
-import { getSemanticStudioUrl } from '../../../../../../features/semanticStudio/urls';
-import { useDraftCheckout } from '../../../../../../features/semanticStudio/useSemanticLayerModel';
-import { useStudioWorkspaces } from '../../../../../../features/semanticStudio/useStudioWorkspaces';
-import { usePullRequestDiff } from '../../../hooks/usePullRequestDiff';
+} from '../../SemanticStudioAgent/cards/TurnCard';
+import classes from '../../SemanticStudioAgent/cards/TurnSummaryCard.module.css';
 import { resolveStudioPullRequestState } from '../../SemanticStudioAgent/studioPullRequestState';
 import { useStudioPublish } from '../../SemanticStudioAgent/useStudioPublish';
 import { useStudioPullRequest } from '../../SemanticStudioAgent/useStudioPullRequest';
@@ -53,12 +59,6 @@ import {
 import { PullRequestCiChecks } from './PullRequestCiChecks';
 import { PullRequestViewMenu } from './PullRequestViewMenu';
 import { StudioAskContext } from './quietCards';
-import {
-    getModelOfFile,
-    getModelsOfFiles,
-    splitPatchIntoFiles,
-    type DiffFile,
-} from './splitPatch';
 import { WritebackDiffModal } from './WritebackDiffModal';
 
 const FILE_ACTIONS: Record<ChangeKind, string> = {
@@ -481,7 +481,6 @@ export const DbtTurnSummaryCard: FC<{
                 icon={header.icon}
                 status={header.status}
                 // The card sits in the conversation that made the draft, whose title already names it.
-                name={null}
                 headerAction={
                     // An open draft's links and discard are in the toolbar.
                     state === 'open' ? null : (

@@ -1678,7 +1678,7 @@ dimensions:
                 {
                     model: 'orders',
                     fieldId: 'orders_amount',
-                    label: expect.any(String),
+                    label: 'Amount',
                     kind: 'changed',
                     charts: [{ uuid: 'chart-1', name: 'Saved chart' }],
                     dashboards: 0,

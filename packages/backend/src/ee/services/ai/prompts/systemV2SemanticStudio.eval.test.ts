@@ -15,10 +15,15 @@ import {
     toolListWarehouseTablesArgsSchema,
     toolRunSqlArgsSchema,
 } from '@lightdash/common';
-import { generateText, tool } from 'ai';
+import { generateText, tool, type Tool } from 'ai';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { aiCopilotConfigSchema } from '../../../../config/aiConfigSchema';
 import { getAiConfig } from '../../../../config/parseConfig';
+import {
+    resolveLoadout,
+    type AgentToolName,
+    type LoadoutInput,
+} from '../loadout';
 import { getModel } from '../models';
 import { getSemanticStudioSystemPrompt } from './systemV2SemanticStudio';
 
@@ -86,6 +91,36 @@ const runSeededSql = async (sql: string, limit: number): Promise<string> => {
     }
 };
 
+// A dbt project's Studio thread without writeback, which proposes a diff.
+const studioInput = (canRunSql: boolean): LoadoutInput => ({
+    execution: { mode: 'standard', maxSteps: 15 },
+    decisions: undefined,
+    enableDataAccess: true,
+    enableComposerQueries: false,
+    canRunSql,
+    canCreateDashboards: false,
+    canCreateScheduledDeliveries: false,
+    enableContentReads: false,
+    enableContentTools: false,
+    enableDocuments: false,
+    enableGenerateDataApp: false,
+    enableAiWriteback: false,
+    enableRepoDiscovery: true,
+    enableEditProjectContext: false,
+    isSemanticStudioThread: true,
+    semanticStudioDrafts: false,
+    enableReadAttachments: false,
+    enableReadPinnedThread: false,
+    enableAskUser: false,
+    customSkills: [],
+    projectContextEnabled: false,
+    aiAgentMemoryEnabled: false,
+    requestingUser: null,
+    mcpToolNames: [],
+    attachedMcpServerCount: 0,
+    customChartTypeCount: 0,
+});
+
 const runAsk = async (prompt: string, canRunSql: boolean) => {
     const { model, callOptions, providerOptions } = getModel(
         aiCopilotConfigSchema.parse(getAiConfig()),
@@ -96,7 +131,7 @@ const runAsk = async (prompt: string, canRunSql: boolean) => {
         return output;
     };
     const context = { runtime: 'agent' as const };
-    const warehouseTools = {
+    const stubs: Partial<Record<AgentToolName, Tool>> = {
         runSql: tool({
             description: buildAgentRunSqlDescription(
                 DEFAULT_RUN_SQL_LIMIT,
@@ -121,7 +156,46 @@ const runAsk = async (prompt: string, canRunSql: boolean) => {
                 'ticket_id varchar, status varchar, channel varchar, resolved_at timestamp, handling_minutes bigint',
             ),
         }),
+        exploreRepo: tool({
+            description: TOOL_EXPLORE_REPO_DESCRIPTION,
+            inputSchema: toolExploreRepoArgsSchema,
+            execute: stub(
+                'exploreRepo',
+                `==> /dbt/models/tickets.yml <==\n${MODEL_YAML}\n==> /dbt/models/tickets.sql <==\n${MODEL_SQL}`,
+            ),
+        }),
+        grepFields: tool({
+            description: GREP_FIELDS_DESCRIPTION({
+                ...context,
+                toolName: 'grepFields',
+            }),
+            inputSchema: grepFieldsInputSchema,
+            execute: stub(
+                'grepFields',
+                'tickets/tickets_ticket_id [dimension string]\ntickets/tickets_status [dimension string]\ntickets/tickets_channel [dimension string]\ntickets/tickets_resolved_at [dimension timestamp]\ntickets/tickets_handling_minutes [dimension number]\ntickets/tickets_total_handling_minutes [metric sum]',
+            ),
+        }),
+        getMetadata: tool({
+            description: GET_METADATA_DESCRIPTION({
+                ...context,
+                toolName: 'getMetadata',
+            }),
+            inputSchema: getMetadataInputSchema,
+            execute: stub(
+                'getMetadata',
+                'explore tickets (table public.tickets): dimensions ticket_id, status, channel, resolved_at, handling_minutes; metrics total_handling_minutes (sum of handling_minutes)',
+            ),
+        }),
     };
+    // Only the tools the Studio loadout offers; its other tools have no stub here.
+    const tools = Object.fromEntries(
+        [...resolveLoadout(studioInput(canRunSql)).toolNames].flatMap(
+            (name) => {
+                const stubbed = stubs[name];
+                return stubbed ? [[name, stubbed] as const] : [];
+            },
+        ),
+    );
     const { text } = await generateText({
         ...callOptions,
         providerOptions,
@@ -142,39 +216,7 @@ const runAsk = async (prompt: string, canRunSql: boolean) => {
             canQueryDraft: false,
         }),
         prompt,
-        tools: {
-            exploreRepo: tool({
-                description: TOOL_EXPLORE_REPO_DESCRIPTION,
-                inputSchema: toolExploreRepoArgsSchema,
-                execute: stub(
-                    'exploreRepo',
-                    `==> /dbt/models/tickets.yml <==\n${MODEL_YAML}\n==> /dbt/models/tickets.sql <==\n${MODEL_SQL}`,
-                ),
-            }),
-            grepFields: tool({
-                description: GREP_FIELDS_DESCRIPTION({
-                    ...context,
-                    toolName: 'grepFields',
-                }),
-                inputSchema: grepFieldsInputSchema,
-                execute: stub(
-                    'grepFields',
-                    'tickets/tickets_ticket_id [dimension string]\ntickets/tickets_status [dimension string]\ntickets/tickets_channel [dimension string]\ntickets/tickets_resolved_at [dimension timestamp]\ntickets/tickets_handling_minutes [dimension number]\ntickets/tickets_total_handling_minutes [metric sum]',
-                ),
-            }),
-            getMetadata: tool({
-                description: GET_METADATA_DESCRIPTION({
-                    ...context,
-                    toolName: 'getMetadata',
-                }),
-                inputSchema: getMetadataInputSchema,
-                execute: stub(
-                    'getMetadata',
-                    'explore tickets (table public.tickets): dimensions ticket_id, status, channel, resolved_at, handling_minutes; metrics total_handling_minutes (sum of handling_minutes)',
-                ),
-            }),
-            ...(canRunSql ? warehouseTools : {}),
-        },
+        tools,
     });
     const sqlCalls = called.flatMap(({ name, input }) =>
         name === 'runSql' ? [toolRunSqlArgsSchema.parse(input)] : [],

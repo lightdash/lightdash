@@ -5,9 +5,9 @@ import {
     type CiChecks,
     type SemanticStudioWorkspace,
 } from '@lightdash/common';
-import { isMergeable } from '../../ee/features/aiCopilot/components/ChatElements/ToolCalls/pullRequestActions';
-import { WRITEBACK_STEPS } from '../../ee/features/aiCopilot/components/ChatElements/ToolCalls/writebackProgress';
+import { isMergeable } from './pullRequestActions';
 import { pullRequestNumberOf } from './urls';
+import { WRITEBACK_STEPS } from './writebackProgress';
 
 /** Where one of your workspaces stands right now. */
 export type StudioRun =

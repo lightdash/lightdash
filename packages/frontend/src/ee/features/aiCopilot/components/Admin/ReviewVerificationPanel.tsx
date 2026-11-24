@@ -28,12 +28,12 @@ import {
 import { useMemo, useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { usePullRequestCiChecks } from '../../../../../features/semanticStudio/usePullRequestCiChecks';
 import { useProjectValidation } from '../../../../../hooks/validation/useValidation';
 import {
     useAiAgentReviewItemPrDiff,
     useProjectUpstreamDiff,
 } from '../../hooks/useAiAgentAdmin';
-import { usePullRequestCiChecks } from '../../hooks/usePullRequestCiChecks';
 import { getPullRequestNumber } from '../ChatElements/ToolCalls/pullRequestCardUtils';
 import { ReviewFieldsModal } from './ReviewFieldsModal';
 import { ReviewPrDiffModal } from './ReviewPrDiffModal';

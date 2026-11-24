@@ -4,17 +4,11 @@ import {
     type SemanticStudioWorkspace,
     type SemanticStudioWorkspaces,
     type SemanticStudioWorkspaceStartBody,
-    type WritebackMergeResult,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import useToaster from '../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
-import {
-    CHECKOUT_KEY,
-    DRAFT_KEY,
-    useCanEditSemanticLayer,
-    WORKSPACES_KEY,
-} from './useSemanticLayerModel';
+import { invalidateStudio, WORKSPACES_KEY } from './studioQueryKeys';
+import { useCanEditSemanticLayer } from './useSemanticLayerModel';
 
 const toUrl = (projectUuid: string, path: string) =>
     `/projects/${projectUuid}/semantic-studio/workspaces${path}`;
@@ -39,12 +33,15 @@ export const useStudioWorkspaces = (projectUuid: string | undefined) => {
 };
 
 /** The workspace your chat writes to, or null when you have none open. */
+export const findActiveWorkspace = (
+    workspaces: SemanticStudioWorkspaces | undefined,
+): SemanticStudioWorkspace | null =>
+    workspaces?.mine.find(({ isActive }) => isActive) ?? null;
+
 export const useActiveStudioWorkspace = (
     projectUuid: string | undefined,
 ): SemanticStudioWorkspace | null =>
-    useStudioWorkspaces(projectUuid).data?.mine.find(
-        ({ isActive }) => isActive,
-    ) ?? null;
+    findActiveWorkspace(useStudioWorkspaces(projectUuid).data);
 
 type Action =
     | { kind: 'start'; body: SemanticStudioWorkspaceStartBody }
@@ -101,42 +98,15 @@ export const useStudioWorkspaceAction = (projectUuid: string) => {
                 body,
             });
         },
+        // The draft shown and the rest of the app follow the checked-out change.
         onSuccess: () =>
-            Promise.all([
-                queryClient.invalidateQueries([WORKSPACES_KEY, projectUuid]),
-                // The draft shown is the active workspace's.
-                queryClient.invalidateQueries([DRAFT_KEY, projectUuid]),
-                // The rest of the app shows the checked-out change.
-                queryClient.invalidateQueries([CHECKOUT_KEY, projectUuid]),
-                // Explore reads the checked-out draft, on this page or any other.
-                queryClient.invalidateQueries(['tables']),
-            ]),
-    });
-};
-
-/** Publishes the checked-out dbt draft by merging its pull request, which the project then compiles. */
-export const usePublishCheckout = (projectUuid: string) => {
-    const lightdashApi = useLightdashApi();
-    const queryClient = useQueryClient();
-    const { showToastApiError } = useToaster();
-    return useMutation<WritebackMergeResult, ApiError, { prUrl: string }>({
-        mutationFn: ({ prUrl }) =>
-            lightdashApi<WritebackMergeResult>({
-                url: `/projects/${projectUuid}/semantic-studio/checkout/publish`,
-                method: 'POST',
-                body: JSON.stringify({ prUrl }),
+            invalidateStudio(queryClient, projectUuid, {
+                draft: true,
+                draftState: false,
+                checkout: true,
+                liveModels: false,
+                sources: false,
+                pullRequestChecks: null,
             }),
-        onSuccess: (_result, { prUrl }) =>
-            Promise.all([
-                queryClient.invalidateQueries([
-                    'pullRequestCiChecks',
-                    projectUuid,
-                    prUrl,
-                ]),
-                queryClient.invalidateQueries([CHECKOUT_KEY, projectUuid]),
-                queryClient.invalidateQueries([WORKSPACES_KEY, projectUuid]),
-            ]),
-        onError: ({ error }) =>
-            showToastApiError({ title: 'Could not publish', apiError: error }),
     });
 };

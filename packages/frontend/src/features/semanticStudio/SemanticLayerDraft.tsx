@@ -31,11 +31,6 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import Callout from '../../components/common/Callout';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
-import {
-    PIERRE_HIGHLIGHTER_OPTIONS,
-    PIERRE_POOL_OPTIONS,
-} from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
-import { useStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
 import { ChangeDiff } from './ChangeDiff';
@@ -51,9 +46,11 @@ import {
 import { MarkPublishedContext } from './draftMarks';
 import { cannotApply, describePublisher } from './draftState';
 import { FieldChangeIcon } from './KindTypeIcon';
+import { LineCounts } from './LineCounts';
 import {
     CHANGE_KIND_LABELS,
     count,
+    CHANGE_GLYPHS,
     countChangedLines,
     countPublishedChanges,
     DRAFT_PARAM,
@@ -63,6 +60,10 @@ import {
     listPublishedParts,
     refusalText,
 } from './modelCode';
+import {
+    PIERRE_HIGHLIGHTER_OPTIONS,
+    PIERRE_POOL_OPTIONS,
+} from './pierreDiffConfig';
 import classes from './SemanticLayerDraft.module.css';
 import { getSemanticStudioUrl } from './urls';
 import {
@@ -74,7 +75,6 @@ import {
     useSemanticLayerDraftImpact,
 } from './useSemanticLayerModel';
 import { useDraftPullRequest } from './useStudioCheckout';
-import { LineCounts } from './WorkbenchRail';
 
 /** How many models of the draft, or the one named, still have a part to choose between. */
 const countConflicts = (
@@ -470,16 +470,16 @@ const usePublishedUnderNotice = (draft: SemanticLayerDraft | undefined) => {
 };
 
 /** A draft in the toolbar: what it changes, the way to its review and back, and publishing it. */
-export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
-    projectUuid,
-}) => {
+export const DraftDevelopmentBar: FC<{
+    projectUuid: string;
+    onDiscarded: () => void;
+}> = ({ projectUuid, onDiscarded }) => {
     const { data: draft } = useSemanticLayerDraft(projectUuid);
     const [searchParams, setSearchParams] = useSearchParams();
     const [publishing, setPublishing] = useState(false);
     const [discarding, setDiscarding] = useState(false);
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
     const discard = useDiscardSemanticLayerDraft(projectUuid);
-    const { startNewThread } = useStudioAgent(projectUuid);
     const asPullRequest = usePublishMode(projectUuid) === 'pull_request';
     const sendLabel =
         useDraftPullRequest() !== null
@@ -631,7 +631,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                                 onSuccess: () => {
                                     setDiscarding(false);
                                     // The chat that built the draft goes with it; it stays one step back.
-                                    startNewThread();
+                                    onDiscarded();
                                 },
                             })
                         }
@@ -675,8 +675,6 @@ const DraftNotes: FC<{ draft: SemanticLayerDraft }> = ({ draft }) => {
         </Stack>
     );
 };
-
-const CHANGE_GLYPHS = { new: '+', changed: '~', removed: '−' };
 
 type DraftProps = { projectUuid: string; draft: SemanticLayerDraft };
 

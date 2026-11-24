@@ -37,7 +37,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
-} from '../../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
+} from '../../semanticStudio/pierreDiffConfig';
 import {
     useContentDraftReview,
     useDraftStaleness,
