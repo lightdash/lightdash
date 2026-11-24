@@ -88,6 +88,9 @@ export const retiredAnalyticsCharts: Readonly<Record<string, string>> = {
     'lightdash-analytics-apps-data-app-builders-creation-and-iterations-by-week':
         'lightdash-analytics-apps',
     'lightdash-analytics-apps-distinct-viewers': 'lightdash-analytics-apps',
+    // Most active data app viewers ranked the same people as Data app loads by person and app, which
+    // now has its count of data apps as a column
+    'lightdash-analytics-apps-top-people': 'lightdash-analytics-apps',
     'lightdash-analytics-apps-viewed-apps': 'lightdash-analytics-apps',
     'lightdash-analytics-content-content-by-activity-status':
         'lightdash-analytics-content',

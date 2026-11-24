@@ -132,6 +132,18 @@ describe('retired analytics content', () => {
         );
     });
 
+    it('retires the second list of data app viewers, and keeps the list that replaced it', () => {
+        expect(retiredAnalyticsCharts).toMatchObject({
+            'lightdash-analytics-apps-top-people': 'lightdash-analytics-apps',
+        });
+        const apps = analyticsContentAsCode.find(
+            ({ dashboard }) => dashboard.slug === 'lightdash-analytics-apps',
+        )!;
+        const slugs = apps.charts.map(({ slug }) => slug);
+        expect(slugs).toContain('lightdash-analytics-apps-user-app-detail');
+        expect(slugs).not.toContain('lightdash-analytics-apps-top-people');
+    });
+
     it('removes a retired managed dashboard and a retired chart of a managed dashboard, with the recoverable delete', async () => {
         const { run, softDeleteDashboard, softDeleteChart, findSpaces, info } =
             instance();
