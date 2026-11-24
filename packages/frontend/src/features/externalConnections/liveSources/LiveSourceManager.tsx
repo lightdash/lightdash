@@ -17,6 +17,7 @@ import { AddLiveSourceModal } from './AddLiveSourceModal';
 import { AmplitudeConnectionModal } from './AmplitudeConnectionModal';
 import { getGoogleSignInUrl, isGoogleConnector } from './googleConnection';
 import { GoogleConnectionModal } from './GoogleConnectionModal';
+import { GooglePlayConnectionModal } from './GooglePlayConnectionModal';
 import { GoogleSourcePickerModal } from './GoogleSourcePickerModal';
 import { getLinkedInAdsSignInUrl } from './linkedInAdsConnection';
 import { LinkedInAdsConnectionModal } from './LinkedInAdsConnectionModal';
@@ -154,6 +155,7 @@ export const LiveSourceManager: FC<{
                         return null;
                     // A new key pair means adding the source again
                     case 'amplitude':
+                    case 'google_play':
                         return null;
                     case 'linkedin_ads': {
                         const { apiSource } = connection;
@@ -281,6 +283,15 @@ const LiveSourceConnectDialog: FC<{
         case 'amplitude':
             return (
                 <AmplitudeConnectionModal
+                    opened
+                    onClose={onClose}
+                    projectUuid={projectUuid}
+                    onCreated={onCreated}
+                />
+            );
+        case 'google_play':
+            return (
+                <GooglePlayConnectionModal
                     opened
                     onClose={onClose}
                     projectUuid={projectUuid}
