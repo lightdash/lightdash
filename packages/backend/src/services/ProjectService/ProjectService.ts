@@ -300,6 +300,7 @@ import {
     WarehouseConnectionTestResults,
     WarehouseCredentials,
     WarehouseDatabaseListing,
+    WarehouseTableMetadata,
     WarehouseTables,
     WarehouseTablesCatalog,
     WarehouseTableSchema,
@@ -15611,6 +15612,7 @@ export class ProjectService
     ): Promise<
         WarehouseTableFields & {
             partitioning: TablePartitioning | null;
+            metadata: WarehouseTableMetadata | null;
             warehouseType: WarehouseTypes;
         }
     > {
@@ -15626,7 +15628,7 @@ export class ProjectService
                 table: resolved,
                 queryTags,
             }) => {
-                const [fields, partitioning] = await Promise.all([
+                const [fields, partitioning, metadata] = await Promise.all([
                     this.getTableFields(warehouseClient, resolved, queryTags),
                     warehouseClient
                         .getTablePartitioning(
@@ -15641,8 +15643,23 @@ export class ProjectService
                             );
                             return null;
                         }),
+                    warehouseClient.getTableMetadata
+                        ? warehouseClient
+                              .getTableMetadata(
+                                  resolved.tableName,
+                                  resolved.schemaName,
+                                  resolved.database,
+                              )
+                              .catch((error: unknown) => {
+                                  this.logger.warn(
+                                      'Error fetching warehouse table metadata',
+                                      { error },
+                                  );
+                                  return null;
+                              })
+                        : null,
                 ]);
-                return { ...fields, partitioning, warehouseType };
+                return { ...fields, partitioning, metadata, warehouseType };
             },
         );
     }

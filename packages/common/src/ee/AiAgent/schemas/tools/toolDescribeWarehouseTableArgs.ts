@@ -1,12 +1,14 @@
 import { z } from 'zod';
 import {
+    METRIC_VIEW_TABLE_TYPE,
     PartitionGranularity,
     PartitionType,
+    WarehouseTableType,
 } from '../../../../types/warehouse';
 import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-export const TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION = `Return the column names and types of one raw, staging or seed table that no explore exposes. It reads cached metadata, so it is fast and needs no approval, and returns schema only, not data.
+export const TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION = `Return the column names and types of one raw, staging or seed table that no explore exposes. Where the warehouse reports them, it also returns the table type (table, view, metric view), the table and column comments, and a view's or metric view's definition. It reads metadata only, so it is fast and needs no approval, and returns schema only, not data.
 
 For explore-backed tables use grepFields and getMetadata; to find a table's name use listWarehouseTables.`;
 
@@ -61,6 +63,28 @@ export const toolDescribeWarehouseTableStructuredContentSchema = z.object({
         .nullable()
         .describe(
             'Partition column of the table; null when it has none or the warehouse does not report one.',
+        ),
+    metadata: z
+        .object({
+            tableType: z.union([
+                z.nativeEnum(WarehouseTableType),
+                z.literal(METRIC_VIEW_TABLE_TYPE),
+            ]),
+            comment: z.string().nullable(),
+            columns: z.array(
+                z.object({
+                    name: z.string(),
+                    comment: z.string().nullable(),
+                    isMeasure: z.boolean(),
+                }),
+            ),
+            definition: z
+                .object({ text: z.string(), truncated: z.boolean() })
+                .nullable(),
+        })
+        .nullable()
+        .describe(
+            'Table type, table and column comments, and the view or metric-view definition (truncated with a marker past a size cap); null where the warehouse does not describe tables this way.',
         ),
 });
 
