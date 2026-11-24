@@ -1407,6 +1407,7 @@ export const AiAgentMcpServersInput = ({
                         <Button
                             variant="subtle"
                             color="ldGray"
+                            c="dimmed"
                             size="compact-xs"
                             leftSection={<MantineIcon icon={IconSettings} />}
                             onClick={openManageMcpServersModal}
