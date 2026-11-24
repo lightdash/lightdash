@@ -1,3 +1,10 @@
+# [3.379.0](https://github.com/lightdash/lightdash/compare/3.378.1...3.379.0) (2026-11-24)
+
+
+### Features
+
+* **ai:** simplify MCP server controls in agent settings ([#33296](https://github.com/lightdash/lightdash/issues/33296)) ([b8c3ce6](https://github.com/lightdash/lightdash/commit/b8c3ce69095328fe40c327f5a565e4e20ff0c56f))
+
 ## [3.378.1](https://github.com/lightdash/lightdash/compare/3.378.0...3.378.1) (2026-11-24)
 
 
