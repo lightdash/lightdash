@@ -302,6 +302,46 @@ describe('playground bundle', () => {
             ).toHaveBeenCalledExactlyOnceWith('motherduck-project');
         });
 
+        it('leaves the explores of a project it could not classify or untag', async () => {
+            const projectModel = buildProjectModel(31);
+            projectModel.getPlaygroundProjectUuids.mockResolvedValue([
+                'retained-project',
+                'unknown-project',
+                'legacy-project',
+            ]);
+            projectModel.getWarehouseCredentialsForProject
+                .mockRejectedValueOnce(new Error('decryption failed'))
+                .mockResolvedValueOnce(motherduckCredentials)
+                .mockResolvedValueOnce(sampleCredentials);
+            projectModel.clearPlaygroundProvisioning.mockRejectedValueOnce(
+                new Error('lock timeout'),
+            );
+
+            await expect(
+                reconcilePlaygroundBundles({
+                    projectModel,
+                    dataDirectory: shippedDirectory,
+                    validatePlaygroundDatabase: vi.fn(async () => undefined),
+                    now,
+                }),
+            ).resolves.toEqual({
+                version: currentVersion,
+                untagged: 0,
+                adopted: 1,
+                waiting: 2,
+                failed: 0,
+            });
+            expect(
+                projectModel.saveExploresToCache,
+            ).toHaveBeenCalledExactlyOnceWith(
+                'legacy-project',
+                expect.any(Array),
+                true,
+                undefined,
+                currentVersion,
+            );
+        });
+
         it('untags before choosing which projects to move', async () => {
             const projectModel = buildProjectModel(5);
             projectModel.getPlaygroundProjectUuids.mockResolvedValue([

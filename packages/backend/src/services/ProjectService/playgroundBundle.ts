@@ -245,7 +245,8 @@ const isSampleConnection = (credentials: CreateWarehouseCredentials) =>
 /**
  * Untags sample data projects that no longer use the embedded sample
  * database. MotherDuck and DuckLake share the DuckDB warehouse type, so only
- * the decrypted credentials can tell them apart.
+ * the decrypted credentials can tell them apart. Projects it could not
+ * classify or untag are returned so the caller leaves their explores alone.
  */
 const untagRepointedPlaygroundProjects = async (
     projectModel: Pick<
@@ -254,9 +255,10 @@ const untagRepointedPlaygroundProjects = async (
         | 'getWarehouseCredentialsForProject'
         | 'clearPlaygroundProvisioning'
     >,
-): Promise<number> => {
+): Promise<{ untagged: number; unresolved: Set<string> }> => {
     const projectUuids = await projectModel.getPlaygroundProjectUuids();
     let untagged = 0;
+    const unresolved = new Set<string>();
     await projectUuids.reduce(async (previous, projectUuid) => {
         await previous;
         try {
@@ -268,7 +270,7 @@ const untagRepointedPlaygroundProjects = async (
             await projectModel.clearPlaygroundProvisioning(projectUuid);
             untagged += 1;
         } catch (error) {
-            // Unreadable credentials say nothing about the connection; keep the tag.
+            unresolved.add(projectUuid);
             Logger.warn(
                 `Could not check the connection of sample data project ${projectUuid}: ${
                     error instanceof Error ? error.message : String(error)
@@ -276,7 +278,7 @@ const untagRepointedPlaygroundProjects = async (
             );
         }
     }, Promise.resolve());
-    return untagged;
+    return { untagged, unresolved };
 };
 
 export type ReconcilePlaygroundBundlesResult = {
@@ -315,21 +317,25 @@ export const reconcilePlaygroundBundles = async ({
         throw new Error(`No playground bundle found in ${dataDirectory}`);
     }
     // Before adoption, so a repointed project never gets the sample explores.
-    const untagged = await untagRepointedPlaygroundProjects(projectModel);
+    const { untagged, unresolved } =
+        await untagRepointedPlaygroundProjects(projectModel);
     const currentFirstSeenAt =
         await projectModel.recordPlaygroundBundleVersionSeen(currentVersion);
     const projects =
         await projectModel.getPlaygroundBundleProjectsNotOnVersion(
             currentVersion,
         );
-    const toAdopt = projects.filter(({ playgroundBundleVersion }) =>
-        shouldAdoptPlaygroundBundle({
-            projectVersion: playgroundBundleVersion,
-            currentVersion,
-            servableVersions,
-            currentFirstSeenAt,
-            now,
-        }),
+    const toAdopt = projects.filter(
+        ({ projectUuid, playgroundBundleVersion }) =>
+            // Might be a repointed project; its explores stay until it is classified.
+            !unresolved.has(projectUuid) &&
+            shouldAdoptPlaygroundBundle({
+                projectVersion: playgroundBundleVersion,
+                currentVersion,
+                servableVersions,
+                currentFirstSeenAt,
+                now,
+            }),
     );
     const result: ReconcilePlaygroundBundlesResult = {
         version: currentVersion,
