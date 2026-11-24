@@ -1,3 +1,10 @@
+## [3.378.1](https://github.com/lightdash/lightdash/compare/3.378.0...3.378.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* **ai:** keep @-mention menu on screen above the composer ([#33286](https://github.com/lightdash/lightdash/issues/33286)) ([15ae9c7](https://github.com/lightdash/lightdash/commit/15ae9c70787d6a1afc4824ee302a880f16187b4d))
+
 # [3.378.0](https://github.com/lightdash/lightdash/compare/3.377.0...3.378.0) (2026-11-23)
 
 
