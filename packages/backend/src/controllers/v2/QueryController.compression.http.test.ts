@@ -61,6 +61,10 @@ beforeAll(async () => {
     ]);
     const asyncQueryService = {
         getAsyncQueryResults: vi.fn(async () => resultsPage),
+        getAsyncQueryResultsResponse: vi.fn(async () => ({
+            kind: 'results',
+            results: resultsPage,
+        })),
         getResultsStream: vi.fn(async () => Readable.from([streamBody])),
     };
     const app = express();
