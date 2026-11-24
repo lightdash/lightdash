@@ -55,7 +55,7 @@ export class ApiQuerySource implements QuerySourceClient {
 
     readonly supportsPivot = false;
 
-    readonly requiredFeatureFlags = [FeatureFlags.ApiQuerySources];
+    readonly requiredFeatureFlags: FeatureFlags[] = [];
 
     private readonly asyncQueryService: ApiQuerySourceArguments['asyncQueryService'];
 

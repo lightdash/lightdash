@@ -848,6 +848,8 @@ const getMockedAsyncQueryService = (
                 csvCellsLimit: null,
             })),
         } as unknown as OrganizationSettingsModel,
+        // Wired by the EE app when the Enterprise licence is valid
+        getLiveSourceForExplore: vi.fn(),
         ...overrides,
         getDataAppCustomSqlProvenance:
             overrides.getDataAppCustomSqlProvenance ??
@@ -2091,10 +2093,12 @@ describe('AsyncQueryService', () => {
             onboarding: Record<string, unknown>,
             limit?: number,
             featureFlagModel: FeatureFlagModel = flagsOn,
+            licensed = true,
         ) => {
             const now = new Date();
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 featureFlagModel,
+                ...(licensed ? {} : { getLiveSourceForExplore: undefined }),
                 onboardingModel: onboarding,
                 queryHistoryModel: {
                     create: vi.fn(async () => ({ queryUuid: 'api-uuid' })),
@@ -2135,6 +2139,14 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'api-uuid',
             });
             expect(onboarding.setRanQueryAtIfUnset).toHaveBeenCalledTimes(1);
+        });
+
+        test('refuses a live source query without an Enterprise licence', async () => {
+            const onboarding = firstQueryOnboardingModel();
+            await expect(
+                runLiveSourceQuery(onboarding, undefined, flagsOn, false),
+            ).rejects.toThrow(ForbiddenError);
+            expect(onboarding.setRanQueryAtIfUnset).not.toHaveBeenCalled();
         });
 
         test('does not count a live source query rejected by validation', async () => {
@@ -2220,12 +2232,6 @@ describe('AsyncQueryService', () => {
         test('keeps the original fetch time when reusing a live result', async () => {
             const now = new Date();
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                featureFlagModel: {
-                    get: vi.fn(async ({ featureFlagId }) => ({
-                        id: featureFlagId,
-                        enabled: featureFlagId === FeatureFlags.ApiQuerySources,
-                    })),
-                } as unknown as FeatureFlagModel,
                 queryHistoryModel: {
                     create: vi.fn(async () => ({ queryUuid: 'api-uuid' })),
                     findMostRecentByCacheKey: vi.fn(async () =>
@@ -2565,12 +2571,6 @@ describe('AsyncQueryService', () => {
             const getLiveSourceForExplore = vi.fn(async () => source);
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 getLiveSourceForExplore,
-                featureFlagModel: {
-                    get: vi.fn(async ({ featureFlagId }) => ({
-                        id: featureFlagId,
-                        enabled: featureFlagId === FeatureFlags.ApiQuerySources,
-                    })),
-                } as unknown as FeatureFlagModel,
             } as never);
             (service as AnyType).assertOrganizationNotBlocked = vi.fn();
             const submitLiveQuery = vi.fn(async () => ({
@@ -25757,9 +25757,7 @@ describe('fresh stored result read boundary', () => {
         vi.mocked(f.service.featureFlagModel.get).mockImplementation(
             async ({ featureFlagId }) => ({
                 id: featureFlagId,
-                enabled:
-                    featureFlagId === FeatureFlags.AgentIdentity ||
-                    featureFlagId === FeatureFlags.ApiQuerySources,
+                enabled: featureFlagId === FeatureFlags.AgentIdentity,
             }),
         );
         Object.assign(f.service.queryHistoryModel, {

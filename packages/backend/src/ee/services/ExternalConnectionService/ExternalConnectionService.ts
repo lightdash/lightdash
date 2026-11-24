@@ -401,23 +401,6 @@ export class ExternalConnectionService extends BaseService {
         this.savedChartModel = args.savedChartModel;
     }
 
-    private async assertLiveSourcesEnabled(
-        account: RegisteredAccount,
-    ): Promise<void> {
-        const { enabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.ApiQuerySources,
-        });
-        if (!enabled) {
-            throw new ForbiddenError(
-                'Live data sources are not enabled for this organization',
-            );
-        }
-    }
-
     private async isNewOnboardingEnabled(
         account: RegisteredAccount,
     ): Promise<boolean> {
@@ -553,7 +536,6 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
-        if (data.apiSource) await this.assertLiveSourcesEnabled(account);
         ExternalConnectionService.assertNotSignInType(data.type);
         const config = withApiSourceAccessRules(data);
         validateExternalConnectionConfig(config, Boolean(config.secret));
@@ -886,9 +868,6 @@ export class ExternalConnectionService extends BaseService {
             connectionUuid,
         );
         const isLiveSource = existing.kind === 'live_source';
-        if (isLiveSource || data.apiSource) {
-            await this.assertLiveSourcesEnabled(account);
-        }
         if (!isLiveSource && data.apiSource) {
             throw new ParameterError(
                 'A data app connection cannot become a live data source',
@@ -1431,7 +1410,6 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
-        await this.assertLiveSourcesEnabled(account);
         if (connection.kind !== 'live_source' || !connection.apiSource) {
             throw new ParameterError(
                 `"${connection.name}" is not a live data source`,
@@ -1451,7 +1429,6 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
-        await this.assertLiveSourcesEnabled(account);
         if (connection.kind !== 'live_source' || !connection.apiSource) {
             throw new ParameterError(
                 `"${connection.name}" is not a live data source`,
@@ -1671,7 +1648,6 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
-        await this.assertLiveSourcesEnabled(account);
         return this.readLiveSourceFields(
             connection,
             ExternalConnectionService.getLiveSourceSettings(connection),
@@ -1693,7 +1669,6 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
-        await this.assertLiveSourcesEnabled(account);
         const apiSource =
             ExternalConnectionService.getLiveSourceSettings(connection);
         if (changes.length === 0) {
@@ -2009,7 +1984,6 @@ export class ExternalConnectionService extends BaseService {
         prefix: string,
     ): Promise<ExplorePrefixCheck> {
         await this.assertCanManageLiveSources(account, projectUuid);
-        await this.assertLiveSourcesEnabled(account);
         return this.getExplorePrefixCheck(projectUuid, connector, prefix);
     }
 
@@ -2125,7 +2099,6 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
-        await this.assertLiveSourcesEnabled(account);
         const apiSource =
             ExternalConnectionService.getLiveSourceSettings(connection);
         const deleted = await this.listDeletedSourcesToReattach(
@@ -2184,7 +2157,6 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
-        await this.assertLiveSourcesEnabled(account);
         const apiSource =
             ExternalConnectionService.getLiveSourceSettings(connection);
         const { connector } = apiSource;
@@ -2441,7 +2413,6 @@ export class ExternalConnectionService extends BaseService {
         projectUuid: string,
         connectionUuid: string,
     ): Promise<ApiSourceSchemaScan | null> {
-        await this.assertLiveSourcesEnabled(account);
         await this.getViewableConnection(account, projectUuid, connectionUuid);
         const scans = await this.externalConnectionModel.getApiSourceSchemas([
             connectionUuid,
@@ -2455,7 +2426,6 @@ export class ExternalConnectionService extends BaseService {
         projectUuid: string,
         connectionUuid: string,
     ): Promise<ExternalConnectionRateLimitUsage> {
-        await this.assertLiveSourcesEnabled(account);
         const connection = await this.getViewableConnection(
             account,
             projectUuid,
@@ -2778,7 +2748,6 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
-        await this.assertLiveSourcesEnabled(account);
         const { region, connectionUuid, explorePrefix } = request;
         if (!ExternalConnectionService.isPostHogRegion(region)) {
             throw new ParameterError('Pick the US or EU PostHog region');
@@ -2843,7 +2812,6 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
-        await this.assertLiveSourcesEnabled(account);
 
         const origin = POSTHOG_REGION_ORIGINS[session.region];
         const client: OAuthAuthorizationCodeClientConfig = {
@@ -3031,7 +2999,6 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
-        await this.assertLiveSourcesEnabled(account);
         return organizationUuid;
     }
 
@@ -3114,7 +3081,6 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
-        await this.assertLiveSourcesEnabled(account);
         const name = request.name.trim();
         if (!name) {
             throw new ParameterError('Name is required');
@@ -3204,7 +3170,6 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
-        await this.assertLiveSourcesEnabled(account);
 
         const client: OAuthAuthorizationCodeClientConfig = {
             tokenUrl: LINKEDIN_ADS_TOKEN_URL,
@@ -3428,7 +3393,6 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
-        await this.assertLiveSourcesEnabled(account);
 
         const client: OAuthAuthorizationCodeClientConfig = {
             // Sessions started before this field existed have none: production
@@ -4754,7 +4718,6 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
-        if (requested.apiSource) await this.assertLiveSourcesEnabled(account);
         ExternalConnectionService.assertNotSignInType(requested.type);
 
         // Same validation create runs, so a test can never exercise a config we

@@ -201,14 +201,6 @@ export enum FeatureFlags {
     ComposeSqlRunner = 'compose-sql-runner',
 
     /**
-     * Enable api query sources: queries sent live to an external API (HogQL
-     * to PostHog) through a project connection, and the Live data sources
-     * project settings page. Off by default; enable per org. Also on wherever
-     * NewOnboarding is on, unless a user or org override turns it off.
-     */
-    ApiQuerySources = 'api-query-sources',
-
-    /**
      * Keeps the models of a project that has no dbt connection on the server,
      * and lets the Semantic Studio agent draft changes to them for a person to
      * apply. On a GitHub dbt project it also saves changes with a script

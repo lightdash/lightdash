@@ -120,10 +120,7 @@ export const storyProject = {
     provisioningSource: null,
 };
 
-const ENABLED_FLAGS: string[] = [
-    FeatureFlags.NewOnboarding,
-    FeatureFlags.ApiQuerySources,
-];
+const ENABLED_FLAGS: string[] = [FeatureFlags.NewOnboarding];
 
 export type StubRequest = {
     method: string;

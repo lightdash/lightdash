@@ -70,7 +70,6 @@ const buildService = ({
     connections = [posthogConnection()],
     canView = true,
     canManage = canView,
-    liveSourcesEnabled = true,
     newOnboardingEnabled = true,
     deletedSources = [],
     takenExploreNames = [],
@@ -81,7 +80,6 @@ const buildService = ({
     connections?: ExternalConnection[];
     canView?: boolean;
     canManage?: boolean;
-    liveSourcesEnabled?: boolean;
     newOnboardingEnabled?: boolean;
     deletedSources?: DeletedLiveSource[];
     takenExploreNames?: string[];
@@ -259,7 +257,7 @@ const buildService = ({
                 enabled:
                     featureFlagId === FeatureFlags.NewOnboarding
                         ? newOnboardingEnabled
-                        : liveSourcesEnabled,
+                        : true,
             })),
         },
     } as never);
@@ -652,13 +650,6 @@ describe('ExternalConnectionService rate-limit usage', () => {
             service.getApiSourceRateLimitUsage(account, 'proj-1', 'conn-1'),
         ).rejects.toThrow(ParameterError);
     });
-
-    it('refuses while live sources are off', async () => {
-        const { service } = buildService({ liveSourcesEnabled: false });
-        await expect(
-            service.getApiSourceRateLimitUsage(account, 'proj-1', 'conn-1'),
-        ).rejects.toThrow();
-    });
 });
 
 describe('ExternalConnectionService api source schema scans', () => {
@@ -830,13 +821,6 @@ describe('ExternalConnectionService api source schema scans', () => {
             externalConnectionModel.getApiSourceSchemas,
         ).not.toHaveBeenCalled();
     });
-
-    it('refuses the schema while live sources are off', async () => {
-        const { service } = buildService({ liveSourcesEnabled: false });
-        await expect(
-            service.getApiSourceSchema(account, 'proj-1', 'conn-1'),
-        ).rejects.toThrow(ForbiddenError);
-    });
 });
 
 describe('ExternalConnectionService live source writes', () => {
@@ -920,31 +904,6 @@ describe('ExternalConnectionService live source writes', () => {
                 }),
             }),
         ]);
-    });
-
-    it('refuses to create a live source while live sources are off', async () => {
-        const { service } = buildService({ liveSourcesEnabled: false });
-        await expect(
-            service.create(account, 'proj-1', postHogCreate),
-        ).rejects.toThrow(ForbiddenError);
-    });
-
-    it('refuses to test a live source while live sources are off', async () => {
-        const { service } = buildService({ liveSourcesEnabled: false });
-        await expect(
-            service.testConfig(account, 'proj-1', postHogCreate, {
-                method: 'POST',
-                path: '/api/projects/303731/query/',
-            }),
-        ).rejects.toThrow(ForbiddenError);
-        expect(mockSecureFetch).not.toHaveBeenCalled();
-    });
-
-    it('refuses to edit a live source while live sources are off', async () => {
-        const { service } = buildService({ liveSourcesEnabled: false });
-        await expect(
-            service.update(account, 'proj-1', 'conn-1', { name: 'Renamed' }),
-        ).rejects.toThrow(ForbiddenError);
     });
 
     it('refuses to turn a data app connection into a live source', async () => {
@@ -2070,34 +2029,39 @@ describe('ExternalConnectionService live source explores', () => {
         expect(projectModel.replaceApiSourceExplores).not.toHaveBeenCalled();
     });
 
-    it.each([
-        ['without manage access', { canManage: false }, ForbiddenError],
-        [
-            'with live data sources off',
-            { liveSourcesEnabled: false },
-            ForbiddenError,
-        ],
-    ])('refuses reattach routes %s', async (_name, options, error) => {
-        const { service } = buildService({
-            deletedSources: [deletedSource()],
-            ...options,
-        });
+    it.each([['without manage access', { canManage: false }, ForbiddenError]])(
+        'refuses reattach routes %s',
+        async (_name, options, error) => {
+            const { service } = buildService({
+                deletedSources: [deletedSource()],
+                ...options,
+            });
 
-        await expect(
-            service.checkExplorePrefix(
-                account,
-                'proj-1',
-                ApiConnectorType.POSTHOG,
-                'free_name',
-            ),
-        ).rejects.toThrow(error);
-        await expect(
-            service.listReattachableLiveSources(account, 'proj-1', 'conn-1'),
-        ).rejects.toThrow(error);
-        await expect(
-            service.reattachLiveSource(account, 'proj-1', 'conn-1', 'old-conn'),
-        ).rejects.toThrow(error);
-    });
+            await expect(
+                service.checkExplorePrefix(
+                    account,
+                    'proj-1',
+                    ApiConnectorType.POSTHOG,
+                    'free_name',
+                ),
+            ).rejects.toThrow(error);
+            await expect(
+                service.listReattachableLiveSources(
+                    account,
+                    'proj-1',
+                    'conn-1',
+                ),
+            ).rejects.toThrow(error);
+            await expect(
+                service.reattachLiveSource(
+                    account,
+                    'proj-1',
+                    'conn-1',
+                    'old-conn',
+                ),
+            ).rejects.toThrow(error);
+        },
+    );
 
     it('refuses to reattach something that is not a deleted source of the integration', async () => {
         const { service } = buildService({ deletedSources: [] });

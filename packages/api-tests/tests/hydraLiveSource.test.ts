@@ -1,6 +1,5 @@
 import {
     ApiConnectorType,
-    FeatureFlags,
     HYDRA_ACCOUNT_PATH,
     HYDRA_ORIGIN,
     HYDRA_REPORT_PATH,
@@ -28,7 +27,6 @@ const projectUuid = SEED_PROJECT.project_uuid;
 const connectionsUrl = `/api/v1/ee/projects/${projectUuid}/external-connections`;
 const metricQueryUrl = `/api/v2/projects/${projectUuid}/query/metric-query`;
 const cacheSettingsUrl = `/api/v1/projects/${projectUuid}/results-cache-config`;
-const flagUrl = `/api/v2/feature-flag/${FeatureFlags.ApiQuerySources}`;
 
 const runId = `${Date.now().toString(36)}${Math.floor(Math.random() * 1_000)}`;
 
@@ -168,7 +166,6 @@ describe('Hydra, the test integration', () => {
     let admin: ApiClient;
     let source: Awaited<ReturnType<typeof createHydraSource>>;
     const created: string[] = [];
-    let clearFlag = false;
     let restoreCache: boolean | null = null;
 
     const setBehaviour = async (settings: HydraSettingsInput) => {
@@ -187,13 +184,6 @@ describe('Hydra, the test integration', () => {
         // Rainbow Machine envs turn Hydra on in rainbow.toml
         expect(health.body.results.hasHydraLiveSource).toBe(true);
 
-        const flag = await admin.get<Body<{ enabled: boolean }>>(flagUrl);
-        if (!flag.body.results.enabled) {
-            expect((await admin.post(flagUrl, { enabled: true })).status).toBe(
-                200,
-            );
-            clearFlag = true;
-        }
         // Live results follow the project's result caching
         const cache =
             await admin.get<Body<ResultsCacheProjectSettings>>(
@@ -221,7 +211,6 @@ describe('Hydra, the test integration', () => {
         if (restoreCache !== null) {
             await admin.patch(cacheSettingsUrl, { cacheEnabled: restoreCache });
         }
-        if (clearFlag) await admin.delete(flagUrl);
     });
 
     it('answers a chart query, then reuses its results for the same query', async () => {

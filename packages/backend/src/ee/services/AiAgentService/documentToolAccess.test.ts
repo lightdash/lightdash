@@ -198,6 +198,9 @@ describe('Document runtime access', () => {
                 featureFlagService: {
                     get: vi.fn().mockResolvedValue({ enabled: false }),
                 },
+                externalConnectionService: {
+                    listApiSourceConnections: vi.fn().mockResolvedValue([]),
+                },
                 aiWritebackService: {
                     canReadSourceCode: vi.fn().mockResolvedValue(false),
                 },

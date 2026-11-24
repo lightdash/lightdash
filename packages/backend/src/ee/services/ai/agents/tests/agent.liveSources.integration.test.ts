@@ -1,6 +1,5 @@
 import {
     ApiConnectorType,
-    FeatureFlags,
     SEED_PROJECT,
     type AiAgent,
     type CreateExternalConnection,
@@ -180,14 +179,6 @@ describeOrSkip('live data source selection', () => {
         connectionModel = context.app
             .getModels()
             .getExternalConnectionModel<ExternalConnectionModel>();
-        await context
-            .db('feature_flags')
-            .insert({
-                flag_id: FeatureFlags.ApiQuerySources,
-                default_enabled: true,
-            })
-            .onConflict('flag_id')
-            .merge();
         agent = await getServices(context.app).aiAgentService.createAgent(
             context.testUser,
             {

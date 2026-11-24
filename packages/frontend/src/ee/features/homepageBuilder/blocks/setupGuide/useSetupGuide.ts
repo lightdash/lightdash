@@ -1,22 +1,18 @@
 import { subject } from '@casl/ability';
-import {
-    ContentType,
-    FeatureFlags,
-    isSemanticLayerExplore,
-} from '@lightdash/common';
+import { ContentType, isSemanticLayerExplore } from '@lightdash/common';
 import { useMatches } from '@mantine/core';
 import { useLocalStorage } from 'react-use';
 import { useChartTypesEnabled } from '../../../../../features/chartTypes/hooks/useChartTypesEnabled';
 import { useDataAppVisualizations } from '../../../../../features/chartTypes/hooks/useDataAppVisualizations';
 import { useRegistryChartTypes } from '../../../../../features/chartTypes/hooks/useRegistryChartTypes';
 import { useExternalConnections } from '../../../../../features/externalConnections/hooks/useExternalConnections';
+import { useLiveSourcesAvailability } from '../../../../../features/externalConnections/hooks/useLiveSourcesAvailability';
 import { useExternalSources } from '../../../../../features/externalSources/hooks/useExternalSources';
 import { getSemanticStudioUrl } from '../../../../../features/semanticStudio/urls';
 import { useOrganizationBrand } from '../../../../../hooks/organization/useOrganizationBrand';
 import { useInfiniteContent } from '../../../../../hooks/useContent';
 import { useExplores } from '../../../../../hooks/useExplores';
 import { useOrganizationUsers } from '../../../../../hooks/useOrganizationUsers';
-import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import { useCanManageProject } from '../../hooks/useHomepageAbilities';
 import { useIsNewOnboardingOrg } from '../../hooks/useIsNewOnboardingOrg';
@@ -30,7 +26,7 @@ export const useSetupGuide = (
     const { user } = useApp();
     const userUuid = user.data?.userUuid;
     const newOnboardingOrg = useIsNewOnboardingOrg();
-    const liveSourcesFlag = useServerFeatureFlag(FeatureFlags.ApiQuerySources);
+    const liveSources = useLiveSourcesAvailability();
     const canManageProject = useCanManageProject(projectUuid);
     // visibleActions is empty on the playground, where setup has no place
     const isEligible =
@@ -111,7 +107,7 @@ export const useSetupGuide = (
         ),
         semanticStudioUrl,
         canAddLiveSources:
-            liveSourcesFlag.data?.enabled === true &&
+            liveSources.isAvailable &&
             !!user.data?.ability.can(
                 'manage',
                 subject('ExternalConnection', {

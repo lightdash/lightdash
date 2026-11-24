@@ -4,7 +4,6 @@
  * and what they can change follows their role (see permissions.ts). The rest
  * of the path is the page you are on; see urls.ts.
  */
-import { FeatureFlags } from '@lightdash/common';
 import { useCallback, useMemo, type FC } from 'react';
 import {
     Navigate,
@@ -19,9 +18,9 @@ import ForbiddenPanel from '../../components/ForbiddenPanel';
 import { usePrefetchStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import { useExplores } from '../../hooks/useExplores';
 import { useProject } from '../../hooks/useProject';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import { useExternalConnections } from '../externalConnections/hooks/useExternalConnections';
+import { useLiveSourcesAvailability } from '../externalConnections/hooks/useLiveSourcesAvailability';
 import { useExternalSources } from '../externalSources/hooks/useExternalSources';
 import {
     canListLiveSources,
@@ -65,7 +64,7 @@ const SemanticStudioPage: FC = () => {
         [navigate, projectUuid],
     );
     const { user } = useApp();
-    const liveSourcesFlag = useServerFeatureFlag(FeatureFlags.ApiQuerySources);
+    const liveSources = useLiveSourcesAvailability();
     const {
         data: project,
         isInitialLoading: isProjectLoading,
@@ -89,8 +88,8 @@ const SemanticStudioPage: FC = () => {
     };
     const ability = user.data?.ability;
     const organizationUuid = user.data?.organizationUuid;
-    const isLiveSourcesEnabled = !!liveSourcesFlag.data?.enabled;
-    // A kind whose feature flag is off can't be added or managed, matching
+    const isLiveSourcesEnabled = liveSources.isAvailable;
+    // A kind that is unavailable can't be added or managed, matching
     // project settings.
     const permissions = useMemo((): StudioPermissions | null => {
         if (!ability || !organizationUuid || !projectUuid) return null;
@@ -160,7 +159,7 @@ const SemanticStudioPage: FC = () => {
     );
 
     if (
-        liveSourcesFlag.isInitialLoading ||
+        liveSources.isLoading ||
         isProjectLoading ||
         explores.isInitialLoading ||
         externalSources.isInitialLoading ||
