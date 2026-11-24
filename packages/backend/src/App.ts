@@ -96,6 +96,7 @@ import {
     setDefaultPermissionsPolicy,
 } from './middlewares/permissionsPolicy/permissionsPolicy';
 import { keepRawThreadFileBodyPrivate } from './middlewares/rawThreadFileBody';
+import { responseCompression } from './middlewares/responseCompression/responseCompression';
 import { createRestrictUnverifiedSessionMiddleware } from './middlewares/restrictUnverifiedSession/restrictUnverifiedSession';
 import { flush as flushFeatureFlagChecks } from './models/FeatureFlagModel/flagCheckAggregator';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
@@ -491,6 +492,10 @@ export default class App {
             if (traceId) res.setHeader('x-trace-id', traceId);
             next();
         });
+
+        if (this.lightdashConfig.httpServer.responseCompressionEnabled) {
+            expressApp.use('/api', responseCompression());
+        }
 
         // Short-circuit CORS preflights for data-app iframe asset fetches.
         //
