@@ -49203,10 +49203,10 @@ const models: TsoaRoute.Models = {
             dataType: 'union',
             subSchemas: [
                 { dataType: 'enum', enums: ['access'] },
+                { dataType: 'enum', enums: ['not_found'] },
                 { dataType: 'enum', enums: ['name_taken'] },
                 { dataType: 'enum', enums: ['incomplete'] },
                 { dataType: 'enum', enums: ['invalid_filter'] },
-                { dataType: 'enum', enums: ['not_found'] },
             ],
             validators: {},
         },

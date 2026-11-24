@@ -8,7 +8,12 @@ import { LiveSourceSettings } from './LiveSourceSettings';
 
 const { update, idle } = vi.hoisted(() => ({
     update: vi.fn(),
-    idle: () => ({ mutate: vi.fn(), isLoading: false, data: undefined }),
+    idle: () => ({
+        mutate: vi.fn(),
+        isLoading: false,
+        data: undefined,
+        reset: vi.fn(),
+    }),
 }));
 
 vi.mock('../hooks/useUpdateExternalConnection', () => ({

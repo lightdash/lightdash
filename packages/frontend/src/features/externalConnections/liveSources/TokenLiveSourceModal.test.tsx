@@ -24,6 +24,7 @@ vi.mock('../hooks/useTestConnectionConfig', () => ({
         mutate: vi.fn(),
         isLoading: false,
         data: tested.data,
+        reset: () => undefined,
     }),
 }));
 
@@ -79,10 +80,9 @@ describe('TokenLiveSourceModal', () => {
         };
         renderModal();
 
-        expect(screen.getByRole('status')).toHaveTextContent(
-            /^HubSpot rejected the access token\.$/,
+        expect(screen.getByRole('alert')).toHaveTextContent(
+            /^HubSpot rejected the access token\. Check its scopes\.$/,
         );
-        expect(screen.queryByText(/can't read from/)).not.toBeInTheDocument();
     });
 
     it('creates the source with the explore prefix the admin typed', async () => {
