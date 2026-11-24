@@ -19,10 +19,6 @@ import {
 } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import {
-    getWarehouseIcon,
-    getWarehouseLabel,
-} from '../../components/ProjectConnection/ProjectConnectFlow/utils';
 import { WarehouseLogoStack } from '../../components/ProjectConnection/ProjectConnectFlow/WarehouseLogoStack';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
@@ -35,6 +31,7 @@ import { getNewAgentUrl } from './urls';
 import { useAddSource, WAREHOUSE_OPTION } from './useAddSource';
 import { useSemanticLayerStatus } from './useSemanticLayerModel';
 import { type ViewModel } from './useSemanticStudio';
+import { WarehouseHeading } from './WarehouseStatusLine';
 import { modelTablePrompt, useWarehouseSummary } from './warehouseSummary';
 
 // ---------------------------------------------------------------------------
@@ -156,27 +153,11 @@ const WarehouseCard: FC<{
 }> = ({ projectUuid, onModel }) => {
     const { type, summary } = useWarehouseSummary(projectUuid);
     if (!type) return null;
-    const details = [
-        summary?.location ?? null,
-        summary
-            ? `${summary.tableCount} ${summary.tableCount === 1 ? 'table' : 'tables'}`
-            : null,
-    ].filter((detail) => detail !== null);
     const tables = summary?.tables.slice(0, CARD_TABLES) ?? [];
     const showsSchema = summary?.location?.includes('.') !== true;
     return (
         <Paper p="md" w="100%" ta="left" aria-label="Warehouse">
-            <Group gap="xs" wrap="nowrap">
-                {getWarehouseIcon(type, 16)}
-                <Text fz="sm" fw={500}>
-                    {getWarehouseLabel(type) ?? 'Warehouse'}
-                </Text>
-                {details.length > 0 ? (
-                    <Text fz="xs" c="dimmed" truncate>
-                        {details.join(' · ')}
-                    </Text>
-                ) : null}
-            </Group>
+            <WarehouseHeading type={type} summary={summary} />
             {tables.length > 0 ? (
                 <Stack gap={0} mt="xs">
                     {tables.map((table) => (
