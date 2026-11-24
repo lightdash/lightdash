@@ -24,6 +24,7 @@ vi.mock('../hooks/useTestConnectionConfig', () => ({
         mutate: vi.fn(),
         isLoading: false,
         data: tested.data,
+        reset: () => undefined,
     }),
 }));
 

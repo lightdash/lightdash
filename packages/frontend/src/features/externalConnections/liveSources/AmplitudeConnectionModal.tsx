@@ -21,7 +21,7 @@ import {
 import { LiveSourceTitle } from './LiveSourceIcon';
 import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
 import { LiveSourceSetupCard } from './LiveSourceSetupCard';
-import { LiveSourceTestCard } from './LiveSourceTestCard';
+import { LiveSourceTestRow } from './LiveSourceTestRow';
 import { NewLiveSourceDetails } from './NewLiveSourceDetails';
 
 /** Matches the fields of the Details card below. */
@@ -135,13 +135,17 @@ export const AmplitudeConnectionModal: FC<Props> = ({
                             {...form.getInputProps('secretKey')}
                         />
                     </SettingsRow>
+                    <LiveSourceTestRow
+                        hint="Checks the details above, without saving"
+                        test={testMutation}
+                        onTest={handleTest}
+                        inputs={[
+                            form.values.region,
+                            form.values.apiKey,
+                            form.values.secretKey,
+                        ]}
+                    />
                 </SettingsCard>
-
-                <LiveSourceTestCard
-                    hint="Runs a small read with the details above, without saving"
-                    test={testMutation}
-                    onTest={handleTest}
-                />
 
                 <NewLiveSourceDetails
                     nameProps={form.getInputProps('name')}

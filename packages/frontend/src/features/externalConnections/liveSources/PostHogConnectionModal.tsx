@@ -20,7 +20,7 @@ import { useTestConnectionConfig } from '../hooks/useTestConnectionConfig';
 import { LiveSourceTitle } from './LiveSourceIcon';
 import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
 import { LiveSourceSetupCard } from './LiveSourceSetupCard';
-import { LiveSourceTestCard } from './LiveSourceTestCard';
+import { LiveSourceTestRow } from './LiveSourceTestRow';
 import { NewLiveSourceDetails } from './NewLiveSourceDetails';
 import {
     getPostHogQueryPath,
@@ -184,18 +184,20 @@ export const PostHogConnectionModal: FC<Props> = ({
                                     {...form.getInputProps('apiKey')}
                                 />
                             </SettingsRow>
+                            {/* A sign-in can only be tested once PostHog sends it back */}
+                            <LiveSourceTestRow
+                                hint="Checks the details above, without saving"
+                                test={testMutation}
+                                onTest={handleTest}
+                                inputs={[
+                                    form.values.region,
+                                    form.values.projectId,
+                                    form.values.apiKey,
+                                ]}
+                            />
                         </>
                     )}
                 </SettingsCard>
-
-                {/* A sign-in can only be tested once PostHog sends it back */}
-                {isSignIn ? null : (
-                    <LiveSourceTestCard
-                        hint="Runs a small read with the details above, without saving"
-                        test={testMutation}
-                        onTest={handleTest}
-                    />
-                )}
 
                 <NewLiveSourceDetails
                     nameProps={form.getInputProps('name')}

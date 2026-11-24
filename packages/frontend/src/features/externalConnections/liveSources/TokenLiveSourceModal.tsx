@@ -12,7 +12,7 @@ import { useTestConnectionConfig } from '../hooks/useTestConnectionConfig';
 import { LiveSourceTitle } from './LiveSourceIcon';
 import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
 import { LiveSourceSetupCard } from './LiveSourceSetupCard';
-import { LiveSourceTestCard } from './LiveSourceTestCard';
+import { LiveSourceTestRow } from './LiveSourceTestRow';
 import { NewLiveSourceDetails } from './NewLiveSourceDetails';
 import {
     normalizeAccountId,
@@ -122,13 +122,13 @@ export const TokenLiveSourceModal: FC<Props> = ({
                             {...form.getInputProps('token')}
                         />
                     </SettingsRow>
+                    <LiveSourceTestRow
+                        hint="Checks the details above, without saving"
+                        test={testMutation}
+                        onTest={handleTest}
+                        inputs={[form.values.accountId, form.values.token]}
+                    />
                 </SettingsCard>
-
-                <LiveSourceTestCard
-                    hint="Runs a small read with the details above, without saving"
-                    test={testMutation}
-                    onTest={handleTest}
-                />
 
                 <NewLiveSourceDetails
                     nameProps={form.getInputProps('name')}

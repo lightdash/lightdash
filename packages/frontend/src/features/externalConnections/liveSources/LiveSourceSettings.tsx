@@ -60,7 +60,7 @@ import {
 import classes from './LiveSources.module.css';
 import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
 import rowClasses from './LiveSourceSettingsRows.module.css';
-import { LiveSourceTestCard } from './LiveSourceTestCard';
+import { LiveSourceTestRow } from './LiveSourceTestRow';
 
 const WINDOW_SECONDS = [
     0,
@@ -366,20 +366,20 @@ export const LiveSourceSettings: FC<{
                             </Button>
                         </SettingsRow>
                     ) : null}
+                    {testRequest ? (
+                        <LiveSourceTestRow
+                            hint={
+                                isAccessChanged
+                                    ? 'Checks your unsaved changes above'
+                                    : 'Checks the saved access'
+                            }
+                            test={testSource}
+                            onTest={handleTest}
+                            inputs={accessKeys.map((key) => form.values[key])}
+                        />
+                    ) : null}
                     {accessKeys.length > 0 ? saveFooter(accessKeys) : null}
                 </SettingsCard>
-
-                {testRequest ? (
-                    <LiveSourceTestCard
-                        hint={
-                            isAccessChanged
-                                ? 'Runs a small read with your unsaved access changes'
-                                : 'Runs a small read with the saved access'
-                        }
-                        test={testSource}
-                        onTest={handleTest}
-                    />
-                ) : null}
 
                 <SettingsCard
                     title="Details"
