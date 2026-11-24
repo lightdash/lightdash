@@ -18,7 +18,7 @@ export const ThreadMetadataSection: FC<Props> = ({ metadata }) => {
                 <Group gap="xs" align="baseline">
                     <Title order={6}>Metadata</Title>
                     <Text fz="xs" c="dimmed">
-                        Supplied by the API caller
+                        Caller-supplied
                     </Text>
                 </Group>
                 <Badge variant="default">{entries.length}</Badge>
