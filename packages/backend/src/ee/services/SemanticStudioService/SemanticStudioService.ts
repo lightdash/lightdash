@@ -11,14 +11,18 @@ import {
     isChartValidationError,
     isDashboardValidationError,
     isExploreError,
+    isPullRequestOpen,
     isUserManagedExplore,
     JobStatusType,
+    normalizeWorkspaceName,
     NotFoundError,
     ParameterError,
     parseModelDocument,
     ProjectType,
     readModelPart,
     RequestMethod,
+    toDraftEdit,
+    UNTITLED_WORKSPACE_NAME,
     ValidationTarget,
     type CompileSemanticStudioBranchPayload,
     type DbtManifest,
@@ -64,6 +68,7 @@ import {
     type SessionUser,
     type WritebackMergeResult,
 } from '@lightdash/common';
+import { NATIVE_MODEL_DIRECTORIES } from '@lightdash/common/lightdash/loader';
 import { groupBy } from 'es-toolkit/compat';
 import { createHash } from 'node:crypto';
 import { text } from 'node:stream/consumers';
@@ -132,7 +137,7 @@ import {
     usesAnyModel,
     type DraftCheckerProjectService,
 } from './DraftChecker';
-import { foldDraft, toDraftEdit, toModelPath, withWrites } from './draftFold';
+import { foldDraft, toModelPath, withWrites } from './draftFold';
 import {
     findDraftedPaths,
     findRefusedPaths,
@@ -325,7 +330,13 @@ const IMPACT_CHECK_TIMEOUT_MS = 10 * 60 * 1000;
 
 const NO_IMPACT: SemanticLayerDraftImpact = { status: 'done', breaks: [] };
 
-const UNTITLED_WORKSPACE_NAME = 'Untitled';
+const WORKSPACE_NAME_MAX_LENGTH = 120;
+
+const NOT_YOUR_CHANGE =
+    'Only the person who started this change can edit it here.';
+
+const editChangeName = (path: string) =>
+    `Edit ${path.split('/').pop() ?? path}`;
 
 /** Automatic fixes of a failed compile in a row before it is left to the person. */
 const MAX_COMPILE_FOLLOW_UPS = 2;
@@ -382,6 +393,10 @@ const REFUSAL_REASONS: Record<ModelFragmentRefusalReason, string> = {
     not_found: 'is not in the model.',
 };
 
+/** An explore compiled from a model, rather than a pre-aggregate or user-managed one. */
+const isModelExplore = (type: ExploreType | null | undefined): boolean =>
+    type === undefined || type === null || type === ExploreType.DEFAULT;
+
 const describeRefusal = ({ path, reason }: ModelFragmentRefusal): string =>
     `${path} ${REFUSAL_REASONS[reason]}`;
 
@@ -390,8 +405,10 @@ const describeRefusal = ({ path, reason }: ModelFragmentRefusal): string =>
 const MAX_USAGE_FIELDS = 40;
 
 // dbt's default folders; read model-paths from dbt_project.yml if a project moves them.
-const SOURCE_FILE =
-    /^(dbt_project\.yml|(models|macros|snapshots|seeds|lightdash\/models)\/.+\.(ya?ml|sql))$/;
+const DBT_SOURCE_DIRECTORIES = ['models', 'macros', 'snapshots', 'seeds'];
+const SOURCE_FILE = new RegExp(
+    `^(dbt_project\\.yml|(${[...new Set([...DBT_SOURCE_DIRECTORIES, ...NATIVE_MODEL_DIRECTORIES])].join('|')})/.+\\.(ya?ml|sql))$`,
+);
 
 /** A file Studio shows, named plainly: no `..`, `.` or empty segment can step outside its folder. */
 export const isSourcePath = (path: string): boolean =>
@@ -734,9 +751,7 @@ export class SemanticStudioService extends BaseService {
         if (repo || stored.length > 0) return false;
         const summaries =
             await this.projectModel.getAllExploreSummaries(projectUuid);
-        return summaries.some(
-            ({ type }) => type === undefined || type === ExploreType.DEFAULT,
-        );
+        return summaries.some(({ type }) => isModelExplore(type));
     }
 
     private async assertNoModelsFromElsewhere(
@@ -957,9 +972,10 @@ export class SemanticStudioService extends BaseService {
                 {
                     ...owner,
                     promptUuid,
-                    changeName:
-                        changeName?.trim().slice(0, 120) ||
-                        UNTITLED_WORKSPACE_NAME,
+                    changeName: normalizeWorkspaceName(
+                        changeName ?? '',
+                        WORKSPACE_NAME_MAX_LENGTH,
+                    ),
                     models,
                     // A repository has commits, not versions.
                     baseVersions: draft.repo
@@ -1544,9 +1560,7 @@ export class SemanticStudioService extends BaseService {
                     projectUuid,
                     reached,
                 )
-            ).flatMap(({ name, type }) =>
-                type === null || type === ExploreType.DEFAULT ? [name] : [],
-            );
+            ).flatMap(({ name, type }) => (isModelExplore(type) ? [name] : []));
             const exploreNames = new Set(explores.map(({ name }) => name));
             if (
                 cachedNames.length !== exploreNames.size ||
@@ -1832,12 +1846,7 @@ export class SemanticStudioService extends BaseService {
     ) {
         const compile =
             await this.workspaceModel.findBranchCompile(workspaceUuid);
-        if (
-            compile ||
-            !pullRequest ||
-            pullRequest.state === 'merged' ||
-            pullRequest.state === 'closed'
-        ) {
+        if (compile || !isPullRequestOpen(pullRequest)) {
             return compile;
         }
         try {
@@ -3531,11 +3540,7 @@ export class SemanticStudioService extends BaseService {
             user.userUuid,
         );
         const pullRequest = workspace?.pullRequest ?? null;
-        return pullRequest &&
-            pullRequest.state !== 'merged' &&
-            pullRequest.state !== 'closed'
-            ? pullRequest.url
-            : null;
+        return isPullRequestOpen(pullRequest) ? pullRequest.url : null;
     }
 
     /** A draft that went live finishes its workspace; one sent as a pull request waits on that. */
@@ -3643,9 +3648,7 @@ export class SemanticStudioService extends BaseService {
                 threadUuid,
             ))
         ) {
-            throw new ForbiddenError(
-                'Only the person who started this change can edit it here.',
-            );
+            throw new ForbiddenError(NOT_YOUR_CHANGE);
         }
         if (prUrl !== null) {
             const workspaces = await this.workspaceModel.findInProject(
@@ -3657,9 +3660,7 @@ export class SemanticStudioService extends BaseService {
                     workspace.isMine && workspace.pullRequest?.url === prUrl,
             );
             if (!isYours) {
-                throw new ForbiddenError(
-                    'Only the person who started this change can edit it here.',
-                );
+                throw new ForbiddenError(NOT_YOUR_CHANGE);
             }
         }
         const script = `repo.write(${JSON.stringify(path)}, ${JSON.stringify(content)});`;
@@ -3736,7 +3737,7 @@ export class SemanticStudioService extends BaseService {
                 await this.workspaceModel.start(owner, {
                     ...thread,
                     threadUuid,
-                    name: `Edit ${path.split('/').pop() ?? path}`,
+                    name: editChangeName(path),
                 });
             }
         }
@@ -3747,7 +3748,7 @@ export class SemanticStudioService extends BaseService {
             const workspaceUuid = await this.workspaceModel.create(
                 owner,
                 project.organizationUuid,
-                `Edit ${path.split('/').pop() ?? path}`,
+                editChangeName(path),
             );
             await this.workspaceModel.attachPullRequest(
                 { ...owner, workspaceUuid },
@@ -3966,7 +3967,7 @@ export class SemanticStudioService extends BaseService {
             const uuid = await this.workspaceModel.create(
                 owner,
                 project.organizationUuid,
-                name.trim().slice(0, 120) || UNTITLED_WORKSPACE_NAME,
+                normalizeWorkspaceName(name, WORKSPACE_NAME_MAX_LENGTH),
             );
             this.track(user, projectUuid, {
                 event: 'semantic_studio.draft_started',
@@ -3984,7 +3985,7 @@ export class SemanticStudioService extends BaseService {
         const workspaceUuid = await this.workspaceModel.start(owner, {
             ...thread,
             threadUuid,
-            name: name.trim().slice(0, 120) || UNTITLED_WORKSPACE_NAME,
+            name: normalizeWorkspaceName(name, WORKSPACE_NAME_MAX_LENGTH),
         });
         return this.loadWorkspace(user, projectUuid, workspaceUuid);
     }
@@ -4046,12 +4047,11 @@ export class SemanticStudioService extends BaseService {
         name: string,
     ): Promise<SemanticStudioWorkspace> {
         await this.getOwnWorkspace(user, projectUuid, workspaceUuid);
-        const trimmed = name.trim().slice(0, 120);
-        if (!trimmed) throw new ParameterError('A change needs a name');
+        if (!name.trim()) throw new ParameterError('A change needs a name');
         await this.workspaceModel.rename(
             { projectUuid, userUuid: user.userUuid },
             workspaceUuid,
-            trimmed,
+            normalizeWorkspaceName(name, WORKSPACE_NAME_MAX_LENGTH),
         );
         return this.loadWorkspace(user, projectUuid, workspaceUuid);
     }

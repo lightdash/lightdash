@@ -2,8 +2,8 @@ import { isApiError, type ApiError, type Explore } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import {
-    DEVELOPMENT_VIEW_HEADER,
     getDevelopmentViewHeaders,
+    PUBLISHED_HEADERS,
 } from './developmentView';
 import { diffModelFields, type FieldChange } from './modelFieldDiff';
 
@@ -47,7 +47,6 @@ export const useModelVersion = (
     );
 };
 
-const LIVE = { [DEVELOPMENT_VIEW_HEADER]: 'false' };
 const NO_LIVE: Explore[] = [];
 const diffs = new WeakMap<Explore, WeakMap<object, Map<string, FieldChange>>>();
 
@@ -76,7 +75,12 @@ export const useFieldChangeInDevelopment = (
     // Read at render: switching the view refetches every query, which renders this again.
     const headers = getDevelopmentViewHeaders();
     const isOn = !!projectUuid && !!table && Object.keys(headers).length > 0;
-    const live = useModelVersion(projectUuid ?? '', table, LIVE, isOn);
+    const live = useModelVersion(
+        projectUuid ?? '',
+        table,
+        PUBLISHED_HEADERS,
+        isOn,
+    );
     const mine = useModelVersion(projectUuid ?? '', table, headers, isOn);
     if (!isOn || !mine.data || (!live.data && !live.isError)) return null;
     return (

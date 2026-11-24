@@ -1,4 +1,6 @@
 import {
+    DEVELOPMENT_PREVIEW_HEADER,
+    DEVELOPMENT_VIEW_HEADER,
     getErrorMessage,
     type Account,
     type RegisteredAccount,
@@ -7,8 +9,6 @@ import { type RequestHandler } from 'express';
 import { toSessionUser } from '../../../auth/account';
 import Logger from '../../../logging/logger';
 import {
-    DEVELOPMENT_PREVIEW_HEADER,
-    DEVELOPMENT_VIEW_HEADER,
     developmentView,
     type DevelopmentView,
 } from '../../../services/ProjectService/developmentView';

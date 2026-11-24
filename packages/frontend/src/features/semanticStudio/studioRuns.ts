@@ -21,12 +21,6 @@ export type StudioRun =
       }
     | { kind: 'draft' };
 
-/** A workspace that has not landed or been dropped yet. */
-export const isInFlight = (workspace: SemanticStudioWorkspace): boolean =>
-    !workspace.finishedAt &&
-    workspace.pullRequest?.state !== 'merged' &&
-    workspace.pullRequest?.state !== 'closed';
-
 export const toStudioRun = (
     workspace: SemanticStudioWorkspace,
     {

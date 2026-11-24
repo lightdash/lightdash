@@ -2,22 +2,12 @@ import { getItemId, TimeFrames, type Explore } from '@lightdash/common';
 import { useQueries } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
-import {
-    DEVELOPMENT_PREVIEW_HEADER,
-    DEVELOPMENT_VIEW_HEADER,
-} from './developmentView';
+import { developmentHeadersFor, PUBLISHED_HEADERS } from './developmentView';
 import { diffModelFields, type FieldChange } from './modelFieldDiff';
 import {
     modelVersionQuery,
     useModelVersion,
 } from './useFieldChangesInDevelopment';
-
-export const developmentHeadersFor = (previewProjectUuid: string | null) => ({
-    [DEVELOPMENT_VIEW_HEADER]: 'true',
-    ...(previewProjectUuid
-        ? { [DEVELOPMENT_PREVIEW_HEADER]: previewProjectUuid }
-        : {}),
-});
 
 /** A model live and with the person's changes, and what differs; changes is null until both are read. */
 export const useModelFieldChanges = (
@@ -25,9 +15,7 @@ export const useModelFieldChanges = (
     model: string,
     previewProjectUuid: string | null,
 ) => {
-    const live = useModelVersion(projectUuid, model, {
-        [DEVELOPMENT_VIEW_HEADER]: 'false',
-    });
+    const live = useModelVersion(projectUuid, model, PUBLISHED_HEADERS);
     const mine = useModelVersion(
         projectUuid,
         model,
@@ -130,9 +118,12 @@ export const useChangeSet = (
     const lightdashApi = useLightdashApi();
     const sides = useQueries({
         queries: models.flatMap((model) => [
-            modelVersionQuery(lightdashApi, projectUuid, model, {
-                [DEVELOPMENT_VIEW_HEADER]: 'false',
-            }),
+            modelVersionQuery(
+                lightdashApi,
+                projectUuid,
+                model,
+                PUBLISHED_HEADERS,
+            ),
             modelVersionQuery(
                 lightdashApi,
                 projectUuid,

@@ -1,4 +1,7 @@
-import { type SemanticStudioWorkspace } from '@lightdash/common';
+import {
+    isOpenWorkspace,
+    type SemanticStudioWorkspace,
+} from '@lightdash/common';
 import { Avatar, Box, Button, Text, UnstyledButton } from '@mantine/core';
 import { IconCheck, IconChevronRight } from '@tabler/icons-react';
 import dayjs from 'dayjs';
@@ -10,7 +13,6 @@ import { RunMeta, RunRing } from './StudioRunRing';
 import { needsYou, toStudioRun, type StudioRun } from './studioRuns';
 import classes from './StudioWorkspacesList.module.css';
 import { pullRequestNumberOf } from './urls';
-import { isOpenWorkspace } from './useStudioCheckout';
 import { useStudioRuns, type StudioRunRow } from './useStudioRuns';
 import { useStudioWorkspaces } from './useStudioWorkspaces';
 

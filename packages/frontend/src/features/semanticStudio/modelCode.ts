@@ -1,6 +1,8 @@
 import {
     assertUnreachable,
     diffModelDocuments,
+    isWholeModelPath,
+    parseModelPartPath,
     type ModelFragmentChange,
     type ModelFragmentRefusal,
     type SemanticLayerDraft,
@@ -67,12 +69,11 @@ export const findFieldBlock = (
 
 /** A changed part in plain words: the key and what it is on, or the name of a whole field or join. */
 const describePart = (path: string): string => {
-    if (path === '') return 'the whole model';
-    const segments = path.split('.');
-    const isKey = segments.length % 2 === 1 && segments.length > 1;
-    return isKey
-        ? `${segments.at(-1)} of ${segments.at(-2)}`
-        : (segments.at(-1) ?? path);
+    const part = parseModelPartPath(path);
+    if (part === null) return path;
+    if (part.part === 'model') return 'the whole model';
+    if (part.part === 'key') return part.key;
+    return part.key === null ? part.name : `${part.key} of ${part.name}`;
 };
 
 /** What a published change did, for one with no question to name it. */
@@ -147,14 +148,11 @@ export const refusalText = (
 const parseChangePath = (
     path: string,
 ): { name: string | null; key: string | null } => {
-    const [head, first, second, third, fourth] = path.split('.');
-    if (head === 'joins' || head === 'metrics') {
-        return { name: first ?? null, key: second ?? null };
-    }
-    if (head !== 'dimensions') return { name: null, key: head };
-    return second === 'metrics' || second === 'additional_dimensions'
-        ? { name: third ?? null, key: fourth ?? null }
-        : { name: first ?? null, key: second ?? null };
+    const part = parseModelPartPath(path);
+    if (part === null || part.part === 'model')
+        return { name: null, key: null };
+    if (part.part === 'key') return { name: null, key: part.key };
+    return { name: part.name, key: part.key };
 };
 
 const WHOLE_PART_VERBS: Record<ModelFragmentChange['action'], string> = {
@@ -173,8 +171,9 @@ export const summarizeModelChanges = (
     const whole: string[] = [];
     const partial = new Map<string, { keys: string[]; redefines: boolean }>();
     changes.forEach(({ path, action }) => {
-        const { name, key } =
-            path === model ? { name: model, key: null } : parseChangePath(path);
+        const { name, key } = isWholeModelPath(model, path)
+            ? { name: model, key: null }
+            : parseChangePath(path);
         if (key === null) {
             whole.push(`${WHOLE_PART_VERBS[action]} ${name ?? path}`);
             return;
@@ -212,10 +211,19 @@ export type FieldChange = {
 };
 
 const kindOfPath = (path: string): FieldChangeKind => {
-    const [head, , second] = path.split('.');
-    if (head === 'joins') return 'join';
-    if (head === 'metrics' || second === 'metrics') return 'metric';
-    return head === 'dimensions' ? 'dimension' : 'model';
+    const part = parseModelPartPath(path);
+    if (part?.part !== 'entry') return 'model';
+    switch (part.group) {
+        case 'joins':
+            return 'join';
+        case 'metrics':
+            return 'metric';
+        case 'dimensions':
+        case 'additional_dimensions':
+            return 'dimension';
+        default:
+            return assertUnreachable(part, 'Unknown model part');
+    }
 };
 
 const loadRecord = (content: string | null): Record<string, unknown> => {
@@ -304,7 +312,7 @@ export const listFieldChanges = (
     >();
     changes.forEach(({ path, action }) => {
         // A whole model being created or removed is the model's own header, not a row.
-        if (path === model || path === '') return;
+        if (isWholeModelPath(model, path)) return;
         const { name, key } = parseChangePath(path);
         const kind = kindOfPath(path);
         const id = `${kind}:${name ?? model}`;

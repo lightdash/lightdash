@@ -2,11 +2,12 @@ import {
     CiCheckState,
     CiMergeState,
     CiProviderType,
+    isOpenWorkspace,
     type CiChecks,
     type SemanticStudioWorkspace,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { isInFlight, toStudioRun } from './studioRuns';
+import { toStudioRun } from './studioRuns';
 
 const workspace = (
     overrides: Partial<SemanticStudioWorkspace> = {},
@@ -87,12 +88,14 @@ describe('toStudioRun', () => {
     });
 });
 
-describe('isInFlight', () => {
+describe('isOpenWorkspace', () => {
     it('drops finished, merged and closed work', () => {
-        expect(isInFlight(inReview)).toBe(true);
-        expect(isInFlight(workspace({ finishedAt: new Date() }))).toBe(false);
+        expect(isOpenWorkspace(inReview)).toBe(true);
+        expect(isOpenWorkspace(workspace({ finishedAt: new Date() }))).toBe(
+            false,
+        );
         expect(
-            isInFlight(
+            isOpenWorkspace(
                 workspace({
                     pullRequest: { url: 'x/pull/1', state: 'merged' },
                 }),

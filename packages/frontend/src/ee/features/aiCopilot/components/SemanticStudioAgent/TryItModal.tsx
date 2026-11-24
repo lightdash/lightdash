@@ -26,6 +26,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../../../features/explorer/store';
+import { pullRequestNumberOf } from '../../../../../features/semanticStudio/urls';
 import {
     useChangeSet,
     type ChangedField,
@@ -252,7 +253,7 @@ export const TryItModal: FC<{
     const { data: explores } = useExplores(projectUuid, true);
     const labelOf = (name: string) =>
         explores?.find((explore) => explore.name === name)?.label ?? name;
-    const number = /\/(\d+)\/?$/.exec(prUrl ?? '')?.[1];
+    const number = pullRequestNumberOf(prUrl);
     const title = (
         <span className={classes.tryTitle}>
             <Tooltip

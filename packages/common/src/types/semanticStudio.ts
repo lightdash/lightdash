@@ -392,6 +392,33 @@ export type SemanticStudioWorkspace = {
     publishedLive: boolean;
 };
 
+/** Sent by a client that wants a person's unpublished model changes applied to what it reads. */
+export const DEVELOPMENT_VIEW_HEADER = 'Lightdash-Development-View';
+
+/** Names the preview project to read instead, for a project whose unpublished changes live on a branch. */
+export const DEVELOPMENT_PREVIEW_HEADER = 'Lightdash-Development-Preview';
+
+export const UNTITLED_WORKSPACE_NAME = 'Untitled';
+
+/** A workspace name trimmed to `maxLength`; a blank one is untitled. */
+export const normalizeWorkspaceName = (name: string, maxLength: number) =>
+    name.trim().slice(0, maxLength) || UNTITLED_WORKSPACE_NAME;
+
+/** A pull request not yet merged or closed; one whose state is unknown counts as open. */
+export const isPullRequestOpen = (
+    pullRequest: SemanticStudioWorkspace['pullRequest'],
+): pullRequest is NonNullable<SemanticStudioWorkspace['pullRequest']> =>
+    pullRequest !== null &&
+    pullRequest.state !== 'merged' &&
+    pullRequest.state !== 'closed';
+
+/** A workspace that has not landed or been dropped yet. */
+export const isOpenWorkspace = ({
+    finishedAt,
+    pullRequest,
+}: Pick<SemanticStudioWorkspace, 'finishedAt' | 'pullRequest'>): boolean =>
+    !finishedAt && (pullRequest === null || isPullRequestOpen(pullRequest));
+
 export type SemanticStudioWorkspaces = {
     /** Your unfinished workspaces, the active one first. */
     mine: SemanticStudioWorkspace[];

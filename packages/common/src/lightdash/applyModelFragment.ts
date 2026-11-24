@@ -10,6 +10,7 @@ import {
     type LightdashModelMetric,
     type LightdashModelWithSource,
 } from '../types/lightdashModel';
+import { parseModelPartPath } from './diffModelDocuments';
 import { stringifyKeepingFormat } from './keepYamlFormat';
 import { validateModelDocument } from './LightdashModelEditor';
 
@@ -36,17 +37,29 @@ export type LightdashModelFragment = {
     Omit<LightdashModel, 'name' | 'type' | 'dimensions' | 'metrics' | 'joins'>
 >;
 
+export const MODEL_FRAGMENT_ACTIONS = [
+    'created',
+    'added',
+    'patched',
+    'redefined',
+    'removed',
+] as const;
+
 export type ModelFragmentChange = {
     path: string;
-    action: 'created' | 'added' | 'patched' | 'redefined' | 'removed';
+    action: (typeof MODEL_FRAGMENT_ACTIONS)[number];
 };
 
+export const MODEL_FRAGMENT_REFUSAL_REASONS = [
+    'access',
+    'name_taken',
+    'incomplete',
+    'invalid_filter',
+    'not_found',
+] as const;
+
 export type ModelFragmentRefusalReason =
-    | 'access'
-    | 'name_taken'
-    | 'incomplete'
-    | 'invalid_filter'
-    | 'not_found';
+    (typeof MODEL_FRAGMENT_REFUSAL_REASONS)[number];
 
 export type ModelFragmentRefusal = {
     path: string;
@@ -279,27 +292,28 @@ export const setModelJoinRelationships = ({
 };
 
 const findPartPath = (model: LightdashModel, path: string): YamlPath | null => {
-    const [head, name, nested, nestedName, ...rest] = path.split('.');
-    if (!name || rest.length > 0) return null;
-    if (head === 'metrics') {
-        return nested === undefined && model.metrics?.[name]
-            ? ['metrics', name]
+    const part = parseModelPartPath(path);
+    if (part?.part !== 'entry' || part.key !== null) return null;
+    const { group, name, dimension } = part;
+    if (dimension !== null) {
+        const index = model.dimensions.findIndex(
+            (item) => item.name === dimension,
+        );
+        return index !== -1 && model.dimensions[index][group]?.[name]
+            ? ['dimensions', index, group, name]
             : null;
     }
-    if (head === 'joins') {
+    if (group === 'metrics') {
+        return model.metrics?.[name] ? ['metrics', name] : null;
+    }
+    if (group === 'joins') {
         const index = (model.joins ?? []).findIndex(
             (join) => (join.alias ?? join.join) === name,
         );
-        return nested === undefined && index !== -1 ? ['joins', index] : null;
+        return index !== -1 ? ['joins', index] : null;
     }
-    if (head !== 'dimensions') return null;
     const index = model.dimensions.findIndex((item) => item.name === name);
-    if (index === -1) return null;
-    if (nested === undefined) return ['dimensions', index];
-    if (nested !== 'metrics' && nested !== 'additional_dimensions') return null;
-    return nestedName && model.dimensions[index][nested]?.[nestedName]
-        ? ['dimensions', index, nested, nestedName]
-        : null;
+    return index !== -1 ? ['dimensions', index] : null;
 };
 
 /** Removes fields and joins by the paths changes are reported under, such as dimensions.<name>.metrics.<name>. */

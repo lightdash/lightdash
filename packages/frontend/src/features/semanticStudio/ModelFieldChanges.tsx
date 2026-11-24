@@ -2,17 +2,13 @@ import { Group, Stack, Text, Tooltip, VisuallyHidden } from '@mantine/core';
 import { useQueries } from '@tanstack/react-query';
 import { useMemo, type FC } from 'react';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
-import {
-    DEVELOPMENT_PREVIEW_HEADER,
-    DEVELOPMENT_VIEW_HEADER,
-} from './developmentView';
+import { developmentHeadersFor, PUBLISHED_HEADERS } from './developmentView';
 import { FieldUsage } from './DraftInsights';
 import { describeShift } from './metricComparison';
 import { findTouchedFields, type FieldChange } from './modelFieldDiff';
 import { modelVersionQuery } from './useFieldChangesInDevelopment';
 import { LIVE_HEADERS, useTotals } from './useMetricTotals';
 import {
-    developmentHeadersFor,
     findChangedFieldIds,
     useModelFieldChanges,
 } from './useModelFieldChanges';
@@ -163,15 +159,18 @@ export const PullRequestUsage: FC<{
     const lightdashApi = useLightdashApi();
     const sides = useQueries({
         queries: models.flatMap((model) => [
-            modelVersionQuery(lightdashApi, projectUuid, model, {
-                [DEVELOPMENT_VIEW_HEADER]: 'false',
-            }),
-            modelVersionQuery(lightdashApi, projectUuid, model, {
-                [DEVELOPMENT_VIEW_HEADER]: 'true',
-                ...(previewProjectUuid
-                    ? { [DEVELOPMENT_PREVIEW_HEADER]: previewProjectUuid }
-                    : {}),
-            }),
+            modelVersionQuery(
+                lightdashApi,
+                projectUuid,
+                model,
+                PUBLISHED_HEADERS,
+            ),
+            modelVersionQuery(
+                lightdashApi,
+                projectUuid,
+                model,
+                developmentHeadersFor(previewProjectUuid),
+            ),
         ]),
     });
     // Without both versions of every model nothing can be said about what moved.

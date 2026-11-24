@@ -1,5 +1,9 @@
 import { type LightdashModelWithSource } from '@lightdash/common';
-import { loadLightdashModels as loadNativeLightdashModels } from '@lightdash/common/lightdash/loader';
+import {
+    isNativeModelType,
+    loadLightdashModels as loadNativeLightdashModels,
+    NATIVE_MODEL_DIRECTORIES,
+} from '@lightdash/common/lightdash/loader';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import * as path from 'path';
@@ -17,9 +21,7 @@ async function isLightdashModelFile(filePath: string): Promise<boolean> {
             return false;
         }
 
-        // Check for valid model type values
-        const validModelTypes = ['model', 'model/v1beta', 'model/v1'];
-        return validModelTypes.includes(parsed.type ?? '');
+        return isNativeModelType(parsed.type ?? '');
     } catch {
         return false;
     }
@@ -36,10 +38,9 @@ export async function findLightdashModelFiles(
     projectDir: string,
 ): Promise<string[]> {
     // Check both possible model locations: models/ (preferred) and lightdash/models/ (legacy)
-    const possibleDirs = [
-        path.join(projectDir, 'models'),
-        path.join(projectDir, 'lightdash', 'models'),
-    ];
+    const possibleDirs = NATIVE_MODEL_DIRECTORIES.map((dir) =>
+        path.join(projectDir, dir),
+    );
 
     const lightdashModelsDir = possibleDirs.find((dir) => fs.existsSync(dir));
 
