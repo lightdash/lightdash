@@ -400,6 +400,8 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
     );
 
     const manageCount = directTotalResults + effectiveGroupsAccess.length;
+    const canManageGroups =
+        sessionUser.data?.ability.can('manage', 'Group') ?? false;
 
     return (
         <>
@@ -513,6 +515,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
 
                                     {directTotalResults >= 5 &&
                                         effectiveGroupsAccess.length === 0 &&
+                                        canManageGroups &&
                                         !isGroupsHintDismissed && (
                                             <Callout
                                                 variant="info"
