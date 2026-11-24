@@ -1,3 +1,10 @@
+## [3.383.1](https://github.com/lightdash/lightdash/compare/3.383.0...3.383.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* **ai-agents:** stop a failed Deep Research lookup from holding the thread page ([#33308](https://github.com/lightdash/lightdash/issues/33308)) ([376bb6a](https://github.com/lightdash/lightdash/commit/376bb6afa7d13271ed07c0c89c671beae6caf4f6))
+
 # [3.383.0](https://github.com/lightdash/lightdash/compare/3.382.0...3.383.0) (2026-11-24)
 
 
