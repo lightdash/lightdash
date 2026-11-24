@@ -74,10 +74,14 @@ export const modelTierRankExpression = (model: string, provider: string) =>
         )
         .join('')}99`;
 
-// A model name without the date stamp some providers add ("claude-haiku-4-5-20251001"). The prefix and
-// the tier word stay, so the colour and shade rules read it the same as the recorded name.
+// A model name as a reader knows it: without the date stamp some providers add
+// ("claude-haiku-4-5-20251001"), and without the route a hosted copy is reached by, so Bedrock's
+// "us.anthropic.claude-sonnet-4-5-20250929-v1:0" and OpenRouter's "anthropic/claude-sonnet-4-5" both read
+// "claude-sonnet-4-5" and are one series with the model called directly. The model's own name and its
+// tier word stay, so the colour and shade rules still match. Which route was used is in the recorded
+// name and in Provider.
 export const modelDisplayNameSql = (model: string) =>
-    `regexp_replace(${model}, '-[0-9]{8}$', '')`;
+    `regexp_replace(regexp_replace(${model}, '^(([a-z]+[.])?(anthropic|amazon|meta|mistral|cohere|ai21|deepseek|openai|google)[.]|[a-z0-9-]+/)', ''), '-[0-9]{8}(-v[0-9]+(:[0-9]+)?)?$', '')`;
 
 // A provider's strongest tier takes its colour; weaker tiers take these lighter tints in turn.
 export const modelProviderTints: Record<string, string[]> = {

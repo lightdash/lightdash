@@ -721,7 +721,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                 name: 'model_name',
                 label: 'Model',
                 description:
-                    'Model name without the date stamp some providers add, so claude-haiku-4-5-20251001 reads claude-haiku-4-5. Filter on Model (recorded name).',
+                    'Model name without the date stamp or the route it was reached by, so us.anthropic.claude-sonnet-4-5-20250929-v1:0 reads claude-sonnet-4-5. Filter on Model (recorded name).',
                 sql: modelDisplayNameSql(table.dimensions.model.sql),
             };
             table.dimensions.model.label = 'Model (recorded name)';

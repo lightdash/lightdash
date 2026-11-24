@@ -21,6 +21,7 @@ import {
     modelTiers,
     unmatchedModelTints,
 } from './analyticsColorPalette';
+import { SPARKLINE_CARD_ROWS } from './chartBuilders';
 import type { LibraryChartBinding } from './libraryCharts';
 import type { AnalyticsContentBundle } from './usageDashboardTypes';
 
@@ -1093,7 +1094,14 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                     ),
                     // The three totals do not change from tab to tab, so they are on the first only
                     ...(index === 0
-                        ? [row(3, 'eligible', 'total', 'records')]
+                        ? [
+                              row(
+                                  SPARKLINE_CARD_ROWS,
+                                  'eligible',
+                                  'total',
+                                  'records',
+                              ),
+                          ]
                         : []),
                     row(7, `${key}-daily`),
                     row(8, `${key}-rank`),
@@ -1111,8 +1119,13 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                     2,
                     '### All recorded AI usage\nTokens in billing scope, excluded or background usage, and self-managed usage. **Current month up to yesterday (UTC). Today is excluded.** Recorded usage is not a provider invoice or a count of agent requests.',
                 ),
-                row(3, 'total', 'input', 'output'),
-                row(3, 'cache-read', 'cache-write', 'reasoning'),
+                row(SPARKLINE_CARD_ROWS, 'total', 'input', 'output'),
+                row(
+                    SPARKLINE_CARD_ROWS,
+                    'cache-read',
+                    'cache-write',
+                    'reasoning',
+                ),
                 note(
                     1,
                     '**Do not add these tiles together.** Cache-read and cache-write tokens are included in input tokens. Reasoning tokens may be included in output tokens. Missing provider usage is unknown, not zero.',

@@ -17,6 +17,7 @@ import { compileMetricQuery } from '../../queryCompiler';
 import { createAnalyticsExplores } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import { MetricQueryBuilder } from '../../utils/QueryBuilder/MetricQueryBuilder';
 import { compactedStreamSchemas } from '../eventStream/registry';
+import { SPARKLINE_CARD_ROWS } from './chartBuilders';
 import {
     libraryChartFields,
     libraryChartFloors,
@@ -1301,7 +1302,8 @@ describe('Tokens by feature and model', () => {
             expect([
                 ...new Set(rows.map((row) => row.ai_usage_model_name)),
             ]).toEqual([
-                'us.anthropic.claude-b',
+                // Recorded as us.anthropic.claude-b: the Bedrock route is not part of the name shown
+                'claude-b',
                 'claude-a',
                 'gpt-big',
                 'gpt-small',
@@ -1905,7 +1907,7 @@ describe('options of the newest chart versions', () => {
         ).toMatchObject({ yIntegerTicks: true });
     });
 
-    it('gives every card one number size and format, and every word cloud one colour', () => {
+    it('gives every card one number size and format', () => {
         const bindings = [...analyticsLibraryChartBindings.values()];
         const cards = bindings.filter(
             ({ slug, optionValues }) =>
@@ -1918,16 +1920,6 @@ describe('options of the newest chart versions', () => {
                 sizeMode: 'preset',
                 bigNumberSize: 6,
                 reserveComparisonSpace: false,
-            }),
-        );
-        const clouds = bindings.filter(({ slug }) => slug === 'word-cloud');
-        // Each word cloud repeated the chart or table beside it, so none is placed on a dashboard
-        expect(clouds).toHaveLength(0);
-        clouds.forEach(({ optionValues }) =>
-            expect(optionValues).toMatchObject({
-                colorMode: 'shade',
-                rotationMode: 'none',
-                showCaption: false,
             }),
         );
     });
@@ -2150,5 +2142,27 @@ describe('one number in two places', () => {
             );
         expect(withoutIds(content)).toBe(withoutIds(home));
         expect(sqlOf(content)).toBe(sqlOf(home));
+    });
+});
+
+describe('card rows', () => {
+    it('gives every card with a sparkline enough rows to draw the whole trend line', () => {
+        const short = analyticsContentAsCode.flatMap(({ dashboard }) =>
+            dashboard.tiles.flatMap((tile) => {
+                if (!('chartSlug' in tile.properties)) return [];
+                const binding = analyticsLibraryChartBindings.get(
+                    String(tile.properties.chartSlug),
+                );
+                return binding?.slug === 'big-number-with-sparkline-trend' &&
+                    binding.fieldMapping.time !== undefined &&
+                    tile.h < SPARKLINE_CARD_ROWS
+                    ? [
+                          `${tile.tabSlug}: ${tile.properties.chartSlug} h=${tile.h}`,
+                      ]
+                    : [];
+            }),
+        );
+        expect(short).toEqual([]);
+        expect(SPARKLINE_CARD_ROWS).toBe(4);
     });
 });

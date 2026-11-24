@@ -323,6 +323,9 @@ describe('model tiers', () => {
         const models = [
             'claude-opus-5',
             'claude-haiku-4-5-20251001',
+            'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
+            'anthropic/claude-opus-5',
+            'gpt-4.1',
             'gpt-5-mini',
             'gemini-3.8-flash-lite',
             'gemini-3.8-flash',
@@ -352,6 +355,16 @@ describe('model tiers', () => {
             expect(rows.find(({ m }) => m === 'gpt-5-mini')!.shown).toBe(
                 'gpt-5-mini',
             );
+            // A hosted copy reads as the model itself: no region, vendor, date or version
+            const shown = (model: string) =>
+                rows.find(({ m }) => m === model)!.shown;
+            expect(shown('us.anthropic.claude-sonnet-4-5-20250929-v1:0')).toBe(
+                'claude-sonnet-4-5',
+            );
+            expect(shown('anthropic/claude-opus-5')).toBe('claude-opus-5');
+            // A dot inside a version is not a route
+            expect(shown('gpt-4.1')).toBe('gpt-4.1');
+            expect(shown('gemini-3.8-flash')).toBe('gemini-3.8-flash');
         } finally {
             db.closeSync();
             instance.closeSync();

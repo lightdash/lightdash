@@ -1,6 +1,5 @@
 import {
     card,
-    cloud,
     ranking,
     stackedByDay,
     trend,
@@ -60,15 +59,6 @@ export const toolsChartSpecs: UsageChartSpec[] = [
         metric: 'tool_activity_total_calls',
         category: 'tool_activity_tool_name',
         top: 8,
-        filters: mcp,
-    }),
-    cloud({
-        key: 'tools-mcp-tools-cloud',
-        name: 'MCP tools, sized by calls',
-        description: 'MCP tools sized by calls in the selected period.',
-        explore: 'tool_activity',
-        word: 'tool_activity_tool_name',
-        metric: 'tool_activity_total_calls',
         filters: mcp,
     }),
     ranking({
