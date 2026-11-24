@@ -562,6 +562,7 @@ describe('trusted surface to persisted chart identity', () => {
                     compactionSummary: null,
                     resolveMessageHistory: async () => [],
                     currentPromptStart: null,
+                    replayedTranscriptModel: null,
                 },
                 {
                     prompt: prompt as AiWebAppPrompt,

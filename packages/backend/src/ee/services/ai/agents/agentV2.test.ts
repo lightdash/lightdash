@@ -4505,3 +4505,111 @@ describe('withStudioCardReply', () => {
         expect(withStudioCardReply('', [])).toBe('');
     });
 });
+
+describe('turn transcripts', () => {
+    const sonnet = { provider: 'anthropic.messages', modelId: 'sonnet' };
+    const haiku = { provider: 'anthropic.messages', modelId: 'haiku' };
+    const toolStep = (
+        model: typeof sonnet,
+        output: unknown = { result: 'ok', metadata: { status: 'success' } },
+    ) => ({
+        text: '',
+        toolCalls: [{ toolCallId: 'call-1', toolName: 'findContent' }],
+        toolResults: [
+            { toolCallId: 'call-1', toolName: 'findContent', output },
+        ],
+        finishReason: 'tool-calls',
+        model,
+        reasoning: [],
+        usage: { totalTokens: 1 },
+    });
+    const answerStep = (model: typeof sonnet) => ({
+        text: 'Done.',
+        toolCalls: [],
+        toolResults: [],
+        finishReason: 'stop',
+        model,
+        reasoning: [],
+        usage: { totalTokens: 1 },
+    });
+
+    const runTurn = async (steps: AnyType[]) => {
+        const dependencies = buildAgentDependencies(
+            vi.fn().mockResolvedValue(undefined),
+        );
+        const storeTurnTranscript = vi.fn().mockResolvedValue(undefined);
+        Object.assign(dependencies, {
+            storeTurnTranscript,
+            consumePromptSteers: async () => [],
+        });
+        const args = buildAgentArgs();
+        args.currentPromptStart = 0;
+        let options: AnyType;
+        vi.mocked(streamText).mockImplementationOnce(((captured: AnyType) => {
+            options = captured;
+            return {};
+        }) as AnyType);
+        await streamAgentResponse({
+            args,
+            dependencies,
+            mcpToolSetup: mcpToolSetup(),
+        });
+        await options.prepareStep({
+            stepNumber: 1,
+            messages: [
+                ...options.messages,
+                {
+                    role: 'assistant',
+                    content: [
+                        {
+                            type: 'tool-call',
+                            toolCallId: 'call-1',
+                            toolName: 'findContent',
+                            input: {},
+                        },
+                    ],
+                },
+                {
+                    role: 'tool',
+                    content: [
+                        {
+                            type: 'tool-result',
+                            toolCallId: 'call-1',
+                            toolName: 'findContent',
+                            output: { type: 'text', value: 'ok' },
+                        },
+                    ],
+                },
+            ],
+        });
+        await options.onEnd({
+            totalUsage: { totalTokens: 2 },
+            steps,
+            finalStep: steps.at(-1),
+            finishReason: 'stop',
+        });
+        return storeTurnTranscript;
+    };
+
+    it('stores a turn only when one model ran every step, under that model', async () => {
+        const stored = await runTurn([toolStep(sonnet), answerStep(sonnet)]);
+        expect(stored).toHaveBeenCalledWith(
+            'prompt-1',
+            expect.objectContaining({ model: 'anthropic.messages/sonnet' }),
+        );
+
+        const mixed = await runTurn([toolStep(haiku), answerStep(sonnet)]);
+        expect(mixed).not.toHaveBeenCalled();
+    });
+
+    it('stores no turn with a pending tool result, which is updated after the turn', async () => {
+        const stored = await runTurn([
+            toolStep(sonnet, {
+                result: 'Building',
+                metadata: { status: 'pending' },
+            }),
+            answerStep(sonnet),
+        ]);
+        expect(stored).not.toHaveBeenCalled();
+    });
+});

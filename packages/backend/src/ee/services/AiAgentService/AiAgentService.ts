@@ -847,6 +847,8 @@ type AgentConversationContext = {
     resolveMessageHistory: () => Promise<ModelMessage[]>;
     /** Where the prompt being answered starts in the history; null when its turn is not stored for replay. */
     currentPromptStart: number | null;
+    /** Model the history replays earlier turns' tool steps to; null when none were replayed. */
+    replayedTranscriptModel: string | null;
 };
 
 type TranscriptReplay = {
@@ -854,6 +856,8 @@ type TranscriptReplay = {
     model: string;
     /** Set by the history build. */
     currentPromptStart: number | null;
+    /** Set by the history build. */
+    replayed: boolean;
 };
 
 /** How the history builder treats verified examples for the prompt being answered. */
@@ -9159,6 +9163,9 @@ export class AiAgentService extends BaseService {
             chatHistoryMessages,
             resolveChatHistory,
             currentPromptStart: transcriptReplay?.currentPromptStart ?? null,
+            replayedTranscriptModel: transcriptReplay?.replayed
+                ? transcriptReplay.model
+                : null,
             prompt,
             compaction: applicableCompaction,
         };
@@ -9187,6 +9194,7 @@ export class AiAgentService extends BaseService {
             return {
                 model: getTranscriptModel(model),
                 currentPromptStart: null,
+                replayed: false,
             };
         } catch (error) {
             this.logger.warn(
@@ -9425,6 +9433,7 @@ export class AiAgentService extends BaseService {
                 chatHistoryMessages,
                 resolveChatHistory,
                 currentPromptStart,
+                replayedTranscriptModel,
                 prompt,
                 compaction,
             } = await this.prepareAgentThreadResponse(user, {
@@ -9497,6 +9506,7 @@ export class AiAgentService extends BaseService {
                         compactionSummary: compaction?.summary ?? null,
                         resolveMessageHistory: resolveChatHistory,
                         currentPromptStart,
+                        replayedTranscriptModel,
                     },
                     {
                         prompt,
@@ -10272,6 +10282,7 @@ export class AiAgentService extends BaseService {
                 chatHistoryMessages,
                 resolveChatHistory,
                 currentPromptStart,
+                replayedTranscriptModel,
                 prompt,
                 compaction,
             } = await this.prepareAgentThreadResponse(user, {
@@ -10312,6 +10323,7 @@ export class AiAgentService extends BaseService {
                     compactionSummary: compaction?.summary ?? null,
                     resolveMessageHistory: resolveChatHistory,
                     currentPromptStart,
+                    replayedTranscriptModel,
                 },
                 {
                     prompt,
@@ -14332,6 +14344,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     message.response && !message.error_message
                         ? transcriptByPrompt.get(message.ai_prompt_uuid)
                         : undefined;
+                if (transcript && replay) replay.replayed = true;
                 messages.push(
                     ...(transcript
                         ? AiAgentService.withToolResultStatus(
@@ -18861,11 +18874,18 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                                 copilotConfig,
                                 { enableReasoning: false },
                             );
-                        toolCallModel = {
-                            model: fastModel.model,
-                            providerOptions: fastModel.providerOptions,
-                            keyManagement: fastModel.keyManagement,
-                        };
+                        // Every step receives the replayed tool steps, so none may run on another model.
+                        toolCallModel =
+                            conversation.replayedTranscriptModel === null ||
+                            getTranscriptModel(fastModel.model) ===
+                                conversation.replayedTranscriptModel
+                                ? {
+                                      model: fastModel.model,
+                                      providerOptions:
+                                          fastModel.providerOptions,
+                                      keyManagement: fastModel.keyManagement,
+                                  }
+                                : undefined;
                     } catch (error) {
                         Logger.warn(
                             `Unable to resolve fast tool-call model; keeping the selected agent model: ${String(error)}`,
@@ -21420,6 +21440,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     compactionSummary: null,
                     resolveMessageHistory: async () => chatHistoryMessages,
                     currentPromptStart: null,
+                    replayedTranscriptModel: null,
                 },
                 {
                     prompt: slackPrompt,

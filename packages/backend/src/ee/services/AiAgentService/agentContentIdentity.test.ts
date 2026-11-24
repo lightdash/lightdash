@@ -67,6 +67,7 @@ describe('in-app runtime content identity', () => {
                         compactionSummary: null,
                         resolveMessageHistory: async () => [],
                         currentPromptStart: null,
+                        replayedTranscriptModel: null,
                     },
                     {
                         prompt: {

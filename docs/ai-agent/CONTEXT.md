@@ -173,9 +173,10 @@ _Avoid_: SQL Runner chart, saved SQL, raw SQL chart
 **Chart check**:
 The agent's `createContent` and `editContent` check the field ids in a
 chart's query dimensions, metrics, sorts and filters, cartesian layout and
-pivot columns against its explore and refuse unknown or misplaced ones, naming
-the closest ids. A new or changed query whose explore cannot be loaded is not
-saved, so the agent saves without a test query. MCP clients check a
+pivot columns against its explore and refuse unknown ones, naming the closest
+ids, then compile a new or changed query without running it and refuse it when
+it does not compile. A new or changed query whose explore cannot be loaded is
+not saved, so the agent saves without a test query. MCP clients check a
 chart with `run_metric_query` before saving it.
 _Avoid_: verify, validate, test run
 

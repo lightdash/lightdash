@@ -25,7 +25,7 @@ const layoutFieldIds = (chart: ChartAsCode): string[] => {
     );
 };
 
-/** Field ids a chart references that its explore does not have; one actionable line per problem. */
+/** Field ids a chart references that its explore does not have, with the closest ids. */
 export const getChartFieldErrors = (
     chart: ChartAsCode,
     explore: Explore,
@@ -55,34 +55,6 @@ export const getChartFieldErrors = (
     };
 
     const errors: string[] = [];
-    const wrongKind = (
-        list: string[],
-        allowed: Set<string>,
-        kind: 'dimension' | 'metric',
-        pool: string[],
-    ) =>
-        list
-            .filter((id) => known.has(id) && !allowed.has(id))
-            .forEach((id) =>
-                errors.push(
-                    `metricQuery.${kind}s has "${id}", which is not a ${kind}${suggest(id, pool)}.`,
-                ),
-            );
-    const dimensionPool = [...dimensionIds, ...customDimensionIds];
-    const metricPool = [...metricIds, ...customMetricIds];
-    wrongKind(
-        metricQuery.dimensions,
-        new Set(dimensionPool),
-        'dimension',
-        dimensionPool,
-    );
-    wrongKind(
-        metricQuery.metrics,
-        new Set([...metricPool, ...tableCalculationIds]),
-        'metric',
-        metricPool,
-    );
-
     const referenced = [
         ...metricQuery.dimensions,
         ...metricQuery.metrics,

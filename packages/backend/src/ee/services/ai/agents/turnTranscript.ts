@@ -4,14 +4,15 @@ import {
     type ModelMessage,
 } from 'ai';
 import { z } from 'zod';
-import type { AiAgentArgs } from '../types/aiAgent';
 import { hasBinaryModelInputs } from '../utils/aiCallTelemetry';
 
 /** Bumped when the stored messages change shape; older rows are rebuilt from the database. */
 export const TURN_TRANSCRIPT_FORMAT_VERSION = 1;
 
 /** The provider and model id a transcript may be replayed to. */
-export const getTranscriptModel = (model: AiAgentArgs['model']): string =>
+export const getTranscriptModel = (
+    model: string | { provider: string; modelId: string },
+): string =>
     typeof model === 'string' ? model : `${model.provider}/${model.modelId}`;
 
 const storedTranscriptSchema = z
@@ -32,11 +33,7 @@ export const getReplayableTranscript = (
         ? row.messages
         : null;
 
-/**
- * Keeps the tool steps the latest step sent, so later turns replay them exactly as the
- * provider saw them (prompt cache hit). User messages (the prompt, pinned context,
- * examples, hints, preloaded content) and the answer are rebuilt from the database.
- */
+/** Keeps the tool steps as last sent, so later turns hit the prompt cache; user messages and the answer are rebuilt. */
 export const createTurnTranscript = ({
     start,
 }: {

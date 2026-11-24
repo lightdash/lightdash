@@ -155,6 +155,7 @@ import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQuer
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
 import { CoderService } from '../../../services/CoderService/CoderService';
+import { normalizeFilterIds } from '../../../services/CoderService/filterIds';
 import type { ComposerChartService } from '../../../services/ComposerChartService/ComposerChartService';
 import { ContentService } from '../../../services/ContentService/ContentService';
 import { DashboardService } from '../../../services/DashboardService/DashboardService';
@@ -4213,7 +4214,7 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    /** Replaces the agent's pre-save query check: unknown or misplaced field ids fail the write with fixes. */
+    /** Replaces the agent's pre-save test query: unknown field ids, or a changed query that does not compile, fail the write. */
     private async assertChartFieldsExist(
         context: AiAgentToolsRuntimeContext,
         chart: ChartAsCode,
@@ -4245,6 +4246,34 @@ export class AiAgentToolsService extends BaseService {
         if (errors.length > 0) {
             throw new ParameterError(
                 `Chart "${chart.slug}" was not saved:\n${errors.join('\n')}`,
+            );
+        }
+        if (
+            (before && isEqual(before.metricQuery, chart.metricQuery)) ||
+            explore.type === ExploreType.API_SOURCE
+        )
+            return;
+        // Compiled, not run: catches what opening the chart fails on, e.g. a metric filtered as a dimension.
+        const { compilationErrors } = await this.projectService
+            .compileQuery({
+                account: context.account,
+                body: {
+                    ...chart.metricQuery,
+                    filters: normalizeFilterIds(chart.metricQuery.filters),
+                },
+                projectUuid: context.projectUuid,
+                explore,
+                usePreAggregateCache: false,
+                userAttributeOverrides: context.userAttributeOverrides,
+            })
+            .catch((error: unknown) => ({
+                compilationErrors: [getErrorMessage(error)],
+            }));
+        if (compilationErrors?.length) {
+            throw new ParameterError(
+                `Chart "${chart.slug}" was not saved, its metricQuery does not compile:\n${[
+                    ...new Set(compilationErrors),
+                ].join('\n')}`,
             );
         }
     }

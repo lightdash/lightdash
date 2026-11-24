@@ -3202,21 +3202,36 @@ const prepareAgentTurn = async ({
     };
 };
 
-/** Stores a cleanly finished, persisted turn so later turns replay its tool steps as sent. */
+/** Stores a cleanly finished, persisted turn that ran on one model, so later turns replay its tool steps as sent. */
 const storeTurnTranscript = async (
     args: AiAgentArgs,
     dependencies: AiAgentDependencies,
     turnTranscript: TurnTranscript | undefined,
-    finalStep: { finishReason: string },
+    steps: ReadonlyArray<{
+        finishReason: string;
+        model: { provider: string; modelId: string };
+        toolResults: ReadonlyArray<{ output: unknown }>;
+    }>,
 ) => {
-    if (!turnTranscript || finalStep.finishReason !== 'stop') return;
+    if (!turnTranscript || steps.at(-1)?.finishReason !== 'stop') return;
     const messages = turnTranscript.complete();
-    if (messages)
-        await dependencies.storeTurnTranscript(args.promptUuid, {
-            messages,
-            formatVersion: TURN_TRANSCRIPT_FORMAT_VERSION,
-            model: getTranscriptModel(args.model),
-        });
+    const models = new Set(steps.map((step) => getTranscriptModel(step.model)));
+    if (
+        !messages ||
+        models.size !== 1 ||
+        // A pending result is updated after the turn, so a stored copy would go stale.
+        steps.some((step) =>
+            step.toolResults.some((result) =>
+                isPendingToolResult(result.output),
+            ),
+        )
+    )
+        return;
+    await dependencies.storeTurnTranscript(args.promptUuid, {
+        messages,
+        formatVersion: TURN_TRANSCRIPT_FORMAT_VERSION,
+        model: [...models][0],
+    });
 };
 
 // Forked scope so every capture in the turn, including from tool execute, carries the model.
@@ -3650,7 +3665,7 @@ const runGenerateAgentResponse = async ({
                 args,
                 dependencies,
                 turnTranscript,
-                result.finalStep,
+                result.steps,
             );
         }
 
@@ -4247,7 +4262,7 @@ const runStreamAgentResponse = async ({
                             args,
                             dependencies,
                             turnTranscript,
-                            finalStep,
+                            steps,
                         );
                     }
                 }
