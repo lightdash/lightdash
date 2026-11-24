@@ -450,6 +450,41 @@ export type WarehouseTableMetadata = {
     }[];
     /** View or metric-view source, cut to `TABLE_DEFINITION_MAX_LENGTH` characters plus a marker. */
     definition: { text: string; truncated: boolean } | null;
+    /** A metric view's definition as data, read from its whole source; null when it is not one or does not parse. */
+    metricView: WarehouseMetricViewDefinition | null;
+};
+
+export type WarehouseMetricViewField = {
+    name: string;
+    expr: string;
+    label: string | null;
+    comment: string | null;
+    synonyms: string[];
+};
+
+export type WarehouseMetricViewWindow = {
+    order: string;
+    range: string;
+    semiAdditive: 'first' | 'last' | null;
+    offset: string | null;
+};
+
+export type WarehouseMetricViewDefinition = {
+    source: string | null;
+    filter: string | null;
+    /** A parameterized metric view is queried as a table function, not as a table. */
+    parameterized: boolean;
+    dimensions: WarehouseMetricViewField[];
+    measures: (WarehouseMetricViewField & {
+        window: WarehouseMetricViewWindow[];
+    })[];
+    /** Nested joins are flattened; `name` is the dotted path used to reference the join's columns. */
+    joins: {
+        name: string;
+        source: string;
+        on: string | null;
+        using: string[];
+    }[];
 };
 
 export const TABLE_DEFINITION_MAX_LENGTH = 10_000;

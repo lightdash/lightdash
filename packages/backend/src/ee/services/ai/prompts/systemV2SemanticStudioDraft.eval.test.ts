@@ -1,4 +1,5 @@
 import {
+    DimensionType,
     TOOL_ANALYZE_FIELD_IMPACT_DESCRIPTION,
     TOOL_GREP_WAREHOUSE_COLUMNS_DESCRIPTION,
     TOOL_LIST_WAREHOUSE_TABLES_DESCRIPTION,
@@ -67,10 +68,10 @@ const STATUS_COMMENT = 'Where the order is in fulfilment.';
 const AMOUNT_COMMENT = 'Order total in the account currency.';
 
 const COLUMN_TYPES = [
-    { name: 'order_id', type: 'number', nativeType: 'bigint' },
-    { name: 'customer_id', type: 'number', nativeType: 'bigint' },
-    { name: 'status', type: 'string', nativeType: 'varchar' },
-    { name: 'amount', type: 'number', nativeType: 'double' },
+    { name: 'order_id', type: DimensionType.NUMBER, nativeType: 'bigint' },
+    { name: 'customer_id', type: DimensionType.NUMBER, nativeType: 'bigint' },
+    { name: 'status', type: DimensionType.STRING, nativeType: 'varchar' },
+    { name: 'amount', type: DimensionType.NUMBER, nativeType: 'double' },
 ];
 
 const COLUMN_COMMENTS: Record<string, string | null> = {
@@ -199,12 +200,14 @@ const runAsk = async (prompt: string, rejectWith: string | null) => {
                     metadata: {
                         tableType: WarehouseTableType.TABLE,
                         comment: TABLE_COMMENT,
-                        columns: COLUMN_TYPES.map(({ name }) => ({
+                        columns: COLUMN_TYPES.map(({ name, type }) => ({
                             name,
+                            type,
                             comment: COLUMN_COMMENTS[name] ?? null,
                             isMeasure: false,
                         })),
                         definition: null,
+                        metricView: null,
                     },
                     warehouseType: WarehouseTypes.DATABRICKS,
                 }),

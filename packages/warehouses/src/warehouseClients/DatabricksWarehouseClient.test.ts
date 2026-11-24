@@ -436,6 +436,7 @@ describe('DatabricksWarehouseClient', () => {
                     },
                 ],
                 definition: null,
+                metricView: null,
             });
             expect(session.executeStatement).toHaveBeenCalledExactlyOnceWith(
                 'DESCRIBE TABLE EXTENDED `catalog`.`schema`.`orders` AS JSON',
@@ -460,6 +461,7 @@ describe('DatabricksWarehouseClient', () => {
                     text: 'SELECT order_id FROM catalog.schema.orders',
                     truncated: false,
                 },
+                metricView: null,
             });
         });
 
@@ -484,7 +486,63 @@ describe('DatabricksWarehouseClient', () => {
                     },
                 ],
                 definition: { text: metricViewYaml, truncated: false },
+                metricView: {
+                    source: 'catalog.schema.orders',
+                    filter: null,
+                    parameterized: false,
+                    dimensions: [
+                        {
+                            name: 'order_month',
+                            expr: "DATE_TRUNC('MONTH', order_date)",
+                            label: null,
+                            comment: null,
+                            synonyms: [],
+                        },
+                    ],
+                    measures: [
+                        {
+                            name: 'order_count',
+                            expr: 'COUNT(1)',
+                            label: null,
+                            comment: null,
+                            synonyms: [],
+                            window: [],
+                        },
+                    ],
+                    joins: [],
+                },
             });
+        });
+
+        it('parses a metric view past the size cap of its definition text', async () => {
+            const measures = Array.from(
+                { length: 400 },
+                (_, index) =>
+                    `  - name: measure_${index}\n    expr: SUM(column_${index})`,
+            );
+            describing({
+                ...describedMetricView,
+                view_text: [
+                    'version: 1.1',
+                    'source: catalog.schema.orders',
+                    'measures:',
+                    ...measures,
+                ].join('\n'),
+            });
+
+            const metadata = await read();
+
+            expect(metadata?.definition?.truncated).toBe(true);
+            expect(metadata?.metricView?.measures).toHaveLength(400);
+        });
+
+        it('keeps the raw definition when a metric view does not parse', async () => {
+            describing({ ...describedMetricView, view_text: 'measures: [' });
+
+            const metadata = await read();
+
+            expect(metadata?.metricView).toBeNull();
+            expect(metadata?.definition?.text).toBe('measures: [');
         });
 
         it.each([
@@ -512,6 +570,7 @@ describe('DatabricksWarehouseClient', () => {
                     'columns',
                     'comment',
                     'definition',
+                    'metricView',
                     'tableType',
                 ]);
             },

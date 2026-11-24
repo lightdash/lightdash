@@ -9,7 +9,7 @@ import {
 import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-export const TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION = `Return the column names and types of one raw, staging or seed table that no explore exposes. Where the warehouse reports them, it also returns the table type (table, view, metric view), the table and column comments, and a view's or metric view's definition. It reads metadata only, so it is fast and needs no approval, and returns schema only, not data.
+export const TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION = `Return the column names and types of one raw, staging or seed table that no explore exposes. Where the warehouse reports them, it also returns the table type (table, view, metric view), the table and column comments, a view's definition, and each metric view measure's expression, synonyms and window. It reads metadata only, so it is fast and needs no approval, and returns schema only, not data.
 
 For explore-backed tables use grepFields and getMetadata; to find a table's name use listWarehouseTables.`;
 
@@ -39,6 +39,14 @@ export const toolDescribeWarehouseTableArgsSchema = createToolSchema()
 export type ToolDescribeWarehouseTableArgs = z.infer<
     typeof toolDescribeWarehouseTableArgsSchema
 >;
+
+const metricViewFieldSchema = z.object({
+    name: z.string(),
+    expr: z.string(),
+    label: z.string().nullable(),
+    comment: z.string().nullable(),
+    synonyms: z.array(z.string()),
+});
 
 export const toolDescribeWarehouseTableStructuredContentSchema = z.object({
     qualifiedName: z
@@ -83,10 +91,40 @@ export const toolDescribeWarehouseTableStructuredContentSchema = z.object({
             definition: z
                 .object({ text: z.string(), truncated: z.boolean() })
                 .nullable(),
+            metricView: z
+                .object({
+                    source: z.string().nullable(),
+                    filter: z.string().nullable(),
+                    parameterized: z.boolean(),
+                    dimensions: z.array(metricViewFieldSchema),
+                    measures: z.array(
+                        metricViewFieldSchema.extend({
+                            window: z.array(
+                                z.object({
+                                    order: z.string(),
+                                    range: z.string(),
+                                    semiAdditive: z
+                                        .enum(['first', 'last'])
+                                        .nullable(),
+                                    offset: z.string().nullable(),
+                                }),
+                            ),
+                        }),
+                    ),
+                    joins: z.array(
+                        z.object({
+                            name: z.string(),
+                            source: z.string(),
+                            on: z.string().nullable(),
+                            using: z.array(z.string()),
+                        }),
+                    ),
+                })
+                .nullable(),
         })
         .nullable()
         .describe(
-            'Table type, table and column comments, and the view or metric-view definition (truncated with a marker past a size cap); null where the warehouse does not describe tables this way.',
+            "Table type, table and column comments, the view or metric-view definition (truncated with a marker past a size cap), and a metric view's dimensions, measures and joins as data; null where the warehouse does not describe tables this way.",
         ),
 });
 

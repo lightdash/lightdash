@@ -19,6 +19,7 @@ import {
     METRIC_VIEW_TABLE_TYPE,
     MetricType,
     ParseError,
+    parseMetricViewDefinition,
     setCatalogNestedColumnShape,
     setCatalogNestedColumnsUnavailable,
     setCatalogTimestampDomain,
@@ -477,6 +478,10 @@ const getDescribedTableMetadata = (
         ),
         definition:
             definition === null ? null : truncateTableDefinition(definition),
+        metricView:
+            description.type === 'METRIC_VIEW' && definition !== null
+                ? parseMetricViewDefinition(definition)
+                : null,
     };
 };
 
