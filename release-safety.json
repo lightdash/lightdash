@@ -1,28 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.384.3",
-  "previousVersion": "3.384.2",
-  "releaseDate": "2026-11-24T13:37:20.350Z",
+  "version": "3.385.0",
+  "previousVersion": "3.384.3",
+  "releaseDate": "2026-11-24T13:51:48.733Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261124095226_untag_repointed_playground_projects.ts",
-        "edition": "core",
-        "tables": [
-          "projects",
-          "warehouse_credentials"
-        ],
-        "heaviness": {
-          "locksTable": false,
-          "rewritesTable": true,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

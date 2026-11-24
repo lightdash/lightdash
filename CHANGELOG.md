@@ -1,3 +1,10 @@
+# [3.385.0](https://github.com/lightdash/lightdash/compare/3.384.3...3.385.0) (2026-11-24)
+
+
+### Features
+
+* **cli:** add --prune to lightdash deploy ([#33311](https://github.com/lightdash/lightdash/issues/33311)) ([a92c82a](https://github.com/lightdash/lightdash/commit/a92c82a37681af717e947938ca4cd1ce85e06b8c))
+
 ## [3.384.3](https://github.com/lightdash/lightdash/compare/3.384.2...3.384.3) (2026-11-24)
 
 
