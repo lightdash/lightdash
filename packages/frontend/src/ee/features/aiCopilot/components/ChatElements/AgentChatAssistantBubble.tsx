@@ -641,12 +641,10 @@ const AssistantBubbleContent: FC<{
     );
     const isWordsMarkdown = wordsMarkdownFlag?.enabled === true;
     const renderWordsLink = useCallback(
-        ({ attributes, text, children }: WordsLinkProps) => {
+        ({ href, attributes, text, children }: WordsLinkProps) => {
             const props: Record<string, unknown> = {
                 ...attributes,
-                ...(attributes.href
-                    ? getContentLinkProperties(attributes.href)
-                    : null),
+                ...getContentLinkProperties(href),
             };
             const contentType = isContentType(props['data-content-type'])
                 ? props['data-content-type']

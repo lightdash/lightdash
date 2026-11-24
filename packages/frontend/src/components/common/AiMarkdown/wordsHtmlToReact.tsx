@@ -67,13 +67,15 @@ function convertNode(node: Node, key: number, inCode: boolean): ReactNode {
 
     if (tag === 'a') {
         // Words strips unsafe hrefs; show those links as plain text.
-        if (!node.hasAttribute('href'))
+        const href = node.getAttribute('href');
+        if (href === null)
             return (
                 <Fragment key={key}>{convertChildren(node, isCode)}</Fragment>
             );
         return (
             <LinkSlot
                 key={key}
+                href={href}
                 attributes={attributesOf(node)}
                 text={node.textContent ?? ''}
             >

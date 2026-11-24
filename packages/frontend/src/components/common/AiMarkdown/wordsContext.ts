@@ -12,7 +12,8 @@ export type WordsCodeBlockProps = {
 };
 
 export type WordsLinkProps = {
-    /** Link attributes as React props; `href` is absent while a link still streams. */
+    href: string;
+    /** All link attributes as React props, `href` included. */
     attributes: Record<string, string>;
     text: string;
     children: ReactNode;

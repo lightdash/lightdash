@@ -44,8 +44,8 @@ const RENDER_OPTIONS = {
 };
 const NO_CODE_BLOCKS: WordsCodeBlockRenderer[] = [];
 
-const renderPlainLink = ({ attributes, children }: WordsLinkProps) => (
-    <a href={attributes.href} target="_blank" rel="noreferrer noopener">
+const renderPlainLink = ({ href, children }: WordsLinkProps) => (
+    <a href={href} target="_blank" rel="noreferrer noopener">
         {children}
     </a>
 );
@@ -113,7 +113,8 @@ export const WordsMarkdown: FC<WordsMarkdownProps> = ({
     return (
         <Box className={clsx(styles.aiMarkdown, className)}>
             <WordsContext.Provider value={context}>
-                <Box data-words-markdown>
+                {/* Mirrors Streamdown's root div, which the .aiMarkdown CSS expects. */}
+                <Box>
                     {chunks.map((html, index) => (
                         <WordsChunk key={index} html={html} withCaret={false} />
                     ))}

@@ -7,8 +7,8 @@ import {
 } from './wordsContext';
 import { WordsMarkdown } from './WordsMarkdown';
 
-const renderLink = ({ attributes, text, children }: WordsLinkProps) => (
-    <span data-testid="link" data-href={attributes.href} data-text={text}>
+const renderLink = ({ href, text, children }: WordsLinkProps) => (
+    <span data-testid="link" data-href={href} data-text={text}>
         {children}
     </span>
 );
