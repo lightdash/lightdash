@@ -143,6 +143,7 @@ it('covers the tools registered by the real MCP service across feature variants'
                     chartTypeBuildsEnabled: enabled,
                     customChartTypesEnabled: enabled,
                     agentIdentityEnabled: enabled,
+                    csvUploadsEnabled: enabled,
                 }),
             );
             return registeredMcpToolSets.get(server) ?? [];

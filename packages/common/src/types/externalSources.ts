@@ -87,6 +87,28 @@ export type StagedExternalSourceUpload = {
     rowCountEstimate: number | null;
 };
 
+/** An upload slot the client sends the file to directly, outside the API's session auth. */
+export type PreparedCsvUpload = {
+    uploadId: string;
+    uploadRequest: {
+        method: 'PUT';
+        url: string;
+        headers: Record<string, string>;
+    };
+    expiresAt: Date;
+};
+
+export type ReceivedCsvUpload = {
+    uploadId: string;
+    sizeBytes: number;
+};
+
+export type CommittedCsvUpload = {
+    source: ExternalSource;
+    inferredColumns: ResultColumns;
+    sampleRows: Record<string, unknown>[];
+};
+
 export type CreateExternalSourceTablePayload = {
     /** Required for catalog sources; attachments receive a private name. */
     tableName?: string;
@@ -138,6 +160,11 @@ export type ApiExternalSourcesResponse = {
 export type ApiStagedExternalSourceUploadResponse = {
     status: 'ok';
     results: StagedExternalSourceUpload;
+};
+
+export type ApiReceivedCsvUploadResponse = {
+    status: 'ok';
+    results: ReceivedCsvUpload;
 };
 
 export type ApiExternalSourceTablePreviewResponse = {

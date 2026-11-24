@@ -18,13 +18,17 @@ import {
     snakeCaseName,
     SupportedDbtAdapter,
     TimeoutError,
+    type CommittedCsvUpload,
     type CreateExternalSourceTablePayload,
     type CreateGoogleSheetsSourcePayload,
     type ExternalSource,
     type ExternalSourceTablePreview,
     type IngestExternalSourceJobPayload,
+    type PreparedCsvUpload,
+    type ReceivedCsvUpload,
     type RegisteredAccount,
     type ResultColumns,
+    type SessionUser,
     type StagedExternalSourceUpload,
     type UpdateExternalSourcePayload,
     type UUID,
@@ -60,6 +64,11 @@ import { getDuckdbRuntimeConfig } from '../../../utils/duckdb/getDuckdbRuntimeCo
 import { sanitizeDuckdbError } from '../../../utils/duckdb/sanitizeDuckdbError';
 import { type ExternalSourceModel } from '../../models/ExternalSourceModel';
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
+import {
+    CSV_UPLOAD_TOKEN_HEADER,
+    mintCsvUploadToken,
+    verifyCsvUploadToken,
+} from './csvUploadToken';
 
 const INGEST_RESOURCE_LIMITS = { memoryLimit: '512MB', threads: 2 };
 const INGEST_CAPACITY_RETRY_MS = 5_000;
@@ -132,11 +141,19 @@ type ExternalSourceServiceArguments = {
     userOAuthGrantsModel: Pick<UserOAuthGrantsModel, 'getRefreshToken'>;
 };
 
-type ExternalSourceUploadInput = {
-    filename: string;
+type ExternalSourceUploadBody = {
     contentType: string;
     contentLength: number;
     body: Readable;
+};
+
+type ExternalSourceUploadInput = ExternalSourceUploadBody & {
+    filename: string;
+};
+
+const CSV_UPLOAD_FILENAME_CONTENT_TYPES: Record<string, string> = {
+    csv: 'text/csv',
+    tsv: 'text/tab-separated-values',
 };
 
 export class ExternalSourceService extends BaseService {
@@ -250,7 +267,7 @@ export class ExternalSourceService extends BaseService {
         return Math.floor(this.getMaxUploadBytes() / (1024 * 1024));
     }
 
-    private assertValidUpload(input: ExternalSourceUploadInput): void {
+    private assertValidUpload(input: ExternalSourceUploadBody): void {
         const baseContentType = input.contentType.split(';')[0].trim();
         if (!ALLOWED_UPLOAD_CONTENT_TYPES.includes(baseContentType)) {
             throw new ParameterError(
@@ -409,6 +426,43 @@ export class ExternalSourceService extends BaseService {
         }, {});
     }
 
+    private createStagedCsvSource(data: {
+        projectUuid: UUID;
+        scope: ExternalSourceScope;
+        filename: string;
+        userUuid: string;
+    }): Promise<ExternalSource> {
+        return this.externalSourceModel.createSource({
+            projectUuid: data.projectUuid,
+            type: ExternalSourceType.CSV,
+            scope: data.scope,
+            name: `_staged_${Date.now()}_${Math.random()
+                .toString(36)
+                .slice(2, 8)}`,
+            status: ExternalSourceStatus.STAGED,
+            connection: {
+                type: ExternalSourceType.CSV,
+                originalFilename: data.filename,
+            },
+            createdByUserUuid: data.userUuid,
+        });
+    }
+
+    private async describeRawCsv(rawKey: string): Promise<{
+        inferredColumns: ResultColumns;
+        sampleRows: Record<string, unknown>[];
+    }> {
+        const client = this.createIngestClient();
+        const rawUri = this.toUri(rawKey);
+        const inferredColumns = await this.describeCsv(client, rawUri);
+        const escapedUri = ExternalSourceService.escapeUri(rawUri);
+        const { rows: sampleRows } = await client.runQuery(
+            `SELECT * FROM read_csv('${escapedUri}', normalize_names=true) LIMIT 5`,
+            {},
+        );
+        return { inferredColumns, sampleRows };
+    }
+
     async stageCsvUpload(
         account: RegisteredAccount,
         projectUuid: UUID,
@@ -428,19 +482,11 @@ export class ExternalSourceService extends BaseService {
         this.assertEngineAvailable();
         this.assertValidUpload(input);
 
-        const source = await this.externalSourceModel.createSource({
+        const source = await this.createStagedCsvSource({
             projectUuid,
-            type: ExternalSourceType.CSV,
             scope,
-            name: `_staged_${Date.now()}_${Math.random()
-                .toString(36)
-                .slice(2, 8)}`,
-            status: ExternalSourceStatus.STAGED,
-            connection: {
-                type: ExternalSourceType.CSV,
-                originalFilename: input.filename,
-            },
-            createdByUserUuid: userUuid,
+            filename: input.filename,
+            userUuid,
         });
 
         const rawKey = ExternalSourceService.rawKey(
@@ -465,15 +511,9 @@ export class ExternalSourceService extends BaseService {
             throw error;
         }
 
-        const client = this.createIngestClient();
-        const rawUri = this.toUri(rawKey);
         try {
-            const inferredColumns = await this.describeCsv(client, rawUri);
-            const escapedUri = ExternalSourceService.escapeUri(rawUri);
-            const { rows: sampleRows } = await client.runQuery(
-                `SELECT * FROM read_csv('${escapedUri}', normalize_names=true) LIMIT 5`,
-                {},
-            );
+            const { inferredColumns, sampleRows } =
+                await this.describeRawCsv(rawKey);
             this.analytics.track({
                 event: 'external_source.staged',
                 userId: userUuid,
@@ -501,6 +541,184 @@ export class ExternalSourceService extends BaseService {
                 `Could not read the file as CSV: ${sanitizeDuckdbError(error)}`,
             );
         }
+    }
+
+    /** Whether the user could upload a CSV here; coarse across projects when none is given. */
+    async canUploadCsv(
+        user: SessionUser,
+        projectUuid: string | undefined,
+    ): Promise<boolean> {
+        if (!getDuckdbRuntimeConfig(this.lightdashConfig.preAggregates.s3)) {
+            return false;
+        }
+        const ability = this.createAuditedAbility(user);
+        if (projectUuid === undefined) {
+            return ability.can('manage', 'ExternalSource');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        return ability.can(
+            'manage',
+            subject('ExternalSource', { organizationUuid, projectUuid }),
+        );
+    }
+
+    /**
+     * Starts an upload the client sends straight to the returned URL, so the
+     * file never passes through an MCP tool call.
+     */
+    async prepareCsvUpload(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        file: { filename: string; sizeBytes: number },
+    ): Promise<PreparedCsvUpload> {
+        const { userUuid } = await this.assertAccess(account, projectUuid);
+        this.assertEngineAvailable();
+        const extension = file.filename.split('.').pop()?.toLowerCase() ?? '';
+        const contentType = CSV_UPLOAD_FILENAME_CONTENT_TYPES[extension];
+        if (!contentType) {
+            throw new ParameterError(
+                'Unsupported file type. Upload a .csv or .tsv file',
+            );
+        }
+        if (!Number.isSafeInteger(file.sizeBytes) || file.sizeBytes <= 0) {
+            throw new ParameterError(
+                'The file size must be a positive number of bytes',
+            );
+        }
+        if (file.sizeBytes > this.getMaxUploadBytes()) {
+            throw new ParameterError(
+                `File exceeds the ${this.getMaxUploadMegabytes()} MB upload limit`,
+            );
+        }
+
+        const source = await this.createStagedCsvSource({
+            projectUuid,
+            scope: ExternalSourceScope.CATALOG,
+            filename: file.filename,
+            userUuid,
+        });
+        const { token, expiresAt } = mintCsvUploadToken(
+            this.lightdashConfig.lightdashSecrets,
+            {
+                projectUuid,
+                sourceUuid: source.sourceUuid,
+                userUuid,
+                sizeBytes: file.sizeBytes,
+            },
+        );
+        return {
+            uploadId: source.sourceUuid,
+            uploadRequest: {
+                method: 'PUT',
+                url: new URL(
+                    `/api/v1/ee/projects/${projectUuid}/external-sources/${source.sourceUuid}/upload`,
+                    this.lightdashConfig.siteUrl,
+                ).href,
+                headers: {
+                    'Content-Type': contentType,
+                    [CSV_UPLOAD_TOKEN_HEADER]: token,
+                },
+            },
+            expiresAt,
+        };
+    }
+
+    /** Stores the file for a prepared upload; authorised by its token, not a session. */
+    async receivePreparedCsvUpload(
+        token: string | undefined,
+        projectUuid: UUID,
+        sourceUuid: UUID,
+        input: ExternalSourceUploadBody,
+    ): Promise<ReceivedCsvUpload> {
+        const claims = verifyCsvUploadToken(
+            token,
+            this.lightdashConfig.lightdashSecrets,
+        );
+        if (
+            claims.projectUuid !== projectUuid ||
+            claims.sourceUuid !== sourceUuid
+        ) {
+            throw new ForbiddenError('This upload link is not valid');
+        }
+        if (input.contentLength !== claims.sizeBytes) {
+            throw new ParameterError(
+                `Expected ${claims.sizeBytes} bytes but received ${input.contentLength}. Prepare the upload again with the file's exact size.`,
+            );
+        }
+        this.assertValidUpload(input);
+        const source = await this.externalSourceModel.getSource(
+            projectUuid,
+            sourceUuid,
+        );
+        if (
+            source.status !== ExternalSourceStatus.STAGED ||
+            source.createdByUserUuid !== claims.userUuid
+        ) {
+            throw new ForbiddenError('This upload link is no longer valid');
+        }
+        const rawKey = ExternalSourceService.rawKey(projectUuid, sourceUuid, 1);
+        if (await this.externalSourceModel.isObjectActive(rawKey)) {
+            throw new ForbiddenError('This upload link has already been used');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const sizeBytes = await this.uploadTrackedObject({
+            organizationUuid,
+            projectUuid,
+            sourceUuid,
+            key: rawKey,
+            purpose: 'raw',
+            body: input.body,
+            expectedBytes: input.contentLength,
+        });
+        return { uploadId: sourceUuid, sizeBytes };
+    }
+
+    /** Reads the uploaded file's columns, then creates the table as the app's upload does. */
+    async commitPreparedCsvUpload(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        sourceUuid: UUID,
+        payload: { tableName: string; label: string | null },
+    ): Promise<CommittedCsvUpload> {
+        await this.assertAccess(account, projectUuid);
+        const source = await this.externalSourceModel.getSource(
+            projectUuid,
+            sourceUuid,
+        );
+        if (source.createdByUserUuid !== account.user.id) {
+            throw new NotFoundError('Upload not found');
+        }
+        if (source.status !== ExternalSourceStatus.STAGED) {
+            throw new ParameterError('This upload has already been committed');
+        }
+        const rawKey = ExternalSourceService.rawKey(projectUuid, sourceUuid, 1);
+        if (!(await this.externalSourceModel.isObjectActive(rawKey))) {
+            throw new ParameterError(
+                'The file has not been uploaded yet. Send it to the upload URL first, or prepare the upload again if the link expired.',
+            );
+        }
+        const described = await this.describeRawCsv(rawKey).catch(
+            async (error) => {
+                await this.externalSourceModel
+                    .deleteSource(projectUuid, sourceUuid)
+                    .catch(() => {});
+                throw new ParameterError(
+                    `Could not read the file as CSV: ${sanitizeDuckdbError(error)}`,
+                );
+            },
+        );
+        const committed = await this.createCsvTable(
+            account,
+            projectUuid,
+            sourceUuid,
+            {
+                tableName: payload.tableName,
+                ...(payload.label === null ? {} : { label: payload.label }),
+            },
+        );
+        return { source: committed, ...described };
     }
 
     private async validateNewTableName(

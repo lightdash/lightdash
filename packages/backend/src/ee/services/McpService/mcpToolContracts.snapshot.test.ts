@@ -205,6 +205,7 @@ const registrationOnlyFeatures = {
     chartTypeBuildsEnabled: true,
     customChartTypesEnabled: true,
     queryEnabled: true,
+    csvUploadsEnabled: true,
 } satisfies Omit<
     McpServerToolOptions['featureAvailability'],
     keyof typeof defaultMcpAnalystPromptOptions

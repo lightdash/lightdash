@@ -746,6 +746,14 @@ export class ExternalSourceModel {
         });
     }
 
+    async isObjectActive(key: string): Promise<boolean> {
+        const object = await this.database(ExternalSourceObjectsTableName)
+            .where('object_key', key)
+            .andWhere('status', 'active')
+            .first('external_source_object_uuid');
+        return object !== undefined;
+    }
+
     async abandonObject(key: string, error?: string): Promise<void> {
         await this.database(ExternalSourceObjectsTableName)
             .where('object_key', key)

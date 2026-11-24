@@ -6,6 +6,7 @@ import {
     type ApiExternalSourceResponse,
     type ApiExternalSourcesResponse,
     type ApiExternalSourceTablePreviewResponse,
+    type ApiReceivedCsvUploadResponse,
     type ApiStagedExternalSourceUploadResponse,
     type ApiSuccessEmpty,
     type CreateExternalSourceTablePayload,
@@ -37,9 +38,10 @@ import {
     unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
+import { CSV_UPLOAD_TOKEN_HEADER } from '../services/ExternalSourceService/csvUploadToken';
 import { ExternalSourceService } from '../services/ExternalSourceService/ExternalSourceService';
 
-const getRawUploadRequest = (req: express.Request, filename: string) => {
+const getRawUploadBody = (req: express.Request) => {
     const contentType = req.headers['content-type'];
     if (!contentType) {
         throw new ParameterError('Content-Type header is required');
@@ -52,8 +54,13 @@ const getRawUploadRequest = (req: express.Request, filename: string) => {
     if (!Number.isSafeInteger(contentLength) || contentLength <= 0) {
         throw new ParameterError('Content-Length must be a positive integer');
     }
-    return { filename, contentType, contentLength, body: req };
+    return { contentType, contentLength, body: req };
 };
+
+const getRawUploadRequest = (req: express.Request, filename: string) => ({
+    filename,
+    ...getRawUploadBody(req),
+});
 
 @Route('/api/v1/ee/projects/{projectUuid}/external-sources')
 @Hidden()
@@ -326,6 +333,34 @@ export class ExternalSourceController extends BaseController {
                 sourceUuid,
                 getRawUploadRequest(req, filename),
             ),
+        };
+    }
+
+    /**
+     * Receive the file for an upload prepared over MCP. Authorised by the
+     * single-use token from the prepare step in the
+     * x-lightdash-upload-token header, not by a session or API key.
+     * @summary Upload the file for a prepared CSV upload
+     */
+    @SuccessResponse('200', 'Success')
+    @Put('/{sourceUuid}/upload')
+    @OperationId('ReceivePreparedCsvUpload')
+    async receivePreparedCsvUpload(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() sourceUuid: UUID,
+    ): Promise<ApiReceivedCsvUploadResponse> {
+        const token = req.headers[CSV_UPLOAD_TOKEN_HEADER];
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getExternalSourceService().receivePreparedCsvUpload(
+                    typeof token === 'string' ? token : undefined,
+                    projectUuid,
+                    sourceUuid,
+                    getRawUploadBody(req),
+                ),
         };
     }
 

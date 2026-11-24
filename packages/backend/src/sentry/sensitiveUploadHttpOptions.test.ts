@@ -7,9 +7,34 @@ import {
     keepRawThreadFileBodyPrivate,
 } from '../middlewares/rawThreadFileBody';
 import {
+    isSensitiveCsvUpload,
     isSensitiveThreadFileUpload,
     sensitiveUploadHttpOptions,
 } from './sensitiveUploadHttpOptions';
+
+const csvProject = '/api/v1/ee/projects/3675b69e-8324-4110-bdca-059031aa8da3';
+const csvSource = `${csvProject}/external-sources/8d1f5d1e-1111-4222-8333-944455556666`;
+
+test.each([
+    `${csvProject}/external-sources/upload?filename=targets.csv`,
+    `${csvSource}/csv?filename=targets.csv`,
+    `${csvSource}/upload`,
+    `${csvSource}/upload/`,
+])('CSV upload body is excluded at %s', (url) => {
+    expect(isSensitiveCsvUpload(url)).toBe(true);
+    expect(sensitiveUploadHttpOptions.ignoreIncomingRequestBody(url)).toBe(
+        true,
+    );
+});
+
+test.each([
+    `${csvProject}/external-sources`,
+    `${csvSource}/commit`,
+    `${csvSource}/tables/table-uuid/preview`,
+    `${csvProject}/external-sources/google-sheets`,
+])('other external source requests are unchanged at %s', (url) => {
+    expect(isSensitiveCsvUpload(url)).toBe(false);
+});
 
 test.each([
     '/api/v1/aiAgents/thread-files',

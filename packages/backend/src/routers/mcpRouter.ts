@@ -466,6 +466,7 @@ mcpRouter.all(
                     chartTypeBuildsEnabled,
                     customChartTypesEnabled,
                     agentIdentityEnabled,
+                    csvUploadsEnabled,
                 ] = await Promise.all([
                     mcpService.isContentToolsEnabled(
                         req.user!,
@@ -496,6 +497,7 @@ mcpRouter.all(
                         pinnedProjectUuid,
                     ),
                     mcpService.isAgentIdentityEnabled(req.user!),
+                    mcpService.isCsvUploadEnabled(req.user!, pinnedProjectUuid),
                 ]);
                 const toolOptions: McpServerToolOptions = {
                     req: {
@@ -516,6 +518,7 @@ mcpRouter.all(
                         chartTypeBuildsEnabled,
                         customChartTypesEnabled,
                         agentIdentityEnabled,
+                        csvUploadsEnabled,
                     },
                 };
                 const mcpServer = await mcpService.createServer(toolOptions);

@@ -19,6 +19,7 @@ import {
     ChartType,
     clientSupportsMcpTasks,
     CommercialFeatureFlags,
+    commitCsvUploadToolDefinition,
     connectAgentToolDefinition,
     convertAiTableCalcsSchemaToTableCalcs,
     convertFieldRefToFieldId,
@@ -34,6 +35,7 @@ import {
     derivePivotConfigurationFromChart,
     editContentToolDefinition,
     Explore,
+    ExternalSourceStatus,
     FeatureFlags,
     findContentToolDefinition,
     ForbiddenError,
@@ -44,6 +46,7 @@ import {
     getAiWritebackStatusToolDefinition,
     getAiWritebackTaskStatusMessage,
     getContextToolDefinition,
+    getCsvUploadStatusToolDefinition,
     getDataAppBuildStatusResponse,
     getDataAppBuildStatusToolDefinition,
     getErrorMessage,
@@ -92,6 +95,7 @@ import {
     MetricQuery,
     NotFoundError,
     ParameterError,
+    prepareCsvUploadToolDefinition,
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySourceType,
@@ -121,11 +125,16 @@ import {
     UserAttributeValueMap,
     UUID,
     type AiAgentSkill,
+    type McpCommitCsvUploadOutput,
+    type McpGetCsvUploadStatusOutput,
+    type McpPrepareCsvUploadOutput,
     type ParametersValuesMap,
     type PivotConfiguration,
+    type PreparedCsvUpload,
     type QueryHistory,
     type ReadyQueryResultsPage,
     type RegisteredAccount,
+    type ResultColumns,
     type ToolComposerQueriesArgs,
     type ToolRunQueryArgsTransformed,
     type ToolRunQueryArgsV2,
@@ -269,6 +278,7 @@ import {
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiRouterService } from '../AiRouterService/AiRouterService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
+import { type ExternalSourceService } from '../ExternalSourceService/ExternalSourceService';
 import {
     buildMcpCustomChartTypeIndexUrl,
     buildMcpCustomChartTypeVizContext,
@@ -322,6 +332,9 @@ export enum McpToolName {
     LIST_DATA_APP_THEMES = 'list_data_app_themes',
     GET_DATA_APP_BUILD_STATUS = 'get_data_app_build_status',
     LIST_DATA_APP_CONNECTIONS = 'list_data_app_connections',
+    PREPARE_CSV_UPLOAD = 'prepare_csv_upload',
+    COMMIT_CSV_UPLOAD = 'commit_csv_upload',
+    GET_CSV_UPLOAD_STATUS = 'get_csv_upload_status',
     CREATE_CUSTOM_CHART_TYPE = 'create_custom_chart_type',
     ITERATE_CUSTOM_CHART_TYPE = 'iterate_custom_chart_type',
     FIND_CUSTOM_CHART_TYPES = 'find_custom_chart_types',
@@ -392,6 +405,57 @@ const mcpGetAiWritebackStatusTool = withProjectUuidInput(
 const mcpGetDataAppBuildStatusTool = withProjectScopeInput(
     getDataAppBuildStatusToolDefinition.for('mcp'),
 );
+const mcpPrepareCsvUploadTool = withProjectUuidInput(
+    prepareCsvUploadToolDefinition.for('mcp'),
+);
+const mcpCommitCsvUploadTool = withProjectUuidInput(
+    commitCsvUploadToolDefinition.for('mcp'),
+);
+const mcpGetCsvUploadStatusTool = withProjectUuidInput(
+    getCsvUploadStatusToolDefinition.for('mcp'),
+);
+
+const toCsvUploadColumns = (
+    columns: ResultColumns,
+): McpCommitCsvUploadOutput['columns'] =>
+    Object.values(columns).map(({ reference, type }) => ({
+        name: reference,
+        type,
+    }));
+
+const toCsvUploadStatus = (
+    status: ExternalSourceStatus,
+): McpGetCsvUploadStatusOutput['status'] => {
+    switch (status) {
+        case ExternalSourceStatus.STAGED:
+            return 'awaiting_commit';
+        case ExternalSourceStatus.SYNCING:
+            return 'processing';
+        case ExternalSourceStatus.READY:
+            return 'ready';
+        case ExternalSourceStatus.ERROR:
+            return 'error';
+        default:
+            return assertUnreachable(status, 'Unknown external source status');
+    }
+};
+
+const quoteShellArgument = (value: string): string =>
+    `'${value.replaceAll("'", `'\\''`)}'`;
+
+/** The upload as one curl command; the caller substitutes the file path. */
+const buildCsvUploadCurlCommand = ({
+    url,
+    headers,
+}: PreparedCsvUpload['uploadRequest']): string =>
+    [
+        'curl -sS --fail-with-body -T <path-to-file>',
+        ...Object.entries(headers).map(
+            ([name, value]) => `-H ${quoteShellArgument(`${name}: ${value}`)}`,
+        ),
+        quoteShellArgument(url),
+    ].join(' ');
+
 const mcpGenerateDataAppTool = withProjectScopeInput(
     generateDataAppToolDefinition.for('mcp'),
 );
@@ -605,6 +669,10 @@ type McpServiceArguments = {
     aiAgentSkillService: AiAgentSkillService;
     aiRouterService: AiRouterService;
     aiWritebackService: AiWritebackService;
+    externalSourceService: Pick<
+        ExternalSourceService,
+        'canUploadCsv' | 'prepareCsvUpload' | 'commitPreparedCsvUpload' | 'get'
+    >;
 };
 
 export type McpPinnedAgent = Pick<
@@ -725,6 +793,7 @@ export type McpServerToolOptions = {
         chartTypeBuildsEnabled: boolean;
         customChartTypesEnabled: boolean;
         agentIdentityEnabled: boolean;
+        csvUploadsEnabled: boolean;
     };
 };
 
@@ -775,6 +844,8 @@ export class McpService extends BaseService {
 
     private aiWritebackService: AiWritebackService;
 
+    private externalSourceService: McpServiceArguments['externalSourceService'];
+
     private mcpServer: McpServer;
 
     constructor({
@@ -801,6 +872,7 @@ export class McpService extends BaseService {
         aiAgentSkillService,
         aiRouterService,
         aiWritebackService,
+        externalSourceService,
     }: McpServiceArguments) {
         super();
         this.agentActionLogModel = agentActionLogModel;
@@ -826,6 +898,7 @@ export class McpService extends BaseService {
         this.aiAgentSkillService = aiAgentSkillService;
         this.aiRouterService = aiRouterService;
         this.aiWritebackService = aiWritebackService;
+        this.externalSourceService = externalSourceService;
         try {
             this.mcpServer = this.buildMcpServer({
                 pinnedAgent: null,
@@ -2652,6 +2725,179 @@ export class McpService extends BaseService {
         }
     }
 
+    private async callCsvUploadTool<
+        TStructuredContent extends Record<string, unknown>,
+    >(
+        extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+        projectUuidArg: string,
+        errorLogContext: string,
+        run: (
+            account: RegisteredAccount,
+            projectUuid: string,
+        ) => Promise<{
+            summary: string;
+            structuredContent: TStructuredContent;
+        }>,
+    ) {
+        const ctx = getMcpContext(extra);
+        const { account } = McpService.getAccount(ctx);
+        const projectUuid = await this.resolveToolProjectUuid(
+            ctx,
+            projectUuidArg,
+        );
+        try {
+            const { summary, structuredContent } = await run(
+                account,
+                projectUuid,
+            );
+            return await this.buildScopedResponse(
+                ctx,
+                summary,
+                structuredContent,
+                projectUuid,
+            );
+        } catch (e) {
+            if (e instanceof AiAccessRefusedError) throw e;
+            const errorMessage = getErrorMessage(e);
+            this.logger.error(
+                `[McpService] ${errorLogContext}: ${errorMessage}`,
+            );
+            return {
+                content: [{ type: 'text' as const, text: errorMessage }],
+                isError: true,
+            };
+        }
+    }
+
+    private registerPrepareCsvUploadTool(): void {
+        this.registerTrackedTool(
+            mcpPrepareCsvUploadTool.name,
+            {
+                title: mcpPrepareCsvUploadTool.title,
+                description: mcpPrepareCsvUploadTool.description,
+                inputSchema: mcpPrepareCsvUploadTool.inputSchema.shape,
+                outputSchema: mcpPrepareCsvUploadTool.outputSchema.shape,
+                annotations: mcpPrepareCsvUploadTool.annotations,
+            },
+            async (args, extra) =>
+                this.callCsvUploadTool(
+                    extra,
+                    args.projectUuid,
+                    'Error preparing the CSV upload',
+                    async (account, projectUuid) => {
+                        const prepared =
+                            await this.externalSourceService.prepareCsvUpload(
+                                account,
+                                projectUuid,
+                                {
+                                    filename: args.filename,
+                                    sizeBytes: args.sizeBytes,
+                                },
+                            );
+                        const structuredContent: McpPrepareCsvUploadOutput = {
+                            uploadId: prepared.uploadId,
+                            uploadRequest: prepared.uploadRequest,
+                            curlCommand: buildCsvUploadCurlCommand(
+                                prepared.uploadRequest,
+                            ),
+                            expiresAt: prepared.expiresAt.toISOString(),
+                        };
+                        return {
+                            summary: `Upload prepared. Before ${structuredContent.expiresAt}, send the file's raw bytes with curlCommand (replace <path-to-file>), then call commit_csv_upload with uploadId "${prepared.uploadId}".`,
+                            structuredContent,
+                        };
+                    },
+                ),
+        );
+    }
+
+    private registerCommitCsvUploadTool(): void {
+        this.registerTrackedTool(
+            mcpCommitCsvUploadTool.name,
+            {
+                title: mcpCommitCsvUploadTool.title,
+                description: mcpCommitCsvUploadTool.description,
+                inputSchema: mcpCommitCsvUploadTool.inputSchema.shape,
+                outputSchema: mcpCommitCsvUploadTool.outputSchema.shape,
+                annotations: mcpCommitCsvUploadTool.annotations,
+            },
+            async (args, extra) =>
+                this.callCsvUploadTool(
+                    extra,
+                    args.projectUuid,
+                    'Error committing the CSV upload',
+                    async (account, projectUuid) => {
+                        const { source, inferredColumns, sampleRows } =
+                            await this.externalSourceService.commitPreparedCsvUpload(
+                                account,
+                                projectUuid,
+                                args.uploadId,
+                                {
+                                    tableName: args.tableName,
+                                    label: args.label ?? null,
+                                },
+                            );
+                        const structuredContent: McpCommitCsvUploadOutput = {
+                            uploadId: source.sourceUuid,
+                            tableName: source.name,
+                            columns: toCsvUploadColumns(inferredColumns),
+                            sampleRows,
+                        };
+                        return {
+                            summary: `Creating table "${source.name}" from the upload. Poll get_csv_upload_status with uploadId "${source.sourceUuid}" until it is ready.`,
+                            structuredContent,
+                        };
+                    },
+                ),
+        );
+    }
+
+    private registerGetCsvUploadStatusTool(): void {
+        this.registerTrackedTool(
+            mcpGetCsvUploadStatusTool.name,
+            {
+                title: mcpGetCsvUploadStatusTool.title,
+                description: mcpGetCsvUploadStatusTool.description,
+                inputSchema: mcpGetCsvUploadStatusTool.inputSchema.shape,
+                outputSchema: mcpGetCsvUploadStatusTool.outputSchema.shape,
+                annotations: mcpGetCsvUploadStatusTool.annotations,
+            },
+            async (args, extra) =>
+                this.callCsvUploadTool(
+                    extra,
+                    args.projectUuid,
+                    'Error reading the CSV upload status',
+                    async (account, projectUuid) => {
+                        const source = await this.externalSourceService.get(
+                            account,
+                            projectUuid,
+                            args.uploadId,
+                        );
+                        const [table] = source.tables;
+                        const status = toCsvUploadStatus(source.status);
+                        const structuredContent: McpGetCsvUploadStatusOutput = {
+                            uploadId: source.sourceUuid,
+                            status,
+                            exploreName:
+                                status === 'ready' && table ? table.name : null,
+                            rowCount: table?.rowCount ?? null,
+                            columns: table?.columns
+                                ? toCsvUploadColumns(table.columns)
+                                : null,
+                            errorMessage: source.errorMessage,
+                        };
+                        return {
+                            summary:
+                                structuredContent.exploreName === null
+                                    ? `The upload is ${status}.`
+                                    : `The table is ready. Query the "${structuredContent.exploreName}" explore.`,
+                            structuredContent,
+                        };
+                    },
+                ),
+        );
+    }
+
     private registerGenerateDataAppTool(): void {
         this.registerTrackedTool(
             mcpGenerateDataAppTool.name,
@@ -3795,6 +4041,7 @@ export class McpService extends BaseService {
                 dataAppBuildsEnabled: false,
                 chartTypeBuildsEnabled: false,
                 customChartTypesEnabled: false,
+                csvUploadsEnabled: false,
             },
         },
     ): void {
@@ -5461,6 +5708,12 @@ export class McpService extends BaseService {
 
         this.registerAppBuildTools(options);
 
+        if (options.csvUploadsEnabled) {
+            this.registerPrepareCsvUploadTool();
+            this.registerCommitCsvUploadTool();
+            this.registerGetCsvUploadStatusTool();
+        }
+
         if (options.customChartTypesEnabled) {
             this.registerFindCustomChartTypesTool();
             this.registerListCustomChartTypesTool();
@@ -6389,6 +6642,14 @@ export class McpService extends BaseService {
      * endpoint checks that concrete project; the unpinned endpoint uses a
      * coarse check because tools/list must not vary with stored context.
      */
+    /** Whether the CSV upload tools should be registered; coarse on the unpinned endpoint. */
+    public async isCsvUploadEnabled(
+        user: SessionUser,
+        headerProjectUuid?: string,
+    ): Promise<boolean> {
+        return this.externalSourceService.canUploadCsv(user, headerProjectUuid);
+    }
+
     public async isDataAppBuildsEnabled(
         user: SessionUser,
         headerProjectUuid?: string,

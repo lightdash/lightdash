@@ -98,6 +98,17 @@ import {
     toolCreateScheduledDeliveryOutputSchema,
 } from './toolCreateScheduledDeliveryArgs';
 import {
+    MCP_TOOL_COMMIT_CSV_UPLOAD_DESCRIPTION,
+    MCP_TOOL_GET_CSV_UPLOAD_STATUS_DESCRIPTION,
+    MCP_TOOL_PREPARE_CSV_UPLOAD_DESCRIPTION,
+    mcpCommitCsvUploadArgsSchema,
+    mcpCommitCsvUploadOutputSchema,
+    mcpGetCsvUploadStatusArgsSchema,
+    mcpGetCsvUploadStatusOutputSchema,
+    mcpPrepareCsvUploadArgsSchema,
+    mcpPrepareCsvUploadOutputSchema,
+} from './toolCsvUploadArgs';
+import {
     TOOL_DASHBOARD_V2_DESCRIPTION,
     toolDashboardV2ArgsSchema,
     toolDashboardV2OutputSchema,
@@ -2004,6 +2015,60 @@ export const getDataAppBuildStatusToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
+export const prepareCsvUploadToolDefinition: ToolDefinitionWithMcpOutput<
+    'prepareCsvUpload',
+    typeof mcpPrepareCsvUploadArgsSchema,
+    typeof mcpPrepareCsvUploadArgsSchema,
+    undefined,
+    typeof mcpPrepareCsvUploadOutputSchema
+> = defineTool({
+    name: 'prepareCsvUpload',
+    title: 'Prepare CSV upload',
+    description: MCP_TOOL_PREPARE_CSV_UPLOAD_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: mcpPrepareCsvUploadArgsSchema,
+    mcp: {
+        annotations: writeAnnotations,
+        structuredContentSchema: mcpPrepareCsvUploadOutputSchema,
+    },
+});
+
+export const commitCsvUploadToolDefinition: ToolDefinitionWithMcpOutput<
+    'commitCsvUpload',
+    typeof mcpCommitCsvUploadArgsSchema,
+    typeof mcpCommitCsvUploadArgsSchema,
+    undefined,
+    typeof mcpCommitCsvUploadOutputSchema
+> = defineTool({
+    name: 'commitCsvUpload',
+    title: 'Commit CSV upload',
+    description: MCP_TOOL_COMMIT_CSV_UPLOAD_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: mcpCommitCsvUploadArgsSchema,
+    mcp: {
+        annotations: writeAnnotations,
+        structuredContentSchema: mcpCommitCsvUploadOutputSchema,
+    },
+});
+
+export const getCsvUploadStatusToolDefinition: ToolDefinitionWithMcpOutput<
+    'getCsvUploadStatus',
+    typeof mcpGetCsvUploadStatusArgsSchema,
+    typeof mcpGetCsvUploadStatusArgsSchema,
+    undefined,
+    typeof mcpGetCsvUploadStatusOutputSchema
+> = defineTool({
+    name: 'getCsvUploadStatus',
+    title: 'Get CSV upload status',
+    description: MCP_TOOL_GET_CSV_UPLOAD_STATUS_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: mcpGetCsvUploadStatusArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpGetCsvUploadStatusOutputSchema,
+    },
+});
+
 export const createCustomChartTypeToolDefinition: ToolDefinitionWithMcpOutput<
     'createCustomChartType',
     typeof mcpCreateCustomChartTypeArgsSchema,
@@ -2306,6 +2371,9 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     iterateCustomChartTypeToolDefinition,
     mcpFindCustomChartTypesToolDefinition,
     mcpListCustomChartTypesToolDefinition,
+    prepareCsvUploadToolDefinition,
+    commitCsvUploadToolDefinition,
+    getCsvUploadStatusToolDefinition,
 ] as const;
 
 export type BuiltInToolDefinition = ToolDefinitionInstance;

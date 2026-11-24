@@ -24,6 +24,7 @@ export const makeMcpServerOptions = (
         chartTypeBuildsEnabled: false,
         customChartTypesEnabled: false,
         agentIdentityEnabled: false,
+        csvUploadsEnabled: false,
         ...featureAvailability,
     },
 });

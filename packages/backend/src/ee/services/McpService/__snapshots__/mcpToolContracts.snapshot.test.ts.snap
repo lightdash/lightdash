@@ -14944,6 +14944,9 @@ exports[`MCP tool contracts > matches the shared MCP tool definition names snaps
   "iterate_custom_chart_type",
   "find_custom_chart_types",
   "list_custom_chart_types",
+  "prepare_csv_upload",
+  "commit_csv_upload",
+  "get_csv_upload_status",
 ]
 `;
 

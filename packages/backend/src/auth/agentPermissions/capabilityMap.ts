@@ -8,6 +8,7 @@ export type RequiredAgentCapabilities = readonly [
 export const MCP_TOOL_CAPABILITIES = {
     connect_agent: [AgentCapability.ReadDiscover],
     create_content: [AgentCapability.ContentWrite],
+    commit_csv_upload: [AgentCapability.DeployUpload],
     create_custom_chart_type: [AgentCapability.ContentWrite],
     create_scheduled_delivery: [
         AgentCapability.ContentWrite,
@@ -21,6 +22,7 @@ export const MCP_TOOL_CAPABILITIES = {
     generate_hashes: [AgentCapability.ReadDiscover],
     get_ai_writeback_status: [AgentCapability.ReadDiscover],
     get_context: [AgentCapability.ReadDiscover],
+    get_csv_upload_status: [AgentCapability.ReadDiscover],
     get_custom_chart_type_frame: [
         AgentCapability.ReadDiscover,
         AgentCapability.Export,
@@ -40,6 +42,7 @@ export const MCP_TOOL_CAPABILITIES = {
     list_projects: [AgentCapability.ReadDiscover],
     list_skills: [AgentCapability.ReadDiscover],
     list_verified_content: [AgentCapability.ReadDiscover],
+    prepare_csv_upload: [AgentCapability.DeployUpload],
     query: [AgentCapability.Query],
     read_content: [AgentCapability.ReadDiscover],
     read_skill: [AgentCapability.ReadDiscover],

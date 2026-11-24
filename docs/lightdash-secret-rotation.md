@@ -152,7 +152,9 @@ Remove the old fallback only when **all** of the following hold:
   default 24h) has elapsed since the rollout-completion timestamp, so no
   valid session cookie signed with the old secret remains.
 - At least one hour has elapsed since the rollout-completion timestamp, so
-  every app-preview JWT signed with the old secret has expired.
+  every app-preview JWT signed with the old secret has expired. That hour
+  also covers CSV upload tokens from the MCP `prepare_csv_upload` tool,
+  which expire after five minutes.
 - Signed download links minted before the rollout have either expired or
   their breakage is explicitly accepted: a link stops working the moment
   the secret that signed it leaves the configured secrets. The waiting

@@ -7,6 +7,80 @@
                 "idempotentHint": false,
                 "openWorldHint": false,
                 "readOnlyHint": false,
+                "title": "Commit CSV upload"
+            },
+            "description": "Tool: commit_csv_upload\n\nPurpose:\nTurn an uploaded file into a table, after its bytes have been sent to the URL from prepare_csv_upload.\n\nImportant:\n- Returns the columns and types read from the file, and a few sample rows. Tell the user what was found.\n- The table is ready to query once get_csv_upload_status reports \"ready\"; a large file takes longer.\n- A table name that is already taken fails, and the upload stays ready to commit under another name.\n",
+            "inputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "properties": {
+                    "label": {
+                        "default": null,
+                        "description": "Display name shown to users. Omit to derive it from the table name.",
+                        "type": ["string", "null"]
+                    },
+                    "tableName": {
+                        "description": "Name for the new table: lowercase letters, numbers and underscores, starting with a letter, and not already used in the project. It becomes the explore name.",
+                        "type": "string"
+                    },
+                    "uploadId": {
+                        "description": "The uploadId returned by prepare_csv_upload.",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                    }
+                },
+                "required": ["uploadId", "tableName"],
+                "type": "object"
+            },
+            "name": "commit_csv_upload",
+            "outputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                    "columns": {
+                        "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "type": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["name", "type"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "sampleRows": {
+                        "items": {
+                            "additionalProperties": {},
+                            "propertyNames": {
+                                "type": "string"
+                            },
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "uploadId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["uploadId", "tableName", "columns", "sampleRows"],
+                "type": "object"
+            },
+            "title": "Commit CSV upload"
+        },
+        {
+            "annotations": {
+                "destructiveHint": true,
+                "idempotentHint": false,
+                "openWorldHint": false,
+                "readOnlyHint": false,
                 "title": "Create content"
             },
             "description": "Create a dashboard, chart, SQL chart or composer chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in find_content or list_content results; a write to any other space is refused. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them. A composer chart (type composer_chart) is saved onto an existing dashboard, from a query node (from: \"node\") or from full pipeline and chart JSON (from: \"json\"); the composer-chart-reference skill resource has both shapes and when each needs SQL approval.",
@@ -1533,6 +1607,91 @@
                 "type": "object"
             },
             "title": "Get context"
+        },
+        {
+            "annotations": {
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false,
+                "readOnlyHint": true,
+                "title": "Get CSV upload status"
+            },
+            "description": "Tool: get_csv_upload_status\n\nPurpose:\nCheck whether a committed CSV upload is ready to query.\n\nImportant:\n- Poll every 5 to 10 seconds until status is \"ready\" or \"error\".\n- Once ready, exploreName is the explore to query with run_metric_query or to name in a generate_data_app brief.\n",
+            "inputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "properties": {
+                    "uploadId": {
+                        "description": "The uploadId returned by prepare_csv_upload.",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "type": "string"
+                    }
+                },
+                "required": ["uploadId"],
+                "type": "object"
+            },
+            "name": "get_csv_upload_status",
+            "outputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                    "columns": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "name": {
+                                            "type": "string"
+                                        },
+                                        "type": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["name", "type"],
+                                    "type": "object"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "errorMessage": {
+                        "type": ["string", "null"]
+                    },
+                    "exploreName": {
+                        "description": "Set once status is \"ready\".",
+                        "type": ["string", "null"]
+                    },
+                    "rowCount": {
+                        "type": ["number", "null"]
+                    },
+                    "status": {
+                        "enum": [
+                            "awaiting_commit",
+                            "processing",
+                            "ready",
+                            "error"
+                        ],
+                        "type": "string"
+                    },
+                    "uploadId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "uploadId",
+                    "status",
+                    "exploreName",
+                    "rowCount",
+                    "columns",
+                    "errorMessage"
+                ],
+                "type": "object"
+            },
+            "title": "Get CSV upload status"
         },
         {
             "annotations": {
@@ -3472,6 +3631,85 @@
             "name": "list_verified_content",
             "outputSchema": null,
             "title": "List verified content"
+        },
+        {
+            "annotations": {
+                "destructiveHint": true,
+                "idempotentHint": false,
+                "openWorldHint": false,
+                "readOnlyHint": false,
+                "title": "Prepare CSV upload"
+            },
+            "description": "Tool: prepare_csv_upload\n\nPurpose:\nStart uploading a CSV or TSV file into the project as a new table that queries, charts and data apps can use. Use it when the user wants to work with data from a file they have.\n\nSteps:\n1. Call this tool with the file's name and its exact size in bytes.\n2. Send the file's raw bytes to uploadRequest.url with an HTTP PUT and every header in uploadRequest.headers, unchanged. curlCommand does this once you put the file's path in it. Never base64-encode, retype or edit the file. The link works once and expires at expiresAt; if it expires, call this tool again.\n3. Call commit_csv_upload with the uploadId and a table name.\n4. Poll get_csv_upload_status until the table is ready.\n\nImportant:\n- A file the user attached in claude.ai is in your code execution environment: upload it from there. If the upload fails with a network or DNS error, ask the user to add the host of uploadRequest.url under Settings → Capabilities → Code execution and file creation → Additional allowed domains, then call this tool again.\n- The table becomes part of the project, visible to everyone with access to it.\n",
+            "inputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "properties": {
+                    "filename": {
+                        "description": "File name with its .csv or .tsv extension.",
+                        "minLength": 1,
+                        "type": "string"
+                    },
+                    "sizeBytes": {
+                        "description": "The file's exact size in bytes, as the file system reports it.",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                    }
+                },
+                "required": ["filename", "sizeBytes"],
+                "type": "object"
+            },
+            "name": "prepare_csv_upload",
+            "outputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                    "curlCommand": {
+                        "description": "The upload as a curl command; replace <path-to-file>.",
+                        "type": "string"
+                    },
+                    "expiresAt": {
+                        "description": "When the upload link stops working.",
+                        "type": "string"
+                    },
+                    "uploadId": {
+                        "description": "Pass to commit_csv_upload.",
+                        "type": "string"
+                    },
+                    "uploadRequest": {
+                        "additionalProperties": false,
+                        "properties": {
+                            "headers": {
+                                "additionalProperties": {
+                                    "type": "string"
+                                },
+                                "description": "Send every header exactly as given.",
+                                "propertyNames": {
+                                    "type": "string"
+                                },
+                                "type": "object"
+                            },
+                            "method": {
+                                "const": "PUT",
+                                "type": "string"
+                            },
+                            "url": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["method", "url", "headers"],
+                        "type": "object"
+                    }
+                },
+                "required": [
+                    "uploadId",
+                    "uploadRequest",
+                    "curlCommand",
+                    "expiresAt"
+                ],
+                "type": "object"
+            },
+            "title": "Prepare CSV upload"
         },
         {
             "annotations": {
