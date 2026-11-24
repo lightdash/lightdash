@@ -2336,14 +2336,33 @@ A custom chart type is chosen the same way: by its own description first, then a
     },
   },
   {
-    "description": "Edit a dashboard, chart, SQL chart or composer chart with an RFC6902 patch against its JSON as readContent last returned it; the edited content is validated before it is saved. The content's space must show canEdit true in findContent or listContent results; an edit in any other space is refused. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL. A composer chart is saved in place on its dashboard as a new version; new warehouse SQL in its nodes waits for approval the same way.",
+    "description": "Edit a dashboard, chart, SQL chart or composer chart by exact text replacement on the content as readContent returned it (the text after the --- line). Each edit replaces "old", which must match exactly once, with "new"; edits apply in order and are saved together as one version, or not at all. Keep "old" short but unique, and put every change to one item in one call. No re-read is needed between edits: the content changes only by your edits. The result is the link and any warnings. The content's space must show canEdit true in findContent or listContent results. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; an edit that changes its sql waits for user approval of the new SQL. A composer chart is saved in place on its dashboard as a new version; new warehouse SQL in its nodes waits for approval the same way.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
-        "patch": {
-          "description": "RFC6902 operations applied to the current JSON",
-          "items": {},
+        "edits": {
+          "description": "Text replacements, applied in order",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "new": {
+                "description": "Replacement text",
+                "type": "string",
+              },
+              "old": {
+                "description": "Exact text to replace; must match exactly once",
+                "minLength": 1,
+                "type": "string",
+              },
+            },
+            "required": [
+              "old",
+              "new",
+            ],
+            "type": "object",
+          },
+          "minItems": 1,
           "type": "array",
         },
         "slug": {
@@ -2365,7 +2384,7 @@ A custom chart type is chosen the same way: by its own description first, then a
       "required": [
         "slug",
         "type",
-        "patch",
+        "edits",
       ],
       "type": "object",
     },
@@ -24988,8 +25007,8 @@ The user sees all of your text: your reasoning ("thinking"), your final response
 - Before creating a SQL chart, read sql-chart-reference in the developing-in-lightdash skill: it says when to create one.
 - Before creating a composer chart, read composer-chart-reference in the developing-in-lightdash skill: it says when to create one.
 - Save a chart without a test query: createContent and editContent check every field id against the explore and refuse unknown ones, naming the closest ids.
-- Create a new dashboard and all its charts in the same response, without waiting for the dashboard's result: the dashboard createContent call first (tiles: []), then one call per chart with dashboardSlug set to the dashboard's slug. Calls run in that order, a chart follows its dashboard if the slug had to change, and each chart gets a tile in rows that fill the grid, so the layout needs no edit.
-- Put every change to one chart or dashboard in a single editContent call; edit a chart and its dashboard in the same response when both change.
+- Create a new dashboard and all its charts in the same response, without waiting for the dashboard's result: the dashboard createContent call first (tiles: []), then one call per chart with dashboardSlug set to the dashboard's slug. Calls run in that order and a chart follows its dashboard if the slug had to change; the tiles placed for the charts need no layout edit.
+- When a chart and its dashboard both change, edit them in the same response.
 - After saving, reply in one or two sentences with the link the tool returned; the user sees the charts there.
 
 Chart (createContent type chart):

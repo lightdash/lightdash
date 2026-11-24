@@ -15,6 +15,7 @@ This skill is shared with Lightdash's native agent, so its workflows use camelCa
 
 - Use `read_content`, `edit_content`, and `create_content` for `readContent`, `editContent`, and `createContent`.
 - Where a workflow calls `editContent` with text edits, call `edit_content` with an RFC6902 JSON Patch against the JSON `read_content` returned.
+- `create_content` and `edit_content` neither check field ids nor place chart tiles: check each new or changed chart's `metricQuery` with `run_metric_query` before saving it, and add a created chart's tile with `edit_content` (see `dashboard-reference`).
 - Use `grep_fields` and `get_metadata` for native `grepFields` and `getMetadata`.
 - Use `generate_hashes` for native `generateHashes`.
 - Replace `runContentQuery` with `run_metric_query` to check a chart's governed semantic-layer `metricQuery`. Do not use `run_sql` for this check.
@@ -34,13 +35,10 @@ This skill is shared with Lightdash's native agent, so its workflows use camelCa
 | Create charts                      | `grepFields`, `getMetadata`, `createContent`                      | Chart refs                            |
 | Create dashboards                  | `grepFields`, `getMetadata`, `createContent`                      | `dashboard-reference`, best practices |
 | Add period comparisons             | Edit chart `metricQuery` and config                               | `period-over-period-reference`        |
-| Check changed metric queries       | `runContentQuery` with `source.type: "metricQuery"`               | Chart refs                            |
 
 Rules:
 
-- Read content before editing unless its current text is already in the conversation.
 - Preserve unrelated fields.
-- Prefer minimal edits.
 - Follow the dashboard or chart shape from the resource instead of inventing structure.
 - When you create or edit content, please provide links for them in the final response
 
@@ -60,9 +58,9 @@ Rules:
 
 1. Call `readContent` unless the dashboard's current text is already in the conversation.
 2. For tabs, non-chart tiles, filter settings beyond a plain dimension filter, or layout rules, read the `dashboard-reference` resource.
-3. Call `editContent` with the smallest text edits, all changes to the dashboard in one call.
+3. Call `editContent` with the smallest text edits.
 
-To add or retarget a dashboard filter, take each tile's explore and field ids from its read-only `chartQuery` in the dashboard JSON (see `Per-Tile Filter Targeting` in `dashboard-reference`). Do not read every chart on the dashboard for that. A dimension filter is added to `/filters/dimensions` with this shape; `target` and `tileTargets` values are objects with `fieldId` and `tableName`, never bare field id strings:
+To add or retarget a dashboard filter, take each tile's explore and field ids from its read-only `chartQuery` in the dashboard JSON (see `Per-Tile Filter Targeting` in `dashboard-reference`). Do not read every chart on the dashboard for that. A dimension filter is added to `filters.dimensions` with this shape; `target` and `tileTargets` values are objects with `fieldId` and `tableName`, never bare field id strings:
 
 ```json
 {
@@ -91,13 +89,13 @@ To put a filter in an existing section, set its `sectionSlug` to a `slug` from `
 2. For options beyond the shape you have, read the chart reference for the chart type (see `Choosing the Right Chart Type` below).
 3. If you add or change filters, verify exact filter values before editing.
 4. If you change the chart's name or purpose, also update dashboards that reference that chart.
-5. Call `editContent` with the smallest text edits, all changes to the chart in one call. The write checks every field id against the explore and names the closest ids for unknown ones.
+5. Call `editContent` with the smallest text edits.
 
 ### Create Charts
 
 1. Use `grepFields`, then `getMetadata` if needed, to find the fields.
 2. For options beyond the shape you have, read the chart reference for the chart type (see `Choosing the Right Chart Type` below).
-3. Call `createContent` with the full chart JSON. The write checks every field id against the explore and names the closest ids for unknown ones, so no test query is needed.
+3. Call `createContent` with the full chart JSON.
 
 When explore fields cannot produce the chart, read `sql-chart-reference` before going further: it says what to offer the user.
 
@@ -106,7 +104,7 @@ For a weekly chart of "the last 12 weeks up to today" where every week starts on
 ### Create Dashboards
 
 1. Use `grepFields`, then `getMetadata` if needed, to find the fields for each chart. When the user leaves the charts open, `dashboard-best-practices` has design guidance.
-2. In one response, without waiting for results, create the dashboard without chart tiles, then each chart with `dashboardSlug` set to its slug. Calls run in order and a chart follows its dashboard if the slug had to change; each chart is placed as a tile in rows that fill the grid, so edit the dashboard only to change that layout or add non-chart tiles, tabs or filters (`dashboard-reference`).
+2. Create the dashboard without chart tiles, then each chart with `dashboardSlug` set to its slug; each chart is placed on it as a tile. Edit the dashboard only to change that layout or add non-chart tiles, tabs or filters (`dashboard-reference`).
 
 ### Create and Edit SQL Charts
 

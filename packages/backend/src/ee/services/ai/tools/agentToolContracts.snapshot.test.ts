@@ -16,7 +16,7 @@ import { getCreateContent } from './createContent';
 import { getCreateScheduledDelivery } from './createScheduledDelivery';
 import { getDescribeWarehouseTable } from './describeWarehouseTable';
 import { getDiscoverRepos } from './discoverRepos';
-import { getEditContent } from './editContent';
+import { getAgentEditContent } from './editContent';
 import { getEditDbtProject } from './editDbtProject';
 import { getEditProjectContext } from './editProjectContext';
 import { getExploreRepo } from './exploreRepo';
@@ -102,8 +102,9 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             createScheduledDelivery: noop,
         }),
         updateUserName: getUpdateUserName({ updateUserName: noopAsync }),
-        editContent: getEditContent({
-            prepareComposerChartEdit: null,
+        editContent: getAgentEditContent({
+            prepareComposerChartEdit: noop,
+            readContent: noop,
             siteUrl: 'https://app.lightdash.cloud',
             editContent: noop,
         }),

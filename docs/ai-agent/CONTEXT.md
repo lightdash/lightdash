@@ -150,9 +150,11 @@ and no add-on removes anything.
 _Avoid_: capability, feature, extension, module
 
 **Intent gate**:
-With Jev on, the server picks a turn type at the start of each turn and
-withholds the tools and prompt sections that do not fit it; the agent gets
-them back with `loadAgentTools`. It never adds a tool.
+With Jev on, the server picks a turn type at the start of a thread's first
+turn and withholds the tools and prompt sections that do not fit it; the
+agent gets them back with `loadAgentTools`. It never adds a tool. Follow-up
+turns that replay stored turns, and threads bound to a dashboard or chart,
+start with every tool so the cached prompt prefix still matches.
 _Avoid_: overlay, filter
 
 **Tool allowlist**:
@@ -169,9 +171,10 @@ unless the thread has approved SQL once and for all.
 _Avoid_: SQL Runner chart, saved SQL, raw SQL chart
 
 **Chart check**:
-Running the exact query a new or changed chart will save, once, before the
-agent saves it. The agent answers from the check and does not run the chart
-again after saving.
+The agent's `createContent` and `editContent` check every field id a chart
+references against its explore and refuse unknown or misplaced ones, naming
+the closest ids, so the agent saves without a test query. MCP clients check a
+chart with `run_metric_query` before saving it.
 _Avoid_: verify, validate, test run
 
 ## Warehouse tables

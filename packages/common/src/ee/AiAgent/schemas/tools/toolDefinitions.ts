@@ -2355,6 +2355,7 @@ export const agentEditContentToolDefinition = defineTool({
     description: AGENT_EDIT_CONTENT_DESCRIPTION,
     availability: ['agent'],
     inputSchema: agentEditContentArgsSchema,
+    agent: { outputSchema: toolEditContentOutputSchema },
 });
 
 export const agentDocumentsEditContentToolDefinition = defineTool({

@@ -45,24 +45,15 @@ type Dependencies = {
 
 type EditedContent = Awaited<ReturnType<EditContentFn>>;
 
+// MCP's patch-based edit; the agent edits with getAgentEditContent.
 const toolDefinition = editContentToolDefinition.for('agent');
 
-const getToolVariant = (documentsEnabled: boolean, chartsEnabled: boolean) => {
-    if (!documentsEnabled) {
-        return {
-            definition: toolDefinition,
-            schema: toolEditContentArgsSchema,
-        };
-    }
+// What the actor may edit decides which args validate.
+const getArgsSchema = (documentsEnabled: boolean, chartsEnabled: boolean) => {
+    if (!documentsEnabled) return toolEditContentArgsSchema;
     return chartsEnabled
-        ? {
-              definition: mcpEditContentToolDefinition.for('agent'),
-              schema: mcpEditContentArgsSchema,
-          }
-        : {
-              definition: documentEditContentToolDefinition.for('agent'),
-              schema: documentEditContentArgsSchema,
-          };
+        ? mcpEditContentArgsSchema
+        : documentEditContentArgsSchema;
 };
 
 const contentResult = ({
@@ -126,7 +117,7 @@ export const executeEditContent = async (
     const patch = args.patch ?? null;
     const documentEdit = args.documentEdit ?? null;
     try {
-        getToolVariant(documentsEnabled, chartsEnabled).schema.parse(args);
+        getArgsSchema(documentsEnabled, chartsEnabled).parse(args);
         const getEditArgs = async (): Promise<Parameters<EditContentFn>[0]> => {
             if (type === 'document') {
                 if (patch !== null || documentEdit === null) {
@@ -245,17 +236,13 @@ export const getEditContent = ({
     prepareComposerChartEdit,
     siteUrl,
     sqlChartSaving = { mode: 'disabled' },
-    documentsEnabled = false,
-    chartsEnabled = true,
-    artifacts,
-}: Dependencies & {
+}: Pick<Dependencies, 'editContent' | 'siteUrl' | 'sqlChartSaving'> & {
     // Null where no thread approval runs (MCP clients approve their own calls).
     prepareComposerChartEdit: PrepareComposerChartEditFn | null;
 }) => {
-    const { definition } = getToolVariant(documentsEnabled, chartsEnabled);
     const inputSchema: FlexibleSchema<
-        z.infer<typeof mcpEditContentArgsSchema>
-    > = definition.inputSchema;
+        z.infer<typeof toolEditContentArgsSchema>
+    > = toolDefinition.inputSchema;
     const sqlChartGate = createSqlChartGate(
         sqlChartSaving,
         'editContent',
@@ -274,20 +261,13 @@ export const getEditContent = ({
     );
 
     return tool({
-        ...definition,
+        ...toolDefinition,
         inputSchema,
         needsApproval: sqlChartGate.needsApproval,
         execute: (args, { toolCallId }) =>
             sqlChartGate.run({ toolCallId, args }, (approveSql) =>
                 executeEditContent(
-                    {
-                        editContent,
-                        siteUrl,
-                        sqlChartSaving,
-                        documentsEnabled,
-                        chartsEnabled,
-                        artifacts,
-                    },
+                    { editContent, siteUrl, sqlChartSaving },
                     args,
                     approveSql,
                 ),
