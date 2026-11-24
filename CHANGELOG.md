@@ -1,3 +1,16 @@
+# [3.388.0](https://github.com/lightdash/lightdash/compare/3.387.0...3.388.0) (2026-11-24)
+
+
+### Bug Fixes
+
+* **semantic-studio:** drop the greyed-out Warehouse option from Add once connected ([#33334](https://github.com/lightdash/lightdash/issues/33334)) ([5b115ca](https://github.com/lightdash/lightdash/commit/5b115ca7ddcecd6858d113302abefc4361ad1201))
+* **semantic-studio:** give a relabelled model's query-builder failure a rejection kind ([#33356](https://github.com/lightdash/lightdash/issues/33356)) ([5566fee](https://github.com/lightdash/lightdash/commit/5566fee8778ca6438b020a315d9ff8041435b38f))
+
+
+### Features
+
+* **semantic-studio:** draft project context on projects with no repository ([#33258](https://github.com/lightdash/lightdash/issues/33258)) ([5b5c81d](https://github.com/lightdash/lightdash/commit/5b5c81d1440a0f6249076b33ca8bb9e96371ccc3))
+
 # [3.387.0](https://github.com/lightdash/lightdash/compare/3.386.1...3.387.0) (2026-11-24)
 
 
