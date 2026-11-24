@@ -25,6 +25,7 @@ import {
     HUBSPOT_COUNT_REASON,
     HUBSPOT_LABEL_SUFFIX,
     HUBSPOT_MAX_FILTERS,
+    HUBSPOT_OBJECT_LABELS,
     HUBSPOT_PIPELINE_STAGES,
     toHubspotObject,
     toHubspotPropertyName,
@@ -327,12 +328,18 @@ const PIPELINE_COLUMN_TYPES: Record<
 const toPipelineObjects = (rules: FilterRule[]): HubspotPipelineObject[] =>
     rules.reduce<HubspotPipelineObject[]>(
         (objects, rule) => {
-            const values = new Set((rule.values ?? []).map(String));
+            // Deals as HubSpot names it, or deals as its API does
+            const values = new Set(
+                (rule.values ?? []).map((value) => String(value).toLowerCase()),
+            );
+            const matches = (object: HubspotPipelineObject) =>
+                values.has(object) ||
+                values.has(HUBSPOT_OBJECT_LABELS[object].toLowerCase());
             switch (rule.operator) {
                 case FilterOperator.EQUALS:
-                    return objects.filter((object) => values.has(object));
+                    return objects.filter(matches);
                 case FilterOperator.NOT_EQUALS:
-                    return objects.filter((object) => !values.has(object));
+                    return objects.filter((object) => !matches(object));
                 default:
                     throw new ParameterError(
                         `Object can only be filtered with "is" or "is not" on HubSpot pipeline stages.`,
@@ -364,7 +371,7 @@ const compilePipelineStages = (
     );
     if (objects.length === 0) {
         throw new ParameterError(
-            'These Object filters leave no pipelines: pick deals, tickets or both.',
+            'These Object filters leave no pipelines: pick Deals, Tickets or both.',
         );
     }
     const request: HubspotRequest = {

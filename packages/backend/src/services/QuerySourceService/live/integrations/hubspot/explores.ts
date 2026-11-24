@@ -88,7 +88,7 @@ const BUILT_IN_DIMENSIONS: LiveDimensionDefinition[] = [
     {
         name: 'created_at',
         apiName: 'createdAt',
-        label: 'Create date',
+        label: 'Create Date',
         description: 'When the record was created, in UTC.',
         type: DimensionType.TIMESTAMP,
         filterOperators: HUBSPOT_DATE_FILTERS,
@@ -96,7 +96,7 @@ const BUILT_IN_DIMENSIONS: LiveDimensionDefinition[] = [
     {
         name: 'updated_at',
         apiName: 'updatedAt',
-        label: 'Last modified date',
+        label: 'Last Modified Date',
         description: 'When the record last changed, in UTC.',
         type: DimensionType.TIMESTAMP,
         filterOperators: HUBSPOT_DATE_FILTERS,
@@ -128,7 +128,8 @@ const countIncompatibility = (dimensions: LiveDimensionDefinition[]) => ({
     selectedOnly: true as const,
 });
 
-const OBJECT_LABELS: Record<HubspotObject, string> = {
+/** Objects as HubSpot names them. */
+export const HUBSPOT_OBJECT_LABELS: Record<HubspotObject, string> = {
     deals: 'Deals',
     contacts: 'Contacts',
     companies: 'Companies',
@@ -142,7 +143,7 @@ const OBJECT_LABELS: Record<HubspotObject, string> = {
  */
 const toObjectExplore = (object: HubspotObject): LiveExploreDefinition => ({
     name: object,
-    label: OBJECT_LABELS[object],
+    label: HUBSPOT_OBJECT_LABELS[object],
     description: `HubSpot ${object}, read live from HubSpot, one row per record, at most ${HUBSPOT_MAX_ROWS.toLocaleString(
         'en-US',
     )} per query. Count gives the number of matching ${object} without reading them.`,
@@ -195,7 +196,7 @@ const PIPELINE_STAGES_EXPLORE: LiveExploreDefinition = {
     name: HUBSPOT_PIPELINE_STAGES,
     label: 'Pipeline stages',
     description:
-        'HubSpot deal and ticket pipelines and their stages, one row per stage, with ids and the labels HubSpot shows. Stage ID matches Deal Stage (internal value) on deals and Ticket status (internal value) on tickets; Pipeline ID matches Pipeline (internal value). Filter by Object to read only deals or tickets.',
+        'HubSpot deal and ticket pipelines and their stages, one row per stage, with ids and the labels HubSpot shows. Stage ID matches Deal Stage (internal value) on deals and Ticket status (internal value) on tickets; Pipeline ID matches Pipeline (internal value). Filter by Object to read only Deals or Tickets.',
     dimensions: [
         {
             ...pipelineField(
@@ -203,7 +204,7 @@ const PIPELINE_STAGES_EXPLORE: LiveExploreDefinition = {
                 'objectType',
                 'Object',
                 DimensionType.STRING,
-                'The object the pipeline belongs to: deals or tickets.',
+                'The object the pipeline belongs to: Deals or Tickets.',
             ),
             filterOperators: HUBSPOT_CHOICE_FILTERS,
         },

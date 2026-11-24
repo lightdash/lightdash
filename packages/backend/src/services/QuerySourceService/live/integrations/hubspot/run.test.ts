@@ -633,17 +633,17 @@ describe('hubspotIntegration pipeline stages', () => {
             ]),
         ).toEqual([
             [
-                'deals',
+                'Deals',
                 'Sales Pipeline',
                 'appointmentscheduled',
                 'Appointment Scheduled',
                 0.2,
                 false,
             ],
-            ['deals', 'Sales Pipeline', 'closedwon', 'Closed Won', 1, true],
-            ['deals', 'Renewals', '1001', 'Renewal won', 1, true],
-            ['tickets', 'Support Pipeline', '1', 'New', null, false],
-            ['tickets', 'Support Pipeline', '4', 'Closed', null, true],
+            ['Deals', 'Sales Pipeline', 'closedwon', 'Closed Won', 1, true],
+            ['Deals', 'Renewals', '1001', 'Renewal won', 1, true],
+            ['Tickets', 'Support Pipeline', '1', 'New', null, false],
+            ['Tickets', 'Support Pipeline', '4', 'Closed', null, true],
         ]);
         expect(result.hasMoreRows).toBe(false);
     });

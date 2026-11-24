@@ -25,6 +25,7 @@ import {
     HUBSPOT_MAX_FILTERS,
     HUBSPOT_MAX_PAGES,
     HUBSPOT_MAX_ROWS,
+    HUBSPOT_OBJECT_LABELS,
     HUBSPOT_PAGE_SIZE,
     HUBSPOT_PIPELINE_COLUMNS,
     toHubspotPropertyName,
@@ -424,7 +425,7 @@ const toStageRows = (
                     const metadata = stage.metadata ?? {};
                     const probability = toValue(metadata.probability, 'number');
                     return {
-                        objectType: object,
+                        objectType: HUBSPOT_OBJECT_LABELS[object],
                         pipelineId: pipeline.id,
                         pipelineLabel: pipeline.label,
                         pipelineDisplayOrder: pipeline.displayOrder,

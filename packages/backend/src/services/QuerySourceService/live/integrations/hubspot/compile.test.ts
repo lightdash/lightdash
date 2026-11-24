@@ -156,8 +156,8 @@ describe('HubSpot fields', () => {
     it('names built-in fields as HubSpot does', () => {
         expect(DEALS_EXPLORE.dimensions.map(({ label }) => label)).toEqual([
             'Record ID',
-            'Create date',
-            'Last modified date',
+            'Create Date',
+            'Last Modified Date',
         ]);
     });
 
@@ -646,6 +646,12 @@ describe('compileHubspotQuery pipeline stages', () => {
                 ).query,
             ).objects,
         ).toEqual(['deals']);
+        expect(
+            JSON.parse(
+                compileStages(objectRule(FilterOperator.EQUALS, ['Tickets']))
+                    .query,
+            ).objects,
+        ).toEqual(['tickets']);
         expect(() =>
             compileStages(objectRule(FilterOperator.EQUALS, ['contacts'])),
         ).toThrow('leave no pipelines');
