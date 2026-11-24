@@ -1430,7 +1430,12 @@ describe('ExternalConnectionService live source explores', () => {
         it('puts the old tags back when the explores fail to rebuild', async () => {
             const { service, projectModel, externalConnectionModel } =
                 buildService({
-                    connections: [posthogConnection({ tags: ['finance'] })],
+                    connections: [
+                        posthogConnection({
+                            tags: ['finance'],
+                            aiHint: 'EU project',
+                        }),
+                    ],
                 });
             projectModel.replaceApiSourceExplores.mockRejectedValue(
                 new Error('db down'),
@@ -1444,8 +1449,21 @@ describe('ExternalConnectionService live source explores', () => {
             expect(externalConnectionModel.update).toHaveBeenLastCalledWith(
                 'conn-1',
                 expect.anything(),
-                { tags: ['finance'] },
+                { tags: ['finance'], aiHint: 'EU project' },
             );
+        });
+
+        it('refuses new tags saved with other settings', async () => {
+            const { service, externalConnectionModel } = buildService({
+                connections: [posthogConnection({ tags: ['finance'] })],
+            });
+            await expect(
+                service.update(account, 'proj-1', 'conn-1', {
+                    name: 'Renamed',
+                    tags: ['marketing'],
+                }),
+            ).rejects.toThrow('Save tags on their own');
+            expect(externalConnectionModel.update).not.toHaveBeenCalled();
         });
 
         it('only logs a failed rebuild when the tags stay the same', async () => {
