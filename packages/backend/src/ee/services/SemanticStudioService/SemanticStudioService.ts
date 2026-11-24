@@ -870,6 +870,7 @@ export class SemanticStudioService extends BaseService {
                     },
                     status: 'discarded',
                     pullRequestUrl: null,
+                    discardedByUserUuid: user.userUuid,
                 }),
             ),
         );
@@ -2050,6 +2051,7 @@ export class SemanticStudioService extends BaseService {
                 },
                 status: 'discarded',
                 pullRequestUrl: null,
+                discardedByUserUuid: null,
             });
         if (discarded === 0 && target.kind !== 'all') {
             throw new NotFoundError('Nothing in the draft matches');
@@ -2302,6 +2304,7 @@ export class SemanticStudioService extends BaseService {
                     drafts,
                     status: 'applied',
                     pullRequestUrl: null,
+                    discardedByUserUuid: null,
                     withSettled: async (trx, settled) => {
                         if (
                             contextEntries.length > 0 &&
@@ -2361,6 +2364,7 @@ export class SemanticStudioService extends BaseService {
                                 drafts,
                                 status: 'applied',
                                 pullRequestUrl: url,
+                                discardedByUserUuid: null,
                             },
                         );
                 } finally {
@@ -2910,6 +2914,7 @@ export class SemanticStudioService extends BaseService {
                         drafts: { changeUuids, model: null },
                         status: 'applied',
                         pullRequestUrl: prUrl,
+                        discardedByUserUuid: null,
                     }),
                 ),
             );

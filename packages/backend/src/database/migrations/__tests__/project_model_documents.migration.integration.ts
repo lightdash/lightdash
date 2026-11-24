@@ -327,12 +327,40 @@ describe('Project model documents on PostgreSQL', () => {
             drafts: { changeUuids: [draftChangeUuid], model: 'customers' },
             status: 'discarded',
             pullRequestUrl: null,
+            discardedByUserUuid: null,
         });
         expect(settled).toBe(1);
         expect(await draftedModels()).toEqual([['orders']]);
         expect(
             await model.findSettledDraftChanges(projectUuid, userUuid),
-        ).toEqual([expect.objectContaining({ status: 'discarded' })]);
+        ).toEqual([
+            expect.objectContaining({ status: 'discarded', discardedBy: null }),
+        ]);
+    });
+
+    test('a discard by someone other than the owner records who and when', async () => {
+        const [admin] = await migrated
+            .database('users')
+            .insert({ first_name: 'Person', last_name: 'B' } as never)
+            .returning('user_uuid');
+        const draftChangeUuid = await draft(['orders']);
+        await model.updateDraftChangeStatus({
+            projectUuid,
+            userUuid,
+            workspaceUuid: null,
+            drafts: { changeUuids: [draftChangeUuid], model: null },
+            status: 'discarded',
+            pullRequestUrl: null,
+            discardedByUserUuid: admin.user_uuid,
+        });
+        expect(
+            await model.findSettledDraftChanges(projectUuid, userUuid),
+        ).toEqual([
+            expect.objectContaining({
+                status: 'discarded',
+                discardedBy: { name: 'Person B', at: expect.any(Date) },
+            }),
+        ]);
     });
 
     test('names who else is drafting a model and what was published under a draft', async () => {
@@ -493,6 +521,7 @@ describe('Project model documents on PostgreSQL', () => {
             drafts,
             status: 'applied',
             pullRequestUrl: 'https://github.example/acme/analytics/pull/1',
+            discardedByUserUuid: null,
         });
         expect(
             await model.findSettledDraftChanges(projectUuid, userUuid),
@@ -536,6 +565,7 @@ describe('Project model documents on PostgreSQL', () => {
             drafts,
             status: 'discarded',
             pullRequestUrl: null,
+            discardedByUserUuid: null,
         });
         await expect(
             apply(new Map(), [{ name: 'orders', content: 'v1' }], { drafts }),
@@ -838,6 +868,7 @@ describe('Project model documents on PostgreSQL', () => {
                 drafts,
                 status: 'discarded',
                 pullRequestUrl: null,
+                discardedByUserUuid: null,
             });
             await expect(
                 model.createChangeSet(
@@ -871,6 +902,7 @@ describe('Project model documents on PostgreSQL', () => {
                     drafts,
                     status: 'applied',
                     pullRequestUrl: null,
+                    discardedByUserUuid: null,
                     withSettled,
                 });
             await expect(
@@ -903,6 +935,7 @@ describe('Project model documents on PostgreSQL', () => {
                 drafts,
                 status: 'discarded',
                 pullRequestUrl: null,
+                discardedByUserUuid: null,
             });
             let settledRows = -1;
             await model.updateDraftChangeStatus({
@@ -912,6 +945,7 @@ describe('Project model documents on PostgreSQL', () => {
                 drafts,
                 status: 'applied',
                 pullRequestUrl: null,
+                discardedByUserUuid: null,
                 withSettled: async (_trx, settled) => {
                     settledRows = settled;
                 },

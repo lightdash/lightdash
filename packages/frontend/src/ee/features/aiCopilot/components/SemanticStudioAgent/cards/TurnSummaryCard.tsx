@@ -49,7 +49,7 @@ import {
     AGENT_WORKING_HINT,
     useStudioAgentWorking,
 } from '../useSemanticStudioChat';
-import { listTurnIssues } from './proposalIssues';
+import { getDiscardedLabel, listTurnIssues } from './proposalIssues';
 import { draftActions, fixFailureAction } from './turnActions';
 import { TurnCard, type Safety } from './TurnCard';
 import { useRefreshUnknownDraftChanges } from './useRefreshUnknownDraftChanges';
@@ -191,7 +191,7 @@ const getPhase = (
         case 'undone':
             return { kind: 'gone', label: 'Undone' };
         case 'discarded':
-            return { kind: 'gone', label: 'Discarded' };
+            return { kind: 'gone', label: getDiscardedLabel(phase.by) };
         default:
             return assertUnreachable(phase, 'Unknown proposal phase');
     }
