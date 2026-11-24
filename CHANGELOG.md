@@ -1,3 +1,10 @@
+# [3.386.0](https://github.com/lightdash/lightdash/compare/3.385.4...3.386.0) (2026-11-24)
+
+
+### Features
+
+* **onboarding:** make the new onboarding the default for every instance ([#33326](https://github.com/lightdash/lightdash/issues/33326)) ([74d753c](https://github.com/lightdash/lightdash/commit/74d753c296c32b3c1e72b8740305850aa6ea7e85))
+
 ## [3.385.4](https://github.com/lightdash/lightdash/compare/3.385.3...3.385.4) (2026-11-24)
 
 
