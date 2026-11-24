@@ -10,6 +10,7 @@ import {
     isOpenWorkspace,
     isPullRequestOpen,
     type SemanticLayerBlocker,
+    type SemanticLayerDrafter,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -324,9 +325,9 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             ),
             others: new Map(
                 (draft?.othersDrafting ?? []).map(
-                    ({ model, drafters }): [string, string[]] => [
+                    ({ model, drafters }): [string, SemanticLayerDrafter[]] => [
                         model,
-                        drafters.map(({ name }) => name),
+                        drafters,
                     ],
                 ),
             ),

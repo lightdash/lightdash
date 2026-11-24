@@ -43,6 +43,7 @@ import {
     type SemanticLayerDraftUsage,
     type SemanticLayerInReviewModel,
     type SemanticLayerModelCode,
+    type SemanticLayerOthersDraftModel,
     type SemanticLayerProposalItemResult,
     type SemanticLayerStatus,
     type SemanticLayerStoredModels,
@@ -73,6 +74,7 @@ import {
     ModelDocumentsChangedError,
     type ChangeSetSource,
     type DraftOwner,
+    type OtherDrafter,
     type ProjectModelDocument,
     type ProjectModelDocumentModel,
     type StoredDraftChange,
@@ -260,6 +262,11 @@ const PULL_REQUEST_REFRESH_MS = 55_000;
 const MERGE_RETRIES = 3;
 const MERGE_RETRY_MS = 2_000;
 const RECENT_WORKSPACE_MS = 14 * 24 * 60 * 60 * 1000;
+// Someone else's draft with no activity for this long can be discarded by a project admin.
+const STALE_DRAFT_MS = 7 * 24 * 60 * 60 * 1000;
+
+const isStaleDraft = ({ lastActiveAt }: Pick<OtherDrafter, 'lastActiveAt'>) =>
+    Date.now() - lastActiveAt.getTime() >= STALE_DRAFT_MS;
 
 type Blocker = { reason: SemanticLayerBlocker; error: LightdashError };
 
@@ -708,19 +715,148 @@ export class SemanticStudioService extends BaseService {
     /** Who else is drafting each model and which parts, read by replaying their drafts on what is live. */
     private static describeOtherDrafts(
         live: Map<string, string>,
-        drafters: { name: string; changes: SemanticLayerDraftModelInput[][] }[],
+        drafters: OtherDrafter[],
+        /** Whether the viewer is a project admin, who may discard a stale draft. */
+        isAdmin: boolean,
     ): Map<string, SemanticLayerDrafter[]> {
         const byModel = new Map<string, SemanticLayerDrafter[]>();
-        drafters.forEach(({ name, changes }) => {
-            const results = foldDraft(live, changes).results.flat();
+        drafters.forEach((drafter) => {
+            const results = foldDraft(
+                live,
+                drafter.changes.map(({ models }) => models),
+            ).results.flat();
+            const isStale = isStaleDraft(drafter);
             [...new Set(results.map(({ model }) => model))].forEach((model) => {
                 byModel.set(model, [
                     ...(byModel.get(model) ?? []),
-                    { name, paths: findDraftedPaths(model, results) },
+                    {
+                        userUuid: drafter.userUuid,
+                        name: drafter.name,
+                        paths: findDraftedPaths(model, results),
+                        lastActiveAt: drafter.lastActiveAt,
+                        isStale,
+                        canDiscard: isAdmin && isStale,
+                    },
                 ]);
             });
         });
         return byModel;
+    }
+
+    private isProjectAdmin(
+        user: SessionUser,
+        organizationUuid: string,
+        projectUuid: string,
+    ): boolean {
+        return this.createAuditedAbility(user).can(
+            'manage',
+            subject('Project', { organizationUuid, projectUuid }),
+        );
+    }
+
+    /** Another person's open draft on this project; never the viewer's own. */
+    private async findOtherDrafter(
+        user: SessionUser,
+        projectUuid: string,
+        ownerUuid: string,
+    ): Promise<OtherDrafter> {
+        const drafter = (
+            await this.projectModelDocumentModel.findOtherDrafters(
+                projectUuid,
+                user.userUuid,
+            )
+        ).find(({ userUuid }) => userUuid === ownerUuid);
+        if (!drafter) throw new NotFoundError('No such draft');
+        return drafter;
+    }
+
+    /** One model as someone else's draft leaves it, to look at; nothing about it can be changed from here. */
+    async getOthersDraftModel(
+        user: SessionUser,
+        projectUuid: string,
+        ownerUuid: string,
+        model: string,
+    ): Promise<SemanticLayerOthersDraftModel> {
+        await this.assertCanEditModels(user, projectUuid);
+        const drafter = await this.findOtherDrafter(
+            user,
+            projectUuid,
+            ownerUuid,
+        );
+        const { stored } = await this.loadStored(projectUuid);
+        const live = new Map(
+            stored.map(({ name, content }) => [name, content]),
+        );
+        const { writes } = foldDraft(
+            live,
+            drafter.changes.map(({ models }) =>
+                models.filter(({ name }) => name === model),
+            ),
+        );
+        if (!writes.has(model)) {
+            throw new NotFoundError('Their draft does not change this model');
+        }
+        return {
+            model,
+            contentBefore: live.get(model) ?? null,
+            contentAfter: writes.get(model) ?? null,
+        };
+    }
+
+    /** Lets a project admin take one model out of someone else's draft once it has gone a week without activity. */
+    async discardOthersDraftModel(
+        user: SessionUser,
+        projectUuid: string,
+        ownerUuid: string,
+        model: string,
+    ): Promise<void> {
+        await this.assertCanEditModels(user, projectUuid);
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (!this.isProjectAdmin(user, organizationUuid, projectUuid)) {
+            throw new ForbiddenError(
+                "Only a project admin can discard someone else's draft",
+            );
+        }
+        const drafter = await this.findOtherDrafter(
+            user,
+            projectUuid,
+            ownerUuid,
+        );
+        if (!isStaleDraft(drafter)) {
+            throw new ForbiddenError(
+                'This draft was active in the last 7 days. Only its owner can discard it.',
+            );
+        }
+        const holding = drafter.changes.filter(({ models }) =>
+            models.some(({ name }) => name === model),
+        );
+        if (holding.length === 0) {
+            throw new NotFoundError('Their draft does not change this model');
+        }
+        // Only the changes read above, so anything they add meanwhile stays.
+        await Promise.all(
+            Object.values(
+                groupBy(holding, ({ workspaceUuid }) => workspaceUuid ?? ''),
+            ).map((changes) =>
+                this.projectModelDocumentModel.updateDraftChangeStatus({
+                    projectUuid,
+                    userUuid: ownerUuid,
+                    workspaceUuid: changes[0].workspaceUuid,
+                    drafts: {
+                        changeUuids: changes.map(
+                            ({ draftChangeUuid }) => draftChangeUuid,
+                        ),
+                        model,
+                    },
+                    status: 'discarded',
+                    pullRequestUrl: null,
+                }),
+            ),
+        );
+        this.track(user, projectUuid, {
+            event: 'semantic_studio.draft_discarded',
+            properties: { scope: 'stale_model' },
+        });
     }
 
     /** Runs a write again when another one landed first. */
@@ -1154,6 +1290,7 @@ export class SemanticStudioService extends BaseService {
                 projectUuid,
                 user.userUuid,
             ),
+            this.isProjectAdmin(user, draft.organizationUuid, projectUuid),
         );
         const othersDrafting = [...others].map(([model, drafters]) => ({
             model,

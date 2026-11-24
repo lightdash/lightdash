@@ -63,6 +63,7 @@ import {
 } from './modelCode';
 import { ModelMark } from './ModelMark';
 import { ModelTabs, SourceTabs } from './ModelTabs';
+import { OthersDraftNotice } from './OthersDraftNotice';
 import { PageScrollContext, usePageVirtualizer } from './pageScroll';
 import { SemanticLayerNudge } from './SemanticLayerNudge';
 import { NodeIcon } from './shared';
@@ -73,6 +74,7 @@ import { addPath } from './useAddSource';
 import { useExploreFields } from './useExploreFields';
 import { useFieldListState } from './useFieldListState';
 import {
+    usePublishMode,
     useSemanticLayerDraft,
     useSemanticLayerModel,
 } from './useSemanticLayerModel';
@@ -236,6 +238,7 @@ const ExploreBody: FC<{
     const othersHere =
         draft?.othersDrafting.find(({ model }) => model === exploreId)
             ?.drafters ?? [];
+    const publishMode = usePublishMode(view.project.id);
     const {
         fields: loaded,
         isLoading,
@@ -322,23 +325,18 @@ const ExploreBody: FC<{
                     </Text>
                 </Group>
             ) : null}
-            {modelDraft || othersHere.length > 0 ? (
-                <Group gap="sm" mb="sm" wrap="nowrap">
-                    <Text fz="xs" c="dimmed">
-                        {[
-                            modelDraft
-                                ? 'Only you see this until you publish.'
-                                : null,
-                            ...othersHere.map(
-                                ({ name, paths }) =>
-                                    `${name} is changing ${paths.length > 0 ? paths.join(', ') : 'this model'}, in a draft.`,
-                            ),
-                        ]
-                            .filter(Boolean)
-                            .join(' ')}
-                    </Text>
-                </Group>
+            {modelDraft ? (
+                <Text fz="xs" c="dimmed" mb="sm">
+                    Only you see this until you publish.
+                </Text>
             ) : null}
+            <OthersDraftNotice
+                projectUuid={view.project.id}
+                model={exploreId}
+                drafters={othersHere}
+                publishMode={publishMode}
+            />
+
             <FieldList
                 view={view}
                 explore={explore}

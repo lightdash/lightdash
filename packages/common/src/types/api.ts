@@ -490,6 +490,7 @@ import {
     type ApiSemanticLayerDraftResponse,
     type ApiSemanticLayerDraftStateResponse,
     type ApiSemanticLayerDraftUsageResponse,
+    type ApiSemanticLayerOthersDraftModelResponse,
     type ApiSemanticStudioBranchCompileFollowUpResponse,
     type ApiSemanticStudioCheckoutResponse,
     type ApiSemanticStudioSourceFileResponse,
@@ -1937,6 +1938,7 @@ type ApiResults =
     | ApiAiProviderCredentialCreatedResponse['results']
     | ApiProjectAiCredentialResponse['results']
     | ApiSemanticLayerDraftResponse['results']
+    | ApiSemanticLayerOthersDraftModelResponse['results']
     | ApiSemanticLayerDraftModelSaveResponse['results']
     | ApiSemanticLayerDraftedModelsResponse['results']
     | ApiSemanticLayerDraftStateResponse['results']

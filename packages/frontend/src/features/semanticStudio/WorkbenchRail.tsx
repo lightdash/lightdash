@@ -35,7 +35,7 @@ import {
     type NodeRef,
     type TreeNode,
 } from './model';
-import { CHANGE_KIND_LABELS } from './modelCode';
+import { CHANGE_KIND_LABELS, describeDrafter } from './modelCode';
 import { SearchResultsList } from './SearchResultsList';
 import { NodeIcon } from './shared';
 import { useAddToStudioChat, startStudioChatRefDrag } from './studioChatRefs';
@@ -66,12 +66,18 @@ const DraftMarker: FC<{ model: string; isMine: boolean }> = ({
             </Tooltip>
         ) : null;
     }
-    const whose = [...(isMine ? ['you'] : []), ...others].join(', ');
     const kind = isMine ? marks.kinds.get(model) : undefined;
+    const label = [
+        isMine
+            ? `${kind ? `${CHANGE_KIND_LABELS[kind]} in a draft` : 'Draft'} by you.`
+            : null,
+        ...others.map((drafter) => `${describeDrafter(drafter)}.`),
+        'Not published yet.',
+    ]
+        .filter(Boolean)
+        .join(' ');
     return (
-        <Tooltip
-            label={`${kind ? `${CHANGE_KIND_LABELS[kind]} in a draft` : 'Draft'} by ${whose}. Not published yet.`}
-        >
+        <Tooltip label={label} multiline maw={320}>
             <Box
                 className={classes.draftDot}
                 data-change={kind}

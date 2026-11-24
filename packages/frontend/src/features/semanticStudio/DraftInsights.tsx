@@ -48,6 +48,7 @@ import {
     count,
     countChangedLines,
     listPublishedParts,
+    summarizeDraftedPaths,
 } from './modelCode';
 import {
     useDiscardDraftChange,
@@ -388,17 +389,14 @@ export const ModelNotices: FC<{
                     </Text>
                 </NoticeRow>
             ) : null}
-            {model.alsoChanging.map(({ name, paths }) => (
-                <NoticeRow key={name} icon={IconUsers} color="dimmed">
+            {model.alsoChanging.map(({ userUuid, name, paths }) => (
+                <NoticeRow key={userUuid} icon={IconUsers} color="dimmed">
                     <Text fz="xs" c="dimmed">
                         <Text span fw={600}>
                             {name}
                         </Text>{' '}
-                        is also changing{' '}
-                        {paths.length > 0
-                            ? listNames(paths.map(describePath))
-                            : 'this model'}
-                        , in a draft.
+                        is also editing {summarizeDraftedPaths(paths)}, in a
+                        draft.
                     </Text>
                 </NoticeRow>
             ))}
