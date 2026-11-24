@@ -166,17 +166,16 @@ describe('results page compression through the generated route', () => {
         expect(revalidated.headers.vary).toBe(first.headers.vary);
     });
 
-    it('answers HEAD with identity metadata and the same Vary', async () => {
+    it('answers HEAD with the same metadata as GET', async () => {
+        const get = await request(resultsPath, browserAcceptEncoding);
         const head = await request(resultsPath, browserAcceptEncoding, 'HEAD');
-        const identity = await request(resultsPath);
 
         expect(head.status).toBe(200);
         expect(head.body.length).toBe(0);
-        expect(head.headers['content-encoding']).toBeUndefined();
-        expect(head.headers['content-length']).toBe(
-            String(identity.body.length),
-        );
-        expect(head.headers.vary).toBe('Origin, Accept-Encoding');
+        expect(head.headers['content-encoding']).toBe('br');
+        expect(head.headers['content-length']).toBe(String(get.body.length));
+        expect(head.headers.etag).toBe(get.headers.etag);
+        expect(head.headers.vary).toBe(get.headers.vary);
     });
 
     it('leaves the S3 results stream route uncompressed', async () => {

@@ -86,11 +86,40 @@ describe('createResponseCompression', () => {
 
         expect(response.headers['content-encoding']).toBe('br');
         expect(response.headers.vary).toBe('Accept-Encoding');
+        expect(response.headers['content-length']).toBe(
+            String(response.body.length),
+        );
         expect(response.body).toEqual(
             zlib.brotliCompressSync(body, {
-                params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 1 },
+                params: {
+                    [zlib.constants.BROTLI_PARAM_QUALITY]: 1,
+                    [zlib.constants.BROTLI_PARAM_SIZE_HINT]: body.length,
+                },
             }),
         );
+    });
+
+    it('prefers brotli over gzip whatever order the client lists them in', async () => {
+        const response = await request('/large', 'gzip, deflate, br');
+
+        expect(response.headers['content-encoding']).toBe('br');
+    });
+
+    it('uses gzip when the client refuses brotli', async () => {
+        const response = await request('/large', 'br;q=0, gzip');
+
+        expect(response.headers['content-encoding']).toBe('gzip');
+        expect(JSON.parse(zlib.gunzipSync(response.body).toString())).toEqual(
+            largePayload,
+        );
+    });
+
+    it('does not compress without an accepted encoding', async () => {
+        const response = await request('/large', 'identity');
+
+        expect(response.headers['content-encoding']).toBeUndefined();
+        expect(response.headers.vary).toBe('Accept-Encoding');
+        expect(JSON.parse(response.body.toString())).toEqual(largePayload);
     });
 
     it('does not compress a JSON response below 1KB', async () => {
