@@ -632,62 +632,6 @@ When no field matches literally, the result lists the closest catalog matches (f
             },
             "type": "array",
           },
-          "relevantVerifiedAnswers": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "artifactType": {
-                  "enum": [
-                    "chart",
-                    "dashboard",
-                  ],
-                  "type": "string",
-                },
-                "artifactVersionUuid": {
-                  "type": "string",
-                },
-                "chartConfig": {
-                  "additionalProperties": {},
-                  "propertyNames": {
-                    "type": "string",
-                  },
-                  "type": "object",
-                },
-                "description": {
-                  "type": [
-                    "string",
-                    "null",
-                  ],
-                },
-                "similarity": {
-                  "type": "number",
-                },
-                "title": {
-                  "type": [
-                    "string",
-                    "null",
-                  ],
-                },
-                "verifiedQuestion": {
-                  "type": [
-                    "string",
-                    "null",
-                  ],
-                },
-              },
-              "required": [
-                "artifactVersionUuid",
-                "chartConfig",
-                "artifactType",
-                "verifiedQuestion",
-                "title",
-                "description",
-                "similarity",
-              ],
-              "type": "object",
-            },
-            "type": "array",
-          },
         },
         "required": [
           "description",

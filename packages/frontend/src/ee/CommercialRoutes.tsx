@@ -402,30 +402,6 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
                             return { Component: ProjectAiAgentEditPage };
                         },
                     },
-                    {
-                        path: 'verified-artifacts',
-                        lazy: async () => {
-                            const ProjectAiAgentEditPage =
-                                await loadLazyRouteDefault(
-                                    './pages/AiAgents/ProjectAiAgentEditPage',
-                                    () =>
-                                        import('./pages/AiAgents/ProjectAiAgentEditPage'),
-                                );
-                            return { Component: ProjectAiAgentEditPage };
-                        },
-                    },
-                    {
-                        path: 'verified-artifacts/:artifactUuid',
-                        lazy: async () => {
-                            const ProjectAiAgentEditPage =
-                                await loadLazyRouteDefault(
-                                    './pages/AiAgents/ProjectAiAgentEditPage',
-                                    () =>
-                                        import('./pages/AiAgents/ProjectAiAgentEditPage'),
-                                );
-                            return { Component: ProjectAiAgentEditPage };
-                        },
-                    },
                 ],
             },
             {
