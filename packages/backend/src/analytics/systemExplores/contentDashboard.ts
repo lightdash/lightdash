@@ -1,6 +1,7 @@
 import {
     CustomFormatType,
     FilterOperator,
+    ProjectType,
     TableCalculationType,
 } from '@lightdash/common';
 import { caution, positive, waiting } from './analyticsChartPresentation';
@@ -51,9 +52,35 @@ const newContentCalculations: NonNullable<UsageChartSpec['tableCalculations']> =
         },
     ];
 
+// Charts and dashboards created in the selected period. Overview repeats this card, so both are built
+// here: the same measure, filters and window under two keys.
+export const contentCreated = {
+    name: 'Content created',
+    description:
+        'Charts and dashboards created in the selected period, including deleted ones. Content in preview projects is left out; Overview and Content show the same count.',
+    // The model with a row for every day, so the trend has a point on days with nothing created
+    explore: 'content_created' as const,
+    day: 'content_health_created_at_day',
+    metric: 'content_health_total_content',
+    filters: [
+        {
+            field: 'content_health_content_type',
+            values: ['saved_chart', 'sql_chart', 'dashboard'],
+        },
+        {
+            field: 'content_health_project_type',
+            values: [ProjectType.PREVIEW],
+            operator: FilterOperator.NOT_EQUALS,
+        },
+    ] satisfies NonNullable<UsageChartSpec['filters']> as NonNullable<
+        UsageChartSpec['filters']
+    >,
+};
+
 // Charts of the Content dashboard. The verified share and the review list stay with the plain charts in
 // usageDashboardCharts.ts.
 export const contentChartSpecs: UsageChartSpec[] = [
+    card({ key: 'content-created-in-period', ...contentCreated }),
     card({
         key: 'content-viewers-latest-day',
         name: 'People viewing content',
@@ -546,11 +573,12 @@ export const contentChartSpecs: UsageChartSpec[] = [
 export const contentDashboardSpec: UsageDashboardSpec = {
     key: 'lightdash-analytics-content',
     name: 'Content',
-    description: 'Content viewers, ownership and inventory.',
+    description: 'What content is read, what exists and who owns it.',
     tabs: [
         {
+            // Everything here follows the Date filter
             key: 'audience',
-            name: 'Audience & trust',
+            name: 'Audience',
             sections: [
                 {
                     title: 'Content audience',
@@ -560,6 +588,7 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                         'content-viewers-latest-day',
                         'content-views',
                         'verified-content-audience-share',
+                        'content-created-in-period',
                     ],
                 },
                 {
@@ -581,12 +610,6 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                     layout: 'row',
                     rowHeight: 9,
                 },
-            ],
-        },
-        {
-            key: 'adoption',
-            name: 'Creation & adoption',
-            sections: [
                 {
                     title: 'New content',
                     description:
@@ -595,24 +618,17 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                     layout: 'row',
                     rowHeight: 8,
                 },
-                {
-                    title: 'Content over time',
-                    description: '',
-                    note: false,
-                    charts: ['content-creation-by-month'],
-                    layout: 'row',
-                    rowHeight: 7,
-                },
             ],
         },
         {
-            key: 'health',
-            name: 'Activity & dependencies',
+            // Nothing here follows the Date filter: it is the content that exists now, over all history
+            key: 'inventory',
+            name: 'Inventory & clean-up',
             sections: [
                 {
-                    title: 'Content review',
+                    title: 'All content, whatever the Date filter says',
                     description:
-                        'No recorded activity is not proof that an item is safe to delete. Known dependencies are current dashboard tiles and enabled schedules.',
+                        'These tiles cover all recorded history. No recorded activity is not proof that an item is safe to delete: a dashboard tile or a schedule may still use it.',
                     charts: [
                         'content-with-activity',
                         'content-without-activity-in-use',
@@ -634,6 +650,14 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                     // About ten rows, more by scrolling
                     rowHeight: 8,
                 },
+                {
+                    title: 'Content over time',
+                    description: '',
+                    note: false,
+                    charts: ['content-creation-by-month'],
+                    layout: 'row',
+                    rowHeight: 7,
+                },
             ],
         },
         {
@@ -641,9 +665,9 @@ export const contentDashboardSpec: UsageDashboardSpec = {
             name: 'Ownership',
             sections: [
                 {
-                    title: 'Current ownership',
+                    title: 'Who owns the dashboards today',
                     description:
-                        'Only dashboards have an owner. Give a new owner to the dashboards listed here whose owner is deactivated, not a member or missing.',
+                        'The latest snapshot, whatever the Date filter says. Only dashboards have an owner: give a new one to those listed here.',
                     // A bar for each owner status, then the dashboards to fix, full width
                     charts: ['content-ownership-current-snapshot'],
                     layout: 'row',

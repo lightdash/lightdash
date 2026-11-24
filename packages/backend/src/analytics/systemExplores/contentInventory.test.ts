@@ -495,7 +495,9 @@ describe('Content inventory charts', () => {
                 .filter(({ tableName }) => tableName === 'content_created')
                 .map(({ slug }) => slug),
         ).toEqual([
-            // Each needs a row for every day: the two running totals by week, and this card
+            // Each needs a row for every day: the two running totals by week, this card, and the same
+            // card on Content
+            'lightdash-analytics-content-content-created-in-period',
             'lightdash-analytics-content-content-creation-by-month',
             'lightdash-analytics-adoption-adoption-apps-created-by-day',
             card.slug,
