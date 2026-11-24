@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DimensionType } from '../../../../types/field';
 import {
     METRIC_VIEW_TABLE_TYPE,
     PartitionGranularity,
@@ -74,6 +75,7 @@ export const toolDescribeWarehouseTableStructuredContentSchema = z.object({
             columns: z.array(
                 z.object({
                     name: z.string(),
+                    type: z.nativeEnum(DimensionType),
                     comment: z.string().nullable(),
                     isMeasure: z.boolean(),
                 }),

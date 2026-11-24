@@ -57,6 +57,7 @@ import {
     MERGE_TABLE_NAME,
     MergeJoinType,
     MergeQueryErrorKind,
+    METRIC_VIEW_TABLE_TYPE,
     MetricQuery,
     MetricType,
     MissingWarehouseCredentialsError,
@@ -128,6 +129,7 @@ import {
     type UserWarehouseCredentialsWithSecrets,
     type WarehouseConnection,
     type WarehouseLocation,
+    type WarehouseTableMetadata,
     type WarehouseTables,
     type WarehouseTablesCatalog,
     type WarehouseTableSchema,
@@ -6961,6 +6963,149 @@ describe('ProjectService', () => {
             expect(
                 vi.mocked(SshTunnel).mock.results.at(-1)?.value.disconnect,
             ).toHaveBeenCalledOnce();
+        });
+
+        describe('describeWarehouseTable column discovery', () => {
+            const probe = /select\s+\*|\(\s*select/i;
+            const metricViewMetadata: WarehouseTableMetadata = {
+                tableType: METRIC_VIEW_TABLE_TYPE,
+                comment: null,
+                columns: [
+                    {
+                        name: 'order_month',
+                        type: DimensionType.TIMESTAMP,
+                        comment: null,
+                        isMeasure: false,
+                    },
+                    {
+                        name: 'order_count',
+                        type: DimensionType.NUMBER,
+                        comment: null,
+                        isMeasure: true,
+                    },
+                ],
+                definition: null,
+            };
+            // A warehouse that refuses to select from a metric view, as Databricks does
+            const describing = (metadata: WarehouseTableMetadata) => {
+                const { configured, client } = setup();
+                const sent: string[] = [];
+                const refuseProbe = (sql: string) => {
+                    sent.push(sql);
+                    if (probe.test(sql))
+                        throw new Error('cannot select from a metric view');
+                };
+                const getTableMetadata = vi.fn<
+                    NonNullable<WarehouseClient['getTableMetadata']>
+                >(async () => metadata);
+                Object.assign(client, {
+                    getTableMetadata,
+                    runQuery: vi.fn<WarehouseClient['runQuery']>(
+                        async (sql) => {
+                            refuseProbe(sql);
+                            return resultsWith1Row;
+                        },
+                    ),
+                    streamQuery: vi.fn<WarehouseClient['streamQuery']>(
+                        async (sql, callback) => {
+                            refuseProbe(sql);
+                            await callback(resultsWith1Row);
+                        },
+                    ),
+                });
+                const describeOrders = () =>
+                    configured.describeWarehouseTable(
+                        user,
+                        projectUuid,
+                        QueryExecutionContext.AI,
+                        {
+                            tableName: 'orders',
+                            schemaName: 'public',
+                            databaseName: 'catalog_database',
+                        },
+                    );
+                return { client, getTableMetadata, describeOrders, sent };
+            };
+
+            test('lists a metric view from its describe with measures marked and sends no probe', async () => {
+                const { client, getTableMetadata, describeOrders, sent } =
+                    describing(metricViewMetadata);
+                client.getFields.mockRejectedValueOnce(
+                    new Error('no columns listed'),
+                );
+
+                const result = await describeOrders();
+
+                expect(result.fields).toEqual({
+                    order_month: DimensionType.TIMESTAMP,
+                    order_count: DimensionType.NUMBER,
+                });
+                expect(
+                    result.metadata?.columns.map(({ name, isMeasure }) => ({
+                        name,
+                        isMeasure,
+                    })),
+                ).toEqual([
+                    { name: 'order_month', isMeasure: false },
+                    { name: 'order_count', isMeasure: true },
+                ]);
+                expect(getTableMetadata).toHaveBeenCalledOnce();
+                expect(sent.filter((sql) => probe.test(sql))).toEqual([]);
+            });
+
+            test('keeps the listed column types of a metric view where the warehouse lists them', async () => {
+                const { client, describeOrders, sent } =
+                    describing(metricViewMetadata);
+                client.getFields.mockResolvedValueOnce({
+                    catalog_database: {
+                        public: {
+                            orders: {
+                                order_month: DimensionType.DATE,
+                                order_count: DimensionType.NUMBER,
+                            },
+                        },
+                    },
+                });
+
+                const result = await describeOrders();
+
+                expect(result.fields).toEqual({
+                    order_month: DimensionType.DATE,
+                    order_count: DimensionType.NUMBER,
+                });
+                expect(sent).toEqual([]);
+            });
+
+            test('a table keeps the listed columns', async () => {
+                const { client, getTableMetadata, describeOrders } = describing(
+                    {
+                        ...metricViewMetadata,
+                        tableType: WarehouseTableType.TABLE,
+                        columns: [],
+                    },
+                );
+
+                const result = await describeOrders();
+
+                expect(result.fields).toEqual(fields);
+                expect(result.nativeTypes).toEqual({ created_at: 'DATETIME' });
+                expect(client.getFields).toHaveBeenCalledOnce();
+                expect(getTableMetadata).toHaveBeenCalledOnce();
+            });
+
+            test('a table the warehouse cannot list is still not found', async () => {
+                const { client, describeOrders } = describing({
+                    ...metricViewMetadata,
+                    tableType: WarehouseTableType.VIEW,
+                });
+                client.getFields.mockRejectedValueOnce(
+                    new Error('warehouse failure'),
+                );
+
+                await expect(describeOrders()).rejects.toThrow(
+                    'Could not find table "orders"',
+                );
+            });
         });
 
         test.each([

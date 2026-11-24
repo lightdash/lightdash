@@ -422,9 +422,15 @@ describe('DatabricksWarehouseClient', () => {
                 tableType: WarehouseTableType.TABLE,
                 comment: 'One row per order',
                 columns: [
-                    { name: 'order_id', comment: null, isMeasure: false },
+                    {
+                        name: 'order_id',
+                        type: DimensionType.NUMBER,
+                        comment: null,
+                        isMeasure: false,
+                    },
                     {
                         name: 'status',
+                        type: DimensionType.STRING,
                         comment: 'Fulfilment status',
                         isMeasure: false,
                     },
@@ -443,7 +449,12 @@ describe('DatabricksWarehouseClient', () => {
                 tableType: WarehouseTableType.VIEW,
                 comment: null,
                 columns: [
-                    { name: 'order_id', comment: null, isMeasure: false },
+                    {
+                        name: 'order_id',
+                        type: DimensionType.NUMBER,
+                        comment: null,
+                        isMeasure: false,
+                    },
                 ],
                 definition: {
                     text: 'SELECT order_id FROM catalog.schema.orders',
@@ -459,9 +470,15 @@ describe('DatabricksWarehouseClient', () => {
                 tableType: METRIC_VIEW_TABLE_TYPE,
                 comment: 'Governed order metrics',
                 columns: [
-                    { name: 'order_month', comment: null, isMeasure: false },
+                    {
+                        name: 'order_month',
+                        type: DimensionType.TIMESTAMP,
+                        comment: null,
+                        isMeasure: false,
+                    },
                     {
                         name: 'order_count',
+                        type: DimensionType.NUMBER,
                         comment: 'Orders placed',
                         isMeasure: true,
                     },

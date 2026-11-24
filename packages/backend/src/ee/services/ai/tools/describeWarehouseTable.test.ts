@@ -1,4 +1,5 @@
 import {
+    DimensionType,
     METRIC_VIEW_TABLE_TYPE,
     PartitionGranularity,
     PartitionType,
@@ -192,8 +193,18 @@ describe('describeWarehouseTable metadata', () => {
             tableType: WarehouseTableType.TABLE,
             comment: 'One row per order',
             columns: [
-                { name: 'order_id', comment: 'Order key', isMeasure: false },
-                { name: 'created_at', comment: null, isMeasure: false },
+                {
+                    name: 'order_id',
+                    type: DimensionType.STRING,
+                    comment: 'Order key',
+                    isMeasure: false,
+                },
+                {
+                    name: 'created_at',
+                    type: DimensionType.TIMESTAMP,
+                    comment: null,
+                    isMeasure: false,
+                },
             ],
             definition: null,
         };
@@ -221,8 +232,18 @@ describe('describeWarehouseTable metadata', () => {
             tableType: METRIC_VIEW_TABLE_TYPE,
             comment: null,
             columns: [
-                { name: 'order_id', comment: null, isMeasure: true },
-                { name: 'created_at', comment: null, isMeasure: false },
+                {
+                    name: 'order_id',
+                    type: DimensionType.STRING,
+                    comment: null,
+                    isMeasure: true,
+                },
+                {
+                    name: 'created_at',
+                    type: DimensionType.TIMESTAMP,
+                    comment: null,
+                    isMeasure: false,
+                },
             ],
             definition: {
                 text: 'version: 1.1\nsource: <catalog>.<schema>.<table>',
