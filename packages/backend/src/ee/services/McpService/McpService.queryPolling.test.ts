@@ -295,7 +295,6 @@ const makeMcpService = ({
     dashboardSearchResults = [],
     chartSearchResults = [],
     verifiedContent = [],
-    artifactVerifiedContent = [],
     runtimeErrors = {},
     filterExpressionsEnabled = false,
     agentIdentityEnabled = false,
@@ -319,7 +318,6 @@ const makeMcpService = ({
     })[];
     chartSearchResults?: ReturnType<typeof makeChartSearchResult>[];
     verifiedContent?: Record<string, unknown>[];
-    artifactVerifiedContent?: Record<string, unknown>[];
     runtimeErrors?: {
         findExplores?: string;
         findFields?: string;
@@ -420,9 +418,6 @@ const makeMcpService = ({
                 ...agent,
             };
         }),
-        getVerifiedSavedArtifactContent: vi
-            .fn()
-            .mockResolvedValue(artifactVerifiedContent),
     };
 
     const contentVerificationService = {
@@ -1315,51 +1310,6 @@ describe('MCP async query polling', () => {
         const verifiedContentResult = JSON.parse(getTextResult(verifiedResult));
 
         expect(verifiedContentResult).toEqual([allowedVerifiedContent]);
-    });
-
-    it('merges AI-verified saved artifacts into list_verified_content without duplicates', async () => {
-        const spaceUuid = 'space-uuid';
-        const verifiedChart = {
-            contentType: 'chart',
-            contentUuid: 'chart-uuid',
-            name: 'Verified Chart',
-            spaceUuid,
-        };
-        const artifactOnlyChart = {
-            contentType: 'chart',
-            contentUuid: 'artifact-chart-uuid',
-            name: 'AI Verified Chart',
-            spaceUuid,
-        };
-        const artifactDuplicateOfVerifiedChart = {
-            ...verifiedChart,
-            name: 'AI duplicate of Verified Chart',
-        };
-
-        makeMcpService({
-            context: {
-                projectUuid,
-                projectName: 'Project',
-                agentUuid: null,
-                agentName: null,
-                tags: null,
-            },
-            verifiedContent: [verifiedChart],
-            artifactVerifiedContent: [
-                artifactOnlyChart,
-                artifactDuplicateOfVerifiedChart,
-            ],
-        });
-
-        const verifiedResult = await getToolCallback(
-            McpToolName.LIST_VERIFIED_CONTENT,
-        )({}, extra);
-        const verifiedContentResult = JSON.parse(getTextResult(verifiedResult));
-
-        expect(verifiedContentResult).toEqual([
-            verifiedChart,
-            artifactOnlyChart,
-        ]);
     });
 
     it('resolves run_metric_query filter expressions before execution', async () => {

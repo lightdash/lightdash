@@ -58,8 +58,6 @@ const artifact = (
     chartConfig: parseConfig({ source: 'semantic', config: chartPayload() }),
     dashboardConfig: null,
     versionCreatedAt: new Date('2026-09-28T10:00:00Z'),
-    verifiedByUserUuid: null,
-    verifiedAt: null,
     ...overrides,
 });
 type SelectionInput = Parameters<typeof getSlackSelectedCardArtifacts>[0];
