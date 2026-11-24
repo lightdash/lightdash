@@ -391,6 +391,45 @@ describe('Analytics settings overview', () => {
         expect(launched).toEqual([]);
     });
 
+    it('leaves the date range out where no chart follows the Date filter', async () => {
+        mockQueries();
+        const otherRequests = mockedLightdashApi.getMockImplementation()!;
+        mockedLightdashApi.mockImplementation(
+            async (request: LightdashApiProps) =>
+                request.url.includes('/dashboards/')
+                    ? {
+                          tabs: [],
+                          tiles: [{ uuid: 'tile', type: 'saved_chart' }],
+                          filters: {
+                              dimensions: [
+                                  {
+                                      id: 'date',
+                                      label: 'Date',
+                                      target: {
+                                          fieldId: 'ai_usage_event_ts_day',
+                                          tableName: 'ai_usage',
+                                      },
+                                      operator: FilterOperator.IN_THE_PAST,
+                                      values: [30],
+                                      tileTargets: { tile: false },
+                                  },
+                              ],
+                          },
+                      }
+                    : otherRequests(request),
+        );
+        renderOverview([
+            {
+                slug: 'lightdash-analytics-query-activity',
+                name: 'Queries',
+                verification: {},
+            } as DashboardBasicDetails,
+        ]);
+        await userEvent.click(screen.getByRole('tab', { name: 'Queries' }));
+        await screen.findByTitle('Queries dashboard');
+        expect(screen.queryByText('Last 90 days')).not.toBeInTheDocument();
+    });
+
     it('hands the chosen date range and project to a dashboard that has those filters', async () => {
         vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-07-23') });
         mockQueries();
@@ -400,6 +439,7 @@ describe('Analytics settings overview', () => {
                 request.url.includes('/dashboards/')
                     ? {
                           tabs: [],
+                          tiles: [{ uuid: 'tile', type: 'saved_chart' }],
                           filters: {
                               dimensions: [
                                   {
