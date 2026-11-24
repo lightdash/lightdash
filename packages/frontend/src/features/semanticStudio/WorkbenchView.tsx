@@ -605,7 +605,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             : hasDraftChanges
               ? {
                     name: 'Draft',
-                    hint: 'Only you see these changes until you publish them.',
+                    hint: 'Not live until you publish. Others can see them, but only you can change them.',
                 }
               : null;
     // Only models with YAML here have a file: a deployed model's YAML lives where it was deployed from.

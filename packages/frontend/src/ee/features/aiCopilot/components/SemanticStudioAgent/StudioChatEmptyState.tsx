@@ -14,7 +14,7 @@ export const StudioChatEmptyState: FC<{ keepsDraft: boolean }> = ({
             </Text>
             <Text fz="xs" c="dimmed" ta="center">
                 {keepsDraft
-                    ? 'Only you see a draft until you publish it.'
+                    ? 'Others can see your draft, but only you can change or publish it.'
                     : 'Nothing is published until you publish the draft.'}
             </Text>
         </Stack>

@@ -327,7 +327,7 @@ const ExploreBody: FC<{
             ) : null}
             {modelDraft ? (
                 <Text fz="xs" c="dimmed" mb="sm">
-                    Only you see this until you publish.
+                    Not live until you publish. Only you can change it.
                 </Text>
             ) : null}
             <OthersDraftNotice

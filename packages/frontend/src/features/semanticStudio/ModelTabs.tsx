@@ -485,8 +485,8 @@ const HistoryPane: FC<{
                         <Box miw={0}>
                             <Text fz="sm">In your draft</Text>
                             <Text fz="xs" c="dimmed">
-                                Not live. Only you see them until you publish;
-                                everything below is live.
+                                Not live until you publish, and only you can
+                                change them. Everything below is live.
                             </Text>
                         </Box>
                         <Button
