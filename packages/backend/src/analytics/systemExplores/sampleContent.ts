@@ -20,6 +20,7 @@ import {
     modelProviderColors,
     modelTierRanks,
 } from './analyticsColorPalette';
+import { heatmapColorClamp, heatmapColorClampNote } from './chartBuilders';
 import { withEmbedRankingPresentation } from './embedDashboard';
 import { trendRows } from './homeDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
@@ -398,6 +399,8 @@ const aiUsageContent = {
                         splitSort: 'total',
                         splitColorGroups: modelProviderColors,
                         splitShadeRank: modelTierRanks,
+                        // Three providers fit the legend; ten models needed a pager
+                        legendMode: 'groups',
                         xAxisType: 'time',
                         xTimeFormat: '{MMM} {d}',
                         xName: 'Day',
@@ -449,6 +452,8 @@ const aiUsageContent = {
                         splitSort: 'total',
                         splitColorGroups: modelProviderColors,
                         splitShadeRank: modelTierRanks,
+                        // Three providers fit the legend; ten models needed a pager
+                        legendMode: 'groups',
                         xAxisType: 'time',
                         xTimeFormat: '{MMM} {d}',
                         xName: 'Day',
@@ -521,7 +526,7 @@ const aiUsageContent = {
                 description: 'Tokens by feature in the selected period.',
                 libraryChart: {
                     slug: 'heatmap',
-                    minVersion: '0.5.0',
+                    minVersion: '0.5.1',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         y: 'ai_usage_feature_name',
@@ -532,6 +537,7 @@ const aiUsageContent = {
                         yTitle: 'Feature',
                         legendTitle: 'Tokens',
                         legendFormat: 'compact',
+                        ...heatmapColorClamp,
                     },
                     query: {
                         dimensions: [
@@ -550,8 +556,7 @@ const aiUsageContent = {
                             },
                         ],
                         limit: 5000,
-                        description:
-                            'Tokens per feature per day in the selected period.',
+                        description: `Tokens per feature per day in the selected period. ${heatmapColorClampNote}`,
                     },
                 },
             },

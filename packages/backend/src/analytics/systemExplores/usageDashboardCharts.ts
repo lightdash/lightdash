@@ -4,7 +4,11 @@ import {
     TableCalculationType,
 } from '@lightdash/common';
 import { modelProviderColors, modelTierRanks } from './analyticsColorPalette';
-import { numberCard } from './chartBuilders';
+import {
+    heatmapColorClamp,
+    heatmapColorClampNote,
+    numberCard,
+} from './chartBuilders';
 import { monthlyQueryComparisonCharts } from './monthlyQueryComparisonCharts';
 import type { UsageChartSpec } from './usageDashboardTypes';
 
@@ -371,7 +375,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
     {
         key: 'agent-requests-by-agent-and-day',
         name: 'Requests by agent and day',
-        description: '',
+        description: `Requests by agent and day. ${heatmapColorClampNote}`,
         explore: 'agent_requests',
         dimensions: [
             'agent_requests_agent_name',
@@ -385,7 +389,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'heatmap',
-            minVersion: '0.5.0',
+            minVersion: '0.5.1',
             fieldMapping: {
                 x: 'agent_requests_requested_at_day',
                 y: 'agent_requests_agent_name',
@@ -396,6 +400,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 yTitle: 'Agent',
                 legendTitle: 'Agent requests',
                 legendFormat: 'compact',
+                ...heatmapColorClamp,
             },
             query: null,
         },
@@ -734,6 +739,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             optionValues: {
                 splitColorGroups: modelProviderColors,
                 splitShadeRank: modelTierRanks,
+                legendMode: 'groups',
                 xName: 'Person',
                 yName: 'Tokens',
                 seriesType: 'bar',
@@ -774,7 +780,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'heatmap',
-            minVersion: '0.5.0',
+            minVersion: '0.5.1',
             fieldMapping: {
                 x: 'ai_usage_model_name',
                 y: 'ai_usage_feature_name',
@@ -785,6 +791,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 yTitle: 'Feature',
                 legendTitle: 'Tokens',
                 legendFormat: 'compact',
+                ...heatmapColorClamp,
             },
             // Columns keep the order the rows arrive in: providers by their tokens, then each
             // provider's models from the most powerful tier down
@@ -819,8 +826,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                     { fieldId: 'ai_usage_total_tokens_used', descending: true },
                 ],
                 limit: 500,
-                description:
-                    'Tokens for each feature and model in the selected period. Models are grouped by provider, the most powerful first.',
+                description: `Tokens for each feature and model, with models grouped by provider and the most powerful first. ${heatmapColorClampNote}`,
             },
         },
     },

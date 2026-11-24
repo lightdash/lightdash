@@ -270,7 +270,9 @@ describe('analytics sample content', () => {
             ]);
             expect(analyticsLibraryChartBindings.get(slug)).toMatchObject({
                 slug: 'heatmap',
-                minVersion: '0.5.0',
+                // The colour range stops at the 95th percentile, so one huge day does not wash out the rest
+                minVersion: '0.5.1',
+                optionValues: { colorClampPercentile: 95 },
             });
         });
 

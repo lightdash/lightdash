@@ -2210,3 +2210,46 @@ describe('SQL the query engine will accept', () => {
         ).toThrow('file table paths are not allowed');
     });
 });
+
+describe('legends and colour ranges that hold up with real volumes', () => {
+    const bindings = [...analyticsLibraryChartBindings.entries()];
+
+    it('caps the colour range of every heatmap and says so on the tile', () => {
+        const heatmaps = bindings.filter(([, { slug }]) => slug === 'heatmap');
+        expect(heatmaps.map(([slug]) => slug).sort()).toEqual([
+            'lightdash-analytics-adoption-adoption-activity-by-person-and-day',
+            'lightdash-analytics-overview-agent-requests-by-agent-and-day',
+            'lightdash-analytics-overview-ai-tokens-by-feature-and-model',
+            'lightdash-analytics-overview-tokens-by-feature',
+        ]);
+        const charts = analyticsContentAsCode.flatMap(
+            (bundle) => bundle.charts,
+        );
+        heatmaps.forEach(([slug, { minVersion, optionValues, query }]) => {
+            expect(minVersion).toBe('0.5.1');
+            expect(optionValues.colorClampPercentile).toBe(95);
+            const shown =
+                query?.description ??
+                charts.find((chart) => chart.slug === slug)!.description;
+            expect(shown).toContain(
+                'The colour scale stops at the 95th percentile.',
+            );
+        });
+    });
+
+    it('lists providers, not every model, in the legend of a stacked model chart', () => {
+        const stacked = bindings.filter(
+            ([, { fieldMapping }]) =>
+                fieldMapping.splitBy === 'ai_usage_model_name',
+        );
+        expect(stacked.map(([slug]) => slug).sort()).toEqual([
+            'lightdash-analytics-overview-ai-calls-by-day',
+            'lightdash-analytics-overview-ai-consumption-by-person-feature-and-model',
+            'lightdash-analytics-overview-tokens-by-day',
+        ]);
+        stacked.forEach(([, { optionValues, minVersion }]) => {
+            expect(optionValues.legendMode).toBe('groups');
+            expect(minVersion).toBe('0.18.7');
+        });
+    });
+});

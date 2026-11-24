@@ -190,6 +190,12 @@ export const trendByCategory = ({
 });
 
 // How much of one measure each category had on each day.
+// One very large cell would set the top of the colour range and leave every other cell the same pale
+// tint, so the range stops at the 95th percentile and cells above it take the darkest colour.
+export const heatmapColorClamp = { colorClampPercentile: 95 };
+export const heatmapColorClampNote =
+    'The colour scale stops at the 95th percentile.';
+
 export const heatmapByDay = ({
     day,
     metric,
@@ -217,13 +223,14 @@ export const heatmapByDay = ({
     ...(top ? { topCategories: { category, metric, count: top } } : {}),
     libraryChart: {
         slug: 'heatmap',
-        minVersion: '0.5.0',
+        minVersion: '0.5.1',
         fieldMapping: { x: day, y: category, value: metric },
         optionValues: {
             xTitle: 'Day',
             yTitle: titles.category,
             legendTitle: titles.metric,
             legendFormat: 'compact',
+            ...heatmapColorClamp,
         },
         query: null,
     },
