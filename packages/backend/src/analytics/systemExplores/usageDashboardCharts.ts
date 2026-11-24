@@ -9,6 +9,7 @@ import {
     heatmapColorClamp,
     heatmapColorClampNote,
     numberCard,
+    ranking,
     wholeShare,
 } from './chartBuilders';
 import { monthlyQueryComparisonCharts } from './monthlyQueryComparisonCharts';
@@ -816,11 +817,16 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
         ],
     },
-    {
+    // Rows are the origins, with where their queries were run from under each. Who started them is a
+    // column for each kind of starter, so the three names fit a table that groups by two.
+    ranking({
         key: 'query-origin-and-initiating-actor',
         name: 'Queries by origin and who started them',
         description: 'Older queries with unknown values are still shown.',
         explore: 'query_events',
+        by: 'query_events_workload_origin_name',
+        then: 'query_events_context_name',
+        series: 'query_events_initiating_actor_type_name',
         dimensions: [
             'query_events_workload_origin_name',
             'query_events_initiating_actor_type_name',
@@ -828,13 +834,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         metrics: ['query_events_total_queries'],
         limit: 50,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'query_events_total_queries',
-            },
-        ],
-    },
+        libraryDescription:
+            'Queries for each origin, with a column for each kind of starter. Open an origin to see where its queries were run from; older queries with unknown values are still shown.',
+    }),
     {
         key: 'request-consumption-by-outcome-and-feedback',
         name: 'Tokens spent on failed or cancelled requests',
@@ -1004,26 +1006,26 @@ export const usageChartSpecs: UsageChartSpec[] = [
         libraryChart: numberCard(
             'content_reach_verified_audience_share',
             'Of viewers of content with a known status',
-            { percent: true, whole: wholeShare.name, color: positive },
+            {
+                percent: true,
+                whole: wholeShare.name,
+                color: positive,
+                // The same line above the number as the three cards beside it
+                period: 'Selected period',
+            },
         ),
     },
-    {
+    // A handful of rows, so the groups start open
+    ranking({
         key: 'warehouse-versus-cached-demand',
         name: 'Warehouse versus cached queries',
         description:
             'Queries by cache hit and by what ran or served them, such as the warehouse, the results cache or a pre-aggregate.',
         explore: 'query_events',
-        dimensions: [
-            'query_events_cache_hit_name',
-            'query_events_execution_source_name',
-        ],
+        by: 'query_events_cache_hit_name',
+        then: 'query_events_execution_source_name',
         metrics: ['query_events_total_queries'],
         limit: 30,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'query_events_total_queries',
-            },
-        ],
-    },
+        expanded: true,
+    }),
 ];

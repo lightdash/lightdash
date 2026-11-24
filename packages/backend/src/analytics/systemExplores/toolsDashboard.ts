@@ -250,7 +250,6 @@ export const toolsDashboardSpec: UsageDashboardSpec = {
                 },
                 {
                     title: 'Google Sheets',
-                    caption: true,
                     description:
                         'Queries run through the Google Sheets integration, which is not everyone who reads the spreadsheet.',
                     charts: ['tools-google-sheets-queries-by-day'],

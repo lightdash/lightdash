@@ -95,10 +95,15 @@ export const numberCard = (
         wholeLabel,
         color,
         strong = false,
+        period,
     }: {
         percent?: boolean;
         whole?: string;
         wholeLabel?: string;
+        // What the number covers, written above it as on a card with a sparkline ("Selected period").
+        // For a card with a bar that sits in a row of such cards: without the line it has more room
+        // than its neighbours and draws its number larger than theirs.
+        period?: string;
         // Colour of the bar
         color?: string;
         // The card a reader acts on: its number takes the bar's colour and a heavier weight
@@ -119,7 +124,10 @@ export const numberCard = (
         // A card with a bar has no room for a line of words as well: the chart shrinks the number to
         // fit everything in, so the meaning is in the tile's hover text and the title names the number
         ...(whole
-            ? { showLabel: false }
+            ? {
+                  showLabel: Boolean(period),
+                  ...(period ? { label: period } : {}),
+              }
             : { showLabel: true, label, labelTransform: 'none' }),
         showCardBorder: false,
         showCardShadow: false,

@@ -112,41 +112,38 @@ export const dataAppsChartSpecs: UsageChartSpec[] = [
         libraryDescription:
             'The 20 most-loaded data apps in the selected period, with their viewers. Data apps with the same name are shown as one.',
     }),
-    ranking({
-        key: 'top-people',
-        name: 'Most active data app viewers',
-        description:
-            'The 20 people who loaded data apps the most, with the number of data apps they loaded.',
-        explore: 'data_app_events',
-        by: 'data_app_events_user_name',
-        dimensions: ['data_app_events_user_name', 'data_app_events_user_id'],
-        metrics: ['data_app_events_total_views', 'data_app_events_unique_apps'],
-        filters: loads,
-        limit: 20,
-        libraryLimit: 20,
-    }),
-    ranking({
-        key: 'user-app-detail',
-        name: 'Data app loads by person and app',
-        description: 'Loads for each person, data app and project.',
-        explore: 'data_app_events',
-        by: 'data_app_events_user_name',
-        then: 'data_app_events_app_name',
-        dimensions: [
-            'data_app_events_user_name',
-            'data_app_events_project_name',
-            'data_app_events_user_id',
-            'data_app_events_app_name',
-            'data_app_events_app_id',
-            'data_app_events_project_id',
-        ],
+    {
+        // The one list of people on this dashboard. A second tile ranked the same people by the same
+        // loads, so its count of data apps is a column here: a person's row adds up the data apps
+        // under it.
+        ...ranking({
+            key: 'user-app-detail',
+            name: 'Data app loads by person and app',
+            description: 'Loads for each person, data app and project.',
+            explore: 'data_app_events',
+            by: 'data_app_events_user_name',
+            then: 'data_app_events_app_name',
+            dimensions: [
+                'data_app_events_user_name',
+                'data_app_events_project_name',
+                'data_app_events_user_id',
+                'data_app_events_app_name',
+                'data_app_events_app_id',
+                'data_app_events_project_id',
+            ],
+            metrics: [
+                'data_app_events_total_views',
+                'data_app_events_unique_apps',
+            ],
+            filters: loads,
+            limit: 5000,
+            libraryLimit: 2000,
+            libraryDescription:
+                'Loads and the number of data apps for each person. Open a person to see the data apps they loaded.',
+        }),
+        // The plain table has a row for each person and data app, where that count is always 1
         metrics: ['data_app_events_total_views'],
-        filters: loads,
-        limit: 5000,
-        libraryLimit: 2000,
-        libraryDescription:
-            'Loads for each person. Open a person to see the data apps they loaded.',
-    }),
+    },
     stackedByDay({
         key: 'apps-builds-by-type-and-day',
         name: 'Data apps created and iterated on by day',
@@ -317,18 +314,41 @@ export const dataAppsChartSpecs: UsageChartSpec[] = [
         wholeNumbers: true,
     }),
     {
-        key: 'apps-outcomes-by-app-and-surface',
-        name: 'Data app outcomes by app and surface',
-        description:
-            'Pages delivered, pages that failed to deliver and pages that hit an error while running, for each data app and surface. Each load of a page counts once, including builder previews, embeds and deliveries.',
-        explore: 'data_app_outcomes',
-        dimensions: [
-            'data_app_outcomes_app_name',
-            'data_app_outcomes_project_name',
-            'data_app_outcomes_view_context_name',
-            'data_app_outcomes_app_id',
-            'data_app_outcomes_project_id',
-        ],
+        ...ranking({
+            key: 'apps-outcomes-by-app-and-surface',
+            name: 'Data app outcomes by app and surface',
+            description:
+                'Pages delivered, pages that failed to deliver and pages that hit an error while running, for each data app and surface. Each load of a page counts once, including builder previews, embeds and deliveries.',
+            explore: 'data_app_outcomes',
+            by: 'data_app_outcomes_app_name',
+            then: 'data_app_outcomes_view_context_name',
+            dimensions: [
+                'data_app_outcomes_app_name',
+                'data_app_outcomes_project_name',
+                'data_app_outcomes_view_context_name',
+                'data_app_outcomes_app_id',
+                'data_app_outcomes_project_id',
+            ],
+            // Failures first: the table opens sorted by its first column, and the data apps that fail
+            // most are what this tab is for
+            metrics: [
+                'data_app_outcomes_html_error',
+                'data_app_outcomes_runtime_error',
+                'data_app_outcomes_html_loaded',
+            ],
+            limit: 100,
+            fieldLabels: {
+                data_app_outcomes_app_name: 'Data app',
+                data_app_outcomes_project_name: 'Project',
+                data_app_outcomes_view_context_name: 'Surface',
+                data_app_outcomes_html_loaded: 'Pages delivered',
+                data_app_outcomes_html_error: 'Failed to deliver',
+                data_app_outcomes_runtime_error: 'Errors while running',
+            },
+            libraryDescription:
+                'Page loads that failed to deliver, hit an error while running or were delivered, for each data app on every surface; data apps with the same name are shown as one. Open a data app to see its surfaces.',
+        }),
+        // The plain table keeps its columns and order: delivered first, then the two kinds of failure
         metrics: [
             // Start-up is reported only by data apps built on a recent SDK, so a count of it beside
             // pages delivered reads as most loads never starting. It is left out.
@@ -336,20 +356,11 @@ export const dataAppsChartSpecs: UsageChartSpec[] = [
             'data_app_outcomes_html_error',
             'data_app_outcomes_runtime_error',
         ],
-        limit: 100,
         sorts: [
             { fieldId: 'data_app_outcomes_html_error', descending: true },
             { fieldId: 'data_app_outcomes_runtime_error', descending: true },
             { fieldId: 'data_app_outcomes_app_name', descending: false },
         ],
-        fieldLabels: {
-            data_app_outcomes_app_name: 'Data app',
-            data_app_outcomes_project_name: 'Project',
-            data_app_outcomes_view_context_name: 'Surface',
-            data_app_outcomes_html_loaded: 'Pages delivered',
-            data_app_outcomes_html_error: 'Failed to deliver',
-            data_app_outcomes_runtime_error: 'Errors while running',
-        },
     },
 ];
 
@@ -419,7 +430,6 @@ export const dataAppsDashboardSpec: UsageDashboardSpec = {
                     title: 'Daily activity',
                     description:
                         'Loads by day for up to eight of the most-loaded data apps, each on its own scale.',
-                    caption: true,
                     charts: ['apps-loads-by-app-and-day'],
                     layout: 'row',
                     // Fits eight data app rows of about 70 to 90px.
@@ -444,8 +454,9 @@ export const dataAppsDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Data app audiences',
                     description:
-                        'See who uses each data app, how often they load it and how many apps they use.',
-                    charts: ['top-people', 'user-app-detail'],
+                        'Who loads data apps, how often and how many. Open a person to see the data apps they loaded.',
+                    // One list, full width: a second tile ranked the same people by the same loads
+                    charts: ['user-app-detail'],
                     layout: 'row',
                     rowHeight: 9,
                 },

@@ -746,14 +746,42 @@ describe('legacyLibraryChartBindings', () => {
             optionValues: { markType: 'area', curve: 'smooth' },
             query: null,
         });
-        [
-            'warehouse-versus-cached-demand',
-            'query-cache',
-            'queries-by-context',
-            'query-calendar',
-        ].forEach((key) => {
-            expect(queryBinding(key)).toBeUndefined();
+        ['query-cache', 'queries-by-context', 'query-calendar'].forEach(
+            (key) => {
+                expect(queryBinding(key)).toBeUndefined();
+            },
+        );
+        // The two tables of this tab are the library table, like every other ranking: a few rows by
+        // cache and source with the groups open, and origins with a column for each kind of starter
+        expect(queryBinding('warehouse-versus-cached-demand')).toMatchObject({
+            slug: 'sortable-pivot-table',
+            fieldMapping: {
+                rowDimension: 'query_events_cache_hit_name',
+                rowDimension2: 'query_events_execution_source_name',
+                metric: ['query_events_total_queries'],
+            },
+            optionValues: {
+                defaultCollapsed: 'expanded',
+                showMiniBars: true,
+                rowHeaderName: 'Cache / Run or served by',
+                valueNames: 'Queries',
+            },
         });
+        expect(queryBinding('query-origin-and-initiating-actor')).toMatchObject(
+            {
+                slug: 'sortable-pivot-table',
+                fieldMapping: {
+                    rowDimension: 'query_events_workload_origin_name',
+                    rowDimension2: 'query_events_context_name',
+                    series: 'query_events_initiating_actor_type_name',
+                    metric: ['query_events_total_queries'],
+                },
+                optionValues: {
+                    defaultCollapsed: 'collapsed',
+                    rowHeaderName: 'Origin / Run from',
+                },
+            },
+        );
         // Lines on the same date axis as the charts above it
         expect(queryBinding('query-latency-by-day')).toMatchObject({
             slug: 'customizable-cartesian-chart',

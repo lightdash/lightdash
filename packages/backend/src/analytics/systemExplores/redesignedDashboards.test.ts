@@ -327,8 +327,8 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             ],
         ],
         people: [
-            ['top-people', 0, 1, 18, 9, 'sortable-pivot-table', 'table'],
-            ['user-app-detail', 18, 1, 18, 9, 'sortable-pivot-table', 'table'],
+            // One list of people, full width
+            ['user-app-detail', 0, 1, 36, 9, 'sortable-pivot-table', 'table'],
         ],
         builders: [
             [
@@ -388,7 +388,15 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'customizable-cartesian-chart',
                 'cartesian',
             ],
-            ['apps-outcomes-by-app-and-surface', 0, 8, 36, 7, null, 'table'],
+            [
+                'apps-outcomes-by-app-and-surface',
+                0,
+                8,
+                36,
+                7,
+                'sortable-pivot-table',
+                'table',
+            ],
         ],
     },
     'lightdash-analytics-tools': {
@@ -566,7 +574,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'people-without-observed-activity',
                 0,
-                2,
+                1,
                 36,
                 4,
                 'big-number-with-sparkline-trend',
@@ -575,13 +583,13 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'people-without-observed-activity-detail',
                 0,
-                7,
+                6,
                 36,
                 7,
                 null,
                 'table',
             ],
-            ['people-without-activity-30d-detail', 0, 14, 36, 7, null, 'table'],
+            ['people-without-activity-30d-detail', 0, 13, 36, 7, null, 'table'],
         ],
     },
     'lightdash-analytics-embed': {
@@ -1881,6 +1889,10 @@ describe('totals of a table grouped by two names', () => {
                 ['ann', 2],
                 ['ann', 1],
             ]);
+            // Each row is one data app, so a person's row adds up to the data apps they loaded
+            expect(
+                rows.map((row) => Number(row.data_app_events_unique_apps)),
+            ).toEqual([1, 1, 1, 1]);
         } finally {
             db.closeSync();
             instance.closeSync();
@@ -2164,5 +2176,220 @@ describe('card rows', () => {
         );
         expect(short).toEqual([]);
         expect(SPARKLINE_CARD_ROWS).toBe(4);
+    });
+});
+
+describe('one table style', () => {
+    const all = analyticsContentAsCode.flatMap(({ charts }) => charts);
+    const chartOf = (slug: string) => all.find((chart) => chart.slug === slug)!;
+
+    it('draws every table as the library table, but for the lists that table cannot show', () => {
+        const plain = analyticsContentAsCode.flatMap(({ dashboard, charts }) =>
+            charts
+                .filter(
+                    ({ slug, chartConfig }) =>
+                        chartConfig.type === ChartType.TABLE &&
+                        !analyticsLibraryChartBindings.has(slug) &&
+                        dashboard.tiles.some(
+                            (tile) =>
+                                'chartSlug' in tile.properties &&
+                                tile.properties.chartSlug === slug,
+                        ),
+                )
+                .map(({ slug }) => slug),
+        );
+        // The library table shows one or two names and then numbers, and its names are not links.
+        expect(plain.sort()).toEqual(
+            [
+                // A list of runs: a time and three names on every row
+                'lightdash-analytics-overview-recent-evaluation-runs',
+                // Each dashboard's name opens the dashboard
+                'lightdash-analytics-query-activity-dashboards-warehouse-and-response-time',
+                'lightdash-analytics-query-activity-query-failures-affected-people',
+                // The change from month to month, green up and orange down
+                'lightdash-analytics-query-activity-querying-users-month-over-month',
+                // Three or more names on every row
+                'lightdash-analytics-query-activity-most-used-fields',
+                'lightdash-analytics-query-activity-people-using-fields',
+                'lightdash-analytics-query-activity-content-using-fields',
+                // Lists to act on, in words: where an item lives, who owns it, what still links to it
+                'lightdash-analytics-content-review-candidates-activity-and-known-dependencies',
+                'lightdash-analytics-content-content-owners-needing-review',
+                // Lists of people with no number to draw a bar for
+                'lightdash-analytics-adoption-people-without-observed-activity-detail',
+                'lightdash-analytics-adoption-people-without-activity-30d-detail',
+                // AI token usage is left as its owner has it
+                'lightdash-analytics-ai-tokens-quality',
+                'lightdash-analytics-ai-tokens-details',
+            ].sort(),
+        );
+    });
+
+    it('groups data app outcomes by data app, failures first, with no tint on the plain table', () => {
+        const slug =
+            'lightdash-analytics-apps-apps-outcomes-by-app-and-surface';
+        const binding = analyticsLibraryChartBindings.get(slug)!;
+        expect(binding).toMatchObject({
+            slug: 'sortable-pivot-table',
+            fieldMapping: {
+                rowDimension: 'data_app_outcomes_app_name',
+                rowDimension2: 'data_app_outcomes_view_context_name',
+                metric: [
+                    'data_app_outcomes_html_error',
+                    'data_app_outcomes_runtime_error',
+                    'data_app_outcomes_html_loaded',
+                ],
+            },
+            optionValues: {
+                showMiniBars: true,
+                initialSort: 'firstValue',
+                rowHeaderName: 'Data app / Surface',
+                valueNames:
+                    'Failed to deliver,Errors while running,Pages delivered',
+            },
+        });
+        // The plain table keeps its columns, and no longer colours every count above zero
+        const plain = chartOf(slug);
+        expect(plain.metricQuery.metrics).toEqual([
+            'data_app_outcomes_html_loaded',
+            'data_app_outcomes_html_error',
+            'data_app_outcomes_runtime_error',
+        ]);
+        expect(plain.metricQuery.sorts[0]).toEqual({
+            fieldId: 'data_app_outcomes_html_error',
+            descending: true,
+        });
+        const formattings = (chart: ChartAsCode) =>
+            chart.chartConfig.type === ChartType.TABLE
+                ? (chart.chartConfig.config?.conditionalFormattings ?? [])
+                : [];
+        expect(formattings(plain)).toEqual([]);
+        // Other tables keep the tint on an error count, where an error is the exception
+        expect(
+            formattings(
+                chartOf('lightdash-analytics-overview-recent-evaluation-runs'),
+            ).length,
+        ).toBeGreaterThan(0);
+    });
+
+    it('lists the people who load data apps once, with their data apps as a column', () => {
+        expect(all.some(({ slug }) => slug.endsWith('-apps-top-people'))).toBe(
+            false,
+        );
+        const slug = 'lightdash-analytics-apps-user-app-detail';
+        expect(analyticsLibraryChartBindings.get(slug)).toMatchObject({
+            fieldMapping: {
+                rowDimension: 'data_app_events_user_name',
+                rowDimension2: 'data_app_events_app_name',
+                metric: [
+                    'data_app_events_total_views',
+                    'data_app_events_unique_apps',
+                ],
+            },
+            optionValues: {
+                valueNames: 'Loads,Data apps',
+                defaultCollapsed: 'collapsed',
+            },
+            query: {
+                metrics: [
+                    'data_app_events_total_views',
+                    'data_app_events_unique_apps',
+                ],
+            },
+        });
+        // One row for each person and data app in the plain table: a count of data apps would be 1
+        expect(chartOf(slug).metricQuery.metrics).not.toContain(
+            'data_app_events_unique_apps',
+        );
+    });
+});
+
+describe('the Content audience cards', () => {
+    it('writes the period above the share of viewers, as on the cards beside it', () => {
+        const options = (key: string) =>
+            analyticsLibraryChartBindings.get(
+                `lightdash-analytics-content-${key}`,
+            )!.optionValues;
+        expect(options('verified-content-audience-share')).toMatchObject({
+            showLabel: true,
+            label: 'Selected period',
+            bigNumberSize: 6,
+            targetDisplay: 'bar',
+        });
+        expect(options('content-views').label).toBe('Selected period');
+        expect(options('content-created-in-period').label).toBe(
+            'Selected period',
+        );
+        expect(options('content-viewers-latest-day').label).toBe('Latest day');
+        // A card with a bar that is not in a row of sparkline cards keeps its room for the number
+        expect(options('content-without-activity').showLabel).toBe(false);
+    });
+});
+
+describe('People who have not used Lightdash', () => {
+    const people = analyticsContentAsCode.find(
+        ({ dashboard }) => dashboard.slug === 'lightdash-analytics-adoption',
+    )!;
+    const chartOf = (key: string) =>
+        people.charts.find(
+            ({ slug }) => slug === `lightdash-analytics-adoption-${key}`,
+        )!;
+    const columnsOf = (chart: ChartAsCode) =>
+        chart.chartConfig.type === ChartType.TABLE
+            ? (chart.chartConfig.config?.columns ?? {})
+            : {};
+
+    it('says something different at each level of the tab', () => {
+        const tab = people.dashboard.tabs.find(
+            ({ slug }) => slug === 'inactive',
+        )!;
+        const headings = people.dashboard.tiles
+            .filter(
+                (tile) =>
+                    tile.tabSlug === 'inactive' && 'content' in tile.properties,
+            )
+            .map(
+                (tile) =>
+                    /^\*\*([^*]+)\*\*/.exec(
+                        (tile.properties as { content: string }).content,
+                    )![1],
+            );
+        const titles = [
+            'people-without-observed-activity',
+            'people-without-observed-activity-detail',
+            'people-without-activity-30d-detail',
+        ].map((key) => chartOf(key).name);
+        expect([tab.name, ...headings, ...titles]).toEqual([
+            'People who have not used Lightdash',
+            'How many members have never used it?',
+            'Who to follow up with',
+            'Never used Lightdash',
+            'Members with no recorded use',
+            'Members with no use in the last 30 days',
+        ]);
+    });
+
+    it('leaves out a status that is the same on every row, and keeps the other to two words', () => {
+        const never = chartOf('people-without-observed-activity-detail');
+        expect(never.metricQuery.dimensions).not.toContain(
+            'people_adoption_activity_status_name',
+        );
+        const lapsed = chartOf('people-without-activity-30d-detail');
+        const status = lapsed.metricQuery.tableCalculations.find(
+            ({ name }) => name === 'activity_status_short',
+        )!;
+        expect(status.displayName).toBe('Activity status');
+        const sql = 'sql' in status ? status.sql : '';
+        expect(sql).toContain("THEN 'Never used'");
+        expect(sql).toContain("THEN 'Used before'");
+        // The long wording is still read by the query, and is not a column
+        expect(
+            columnsOf(lapsed).people_adoption_activity_status_name,
+        ).toMatchObject({ visible: false });
+        expect(
+            lapsed.metricQuery.tableCalculations.find(
+                ({ name }) => name === 'last_used',
+            )!.displayName,
+        ).toBe('Last used (UTC)');
     });
 });

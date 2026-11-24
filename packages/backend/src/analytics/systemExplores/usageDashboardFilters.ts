@@ -29,6 +29,9 @@ const dateFieldOfTable: Record<string, string> = {
 // A chart of a table that describes the present can still count what was created in the period
 const dateFieldOfChart: Record<string, string> = {
     'lightdash-analytics-home-content-created': 'created_at_day',
+    // The same card on Content. Without this the Date filter passed it by: the number was all of
+    // history under the words "Selected period", with a trend point for every day since the first item
+    'lightdash-analytics-content-content-created-in-period': 'created_at_day',
     // New content is content created in the period, whenever it was viewed
     'lightdash-analytics-content-new-content-adoption-creation-week-proxy':
         'created_at_day',

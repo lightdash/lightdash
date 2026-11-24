@@ -512,12 +512,17 @@ describe('built-in usage dashboards', () => {
             await db.run(
                 'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR, is_active BOOLEAN)',
             );
+            // The list of people names each data app from the inventory
+            await db.run(
+                'CREATE TABLE lightdash_content (org_id VARCHAR, project_id VARCHAR, project_name VARCHAR, content_type VARCHAR, content_id VARCHAR, content_name VARCHAR)',
+            );
             await db.run(`INSERT INTO data_app_events (org_id,project_id,user_id,app_id,event_name,view_context) VALUES
                 ('org','project',NULL,'app','data_app.view','embed'),
                 ('org','project',NULL,'app','data_app.view','embed'),
                 ('org','project',NULL,'app','data_app.view','standalone')`);
             const chart = charts.find(
-                ({ slug }) => slug === 'lightdash-analytics-apps-top-people',
+                ({ slug }) =>
+                    slug === 'lightdash-analytics-apps-user-app-detail',
             )!;
             const rows = (
                 await db.runAndReadAll(compile(chart).query)
@@ -797,7 +802,7 @@ describe('built-in usage dashboards', () => {
         expect(failed.y).toBeGreaterThan(feedback.y);
     });
 
-    it('renders the Agents use and outcomes sections as one-line captions and leaves other dashboards headed', () => {
+    it('heads every Agents section with a bold title above its one-line description, like other dashboards', () => {
         const dashboardBySlug = (slug: string) =>
             analyticsContentAsCode.find(
                 ({ dashboard }) => dashboard.slug === slug,
@@ -806,25 +811,34 @@ describe('built-in usage dashboards', () => {
             ({ key }) => key === 'lightdash-analytics-overview',
         )!;
         const overview = dashboardBySlug('lightdash-analytics-overview');
-        // Evaluations came from a dashboard with headed sections and keeps them
-        spec.tabs
-            .filter(({ key }) => key !== 'evaluations')
-            .forEach((tab) => {
-                const notes = overview.tiles.filter(
-                    (tile) =>
-                        tile.tabSlug === tab.key &&
-                        tile.type === DashboardTileTypes.MARKDOWN,
-                );
-                expect(notes).toHaveLength(tab.sections.length);
-                tab.sections.forEach((section, index) => {
-                    expect(section.caption).toBe(true);
-                    expect(notes[index].h).toBe(1);
-                    expect(
-                        (notes[index].properties as { content: string })
-                            .content,
-                    ).toBe(section.description);
-                });
+        // All three tabs, Evaluations included: no text with no title, and no large heading
+        spec.tabs.forEach((tab) => {
+            const notes = overview.tiles.filter(
+                (tile) =>
+                    tile.tabSlug === tab.key &&
+                    tile.type === DashboardTileTypes.MARKDOWN,
+            );
+            const headed = tab.sections.filter(
+                (section) => section.note !== false,
+            );
+            expect(notes).toHaveLength(headed.length);
+            headed.forEach((section, index) => {
+                expect(section.caption).toBeUndefined();
+                expect(notes[index].h).toBe(1);
+                expect(
+                    (notes[index].properties as { content: string }).content,
+                ).toBe(`**${section.title}**  \n${section.description}`);
             });
+        });
+        expect(
+            spec.tabs
+                .find(({ key }) => key === 'outcomes')!
+                .sections.map(({ title }) => title),
+        ).toEqual([
+            'How requests ended',
+            'Feedback',
+            'Failed requests and retries',
+        ]);
         const [firstNote] = overview.tiles.filter(
             (tile) =>
                 tile.tabSlug === 'use' &&
@@ -971,7 +985,7 @@ describe('built-in usage dashboards', () => {
         expect(spec).toContain('utcdate(datum.grid_day) === 1');
     });
 
-    it('captions only the Queries sections with library charts and shows the query total compactly', () => {
+    it('heads every Queries section the same way and shows the query total compactly', () => {
         const spec = usageDashboardSpecs.find(
             ({ key }) => key === 'lightdash-analytics-query-activity',
         )!;
@@ -982,7 +996,17 @@ describe('built-in usage dashboards', () => {
         const captioned = spec.tabs.flatMap(({ sections }) =>
             sections.filter(({ caption }) => caption).map(({ title }) => title),
         );
-        expect(captioned).toEqual(['Most-used fields']);
+        expect(captioned).toEqual([]);
+        // A description with no title above it is left on AI token usage alone, whose text its owner writes
+        expect(
+            usageDashboardSpecs
+                .filter(({ tabs }) =>
+                    tabs.some(({ sections }) =>
+                        sections.some(({ caption }) => caption),
+                    ),
+                )
+                .map(({ key }) => key),
+        ).toEqual(['lightdash-analytics-ai-tokens']);
         // Metrics & dimensions keeps the layout of its spec; the other tabs are laid out in sampleContent.ts
         spec.tabs
             .filter(({ key }) => key === 'fields')
@@ -997,19 +1021,12 @@ describe('built-in usage dashboards', () => {
                         h: number;
                         properties: { content: string };
                     };
-                    if (section.caption) {
-                        expect(h).toBe(1);
-                        expect(properties.content).toBe(section.description);
-                    } else {
-                        // One row when the description is a single line under a bold title, else two
-                        const oneLine = noteLines(section.description) === 1;
-                        expect(h).toBe(oneLine ? 1 : 2);
-                        expect(properties.content).toBe(
-                            oneLine
-                                ? `**${section.title}**  \n${section.description}`
-                                : `### ${section.title}\n\n${section.description}`,
-                        );
-                    }
+                    // One row: a single line under a bold title
+                    expect(noteLines(section.description)).toBe(1);
+                    expect(h).toBe(1);
+                    expect(properties.content).toBe(
+                        `**${section.title}**  \n${section.description}`,
+                    );
                 });
             });
         const queries = analyticsLibraryChartBindings.get(
