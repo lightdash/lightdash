@@ -39,15 +39,15 @@ import {
 } from 'react';
 import { useSearchParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
-import {
-    PIERRE_HIGHLIGHTER_OPTIONS,
-    PIERRE_POOL_OPTIONS,
-    pierreThemeFor,
-} from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import {
+    PIERRE_HIGHLIGHTER_OPTIONS,
+    PIERRE_POOL_OPTIONS,
+    pierreThemeFor,
+} from '../writeback/pierreDiffConfig';
 import { ChangeDiff } from './ChangeDiff';
 import {
     CHANGE_KIND_VERBS,
@@ -56,7 +56,9 @@ import {
     getChangeKind,
     changeTitle,
     findFieldBlock,
+    MODEL_TABS,
     VIEW_PARAM,
+    type ModelTab,
 } from './modelCode';
 import { ModelPreAggregates } from './ModelPreAggregates';
 import classes from './ModelTabs.module.css';
@@ -614,7 +616,7 @@ export const ModelTabs: FC<{
     const hasSettings = settings !== null;
     const [searchParams, setSearchParams] = useSearchParams();
     const requested = searchParams.get(VIEW_PARAM);
-    const view =
+    const view: ModelTab =
         hasHistory && requested === 'history'
             ? 'history'
             : hasLineage && requested === 'lineage'
@@ -630,17 +632,13 @@ export const ModelTabs: FC<{
             // Settings are as tall as they are; the page scrolls them
             data-fit-content={view === 'settings' || undefined}
             value={view}
-            onChange={(next) =>
+            onChange={(next) => {
+                const tab = MODEL_TABS.find((item) => item === next);
                 setSearchParams(
-                    next === 'history' ||
-                        next === 'lineage' ||
-                        next === 'pre-aggregates' ||
-                        next === 'settings'
-                        ? { [VIEW_PARAM]: next }
-                        : {},
+                    tab && tab !== 'fields' ? { [VIEW_PARAM]: tab } : {},
                     { replace: true },
-                )
-            }
+                );
+            }}
         >
             {hasHistory || hasLineage || hasPreAggregates || hasSettings ? (
                 <Tabs.List mb="md">

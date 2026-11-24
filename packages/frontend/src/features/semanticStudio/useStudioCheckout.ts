@@ -1,29 +1,34 @@
 import {
+    isPullRequestOpen,
+    toExploreSummary,
+    UNTITLED_WORKSPACE_NAME,
     type ApiError,
     type ApiExploresResults,
-    type Explore,
     type SemanticLayerDraft,
     type SemanticLayerDraftModel,
+    type SemanticStudioBranchCompile,
     type SemanticStudioWorkspace,
     type SummaryExplore,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { createContext, useContext, useRef } from 'react';
-import { useStoredStudioThread } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
-import { DEVELOPMENT_VIEW_HEADER, PUBLISHED_VIEW } from './developmentView';
+import { PUBLISHED_HEADERS, PUBLISHED_VIEW } from './developmentView';
 import {
+    keepsSemanticLayerDraft,
+    useDraftCheckout,
     useSemanticLayerStatus,
     useSemanticLayerWorkspaceDraft,
 } from './useSemanticLayerModel';
 import {
+    findActiveWorkspace,
     useStudioWorkspaceAction,
     useStudioWorkspaces,
 } from './useStudioWorkspaces';
 
 /** What Models and Code show: Published, or one of your drafts folded on it. */
-export type StudioCheckout = {
+type StudioCheckout = {
     /** Null on Published. */
     workspace: SemanticStudioWorkspace | null;
     /** Null on Published, and on projects whose changes live in a repository. */
@@ -46,9 +51,8 @@ export const useStudioCheckoutState = (
 ): StudioCheckoutState => {
     const status = useSemanticLayerStatus(projectUuid);
     const workspaces = useStudioWorkspaces(projectUuid);
-    const active =
-        workspaces.data?.mine.find(({ isActive }) => isActive) ?? null;
-    const keepsDraft = status?.appliesAs !== 'dbt_pull_request';
+    const active = findActiveWorkspace(workspaces.data);
+    const keepsDraft = keepsSemanticLayerDraft(status);
     const draft = useSemanticLayerWorkspaceDraft(
         projectUuid,
         status?.enabled && keepsDraft ? (active?.workspaceUuid ?? null) : null,
@@ -93,30 +97,6 @@ export const findCheckedOutModel = (
 ): SemanticLayerDraftModel | null =>
     checkout?.draft?.models.find((entry) => entry.model === model) ?? null;
 
-const toSummary = (
-    explore: Explore,
-    warehouseConnectionUuid: string | null,
-): SummaryExplore => {
-    const base = explore.tables[explore.baseTable];
-    return {
-        name: explore.name,
-        label: explore.label,
-        tags: explore.tags,
-        groupLabel: explore.groupLabel,
-        groups: explore.groups,
-        type: explore.type,
-        preAggregateSource: explore.preAggregateSource,
-        externalSource: explore.externalSource,
-        aiHint: explore.aiHint,
-        customMeta: explore.customMeta,
-        warnings: explore.warnings,
-        description: base?.description,
-        schemaName: base?.schema ?? '',
-        databaseName: base?.database ?? '',
-        warehouseConnectionUuid,
-    };
-};
-
 /**
  * The published explore list, asked for by name so a page on a draft reads it
  * too. A draft kept in the app is laid over it here, so leaving the draft shows
@@ -135,7 +115,7 @@ export const usePublishedExplores = (
                 url: `/projects/${projectUuid}/explores?filtered=true&includePreAggregates=false`,
                 method: 'GET',
                 body: undefined,
-                headers: { [DEVELOPMENT_VIEW_HEADER]: 'false' },
+                headers: PUBLISHED_HEADERS,
             }),
         enabled: !!projectUuid && enabled,
         retry: false,
@@ -156,33 +136,27 @@ export const foldDraftExplores = (
         // A change that does not compile keeps the live entry; the review says why.
         return [
             entry.explore
-                ? toSummary(entry.explore, summary.warehouseConnectionUuid)
+                ? {
+                      ...toExploreSummary(entry.explore),
+                      warehouseConnectionUuid: summary.warehouseConnectionUuid,
+                  }
                 : summary,
         ];
     });
     const liveNames = new Set(live.map(({ name }) => name));
     const added = draft.models.flatMap(({ model, explore, contentAfter }) =>
         contentAfter !== null && explore && !liveNames.has(model)
-            ? [toSummary(explore, null)]
+            ? [toExploreSummary(explore)]
             : [],
     );
     return [...kept, ...added];
 };
-
-export const isOpenWorkspace = ({
-    finishedAt,
-    pullRequest,
-}: SemanticStudioWorkspace): boolean =>
-    !finishedAt &&
-    pullRequest?.state !== 'merged' &&
-    pullRequest?.state !== 'closed';
 
 /** Checks out one of your drafts, or Published; the page keeps showing the current one until the next has loaded. */
 export const useCheckOut = (projectUuid: string) => {
     const action = useStudioWorkspaceAction(projectUuid);
     const { shown, isSwitching } = useStudioCheckout();
     const { showToastApiError } = useToaster();
-    const [, setStoredThread] = useStoredStudioThread(projectUuid);
     const isBusy = action.isLoading || isSwitching;
     const onError = (title: string) => (error: ApiError) => {
         showToastApiError({ title, apiError: error.error });
@@ -206,16 +180,15 @@ export const useCheckOut = (projectUuid: string) => {
             },
         );
     };
-    const createChange = () => {
+    const createChange = (onStarted: () => void) => {
         if (isBusy) return;
         action.mutate(
             {
                 kind: 'start',
-                body: { threadUuid: null, name: 'Untitled' },
+                body: { threadUuid: null, name: UNTITLED_WORKSPACE_NAME },
             },
             {
-                // A new draft starts its own chat.
-                onSuccess: () => setStoredThread(null),
+                onSuccess: onStarted,
                 onError: onError('Could not start a draft'),
             },
         );
@@ -225,6 +198,24 @@ export const useCheckOut = (projectUuid: string) => {
 
 /** The open pull request the checked-out draft was already sent as, which sending again updates; null without one. */
 export const useDraftPullRequest = (): string | null => {
-    const pullRequest = useStudioCheckout().shown?.workspace?.pullRequest;
-    return pullRequest?.state === 'open' ? pullRequest.url : null;
+    const pullRequest =
+        useStudioCheckout().shown?.workspace?.pullRequest ?? null;
+    return isPullRequestOpen(pullRequest) ? pullRequest.url : null;
+};
+
+/** The checked-out draft's branch compile, only when that draft is the one with this pull request: a compile belongs to the checkout alone. */
+export const useCheckoutCompile = (
+    projectUuid: string,
+    prUrl: string | null,
+): SemanticStudioBranchCompile | null => {
+    const { data: checkout } = useDraftCheckout(projectUuid);
+    const { data: workspaces } = useStudioWorkspaces(projectUuid);
+    if (!checkout || prUrl === null) return null;
+    const checkedOut = [
+        ...(workspaces?.mine ?? []),
+        ...(workspaces?.recent ?? []),
+    ].find(({ workspaceUuid }) => workspaceUuid === checkout.workspaceUuid);
+    return checkedOut?.pullRequest?.url === prUrl
+        ? checkout.branchCompile
+        : null;
 };

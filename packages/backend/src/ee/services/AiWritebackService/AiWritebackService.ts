@@ -34,7 +34,6 @@ import {
     type WritebackMergeResult,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { createHash } from 'node:crypto';
 import type {
     AiWritebackFailureStage,
     LightdashAnalytics,
@@ -102,17 +101,17 @@ import {
     type SandboxSpec,
 } from '../SandboxRuntime';
 import {
+    type DbtScriptChange,
+    type DbtScriptCheck,
+} from '../SemanticStudioService/dbtManifestPatch';
+import {
     diffLineCounts,
     runCodeMode,
     unifiedDiffs,
     validateSemanticLayerYaml,
     type CodeModeLibraries,
     type CodeModeRepo,
-} from '../SemanticStudioService/codeMode/codeMode';
-import {
-    type DbtScriptChange,
-    type DbtScriptCheck,
-} from '../SemanticStudioService/codeMode/dbtManifestPatch';
+} from './codeMode';
 import {
     ALLOWED_TOOLS,
     ASSISTANT_TEXT_TAIL_CHARS,
@@ -191,6 +190,7 @@ import {
     resolveSandboxDbtVersion,
     resolveSandboxTemplateRef,
     resolveWritebackAgentPermissionsApply,
+    sourceRevision,
     splitStreamBuffer,
     summarizeRepoListing,
     summarizeToolInput,
@@ -2156,9 +2156,7 @@ export class AiWritebackService extends BaseService {
                     `${root}${expectedSource.path}`,
                 );
                 const revision =
-                    current === null
-                        ? null
-                        : createHash('sha256').update(current).digest('hex');
+                    current === null ? null : sourceRevision(current);
                 if (revision !== expectedSource.revision) {
                     throw new ParameterError(
                         'This file changed since you opened it. Reload it to see the latest version, then make your edit again.',

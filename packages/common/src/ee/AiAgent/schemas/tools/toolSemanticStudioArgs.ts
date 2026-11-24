@@ -1,5 +1,10 @@
 import { z } from 'zod';
 import {
+    MODEL_FRAGMENT_ACTIONS,
+    MODEL_FRAGMENT_REFUSAL_REASONS,
+} from '../../../../lightdash/applyModelFragment';
+import { type SemanticLayerDraftItemResult } from '../../../../types/semanticStudio';
+import {
     baseOutputMetadataSchema,
     structuredToolOutputSchema,
 } from '../outputMetadata';
@@ -72,41 +77,32 @@ export type ToolProposeSemanticLayerChangeArgs = z.infer<
 export const TOOL_READ_SEMANTIC_MODEL_DESCRIPTION =
     "Read one model's YAML as the person's draft leaves it, which is what a proposal builds on. An unknown name returns the name of every model.";
 
-const proposalMetadataSchema = z.object({
-    status: z.literal('success'),
-    models: z.array(
+// Typed as the draft's item result so the two cannot drift apart.
+const proposalItemResultSchema: z.ZodType<
+    Omit<SemanticLayerDraftItemResult, 'notes'> & { notes?: string[] }
+> = z.object({
+    model: z.string(),
+    status: z.enum(['ready', 'unchanged', 'failed']),
+    changes: z.array(
         z.object({
-            model: z.string(),
-            status: z.enum(['ready', 'unchanged', 'failed']),
-            changes: z.array(
-                z.object({
-                    path: z.string(),
-                    action: z.enum([
-                        'created',
-                        'added',
-                        'patched',
-                        'redefined',
-                        'removed',
-                    ]),
-                }),
-            ),
-            refusals: z.array(
-                z.object({
-                    path: z.string(),
-                    reason: z.enum([
-                        'access',
-                        'name_taken',
-                        'incomplete',
-                        'invalid_filter',
-                        'not_found',
-                    ]),
-                }),
-            ),
-            error: z.string().nullable(),
-            // Absent on results stored before notes existed.
-            notes: z.array(z.string()).optional(),
+            path: z.string(),
+            action: z.enum(MODEL_FRAGMENT_ACTIONS),
         }),
     ),
+    refusals: z.array(
+        z.object({
+            path: z.string(),
+            reason: z.enum(MODEL_FRAGMENT_REFUSAL_REASONS),
+        }),
+    ),
+    error: z.string().nullable(),
+    // Absent on results stored before notes existed.
+    notes: z.array(z.string()).optional(),
+});
+
+const proposalMetadataSchema = z.object({
+    status: z.literal('success'),
+    models: z.array(proposalItemResultSchema),
     diffs: z.array(
         z.object({
             model: z.string(),
@@ -147,21 +143,6 @@ export type ToolProposeSemanticLayerChangeOutput = z.infer<
 
 export type SemanticLayerProposal = z.infer<typeof proposalMetadataSchema>;
 
-/** The line kept as the reply when a turn ends on its card with nothing written, so history and copy still read. */
-export const describeSemanticLayerProposals = (
-    proposals: Pick<SemanticLayerProposal, 'models'>[],
-): string => {
-    const ready = proposals.flatMap(({ models }) =>
-        models.filter(({ status }) => status === 'ready'),
-    );
-    if (ready.length === 0) return 'Nothing changed in the draft.';
-    const names = [...new Set(ready.map(({ model }) => model))];
-    const leftOut = ready.some(({ refusals }) => refusals.length > 0)
-        ? ' Some parts were left out.'
-        : '';
-    return `Changed ${names.join(', ')} in the draft.${leftOut}`;
-};
-
 export const isToolProposeSemanticLayerChangeResult =
     makeBuiltInToolResultGuard(
         'proposeSemanticLayerChange',
@@ -189,14 +170,20 @@ export type ToolReadSemanticModelOutput = z.infer<
     typeof toolReadSemanticModelOutputSchema
 >;
 
+// Who made a model's edits: the person in the editor, this chat, or another chat.
+export const STUDIO_EDITED_IN = [
+    'by_hand',
+    'this_chat',
+    'another_chat',
+] as const;
+
 const studioChangeSummarySchema = z.object({
     name: z.string(),
     isCheckedOut: z.boolean(),
     models: z.array(
         z.object({
             name: z.string(),
-            // Who made the model's edits: the person in the editor, this chat, or another chat.
-            editedIn: z.array(z.enum(['by_hand', 'this_chat', 'another_chat'])),
+            editedIn: z.array(z.enum(STUDIO_EDITED_IN)),
         }),
     ),
 });

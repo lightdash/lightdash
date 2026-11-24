@@ -9,12 +9,12 @@ import { IconArrowUpRight } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
-import { TryIt } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/TryItButton';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
+import { developmentHeadersFor } from './developmentView';
 import classes from './MetricPreview.module.css';
+import { TryIt } from './TryItButton';
 import { useModelVersion } from './useFieldChangesInDevelopment';
-import { LIVE_HEADERS, useTotals } from './useMetricTotals';
-import { developmentHeadersFor } from './useModelFieldChanges';
+import { useMetricShift } from './useMetricTotals';
 
 /** A model a turn touched and the metrics to show from it; null shows every metric of a new model. */
 export type MetricPreviewModel = {
@@ -124,21 +124,10 @@ const ModelPreview: FC<{
                   dimension.timeInterval === TimeFrames.MONTH,
           )
         : undefined;
-    const totals = useTotals(
+    const { after: totals, before: live } = useMetricShift(
         projectUuid,
         entry.model,
-        ids,
-        DRAFT,
-        ids.length > 0,
-        cacheKey,
-    );
-    const live = useTotals(
-        projectUuid,
-        entry.model,
-        liveIds,
-        LIVE_HEADERS,
-        liveIds.length > 0,
-        cacheKey,
+        { ids, liveIds, headers: DRAFT, cacheKey },
     );
     const trend = useMonthlyValues(
         projectUuid,

@@ -2,7 +2,7 @@ import { asSchema, type Tool } from 'ai';
 import type {
     CodeModeLibraries,
     CodeModeLibraryFunction,
-} from '../../SemanticStudioService/codeMode/codeMode';
+} from '../../AiWritebackService/codeMode';
 import type { AgentToolName } from '../loadout';
 
 /** What read scripts can call, each one an existing tool under a shorter name. */
@@ -27,9 +27,22 @@ export const READ_LIBRARIES = {
     },
 } as const satisfies Record<string, Record<string, AgentToolName>>;
 
-type ReadLibraryToolName = {
+export type ReadLibraryToolName = {
     [Lib in keyof typeof READ_LIBRARIES]: (typeof READ_LIBRARIES)[Lib][keyof (typeof READ_LIBRARIES)[Lib]];
 }[keyof typeof READ_LIBRARIES];
+
+/** A lookup's name inside read, such as layer.changes for listChanges. */
+export const readLibraryPath = (name: ReadLibraryToolName): string => {
+    const found = Object.entries(READ_LIBRARIES)
+        .flatMap(([lib, fns]) =>
+            Object.entries<ReadLibraryToolName>(fns).map(
+                ([fn, tool]) => [`${lib}.${fn}`, tool] as const,
+            ),
+        )
+        .find(([, tool]) => tool === name);
+    if (!found) throw new Error(`${name} is not a read library function`);
+    return found[0];
+};
 
 const isToolResult = (
     output: unknown,

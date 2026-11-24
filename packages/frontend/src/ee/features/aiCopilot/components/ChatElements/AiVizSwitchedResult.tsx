@@ -13,7 +13,7 @@ import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTy
 import styles from './AiArtifactPanel.module.css';
 import { AiArtifactTableVisualization } from './AiArtifactTableVisualization';
 import { AiComposerChartVisualization } from './AiComposerChartVisualization';
-import { QuietCardsContext } from './ToolCalls/quietCards';
+import { InStudioChatContext } from './ToolCalls/studioChatContext';
 
 type Props = {
     projectUuid: string;
@@ -42,7 +42,7 @@ export const AiVizSwitchedResult: FC<Props> = ({
     flush = false,
 }) => {
     // A narrow side panel is for checking numbers, so a result there is always its table.
-    const tableOnly = useContext(QuietCardsContext);
+    const tableOnly = useContext(InStudioChatContext);
     const vizConfig = useMemo(() => {
         if (tableOnly || kind === 'table') return null;
         const axes = plan.axes[kind];

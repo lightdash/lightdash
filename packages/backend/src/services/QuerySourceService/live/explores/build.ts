@@ -65,12 +65,6 @@ export const getLiveExploreName = (
     definitionName: string,
 ) => `${sourceName}_${definitionName}`;
 
-/** The source name of sources built before names were stored, from their id. */
-export const getLegacyLiveSourceName = (
-    connector: ApiConnectorType,
-    connectionUuid: string,
-) => `${connector}_${connectionUuid.replace(/-/g, '').slice(0, 8)}`;
-
 /** What every source of an integration starts from, before scans and edits. */
 export type LiveBaseLayer = {
     baseVersion: number;

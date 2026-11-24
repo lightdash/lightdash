@@ -34,8 +34,8 @@ import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { DiscoverFieldsTrace, type TraceEntry } from './DiscoverFieldsTrace';
 import styles from './LiveActivityCard.module.css';
 import { parseAgentStep } from './parseAgentStep';
-import { QuietCardsContext } from './quietCards';
 import { type SqlApprovalThread } from './SqlApprovalActions';
+import { InStudioChatContext } from './studioChatContext';
 import { ToolCallChip } from './ToolCallChip';
 import { ToolCallIcon } from './ToolCallIcon';
 import { ToolCallRow } from './ToolCallRow';
@@ -694,7 +694,7 @@ export const LiveActivityCard: FC<Props> = ({
     extra,
 }) => {
     const getUiString = useUiStrings();
-    const quiet = useContext(QuietCardsContext);
+    const quiet = useContext(InStudioChatContext);
     const latestGroup =
         toolGroups.length > 0 ? toolGroups[toolGroups.length - 1] : undefined;
     const pendingApprovalIds = approval?.pendingToolCallIds ?? [];

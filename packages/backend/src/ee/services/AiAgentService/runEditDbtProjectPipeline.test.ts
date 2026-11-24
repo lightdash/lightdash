@@ -192,7 +192,7 @@ const buildService = (overrides: {
         aiAgentReviewClassifierModel,
         slackClient,
         writebackPreviewService,
-        semanticStudioService: { queueBranchCompile },
+        semanticStudioCheckoutService: { queueBranchCompile },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
 
