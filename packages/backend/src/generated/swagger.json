@@ -9019,8 +9019,16 @@
                 "enum": ["xlsx"],
                 "type": "string"
             },
+            "XlsxExportContent": {
+                "description": "What an XLSX export of a saved chart contains: the query's data rows, or a\nrendered image of the visualization. Only non-table charts offer the image.",
+                "enum": ["data", "chart_image"],
+                "type": "string"
+            },
             "SchedulerCsvOptions": {
                 "properties": {
+                    "xlsxContent": {
+                        "$ref": "#/components/schemas/XlsxExportContent"
+                    },
                     "xlsxFileLayout": {
                         "type": "string",
                         "enum": ["zip", "workbook"]
@@ -16578,7 +16586,11 @@
                     "linkedin_ads",
                     "github",
                     "pylon",
-                    "attio"
+                    "attio",
+                    "hubspot",
+                    "salesforce",
+                    "amplitude",
+                    "hydra"
                 ],
                 "type": "string"
             },
@@ -16789,16 +16801,221 @@
             },
             "AttioApiSource": {
                 "properties": {
-                    "object": {
-                        "type": "string",
-                        "description": "The slug of the Attio object the source reads, e.g. companies or deals."
-                    },
                     "connector": {
                         "$ref": "#/components/schemas/ApiConnectorType.ATTIO"
                     }
                 },
-                "required": ["object", "connector"],
+                "required": ["connector"],
+                "type": "object",
+                "description": "The access token picks the Attio workspace, so nothing else is set."
+            },
+            "ApiConnectorType.HUBSPOT": {
+                "enum": ["hubspot"],
+                "type": "string"
+            },
+            "HubspotApiSource": {
+                "properties": {
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.HUBSPOT"
+                    }
+                },
+                "required": ["connector"],
+                "type": "object",
+                "description": "The private app's token picks the HubSpot account, so nothing else is set."
+            },
+            "ApiConnectorType.SALESFORCE": {
+                "enum": ["salesforce"],
+                "type": "string"
+            },
+            "SalesforceApiSource": {
+                "properties": {
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.SALESFORCE"
+                    }
+                },
+                "required": ["connector"],
+                "type": "object",
+                "description": "One sign-in reads every object in SALESFORCE_OBJECTS, so nothing else is set."
+            },
+            "ApiConnectorType.AMPLITUDE": {
+                "enum": ["amplitude"],
+                "type": "string"
+            },
+            "AmplitudeApiSource": {
+                "properties": {
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.AMPLITUDE"
+                    }
+                },
+                "required": ["connector"],
+                "type": "object",
+                "description": "An Amplitude project; its API key and secret key pick it, and the\nconnection's origin says whether its data lives in the US or the EU."
+            },
+            "ApiConnectorType.HYDRA": {
+                "enum": ["hydra"],
+                "type": "string"
+            },
+            "HydraRateLimits": {
+                "properties": {
+                    "buckets": {
+                        "items": {
+                            "properties": {
+                                "capacity": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "windowMs": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "id": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["capacity", "windowMs", "id"],
+                            "type": "object"
+                        },
+                        "type": "array",
+                        "description": "Fixed windows of calls, like a minute or an hour: up to 5, unique ids, \"second\" kept for `callsPerSecond`."
+                    },
+                    "callsPerSecond": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "concurrentCalls": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Calls in flight at once; null for no cap."
+                    }
+                },
+                "required": ["buckets", "callsPerSecond", "concurrentCalls"],
+                "type": "object",
+                "description": "Rate limits, in the shape the rate-limit gate reads."
+            },
+            "HydraOnLimit": {
+                "properties": {
+                    "body": {
+                        "$ref": "#/components/schemas/Record_string.unknown_",
+                        "description": "The body Hydra answers; `{\"code\": \"rate_limited\"}` marks a throttle in a non-429."
+                    },
+                    "retryAfterFormat": {
+                        "type": "string",
+                        "enum": ["seconds", "date", "none"],
+                        "description": "How Retry-After is written: as seconds, as an HTTP date, or left out."
+                    },
+                    "status": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["retryAfterFormat", "status"],
                 "type": "object"
+            },
+            "HydraMockResponse": {
+                "properties": {
+                    "body": {
+                        "$ref": "#/components/schemas/Record_string.unknown_",
+                        "description": "The error body; error statuses only."
+                    },
+                    "retryAfterSeconds": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Sent as Retry-After; error statuses only."
+                    },
+                    "status": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "toCall": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "fromCall": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "call": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["status"],
+                "type": "object",
+                "description": "A fake answer a test sets for one call (`call`) or a range (`fromCall`, and `toCall`\nor every call after). Status 200 answers as usual, skipping `errorRate`;\n400 to 599 is answered as given."
+            },
+            "HydraApiSource": {
+                "properties": {
+                    "mockResponses": {
+                        "items": {
+                            "$ref": "#/components/schemas/HydraMockResponse"
+                        },
+                        "type": "array",
+                        "description": "Fake answers a test sets for given calls, counted per source from 1; the first match wins."
+                    },
+                    "declaredLimits": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/HydraRateLimits"
+                            },
+                            {
+                                "type": "string",
+                                "enum": ["vendor"]
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The limits Lightdash keeps the source's calls under: \"vendor\" copies\n`vendorLimits`, and null declares none."
+                    },
+                    "onLimit": {
+                        "$ref": "#/components/schemas/HydraOnLimit",
+                        "description": "How Hydra refuses a call past `vendorLimits`."
+                    },
+                    "vendorLimits": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/HydraRateLimits"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The limits Hydra's API enforces, refusing calls past them; null enforces none."
+                    },
+                    "failAuth": {
+                        "type": "boolean",
+                        "description": "Every call answers 401, as a revoked sign-in would."
+                    },
+                    "errorRate": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Share of calls, 0 to 1, that fail with a 500."
+                    },
+                    "jitterMs": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Up to this many milliseconds more, at random, per call."
+                    },
+                    "latencyMs": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Milliseconds each call waits before answering."
+                    },
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Rows per call, 10 or more; a bigger report takes several calls. 0 never pages."
+                    },
+                    "rowCount": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Events seeded per sign-in token, over the last 90 days."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.HYDRA"
+                    }
+                },
+                "required": ["connector"],
+                "type": "object",
+                "description": "Hydra, the test integration: its rows are seeded from the sign-in token,\nand these settings make its fake API slow, fail, page or rate limit.\nEvery setting is optional; one left out takes its default\n(`HYDRA_DEFAULT_SETTINGS`)."
             },
             "ExternalConnectionApiSource": {
                 "anyOf": [
@@ -16831,6 +17048,18 @@
                     },
                     {
                         "$ref": "#/components/schemas/AttioApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HubspotApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SalesforceApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AmplitudeApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HydraApiSource"
                     }
                 ],
                 "description": "Connector settings of a live source; the server fixes its access rules."
@@ -17582,6 +17811,11 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "windowDays": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "How many days back the usage goes: the query history retention window."
+                    },
                     "externalConnectionUuid": {
                         "type": "string"
                     }
@@ -17591,10 +17825,11 @@
                     "responseBytes",
                     "cacheHits",
                     "apiCalls",
+                    "windowDays",
                     "externalConnectionUuid"
                 ],
                 "type": "object",
-                "description": "What a live source has sent its integration across every logged query."
+                "description": "What a live source has sent its integration across the logged queries in the usage window."
             },
             "ApiExternalConnectionApiUsageResponse": {
                 "properties": {
@@ -17718,6 +17953,90 @@
                         ],
                         "nullable": true,
                         "description": "Null when the connection was never scanned."
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ExternalConnectionRateLimitBucket": {
+                "properties": {
+                    "resetsAt": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "When the current window ends, ISO; null when no window is open."
+                    },
+                    "used": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Calls in the current window; 0 when no window is open."
+                    },
+                    "capacity": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "windowMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "label": {
+                        "type": "string",
+                        "description": "As declared, such as \"per hour\"."
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "resetsAt",
+                    "used",
+                    "capacity",
+                    "windowMs",
+                    "label",
+                    "id"
+                ],
+                "type": "object",
+                "description": "One of an integration's declared limits, with Lightdash's calls in its current window."
+            },
+            "ExternalConnectionRateLimitUsage": {
+                "properties": {
+                    "limitedUntil": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "When the vendor's pause ends, ISO; null when it hasn't paused the integration."
+                    },
+                    "buckets": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnectionRateLimitBucket"
+                        },
+                        "type": "array",
+                        "description": "Shortest window first."
+                    },
+                    "checkedAt": {
+                        "type": "string"
+                    },
+                    "integrationLabel": {
+                        "type": "string",
+                        "description": "The integration's name, such as HubSpot."
+                    }
+                },
+                "required": [
+                    "limitedUntil",
+                    "buckets",
+                    "checkedAt",
+                    "integrationLabel"
+                ],
+                "type": "object",
+                "description": "Lightdash's own calls against an integration's declared rate limits, as of\n`checkedAt`. Other apps on the same vendor account aren't counted."
+            },
+            "ApiExternalConnectionRateLimitUsageResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExternalConnectionRateLimitUsage"
                     },
                     "status": {
                         "type": "string",
@@ -18044,8 +18363,34 @@
                 "type": "object",
                 "description": "One field of a live data source, in use or available."
             },
+            "LiveSourceExploreFields": {
+                "properties": {
+                    "fields": {
+                        "items": {
+                            "$ref": "#/components/schemas/LiveSourceField"
+                        },
+                        "type": "array"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fields", "label", "exploreName"],
+                "type": "object",
+                "description": "The fields of one explore of a live data source."
+            },
             "LiveSourceFields": {
                 "properties": {
+                    "explores": {
+                        "items": {
+                            "$ref": "#/components/schemas/LiveSourceExploreFields"
+                        },
+                        "type": "array",
+                        "description": "Every explore whose fields can be curated, the first one included."
+                    },
                     "fields": {
                         "items": {
                             "$ref": "#/components/schemas/LiveSourceField"
@@ -18063,10 +18408,12 @@
                         "description": "Saved charts on any of the source's explores, each counted once."
                     },
                     "exploreName": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "The first explore, which `fields` lists."
                     }
                 },
                 "required": [
+                    "explores",
                     "fields",
                     "scannedAt",
                     "usedByChartCount",
@@ -18108,6 +18455,10 @@
                     },
                     "inUse": {
                         "type": "boolean"
+                    },
+                    "exploreName": {
+                        "type": "string",
+                        "description": "The explore the field belongs to; omitted, the source's first explore."
                     },
                     "name": {
                         "type": "string"
@@ -28522,7 +28873,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "AiThreadFile": {
+            "AiThreadFileMetadata": {
                 "properties": {
                     "createdAt": {
                         "type": "string",
@@ -28557,7 +28908,60 @@
                     "uuid"
                 ],
                 "type": "object",
-                "description": "A text document uploaded by a user for an agent conversation."
+                "description": "A file uploaded by a user for an agent conversation."
+            },
+            "AiThreadImageMediaType": {
+                "type": "string",
+                "enum": ["image/png", "image/jpeg", "image/webp"]
+            },
+            "AiThreadFile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AiThreadFileMetadata"
+                    },
+                    {
+                        "anyOf": [
+                            {
+                                "properties": {
+                                    "kind": {
+                                        "type": "string",
+                                        "enum": ["text"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["kind"],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "height": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "width": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "mediaType": {
+                                        "$ref": "#/components/schemas/AiThreadImageMediaType"
+                                    },
+                                    "kind": {
+                                        "type": "string",
+                                        "enum": ["image"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": [
+                                    "height",
+                                    "width",
+                                    "mediaType",
+                                    "kind"
+                                ],
+                                "type": "object"
+                            }
+                        ]
+                    }
+                ]
             },
             "ApiAiThreadFileResponse": {
                 "properties": {
@@ -29150,6 +29554,20 @@
                             "type": {
                                 "type": "string",
                                 "enum": ["thread_file"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["fileUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fileUuid": {
+                                "$ref": "#/components/schemas/UUID"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["thread_image"],
                                 "nullable": false
                             }
                         },
@@ -33662,6 +34080,39 @@
                 ],
                 "description": "One-call merge execution request. Derived pivot SQL remains server-owned."
             },
+            "ApiExecuteAsyncSavedMergeQueryRequest": {
+                "properties": {
+                    "includeUnpublishedDraft": {
+                        "type": "boolean",
+                        "description": "Run the caller's own open draft of the chart, as the chart page shows it"
+                    },
+                    "pivotResults": {
+                        "type": "boolean",
+                        "description": "Pivot the result with the chart's saved pivot config"
+                    },
+                    "mode": {
+                        "$ref": "#/components/schemas/MergeQueryExecutionMode"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "invalidateCache": {
+                        "type": "boolean"
+                    },
+                    "savedChartUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    }
+                },
+                "required": [
+                    "includeUnpublishedDraft",
+                    "pivotResults",
+                    "mode",
+                    "parameters",
+                    "savedChartUuid"
+                ],
+                "type": "object",
+                "description": "Runs a saved chart's own merge, named by the chart rather than sent."
+            },
             "ApiExecuteAsyncComposeMergeQueryRequest": {
                 "properties": {
                     "chart": {
@@ -34191,6 +34642,9 @@
                     },
                     "showColumnTotals": {
                         "type": "boolean"
+                    },
+                    "xlsxContent": {
+                        "$ref": "#/components/schemas/XlsxExportContent"
                     },
                     "showSubtotals": {
                         "type": "boolean"
@@ -36691,6 +37145,27 @@
                 "required": ["displayName", "tableName", "tableUuid"],
                 "type": "object"
             },
+            "AiPromptThreadImageSnapshot": {
+                "properties": {
+                    "height": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "width": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "mediaType": {
+                        "$ref": "#/components/schemas/AiThreadImageMediaType"
+                    },
+                    "sizeBytes": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["height", "width", "mediaType", "sizeBytes"],
+                "type": "object"
+            },
             "PullRequestProvider": {
                 "enum": ["github", "gitlab", "bitbucket"],
                 "type": "string"
@@ -37412,6 +37887,30 @@
                         "type": "object"
                     },
                     {
+                        "allOf": [
+                            {
+                                "properties": {
+                                    "fileName": {
+                                        "type": "string"
+                                    },
+                                    "fileUuid": {
+                                        "type": "string"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "enum": ["thread_image"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["fileName", "fileUuid", "type"],
+                                "type": "object"
+                            },
+                            {
+                                "$ref": "#/components/schemas/AiPromptThreadImageSnapshot"
+                            }
+                        ]
+                    },
+                    {
                         "properties": {
                             "title": {
                                 "type": "string",
@@ -38094,6 +38593,7 @@
                     "loadProjectContext",
                     "loadSkill",
                     "proposeSemanticLayerChange",
+                    "read",
                     "readAttachments",
                     "readContent",
                     "readPinnedThread",
@@ -38110,7 +38610,9 @@
                     "submitWorkerFindings",
                     "syncDbtProject",
                     "updateUserName",
-                    "visualize"
+                    "verify",
+                    "visualize",
+                    "write"
                 ],
                 "description": "Exclude from T those types that are assignable to U"
             },
@@ -39666,9 +40168,9 @@
                                                                             "type": "string",
                                                                             "enum": [
                                                                                 "stage",
+                                                                                "read",
                                                                                 "compile",
                                                                                 "edit",
-                                                                                "read",
                                                                                 "search"
                                                                             ]
                                                                         }
@@ -43412,6 +43914,14 @@
             },
             "SemanticStudioBranchCompile": {
                 "properties": {
+                    "requestedByAgent": {
+                        "type": "boolean",
+                        "description": "Whether an agent's save asked for it, so a failure can go back to the agent."
+                    },
+                    "compileRequestUuid": {
+                        "type": "string",
+                        "description": "The compile this describes; a newer request replaces it."
+                    },
                     "compiledAt": {
                         "type": "string",
                         "format": "date-time",
@@ -43440,6 +43950,8 @@
                     }
                 },
                 "required": [
+                    "requestedByAgent",
+                    "compileRequestUuid",
                     "compiledAt",
                     "requestedAt",
                     "hasExplores",
@@ -43502,6 +44014,57 @@
             "ApiSemanticStudioCheckoutResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_SemanticStudioCheckout-or-null_",
                 "description": "Null when the person is on what is published."
+            },
+            "SemanticStudioBranchCompileFollowUp": {
+                "properties": {
+                    "prompt": {
+                        "type": "string"
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "agentUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["prompt", "threadUuid", "agentUuid"],
+                "type": "object",
+                "description": "A hidden prompt that sends an agent's failed compile back to it."
+            },
+            "ApiSuccess_SemanticStudioBranchCompileFollowUp-or-null_": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SemanticStudioBranchCompileFollowUp"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticStudioBranchCompileFollowUpResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticStudioBranchCompileFollowUp-or-null_"
+            },
+            "SemanticStudioBranchCompileFollowUpBody": {
+                "properties": {
+                    "threadUuid": {
+                        "type": "string",
+                        "description": "The Studio chat asking; only the chat of the checked-out change gets the follow-up."
+                    },
+                    "compileRequestUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["threadUuid", "compileRequestUuid"],
+                "type": "object"
             },
             "MergePullRequestResult": {
                 "properties": {
@@ -61844,6 +62407,7 @@
                     "consolidateAiAgentMemoryPartition",
                     "cleanMcpToolCalls",
                     "cleanRateCounters",
+                    "cleanApiSourceRateLimits",
                     "rebuildOutdatedApiSourceExplores",
                     "cleanDataAppAnalyses",
                     "cleanAiAgentThreads",
@@ -79789,8 +80353,38 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
+            "ChartZoomableField": {
+                "properties": {
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["tableName", "label", "fieldId"],
+                "type": "object"
+            },
             "ComposerChartRunResults": {
                 "properties": {
+                    "zoomedFieldLabels": {
+                        "$ref": "#/components/schemas/Record_string.string_",
+                        "description": "Each zoomed field's label at the zoomed grain, by field id."
+                    },
+                    "zoomableFields": {
+                        "items": {
+                            "$ref": "#/components/schemas/ChartZoomableField"
+                        },
+                        "type": "array",
+                        "description": "The date fields the tile can be zoomed on, so the dashboard offers its date zoom."
+                    },
+                    "dateZoomApplied": {
+                        "type": "boolean",
+                        "description": "Whether the date zoom re-grained at least one semantic-layer node."
+                    },
                     "usedParameterValuesByNodeId": {
                         "$ref": "#/components/schemas/Record_string.ParametersValuesMap_",
                         "description": "The parameter values each node query ran with, keyed by node; nodes can run different values."
@@ -79846,6 +80440,9 @@
                     }
                 },
                 "required": [
+                    "zoomedFieldLabels",
+                    "zoomableFields",
+                    "dateZoomApplied",
                     "usedParameterValuesByNodeId",
                     "sqlColumns",
                     "parameterReferences",
@@ -79873,6 +80470,15 @@
             },
             "ComposerChartRunRequest": {
                 "properties": {
+                    "dateZoom": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DateZoom"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The tile's resolved date zoom; optional for clients that predate it."
+                    },
                     "invalidateCache": {
                         "type": "boolean"
                     },
@@ -81034,7 +81640,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.350.1",
+        "version": "3.378.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -89852,6 +90458,57 @@
                 }
             }
         },
+        "/api/v2/projects/{projectUuid}/query/saved-merge-query": {
+            "post": {
+                "operationId": "executeAsyncSavedMergeQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncMergeQueryResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Runs a saved chart's merge as saved. The chart is named rather than its merge sent, so the merge runs with the chart's saved sources under the chart's view access.",
+                "summary": "Execute saved chart merge query",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiExecuteAsyncSavedMergeQueryRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/projects/{projectUuid}/query/compose-merge-query": {
             "post": {
                 "operationId": "executeAsyncComposeMergeQuery",
@@ -95579,6 +96236,57 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/checkout/compile/follow-up": {
+            "post": {
+                "operationId": "claimSemanticStudioCompileFollowUp",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioBranchCompileFollowUpResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Claims the hidden prompt that sends a failed compile of the agent's last save back to the agent; null when there is none to send.",
+                "summary": "Claim a Semantic Studio compile follow-up",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SemanticStudioBranchCompileFollowUpBody"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/semantic-studio/checkout/publish": {
@@ -108445,7 +109153,7 @@
                         }
                     }
                 },
-                "description": "Get chart version history from last 30 days",
+                "description": "Get all stored versions of a chart, oldest first",
                 "summary": "Get chart version history",
                 "tags": ["Charts"],
                 "security": [],
