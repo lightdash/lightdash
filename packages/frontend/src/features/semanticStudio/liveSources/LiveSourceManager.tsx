@@ -13,6 +13,7 @@ import useHealth from '../../../hooks/health/useHealth';
 import { useDeleteExternalConnection } from '../../externalConnections/hooks/useDeleteExternalConnection';
 import { useLiveSourceFields } from '../../externalConnections/hooks/useLiveSourceFields';
 import { AddLiveSourceModal } from '../../externalConnections/liveSources/AddLiveSourceModal';
+import { AmplitudeConnectionModal } from '../../externalConnections/liveSources/AmplitudeConnectionModal';
 import {
     getGoogleSignInUrl,
     isGoogleConnector,
@@ -119,6 +120,7 @@ export const LiveSourceManager: FC<{
     const canUseGoogle = health?.hasGoogleLiveSources ?? false;
     const canUseLinkedInAds = health?.hasLinkedInAdsOAuth ?? false;
     const canUseSalesforce = health?.hasSalesforceOAuth ?? false;
+    const canUseHydra = health?.hasHydraLiveSource ?? false;
 
     const actions = useMemo(
         (): LiveSourceActions => ({
@@ -158,6 +160,9 @@ export const LiveSourceManager: FC<{
                             : null;
                     // A token is replaced in the source's settings
                     case 'token':
+                        return null;
+                    // A new key pair means adding the source again
+                    case 'amplitude':
                         return null;
                     case 'linkedin_ads': {
                         const { apiSource } = connection;
@@ -221,6 +226,7 @@ export const LiveSourceManager: FC<{
                 canUseGoogle={canUseGoogle}
                 canUseLinkedInAds={canUseLinkedInAds}
                 canUseSalesforce={canUseSalesforce}
+                canUseHydra={canUseHydra}
                 onRemoved={onRemoved}
             />
         </LiveSourceActionsContext.Provider>
@@ -281,6 +287,15 @@ const LiveSourceConnectDialog: FC<{
                     projectUuid={projectUuid}
                 />
             );
+        case 'amplitude':
+            return (
+                <AmplitudeConnectionModal
+                    opened
+                    onClose={onClose}
+                    projectUuid={projectUuid}
+                    onCreated={onCreated}
+                />
+            );
         default:
             return assertUnreachable(setup, 'Unknown source setup');
     }
@@ -295,6 +310,7 @@ const LiveSourceDialogs: FC<{
     canUseGoogle: boolean;
     canUseLinkedInAds: boolean;
     canUseSalesforce: boolean;
+    canUseHydra: boolean;
     onRemoved: () => void;
 }> = ({
     projectUuid,
@@ -305,6 +321,7 @@ const LiveSourceDialogs: FC<{
     canUseGoogle,
     canUseLinkedInAds,
     canUseSalesforce,
+    canUseHydra,
     onRemoved,
 }) => {
     const navigate = useNavigate();
@@ -335,6 +352,7 @@ const LiveSourceDialogs: FC<{
                 canUseGoogle={canUseGoogle}
                 canUseLinkedInAds={canUseLinkedInAds}
                 canUseSalesforce={canUseSalesforce}
+                canUseHydra={canUseHydra}
                 onPick={(picked) =>
                     setDialog({ kind: 'create', connector: picked })
                 }

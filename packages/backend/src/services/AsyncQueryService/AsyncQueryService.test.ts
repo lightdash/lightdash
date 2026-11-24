@@ -2277,17 +2277,35 @@ describe('AsyncQueryService', () => {
     describe('live data source result sharing', () => {
         const setup = ({
             latest,
+            running = null,
+            inFlightOutcome = async () => null,
             cache = sharedLiveCache,
             projectCacheEnabled = true,
         }: {
             latest: ReturnType<typeof storedLiveResult> | null;
+            /** The same request still running when the query arrives. */
+            running?: { queryUuid: string } | null;
+            /** What waiting for the running request ends with. */
+            inFlightOutcome?: () => Promise<unknown>;
             cache?: Record<string, unknown>;
             projectCacheEnabled?: boolean;
         }) => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 queryHistoryModel: {
                     create: vi.fn(async () => ({ queryUuid: 'api-uuid' })),
-                    findMostRecentByCacheKey: vi.fn(async () => latest),
+                    // Answers like the model: finished rows for the READY
+                    // lookup, the running row for the in-flight one
+                    findMostRecentByCacheKey: vi.fn(
+                        async (
+                            _cacheKey: string,
+                            _projectUuid: string,
+                            { statuses }: { statuses?: QueryHistoryStatus[] },
+                        ) =>
+                            statuses?.includes(QueryHistoryStatus.READY)
+                                ? latest
+                                : running,
+                    ),
+                    pollForQueryCompletion: vi.fn(inFlightOutcome),
                     updateStatusToError: vi.fn(),
                     recordResultProducer: vi.fn(),
                     update: vi.fn(),
@@ -2429,6 +2447,83 @@ describe('AsyncQueryService', () => {
             expect(runLiveQuery).toHaveBeenCalledTimes(1);
         });
 
+        test('looks only at finished rows, so a newer running or failed row never hides a fresh result', async () => {
+            const { service, submit } = setup({ latest: null });
+            await submit();
+            expect(
+                service.queryHistoryModel.findMostRecentByCacheKey,
+            ).toHaveBeenNthCalledWith(
+                1,
+                expect.any(String),
+                projectUuid,
+                expect.objectContaining({
+                    statuses: [QueryHistoryStatus.READY],
+                    requireResultsFile: true,
+                }),
+            );
+        });
+
+        test('waits for the same request already running and answers from its rows', async () => {
+            const { service, source, runLiveQuery, submit } = setup({
+                latest: null,
+                running: { queryUuid: 'running-uuid' },
+                inFlightOutcome: async () =>
+                    storedLiveResult(new Date()).queryHistory,
+            });
+            const { reusable } = await submit();
+            expect(reusable).toBeNull();
+            await vi.waitFor(() =>
+                expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
+                    'api-uuid',
+                    projectUuid,
+                    expect.objectContaining({
+                        status: QueryHistoryStatus.READY,
+                        results_file_name: 'api-results.jsonl',
+                    }),
+                    sessionAccount,
+                ),
+            );
+            expect(
+                service.queryHistoryModel.pollForQueryCompletion,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({ queryUuid: 'running-uuid' }),
+            );
+            expect(source.logCall).toHaveBeenCalledWith(
+                expect.objectContaining({ cacheHit: true }),
+            );
+            expect(runLiveQuery).not.toHaveBeenCalled();
+        });
+
+        test('calls the integration itself when the running request fails', async () => {
+            const { runLiveQuery, submit } = setup({
+                latest: null,
+                running: { queryUuid: 'running-uuid' },
+                inFlightOutcome: async () => ({
+                    ...storedLiveResult(new Date()).queryHistory,
+                    status: QueryHistoryStatus.ERROR,
+                    resultsFileName: null,
+                }),
+            });
+            await submit();
+            await vi.waitFor(() =>
+                expect(runLiveQuery).toHaveBeenCalledTimes(1),
+            );
+        });
+
+        test('calls the integration itself when the running request outlasts the wait', async () => {
+            const { runLiveQuery, submit } = setup({
+                latest: null,
+                running: { queryUuid: 'running-uuid' },
+                inFlightOutcome: async () => {
+                    throw new Error('Query polling timed out');
+                },
+            });
+            await submit();
+            await vi.waitFor(() =>
+                expect(runLiveQuery).toHaveBeenCalledTimes(1),
+            );
+        });
+
         test('a forced refresh skips fresh rows', async () => {
             const { service, runLiveQuery, submit } = setup({
                 latest: storedLiveResult(new Date()),
@@ -2532,6 +2627,7 @@ describe('AsyncQueryService', () => {
                 sessionAccount,
                 projectUuid,
                 CONNECTION_UUID,
+                QueryExecutionContext.EXPLORE,
             );
             const [[submitted]] = submitLiveQuery.mock.calls as AnyType;
             expect(submitted.source).toBe(source);

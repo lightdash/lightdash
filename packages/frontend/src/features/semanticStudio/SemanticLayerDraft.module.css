@@ -24,18 +24,30 @@
     border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
-.model:not(:first-child) {
-    border-top: 1px solid var(--mantine-color-default-border);
+/* Files stack flush, one rule between them, as one long file would. */
+.model + .model {
+    margin-top: calc(var(--stack-gap) * -1);
 }
 
 /* Stays in view while its diff scrolls under it. */
 .modelHead {
+    min-height: 45px;
     position: sticky;
     top: 0;
     z-index: 1;
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
     border-bottom: 1px solid var(--mantine-color-default-border);
     background: var(--mantine-color-ldGray-0);
+}
+
+.editFile {
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.model:hover .editFile,
+.editFile:focus-visible {
+    opacity: 1;
 }
 
 .fields {
@@ -60,4 +72,10 @@
 
 .glyph[data-change='removed'] {
     color: var(--mantine-color-red-7);
+}
+
+/* The menu half of the Publish split button, ruled off from it. */
+.publishMore {
+    border-inline-start: 1px solid
+        light-dark(rgba(255, 255, 255, 0.2), rgba(0, 0, 0, 0.15));
 }

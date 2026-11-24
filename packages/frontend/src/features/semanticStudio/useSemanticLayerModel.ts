@@ -17,6 +17,8 @@ import {
     type SemanticLayerStatus,
     type SemanticLayerStoredModels,
     type SemanticStudioBranchCompile,
+    type SemanticStudioBranchCompileFollowUp,
+    type SemanticStudioBranchCompileFollowUpBody,
     type SemanticStudioCheckout,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -152,6 +154,23 @@ export const useCompileCheckout = (projectUuid: string) => {
             showToastApiError({
                 title: 'Could not compile again',
                 apiError: error,
+            }),
+    });
+};
+
+/** Claims the hidden prompt that sends an agent's failed compile back to it; null when there is none to send. */
+export const useClaimCompileFollowUp = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+    return useMutation<
+        SemanticStudioBranchCompileFollowUp | null,
+        ApiError,
+        SemanticStudioBranchCompileFollowUpBody
+    >({
+        mutationFn: (body) =>
+            lightdashApi<SemanticStudioBranchCompileFollowUp | null>({
+                url: toUrl(projectUuid, '/checkout/compile/follow-up'),
+                method: 'POST',
+                body: JSON.stringify(body),
             }),
     });
 };

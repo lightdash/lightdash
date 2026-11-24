@@ -329,6 +329,8 @@ describe('resolveLoadout', () => {
         expect(drafts.has('proposeSemanticLayerChange')).toBe(true);
         expect(drafts.has('editDbtProject')).toBe(false);
         expect(drafts.has('exploreRepo')).toBe(false);
+        expect(drafts.has('verify')).toBe(false);
+        expect(drafts.has('read')).toBe(false);
 
         const dbt = resolveLoadout({
             ...inputs.semantic_studio,
@@ -337,9 +339,26 @@ describe('resolveLoadout', () => {
         expect(dbt.base).toBe('semantic_studio');
         expect(dbt.toolNames.has('proposeSemanticLayerChange')).toBe(false);
         expect(dbt.toolNames.has('readSemanticModel')).toBe(false);
-        expect(dbt.toolNames.has('editDbtProject')).toBe(true);
-        expect(dbt.toolNames.has('exploreRepo')).toBe(true);
+        expect([...dbt.toolNames].sort()).toEqual([
+            'askUser',
+            'read',
+            'runSql',
+            'verify',
+            'write',
+        ]);
+        expect(dbt.withheldToolNames.has('grepFields')).toBe(true);
+        expect(dbt.withheldToolNames.has('listWarehouseTables')).toBe(true);
+        expect(dbt.withheldToolNames.has('loadProjectContext')).toBe(true);
         expect(dbt.toolNames.has('generateVisualization')).toBe(false);
+        const proposing = resolveLoadout({
+            ...inputs.semantic_studio,
+            semanticStudioDrafts: false,
+            enableAiWriteback: false,
+        });
+        expect(proposing.toolNames.has('verify')).toBe(false);
+        expect(proposing.toolNames.has('exploreRepo')).toBe(true);
+        expect(proposing.withheldToolNames.size).toBe(0);
+        expect(resolveLoadout(fullInput).toolNames.has('verify')).toBe(false);
     });
 
     test.each<[string, LoadoutInput, LoadoutBase]>([
@@ -566,7 +585,14 @@ describe('resolveLoadout', () => {
 
 describe('loadout structure', () => {
     const addOnTools = ADD_ON_NAMES.flatMap((name) => ADD_ONS[name].tools);
-    const baseTools = (base: LoadoutBase) => BASES[base](inputs[base]).tools;
+    // Semantic Studio on a dbt project has tools its draft mode does not.
+    const baseTools = (base: LoadoutBase) => [
+        ...BASES[base](inputs[base]).tools,
+        ...(base === 'semantic_studio'
+            ? BASES[base]({ ...inputs[base], semanticStudioDrafts: false })
+                  .tools
+            : []),
+    ];
 
     test('add-on tool sets are pairwise disjoint', () => {
         expect(addOnTools.length).toBe(new Set(addOnTools).size);

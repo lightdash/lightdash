@@ -6,6 +6,8 @@ import {
     DBT_SAVE_CARD_REPLY,
     describeSemanticLayerProposals,
     getEditDbtProjectCardExtras,
+    DBT_WRITE_TOOL_NAMES,
+    isDbtWriteToolName,
     isToolEditDbtProjectResult,
     isToolProposeSemanticLayerChangeResult,
     isToolEditRepoResult,
@@ -699,7 +701,7 @@ const AssistantBubbleContent: FC<{
         if (writebackResult) return { metadata: writebackResult.metadata };
 
         const livePart = findLiveToolPart(streamingState?.parts, [
-            'editDbtProject',
+            ...DBT_WRITE_TOOL_NAMES,
         ]);
         const liveOutput = livePart?.toolResult as
             | ToolEditDbtProjectOutput
@@ -990,8 +992,9 @@ const AssistantBubbleContent: FC<{
                                         streamingState?.decidedToolCallIds ??
                                         [],
                                 }}
+                                extra={quietCards ? artifactSlot : null}
                             />
-                            {artifactSlot}
+                            {quietCards ? null : artifactSlot}
                             {latestTextSeg ? (
                                 <Box
                                     className={styles.streamPart}
@@ -1073,8 +1076,9 @@ const AssistantBubbleContent: FC<{
                                 ),
                                 isLive: isStreaming,
                             }}
+                            extra={quietCards ? artifactSlot : null}
                         />
-                        {artifactSlot}
+                        {quietCards ? null : artifactSlot}
                         {hasAnswerText ? (
                             <Box
                                 // Walkthrough: the answer in words (persisted).
@@ -1177,8 +1181,8 @@ const AssistantBubbleContent: FC<{
                     isLatest={isLastMessage}
                     note={
                         getEditDbtProjectCardExtras(
-                            message.toolCalls.findLast(
-                                ({ toolName }) => toolName === 'editDbtProject',
+                            message.toolCalls.findLast(({ toolName }) =>
+                                isDbtWriteToolName(toolName),
                             )?.toolArgs,
                         ).note
                     }

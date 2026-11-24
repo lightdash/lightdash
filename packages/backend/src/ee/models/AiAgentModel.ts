@@ -92,6 +92,7 @@ import {
     isAiAppThreadCreatedFrom,
     isAiComposerChartArtifactConfig,
     isAiWritebackRunInProgress,
+    isDbtWriteToolName,
     isSameComposerNodeDefinition,
     isThreadPrompt,
     isToolDataAppBuildResult,
@@ -123,6 +124,7 @@ import {
     type AiDashboardRuntimeOverrides,
     type AiPromptThreadImageSnapshot,
     type ComposerNodeColumn,
+    type DbtWriteToolName,
     type ServedSkillMetadata,
     type ThreadComposerQueryNode,
     type ToolEditDbtProjectOutput,
@@ -623,7 +625,7 @@ const getWritebackResultKey = (promptUuid: string, toolCallId: string) =>
 
 type EditDbtProjectToolResult = AiAgentToolResult & {
     toolType: 'built-in';
-    toolName: 'editDbtProject';
+    toolName: DbtWriteToolName;
     metadata: ToolEditDbtProjectOutput['metadata'];
 };
 
@@ -3861,7 +3863,7 @@ export class AiAgentModel {
                         ON writeback_run.ai_writeback_run_uuid::text = tool_result.metadata->>'aiWritebackRunUuid'
                         AND writeback_run.tool_call_id = tool_result.tool_call_id
                     WHERE tool_result.ai_prompt_uuid = latest_prompt.ai_prompt_uuid
-                        AND tool_result.tool_name IN ('editDbtProject', 'proposeWriteback')
+                        AND tool_result.tool_name IN ('editDbtProject', 'write', 'proposeWriteback')
                         AND tool_result.metadata->>'status' = 'pending'
                         AND writeback_run.status NOT IN (${writebackTerminalStatusPlaceholders})
                     ORDER BY tool_result.created_at DESC
@@ -11826,7 +11828,7 @@ export class AiAgentModel {
 
                 const toolResultUpdates = toolResults.map((toolResult) => {
                     const preservePendingStartedAt =
-                        toolResult.tool_name === 'editDbtProject' &&
+                        isDbtWriteToolName(toolResult.tool_name) &&
                         toolResult.metadata !== null &&
                         'status' in toolResult.metadata &&
                         toolResult.metadata.status === 'pending';

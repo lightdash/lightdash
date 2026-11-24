@@ -41,12 +41,7 @@ export const metaAdsIntegration = defineLiveIntegration({
         pathPrefixes: [getMetaAdsInsightsPath(adAccountId)],
         methods: ['GET'],
     }),
-    // Meta counts load per app and ad account and publishes no fixed number,
-    // so these stay well below what its best-practices page warns about.
     limits: {
-        concurrentCalls: 3,
-        callsPerMinute: 60,
-        callsPerHour: 1_000,
         callsPerQuery: META_ADS_CALLS_PER_QUERY,
         timeoutMs: 60_000,
         maxRows: META_ADS_MAX_QUERY_ROWS,
@@ -88,6 +83,8 @@ export const metaAdsIntegration = defineLiveIntegration({
         oauth: 'needs_review',
     },
     paging: { description: 'Insights pages results with cursors.' },
+    // Meta counts load per app and ad account and publishes no fixed number,
+    // so these stay well below what its best-practices page warns about.
     rateLimits: {
         concurrentCalls: 3,
         callsPerSecond: null,

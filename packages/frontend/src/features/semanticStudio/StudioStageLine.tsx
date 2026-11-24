@@ -85,7 +85,9 @@ export const StudioStageLine: FC<{
     const steps = STEPS.slice(0, state === 'stopped' ? index + 1 : undefined);
     const stateOf = (i: number): StepState =>
         i < index ? 'done' : i === index ? state : 'todo';
-    const dots = (
+    // An ended change needs only its label; the path stays in the tooltip.
+    const isEnded = state === 'done' || state === 'stopped';
+    const dots = isEnded ? null : (
         <span className={classes.dots} aria-hidden>
             {steps.map((name, i) => (
                 <span

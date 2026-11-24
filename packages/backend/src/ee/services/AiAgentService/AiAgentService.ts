@@ -620,6 +620,7 @@ import {
     ListWorkstreamsFn,
     ProposeSemanticLayerChangeFn,
     ReadAttachmentsFn,
+    ReadFn,
     ReadSemanticModelFn,
     RecordMcpToolCallFn,
     RecordPromptDecisionFn,
@@ -633,6 +634,7 @@ import {
     StoreToolResultsFn,
     UpdateProgressFn,
     UpdateSlackMessageFn,
+    VerifyFn,
 } from '../ai/types/aiAgentDependencies';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import {
@@ -14574,7 +14576,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 prompt.threadCreatedFrom === 'semantic_studio'
             ) {
                 await this.semanticStudioService
-                    .queueBranchCompile(user, projectUuid, result.prUrl)
+                    .queueBranchCompile(
+                        user,
+                        projectUuid,
+                        result.prUrl,
+                        'agent',
+                    )
                     .catch((error: unknown) => {
                         Logger.warn(
                             `AiAgent.runEditDbtProjectPipeline: failed to queue a compile of run ${aiWritebackRunUuid}: ${getErrorMessage(error)}`,
@@ -15953,7 +15960,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             );
 
         const listChanges = () =>
-            this.semanticStudioService.listChanges(user, projectUuid);
+            this.semanticStudioService.listChanges(
+                user,
+                projectUuid,
+                prompt.threadUuid,
+            );
 
         // Studio queries read the person's draft over what is published, the way trying their changes does.
         const inDraft = <T>(run: () => Promise<T>): Promise<T> => {
@@ -15989,6 +16000,21 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 projectUuid,
                 name,
             );
+
+        const read: ReadFn = (script, libraries) =>
+            this.aiWritebackService.readWithScript(
+                { user, projectUuid, aiThreadUuid: prompt.threadUuid },
+                script,
+                libraries,
+            );
+
+        const verify: VerifyFn = () =>
+            this.semanticStudioService.waitForBranchCompile(user, projectUuid, {
+                threadUuid: prompt.threadUuid,
+                isSaving: () =>
+                    this.aiWritebackService.hasRunInProgress(prompt.threadUuid),
+                timeoutMs: 60_000,
+            });
 
         // Deterministic project_context.yml writeback (no sandbox). Only wired
         // into review-remediation work threads; the source thread is linked
@@ -16124,6 +16150,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             getDraftExplore,
             runDraftQuery,
             readSemanticModel,
+            verify,
+            read,
             exploreRepo,
             readAttachments,
             discoverRepos,
@@ -18300,10 +18328,21 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                           promptProject.projectUuid,
                       )
                     : null;
+                // Only a project with no repository has nowhere to keep project context.
+                const semanticStudioHasRepository =
+                    semanticStudioStatus?.appliesAs !== 'live';
                 // Studio saves a dbt change with a script wherever Studio itself is on for the person.
                 const semanticStudioCodeMode =
                     semanticStudioStatus?.appliesAs === 'dbt_pull_request' &&
                     semanticStudioStatus.enabled;
+                // A dbt project's layout spares the agent surveying the repository.
+                const semanticStudioProjectMap =
+                    semanticStudioStatus?.appliesAs === 'dbt_pull_request' &&
+                    semanticStudioStatus.enabled
+                        ? await this.semanticStudioService.getDbtProjectMap(
+                              promptProject.projectUuid,
+                          )
+                        : null;
                 const semanticStudioDrafts =
                     semanticStudioStatus !== null &&
                     semanticStudioStatus.enabled &&
@@ -18533,6 +18572,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     getDraftExplore,
                     runDraftQuery,
                     readSemanticModel,
+                    verify,
+                    read,
                     exploreRepo,
                     readAttachments,
                     discoverRepos,
@@ -18831,6 +18872,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     isSemanticStudioThread,
                     semanticStudioDrafts,
                     semanticStudioCodeMode,
+                    semanticStudioHasRepository,
+                    semanticStudioProjectMap,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,
@@ -19063,6 +19106,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     getDraftExplore,
                     runDraftQuery,
                     readSemanticModel,
+                    verify,
+                    read,
                     exploreRepo,
                     readAttachments,
                     discoverRepos,
@@ -21021,6 +21066,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 case 'editProjectContext':
                 case 'syncDbtProject':
                     return 'Preparing the semantic-layer changes...';
+                case 'write':
+                    return 'Saving the change...';
                 case 'generateDataApp':
                 case 'iterateDataApp':
                     return 'Starting the data app build...';
@@ -21039,6 +21086,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     return 'Listing your changes...';
                 case 'readSemanticModel':
                     return 'Reading the model...';
+                case 'verify':
+                    return 'Checking the change...';
+                case 'read':
+                    return 'Reading the project files...';
                 case 'closePullRequest':
                 case 'editContent':
                 case 'createContent':

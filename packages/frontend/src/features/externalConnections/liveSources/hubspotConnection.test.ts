@@ -4,7 +4,7 @@ import { HUBSPOT_TOKEN_FORM } from './hubspotConnection';
 import { toTokenLiveSourceCreatePayload } from './tokenLiveSource';
 
 describe('hubspotConnection', () => {
-    it('creates one token-authenticated source for deals, contacts and companies', () => {
+    it('creates one token-authenticated source for every CRM object', () => {
         expect(HUBSPOT_TOKEN_FORM.account).toBeNull();
         expect(
             toTokenLiveSourceCreatePayload(HUBSPOT_TOKEN_FORM, {
@@ -26,6 +26,10 @@ describe('hubspotConnection', () => {
                 '/crm/v3/objects/contacts/search',
                 '/crm/v3/properties/companies',
                 '/crm/v3/objects/companies/search',
+                '/crm/v3/properties/tickets',
+                '/crm/v3/objects/tickets/search',
+                '/crm/v3/properties/leads',
+                '/crm/v3/objects/leads/search',
             ],
         });
     });
@@ -33,6 +37,12 @@ describe('hubspotConnection', () => {
     it('names every scope the private app needs', () => {
         expect(
             LIVE_INTEGRATION_CATALOG[ApiConnectorType.HUBSPOT].scopes,
-        ).toContain('crm.objects.companies.read');
+        ).toEqual(
+            expect.arrayContaining([
+                'crm.objects.companies.read',
+                'tickets',
+                'crm.objects.leads.read',
+            ]),
+        );
     });
 });

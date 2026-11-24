@@ -10,7 +10,20 @@
 .head,
 .foot,
 .section {
-    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    padding: 8px var(--mantine-spacing-sm);
+}
+
+/* The card's menu shows on hover or focus, so a settled card stays quiet. */
+.headAction {
+    flex: none;
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.card:hover .headAction,
+.headAction:focus-within,
+.headAction:has([aria-expanded='true']) {
+    opacity: 1;
 }
 
 /* The header sits on the page's own tone, a shade off the card. */
@@ -27,22 +40,17 @@
     background: var(--mantine-color-yellow-filled);
 }
 
-.tally {
-    flex: none;
-    color: var(--mantine-color-dimmed);
-}
-
 /* Each model the turn touched is a step, on a line that runs from one icon to the next. */
 .steps {
     display: flex;
     flex-direction: column;
-    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    padding: 8px var(--mantine-spacing-sm);
 }
 
 .step {
     position: relative;
     display: flex;
-    gap: var(--mantine-spacing-sm);
+    gap: var(--mantine-spacing-xs);
     padding-bottom: var(--mantine-spacing-sm);
 }
 
@@ -105,7 +113,7 @@
     align-items: center;
     gap: 6px;
     width: 100%;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
 }
 
 .fold:hover,

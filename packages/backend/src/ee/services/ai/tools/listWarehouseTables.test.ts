@@ -296,7 +296,7 @@ describe('listWarehouseTables tool', () => {
         });
 
         expect(output.result).toBe(
-            'No tables matched. Filters: schema=missing, search=(none). Try a broader search.',
+            'No tables matched. Filters: schema=missing, search=(none). Try a broader search. This list only covers analytics and can miss tables created since it was saved. For a table elsewhere whose name you know, such as a dbt source, call describeWarehouseTable with its database and schema.',
         );
         expect(output.metadata).toEqual({ status: 'success' });
         expect(output.structuredContent).toEqual({
@@ -307,6 +307,20 @@ describe('listWarehouseTables tool', () => {
         expect(
             toolListWarehouseTablesOutputSchema.safeParse(output).success,
         ).toBe(true);
+    });
+
+    test('names at most ten databases when nothing matches', async () => {
+        const many: WarehouseTablesCatalog = Object.fromEntries(
+            Array.from({ length: 12 }, (_, i) => [`db${i}`, { s: { t: {} } }]),
+        );
+        const output = await execute(async () => many, {
+            search: 'missing',
+            limit: 100,
+        });
+
+        expect(output.result).toContain(
+            'covers db0, db1, db2, db3, db4, db5, db6, db7, db8, db9 and 2 more databases and',
+        );
     });
 
     test('mirrors the error text as structured content when the catalog throws', async () => {

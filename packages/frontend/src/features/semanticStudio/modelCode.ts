@@ -473,18 +473,21 @@ export const listPublishedParts = (
     draft: SemanticLayerDraft,
     entry: SemanticLayerDraftModel,
 ): FieldChange[] =>
-    listFieldChanges(
-        entry.model,
-        draft.changes.flatMap(({ models }) =>
-            models
-                .filter(
-                    ({ model, error }) =>
-                        model === entry.model && error === null,
-                )
-                .flatMap(({ changes }) => changes),
-        ),
-        entry,
-    );
+    // A model new as a whole is one change, however many edits built it.
+    getChangeKind(entry) === 'new'
+        ? []
+        : listFieldChanges(
+              entry.model,
+              draft.changes.flatMap(({ models }) =>
+                  models
+                      .filter(
+                          ({ model, error }) =>
+                              model === entry.model && error === null,
+                      )
+                      .flatMap(({ changes }) => changes),
+              ),
+              entry,
+          );
 
 /** How many changes a publish carries: each part touched, and each model added or removed whole. */
 export const countPublishedChanges = (

@@ -1,6 +1,6 @@
 import { Stack, Text } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
-import { StudioDraftIllustration } from './StudioDraftIllustration';
+import { StudioDraftIllustration } from '../../../../../features/semanticStudio/StudioDraftIllustration';
 
 /** What the chat shows before a conversation starts. */
 export const StudioChatEmptyState: FC<{

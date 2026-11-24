@@ -1,26 +1,26 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, type FC } from 'react';
-import { matchRoutes, useLocation } from 'react-router';
+import { useLocation } from 'react-router';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
+import { retryAfterWarehouseCredentialsSaved } from '../../hooks/userWarehouseCredentials/warehouseCredentialsError';
 import ConnectionCredentialsSwitcher from './ConnectionCredentialsSwitcher';
-import { routesThatNeedWarehouseCredentials } from './routesThatNeedWarehouseCredentials';
+import { isRouteThatNeedsWarehouseCredentials } from './routesThatNeedWarehouseCredentials';
 import UserCredentialsSwitcher from './UserCredentialsSwitcher';
 
 const ProjectCredentialsSwitcher: FC = () => {
     const location = useLocation();
+    const queryClient = useQueryClient();
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: activeProject } = useProject(activeProjectUuid);
 
     const reloadWhenPageNeedsCredentials = useCallback(() => {
-        if (
-            matchRoutes(
-                routesThatNeedWarehouseCredentials.map((path) => ({ path })),
-                location,
-            )
-        ) {
+        if (isRouteThatNeedsWarehouseCredentials(location)) {
             window.location.reload();
+        } else if (activeProjectUuid) {
+            retryAfterWarehouseCredentialsSaved(queryClient, activeProjectUuid);
         }
-    }, [location]);
+    }, [location, queryClient, activeProjectUuid]);
 
     if (activeProject?.connectionRoute === 'multi') {
         return (

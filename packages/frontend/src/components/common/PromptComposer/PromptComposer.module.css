@@ -2,6 +2,19 @@
  *  - card:   editor stacked above a toolbar row (AI agent chat, data apps)
  *  - inline: editor and actions on a single row (compact thread composer) */
 
+/* Pasted code keeps its lines, in either variant. */
+.root :global(.ProseMirror pre) {
+    margin: rem(4px) 0;
+    padding: rem(8px) rem(10px);
+    border-radius: var(--mantine-radius-sm);
+    background: var(--mantine-color-default-hover);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-xs);
+    line-height: 1.5;
+    white-space: pre;
+    overflow-x: auto;
+}
+
 .root {
     position: relative;
     z-index: 1;

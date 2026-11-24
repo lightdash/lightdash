@@ -480,7 +480,10 @@ import {
     ProjectAdapter,
     TrackingParams,
 } from '../../types';
-import { type DbtManifestFetchResult } from '../../types';
+import {
+    type DbtManifestFetchResult,
+    type DbtSourcePreparation,
+} from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import {
     captureAgentConnectionTask,
@@ -8486,11 +8489,29 @@ export class ProjectService
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
         projectUuid: string,
         branch: string,
-    ): Promise<(Explore | ExploreError)[]> {
+    ): Promise<{
+        explores: (Explore | ExploreError)[];
+        timings: DbtSourcePreparation['timings'] & { dbtCompileMs: number };
+    }> {
         return this.withCompileAdapter(
             projectUuid,
             user,
-            ({ adapter }) => adapter.compileAllExplores(undefined, false, true),
+            async ({ adapter }) => {
+                const { timings } = await adapter.prepareDbtSource();
+                const startedAt = Date.now();
+                const explores = await adapter.compileAllExplores(
+                    undefined,
+                    false,
+                    true,
+                );
+                return {
+                    explores,
+                    timings: {
+                        ...timings,
+                        dbtCompileMs: Date.now() - startedAt,
+                    },
+                };
+            },
             [],
             branch,
         );

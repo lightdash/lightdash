@@ -49,6 +49,7 @@ import {
     type ExternalConnectionLinkedApps,
     type ExternalConnectionListItem,
     type ExternalConnectionMethod,
+    type ExternalConnectionRateLimitUsage,
     type ExternalConnectionSample,
     type ExternalConnectionSampleRequest,
     type ExternalConnectionTestResponse,
@@ -76,9 +77,11 @@ import { type AppModel } from '../../../models/AppModel';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { SavedChartModel } from '../../../models/SavedChartModel';
+import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { BaseService } from '../../../services/BaseService';
 import {
     createLiveCalls,
+    readLiveRateLimit,
     type LiveCallUsage,
     type LiveTransport,
     type MeteredLiveSource,
@@ -118,6 +121,7 @@ import {
 } from '../../../services/QuerySourceService/live/integrations/postHog/scan';
 import { refuseLiveQuery } from '../../../services/QuerySourceService/live/query/refuse';
 import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
+import { LIVE_RATE_LIMIT_DEADLINES_MS } from '../../../services/QuerySourceService/live/rateLimitDeadlines';
 import { getLiveIntegration } from '../../../services/QuerySourceService/live/registry';
 import { getLiveSourceTestCheck } from '../../../services/QuerySourceService/live/testCheck';
 import { type LiveScanResult } from '../../../services/QuerySourceService/live/types';
@@ -148,7 +152,10 @@ import {
 } from '../AppGenerateService/appAuthz';
 import { type AppGenerateService } from '../AppGenerateService/AppGenerateService';
 import { type EmbedService } from '../EmbedService/EmbedService';
-import { ApiSourceCallLimiter } from './ApiSourceCallLimiter';
+import {
+    ApiSourceCallLimiter,
+    type RateLimitTarget,
+} from './ApiSourceCallLimiter';
 import {
     validateApiSourceConnection,
     withApiSourceAccessRules,
@@ -166,6 +173,7 @@ import {
     type GoogleConnectorType,
 } from './googleOAuth';
 import { type GoogleServiceAccountTokenProvider } from './GoogleServiceAccountTokenProvider';
+import { fetchFromHydra } from './hydraFetch';
 import {
     buildLinkedInAdsAuthorizeUrl,
     getLinkedInAdsOAuthRedirectUri,
@@ -198,6 +206,7 @@ import {
     serializeRequestBody,
     validateCustomHeaders,
 } from './proxyValidation';
+import { toRateLimitUsage } from './rateLimitUsage';
 import {
     buildSalesforceAuthorizeUrl,
     getSalesforceOAuthRedirectUri,
@@ -235,6 +244,7 @@ type ExternalConnectionServiceArguments = {
         LightdashConfig,
         'siteUrl' | 'liveSources' | 'auth' | 'scheduler'
     >;
+    prometheusMetrics?: PrometheusMetrics;
 };
 
 export type PostHogRegion = keyof typeof POSTHOG_REGION_ORIGINS;
@@ -382,6 +392,7 @@ export class ExternalConnectionService extends BaseService {
         this.encryptionUtil = args.encryptionUtil;
         this.apiSourceCallLimiter = new ApiSourceCallLimiter({
             model: args.externalConnectionModel,
+            metrics: args.prometheusMetrics,
         });
         this.orgAiCopilotConfigResolver = args.orgAiCopilotConfigResolver;
         this.featureFlagModel = args.featureFlagModel;
@@ -734,6 +745,16 @@ export class ExternalConnectionService extends BaseService {
 
         // A stored secret is valid only for its current auth type and credential
         // destinations. Changing one requires the caller to supply a new one.
+        if (
+            originChanged &&
+            !typeChanged &&
+            data.secret === undefined &&
+            existing.hasSecret
+        ) {
+            throw new ParameterError(
+                'Re-enter the secret to change the origin: a saved secret is never sent to a new origin',
+            );
+        }
         let hasSecretAfter: boolean;
         if (data.secret === null) {
             hasSecretAfter = false;
@@ -1283,13 +1304,19 @@ export class ExternalConnectionService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         connectionUuid: string,
+        rateLimitDeadlineMs: number,
     ): Promise<MeteredLiveSource> {
         const connection = await this.getViewableConnection(
             account,
             projectUuid,
             connectionUuid,
         );
-        return this.getMeteredLiveSource(account, projectUuid, connection);
+        return this.getMeteredLiveSource(
+            account,
+            projectUuid,
+            connection,
+            rateLimitDeadlineMs,
+        );
     }
 
     /**
@@ -1301,12 +1328,18 @@ export class ExternalConnectionService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         connectionUuid: string,
+        rateLimitDeadlineMs: number,
     ): Promise<MeteredLiveSource> {
         const connection = await this.loadConnection(
             projectUuid,
             connectionUuid,
         );
-        return this.getMeteredLiveSource(account, projectUuid, connection);
+        return this.getMeteredLiveSource(
+            account,
+            projectUuid,
+            connection,
+            rateLimitDeadlineMs,
+        );
     }
 
     /** Sets how long a live source's results answer the same query; null uses the integration's default. */
@@ -1447,7 +1480,10 @@ export class ExternalConnectionService extends BaseService {
                 const { integration, settings, calls } = this.createLiveSource(
                     account,
                     connection,
-                    { isPerQuery: false },
+                    {
+                        isPerQuery: false,
+                        rateLimitDeadlineMs: LIVE_RATE_LIMIT_DEADLINES_MS.sync,
+                    },
                 );
                 return (
                     (await integration.scan?.read({ settings, calls })) ?? {}
@@ -2257,11 +2293,12 @@ export class ExternalConnectionService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         connection: ExternalConnection,
+        rateLimitDeadlineMs: number,
     ): MeteredLiveSource {
         const { usage, ...source } = this.createLiveSource(
             account,
             connection,
-            { isPerQuery: true },
+            { isPerQuery: true, rateLimitDeadlineMs },
         );
         return {
             ...source,
@@ -2384,6 +2421,7 @@ export class ExternalConnectionService extends BaseService {
                         account,
                         projectUuid,
                         connectionUuid,
+                        LIVE_RATE_LIMIT_DEADLINES_MS.background,
                     ),
                     args,
                 ),
@@ -2409,6 +2447,38 @@ export class ExternalConnectionService extends BaseService {
             connectionUuid,
         ]);
         return scans.get(connectionUuid) ?? null;
+    }
+
+    /** Lightdash's calls against the live source's declared rate limits, now. */
+    async getApiSourceRateLimitUsage(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<ExternalConnectionRateLimitUsage> {
+        await this.assertLiveSourcesEnabled(account);
+        const connection = await this.getViewableConnection(
+            account,
+            projectUuid,
+            connectionUuid,
+        );
+        if (!connection.apiSource) {
+            throw new ParameterError(
+                'Rate limits apply only to live data sources',
+            );
+        }
+        const target = ExternalConnectionService.getRateLimitTarget(
+            connection,
+            connection.apiSource,
+        );
+        const snapshot =
+            await this.externalConnectionModel.getApiSourceRateUsage(
+                target.limitKey,
+            );
+        return toRateLimitUsage({
+            integrationLabel: target.label,
+            rateLimits: target.rateLimits,
+            snapshot,
+        });
     }
 
     /** Live sources the account may query, each with its last schema scan. */
@@ -2458,6 +2528,26 @@ export class ExternalConnectionService extends BaseService {
         );
     }
 
+    /** What the rate-limit gate limits for a live source: the limits its integration declares for it. */
+    private static getRateLimitTarget(
+        connection: Pick<
+            ExternalConnection,
+            'externalConnectionUuid' | 'timeoutMs'
+        >,
+        apiSource: ExternalConnectionApiSource,
+    ): RateLimitTarget {
+        const integration = getLiveIntegration(apiSource.connector);
+        return {
+            limitKey: connection.externalConnectionUuid,
+            integration: apiSource.connector,
+            label: integration.label,
+            rateLimits:
+                integration.rateLimitsFor?.(apiSource) ??
+                integration.rateLimits,
+            timeoutMs: connection.timeoutMs,
+        };
+    }
+
     /**
      * The source's integration with calls over the guarded fetch. A
      * per-query source refuses to make more calls than one query may.
@@ -2465,7 +2555,10 @@ export class ExternalConnectionService extends BaseService {
     private createLiveSource(
         account: RegisteredAccount,
         storedConnection: ExternalConnection,
-        { isPerQuery }: { isPerQuery: boolean },
+        {
+            isPerQuery,
+            rateLimitDeadlineMs,
+        }: { isPerQuery: boolean; rateLimitDeadlineMs: number },
     ): Pick<MeteredLiveSource, 'integration' | 'settings' | 'calls'> & {
         usage: LiveCallUsage;
     } {
@@ -2480,7 +2573,8 @@ export class ExternalConnectionService extends BaseService {
         const connection = withApiSourceAccessRules(storedConnection);
         let callsThisQuery = 0;
         const integration = getLiveIntegration(apiSource.connector);
-        const { label, limits } = integration;
+        const { label } = integration;
+        const { limits } = integration;
         const usage: LiveCallUsage = {
             apiCalls: 0,
             responseBytes: 0,
@@ -2537,8 +2631,23 @@ export class ExternalConnectionService extends BaseService {
                     `This query needs more than ${limits.callsPerQuery} ${label} API calls. Narrow it with filters or a shorter time range.`,
                 );
             }
-            return this.apiSourceCallLimiter.run(connection, limits, () =>
-                sendOnce(request),
+            return this.apiSourceCallLimiter.run(
+                ExternalConnectionService.getRateLimitTarget(
+                    connection,
+                    apiSource,
+                ),
+                () => sendOnce(request),
+                {
+                    deadlineMs: rateLimitDeadlineMs,
+                    // Retried here, so a paged read keeps the pages it has
+                    readRateLimit: (response) =>
+                        readLiveRateLimit(
+                            integration,
+                            apiSource,
+                            response,
+                            new Date(),
+                        ),
+                },
             );
         };
         return {
@@ -3882,18 +3991,47 @@ export class ExternalConnectionService extends BaseService {
             responseBytes: number;
         };
         try {
-            result = await this.executeExternalFetch(
-                connection,
-                secret,
-                {
+            const fetchOnce = () =>
+                this.executeExternalFetch(
+                    connection,
+                    secret,
+                    {
+                        method,
+                        path: req.path,
+                        query: req.query,
+                        body: req.body,
+                    },
+                    { account, appUuid },
+                );
+            // A live source's calls share its integration's limits with its queries
+            const { apiSource } = connection;
+            result = apiSource
+                ? await this.apiSourceCallLimiter.run(
+                      ExternalConnectionService.getRateLimitTarget(
+                          connection,
+                          apiSource,
+                      ),
+                      fetchOnce,
+                  )
+                : await fetchOnce();
+        } catch (error) {
+            if (error instanceof TooManyRequestsError) {
+                this.trackFetch({
+                    account,
+                    projectUuid,
+                    appUuid,
+                    connectionAlias: req.connectionAlias,
+                    connection,
                     method,
                     path: req.path,
-                    query: req.query,
-                    body: req.body,
-                },
-                { account, appUuid },
-            );
-        } catch (error) {
+                    status: null,
+                    outcome: 'rate_limited',
+                    start,
+                    requestBytes: 0,
+                    responseBytes: 0,
+                });
+                throw error;
+            }
             const isKnown =
                 error instanceof ParameterError ||
                 error instanceof SecureFetchError;
@@ -4148,17 +4286,31 @@ export class ExternalConnectionService extends BaseService {
             headers['Content-Type'] = 'application/json';
         }
 
-        // Delegate to the SSRF-hardened fetch.
+        // Delegate to the SSRF-hardened fetch. Hydra, the test integration,
+        // answers in-process and never reaches the network.
+        const { apiSource } = connection;
         const fetchResource = () =>
-            secureFetch(url, {
-                method: req.method,
-                body,
-                headers,
-                timeoutMs: connection.timeoutMs,
-                maxResponseBytes: connection.responseMaxBytes,
-                allowedContentTypes: connection.allowedContentTypes,
-                allowedPrivateHostCidrs: this.allowedPrivateHostCidrs,
-            });
+            apiSource?.connector === ApiConnectorType.HYDRA
+                ? fetchFromHydra({
+                      connectionUuid: connection.externalConnectionUuid,
+                      settings: apiSource,
+                      secret,
+                      timeoutMs: connection.timeoutMs,
+                      request: {
+                          method: req.method === 'GET' ? 'GET' : 'POST',
+                          path: validatedPath,
+                          body: req.body,
+                      },
+                  })
+                : secureFetch(url, {
+                      method: req.method,
+                      body,
+                      headers,
+                      timeoutMs: connection.timeoutMs,
+                      maxResponseBytes: connection.responseMaxBytes,
+                      allowedContentTypes: connection.allowedContentTypes,
+                      allowedPrivateHostCidrs: this.allowedPrivateHostCidrs,
+                  });
 
         let fetched;
         try {

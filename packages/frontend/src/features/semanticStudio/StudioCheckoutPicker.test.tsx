@@ -33,7 +33,6 @@ const on = (
     },
     isSwitching,
     error: null,
-    isPicking: { current: false },
 });
 
 const picker = (state: StudioCheckoutState) => (

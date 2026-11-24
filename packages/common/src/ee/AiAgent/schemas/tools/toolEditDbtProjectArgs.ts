@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { structuredToolOutputSchema } from '../outputMetadata';
-import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 
 export const AI_WRITEBACK_PENDING_GRACE_MS = 5 * 60 * 1000;
 
@@ -8,6 +7,11 @@ export const TOOL_EDIT_DBT_PROJECT_DESCRIPTION = [
     "Open or update a pull request that changes this project's semantic layer (dbt or Lightdash YAML): it edits the repository in an isolated sandbox, validates the semantic layer and opens the pull request on your behalf, so report it as your own work.",
     'Call it, in the same turn you decide to make the change, when the user asks for one in the repository (add or rename a metric, edit a dimension or model, update YAML metadata) or accepts one you offered. It is not for questions about data or code, nor for changes that can be made inside Lightdash, such as to saved charts and dashboards.',
     'It returns status "pending" once the run starts, and the pull request opens in the background a few minutes later: do not call it again to check on it. Until it opens, listWorkstreams shows the change as still being opened.',
+].join(' ');
+
+export const TOOL_WRITE_DESCRIPTION = [
+    "Save a change to this project's semantic layer on this conversation's pull request, its draft: one call per change, in the same turn the person asks for it or accepts one you offered. The first save opens the pull request and later ones join it.",
+    'It returns status "pending" once the save starts and finishes in the background: do not call it again to check on it. Until it is saved, pr.list in read shows it as a change still being saved. Check a save that adds a model or changes SQL with verify.',
 ].join(' ');
 
 export const toolEditDbtProjectArgsSchema = z.object({
@@ -46,7 +50,7 @@ export const toolEditDbtProjectCodeModeArgsSchema =
                     'JavaScript that makes the change, run against the repository before the pull request is opened. Paths are relative to the dbt project. Nothing is written unless the whole script succeeds and every changed YAML file passes the semantic layer schema; on failure the tool returns the error, so fix the script and call again.',
                     'API (synchronous, values are plain JSON): dbt.model(name) -> { yml, sql, keys } | null, where keys is the YAML path of that model;',
                     'yaml.get(path, keys), yaml.set(path, keys, value), yaml.push(path, keys, value) to append to a list, yaml.remove(path, keys);',
-                    "keys is a list of mapping keys, list indexes, or { name } to pick the list item with that name, e.g. [...m.keys, 'columns', { name: 'amount' }, 'config', 'meta', 'metrics', 'total_amount'];",
+                    "keys is a list of mapping keys, list indexes, or { name } to pick the list item with that name, e.g. [...m.keys, 'columns', { name: '<column>' }, 'config', 'meta', 'metrics', '<metric>'];",
                     'set creates missing mappings, and edits keep comments and the rest of the file as it is;',
                     'repo.list(prefix?), repo.read(path), repo.write(path, text), repo.remove(path) for whole files such as a new model SQL; console.log(...) is returned with errors.',
                     'Follow where the file already keeps things (e.g. config.meta rather than meta when it uses that). Null when the change needs dbt to run, such as checking new SQL against the warehouse.',
@@ -194,7 +198,24 @@ export type ToolEditDbtProjectStructuredContent = z.infer<
     typeof toolEditDbtProjectStructuredContentSchema
 >;
 
-export const isToolEditDbtProjectResult = makeBuiltInToolResultGuard(
-    'editDbtProject',
-    toolEditDbtProjectMetadataSchema,
-);
+/** The dbt save tool's names: editDbtProject, and write in Semantic Studio's builder. */
+export const DBT_WRITE_TOOL_NAMES = ['editDbtProject', 'write'] as const;
+
+export type DbtWriteToolName = (typeof DBT_WRITE_TOOL_NAMES)[number];
+
+export const isDbtWriteToolName = (name: string): name is DbtWriteToolName =>
+    DBT_WRITE_TOOL_NAMES.some((toolName) => toolName === name);
+
+// Persisted metadata comes from the DB, so the schema check is a safeParse.
+export const isToolEditDbtProjectResult = <
+    T extends { toolType: string; toolName: string; metadata: unknown },
+>(
+    result: T,
+): result is T & {
+    toolType: 'built-in';
+    toolName: DbtWriteToolName;
+    metadata: z.infer<typeof toolEditDbtProjectMetadataSchema>;
+} =>
+    result.toolType === 'built-in' &&
+    isDbtWriteToolName(result.toolName) &&
+    toolEditDbtProjectMetadataSchema.safeParse(result.metadata).success;

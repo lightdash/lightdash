@@ -1,4 +1,4 @@
-import { AnyType } from '@lightdash/common';
+import { AnyType, isDbtWriteToolName } from '@lightdash/common';
 
 const oneLine = (value: string, maxLength = 180) => {
     const text = value.replace(/\s+/g, ' ').trim();
@@ -78,6 +78,8 @@ export const summarizeToolCall = (toolName: string, input: AnyType) => {
             return 'Reading project details';
         case 'editDbtProject':
             return 'Preparing change proposal';
+        case 'write':
+            return 'Saving the change';
         case 'generateDataApp':
             return 'Starting a data app build';
         case 'iterateDataApp':
@@ -165,7 +167,7 @@ export const summarizeToolResult = (toolName: string, output: AnyType) => {
         }
         return 'Query ran';
     }
-    if (toolName === 'editDbtProject' || toolName === 'editRepo') {
+    if (isDbtWriteToolName(toolName) || toolName === 'editRepo') {
         const metadata =
             typeof output.metadata === 'object' && output.metadata
                 ? output.metadata

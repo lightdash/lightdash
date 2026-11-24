@@ -3372,6 +3372,8 @@ export default class SchedulerTask {
                     });
 
                     if (revalidate) await revalidate();
+                    const compileStartedAt = Date.now();
+                    let compileMode: 'incremental' | 'full' = 'full';
                     await this.projectService.compileProject(
                         user,
                         payload.projectUuid,
@@ -3388,14 +3390,30 @@ export default class SchedulerTask {
                               }
                             : undefined,
                         !account && payload.incremental === true
-                            ? () =>
-                                  this.compileIncrementally(
-                                      user,
-                                      payload.projectUuid,
-                                      payload.jobUuid,
-                                  )
+                            ? async () => {
+                                  const result =
+                                      await this.compileIncrementally(
+                                          user,
+                                          payload.projectUuid,
+                                          payload.jobUuid,
+                                      );
+                                  if (result) compileMode = 'incremental';
+                                  return result;
+                              }
                             : undefined,
                     );
+                    if (payload.incremental === true) {
+                        Logger.info('Compile after a merge timed', {
+                            event: 'semantic_studio.publish.timed',
+                            projectUuid: payload.projectUuid,
+                            jobUuid: payload.jobUuid,
+                            mode: compileMode,
+                            queuedMs:
+                                compileStartedAt -
+                                new Date(scheduledTime).getTime(),
+                            compileMs: Date.now() - compileStartedAt,
+                        });
+                    }
                     if (revalidate) await revalidate();
                     await this.schedulerService.logSchedulerJob({
                         ...baseLog,

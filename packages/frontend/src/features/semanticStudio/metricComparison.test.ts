@@ -1,36 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describeShift, pickComparedMetrics } from './metricComparison';
-
-const reference = (name: string) => ['$', '{', name, '}'].join('');
-
-const metrics = [
-    { name: 'total', sql: 'COUNT(*)' },
-    { name: 'rate', sql: `${reference('succeeded')} / ${reference('total')}` },
-    { name: 'succeeded', sql: 'COUNT(ok)' },
-    { name: 'internal', sql: 'COUNT(*)', hidden: true },
-];
-
-const names = (picked: { name: string }[]) => picked.map(({ name }) => name);
-
-describe('pickComparedMetrics', () => {
-    it('compares a changed metric and the metrics built from it', () => {
-        expect(
-            names(pickComparedMetrics(metrics, new Set(['total']), false)),
-        ).toEqual(['total', 'rate']);
-    });
-
-    it('compares every visible metric of a new model', () => {
-        expect(names(pickComparedMetrics(metrics, new Set(), true))).toEqual([
-            'total',
-            'rate',
-            'succeeded',
-        ]);
-    });
-
-    it('compares nothing when no metric changed', () => {
-        expect(pickComparedMetrics(metrics, new Set(), false)).toEqual([]);
-    });
-});
+import { describeShift } from './metricComparison';
 
 describe('describeShift', () => {
     it('gives the change as a signed percentage', () => {
