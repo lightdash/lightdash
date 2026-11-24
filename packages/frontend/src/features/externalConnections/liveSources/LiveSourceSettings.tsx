@@ -11,7 +11,6 @@ import {
 } from '@lightdash/common';
 import {
     Button,
-    Code,
     Group,
     PasswordInput,
     SegmentedControl,
@@ -24,7 +23,6 @@ import { useForm, type UseFormReturnType } from '@mantine/form';
 import { IconTrash } from '@tabler/icons-react';
 import { useState, type FC, type FormEvent } from 'react';
 import { Link } from 'react-router';
-import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useResultsCacheStatus } from '../../../hooks/useProjectResultsCacheSettings';
@@ -32,10 +30,6 @@ import {
     usePurgeLiveSourceCache,
     useUpdateLiveSourceCache,
 } from '../hooks/useLiveSourceCache';
-import {
-    useLiveSourceFields,
-    useRefreshLiveSourceFields,
-} from '../hooks/useLiveSourceFields';
 import { useTestConnection } from '../hooks/useTestConnection';
 import {
     LIVE_SOURCE_UPDATE_MESSAGES,
@@ -125,8 +119,6 @@ export const LiveSourceSettings: FC<{
         ...(isPostHogKey ? (['region'] as const) : []),
         ...(tokenLabel ? (['token'] as const) : []),
     ];
-    const { data: fields } = useLiveSourceFields(params);
-    const refreshFields = useRefreshLiveSourceFields(params);
     const purge = usePurgeLiveSourceCache(params);
     const updateCache = useUpdateLiveSourceCache(params);
     const updateSource = useUpdateExternalConnection(
@@ -155,10 +147,6 @@ export const LiveSourceSettings: FC<{
     const ttlOptions = WINDOW_SECONDS.includes(savedTtl)
         ? WINDOW_SECONDS
         : [...WINDOW_SECONDS, savedTtl].sort((a, b) => a - b);
-
-    const fieldsHint = fields?.scannedAt
-        ? `Last refreshed ${formatDate(fields.scannedAt)}`
-        : 'Never refreshed';
 
     /** Saves the given settings over the saved ones, if they changed and are valid. */
     const saveSource = async (keys: (keyof LiveSourceAccessValues)[]) => {
@@ -301,6 +289,96 @@ export const LiveSourceSettings: FC<{
         <>
             <Stack gap="lg">
                 <SettingsCard
+                    title="Details"
+                    onSubmit={submit(['name', 'aiHint'])}
+                >
+                    <SettingsRow
+                        label="Name"
+                        hint="Shown in explores and to agents"
+                    >
+                        <TextInput
+                            w={240}
+                            size="xs"
+                            aria-label="Name"
+                            {...form.getInputProps('name')}
+                        />
+                    </SettingsRow>
+                    <SettingsRow
+                        label="AI hint"
+                        hint="Helps agents pick this source"
+                    >
+                        <Textarea
+                            w={240}
+                            size="xs"
+                            aria-label="AI hint"
+                            placeholder="For example: EU storefront"
+                            autosize
+                            minRows={1}
+                            maxRows={4}
+                            maxLength={LIVE_SOURCE_AI_HINT_MAX_LENGTH}
+                            {...form.getInputProps('aiHint')}
+                        />
+                    </SettingsRow>
+                    {saveFooter(['name', 'aiHint'])}
+                </SettingsCard>
+
+                <SettingsCard title="Caching">
+                    <SettingsRow
+                        label="Keep results for"
+                        hint={
+                            isProjectCacheOff ? (
+                                <span className={classes.warningText}>
+                                    Currently disabled
+                                </span>
+                            ) : (
+                                formatPurgedAt(connection.cachePurgedAt)
+                            )
+                        }
+                    >
+                        {isProjectCacheOff ? (
+                            <Button
+                                size="xs"
+                                variant="default"
+                                component={Link}
+                                to={`/generalSettings/projectManagement/${projectUuid}/caching`}
+                            >
+                                Turn on
+                            </Button>
+                        ) : (
+                            <>
+                                <Select
+                                    w={116}
+                                    size="xs"
+                                    aria-label="Caching"
+                                    allowDeselect={false}
+                                    comboboxProps={{ withinPortal: true }}
+                                    data={ttlOptions.map((option) => ({
+                                        value: String(option),
+                                        label: formatFreshness(option),
+                                    }))}
+                                    value={form.values.ttl}
+                                    disabled={updateCache.isLoading}
+                                    onChange={saveTtl}
+                                />
+                                <Button
+                                    size="xs"
+                                    variant="default"
+                                    loading={purge.isLoading}
+                                    onClick={() => setIsPurgeOpen(true)}
+                                >
+                                    Clear cached results
+                                </Button>
+                            </>
+                        )}
+                    </SettingsRow>
+                </SettingsCard>
+
+                <LiveSourceRateLimitsCard
+                    projectUuid={projectUuid}
+                    connectionUuid={connection.externalConnectionUuid}
+                />
+
+                <SettingsCard
                     title="Access"
                     onSubmit={
                         accessKeys.length > 0 ? submit(accessKeys) : undefined
@@ -381,123 +459,6 @@ export const LiveSourceSettings: FC<{
                     {accessKeys.length > 0 ? saveFooter(accessKeys) : null}
                 </SettingsCard>
 
-                <SettingsCard
-                    title="Details"
-                    onSubmit={submit(['name', 'aiHint'])}
-                >
-                    {connection.liveSourceName ? (
-                        <SettingsRow
-                            label="Explore prefix"
-                            hint="Added to the start of each explore name"
-                        >
-                            <Code className={rowClasses.settingsCode}>
-                                {connection.liveSourceName}
-                            </Code>
-                            <CopyActionIcon
-                                value={connection.liveSourceName}
-                                copyLabel="Copy explore prefix"
-                                variant="subtle"
-                                color="gray"
-                                size="sm"
-                            />
-                        </SettingsRow>
-                    ) : null}
-                    <SettingsRow
-                        label="Name"
-                        hint="Shown in explores and to agents"
-                    >
-                        <TextInput
-                            w={240}
-                            size="xs"
-                            aria-label="Name"
-                            {...form.getInputProps('name')}
-                        />
-                    </SettingsRow>
-                    <SettingsRow
-                        label="AI hint"
-                        hint="Helps agents pick this source"
-                    >
-                        <Textarea
-                            w={240}
-                            size="xs"
-                            aria-label="AI hint"
-                            placeholder="For example: EU storefront"
-                            autosize
-                            minRows={1}
-                            maxRows={4}
-                            maxLength={LIVE_SOURCE_AI_HINT_MAX_LENGTH}
-                            {...form.getInputProps('aiHint')}
-                        />
-                    </SettingsRow>
-                    {saveFooter(['name', 'aiHint'])}
-                </SettingsCard>
-
-                <SettingsCard title="Data">
-                    <SettingsRow label="Fields" hint={fieldsHint}>
-                        <Button
-                            size="xs"
-                            variant="default"
-                            loading={refreshFields.isLoading}
-                            onClick={() => refreshFields.mutate()}
-                        >
-                            Refresh
-                        </Button>
-                    </SettingsRow>
-                    <SettingsRow
-                        label="Caching"
-                        hint={
-                            isProjectCacheOff ? (
-                                <span className={classes.warningText}>
-                                    Currently disabled
-                                </span>
-                            ) : (
-                                formatPurgedAt(connection.cachePurgedAt)
-                            )
-                        }
-                    >
-                        {isProjectCacheOff ? (
-                            <Button
-                                size="xs"
-                                variant="default"
-                                component={Link}
-                                to={`/generalSettings/projectManagement/${projectUuid}/caching`}
-                            >
-                                Turn on
-                            </Button>
-                        ) : (
-                            <>
-                                <Select
-                                    w={116}
-                                    size="xs"
-                                    aria-label="Caching"
-                                    allowDeselect={false}
-                                    comboboxProps={{ withinPortal: true }}
-                                    data={ttlOptions.map((option) => ({
-                                        value: String(option),
-                                        label: formatFreshness(option),
-                                    }))}
-                                    value={form.values.ttl}
-                                    disabled={updateCache.isLoading}
-                                    onChange={saveTtl}
-                                />
-                                <Button
-                                    size="xs"
-                                    variant="default"
-                                    loading={purge.isLoading}
-                                    onClick={() => setIsPurgeOpen(true)}
-                                >
-                                    Clear cache
-                                </Button>
-                            </>
-                        )}
-                    </SettingsRow>
-                </SettingsCard>
-
-                <LiveSourceRateLimitsCard
-                    projectUuid={projectUuid}
-                    connectionUuid={connection.externalConnectionUuid}
-                />
-
                 <SettingsCard title="Danger zone">
                     <SettingsRow
                         label="Delete live data source"
@@ -519,7 +480,7 @@ export const LiveSourceSettings: FC<{
             <MantineModal
                 opened={isPurgeOpen}
                 onClose={() => setIsPurgeOpen(false)}
-                title="Clear cache?"
+                title="Clear cached results?"
                 role="alertdialog"
                 description={`The next query to "${connection.name}" fetches fresh data.`}
                 confirmLabel="Clear"

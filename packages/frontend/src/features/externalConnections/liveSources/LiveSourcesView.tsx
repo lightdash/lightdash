@@ -1,8 +1,3 @@
-/**
- * Live data sources on the Semantic Layer page, for the admins who manage
- * them: the list with each source's usage, and above a source's fields what
- * it reads, how it is used and its controls.
- */
 import {
     ActionIcon,
     Box,
@@ -30,6 +25,11 @@ import { useExternalConnections } from '../hooks/useExternalConnections';
 import { useLiveSourceFields } from '../hooks/useLiveSourceFields';
 import { useLiveSourceActions } from './liveSourceActions';
 import { formatChartCount } from './liveSourceCatalog';
+/**
+ * Live data sources on the Semantic Layer page, for the admins who manage
+ * them: the list with each source's usage, and above a source's fields what
+ * it reads, how it is used and its controls.
+ */
 import { LiveSourceIcon } from './LiveSourceIcon';
 import {
     formatFreshness,
@@ -262,33 +262,29 @@ export const LiveSourceSummary: FC<{
     const rateLimit = getRateLimitStat(rateLimits);
     const isProjectCacheOff = projectCache?.enabled === false;
     const row = toLiveSourceRow(connection, usage);
+    const explores = fields?.explores;
+    const exploresInUse = explores?.filter((explore) => explore.inUse).length;
     const freshness = getLiveSourceFreshness(connection);
     const cachingTitle =
         freshness === 0
             ? 'Every query calls the integration'
             : `A result answers the same query for everyone for ${formatFreshness(freshness)}`;
-    // Every explore whose fields can be curated, not only the first
-    const allFields = fields?.explores.flatMap((explore) => explore.fields);
-    const inUse = allFields?.filter((field) => field.inUse).length;
-    const exploresOn = fields?.explores.filter(
-        (explore) => explore.inUse,
-    ).length;
     return (
-        <Box className={tableClasses.summary} aria-label="Live data source">
+        <Box
+            className={tableClasses.summary}
+            aria-label="Live data source"
+            data-status
+        >
             <Stat label="Integration" value={row.integration} />
-            {fields && fields.explores.length > 1 ? (
-                <Stat
-                    label="Explores"
-                    value={`${exploresOn?.toLocaleString()} of ${fields.explores.length.toLocaleString()} on`}
-                />
-            ) : (
-                <Stat label="Explore" value={fields?.exploreName ?? '—'} />
-            )}
             <Stat
-                label="Fields in use"
+                label="Explore prefix"
+                value={connection.liveSourceName ?? '—'}
+            />
+            <Stat
+                label="Explores in use"
                 value={
-                    allFields && inUse !== undefined
-                        ? `${inUse.toLocaleString()} of ${allFields.length.toLocaleString()}`
+                    explores && exploresInUse !== undefined
+                        ? `${exploresInUse.toLocaleString()} of ${explores.length.toLocaleString()}`
                         : '—'
                 }
             />
@@ -317,7 +313,7 @@ export const LiveSourceSummary: FC<{
                 }
             />
             <Stat
-                label="Cache"
+                label="Caching"
                 value={
                     isProjectCacheOff ? 'Disabled' : formatFreshness(freshness)
                 }
