@@ -264,7 +264,11 @@ export const LiveSourceSummary: FC<{
     const row = toLiveSourceRow(connection, usage);
     // Every explore whose fields can be curated, not only the first
     const allFields = fields?.explores.flatMap((explore) => explore.fields);
-    const inUse = allFields?.filter((field) => field.inUse).length;
+    // A switched-off explore isn't built, so none of its fields can be queried
+    const inUse = fields?.explores
+        .filter((explore) => explore.inUse)
+        .flatMap((explore) => explore.fields)
+        .filter((field) => field.inUse).length;
     const freshness = getLiveSourceFreshness(connection);
     const cachingTitle =
         freshness === 0
