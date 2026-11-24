@@ -14,6 +14,7 @@ import {
     IconChevronDown,
     IconGripVertical,
     IconLock,
+    IconRobotOff,
     IconSearch,
 } from '@tabler/icons-react';
 import {
@@ -163,6 +164,24 @@ const FieldRow = memo<{
                                 <Box flex="none" display="flex">
                                     <MantineIcon
                                         icon={IconLock}
+                                        size={12}
+                                        color="dimmed"
+                                    />
+                                </Box>
+                            </Tooltip>
+                        ) : null}
+                        {field.hiddenFromAi ? (
+                            <Tooltip
+                                label="Hidden from AI: set by ai_access: never"
+                                openDelay={300}
+                            >
+                                <Box
+                                    flex="none"
+                                    display="flex"
+                                    aria-label="Hidden from AI"
+                                >
+                                    <MantineIcon
+                                        icon={IconRobotOff}
                                         size={12}
                                         color="dimmed"
                                     />

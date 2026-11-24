@@ -297,6 +297,12 @@ export const FieldDetailModal: FC<{
         field.visibleTo
             ? { term: 'Visible to', value: `People with ${field.visibleTo}` }
             : null,
+        field.hiddenFromAi
+            ? {
+                  term: 'AI access',
+                  value: 'Never sent to AI. People can still use it.',
+              }
+            : null,
     ].filter((fact) => fact !== null);
     const note =
         !canEdit && isLive ? (

@@ -102,6 +102,8 @@ export type Field = {
     definition: { label: string; value: string };
     /** User attributes needed to see it, in words; null for everyone. */
     visibleTo: string | null;
+    /** Set by `ai_access: never`, or built from a field that has it. */
+    hiddenFromAi: boolean;
     isInternal: boolean;
     /** Every query of a live data source needs it; it stays in use. */
     isRequired: boolean;

@@ -37,6 +37,7 @@ import {
     IconFilter,
     IconHierarchyOff,
     IconInfoCircle,
+    IconRobotOff,
     IconTrash,
 } from '@tabler/icons-react';
 import {
@@ -652,6 +653,16 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                 </Tooltip>
                             )}
                             {renderAlerts}
+                            {isField(item) && item.aiAccess === 'never' && (
+                                <Tooltip label="Hidden from AI: set by ai_access: never">
+                                    <MantineIcon
+                                        icon={IconRobotOff}
+                                        color="dimmed"
+                                        className={styles.nodeIcon}
+                                        aria-label="Hidden from AI"
+                                    />
+                                </Tooltip>
+                            )}
                             {isTruncated && (
                                 <Tooltip
                                     maw={300}

@@ -4,6 +4,7 @@
  * not in use show too; everything else comes from the compiled explore.
  */
 import {
+    getAiAccessRules,
     getItemId,
     type CompiledDimension,
     type CompiledMetric,
@@ -37,6 +38,7 @@ const attributesText = (
 const fromCompiled = (
     item: CompiledDimension | CompiledMetric,
     tableLabel: string,
+    hiddenFromAi: boolean,
 ): Field => ({
     id: getItemId(item),
     name: item.name,
@@ -51,6 +53,7 @@ const fromCompiled = (
     inUse: true,
     definition: { label: 'SQL', value: item.sql },
     visibleTo: attributesText(item.requiredAttributes),
+    hiddenFromAi,
     isInternal: false,
     isRequired: false,
     chartUsage: null,
@@ -60,6 +63,7 @@ const fromCompiled = (
 
 /** Visible fields of every table in the explore, base table first. */
 const compiledFields = (explore: CompiledExplore): Field[] => {
+    const { hiddenFieldIds } = getAiAccessRules(explore);
     const tables = [
         explore.baseTable,
         ...Object.keys(explore.tables).filter(
@@ -78,7 +82,11 @@ const compiledFields = (explore: CompiledExplore): Field[] => {
             (metric) => !metric.hidden,
         );
         return [...dimensions, ...metrics].map((item) =>
-            fromCompiled(item, table.label),
+            fromCompiled(
+                item,
+                table.label,
+                hiddenFieldIds.has(getItemId(item)),
+            ),
         );
     });
 };
@@ -101,6 +109,7 @@ const fromLive = (
     inUse: field.inUse,
     definition: { label: 'Source', value: field.apiName },
     visibleTo: null,
+    hiddenFromAi: false,
     isInternal: field.isInternal,
     isRequired: field.isRequired,
     chartUsage: field.usedByChartCount,

@@ -16,6 +16,7 @@ const field = (name: string, overrides: Partial<Field> = {}): Field => ({
     inUse: true,
     definition: { label: 'SQL', value: `\${TABLE}.${name}` },
     visibleTo: null,
+    hiddenFromAi: false,
     isInternal: false,
     isRequired: false,
     chartUsage: null,
