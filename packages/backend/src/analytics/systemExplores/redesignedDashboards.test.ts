@@ -428,12 +428,11 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'vega-trellis',
                 'table',
             ],
-            ['tools-mcp-tools-cloud', 0, 19, 18, 9, 'word-cloud', 'cartesian'],
             [
                 'mcp-users-clients-tools-and-error-rates',
-                18,
+                0,
                 19,
-                18,
+                36,
                 9,
                 'sortable-pivot-table',
                 'table',
@@ -1922,7 +1921,8 @@ describe('options of the newest chart versions', () => {
             }),
         );
         const clouds = bindings.filter(({ slug }) => slug === 'word-cloud');
-        expect(clouds).toHaveLength(2);
+        // Each word cloud repeated the chart or table beside it, so none is placed on a dashboard
+        expect(clouds).toHaveLength(0);
         clouds.forEach(({ optionValues }) =>
             expect(optionValues).toMatchObject({
                 colorMode: 'shade',

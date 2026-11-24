@@ -345,7 +345,7 @@ export const analyticsTabs: {
         summary: querySummary,
         label: 'Queries',
         description:
-            'Query performance, failures, origins, caching and the metrics and dimensions people use.',
+            'How much is Lightdash queried, how fast, where from, and which fields are used?',
         dashboardSlug: 'lightdash-analytics-query-activity',
         charts: [
             time('Queries by day', 'queries', 'total_queries'),
