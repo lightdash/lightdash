@@ -68,6 +68,14 @@ viewers with `view:AiAgentThreadContext` (organization and project admins by
 default; never embed viewers). Shown collapsed at the top of the thread.
 _Avoid_: context (unqualified), initial prompt, system prompt
 
+**Thread metadata**:
+Caller-supplied string key/value labels given when a thread is created through
+the API, such as an end user's id on the caller's platform or an environment.
+A label only: it never changes what the request can access, and the agent
+never reads it. Set once at creation (at most 20 keys); returned by the thread
+APIs and shown to admins on the threads view, where they can filter by it.
+_Avoid_: tags, attributes, user attributes, custom fields
+
 **Mention**:
 Attaching content to a prompt by typing `@` and picking it from search, the
 current page, or the tiles of a pinned dashboard. A mention is one way to

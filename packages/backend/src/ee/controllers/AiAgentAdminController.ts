@@ -38,6 +38,7 @@ import {
     McpActivityFilters,
     McpActivitySort,
     McpActivityStatsFilters,
+    ParameterError,
     ReorderAiAgentReviewItems,
     UpdateAiAgentReviewItemAssignee,
     UpdateAiAgentReviewItemPriority,
@@ -113,11 +114,16 @@ export class AiAgentAdminController extends BaseController {
         @Query() dateFrom?: AiAgentAdminFilters['dateFrom'],
         @Query() dateTo?: AiAgentAdminFilters['dateTo'],
         @Query() search?: AiAgentAdminFilters['search'],
+        @Query() metadataKey?: AiAgentAdminFilters['metadataKey'],
+        @Query() metadataValue?: AiAgentAdminFilters['metadataValue'],
         // Sorting
         @Query() sortField?: AiAgentAdminSort['field'],
         @Query() sortDirection?: AiAgentAdminSort['direction'],
     ): Promise<ApiAiAgentAdminConversationsResponse> {
         assertRegisteredAccount(req.account);
+        if (metadataValue !== undefined && !metadataKey) {
+            throw new ParameterError('metadataValue requires metadataKey');
+        }
         const paginateArgs: KnexPaginateArgs | undefined =
             page !== undefined || pageSize !== undefined
                 ? {
@@ -138,6 +144,9 @@ export class AiAgentAdminController extends BaseController {
             ...(dateFrom && { dateFrom }),
             ...(dateTo && { dateTo }),
             ...(search && { search }),
+            ...(metadataKey && { metadataKey }),
+            ...(metadataKey &&
+                metadataValue !== undefined && { metadataValue }),
         };
 
         const sort: AiAgentAdminSort | undefined = sortField

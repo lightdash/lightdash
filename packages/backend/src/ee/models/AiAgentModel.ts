@@ -546,6 +546,7 @@ type AiThreadSummaryRow = Pick<
     | 'bound_entity_type'
     | 'bound_entity_uuid'
     | 'thread_context'
+    | 'thread_metadata'
 > & {
     prompt: DbAiPrompt['prompt'] | null;
     ai_prompt_uuid: DbAiPrompt['ai_prompt_uuid'] | null;
@@ -3667,6 +3668,7 @@ export class AiAgentModel {
                 `${AiThreadTableName}.bound_entity_type`,
                 `${AiThreadTableName}.bound_entity_uuid`,
                 `${AiThreadTableName}.thread_context`,
+                `${AiThreadTableName}.thread_metadata`,
                 'first_prompt.prompt',
                 'first_prompt.ai_prompt_uuid',
                 `${UserTableName}.user_uuid`,
@@ -3754,6 +3756,7 @@ export class AiAgentModel {
             liveStatus: null,
             binding: AiAgentModel.toThreadBindingSummary(row),
             threadContext: row.thread_context,
+            metadata: row.thread_metadata,
         };
     }
 
@@ -4193,6 +4196,7 @@ export class AiAgentModel {
                     project_name: DbProject['name'];
                     organization_uuid: DbAiThread['organization_uuid'];
                     project_uuid: DbAiThread['project_uuid'];
+                    thread_metadata: DbAiThread['thread_metadata'];
                 }[]
             >([
                 // Original thread fields
@@ -4202,6 +4206,7 @@ export class AiAgentModel {
                 `${AiThreadTableName}.created_from`,
                 `${AiThreadTableName}.title`,
                 `${AiThreadTableName}.title_generated_at`,
+                `${AiThreadTableName}.thread_metadata`,
                 'first_thread_prompt.prompt as first_prompt',
                 `${UserTableName}.user_uuid`,
                 this.database.raw(
@@ -4327,6 +4332,23 @@ export class AiAgentModel {
                     `%${filters.search}%`,
                 );
             }
+            if (filters.metadataKey !== undefined) {
+                if (filters.metadataValue !== undefined) {
+                    void finalQuery.whereRaw(
+                        `${AiThreadTableName}.thread_metadata @> ?::jsonb`,
+                        [
+                            JSON.stringify({
+                                [filters.metadataKey]: filters.metadataValue,
+                            }),
+                        ],
+                    );
+                } else {
+                    void finalQuery.whereRaw(
+                        `${AiThreadTableName}.thread_metadata -> ? IS NOT NULL`,
+                        [filters.metadataKey],
+                    );
+                }
+            }
         }
 
         if (sort) {
@@ -4423,6 +4445,7 @@ export class AiAgentModel {
                     promptCount: stats?.prompt_count ?? 0,
                     slackChannelId: row.slack_channel_id || null,
                     slackThreadTs: row.slack_thread_ts || null,
+                    metadata: row.thread_metadata,
                 };
             },
         );
@@ -6739,6 +6762,7 @@ export class AiAgentModel {
                         ? AiAgentModel.getThreadBindingEntityUuid(data.binding)
                         : null,
                     thread_context: data.threadContext ?? null,
+                    thread_metadata: data.metadata ?? null,
                 })
                 .returning('ai_thread_uuid');
             if (row === undefined) {

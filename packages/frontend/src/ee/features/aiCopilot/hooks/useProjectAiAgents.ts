@@ -1400,6 +1400,7 @@ export const useCreateAgentThreadMutation = (
                         liveStatus: null,
                         binding: thread.binding,
                         threadContext: thread.threadContext,
+                        metadata: thread.metadata,
                         compactions: [],
                         messages: createOptimisticMessages(
                             thread.uuid,
