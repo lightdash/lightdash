@@ -39,7 +39,7 @@ export const toolEditDbtProjectArgsSchema = z.object({
         ),
 });
 
-/** Semantic Studio's save: the change comes as a script, saved in seconds without a sandbox. */
+/** Semantic Studio's save: a script saved in seconds, or the sandbox when the script is null. */
 export const toolWriteArgsSchema = z.object({
     prompt: z
         .string()

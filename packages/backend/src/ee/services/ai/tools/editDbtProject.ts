@@ -94,7 +94,7 @@ export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
         toModelOutput: ({ output }) => toModelOutput(output),
     });
 
-/** Semantic Studio's save: always a script, always on this conversation's draft. */
+/** Semantic Studio's save: always on this conversation's draft. */
 export const getWrite = ({ editDbtProject }: Dependencies) =>
     tool({
         ...writeToolDefinition.for('agent'),
