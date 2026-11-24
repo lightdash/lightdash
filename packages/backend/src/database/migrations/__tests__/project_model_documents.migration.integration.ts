@@ -23,6 +23,10 @@ import {
     up as addProjectContextEntries,
     down as dropProjectContextEntries,
 } from '../20261124120000_add_project_context_entries_to_project_model_draft_changes';
+import {
+    up as addDiscardedBy,
+    down as dropDiscardedBy,
+} from '../20261124171501_add_discarded_by_to_project_model_draft_changes';
 
 describe('Project model documents on PostgreSQL', () => {
     let migrated: MigratedDatabase;
@@ -130,6 +134,7 @@ describe('Project model documents on PostgreSQL', () => {
 
     test('down and up remove and restore the tables', async () => {
         const { database } = migrated;
+        await database.transaction(dropDiscardedBy);
         await database.transaction(dropProjectContextEntries);
         await database.transaction(dropWorkspace);
         await database.transaction(dropBaseVersions);
@@ -145,6 +150,7 @@ describe('Project model documents on PostgreSQL', () => {
         await database.transaction(addBaseVersions);
         await database.transaction(addWorkspace);
         await database.transaction(addProjectContextEntries);
+        await database.transaction(addDiscardedBy);
         expect(await database.schema.hasTable('project_model_revisions')).toBe(
             true,
         );
