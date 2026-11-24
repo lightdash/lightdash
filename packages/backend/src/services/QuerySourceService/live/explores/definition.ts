@@ -38,7 +38,7 @@ type ApiSourceFieldDefinition = {
     filterOperators: FilterOperator[];
     /** Defaults to the API name; only SQL APIs need anything else. */
     sql?: string;
-    /** Set from an admin's edits; built-in and scanned fields have none. */
+    /** Guidance only the AI agent reads; an admin's hint replaces it. */
     aiHint?: string;
     /** Display labels by internal value, for fields that show an option's label. */
     valueLabels?: Record<string, string>;
@@ -66,7 +66,10 @@ export type LiveMetricDefinition = ApiSourceFieldDefinition & {
 export type LiveExploreDefinition = {
     name: string;
     label: string;
+    /** What the explore holds, written for people browsing it. */
     description: string;
+    /** How the AI agent should query it: defaults, caps and rules people don't need. */
+    aiHint?: string;
     dimensions: LiveDimensionDefinition[];
     metrics: LiveMetricDefinition[];
     maxDimensions: number | null;

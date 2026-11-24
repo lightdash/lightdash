@@ -1931,7 +1931,8 @@ export class ExternalConnectionService extends BaseService {
                             exploreEdit?.description ??
                             definition.description ??
                             '',
-                        aiHint: exploreEdit?.aiHint ?? null,
+                        aiHint:
+                            exploreEdit?.aiHint ?? definition.aiHint ?? null,
                         inUse: isLiveExploreInUse(
                             state.explores,
                             definition.name,

@@ -231,9 +231,10 @@ export const getLiveDefinitionHashes = memoize(
                                 label: definition.label,
                                 groupLabel: 'source',
                                 connectionUuid: 'connection',
-                                // A placeholder, so a change to how hints
-                                // are built still changes the hash
-                                aiHint: ['hint'],
+                                // A placeholder for the source's hints, so
+                                // a change to how hints are built still
+                                // changes the hash
+                                aiHint: ['hint', definition.aiHint ?? ''],
                             }),
                         ),
                     )
@@ -348,9 +349,13 @@ export const buildLiveExplores = ({
             groupLabel: label,
             connectionUuid,
             definitionHash: definitionHashes[definition.name],
-            aiHint: exploreEdit?.aiHint
-                ? [...(aiHint ?? []), exploreEdit.aiHint]
-                : aiHint,
+            // An admin's hint replaces the built-in one
+            aiHint: [
+                ...(aiHint ?? []),
+                ...[exploreEdit?.aiHint ?? definition.aiHint].filter(
+                    (hint): hint is string => Boolean(hint),
+                ),
+            ],
         });
     };
     return definitions
