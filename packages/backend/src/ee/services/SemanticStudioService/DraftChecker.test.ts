@@ -508,6 +508,65 @@ joins:
             );
         });
 
+        test('a change to a dimension type alone is checked, though its sql is the same', async () => {
+            columnTypes.fields = {
+                c0: { type: DimensionType.STRING },
+                c1: { type: DimensionType.STRING },
+            };
+            warehouse.planError = (sql) =>
+                sql.includes('NO_SUCH_FN') ? 'no such function' : null;
+            const labelled = (
+                type: string,
+            ) => `${model('orders')}  - name: label
+    type: ${type}
+    sql: \${TABLE}.label
+metrics:
+  total:
+    type: sum
+    sql: NO_SUCH_FN(\${TABLE}.id)
+`;
+            const { rejected } = await checker().check(
+                user,
+                'project',
+                new Map([['orders', labelled('string')]]),
+                new Map([['orders', labelled('number')]]),
+            );
+            expect(rejected.get('orders')).toBe(
+                "label reads a string column, but is typed differently. Use the column's type, or cast in sql to change it.",
+            );
+        });
+
+        test('a join that already fails does not block a change that does not read it', async () => {
+            const joined = (metrics: string) => `${model('orders')}joins:
+  - join: customers
+    sql_on: \${orders.id} = BAD_JOIN(\${customers.id})
+${metrics}`;
+            warehouse.planError = (sql) =>
+                sql.includes('BAD_JOIN')
+                    ? 'column missing does not exist'
+                    : null;
+            const { rejected, notes } = await checker().check(
+                user,
+                'project',
+                new Map([
+                    ['orders', joined('')],
+                    ['customers', model('customers')],
+                ]),
+                new Map([
+                    [
+                        'orders',
+                        joined(
+                            'metrics:\n  total:\n    type: count\n    sql: ${TABLE}.id\n',
+                        ),
+                    ],
+                ]),
+            );
+            expect(rejected.size).toBe(0);
+            expect(notes.get('orders')?.[0]).toBe(
+                'orders already had a problem before this change, which leaves it as it was. The warehouse rejected this model: column missing does not exist',
+            );
+        });
+
         test('a change that adds its own failure behind the old one is still rejected', async () => {
             const { rejected } = await check(
                 broken,

@@ -158,11 +158,14 @@ const compileDocuments = async (
     return { explores, quote: warehouseSqlBuilder.getFieldQuoteChar() };
 };
 
-/** The fields of a model a change can break, by name: new or altered SQL, every field on a new table, and those reading a changed join; null when nothing is. */
-const findTouchedFields = (
+type Touched = { fields: Set<string>; joins: Set<string> };
+
+/** What of a model a change can break: fields with new SQL or type, every field on a new table, and the joins it changes with the fields reading them; null when nothing. */
+const findTouched = (
     explore: Explore,
     before: Explore,
-): Set<string> | null => {
+    changedDimensions: Set<string>,
+): Touched | null => {
     const base = explore.tables[explore.baseTable];
     const was = before.tables[before.baseTable];
     const fields = [
@@ -176,7 +179,10 @@ const findTouchedFields = (
         })),
     ];
     if (base.sqlTable !== was.sqlTable) {
-        return new Set(fields.map(({ name }) => name));
+        return {
+            fields: new Set(fields.map(({ name }) => name)),
+            joins: new Set(explore.joinedTables.map(({ table }) => table)),
+        };
     }
     const joinOf = ({ tables, joinedTables }: Explore, table: string) => {
         const join = joinedTables.find((joined) => joined.table === table);
@@ -191,13 +197,17 @@ const findTouchedFields = (
             ),
     );
     const touched = fields.filter(
-        ({ compiledSql, wasSql, tablesReferences }) =>
+        ({ name, compiledSql, wasSql, tablesReferences }) =>
             wasSql !== compiledSql ||
+            changedDimensions.has(name) ||
             (tablesReferences ?? []).some((table) => changedJoins.has(table)),
     );
     return touched.length === 0 && changedJoins.size === 0
         ? null
-        : new Set(touched.map(({ name }) => name));
+        : {
+              fields: new Set(touched.map(({ name }) => name)),
+              joins: changedJoins,
+          };
 };
 
 /** Checks drafted models against the compiler, the query builder and the warehouse before they may go live. */
@@ -370,16 +380,46 @@ export class DraftChecker {
         explore: Explore,
         quote: string,
         changedDimensions: Set<string>,
-        /** The fields to plan, by name; null plans them all. */
-        only: Set<string> | null = null,
+        /** The fields and joins to plan, with the joins those fields read; null plans them all. */
+        only: Touched | null = null,
     ): Promise<string | null> {
         const base = explore.tables[explore.baseTable];
         const alias = (name: string) => `${quote}${name}${quote}`;
         const planned = ({ name }: { name: string }) =>
-            only === null || only.has(name);
+            only === null || only.fields.has(name);
+        const allJoins = explore.joinedTables.map(({ table }) => table);
+        const needed = new Set(
+            only === null
+                ? allJoins
+                : [
+                      ...only.joins,
+                      ...[
+                          ...Object.values(base.dimensions),
+                          ...Object.values(base.metrics),
+                      ]
+                          .filter(planned)
+                          .flatMap(
+                              ({ tablesReferences }) =>
+                                  tablesReferences ?? allJoins,
+                          ),
+                  ],
+        );
+        // A join can read an earlier one, so walk them back to front.
+        [...explore.joinedTables]
+            .reverse()
+            .forEach(({ table, tablesReferences }) => {
+                if (needed.has(table)) {
+                    (tablesReferences ?? allJoins).forEach((t) =>
+                        needed.add(t),
+                    );
+                }
+            });
+        const joins = explore.joinedTables.filter(({ table }) =>
+            needed.has(table),
+        );
         const tables = [
             base,
-            ...explore.joinedTables.map(({ table }) => explore.tables[table]),
+            ...joins.map(({ table }) => explore.tables[table]),
         ];
         // A table that requires a partition filter refuses a query without a predicate on its partition column, even one that reads nothing.
         const partitionFilters = new Map(
@@ -407,7 +447,7 @@ export class DraftChecker {
             `(SELECT * FROM ${sqlTable} AS no_rows WHERE 1 = 0${partitionFilters.get(sqlTable) ?? ''})`;
         const from = [
             `${noRows(base.sqlTable)} AS ${alias(base.name)}`,
-            ...explore.joinedTables.map(
+            ...joins.map(
                 (join) =>
                     `LEFT JOIN ${noRows(explore.tables[join.table].sqlTable)} AS ${alias(join.table)} ON ${join.compiledSqlOn}`,
             ),
@@ -518,7 +558,7 @@ export class DraftChecker {
             new Set(),
         );
         if (already === null) return { error, already: null };
-        const touched = findTouchedFields(explore, before);
+        const touched = findTouched(explore, before, changedDimensions);
         if (touched === null) return { error: null, already };
         return {
             error: await this.findWarehouseError(
