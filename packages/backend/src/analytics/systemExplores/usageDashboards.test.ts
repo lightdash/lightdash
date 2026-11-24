@@ -551,8 +551,10 @@ describe('built-in usage dashboards', () => {
                         chartConfig.type === ChartType.BIG_NUMBER,
                 )!;
                 expect(count.metricQuery.dimensions).toEqual([]);
+                // The count, then the members it is a part of for the card's bar
                 expect(count.metricQuery.metrics).toEqual([
                     'people_adoption_people_without_observed_activity',
+                    'people_adoption_eligible_people',
                 ]);
                 for (const chart of populationCharts.filter(
                     ({ chartConfig }) => chartConfig.type === ChartType.TABLE,
@@ -1204,7 +1206,10 @@ describe('built-in usage dashboards', () => {
                     await db.runAndReadAll(compile(chart).query)
                 ).getRowObjectsJS();
             expect(await query(count)).toEqual([
-                { people_adoption_people_without_observed_activity: 4n },
+                {
+                    people_adoption_people_without_observed_activity: 4n,
+                    people_adoption_eligible_people: 6n,
+                },
             ]);
             const unobservedRows = await query(noObserved);
             expect(
@@ -1266,13 +1271,19 @@ describe('built-in usage dashboards', () => {
                 SELECT org_id,user_id,TIMESTAMP '2026-10-20 12:00:00','user',true
                 FROM lightdash_people WHERE is_eligible`);
             expect(await query(count)).toEqual([
-                { people_adoption_people_without_observed_activity: 0n },
+                {
+                    people_adoption_people_without_observed_activity: 0n,
+                    people_adoption_eligible_people: 6n,
+                },
             ]);
             expect(await query(noObserved)).toEqual([]);
             expect(await query(inactive30d)).toEqual([]);
             await db.run('DELETE FROM lightdash_people');
             expect(await query(count)).toEqual([
-                { people_adoption_people_without_observed_activity: 0n },
+                {
+                    people_adoption_people_without_observed_activity: 0n,
+                    people_adoption_eligible_people: 0n,
+                },
             ]);
         } finally {
             db.closeSync();

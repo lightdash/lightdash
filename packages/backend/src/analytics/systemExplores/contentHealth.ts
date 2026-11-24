@@ -1,4 +1,4 @@
-import { MetricType } from '@lightdash/common';
+import { FilterOperator, MetricType } from '@lightdash/common';
 import { contentInventoryColumns } from '../eventStream/contentInventory';
 import type { CompactedStreamColumn } from '../eventStream/types';
 import { customerContentSql } from './contentInventory';
@@ -128,6 +128,32 @@ export const contentHealthMetrics: SystemMetricDefinition[] = [
         description:
             'Items in the latest inventory snapshot, including zero-event and soft-deleted items. Filter Is deleted to exclude removed content.',
     },
+    ...(
+        [
+            ['content_with_activity', 'Activity observed'],
+            [
+                'content_in_use_without_activity',
+                'No activity observed; known dependency',
+            ],
+            [
+                'content_without_activity',
+                'No activity observed; coverage incomplete',
+            ],
+        ] as const
+    ).map(([name, status]) => ({
+        name,
+        type: MetricType.COUNT,
+        column: 'content_id',
+        description: `Items whose activity status is "${status}". Divide by Total content for the share of all content.`,
+        filters: [
+            {
+                id: name,
+                target: { fieldRef: 'activity_status' },
+                operator: FilterOperator.EQUALS,
+                values: [status],
+            },
+        ],
+    })),
     {
         name: 'total_enabled_schedules',
         type: MetricType.SUM,

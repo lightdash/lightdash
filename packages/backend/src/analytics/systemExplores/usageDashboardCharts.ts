@@ -3,11 +3,13 @@ import {
     FilterOperator,
     TableCalculationType,
 } from '@lightdash/common';
+import { positive } from './analyticsChartPresentation';
 import { modelProviderColors, modelTierRanks } from './analyticsColorPalette';
 import {
     heatmapColorClamp,
     heatmapColorClampNote,
     numberCard,
+    wholeShare,
 } from './chartBuilders';
 import { monthlyQueryComparisonCharts } from './monthlyQueryComparisonCharts';
 import type { UsageChartSpec } from './usageDashboardTypes';
@@ -255,6 +257,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'semantic_usage_total_queries',
         ],
         tableCalculations: [
+            wholeShare,
             {
                 name: 'field_list_share',
                 displayName: 'Share of queries with a full field list',
@@ -271,7 +274,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         libraryChart: numberCard(
             'field_list_share',
             'Of all queries in the selected period',
-            true,
+            { percent: true, whole: wholeShare.name, color: positive },
         ),
     },
     {
@@ -1006,10 +1009,13 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
         ],
         visualization: 'number',
+        tableCalculations: [wholeShare],
+        hiddenColumns: [wholeShare.name],
+        yFields: ['content_reach_verified_audience_share'],
         libraryChart: numberCard(
             'content_reach_verified_audience_share',
             'Of viewers of content with a known status',
-            true,
+            { percent: true, whole: wholeShare.name, color: positive },
         ),
     },
     {

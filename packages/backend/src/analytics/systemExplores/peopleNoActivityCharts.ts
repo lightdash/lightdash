@@ -1,4 +1,5 @@
 import { TableCalculationType } from '@lightdash/common';
+import { caution } from './analyticsChartPresentation';
 import { numberCard } from './chartBuilders';
 import type { UsageChartSpec } from './usageDashboardTypes';
 
@@ -25,13 +26,23 @@ export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
             'Members with an active account and finished setup who have no confirmed human activity in recorded history. If this shows zero, check that the membership snapshot is available.',
         explore: 'people_adoption',
         dimensions: [],
-        metrics: ['people_adoption_people_without_observed_activity'],
+        // Then the members it is a part of, for the card's bar
+        metrics: [
+            'people_adoption_people_without_observed_activity',
+            'people_adoption_eligible_people',
+        ],
+        yFields: ['people_adoption_people_without_observed_activity'],
         limit: 1,
         sorts: [],
         visualization: 'number',
         libraryChart: numberCard(
             'people_adoption_people_without_observed_activity',
             'Members with no activity of their own',
+            {
+                whole: 'people_adoption_eligible_people',
+                wholeLabel: 'of members with a finished account',
+                color: caution,
+            },
         ),
     },
     {

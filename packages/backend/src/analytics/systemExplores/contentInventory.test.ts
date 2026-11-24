@@ -322,6 +322,79 @@ describe('Content inventory charts', () => {
         expect(before.inventory).toBeGreaterThan(0);
     });
 
+    it('lists what to clean up and which dashboards need an owner, one row for each item in plain words', async () => {
+        await db.run(
+            `INSERT INTO lightdash_content (org_id, project_id, project_name, project_type, content_type, content_id, content_name, space_name, created_at, is_deleted, owner_status, owner_name, enabled_schedules, dashboard_references)
+             VALUES ('org', 'p2', 'Sales', 'DEFAULT', 'saved_chart', 'old-chart', 'Pipeline by stage', 'Forecasts', '2026-06-03', false, 'Not recorded', NULL, 0, 0),
+                    ('org', 'p2', 'Sales', 'DEFAULT', 'saved_chart', 'used-chart', 'Win rate', 'Forecasts', '2026-02-10', false, 'Not recorded', NULL, 1, 2),
+                    ('org', 'p2', 'Sales', 'DEFAULT', 'dashboard', 'left-dash', 'Quarterly review', 'Board', '2026-01-15', false, 'Deactivated', 'Dana Whitcombe', 0, 0)`,
+        );
+        const rowsOf = async (key: string) => {
+            const chart = analyticsContentAsCode
+                .flatMap((bundle) => bundle.charts)
+                .find(({ slug }) => slug.endsWith(`-${key}`))!;
+            expect(chart.chartConfig.type).toBe(ChartType.TABLE);
+            // A plain table in both versions: text columns, no grouping
+            expect(analyticsLibraryChartBindings.has(chart.slug)).toBe(false);
+            return (
+                await db.runAndReadAll(
+                    compile({
+                        ...chart.metricQuery,
+                        filters: chart.metricQuery.filters as Filters,
+                    } as MetricQuery).query,
+                )
+            ).getRowObjectsJS();
+        };
+        const review = await rowsOf(
+            'review-candidates-activity-and-known-dependencies',
+        );
+        const shown = (row: Record<string, unknown>) => [
+            row.content_health_content_name,
+            row.content_health_content_type_name,
+            row.where_it_lives,
+            row.created_on,
+            row.used_by,
+            row.review_status,
+        ];
+        // Items nothing uses come first, and say so
+        expect(review[0].review_status).toBe('Nothing uses it: check first');
+        expect(review.map((row) => row.review_status).join('|')).toMatch(
+            /^(Nothing uses it: check first\|?)+(Still on a dashboard or schedule\|?)*$/,
+        );
+        expect(review.map(shown)).toContainEqual([
+            'Pipeline by stage',
+            'Chart',
+            'Sales / Forecasts',
+            'Jun 3, 2026',
+            'Nothing',
+            'Nothing uses it: check first',
+        ]);
+        expect(review.map(shown)).toContainEqual([
+            'Win rate',
+            'Chart',
+            'Sales / Forecasts',
+            'Feb 10, 2026',
+            '2 dashboards, 1 schedule',
+            'Still on a dashboard or schedule',
+        ]);
+        const owners = await rowsOf('content-owners-needing-review');
+        expect(
+            owners.map((row) => [
+                row.content_health_content_name,
+                row.where_it_lives,
+                row.owner_shown,
+                row.last_viewed,
+                Number(row.content_health_total_observed_views),
+            ]),
+        ).toContainEqual([
+            'Quarterly review',
+            'Sales / Board',
+            'Dana Whitcombe (deactivated)',
+            'Never',
+            0,
+        ]);
+    });
+
     it('runs the built-in query without any event or user tables', async () => {
         for (const table of [
             'content_views',
