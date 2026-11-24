@@ -37,14 +37,13 @@ const memoryStorage = () => {
 
 const inlinePool = () => {
     const build = vi.fn<ResultsPageWorkerHandle['build']>(
-        async (lines, buildFormat) => {
+        (lines, buildFormat) => {
             const rows = Buffer.from(
                 buildResultsPageRowsJson(lines, buildFormat),
             );
             return {
-                rows,
-                compressed: zlib.brotliCompressSync(rows),
-                rowCount: lines.length,
+                rows: Promise.resolve({ rows, rowCount: lines.length }),
+                compressed: Promise.resolve(zlib.brotliCompressSync(rows)),
             };
         },
     );
@@ -155,6 +154,9 @@ describe('StoredResultsPages', () => {
         );
 
         await pages.getRows(args);
+        await vi.waitFor(() => {
+            expect(storage.putObjectBytes).toHaveBeenCalled();
+        });
         const during = await pages.getRows(args);
         finishUpload();
 
@@ -225,6 +227,51 @@ describe('StoredResultsPages', () => {
         ).toEqual(expectedRows);
     });
 
+    test('answers before the brotli copy is ready', async () => {
+        const { storage, build, pages, args, key, settle } = setup();
+        let finishCompression!: (compressed: Buffer) => void;
+        build.mockImplementationOnce(() => ({
+            rows: Promise.resolve({
+                rows: expectedRows,
+                rowCount: resultsPageLines.length,
+            }),
+            compressed: new Promise<Buffer>((resolve) => {
+                finishCompression = resolve;
+            }),
+        }));
+
+        const result = await pages.getRows(args);
+
+        expect(result.rows.equals(expectedRows)).toBe(true);
+        expect(storage.putObjectBytes).not.toHaveBeenCalled();
+        finishCompression(zlib.brotliCompressSync(expectedRows));
+        await settle();
+        expect(storage.objects.has(key)).toBe(true);
+    });
+
+    test('a compression failure after the rows still answers and stores nothing', async () => {
+        const { storage, build, pages, args, settle } = setup();
+        build.mockImplementationOnce(() => {
+            const compressed = Promise.reject(
+                new ResultsPageWorkerError('crashed while compressing'),
+            );
+            compressed.catch(() => undefined);
+            return {
+                rows: Promise.resolve({
+                    rows: expectedRows,
+                    rowCount: resultsPageLines.length,
+                }),
+                compressed,
+            };
+        });
+
+        const result = await pages.getRows(args);
+        await settle();
+
+        expect(result.rows.equals(expectedRows)).toBe(true);
+        expect(storage.putObjectBytes).not.toHaveBeenCalled();
+    });
+
     test('an upload error still answers with the built page', async () => {
         const { storage, pages, args, settle } = setup();
         storage.putObjectBytes.mockRejectedValueOnce(new Error('AccessDenied'));
@@ -238,7 +285,12 @@ describe('StoredResultsPages', () => {
 
     test('a worker error rejects with ResultsPageWorkerError and is not kept', async () => {
         const { storage, build, pages, args, settle } = setup();
-        build.mockRejectedValueOnce(new ResultsPageWorkerError('crashed'));
+        build.mockImplementationOnce(() => {
+            const error = new ResultsPageWorkerError('crashed');
+            const rejected = Promise.reject(error);
+            rejected.catch(() => undefined);
+            return { rows: rejected, compressed: rejected };
+        });
 
         await expect(pages.getRows(args)).rejects.toBeInstanceOf(
             ResultsPageWorkerError,

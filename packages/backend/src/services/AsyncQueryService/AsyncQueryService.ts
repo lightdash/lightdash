@@ -612,7 +612,7 @@ import {
 
 const COMPOSE_MERGE_JOIN_NODE_ID = 'merge';
 
-const STORED_RESULTS_PAGE_BROTLI_QUALITY = 4;
+const STORED_RESULTS_PAGE_BROTLI_QUALITY = 5;
 
 type ResultsPageRows =
     | { kind: 'objects'; rows: ResultRow[] }

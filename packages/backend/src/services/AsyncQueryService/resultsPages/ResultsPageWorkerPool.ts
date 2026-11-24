@@ -13,10 +13,14 @@ export class ResultsPageWorkerError extends Error {
     }
 }
 
-export type ResultsPageBuild = {
+export type ResultsPageBuiltRows = {
     rows: Buffer;
-    compressed: Buffer;
     rowCount: number;
+};
+
+export type ResultsPageBuildJob = {
+    rows: Promise<ResultsPageBuiltRows>;
+    compressed: Promise<Buffer>;
 };
 
 export type ResultsPageWorkerLike = {
@@ -35,7 +39,7 @@ export type ResultsPageWorkerHandle = {
     build(
         lines: string[],
         format: ResultsPageFormatInputs,
-    ): Promise<ResultsPageBuild>;
+    ): ResultsPageBuildJob;
 };
 
 const resolveWorkerEntry = () => {
@@ -60,14 +64,31 @@ export const createResultsPageWorker = (): ResultsPageWorkerLike => {
 const toBuffer = (bytes: Uint8Array) =>
     Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 
+type Deferred<T> = {
+    promise: Promise<T>;
+    resolve: (value: T) => void;
+    reject: (error: Error) => void;
+};
+
+const deferred = <T>(): Deferred<T> => {
+    let resolve!: (value: T) => void;
+    let reject!: (error: Error) => void;
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    promise.catch(() => undefined);
+    return { promise, resolve, reject };
+};
+
 class PooledWorker implements ResultsPageWorkerHandle {
     private worker: ResultsPageWorkerLike | undefined;
 
     private pending:
         | {
               id: number;
-              resolve: (build: ResultsPageBuild) => void;
-              reject: (error: Error) => void;
+              rows: Deferred<ResultsPageBuiltRows>;
+              compressed: Deferred<Buffer>;
           }
         | undefined;
 
@@ -82,30 +103,56 @@ class PooledWorker implements ResultsPageWorkerHandle {
     build(
         lines: string[],
         format: ResultsPageFormatInputs,
-    ): Promise<ResultsPageBuild> {
+    ): ResultsPageBuildJob {
         this.nextId += 1;
         const id = this.nextId;
-        return new Promise<ResultsPageBuild>((resolve, reject) => {
-            this.pending = { id, resolve, reject };
-            try {
-                const worker = this.ensureWorker();
-                worker.postMessage({
-                    id,
-                    lines,
-                    format,
-                    brotliQuality: this.brotliQuality,
-                });
-            } catch (error) {
-                this.pending = undefined;
-                reject(
-                    new ResultsPageWorkerError(
-                        `Could not start the results page build: ${
-                            error instanceof Error ? error.message : error
-                        }`,
-                    ),
-                );
-            }
-        });
+        const job = {
+            id,
+            rows: deferred<ResultsPageBuiltRows>(),
+            compressed: deferred<Buffer>(),
+        };
+        this.pending = job;
+        try {
+            this.ensureWorker().postMessage({
+                id,
+                lines,
+                format,
+                brotliQuality: this.brotliQuality,
+            });
+        } catch (error) {
+            this.fail(
+                `Could not start the results page build: ${
+                    error instanceof Error ? error.message : error
+                }`,
+            );
+        }
+        return { rows: job.rows.promise, compressed: job.compressed.promise };
+    }
+
+    private fail(message: string) {
+        const { pending } = this;
+        this.pending = undefined;
+        const error = new ResultsPageWorkerError(message);
+        pending?.rows.reject(error);
+        pending?.compressed.reject(error);
+    }
+
+    private onMessage(response: ResultsPageWorkerResponse) {
+        const { pending } = this;
+        if (!pending || pending.id !== response.id) return;
+        if (!response.ok) {
+            this.fail(response.message);
+            return;
+        }
+        if (response.phase === 'rows') {
+            pending.rows.resolve({
+                rows: toBuffer(response.rows),
+                rowCount: response.rowCount,
+            });
+            return;
+        }
+        this.pending = undefined;
+        pending.compressed.resolve(toBuffer(response.compressed));
     }
 
     private ensureWorker(): ResultsPageWorkerLike {
@@ -113,20 +160,7 @@ class PooledWorker implements ResultsPageWorkerHandle {
         const worker = this.createWorker();
         this.onWorkerStarted();
         worker.unref();
-        worker.on('message', (response) => {
-            const { pending } = this;
-            if (!pending || pending.id !== response.id) return;
-            this.pending = undefined;
-            if (response.ok) {
-                pending.resolve({
-                    rows: toBuffer(response.rows),
-                    compressed: toBuffer(response.compressed),
-                    rowCount: response.rowCount,
-                });
-            } else {
-                pending.reject(new ResultsPageWorkerError(response.message));
-            }
-        });
+        worker.on('message', (response) => this.onMessage(response));
         worker.on('error', (error) => {
             this.discard(
                 worker,
@@ -146,9 +180,7 @@ class PooledWorker implements ResultsPageWorkerHandle {
     private discard(worker: ResultsPageWorkerLike, message: string) {
         if (this.worker !== worker) return;
         this.worker = undefined;
-        const { pending } = this;
-        this.pending = undefined;
-        pending?.reject(new ResultsPageWorkerError(message));
+        this.fail(message);
         void worker.terminate().catch(() => undefined);
     }
 }

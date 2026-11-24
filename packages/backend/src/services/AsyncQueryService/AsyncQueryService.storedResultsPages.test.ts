@@ -205,12 +205,11 @@ describe('AsyncQueryService stored results pages', () => {
     test('flag on: a second request reads no JSONL and formats nothing', async () => {
         const [, format] = formatCases[0];
         const { pool, build } = inlineBuildPool();
-        build.mockImplementation(async (lines) => {
+        build.mockImplementation((lines) => {
             const rows = Buffer.from(`[${lines.join(',')}]`);
             return {
-                rows,
-                compressed: zlib.brotliCompressSync(rows),
-                rowCount: lines.length,
+                rows: Promise.resolve({ rows, rowCount: lines.length }),
+                compressed: Promise.resolve(zlib.brotliCompressSync(rows)),
             };
         });
         const { service, resultsStorageClient } = buildService({
@@ -381,7 +380,13 @@ describe('AsyncQueryService stored results pages', () => {
     test("flag on: a worker error falls back to today's inline path", async () => {
         const [, format] = formatCases[1];
         const { pool, build } = inlineBuildPool();
-        build.mockRejectedValue(new ResultsPageWorkerError('crashed'));
+        build.mockImplementation(() => {
+            const rejected = Promise.reject(
+                new ResultsPageWorkerError('crashed'),
+            );
+            rejected.catch(() => undefined);
+            return { rows: rejected, compressed: rejected };
+        });
         const { service, logger, resultsStorageClient } = buildService({
             history: buildHistory(format),
             flagEnabled: true,

@@ -4,7 +4,7 @@ import zlib from 'zlib';
 import Logger from '../../../logging/logger';
 import type { ResultsPageFormatInputs } from './buildResultsPageRows';
 import type {
-    ResultsPageBuild,
+    ResultsPageBuiltRows,
     ResultsPageWorkerPool,
 } from './ResultsPageWorkerPool';
 import { getStoredResultsPageKey } from './storedResultsPageKey';
@@ -73,30 +73,59 @@ export class StoredResultsPages {
         const existing = this.inFlight.get(key);
         if (existing) return existing;
 
-        let upload: Promise<void> = Promise.resolve();
-        const rows = (async (): Promise<StoredResultsPageRows> => {
-            const stored = await this.readStored(args.storage, key);
-            if (stored) return { ...stored, source: 'stored' };
-            const built = await this.options.pool.withWorker(async (worker) =>
-                worker.build(await args.readPageLines(), args.format),
-            );
-            upload = this.upload(args.storage, key, built);
-            return {
-                rows: built.rows,
-                rowCount: built.rowCount,
-                source: 'built',
-            };
-        })();
+        let resolveRows!: (rows: StoredResultsPageRows) => void;
+        let rejectRows!: (error: unknown) => void;
+        const rows = new Promise<StoredResultsPageRows>((resolve, reject) => {
+            resolveRows = resolve;
+            rejectRows = reject;
+        });
         this.inFlight.set(key, rows);
-        void rows
-            .then(
-                () => upload,
-                () => undefined,
-            )
-            .finally(() => {
-                if (this.inFlight.get(key) === rows) this.inFlight.delete(key);
-            });
+        void this.load(args, key, resolveRows, rejectRows).finally(() => {
+            if (this.inFlight.get(key) === rows) this.inFlight.delete(key);
+        });
         return rows;
+    }
+
+    private async load(
+        args: GetStoredResultsPageRowsArgs,
+        key: string,
+        resolveRows: (rows: StoredResultsPageRows) => void,
+        rejectRows: (error: unknown) => void,
+    ): Promise<void> {
+        const state = { rowsSent: false };
+        try {
+            const stored = await this.readStored(args.storage, key);
+            if (stored) {
+                resolveRows({ ...stored, source: 'stored' });
+                return;
+            }
+            const { built, compressed } = await this.options.pool.withWorker(
+                async (worker) => {
+                    const job = worker.build(
+                        await args.readPageLines(),
+                        args.format,
+                    );
+                    const builtRows = await job.rows;
+                    state.rowsSent = true;
+                    resolveRows({ ...builtRows, source: 'built' });
+                    return {
+                        built: builtRows,
+                        compressed: await job.compressed,
+                    };
+                },
+            );
+            await this.upload(args.storage, key, built, compressed);
+        } catch (error) {
+            if (!state.rowsSent) {
+                rejectRows(error);
+                return;
+            }
+            Logger.warn(
+                `Could not compress results page ${key}: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
     }
 
     private async readStored(
@@ -160,15 +189,16 @@ export class StoredResultsPages {
     private async upload(
         storage: StoredResultsPagesStorage,
         key: string,
-        built: ResultsPageBuild,
+        built: ResultsPageBuiltRows,
+        compressed: Buffer,
     ): Promise<void> {
         try {
-            await storage.putObjectBytes(key, built.compressed, {
+            await storage.putObjectBytes(key, compressed, {
                 [rowCountMetadataKey]: String(built.rowCount),
                 [rawBytesMetadataKey]: String(built.rows.length),
             });
             Logger.info(
-                `Stored results page ${key}: ${built.rowCount} rows, ${built.rows.length} bytes, ${built.compressed.length} bytes stored`,
+                `Stored results page ${key}: ${built.rowCount} rows, ${built.rows.length} bytes, ${compressed.length} bytes stored`,
             );
         } catch (error) {
             Logger.warn(

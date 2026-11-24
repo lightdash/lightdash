@@ -12,44 +12,45 @@ const ownsWholeBuffer = (bytes: Uint8Array) =>
 const transferable = (bytes: Uint8Array): Uint8Array =>
     ownsWholeBuffer(bytes) ? bytes : new Uint8Array(bytes);
 
+const post = (response: ResultsPageWorkerResponse, transfer: Uint8Array[]) => {
+    parentPort?.postMessage(
+        response,
+        transfer.map((bytes) => bytes.buffer as ArrayBuffer),
+    );
+};
+
 const build = ({
     id,
     lines,
     format,
     brotliQuality,
-}: ResultsPageWorkerRequest): ResultsPageWorkerResponse => {
-    const rows = transferable(
-        Buffer.from(buildResultsPageRowsJson(lines, format)),
-    );
+}: ResultsPageWorkerRequest) => {
+    const json = buildResultsPageRowsJson(lines, format);
+    const rows = transferable(Buffer.from(json));
+    const rawLength = rows.byteLength;
+    post({ id, ok: true, phase: 'rows', rows, rowCount: lines.length }, [rows]);
     const compressed = transferable(
-        zlib.brotliCompressSync(rows, {
+        zlib.brotliCompressSync(json, {
             params: {
                 [zlib.constants.BROTLI_PARAM_QUALITY]: brotliQuality,
-                [zlib.constants.BROTLI_PARAM_SIZE_HINT]: rows.byteLength,
+                [zlib.constants.BROTLI_PARAM_SIZE_HINT]: rawLength,
             },
         }),
     );
-    return { id, ok: true, rows, compressed, rowCount: lines.length };
+    post({ id, ok: true, phase: 'compressed', compressed }, [compressed]);
 };
 
 parentPort?.on('message', (request: ResultsPageWorkerRequest) => {
-    let response: ResultsPageWorkerResponse;
     try {
-        response = build(request);
+        build(request);
     } catch (error) {
-        response = {
-            id: request.id,
-            ok: false,
-            message: error instanceof Error ? error.message : String(error),
-        };
+        post(
+            {
+                id: request.id,
+                ok: false,
+                message: error instanceof Error ? error.message : String(error),
+            },
+            [],
+        );
     }
-    parentPort?.postMessage(
-        response,
-        response.ok
-            ? [
-                  response.rows.buffer as ArrayBuffer,
-                  response.compressed.buffer as ArrayBuffer,
-              ]
-            : [],
-    );
 });

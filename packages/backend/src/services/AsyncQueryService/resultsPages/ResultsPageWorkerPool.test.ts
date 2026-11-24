@@ -5,12 +5,10 @@ import { formatCases, resultsPageLines } from './resultsPageFixtures.mock';
 import {
     ResultsPageWorkerError,
     ResultsPageWorkerPool,
+    type ResultsPageBuildJob,
     type ResultsPageWorkerLike,
 } from './ResultsPageWorkerPool';
-import type {
-    ResultsPageWorkerRequest,
-    ResultsPageWorkerResponse,
-} from './resultsPageWorkerProtocol';
+import type { ResultsPageWorkerRequest } from './resultsPageWorkerProtocol';
 
 const [, plainFormat] = formatCases[0];
 
@@ -23,16 +21,21 @@ class FakeWorker extends EventEmitter implements ResultsPageWorkerLike {
         this.requests.push(request);
     }
 
-    reply(response: Partial<ResultsPageWorkerResponse> = {}) {
+    reply() {
         const request = this.requests[this.requests.length - 1];
         const rows = Buffer.from(`[${request.lines.join(',')}]`);
         this.emit('message', {
             id: request.id,
             ok: true,
+            phase: 'rows',
             rows: new Uint8Array(rows),
-            compressed: new Uint8Array(zlib.brotliCompressSync(rows)),
             rowCount: request.lines.length,
-            ...response,
+        });
+        this.emit('message', {
+            id: request.id,
+            ok: true,
+            phase: 'compressed',
+            compressed: new Uint8Array(zlib.brotliCompressSync(rows)),
         });
     }
 
@@ -57,6 +60,17 @@ const fakePool = (size: number) => {
     });
     return { pool, workers };
 };
+
+const buildAll = (
+    pool: ResultsPageWorkerPool,
+    lines: string[],
+    format = plainFormat,
+) =>
+    pool.withWorker(async (worker) => {
+        const job = worker.build(lines, format);
+        const built = await job.rows;
+        return { ...built, compressed: await job.compressed };
+    });
 
 const flush = () =>
     new Promise<void>((resolve) => {
@@ -135,9 +149,7 @@ describe('ResultsPageWorkerPool', () => {
     test('returns the rows, the brotli copy and the row count', async () => {
         const { pool, workers } = fakePool(1);
 
-        const build = pool.withWorker((worker) =>
-            worker.build(['{"a":1}', '{"a":2}'], plainFormat),
-        );
+        const build = buildAll(pool, ['{"a":1}', '{"a":2}'], plainFormat);
         await flush();
         workers[0].reply();
         const result = await build;
@@ -154,12 +166,34 @@ describe('ResultsPageWorkerPool', () => {
         });
     });
 
+    test('hands over the rows before the brotli copy is ready', async () => {
+        const { pool, workers } = fakePool(1);
+        let job!: ResultsPageBuildJob;
+        const done = pool.withWorker(async (worker) => {
+            job = worker.build(['{"a":1}'], plainFormat);
+            await job.compressed.catch(() => undefined);
+        });
+        await flush();
+        workers[0].emit('message', {
+            id: workers[0].requests[0].id,
+            ok: true,
+            phase: 'rows',
+            rows: new Uint8Array(Buffer.from('[{"a":1}]')),
+            rowCount: 1,
+        });
+
+        await expect(job.rows).resolves.toMatchObject({ rowCount: 1 });
+        workers[0].emit('error', new Error('crashed while compressing'));
+        await expect(job.compressed).rejects.toBeInstanceOf(
+            ResultsPageWorkerError,
+        );
+        await done;
+    });
+
     test('rejects with a worker error when the worker reports a failure', async () => {
         const { pool, workers } = fakePool(1);
 
-        const build = pool.withWorker((worker) =>
-            worker.build(['not json'], plainFormat),
-        );
+        const build = buildAll(pool, ['not json'], plainFormat);
         await flush();
         workers[0].emit('message', {
             id: workers[0].requests[0].id,
@@ -174,18 +208,14 @@ describe('ResultsPageWorkerPool', () => {
     test('replaces a crashed worker and keeps serving builds', async () => {
         const { pool, workers } = fakePool(1);
 
-        const crashed = pool.withWorker((worker) =>
-            worker.build(['{"a":1}'], plainFormat),
-        );
+        const crashed = buildAll(pool, ['{"a":1}'], plainFormat);
         await flush();
         workers[0].emit('error', new Error('out of memory'));
         workers[0].emit('exit', 1);
         await expect(crashed).rejects.toBeInstanceOf(ResultsPageWorkerError);
         expect(workers[0].terminated).toBe(true);
 
-        const next = pool.withWorker((worker) =>
-            worker.build(['{"a":2}'], plainFormat),
-        );
+        const next = buildAll(pool, ['{"a":2}'], plainFormat);
         await flush();
         expect(workers).toHaveLength(2);
         workers[1].reply();
@@ -204,7 +234,7 @@ describe('ResultsPageWorkerPool', () => {
         });
 
         await expect(
-            pool.withWorker((worker) => worker.build(['{}'], plainFormat)),
+            buildAll(pool, ['{}'], plainFormat),
         ).rejects.toBeInstanceOf(ResultsPageWorkerError);
     });
 });
@@ -218,9 +248,7 @@ describe('the real results page worker entry', () => {
                 brotliQuality: 4,
             });
 
-            const result = await pool.withWorker((worker) =>
-                worker.build([...resultsPageLines], format),
-            );
+            const result = await buildAll(pool, [...resultsPageLines], format);
 
             expect(result.rows.toString()).toBe(
                 buildResultsPageRowsJson(resultsPageLines, format),
@@ -238,12 +266,10 @@ describe('the real results page worker entry', () => {
         const pool = new ResultsPageWorkerPool({ size: 1, brotliQuality: 4 });
 
         await expect(
-            pool.withWorker((worker) =>
-                worker.build(['{"a":1}', '{not json'], plainFormat),
-            ),
+            buildAll(pool, ['{"a":1}', '{not json'], plainFormat),
         ).rejects.toBeInstanceOf(ResultsPageWorkerError);
         await expect(
-            pool.withWorker((worker) => worker.build(['{"a":1}'], plainFormat)),
+            buildAll(pool, ['{"a":1}'], plainFormat),
         ).resolves.toMatchObject({ rowCount: 1 });
         expect(pool.workersStarted).toBe(1);
     }, 30_000);
