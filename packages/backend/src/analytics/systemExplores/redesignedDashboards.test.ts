@@ -267,15 +267,6 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'pie',
             ],
             ['content-owners-needing-review', 0, 5, 36, 7, null, 'table'],
-            [
-                'high-compute-dashboards-audience-versus-warehouse-time',
-                0,
-                13,
-                36,
-                8,
-                'sortable-pivot-table',
-                'cartesian',
-            ],
         ],
     },
     'lightdash-analytics-apps': {

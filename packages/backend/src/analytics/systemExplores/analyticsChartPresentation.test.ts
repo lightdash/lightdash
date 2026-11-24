@@ -214,6 +214,9 @@ describe('built-in chart colours', () => {
         '#C92A2A',
         '#868E96',
         '#ADB5BD',
+        '#9CA3AF',
+        // A deactivated owner
+        '#FB7185',
     ];
 
     it('draws every cartesian series in the Analytics palette, in order', () => {
@@ -260,7 +263,10 @@ describe('built-in chart colours', () => {
             ),
         );
         expect(overrides.length).toBeGreaterThan(0);
-        expect(overrides).toContain(managed[0]);
+        // The status of a dashboard's owner: green, a soft red, amber and grey
+        expect(overrides).toEqual(
+            expect.arrayContaining(['#FB7185', '#9CA3AF']),
+        );
         expect(
             overrides.filter(
                 (color) => ![...managed, ...semantic].includes(color),

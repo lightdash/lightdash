@@ -942,7 +942,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'slow-dashboards-tail-latency-and-demand',
-        name: 'Slow dashboards: P95 response time in seconds (top 20)',
+        name: 'Slowest dashboards: P95 response time in seconds (top 20)',
         description:
             'The 20 dashboards with the longest P95 response time in the selected period. A dashboard with few queries can rank high on one slow query.',
         explore: 'query_events',
@@ -950,12 +950,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'query_events_dashboard_name',
             'query_events_dashboard_id',
         ],
-        metrics: [
-            'query_events_total_queries',
-            'query_events_unique_users',
-            'query_events_p95_response_time_s',
-            'query_events_avg_warehouse_execution_time_s',
-        ],
+        metrics: ['query_events_p95_response_time_s'],
         filters: [
             {
                 field: 'query_events_dashboard_name',
@@ -972,9 +967,14 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 fieldId: 'query_events_p95_response_time_s',
             },
         ],
+        // Ranked bars in both versions; the table beside it has the other measures
+        visualization: 'bar',
+        xField: 'query_events_dashboard_name',
+        yFields: ['query_events_p95_response_time_s'],
+        flipAxes: true,
         libraryChart: {
             // Ranked bars with the names beside them: twenty long names under a chart had to be
-            // written at an angle. One measure, so one axis; the plain table has the queries.
+            // written at an angle. One measure, so one axis.
             slug: 'customizable-cartesian-chart',
             minVersion: '0.18.4',
             fieldMapping: {
@@ -992,6 +992,41 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
             query: null,
         },
+    },
+    {
+        // Slow and expensive are different lists: a dashboard can respond quickly and still cost the
+        // most because it runs all day. One row for each dashboard, most warehouse time first.
+        key: 'dashboards-warehouse-and-response-time',
+        name: 'Dashboards by warehouse time (top 25)',
+        description:
+            'The 25 dashboards whose queries took the most warehouse time in the selected period, with their P95 response time, queries and people. Warehouse time is added up over every query the dashboard ran.',
+        explore: 'query_events',
+        dimensions: [
+            'query_events_dashboard_name',
+            'query_events_dashboard_id',
+        ],
+        metrics: [
+            'query_events_total_warehouse_execution_time_s',
+            'query_events_p95_response_time_s',
+            'query_events_total_queries',
+            'query_events_unique_users',
+        ],
+        filters: [
+            {
+                field: 'query_events_dashboard_name',
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
+            // Lightdash's own analytics dashboards are not the organization's to speed up
+            { field: 'query_events_in_analytics_project', values: [false] },
+        ],
+        limit: 25,
+        sorts: [
+            {
+                descending: true,
+                fieldId: 'query_events_total_warehouse_execution_time_s',
+            },
+        ],
     },
     {
         key: 'verified-content-audience-share',

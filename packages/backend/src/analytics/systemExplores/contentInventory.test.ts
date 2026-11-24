@@ -353,17 +353,30 @@ describe('Content inventory charts', () => {
             row.content_health_content_type_name,
             row.where_it_lives,
             row.created_on,
-            row.used_by,
+            row.linked_from,
         ];
-        // Items nothing uses come first: no column repeats what Used by already says
-        expect(review[0].used_by).toBe('Nothing');
+        // Items nothing points at come first. The column says what points at an item, never who
+        // viewed it, and a dashboard is never said to be on no dashboard.
+        expect(String(review[0].linked_from)).toMatch(/^No /);
+        review
+            .filter((row) => row.content_health_content_type === 'dashboard')
+            .forEach((row) =>
+                expect(String(row.linked_from)).toMatch(
+                    /^(No schedule|\d+ schedules?)$/,
+                ),
+            );
+        expect(
+            review.some(
+                (row) => row.content_health_content_type === 'dashboard',
+            ),
+        ).toBe(true);
         expect(Object.keys(review[0])).not.toContain('review_status');
         expect(review.map(shown)).toContainEqual([
             'Pipeline by stage',
             'Chart',
             'Sales / Forecasts',
             'Jun 3, 2026',
-            'Nothing',
+            'No dashboard or schedule',
         ]);
         expect(review.map(shown)).toContainEqual([
             'Win rate',

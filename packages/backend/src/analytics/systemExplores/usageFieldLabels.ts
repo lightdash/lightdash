@@ -105,6 +105,7 @@ export const usageFieldLabels: Record<string, string> = {
     query_events_event_ts_day: 'Day',
     query_events_p95_response_time_s: 'P95 response time (s)',
     query_events_avg_warehouse_execution_time_s: 'Average warehouse time (s)',
+    query_events_total_warehouse_execution_time_s: 'Warehouse time (s)',
     query_events_dashboard_name: 'Dashboard',
     query_events_explore_name: 'Explore',
     query_events_status: 'Outcome',
