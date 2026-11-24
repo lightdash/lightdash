@@ -91,6 +91,7 @@ describe('HubSpot fields', () => {
             'dealname',
             'amount',
             'dealstage',
+            'dealstage_label',
             'closedate',
             'contract_date',
             'deal_tags',
@@ -122,7 +123,47 @@ describe('HubSpot fields', () => {
         expect(byName.property_count.apiName).toBe('count');
     });
 
+    it('adds a label field next to a dropdown whose labels differ from its values', () => {
+        const byName = Object.fromEntries(
+            DEFINITION.dimensions.map((dimension) => [
+                dimension.name,
+                dimension,
+            ]),
+        );
+        expect(byName.dealstage).toMatchObject({
+            apiName: 'dealstage',
+            label: 'Deal Stage (internal value)',
+        });
+        expect(byName.dealstage_label).toMatchObject({
+            apiName: 'dealstage:label',
+            label: 'Deal Stage',
+            type: 'string',
+            valueLabels: {
+                appointmentscheduled: 'Appointment Scheduled',
+                closedwon: 'Closed Won',
+            },
+        });
+        expect(byName.dealstage_label.description).toContain(
+            'Filter with these labels: Appointment Scheduled, Closed Won.',
+        );
+        // No options, so nothing to label
+        expect(byName.deal_tags_label).toBeUndefined();
+        expect(
+            DEALS.apiSource?.fields[field('dealstage_label')].valueLabels,
+        ).toEqual(byName.dealstage_label.valueLabels);
+    });
+
+    it('names built-in fields as HubSpot does', () => {
+        expect(DEALS_EXPLORE.dimensions.map(({ label }) => label)).toEqual([
+            'Record ID',
+            'Create date',
+            'Last modified date',
+        ]);
+    });
+
     it('keeps most hs_ properties out of the default list', () => {
+        expect(isInternalHubspotField('hs_pipeline_stage:label')).toBe(false);
+        expect(isInternalHubspotField('hs_secret_thing:label')).toBe(true);
         expect(
             isInternalHubspotField('hs_analytics_latest_source_data_1'),
         ).toBe(true);
@@ -139,6 +180,7 @@ describe('HubSpot fields', () => {
             ['companies', 'Companies'],
             ['tickets', 'Tickets'],
             ['leads', 'Leads'],
+            ['pipeline_stages', 'Pipeline stages'],
         ]);
     });
 
@@ -162,7 +204,7 @@ describe('HubSpot fields', () => {
                     options,
                 },
             ],
-        }).dimensions.slice(-1);
+        }).dimensions.filter(({ name }) => name === 'hs_pipeline_stage');
         expect(stage.description).toContain('1 (Stage 1)');
         expect(stage.description).toContain('20 (Stage 20)');
         expect(stage.description).not.toContain('more');
@@ -462,5 +504,176 @@ describe('compileHubspotQuery', () => {
         });
         expect(compiled.requestLimit).toBe(50);
         expect(compiled.requestLimit).toBeLessThan(HUBSPOT_MAX_ROWS);
+    });
+});
+
+describe('compileHubspotQuery label fields', () => {
+    it('reads the property with its labels', () => {
+        expect(
+            compile(
+                query({
+                    dimensions: [field('dealstage'), field('dealstage_label')],
+                }),
+            ).columns,
+        ).toEqual([
+            { name: 'dealstage', type: 'string' },
+            {
+                name: 'dealstage:label',
+                type: 'string',
+                labels: {
+                    appointmentscheduled: 'Appointment Scheduled',
+                    closedwon: 'Closed Won',
+                },
+            },
+        ]);
+    });
+
+    it('filters by label as the internal value, keeping values it doesn’t know', () => {
+        expect(
+            compile(
+                query(
+                    filtered(
+                        rule('dealstage_label', FilterOperator.EQUALS, [
+                            'closed won',
+                            'appointmentscheduled',
+                        ]),
+                    ),
+                ),
+            ).filters,
+        ).toEqual([
+            {
+                propertyName: 'dealstage',
+                operator: 'IN',
+                values: ['closedwon', 'appointmentscheduled'],
+            },
+        ]);
+    });
+
+    it('sorts labels on our side, since HubSpot sorts internal values', () => {
+        const compiled = compileHubspotQuery({
+            explore: DEALS,
+            metricQuery: query({
+                dimensions: [field('dealstage_label')],
+                sorts: [
+                    { fieldId: field('dealstage_label'), descending: false },
+                ],
+            }),
+            today: '2026-11-19',
+        });
+        expect(JSON.parse(compiled.query).sort).toBeUndefined();
+        expect(compiled.localSorts).toEqual([
+            { fieldId: field('dealstage_label'), descending: false },
+        ]);
+    });
+});
+
+describe('compileHubspotQuery pipeline stages', () => {
+    const PIPELINES = buildLiveExplore({
+        definition: HUBSPOT_EXPLORES.find(
+            ({ name }) => name === 'pipeline_stages',
+        )!,
+        exploreName: 'hubspot_pipeline_stages',
+        label: 'HubSpot pipeline stages',
+        connectionUuid: 'connection-uuid',
+        integration: ApiConnectorType.HUBSPOT,
+        baseVersion: 1,
+        capabilities: hubspotIntegration.capabilities,
+        warehouseSqlBuilder: warehouseSqlBuilderFromType(
+            SupportedDbtAdapter.DUCKDB,
+        ),
+    });
+    const stageField = (name: string) => `hubspot_pipeline_stages_${name}`;
+    const compileStages = (overrides: Partial<MetricQuery>) =>
+        compileHubspotQuery({
+            explore: PIPELINES,
+            metricQuery: {
+                ...query(),
+                exploreName: PIPELINES.name,
+                dimensions: [
+                    stageField('stage_id'),
+                    stageField('stage_label'),
+                    stageField('probability'),
+                ],
+                ...overrides,
+            },
+            today: '2026-11-19',
+        });
+    const objectRule = (operator: FilterOperator, values: string[]) => ({
+        filters: {
+            dimensions: {
+                id: 'root',
+                and: [
+                    {
+                        id: 'object',
+                        target: { fieldId: stageField('object_type') },
+                        operator,
+                        values,
+                    },
+                ],
+            },
+        },
+    });
+
+    it('reads both objects’ pipelines, sorting here', () => {
+        const compiled = compileStages({
+            sorts: [{ fieldId: stageField('stage_label'), descending: true }],
+        });
+        expect(JSON.parse(compiled.query)).toEqual({
+            kind: 'pipeline_stages',
+            objects: ['deals', 'tickets'],
+            columns: [
+                { name: 'stageId', type: 'string' },
+                { name: 'stageLabel', type: 'string' },
+                { name: 'probability', type: 'number' },
+            ],
+        });
+        expect(compiled.localSorts).toEqual([
+            { fieldId: stageField('stage_label'), descending: true },
+        ]);
+    });
+
+    it('reads only the objects an Object filter keeps', () => {
+        expect(
+            JSON.parse(
+                compileStages(objectRule(FilterOperator.EQUALS, ['tickets']))
+                    .query,
+            ).objects,
+        ).toEqual(['tickets']);
+        expect(
+            JSON.parse(
+                compileStages(
+                    objectRule(FilterOperator.NOT_EQUALS, ['tickets']),
+                ).query,
+            ).objects,
+        ).toEqual(['deals']);
+        expect(() =>
+            compileStages(objectRule(FilterOperator.EQUALS, ['contacts'])),
+        ).toThrow('leave no pipelines');
+    });
+
+    it('lets the shared check refuse filters on other fields', () => {
+        const issues = getApiSourceQueryIssues(
+            PIPELINES.apiSource!,
+            {
+                ...query(),
+                exploreName: PIPELINES.name,
+                dimensions: [stageField('stage_label')],
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'stage',
+                                target: { fieldId: stageField('stage_label') },
+                                operator: FilterOperator.EQUALS,
+                                values: ['Closed Won'],
+                            },
+                        ],
+                    },
+                },
+            },
+            { itemsMap: getItemMap(PIPELINES) },
+        );
+        expect(issues.length).toBeGreaterThan(0);
     });
 });

@@ -88,7 +88,7 @@ const BUILT_IN_DIMENSIONS: LiveDimensionDefinition[] = [
     {
         name: 'created_at',
         apiName: 'createdAt',
-        label: 'Created',
+        label: 'Create date',
         description: 'When the record was created, in UTC.',
         type: DimensionType.TIMESTAMP,
         filterOperators: HUBSPOT_DATE_FILTERS,
@@ -96,7 +96,7 @@ const BUILT_IN_DIMENSIONS: LiveDimensionDefinition[] = [
     {
         name: 'updated_at',
         apiName: 'updatedAt',
-        label: 'Last modified',
+        label: 'Last modified date',
         description: 'When the record last changed, in UTC.',
         type: DimensionType.TIMESTAMP,
         filterOperators: HUBSPOT_DATE_FILTERS,
@@ -154,11 +154,129 @@ const toObjectExplore = (object: HubspotObject): LiveExploreDefinition => ({
     incompatible: [countIncompatibility(BUILT_IN_DIMENSIONS)],
 });
 
+/** The explore listing deal and ticket pipelines with their stages. */
+export const HUBSPOT_PIPELINE_STAGES = 'pipeline_stages';
+
+/** Columns of a pipeline stages request, one per field. */
+export const HUBSPOT_PIPELINE_COLUMNS = [
+    'objectType',
+    'pipelineId',
+    'pipelineLabel',
+    'pipelineDisplayOrder',
+    'stageId',
+    'stageLabel',
+    'stageDisplayOrder',
+    'probability',
+    'isClosed',
+] as const;
+export type HubspotPipelineColumn = (typeof HUBSPOT_PIPELINE_COLUMNS)[number];
+
+const pipelineField = (
+    name: string,
+    apiName: HubspotPipelineColumn,
+    label: string,
+    type: DimensionType,
+    description: string,
+): LiveDimensionDefinition => ({
+    name,
+    apiName,
+    label,
+    description,
+    type,
+    filterOperators: [],
+});
+
+/**
+ * Every deal and ticket pipeline with its stages, one row per stage, from
+ * HubSpot's pipelines API: one call per object. Records hold stage and
+ * pipeline ids, so this explains them and can be merged with them.
+ */
+const PIPELINE_STAGES_EXPLORE: LiveExploreDefinition = {
+    name: HUBSPOT_PIPELINE_STAGES,
+    label: 'Pipeline stages',
+    description:
+        'HubSpot deal and ticket pipelines and their stages, one row per stage, with ids and the labels HubSpot shows. Stage ID matches Deal Stage (internal value) on deals and Ticket status (internal value) on tickets; Pipeline ID matches Pipeline (internal value). Filter by Object to read only deals or tickets.',
+    dimensions: [
+        {
+            ...pipelineField(
+                'object_type',
+                'objectType',
+                'Object',
+                DimensionType.STRING,
+                'The object the pipeline belongs to: deals or tickets.',
+            ),
+            filterOperators: HUBSPOT_CHOICE_FILTERS,
+        },
+        pipelineField(
+            'pipeline_id',
+            'pipelineId',
+            'Pipeline ID',
+            DimensionType.STRING,
+            "The pipeline's internal value, as records store it.",
+        ),
+        pipelineField(
+            'pipeline_label',
+            'pipelineLabel',
+            'Pipeline',
+            DimensionType.STRING,
+            'The pipeline as HubSpot shows it.',
+        ),
+        pipelineField(
+            'pipeline_display_order',
+            'pipelineDisplayOrder',
+            'Pipeline order',
+            DimensionType.NUMBER,
+            "The pipeline's position in HubSpot, from 0.",
+        ),
+        pipelineField(
+            'stage_id',
+            'stageId',
+            'Stage ID',
+            DimensionType.STRING,
+            "The stage's internal value, as records store it.",
+        ),
+        pipelineField(
+            'stage_label',
+            'stageLabel',
+            'Stage',
+            DimensionType.STRING,
+            'The stage as HubSpot shows it.',
+        ),
+        pipelineField(
+            'stage_display_order',
+            'stageDisplayOrder',
+            'Stage order',
+            DimensionType.NUMBER,
+            "The stage's position in its pipeline, from 0.",
+        ),
+        pipelineField(
+            'probability',
+            'probability',
+            'Deal probability',
+            DimensionType.NUMBER,
+            'For deal stages, the chance a deal in the stage closes won, from 0 to 1. Empty for tickets.',
+        ),
+        pipelineField(
+            'is_closed',
+            'isClosed',
+            'Is closed',
+            DimensionType.BOOLEAN,
+            'Whether records in the stage are closed: won or lost deals, closed tickets.',
+        ),
+    ],
+    metrics: [],
+    maxDimensions: null,
+    maxMetrics: null,
+    dateRange: null,
+    incompatible: [],
+};
+
 /** Deals first: an integration's first explore is its main one. */
-export const HUBSPOT_EXPLORES = HUBSPOT_OBJECTS.map(toObjectExplore) as [
+const [DEALS, ...OTHER_OBJECTS] = HUBSPOT_OBJECTS.map(toObjectExplore);
+export const HUBSPOT_EXPLORES: [
     LiveExploreDefinition,
     ...LiveExploreDefinition[],
-];
+] = [DEALS, ...OTHER_OBJECTS, PIPELINE_STAGES_EXPLORE];
 
 /** One object's property list from a scan; anything else reads as none. */
 export const readHubspotProperties = (
@@ -244,8 +362,19 @@ const USEFUL_HS_PROPERTIES = new Set([
     'hs_lead_label',
 ]);
 
-export const isInternalHubspotField = (apiName: string) =>
-    apiName.startsWith('hs_') && !USEFUL_HS_PROPERTIES.has(apiName);
+/** A label field's API name: the property it reads, then `:label`. */
+export const HUBSPOT_LABEL_SUFFIX = ':label';
+
+/** The property a field reads: itself, or the one a label field shows. */
+export const toHubspotPropertyName = (apiName: string) =>
+    apiName.endsWith(HUBSPOT_LABEL_SUFFIX)
+        ? apiName.slice(0, -HUBSPOT_LABEL_SUFFIX.length)
+        : apiName;
+
+export const isInternalHubspotField = (apiName: string) => {
+    const property = toHubspotPropertyName(apiName);
+    return property.startsWith('hs_') && !USEFUL_HS_PROPERTIES.has(property);
+};
 
 /**
  * Names properties can't take: the built-in fields and Count. A property
@@ -312,6 +441,42 @@ const describeProperty = ({
 };
 
 /**
+ * Labels by internal value for a dropdown whose labels differ from its
+ * values, such as deal stages and ticket pipeline stages; none otherwise.
+ */
+const toValueLabels = ({
+    type,
+    options,
+}: HubspotProperty): Record<string, string> | null => {
+    if (type !== 'enumeration' || !options || options.length === 0) {
+        return null;
+    }
+    return options.some(({ value, label }) => value !== label)
+        ? Object.fromEntries(options.map(({ value, label }) => [value, label]))
+        : null;
+};
+
+/** A label field's description: the labels it shows, which filters take. */
+const describeLabels = (property: HubspotProperty) => {
+    const options = property.options ?? [];
+    const listed = PIPELINE_PROPERTIES.has(property.name)
+        ? options
+        : options.slice(0, MAX_LISTED_OPTIONS);
+    const more = options.length - listed.length;
+    return [
+        `${property.label} as HubSpot shows it, the option's label rather than its internal value.`,
+        `Filter with these labels: ${listed
+            .map(({ label }) => label)
+            .join(', ')}${more > 0 ? ` and ${more} more` : ''}.`,
+        property.fieldType === 'checkbox'
+            ? 'Several values are separated by semicolons.'
+            : '',
+    ]
+        .filter(Boolean)
+        .join(' ');
+};
+
+/**
  * Adds a dimension per property of the object, people's own before
  * HubSpot's hs_ ones. Unknown types and unreadable lists add nothing.
  */
@@ -334,14 +499,42 @@ export const withHubspotPropertyFields = (
         ...kept.filter(({ name }) => !isInternalHubspotField(name)),
         ...kept.filter(({ name }) => isInternalHubspotField(name)),
     ].slice(0, MAX_SCANNED_PROPERTIES);
-    const dimensions = scanned.map(
-        (property): LiveDimensionDefinition => ({
-            name: toDimensionName(property.name),
-            apiName: property.name,
-            label: property.label,
-            description: describeProperty(property),
-            ...PROPERTY_RULES[property.type],
-        }),
+    const names = new Set([
+        ...RESERVED_NAMES,
+        ...scanned.map(({ name }) => toDimensionName(name)),
+    ]);
+    const dimensions = scanned.flatMap(
+        (property): LiveDimensionDefinition[] => {
+            const raw: LiveDimensionDefinition = {
+                name: toDimensionName(property.name),
+                apiName: property.name,
+                label: property.label,
+                description: describeProperty(property),
+                ...PROPERTY_RULES[property.type],
+            };
+            const labelName = `${raw.name}_label`;
+            const valueLabels = toValueLabels(property);
+            if (!valueLabels || names.has(labelName)) {
+                return [raw];
+            }
+            names.add(labelName);
+            return [
+                {
+                    ...raw,
+                    // The label field takes HubSpot's own name for it
+                    label: `${property.label} (internal value)`,
+                },
+                {
+                    name: labelName,
+                    apiName: `${property.name}${HUBSPOT_LABEL_SUFFIX}`,
+                    label: property.label,
+                    description: describeLabels(property),
+                    type: DimensionType.STRING,
+                    filterOperators: HUBSPOT_CHOICE_FILTERS,
+                    valueLabels,
+                },
+            ];
+        },
     );
     return {
         ...definition,

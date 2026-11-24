@@ -12,7 +12,9 @@ import { type LiveHttpResponse } from '../../types';
 import { toHubspotError } from './errors';
 import { HUBSPOT_MAX_ROWS } from './explores';
 import {
+    HUBSPOT_DEAL_PIPELINES,
     HUBSPOT_DEAL_PROPERTIES,
+    HUBSPOT_TICKET_PIPELINES,
     hubspotDeal,
     hubspotSearchPage,
 } from './hubspot.fixtures';
@@ -525,5 +527,194 @@ describe('toHubspotError', () => {
         expect(toHubspotError(response('boom', 502))).toBeInstanceOf(
             UnexpectedServerError,
         );
+    });
+});
+
+describe('hubspotIntegration label columns', () => {
+    const LABELS = {
+        appointmentscheduled: 'Appointment Scheduled',
+        closedwon: 'Closed Won',
+    };
+
+    it('shows option labels, reading each property once', async () => {
+        const { source, send } = connect(
+            'deals',
+            response(
+                hubspotSearchPage(
+                    [
+                        hubspotDeal('1'),
+                        {
+                            ...hubspotDeal('2'),
+                            properties: {
+                                dealstage: 'appointmentscheduled;gone',
+                            },
+                        },
+                        { ...hubspotDeal('3'), properties: { dealstage: '' } },
+                    ],
+                    3,
+                ),
+            ),
+        );
+
+        const result = await run(source, {
+            kind: 'records',
+            columns: [
+                { name: 'dealstage', type: 'string' },
+                { name: 'dealstage:label', type: 'string', labels: LABELS },
+            ],
+            filters: [],
+        });
+
+        expect(send.mock.calls[0][0].body.properties).toEqual(['dealstage']);
+        expect(result.rows).toEqual([
+            { dealstage: 'closedwon', 'dealstage:label': 'Closed Won' },
+            {
+                dealstage: 'appointmentscheduled;gone',
+                // A value the scan didn't see stays as it is
+                'dealstage:label': 'Appointment Scheduled;gone',
+            },
+            { dealstage: null, 'dealstage:label': null },
+        ]);
+    });
+
+    it('refuses a label column on a name HubSpot could not have', async () => {
+        const { source, send } = connect('deals');
+        await expect(
+            run(source, {
+                kind: 'records',
+                columns: [{ name: 'Deal Stage:label', type: 'string' }],
+                filters: [],
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(send).not.toHaveBeenCalled();
+    });
+});
+
+describe('hubspotIntegration pipeline stages', () => {
+    const ALL_COLUMNS = [
+        { name: 'objectType', type: 'string' },
+        { name: 'pipelineId', type: 'string' },
+        { name: 'pipelineLabel', type: 'string' },
+        { name: 'stageId', type: 'string' },
+        { name: 'stageLabel', type: 'string' },
+        { name: 'stageDisplayOrder', type: 'number' },
+        { name: 'probability', type: 'number' },
+        { name: 'isClosed', type: 'boolean' },
+    ];
+
+    it('lists each object’s stages in HubSpot’s order, one call per object', async () => {
+        const { source, send } = connect(
+            'deals',
+            response(HUBSPOT_DEAL_PIPELINES),
+            response(HUBSPOT_TICKET_PIPELINES),
+        );
+
+        const result = await source.run({
+            query: JSON.stringify({
+                kind: 'pipeline_stages',
+                objects: ['deals', 'tickets'],
+                columns: ALL_COLUMNS,
+            }),
+            limit: 100,
+        });
+
+        expect(send.mock.calls.map(([request]) => request.path)).toEqual([
+            '/crm/v3/pipelines/deals',
+            '/crm/v3/pipelines/tickets',
+        ]);
+        expect(
+            result.rows.map((row) => [
+                row.objectType,
+                row.pipelineLabel,
+                row.stageId,
+                row.stageLabel,
+                row.probability,
+                row.isClosed,
+            ]),
+        ).toEqual([
+            [
+                'deals',
+                'Sales Pipeline',
+                'appointmentscheduled',
+                'Appointment Scheduled',
+                0.2,
+                false,
+            ],
+            ['deals', 'Sales Pipeline', 'closedwon', 'Closed Won', 1, true],
+            ['deals', 'Renewals', '1001', 'Renewal won', 1, true],
+            ['tickets', 'Support Pipeline', '1', 'New', null, false],
+            ['tickets', 'Support Pipeline', '4', 'Closed', null, true],
+        ]);
+        expect(result.hasMoreRows).toBe(false);
+    });
+
+    it('leaves out an object the token can’t read', async () => {
+        const { source } = connect(
+            'deals',
+            response(HUBSPOT_DEAL_PIPELINES),
+            response(
+                { message: 'missing scopes', category: 'MISSING_SCOPES' },
+                403,
+            ),
+        );
+        const result = await source.run({
+            query: JSON.stringify({
+                kind: 'pipeline_stages',
+                objects: ['deals', 'tickets'],
+                columns: [{ name: 'objectType', type: 'string' }],
+            }),
+            limit: 100,
+        });
+        expect(result.rows).toHaveLength(3);
+    });
+
+    it('fails when no object can be read, or HubSpot is briefly unavailable', async () => {
+        const forbidden = connect(
+            'deals',
+            response({ message: 'missing scopes' }, 403),
+        );
+        await expect(
+            forbidden.source.run({
+                query: JSON.stringify({
+                    kind: 'pipeline_stages',
+                    objects: ['deals'],
+                    columns: [{ name: 'stageId', type: 'string' }],
+                }),
+                limit: 100,
+            }),
+        ).rejects.toBeInstanceOf(WarehouseConnectionError);
+
+        const limited = connect(
+            'deals',
+            response(HUBSPOT_DEAL_PIPELINES),
+            response({ message: 'Too many requests' }, 429),
+        );
+        await expect(
+            limited.source.run({
+                query: JSON.stringify({
+                    kind: 'pipeline_stages',
+                    objects: ['deals', 'tickets'],
+                    columns: [{ name: 'stageId', type: 'string' }],
+                }),
+                limit: 100,
+            }),
+        ).rejects.toBeInstanceOf(TooManyRequestsError);
+    });
+
+    it('says when more stages exist than the limit', async () => {
+        const { source } = connect('deals', response(HUBSPOT_DEAL_PIPELINES));
+        const result = await source.run({
+            query: JSON.stringify({
+                kind: 'pipeline_stages',
+                objects: ['deals'],
+                columns: [{ name: 'stageId', type: 'string' }],
+            }),
+            limit: 2,
+        });
+        expect(result.rows).toEqual([
+            { stageId: 'appointmentscheduled' },
+            { stageId: 'closedwon' },
+        ]);
+        expect(result.hasMoreRows).toBe(true);
     });
 });

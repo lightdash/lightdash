@@ -2,11 +2,14 @@ import {
     DimensionType,
     FilterOperator,
     getItemMap,
+    HUBSPOT_PIPELINE_OBJECTS,
     isDimension,
     ParameterError,
     UnitOfTime,
+    type ApiSourceExplore,
     type Explore,
     type FilterRule,
+    type HubspotPipelineObject,
     type MetricQuery,
 } from '@lightdash/common';
 import {
@@ -20,8 +23,12 @@ import { getLiveDateRange, toAbsoluteDateRange } from '../../query/dateRange';
 import { refuseLiveQuery } from '../../query/refuse';
 import {
     HUBSPOT_COUNT_REASON,
+    HUBSPOT_LABEL_SUFFIX,
     HUBSPOT_MAX_FILTERS,
+    HUBSPOT_PIPELINE_STAGES,
     toHubspotObject,
+    toHubspotPropertyName,
+    type HubspotPipelineColumn,
 } from './explores';
 import { type HubspotFilter, type HubspotRequest } from './run';
 
@@ -277,6 +284,104 @@ const toFilters = ({
 };
 
 /**
+ * A label field's filter as one on its property: labels turn back into the
+ * internal values HubSpot filters by, and values it doesn't know stay as they are.
+ */
+const toPropertyRule = (
+    rule: FilterRule,
+    valueLabels: Record<string, string> | undefined,
+): FilterRule => {
+    if (!valueLabels) {
+        return rule;
+    }
+    const byLabel = new Map(
+        Object.entries(valueLabels).map(([value, label]) => [
+            label.toLowerCase(),
+            value,
+        ]),
+    );
+    return {
+        ...rule,
+        values: (rule.values ?? []).map(
+            (value) => byLabel.get(String(value).toLowerCase()) ?? value,
+        ),
+    };
+};
+
+const PIPELINE_COLUMN_TYPES: Record<
+    HubspotPipelineColumn,
+    'string' | 'number' | 'boolean'
+> = {
+    objectType: 'string',
+    pipelineId: 'string',
+    pipelineLabel: 'string',
+    pipelineDisplayOrder: 'number',
+    stageId: 'string',
+    stageLabel: 'string',
+    stageDisplayOrder: 'number',
+    probability: 'number',
+    isClosed: 'boolean',
+};
+
+/** Which objects' pipelines a filter on Object keeps. */
+const toPipelineObjects = (rules: FilterRule[]): HubspotPipelineObject[] =>
+    rules.reduce<HubspotPipelineObject[]>(
+        (objects, rule) => {
+            const values = new Set((rule.values ?? []).map(String));
+            switch (rule.operator) {
+                case FilterOperator.EQUALS:
+                    return objects.filter((object) => values.has(object));
+                case FilterOperator.NOT_EQUALS:
+                    return objects.filter((object) => !values.has(object));
+                default:
+                    throw new ParameterError(
+                        `Object can only be filtered with "is" or "is not" on HubSpot pipeline stages.`,
+                    );
+            }
+        },
+        [...HUBSPOT_PIPELINE_OBJECTS],
+    );
+
+/**
+ * Pipeline stages are one pipelines call per object; only Object filters,
+ * and every sort runs here, on a few dozen rows.
+ */
+const compilePipelineStages = (
+    apiSource: ApiSourceExplore,
+    metricQuery: MetricQuery,
+): LiveCompiledRequest => {
+    const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
+    const rules = getActiveFilterRules(metricQuery.filters.dimensions);
+    const objects = toPipelineObjects(
+        rules.filter((rule) => {
+            if (apiName(rule.target.fieldId) !== 'objectType') {
+                throw new ParameterError(
+                    'HubSpot pipeline stages can only be filtered by Object.',
+                );
+            }
+            return true;
+        }),
+    );
+    if (objects.length === 0) {
+        throw new ParameterError(
+            'These Object filters leave no pipelines: pick deals, tickets or both.',
+        );
+    }
+    const request: HubspotRequest = {
+        kind: 'pipeline_stages',
+        objects,
+        columns: metricQuery.dimensions.map((fieldId) => {
+            const name = apiName(fieldId) as HubspotPipelineColumn;
+            return { name, type: PIPELINE_COLUMN_TYPES[name] };
+        }),
+    };
+    return {
+        query: JSON.stringify(request),
+        localSorts: metricQuery.sorts,
+    };
+};
+
+/**
  * Compiles a metric query on a HubSpot explore into one search. Filters all
  * have to match (HubSpot's filter group); `today` is in UTC.
  */
@@ -290,9 +395,17 @@ export const compileHubspotQuery = ({
     today: string;
 }): LiveCompiledRequest => {
     const apiSource = getLiveExplore(explore);
-    const object = toHubspotObject(getLiveDefinitionName(explore));
+    const definitionName = getLiveDefinitionName(explore);
+    if (definitionName === HUBSPOT_PIPELINE_STAGES) {
+        return compilePipelineStages(apiSource, metricQuery);
+    }
+    const object = toHubspotObject(definitionName);
     const itemsMap = getItemMap(explore);
     const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
+    const valueLabelsOf = (fieldId: string) =>
+        apiSource.fields[fieldId]?.valueLabels;
+    const isLabelField = (fieldId: string) =>
+        apiName(fieldId).endsWith(HUBSPOT_LABEL_SUFFIX);
     const typeOf = (fieldId: string): DimensionType => {
         const item = itemsMap[fieldId];
         return item && isDimension(item) ? item.type : DimensionType.STRING;
@@ -302,8 +415,8 @@ export const compileHubspotQuery = ({
         metricQuery.filters.dimensions,
     ).flatMap((rule) =>
         toFilters({
-            rule,
-            propertyName: apiName(rule.target.fieldId),
+            rule: toPropertyRule(rule, valueLabelsOf(rule.target.fieldId)),
+            propertyName: toHubspotPropertyName(apiName(rule.target.fieldId)),
             type: typeOf(rule.target.fieldId),
             today,
         }),
@@ -335,15 +448,23 @@ export const compileHubspotQuery = ({
         );
     }
     const [sort] = metricQuery.sorts;
+    // HubSpot sorts a dropdown by its internal values, so labels sort here
+    const sortsLabel = sort !== undefined && isLabelField(sort.fieldId);
     const request: HubspotRequest = {
         kind: 'records',
         object,
-        columns: metricQuery.dimensions.map((fieldId) => ({
-            name: apiName(fieldId),
-            type: COLUMN_TYPE[typeOf(fieldId)] ?? 'string',
-        })),
+        columns: metricQuery.dimensions.map((fieldId) => {
+            const valueLabels = valueLabelsOf(fieldId);
+            return {
+                name: apiName(fieldId),
+                type: COLUMN_TYPE[typeOf(fieldId)] ?? 'string',
+                ...(isLabelField(fieldId) && valueLabels
+                    ? { labels: valueLabels }
+                    : {}),
+            };
+        }),
         filters,
-        ...(sort
+        ...(sort && !sortsLabel
             ? {
                   sort: {
                       propertyName: apiName(sort.fieldId),
@@ -352,5 +473,8 @@ export const compileHubspotQuery = ({
               }
             : {}),
     };
-    return { query: JSON.stringify(request), localSorts: [] };
+    return {
+        query: JSON.stringify(request),
+        localSorts: sortsLabel ? [sort] : [],
+    };
 };
