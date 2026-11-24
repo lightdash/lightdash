@@ -11,10 +11,7 @@ import {
     type DashboardAsCode,
 } from '@lightdash/common';
 import { adoptionChartSpecs, adoptionDashboardSpec } from './adoptionDashboard';
-import {
-    agentEvaluationsChartSpecs,
-    agentEvaluationsDashboardSpec,
-} from './agentEvaluationsDashboard';
+import { agentEvaluationsChartSpecs } from './agentEvaluationsDashboard';
 import { analyticsColorPalette } from './analyticsColorPalette';
 import { contentChartSpecs, contentDashboardSpec } from './contentDashboard';
 import { dataAppsChartSpecs, dataAppsDashboardSpec } from './dataAppsDashboard';
@@ -524,7 +521,6 @@ const dashboardSpecs = [
     contentDashboardSpec,
     dataAppsDashboardSpec,
     toolsDashboardSpec,
-    agentEvaluationsDashboardSpec,
     adoptionDashboardSpec,
     embedDashboardSpec,
     homeDashboardSpec,
@@ -574,6 +570,10 @@ export const buildUsageDashboards = (
             ({ dashboard }) => dashboard.slug === spec.key,
         );
         const spaceSlug = existing?.dashboard.spaceSlug ?? spec.key;
+        const existingTab = spec.existingTab ?? {
+            key: 'overview',
+            name: 'Overview',
+        };
         const charts = [...(existing?.charts ?? [])];
         const dashboard: DashboardAsCode = {
             version: 1,
@@ -587,20 +587,25 @@ export const buildUsageDashboards = (
                 tableCalculations: [],
             },
             tabs: existing
-                ? [{ slug: 'overview', name: 'Overview', order: 0 }]
+                ? [{ slug: existingTab.key, name: existingTab.name, order: 0 }]
                 : [],
             tiles: (existing?.dashboard.tiles ?? []).map((tile) => ({
                 ...tile,
-                tabSlug: 'overview',
+                tabSlug: existingTab.key,
             })),
         };
         for (const tab of spec.tabs) {
-            dashboard.tabs.push({
-                slug: tab.key,
-                name: tab.name,
-                order: dashboard.tabs.length,
-            });
-            let y = 0;
+            // A tab with the key of the older bundle's tab carries on under its tiles
+            const continues = existing && tab.key === existingTab.key;
+            if (!continues)
+                dashboard.tabs.push({
+                    slug: tab.key,
+                    name: tab.name,
+                    order: dashboard.tabs.length,
+                });
+            let y = continues
+                ? Math.max(0, ...dashboard.tiles.map((tile) => tile.y + tile.h))
+                : 0;
             for (const section of tab.sections) {
                 if (section.note !== false) {
                     const content = section.caption

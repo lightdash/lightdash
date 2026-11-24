@@ -66,7 +66,7 @@ describe('Analytics settings query scopes', () => {
             ]),
         ).toEqual([
             ['Overview', 'lightdash-analytics-home'],
-            ['Agents & AI', 'lightdash-analytics-overview'],
+            ['Agents', 'lightdash-analytics-overview'],
             ['Queries', 'lightdash-analytics-query-activity'],
             ['Content', 'lightdash-analytics-content'],
             ['Data apps', 'lightdash-analytics-apps'],

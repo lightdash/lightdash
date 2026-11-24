@@ -123,11 +123,12 @@ describe('Analytics settings overview', () => {
         await userEvent.click(
             screen.getByRole('button', { name: 'View agent requests' }),
         );
+        expect(screen.getByRole('tab', { name: 'Agents' })).toHaveAttribute(
+            'aria-selected',
+            'true',
+        );
         expect(
-            screen.getByRole('tab', { name: 'Agents & AI' }),
-        ).toHaveAttribute('aria-selected', 'true');
-        expect(
-            screen.getByRole('region', { name: 'AI calls by day' }),
+            screen.getByRole('region', { name: 'Agent requests by day' }),
         ).toBeVisible();
         expect(
             screen.queryByRole('region', {
@@ -250,7 +251,7 @@ describe('Analytics settings overview', () => {
             return ready();
         });
         renderOverview();
-        await userEvent.click(screen.getByRole('tab', { name: 'Agents & AI' }));
+        await userEvent.click(screen.getByRole('tab', { name: 'Agents' }));
         await userEvent.click(screen.getByText('Last 90 days'));
         // Thirty days is the range the page opens on, so the test moves to one it has not loaded
         const monthlyQueries = () =>

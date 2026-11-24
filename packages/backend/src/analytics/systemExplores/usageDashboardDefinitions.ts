@@ -1,15 +1,22 @@
 import { FilterOperator } from '@lightdash/common';
+import {
+    agentEvaluationFilters,
+    agentEvaluationSections,
+} from './agentEvaluationsDashboard';
 import type { UsageDashboardSpec } from './usageDashboardTypes';
 
 export const usageDashboardSpecs: UsageDashboardSpec[] = [
     {
+        // Keeps the slug it had as Agents & AI. Tokens are on AI token usage.
         key: 'lightdash-analytics-overview',
-        name: 'Agents & AI',
-        description: 'Agent adoption, request outcomes and token use.',
+        name: 'Agents',
+        description:
+            'How much agents are used, by whom, how their requests end and how they score in evaluations.',
+        filters: agentEvaluationFilters,
         tabs: [
             {
-                key: 'adoption',
-                name: 'Agent adoption',
+                key: 'use',
+                name: 'Use',
                 sections: [
                     {
                         title: 'Request activity',
@@ -32,16 +39,6 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         rowHeight: 7,
                     },
                     {
-                        title: 'Daily requests per agent',
-                        caption: true,
-                        description:
-                            'One row per agent, each on its own scale.',
-                        charts: ['agent-daily-requests-per-agent'],
-                        layout: 'row',
-                        // Fits seven or eight agent rows of about 70 to 90px.
-                        rowHeight: 14,
-                    },
-                    {
                         title: 'Requests by person',
                         caption: true,
                         description:
@@ -52,7 +49,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
             },
             {
                 key: 'outcomes',
-                name: 'Outcomes & feedback',
+                name: 'Outcomes, retries & feedback',
                 sections: [
                     {
                         title: 'Technical outcomes',
@@ -73,29 +70,11 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                             'Unrated requests are not positive feedback. Small samples are not reliable rankings.',
                         charts: ['agent-feedback-rating-and-sample-coverage'],
                     },
-                ],
-            },
-            {
-                key: 'consumption',
-                name: 'Retries & tokens',
-                sections: [
-                    {
-                        title: 'AI consumption',
-                        caption: true,
-                        description:
-                            'Tokens by person and model, and by feature and model. Tokens are not cost.',
-                        charts: [
-                            'ai-consumption-by-person-feature-and-model',
-                            'ai-tokens-by-feature-and-model',
-                        ],
-                        layout: 'row',
-                        rowHeight: 8,
-                    },
                     {
                         title: 'Failed requests and retries',
                         caption: true,
                         description:
-                            'Tokens spent on agent requests that failed or were cancelled, next to requests and average latency by retry count. Each retry runs the request again with new AI calls, so a request with more retries takes longer and uses more tokens.',
+                            'Tokens spent on agent requests that failed or were cancelled, next to requests and average latency by retry count. Each retry runs the request again, so it takes longer and uses more tokens.',
                         charts: [
                             'request-consumption-by-outcome-and-feedback',
                             'agent-retries-latency-and-consumption',
@@ -103,6 +82,39 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         layout: 'row',
                         widths: [12, 24],
                         rowHeight: 6,
+                    },
+                ],
+            },
+            {
+                key: 'evaluations',
+                name: 'Evaluations',
+                sections: agentEvaluationSections,
+            },
+        ],
+    },
+    {
+        // The any-period tab of AI token usage: every token tile that follows the Date filter. The
+        // month-to-date tabs are built in aiTokenDashboard.ts and joined on in sampleContent.ts.
+        key: 'lightdash-analytics-ai-tokens',
+        name: 'AI token usage',
+        description: 'AI tokens used, in and out of billing scope.',
+        existingTab: { key: 'any-period', name: 'Any period' },
+        tabs: [
+            {
+                key: 'any-period',
+                name: 'Any period',
+                sections: [
+                    {
+                        title: 'Who and what drives tokens',
+                        caption: true,
+                        description:
+                            'Tokens by person and model, and by feature and model, for all usage in the selected period.',
+                        charts: [
+                            'ai-consumption-by-person-feature-and-model',
+                            'ai-tokens-by-feature-and-model',
+                        ],
+                        layout: 'row',
+                        rowHeight: 8,
                     },
                 ],
             },

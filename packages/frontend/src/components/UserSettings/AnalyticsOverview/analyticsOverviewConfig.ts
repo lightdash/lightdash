@@ -327,13 +327,17 @@ export const analyticsTabs: {
     {
         id: 'agents',
         summary: analyticsAiSummary,
-        label: 'Agents & AI',
+        label: 'Agents',
         description:
-            'AI consumption and agent request adoption, outcomes and feedback.',
+            'How much are agents used, do their requests finish and how do they score in evaluations?',
         dashboardSlug: 'lightdash-analytics-overview',
         charts: [
-            time('AI calls by day', 'tokens', 'total_ai_calls'),
-            time('Tokens used by day', 'tokens', 'total_tokens_used'),
+            time('Agent requests by day', 'requests', 'total_requests'),
+            time(
+                'People asking agents by day',
+                'requests',
+                'distinct_requesters',
+            ),
         ],
     },
     {

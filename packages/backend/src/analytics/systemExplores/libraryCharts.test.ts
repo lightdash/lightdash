@@ -510,11 +510,11 @@ describe('model colours', () => {
                 ].includes('ai_usage_model_name'),
         );
         expect(byModel.map(([slug]) => slug).sort()).toEqual([
-            'lightdash-analytics-overview-ai-calls-by-day',
-            'lightdash-analytics-overview-ai-consumption-by-person-feature-and-model',
-            'lightdash-analytics-overview-calls-by-model',
-            'lightdash-analytics-overview-tokens-by-day',
-            'lightdash-analytics-overview-tokens-by-model',
+            'lightdash-analytics-ai-tokens-ai-calls-by-day',
+            'lightdash-analytics-ai-tokens-ai-consumption-by-person-feature-and-model',
+            'lightdash-analytics-ai-tokens-calls-by-model',
+            'lightdash-analytics-ai-tokens-tokens-by-day',
+            'lightdash-analytics-ai-tokens-tokens-by-model',
         ]);
         byModel.forEach(([, modelBinding]) =>
             expect(modelBinding).toMatchObject({
@@ -609,7 +609,7 @@ describe('legacyLibraryChartBindings', () => {
     });
 
     it('binds the Overview charts under their final slugs', () => {
-        const prefix = 'lightdash-analytics-overview-';
+        const prefix = 'lightdash-analytics-ai-tokens-';
         [
             'ai-calls',
             'tokens',
@@ -652,7 +652,7 @@ describe('legacyLibraryChartBindings', () => {
     it('shows the latest day and daily trend on the AI users card', () => {
         expect(
             analyticsLibraryChartBindings.get(
-                'lightdash-analytics-overview-ai-users',
+                'lightdash-analytics-ai-tokens-ai-users',
             ),
         ).toEqual({
             slug: 'big-number-with-sparkline-trend',
@@ -767,7 +767,7 @@ describe('legacyLibraryChartBindings', () => {
     });
 
     it('runs the day query on the real AI calls chart only when its type is usable', () => {
-        const slug = 'lightdash-analytics-overview-ai-calls';
+        const slug = 'lightdash-analytics-ai-tokens-ai-calls';
         const real = allCharts.find((c) => c.slug === slug)!;
         const bigNumberSchema: DataAppVizSchema = {
             fields: ['value', 'sparklineMetric', 'time'].map((name) => ({
@@ -876,11 +876,11 @@ describe('legacyLibraryChartBindings', () => {
         const chartDescription = (slug: string) =>
             allCharts.find((c) => c.slug === slug)?.description;
         [
-            'lightdash-analytics-overview-ai-calls',
-            'lightdash-analytics-overview-tokens',
-            'lightdash-analytics-overview-output-tokens',
-            'lightdash-analytics-overview-ai-calls-by-day',
-            'lightdash-analytics-overview-tokens-by-day',
+            'lightdash-analytics-ai-tokens-ai-calls',
+            'lightdash-analytics-ai-tokens-tokens',
+            'lightdash-analytics-ai-tokens-output-tokens',
+            'lightdash-analytics-ai-tokens-ai-calls-by-day',
+            'lightdash-analytics-ai-tokens-tokens-by-day',
         ].forEach((slug) => {
             expect(queryDescription(slug)).toBe(chartDescription(slug));
         });
@@ -920,11 +920,10 @@ describe('legacyLibraryChartBindings', () => {
             'Requests per person and agent in the selected period. Requests with no person recorded are grouped as No user recorded.',
         );
         expect(
-            captions('lightdash-analytics-overview', 'adoption').filter(
-                (content) =>
-                    content.includes(
-                        'Agent requests and the people who sent them.',
-                    ),
+            captions('lightdash-analytics-overview', 'use').filter((content) =>
+                content.includes(
+                    'Agent requests and the people who sent them.',
+                ),
             ),
         ).toHaveLength(1);
         expect(
@@ -935,8 +934,9 @@ describe('legacyLibraryChartBindings', () => {
             'Top 24 person and model pairs by tokens in the selected period, so a person near the cut-off can be missing their smaller models. Usage with no person recorded is left out.',
         );
         expect(
-            captions('lightdash-analytics-overview', 'consumption').filter(
-                (content) => content.includes('Tokens are not cost.'),
+            // The token tiles moved to AI token usage, whose Any period tab says what it counts
+            captions('lightdash-analytics-ai-tokens', 'any-period').filter(
+                (content) => content.includes('counts all usage'),
             ),
         ).toHaveLength(1);
         expect(queryDescription(agentChart('agent-requests-trend'))).toBe(

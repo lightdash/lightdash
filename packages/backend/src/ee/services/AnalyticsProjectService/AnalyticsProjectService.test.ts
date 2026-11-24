@@ -1717,10 +1717,13 @@ describe('AnalyticsProjectService', () => {
             dashboardSlug: 'lightdash-analytics-overview',
         },
         {
-            slug: 'lightdash-analytics-overview-ai-calls',
+            slug: 'lightdash-analytics-overview-agent-requests-trend',
             dashboardSlug: 'custom-dashboard',
         },
-        { slug: 'lightdash-analytics-overview-ai-calls', dashboardSlug: null },
+        {
+            slug: 'lightdash-analytics-overview-agent-requests-trend',
+            dashboardSlug: null,
+        },
     ])(
         'rejects a renamed or moved chart before writing any content: %j',
         async (existing) => {
@@ -1731,7 +1734,7 @@ describe('AnalyticsProjectService', () => {
             expect(upsertChart).not.toHaveBeenCalled();
             expect(upsertDashboard).not.toHaveBeenCalled();
             expect(getChart).toHaveBeenCalledWith(
-                'lightdash-analytics-overview-ai-calls',
+                'lightdash-analytics-overview-agent-requests-trend',
                 undefined,
                 {
                     projectUuid: 'analytics-project',

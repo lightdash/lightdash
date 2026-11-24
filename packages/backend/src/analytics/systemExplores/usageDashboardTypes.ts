@@ -51,6 +51,9 @@ export type UsageDashboardSpec = {
     name: string;
     description: string;
     filters?: DashboardAsCode['filters'];
+    // The tab that holds the tiles of an older bundle with this dashboard's slug. A tab of this spec
+    // with the same key adds its sections under those tiles.
+    existingTab?: { key: string; name: string };
     tabs: {
         key: string;
         name: string;

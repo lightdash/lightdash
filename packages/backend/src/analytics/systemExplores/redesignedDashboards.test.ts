@@ -505,65 +505,6 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             ],
         ],
     },
-    'lightdash-analytics-agent-evaluations': {
-        quality: [
-            [
-                'evals-runs',
-                0,
-                1,
-                12,
-                4,
-                'big-number-with-sparkline-trend',
-                'big_number',
-            ],
-            [
-                'evals-passed-assessments',
-                12,
-                1,
-                12,
-                4,
-                'big-number-with-sparkline-trend',
-                'big_number',
-            ],
-            [
-                'evals-failed-assessments',
-                24,
-                1,
-                12,
-                4,
-                'big-number-with-sparkline-trend',
-                'big_number',
-            ],
-            [
-                'assessment-pass-rate-by-day',
-                0,
-                5,
-                18,
-                8,
-                'customizable-cartesian-chart',
-                'cartesian',
-            ],
-            [
-                'assessment-volume-by-day',
-                18,
-                5,
-                18,
-                8,
-                'customizable-cartesian-chart',
-                'cartesian',
-            ],
-            [
-                'quality-by-evaluation',
-                0,
-                14,
-                36,
-                5,
-                'sortable-pivot-table',
-                'table',
-            ],
-            ['recent-evaluation-runs', 0, 19, 36, 7, null, 'table'],
-        ],
-    },
     'lightdash-analytics-adoption': {
         'active-people': [
             [
@@ -1022,9 +963,23 @@ describe.each(Object.entries(redesigned))('%s', (slug, tabs) => {
 
 describe('lightdash-analytics-ai-tokens', () => {
     const slug = 'lightdash-analytics-ai-tokens';
-    const { dashboard, charts } = analyticsContentAsCode.find(
+    const whole = analyticsContentAsCode.find(
         (bundle) => bundle.dashboard.slug === slug,
     )!;
+    // The month-to-date tabs. The Any period tab follows the Date filter and is tested with the tiles
+    // it took over from Agents & AI.
+    const anyPeriod = whole.dashboard.tiles.flatMap((tile) =>
+        tile.tabSlug === 'any-period' && 'chartSlug' in tile.properties
+            ? [tile.properties.chartSlug]
+            : [],
+    );
+    const charts = whole.charts.filter(
+        (chart) => !anyPeriod.includes(chart.slug),
+    );
+    const dashboard = {
+        ...whole.dashboard,
+        tabs: whole.dashboard.tabs.filter((tab) => tab.slug !== 'any-period'),
+    };
     const numbers = [
         'total',
         'eligible',
@@ -1938,9 +1893,7 @@ describe('options of the newest chart versions', () => {
 
     it('draws passed green and failed orange, and counts runs in whole numbers', () => {
         expect(
-            optionsOf(
-                'lightdash-analytics-agent-evaluations-assessment-volume-by-day',
-            ),
+            optionsOf('lightdash-analytics-overview-assessment-volume-by-day'),
         ).toMatchObject({
             m1Color: '#34D399',
             m2Color: '#FB923C',
@@ -1948,7 +1901,7 @@ describe('options of the newest chart versions', () => {
         });
         expect(
             optionsOf(
-                'lightdash-analytics-agent-evaluations-assessment-pass-rate-by-day',
+                'lightdash-analytics-overview-assessment-pass-rate-by-day',
             ),
         ).toMatchObject({ yIntegerTicks: true });
     });
@@ -2100,7 +2053,8 @@ describe('SQL the query engine will accept', () => {
         });
         expect(refused).toEqual([]);
         expect(all.length).toBeGreaterThan(100);
-    });
+        // Compiles every chart twice, which takes longer than the default five seconds on a busy machine
+    }, 60_000);
 
     it('would have caught a comparison written IS DISTINCT FROM a string', () => {
         expect(() =>
@@ -2118,9 +2072,9 @@ describe('legends and colour ranges that hold up with real volumes', () => {
         const heatmaps = bindings.filter(([, { slug }]) => slug === 'heatmap');
         expect(heatmaps.map(([slug]) => slug).sort()).toEqual([
             'lightdash-analytics-adoption-adoption-activity-by-person-and-day',
+            'lightdash-analytics-ai-tokens-ai-tokens-by-feature-and-model',
+            'lightdash-analytics-ai-tokens-tokens-by-feature',
             'lightdash-analytics-overview-agent-requests-by-agent-and-day',
-            'lightdash-analytics-overview-ai-tokens-by-feature-and-model',
-            'lightdash-analytics-overview-tokens-by-feature',
         ]);
         const charts = analyticsContentAsCode.flatMap(
             (bundle) => bundle.charts,
@@ -2153,9 +2107,9 @@ describe('legends and colour ranges that hold up with real volumes', () => {
                 fieldMapping.splitBy === 'ai_usage_model_name',
         );
         expect(stacked.map(([slug]) => slug).sort()).toEqual([
-            'lightdash-analytics-overview-ai-calls-by-day',
-            'lightdash-analytics-overview-ai-consumption-by-person-feature-and-model',
-            'lightdash-analytics-overview-tokens-by-day',
+            'lightdash-analytics-ai-tokens-ai-calls-by-day',
+            'lightdash-analytics-ai-tokens-ai-consumption-by-person-feature-and-model',
+            'lightdash-analytics-ai-tokens-tokens-by-day',
         ]);
         stacked.forEach(([, { optionValues, minVersion }]) => {
             expect(optionValues.legendMode).toBe('groups');

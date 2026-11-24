@@ -210,8 +210,10 @@ const modelRanking = (metric: string): LibraryChartBinding => ({
 });
 
 /** Stable keys define project-scoped sync slugs; names are presentation only. */
+// The token tiles that follow the Date filter: the Any period tab of AI token usage. They were the
+// first tab of Agents & AI, which is why this is built here and joined to the month-to-date tabs below.
 const aiUsageContent = {
-    key: 'lightdash-analytics-overview',
+    key: 'lightdash-analytics-ai-tokens',
     spaceSlug: 'lightdash-usage-overview',
     name: 'AI usage',
     description:
@@ -252,7 +254,7 @@ const aiUsageContent = {
         }),
         chart(
             'tokens',
-            'Tokens used',
+            'Tokens (all usage)',
             'ai_usage',
             'total_tokens_used',
             undefined,
@@ -580,7 +582,9 @@ const aiUsageTilePositions: Record<
     'calls-by-model': { x: 18, y: 19, w: 18, h: 8 },
 };
 // One caption row above the Overview tiles, which start at y = 1.
-const aiUsageOverviewCaption = 'Tokens measure usage, not cost.';
+// One vocabulary for the three token totals on this dashboard, and what tells them apart
+const aiUsageOverviewCaption =
+    '**This tab follows the Date filter and counts all usage.** The other tabs are fixed to the current month: Tokens (all usage) is the same measure for the month, and Tokens in billing scope is the part of it that counts towards billing.';
 
 export const analyticsSampleDashboards = [
     aiUsageContent,
@@ -1042,9 +1046,52 @@ export const analyticsDefaultSpace = {
 
 const aiTokenDashboard = buildAiTokenDashboard();
 
+// AI token usage is one dashboard built in two halves: the Any period tab (charts that follow the Date
+// filter, laid out by buildUsageDashboards) and the month-to-date tabs (aiTokenDashboard). The Date and
+// Project filters are switched off for every month-to-date chart, whose period is fixed.
+const builtDashboards = buildUsageDashboards(legacyContentAsCode);
+const anyPeriodTokens = builtDashboards.find(
+    ({ dashboard }) => dashboard.slug === aiTokenDashboard.dashboard.slug,
+)!;
+const tokenDashboard = {
+    dashboard: {
+        ...aiTokenDashboard.dashboard,
+        tabs: [
+            ...anyPeriodTokens.dashboard.tabs,
+            ...aiTokenDashboard.dashboard.tabs.map((tab) => ({
+                ...tab,
+                order: tab.order + anyPeriodTokens.dashboard.tabs.length,
+            })),
+        ],
+        tiles: [
+            ...anyPeriodTokens.dashboard.tiles,
+            ...aiTokenDashboard.dashboard.tiles,
+        ],
+        filters: {
+            metrics: [],
+            tableCalculations: [],
+            dimensions: (
+                anyPeriodTokens.dashboard.filters?.dimensions ?? []
+            ).map((filter) => ({
+                ...filter,
+                tileTargets: {
+                    ...filter.tileTargets,
+                    ...Object.fromEntries(
+                        aiTokenDashboard.charts.map(({ slug }) => [
+                            slug,
+                            false as const,
+                        ]),
+                    ),
+                },
+            })),
+        },
+    },
+    charts: [...anyPeriodTokens.charts, ...aiTokenDashboard.charts],
+};
+
 export const analyticsContentAsCode = [
-    ...buildUsageDashboards(legacyContentAsCode),
-    aiTokenDashboard,
+    ...builtDashboards.filter((bundle) => bundle !== anyPeriodTokens),
+    tokenDashboard,
 ].map(({ dashboard, charts }) => ({
     dashboard: {
         ...dashboard,
