@@ -257,6 +257,7 @@ const makeService = ({
             searchFieldUniqueValues,
             getSpaces: vi.fn().mockResolvedValue(projectSpaces),
             scheduleCompileProject,
+            compileQuery: vi.fn().mockResolvedValue({ query: 'select 1' }),
             ...projectService,
         },
         jobModel,
@@ -10038,6 +10039,62 @@ describe('AiAgentToolsService in a thread bound to a dashboard', () => {
                 } as never);
 
             expect(upsertChart).toHaveBeenCalled();
+        });
+
+        it('saves no chart whose query does not compile, naming why', async () => {
+            const upsertChart = vi.fn();
+            const compileQuery = vi.fn().mockResolvedValue({
+                query: '',
+                compilationErrors: [
+                    'Filter has a reference to an unknown dimension: orders_count',
+                ],
+            });
+            const service = makeService({
+                explores: {
+                    orders: makeExplore({
+                        name: 'orders',
+                        metrics: {
+                            count: {
+                                name: 'count',
+                                table: 'orders',
+                                fieldType: 'metric',
+                            },
+                        },
+                    }),
+                },
+                projectService: { compileQuery },
+                coderService: { upsertChart },
+                aiAgentContentValidation: contentValidation(),
+            });
+            const chart = makeChart(undefined);
+
+            await expect(
+                service.createRuntime(makeRuntimeContext()).createContent({
+                    type: 'chart',
+                    content: {
+                        ...chart,
+                        metricQuery: {
+                            ...chart.metricQuery,
+                            filters: {
+                                dimensions: {
+                                    id: 'g',
+                                    and: [
+                                        {
+                                            id: 'r',
+                                            target: { fieldId: 'orders_count' },
+                                            operator: 'greaterThan',
+                                            values: [1],
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    },
+                } as never),
+            ).rejects.toThrow(
+                'Chart "orders-chart" was not saved, its metricQuery does not compile:\nFilter has a reference to an unknown dimension: orders_count',
+            );
+            expect(upsertChart).not.toHaveBeenCalled();
         });
 
         it.each([

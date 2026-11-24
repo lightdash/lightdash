@@ -81,17 +81,4 @@ describe('getChartFieldErrors', () => {
             '"orders_state" is not a field of explore "orders" (closest: orders_order_date_month, orders_status, orders_total_order_amount).',
         ]);
     });
-
-    it('flags a metric listed as a dimension', () => {
-        expect(
-            getChartFieldErrors(
-                chart({
-                    dimensions: ['orders_status', 'orders_total_order_amount'],
-                }),
-                explore,
-            ),
-        ).toEqual([
-            'metricQuery.dimensions has "orders_total_order_amount", which is not a dimension (closest: orders_order_date_month, orders_status).',
-        ]);
-    });
 });

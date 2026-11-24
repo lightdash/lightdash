@@ -125,6 +125,7 @@ const buildHistory = ({
     const transcriptReplay = {
         model: sonnet,
         currentPromptStart: null as number | null,
+        replayed: false,
     };
 
     return {
@@ -168,6 +169,7 @@ describe('AiAgentService turn transcript replay', () => {
         ]);
         expect(findPromptTranscripts).toHaveBeenCalledWith(['first', 'second']);
         expect(transcriptReplay.currentPromptStart).toBe(6);
+        expect(transcriptReplay.replayed).toBe(true);
     });
 
     it('keeps the queryUuid of a replayed query for the next turn', async () => {
@@ -219,7 +221,7 @@ describe('AiAgentService turn transcript replay', () => {
             vi.fn().mockResolvedValue([{ ...storedRow, model: 'openai/gpt' }]),
         ],
     ])('rebuilds a turn whose transcript %s', async (_, findTranscripts) => {
-        const { history } = buildHistory({
+        const { history, transcriptReplay } = buildHistory({
             findPromptTranscripts: findTranscripts,
         });
 
@@ -231,5 +233,6 @@ describe('AiAgentService turn transcript replay', () => {
             { role: 'assistant', content: 'Here they are.' },
             { role: 'user', content: 'Make it a bar chart' },
         ]);
+        expect(transcriptReplay.replayed).toBe(false);
     });
 });
