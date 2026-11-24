@@ -394,7 +394,11 @@ export const EmptyProject: FC<{
                         />
                         {state === 'noAgent' && isCopilotEnabled ? (
                             <Button
-                                loading={createAgent.isLoading}
+                                // Stays busy until the agent list refetches and this screen goes away
+                                loading={
+                                    createAgent.isLoading ||
+                                    createAgent.isSuccess
+                                }
                                 onClick={() =>
                                     createAgent.mutate(
                                         getDefaultAiAgent(view.project.id),
