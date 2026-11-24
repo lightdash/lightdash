@@ -257,6 +257,21 @@
             "reason": "The ResultsCacheEnabled member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this rollout flag must remove it when upgrading; results caching is now a per-project setting, and the migration copies each organization's flag value into its projects.",
             "requiredStop": false
         },
+        "ai-agent-artifact-verified-fields-removed": {
+            "reason": "Removes AI agent verified answers: AI artifact responses from GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid} and .../versions/{versionUuid} no longer carry verifiedByUserUuid and verifiedAt. They marked an answer verified for the chart verify toggle, which is removed together with verified answers. Only that toggle in the Lightdash web app read them. An old tab treats the missing fields like an unverified answer, and its toggle already gets a 404.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "The chart verify toggle in the Lightdash web app was the only reader of verifiedByUserUuid and verifiedAt on AI artifacts. An old tab reads the missing fields as unverified.",
+                "covers": {
+                    "rest": [
+                        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}",
+                        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}"
+                    ],
+                    "mcp": []
+                }
+            }
+        },
         "agent-permissions-per-role-fields-removed": {
             "reason": "The per-role agent limits are removed. GET /api/v2/org/agent-permissions no longer returns results.defaults or results.systemRoleMatrix. PUT and POST /api/v2/org/agent-permissions/reset no longer return results.systemRoleMatrix. PUT no longer takes systemRoleMatrix; a request that still sends it gets no error and the server ignores it. The agent-identity feature flag is off by default on Cloud and on self-hosted instances and is set per organization. With the flag off, agent enforcement does not change. For organizations with the flag on and agent limits on, a person with a built-in role gets every agent capability that the organization setting allows, and per-role limits saved earlier no longer apply. The stored per-role rows stay in the database, unread and unchanged. During a rolling update an old settings page tab or an old UI pod reads the missing matrix and shows an error until refresh, and a save from the new page that reaches an old API pod is refused until the rollout ends. This is accepted because the settings page is the only client and a refresh or retry after the rollout fixes both.",
             "requiredStop": false,
