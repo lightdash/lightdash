@@ -105,8 +105,10 @@ type Hold = {
     lastPick: string | null;
     /** Used when the hold opens a bubble from the page. */
     newBubbleId: string;
-    /** The mic this hold started for a new bubble, with its first stroke or pick. */
-    voice: Promise<VoiceState> | null;
+    /** The mic recording while the key is down, when the mic is on. */
+    recording: Recording | null;
+    /** Shared by the hold's marks: the bubble they landed in. */
+    landed: { bubbleId: string | null };
     /** Clicks and the release settle one after another, so marks keep their order. */
     settled: Promise<void>;
 };
@@ -209,7 +211,6 @@ export const useDesignMode = (
     session: DesignSession;
     arm: (bubbleId: string, input: BubbleInput) => void;
     send: (bubbleId: string, typed: string) => void;
-    stop: (bubbleId: string) => void;
     discard: (bubbleId: string) => void;
     close: (bubbleId: string) => void;
     minimise: (bubbleId: string) => void;
@@ -281,6 +282,8 @@ export const useDesignMode = (
     const micOnRef = useRef(false);
     const [rect, setRect] = useState<DOMRect | null>(null);
     const [holding, setHolding] = useState(false);
+    // The mic is recording the hold that is down.
+    const [talking, setTalking] = useState(false);
     const [ink, setInk] = useState<Stroke[]>([]);
     // Ink marks on their way into a bubble stay drawn until they land.
     const landingInkRef = useRef<Stroke[][]>([]);
@@ -328,6 +331,16 @@ export const useDesignMode = (
     // Words already transcribed for a bubble whose send failed.
     const phrasesRef = useRef(new Map<string, TranscriptPhrase[]>());
     const finishingRef = useRef(new Set<string>());
+    // Released holds whose words are about to be sent: no new hold meanwhile.
+    const releasingRef = useRef(0);
+    // A released hold sends through this; it is defined after the hold code.
+    const finishRef = useRef<
+        (
+            bubbleId: string,
+            typed: string,
+            spoken: Promise<VoiceRecording | null> | null,
+        ) => void
+    >(() => {});
     const queueRef = useRef<Promise<void>>(Promise.resolve());
     const toolbarRef = useRef<HTMLDivElement | null>(null);
 
@@ -512,17 +525,6 @@ export const useDesignMode = (
         [endRecording],
     );
 
-    // A hold that never became a mark gives back the mic it started.
-    const abandon = useCallback(
-        (hold: Hold) => {
-            const opened = sessionRef.current.bubbles.some(
-                (b) => b.id === hold.newBubbleId,
-            );
-            if (hold.voice && !opened) dropRecording(hold.newBubbleId);
-        },
-        [dropRecording],
-    );
-
     // A released hold whose ink waits on a click still being answered.
     const releasedHoldRef = useRef<Hold | null>(null);
     const refreshInk = useCallback(() => {
@@ -558,13 +560,11 @@ export const useDesignMode = (
                 const picked = made.kind === 'pick' ? await made.found : null;
                 // A click on nothing makes no mark.
                 if (made.kind === 'pick' && !picked) return;
-                const voice = hold.voice ? await hold.voice : null;
-                if (voice === 'off') dropRecording(hold.newBubbleId);
+                const voice = hold.recording
+                    ? await hold.recording.voice
+                    : null;
                 const before = sessionRef.current;
-                if (!onRef.current || !canStartHold(before)) {
-                    abandon(hold);
-                    return;
-                }
+                if (!onRef.current || !canStartHold(before)) return;
 
                 const open = activeCollection(before);
                 const bubbleId = open?.bubble.id ?? hold.newBubbleId;
@@ -606,10 +606,7 @@ export const useDesignMode = (
                     got?.collection.capture.status === 'recording'
                         ? got.collection.capture
                         : null;
-                if (!got || !drawing?.drawing) {
-                    abandon(hold);
-                    return;
-                }
+                if (!got || !drawing?.drawing) return;
                 // The mark is kept either way; say so once per screen.
                 if (drawing.atImageLimit && !wasAtImageLimit) {
                     showToastWarning(
@@ -763,6 +760,7 @@ export const useDesignMode = (
                     after?.status === 'recording' ? after.marks : [];
                 const newest = marks[marks.length - 1];
                 if (!newest || marks.length <= marksBefore) return;
+                hold.landed.bubbleId = got.bubble.id;
                 if (opensImage) {
                     const shots = shotsRef.current.get(got.bubble.id) ?? [];
                     const shot: Shot = {
@@ -841,9 +839,7 @@ export const useDesignMode = (
             });
         },
         [
-            abandon,
             dispatch,
-            dropRecording,
             grabWhenQuiet,
             refreshInk,
             refreshScroll,
@@ -869,11 +865,39 @@ export const useDesignMode = (
         const current = surfaceRef.current;
         if (!current || !onRef.current || holdRef.current) return;
         if (!canStartHold(sessionRef.current)) return;
+        if (releasingRef.current > 0) return;
+        const active = activeCollection(sessionRef.current)?.bubble ?? null;
+        if (active && finishingRef.current.has(active.id)) return;
         const region = current.getRegion();
         postponeGrab();
         forgetHover();
         setRect(region);
         setHolding(true);
+        const newBubbleId = uuidv4();
+        // The mic is live from key down: on the page when the mic is on, in
+        // a bubble when it takes the mic. A typed draft is never recorded over.
+        const wantsVoice = active ? active.input === 'mic' : micOnRef.current;
+        let recording: Recording | null = null;
+        if (wantsVoice && !recordingRef.current) {
+            const voice = beginRecording(active?.id ?? newBubbleId);
+            recording = recordingRef.current;
+            setTalking(true);
+            void voice.then((state) => {
+                if (state === 'on') return;
+                if (recordingRef.current === recording) {
+                    recordingRef.current = null;
+                }
+                if (holdRef.current?.recording === recording) setTalking(false);
+                // No mic: the bubble takes typing.
+                if (active) {
+                    dispatch({
+                        type: 'inputChanged',
+                        bubbleId: active.id,
+                        input: 'text',
+                    });
+                }
+            });
+        }
         holdRef.current = {
             startAbs: performance.now(),
             rect: region,
@@ -882,23 +906,13 @@ export const useDesignMode = (
             current: null,
             marked: false,
             lastPick: null,
-            newBubbleId: uuidv4(),
-            voice: null,
+            newBubbleId,
+            recording,
+            landed: { bubbleId: null },
             settled: Promise.resolve(),
         };
         refreshInk();
-    }, [forgetHover, postponeGrab, refreshInk]);
-
-    // The mic starts with a new bubble's first stroke or pick, not the bare
-    // key: Option is also pressed for shortcuts.
-    const startHoldVoice = useCallback(
-        (hold: Hold) => {
-            if (hold.voice || !micOnRef.current || recordingRef.current) return;
-            if (activeCollection(sessionRef.current) !== null) return;
-            hold.voice = beginRecording(hold.newBubbleId);
-        },
-        [beginRecording],
-    );
+    }, [beginRecording, dispatch, forgetHover, postponeGrab, refreshInk]);
 
     // The strokes drawn since the last pick become one ink mark: all of them,
     // or only those drawn before a click (`drawnBefore`).
@@ -934,31 +948,66 @@ export const useDesignMode = (
         if (!hold) return;
         holdRef.current = null;
         setHolding(false);
+        setTalking(false);
         forgetHover();
         refreshInk();
         lastActivityRef.current = Date.now();
         grabWhenQuiet();
-        if (!hold.marked) abandon(hold);
-    }, [abandon, forgetHover, grabWhenQuiet, refreshInk]);
+        const { recording } = hold;
+        if (!recording) return;
+        if (recordingRef.current === recording) {
+            dropRecording(recording.bubbleId);
+        }
+        if (!hold.marked) return;
+        // Its marks stay, without the words: the bubble takes typing.
+        queueRef.current = queueRef.current.then(() => {
+            const bubbleId = hold.landed.bubbleId;
+            if (bubbleId === null || finishingRef.current.has(bubbleId)) return;
+            dispatch({ type: 'inputChanged', bubbleId, input: 'text' });
+        });
+    }, [dispatch, dropRecording, forgetHover, grabWhenQuiet, refreshInk]);
 
     const endHold = useCallback(() => {
         const hold = holdRef.current;
         if (!hold) return;
         holdRef.current = null;
         setHolding(false);
+        setTalking(false);
         forgetHover();
         lastActivityRef.current = Date.now();
         grabWhenQuiet();
         releasedHoldRef.current = hold;
         refreshInk();
+        // The mic stops with the key, whatever is still landing.
+        const { recording } = hold;
+        let spoken: Promise<VoiceRecording | null> | null = null;
+        if (recording && recordingRef.current === recording) {
+            recordingRef.current = null;
+            spoken = endRecording(recording);
+            spoken.catch(() => {});
+            releasingRef.current += 1;
+        }
         hold.settled = hold.settled.then(() => {
             if (releasedHoldRef.current === hold)
                 releasedHoldRef.current = null;
             flushInk(hold, null);
             refreshInk();
-            if (!hold.marked) abandon(hold);
+            if (!recording || !spoken) return;
+            const heard = spoken;
+            // Once its marks have landed, a hold with the mic sends itself.
+            queueRef.current = queueRef.current.then(async () => {
+                releasingRef.current -= 1;
+                const bubbleId = hold.landed.bubbleId;
+                if (bubbleId === null) return;
+                const state = await recording.voice.catch(() => 'off' as const);
+                const bubble = sessionRef.current.bubbles.find(
+                    (b) => b.id === bubbleId,
+                );
+                if (state !== 'on' || bubble?.input !== 'mic') return;
+                finishRef.current(bubbleId, '', heard);
+            });
         });
-    }, [abandon, flushInk, forgetHover, grabWhenQuiet, refreshInk]);
+    }, [endRecording, flushInk, forgetHover, grabWhenQuiet, refreshInk]);
 
     const onHover = useCallback((point: Point | null) => {
         const ask = hoverAskRef.current;
@@ -992,7 +1041,6 @@ export const useDesignMode = (
         (point: Point) => {
             const hold = holdRef.current;
             if (!hold) return;
-            startHoldVoice(hold);
             hold.current = {
                 points: hold.current
                     ? [...hold.current.points, point]
@@ -1000,7 +1048,7 @@ export const useDesignMode = (
             };
             refreshInk();
         },
-        [refreshInk, startHoldVoice],
+        [refreshInk],
     );
 
     const onStrokeEnd = useCallback(() => {
@@ -1035,7 +1083,6 @@ export const useDesignMode = (
                 refreshInk();
                 hold.lastPick = pickKey;
                 hold.marked = true;
-                if (holdRef.current === hold) startHoldVoice(hold);
                 const pick: Hold = { ...hold, startAbs: clickedAbs };
                 hold.startAbs = performance.now();
                 commit(pick, {
@@ -1045,7 +1092,7 @@ export const useDesignMode = (
                 });
             });
         },
-        [commit, flushInk, forgetHover, refreshInk, startHoldVoice],
+        [commit, flushInk, forgetHover, refreshInk],
     );
 
     const frameHold = useCallback(
@@ -1059,8 +1106,13 @@ export const useDesignMode = (
         [beginHold, endHold],
     );
 
+    // `spoken` is what the mic heard for it: null when it was typed.
     const finish = useCallback(
-        (bubbleId: string, typed: string) => {
+        (
+            bubbleId: string,
+            typed: string,
+            spoken: Promise<VoiceRecording | null> | null,
+        ) => {
             const bubble = sessionRef.current.bubbles.find(
                 (b) => b.id === bubbleId,
             );
@@ -1070,14 +1122,10 @@ export const useDesignMode = (
             }
             if (finishingRef.current.has(bubbleId)) return;
             finishingRef.current.add(bubbleId);
-            if (holdRef.current) endHold();
+            if (spoken === null && holdRef.current) endHold();
 
-            const recording = recordingRef.current;
-            const owns = recording?.bubbleId === bubbleId;
-            if (owns) recordingRef.current = null;
-            const recordingPromise = owns
-                ? endRecording(recording)
-                : Promise.resolve(null);
+            const owns = spoken !== null;
+            const recordingPromise = spoken ?? Promise.resolve(null);
 
             queueRef.current = queueRef.current.then(async () => {
                 let sending = false;
@@ -1239,7 +1287,7 @@ export const useDesignMode = (
                     showToastError('Could not send your marks');
                     if (sending) {
                         dispatch({ type: 'sendFailed', bubbleId });
-                        // The recording is spent: no Stop button with no mic.
+                        // The recording is spent: the retry is typed.
                         dispatch({
                             type: 'inputChanged',
                             bubbleId,
@@ -1256,19 +1304,16 @@ export const useDesignMode = (
             dispatch,
             dropRecording,
             endHold,
-            endRecording,
             picturesOf,
             showToastError,
             showToastWarning,
         ],
     );
 
+    finishRef.current = finish;
+
     const send = useCallback(
-        (bubbleId: string, typed: string) => finish(bubbleId, typed),
-        [finish],
-    );
-    const stop = useCallback(
-        (bubbleId: string) => finish(bubbleId, ''),
+        (bubbleId: string, typed: string) => finish(bubbleId, typed, null),
         [finish],
     );
 
@@ -1394,24 +1439,8 @@ export const useDesignMode = (
             if (!before?.collection) {
                 clocksRef.current.set(bubbleId, performance.now());
             }
-            const recording = recordingRef.current;
-            if (
-                recording &&
-                (recording.bubbleId !== bubbleId || input === 'text')
-            ) {
-                dropRecording(recording.bubbleId);
-            }
-            if (input !== 'mic' || recordingRef.current) return;
-            const voice = beginRecording(bubbleId);
-            void voice.then((state) => {
-                if (state === 'on') return;
-                if (recordingRef.current?.voice === voice) {
-                    recordingRef.current = null;
-                }
-                dispatch({ type: 'inputChanged', bubbleId, input: 'text' });
-            });
         },
-        [beginRecording, dispatch, dropRecording, setOn],
+        [dispatch, setOn],
     );
 
     const toggle = useCallback(() => setOn(!onRef.current), [setOn]);
@@ -1747,12 +1776,11 @@ export const useDesignMode = (
             onRaise={() => raise(bubble.id)}
             onMove={(at) => moveByUser(bubble.id, at)}
             listening={
-                bubble.collection !== null &&
+                talking &&
                 bubble.input === 'mic' &&
-                (bubble.status === 'collecting' || bubble.status === 'thread')
+                activeCollection(session)?.bubble.id === bubble.id
             }
             onSend={(text) => send(bubble.id, text)}
-            onStop={() => stop(bubble.id)}
             onDiscard={() => discard(bubble.id)}
             onClose={() => close(bubble.id)}
             onMinimise={() => minimise(bubble.id)}
@@ -1816,6 +1844,7 @@ export const useDesignMode = (
                             <DesignToolbar
                                 ref={toolbarRef}
                                 holding={holding}
+                                talking={talking}
                                 micOn={micOn}
                                 onMicChange={setMicOn}
                                 onClose={() => setOn(false)}
@@ -1850,7 +1879,6 @@ export const useDesignMode = (
         session,
         arm,
         send,
-        stop,
         discard,
         close,
         minimise,

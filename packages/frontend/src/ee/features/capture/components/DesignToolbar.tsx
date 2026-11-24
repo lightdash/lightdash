@@ -15,6 +15,8 @@ type Props = {
     ref: Ref<HTMLDivElement> | null;
     /** Option is held now. */
     holding: boolean;
+    /** The mic is recording the hold. */
+    talking: boolean;
     micOn: boolean;
     onMicChange: (on: boolean) => void;
     onClose: () => void;
@@ -23,6 +25,7 @@ type Props = {
 const DesignToolbar: FC<Props> = ({
     ref,
     holding,
+    talking,
     micOn,
     onMicChange,
     onClose,
@@ -50,15 +53,22 @@ const DesignToolbar: FC<Props> = ({
                 <Text size="sm">Mark</Text>
                 <Kbd size="xs">Hold ⌥</Kbd>
                 <Text size="xs" c="dimmed">
-                    Click to pick, drag to draw
+                    {micOn
+                        ? 'Click to pick, drag to draw · Talk while you hold, release to send'
+                        : 'Click to pick, drag to draw'}
                 </Text>
             </Group>
             <Tooltip
-                label={micOn ? 'Mic on: talk while you mark' : 'Mic off: type'}
+                label={
+                    micOn
+                        ? 'Mic on: talk while you hold ⌥, release to send'
+                        : 'Mic off: mark, then type'
+                }
                 withinPortal={false}
             >
                 <ActionIcon
                     aria-label="Mic"
+                    className={talking ? classes.talking : undefined}
                     aria-pressed={micOn}
                     variant={micOn ? 'filled' : 'subtle'}
                     color={micOn ? 'red' : undefined}

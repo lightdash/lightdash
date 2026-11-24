@@ -245,7 +245,7 @@ describe('useDesignMode', () => {
         expect(grabDomFrame).not.toHaveBeenCalled();
     });
 
-    it('with the mic on, recording starts with the first stroke and Stop sends the words', async () => {
+    it('with the mic on, the mic records from key down and release sends the marks and words', async () => {
         stopVoice.mockResolvedValue({
             audio: new Blob(['audio'], { type: 'audio/webm' }),
             startedAtMs: performance.now(),
@@ -257,35 +257,52 @@ describe('useDesignMode', () => {
         ]);
         await turnOn(true);
 
+        // Recording starts with the key, so words before the first mark are kept.
         await keyDown({ key: 'Alt', altKey: true });
-        // The key alone is not a mark, nor is a press: the mic waits for the stroke.
-        expect(startVoice).not.toHaveBeenCalled();
-        fireEvent.mouseDown(holdLayer(), { clientX: 10, clientY: 10 });
-        expect(startVoice).not.toHaveBeenCalled();
-        await act(async () => {
-            fireEvent.mouseMove(holdLayer(), { clientX: 40, clientY: 40 });
-        });
         expect(startVoice).toHaveBeenCalledTimes(1);
+        expect(stopVoice).not.toHaveBeenCalled();
+        fireEvent.mouseDown(holdLayer(), { clientX: 10, clientY: 10 });
+        fireEvent.mouseMove(holdLayer(), { clientX: 40, clientY: 40 });
         fireEvent.mouseMove(holdLayer(), { clientX: 70, clientY: 20 });
         fireEvent.mouseUp(holdLayer(), { clientX: 70, clientY: 20 });
+        expect(stopVoice).not.toHaveBeenCalled();
         await keyUp({ key: 'Alt' });
-        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
-        expect(startVoice).toHaveBeenCalledTimes(1);
-        const [bubble] = api.session.bubbles;
-        expect(bubble.input).toBe('mic');
 
-        await act(async () => {
-            api.stop(bubble.id);
-        });
+        // No Stop: the release is the send.
         await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+        expect(startVoice).toHaveBeenCalledTimes(1);
+        expect(stopVoice).toHaveBeenCalledTimes(1);
         const [payload] = onSend.mock.calls[0];
-        expect(payload.bubbleId).toBe(bubble.id);
+        expect(payload.bubbleId).toBe(api.session.bubbles[0].id);
         expect(payload.summary).toContain('make this blue');
+        expect(payload.transcript.length).toBeGreaterThan(0);
         expect(payload.marks).toHaveLength(1);
         expect(payload.images).toHaveLength(1);
         await waitFor(() =>
             expect(api.session.bubbles[0].status).toBe('thread'),
         );
+    });
+
+    it('with the mic on, releasing with no marks drops the recording and opens nothing', async () => {
+        stopVoice.mockResolvedValue({
+            audio: new Blob(['audio'], { type: 'audio/webm' }),
+            startedAtMs: performance.now(),
+        });
+        transcribe.mockResolvedValue([
+            { startMs: 0, endMs: 300, text: 'make' },
+            { startMs: 300, endMs: 600, text: 'this' },
+            { startMs: 600, endMs: 900, text: 'blue' },
+        ]);
+        await turnOn(true);
+        await keyDown({ key: 'Alt', altKey: true });
+        expect(startVoice).toHaveBeenCalledTimes(1);
+        await keyUp({ key: 'Alt' });
+        await waitFor(() => expect(stopVoice).toHaveBeenCalledTimes(1));
+        await act(async () => {});
+        expect(api.session.bubbles).toHaveLength(0);
+        expect(transcribe).not.toHaveBeenCalled();
+        expect(onSend).not.toHaveBeenCalled();
+        expect(screen.queryByRole('alert')).toBeNull();
     });
 
     it('mic denied falls back to the text box', async () => {
@@ -298,18 +315,11 @@ describe('useDesignMode', () => {
         expect(screen.getByRole('textbox')).toBeInTheDocument();
     });
 
-    it('Stop with marks and no words keeps the marks in a text box and sends nothing', async () => {
+    it('a release with marks and no words keeps the marks in a text box and sends nothing', async () => {
         await turnOn(true);
+        // The recording comes back empty.
         await drawMark();
         await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
-        const { id } = api.session.bubbles[0];
-        expect(api.session.bubbles[0].input).toBe('mic');
-        expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
-
-        // The recording comes back empty.
-        await act(async () => {
-            api.stop(id);
-        });
         await waitFor(() => expect(api.session.bubbles[0].input).toBe('text'));
         expect(onSend).not.toHaveBeenCalled();
         expect(api.session.bubbles[0].status).toBe('collecting');
@@ -317,16 +327,53 @@ describe('useDesignMode', () => {
         expect(screen.getByRole('textbox')).toBeInTheDocument();
     });
 
-    it('an Option shortcut with the mic on does not touch the microphone', async () => {
+    it('holding again on a bubble that takes typing adds marks only: no recording, no send', async () => {
+        await turnOn(true);
+        await drawMark();
+        await waitFor(() => expect(api.session.bubbles[0]?.input).toBe('text'));
+        expect(startVoice).toHaveBeenCalledTimes(1);
+        stopVoice.mockResolvedValue({
+            audio: new Blob(['audio'], { type: 'audio/webm' }),
+            startedAtMs: performance.now(),
+        });
+        transcribe.mockResolvedValue([
+            { startMs: 0, endMs: 300, text: 'make' },
+            { startMs: 300, endMs: 600, text: 'this' },
+            { startMs: 600, endMs: 900, text: 'blue' },
+        ]);
+
+        await drawMark();
+        await waitFor(() => expect(collected()).toHaveLength(2));
+        await act(async () => {});
+        expect(startVoice).toHaveBeenCalledTimes(1);
+        expect(onSend).not.toHaveBeenCalled();
+        expect(api.session.bubbles[0]).toMatchObject({
+            status: 'collecting',
+            input: 'text',
+        });
+    });
+
+    it('a hold called off by another key drops its recording', async () => {
+        stopVoice.mockResolvedValue({
+            audio: new Blob(['audio'], { type: 'audio/webm' }),
+            startedAtMs: performance.now(),
+        });
+        transcribe.mockResolvedValue([
+            { startMs: 0, endMs: 300, text: 'make' },
+            { startMs: 300, endMs: 600, text: 'this' },
+            { startMs: 600, endMs: 900, text: 'blue' },
+        ]);
         await turnOn(true);
         await keyDown({ key: 'Alt', altKey: true });
+        expect(startVoice).toHaveBeenCalledTimes(1);
         await keyDown({ key: 'ArrowLeft', altKey: true });
         await keyUp({ key: 'ArrowLeft', altKey: true });
         await keyUp({ key: 'Alt' });
-        await keyDown({ key: 'Alt', altKey: true });
-        await keyUp({ key: 'Alt' });
-        expect(startVoice).not.toHaveBeenCalled();
-        expect(stopVoice).not.toHaveBeenCalled();
+        await waitFor(() => expect(stopVoice).toHaveBeenCalledTimes(1));
+        await act(async () => {});
+        expect(api.session.bubbles).toHaveLength(0);
+        expect(transcribe).not.toHaveBeenCalled();
+        expect(onSend).not.toHaveBeenCalled();
     });
 
     it('nothing to send is never sent', async () => {
@@ -342,27 +389,26 @@ describe('useDesignMode', () => {
         );
         expect(onSend).toHaveBeenCalledTimes(1);
 
-        // A reply by mic with no marks and no words.
+        // A reply by mic with no marks: the hold records and sends nothing.
         await act(async () => {
             api.arm(id, 'mic');
         });
+        expect(startVoice).not.toHaveBeenCalled();
+        await keyDown({ key: 'Alt', altKey: true });
         expect(startVoice).toHaveBeenCalledTimes(1);
-        await act(async () => {
-            api.stop(id);
-        });
+        await keyUp({ key: 'Alt' });
+        await waitFor(() => expect(stopVoice).toHaveBeenCalledTimes(1));
         await act(async () => {});
         expect(onSend).toHaveBeenCalledTimes(1);
-        expect(api.session.bubbles[0].input).toBe('text');
+        expect(transcribe).not.toHaveBeenCalled();
     });
 
-    it('arming the mic while the reply is on its way out does not start a recording', async () => {
+    it('while a spoken reply is on its way out, neither the Mic button nor the key starts a recording', async () => {
         await turnOn();
         const id = await sendFirst();
         await act(async () => {
             api.arm(id, 'mic');
         });
-        expect(startVoice).toHaveBeenCalledTimes(1);
-
         let stopped: (audio: null) => void = () => {};
         stopVoice.mockImplementationOnce(
             () =>
@@ -370,13 +416,16 @@ describe('useDesignMode', () => {
                     stopped = resolve;
                 }),
         );
-        await act(async () => {
-            api.stop(id);
-        });
-        // Still being stopped and transcribed: the Mic button does nothing.
+        await drawMark();
+        expect(startVoice).toHaveBeenCalledTimes(1);
+        await waitFor(() => expect(stopVoice).toHaveBeenCalledTimes(1));
+        // Still being stopped and transcribed.
         await act(async () => {
             api.arm(id, 'mic');
         });
+        await keyDown({ key: 'Alt', altKey: true });
+        expect(api.holding).toBe(false);
+        await keyUp({ key: 'Alt' });
         await act(async () => {
             stopped(null);
         });
@@ -464,12 +513,14 @@ describe('useDesignMode', () => {
             await act(async () => {
                 api.arm(id, 'mic');
             });
-            expect(startVoice).toHaveBeenCalledTimes(1);
+            expect(startVoice).not.toHaveBeenCalled();
 
             // The other tab is scrolled far past where the bubble was left.
             await changeTab('b', 900);
             expect(bubble()).not.toBeNull();
-            expect(screen.getByRole('button', { name: 'Stop' })).toBeVisible();
+            expect(
+                screen.getByText('Hold ⌥, mark and talk. Release to send.'),
+            ).toBeVisible();
             const top =
                 parseFloat(
                     bubble()?.style.getPropertyValue('--bubble-top') ?? '',
@@ -857,18 +908,51 @@ describe('useDesignMode', () => {
             await keyUp({ key: 'Alt' });
         });
 
-        it('with the mic on, a pick starts the mic for a new bubble', async () => {
+        it('with the mic on, a pick made while talking is sent on release', async () => {
+            stopVoice.mockResolvedValue({
+                audio: new Blob(['audio'], { type: 'audio/webm' }),
+                startedAtMs: performance.now(),
+            });
+            transcribe.mockResolvedValue([
+                { startMs: 0, endMs: 300, text: 'make' },
+                { startMs: 300, endMs: 600, text: 'this' },
+                { startMs: 600, endMs: 900, text: 'blue' },
+            ]);
             await turnOn(true);
             await keyDown({ key: 'Alt', altKey: true });
-            fireEvent.mouseDown(holdLayer(), { clientX: 20, clientY: 30 });
-            expect(startVoice).not.toHaveBeenCalled();
-            await act(async () => {
-                fireEvent.mouseUp(holdLayer(), { clientX: 20, clientY: 30 });
-            });
             expect(startVoice).toHaveBeenCalledTimes(1);
+            click(20, 30);
             await keyUp({ key: 'Alt' });
+            await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+            const [payload] = onSend.mock.calls[0];
+            expect(payload.marks).toMatchObject([{ shape: 'pick' }]);
+            expect(payload.summary).toContain('make this blue');
+        });
+
+        it('a hold called off after a mark keeps the mark in a text box, without the words', async () => {
+            stopVoice.mockResolvedValue({
+                audio: new Blob(['audio'], { type: 'audio/webm' }),
+                startedAtMs: performance.now(),
+            });
+            transcribe.mockResolvedValue([
+                { startMs: 0, endMs: 300, text: 'make' },
+                { startMs: 300, endMs: 600, text: 'this' },
+                { startMs: 600, endMs: 900, text: 'blue' },
+            ]);
+            await turnOn(true);
+            await keyDown({ key: 'Alt', altKey: true });
+            click(20, 30);
             await waitFor(() => expect(collected()).toHaveLength(1));
-            expect(api.session.bubbles[0].input).toBe('mic');
+            await keyDown({ key: 'e', altKey: true });
+            await keyUp({ key: 'e', altKey: true });
+            await keyUp({ key: 'Alt' });
+            await waitFor(() =>
+                expect(api.session.bubbles[0].input).toBe('text'),
+            );
+            expect(stopVoice).toHaveBeenCalledTimes(1);
+            expect(transcribe).not.toHaveBeenCalled();
+            expect(onSend).not.toHaveBeenCalled();
+            expect(collected()).toHaveLength(1);
         });
 
         it('a pick does not activate the link it lands on', async () => {
@@ -1115,7 +1199,7 @@ describe('useDesignMode', () => {
         expect(startVoice).toHaveBeenCalledTimes(1);
         expect(stopVoice).not.toHaveBeenCalled();
 
-        // The next bubble's mic waits for the first one to be stopped.
+        // The next hold's mic waits for the first one to be stopped.
         await drawMark();
         expect(startVoice).toHaveBeenCalledTimes(1);
         expect(stopVoice).not.toHaveBeenCalled();
@@ -1124,13 +1208,12 @@ describe('useDesignMode', () => {
             started('on');
         });
         await waitFor(() => expect(startVoice).toHaveBeenCalledTimes(2));
-        expect(stopVoice).toHaveBeenCalledTimes(1);
         expect(stopVoice.mock.invocationCallOrder[0]).toBeLessThan(
             startVoice.mock.invocationCallOrder[1],
         );
         await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
-        expect(api.session.bubbles[0].input).toBe('mic');
-        expect(stopVoice).toHaveBeenCalledTimes(1);
+        // Each hold stopped its own recording, and only once.
+        await waitFor(() => expect(stopVoice).toHaveBeenCalledTimes(2));
     });
 
     it('arming a bubble that is still collecting does not start the mic', async () => {
@@ -1145,27 +1228,37 @@ describe('useDesignMode', () => {
         expect(api.session.bubbles[0].input).toBe('text');
     });
 
-    it('switching an armed reply from mic to text stops its recording', async () => {
+    it('arming a sent bubble for the mic does not start it; the hold records and release sends the reply', async () => {
         await turnOn();
-        await drawMark();
-        await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
-        const { id } = api.session.bubbles[0];
-        await act(async () => {
-            api.send(id, '');
+        const id = await sendFirst();
+        expect(onSend).toHaveBeenCalledTimes(1);
+        stopVoice.mockResolvedValue({
+            audio: new Blob(['audio'], { type: 'audio/webm' }),
+            startedAtMs: performance.now(),
         });
-        await waitFor(() =>
-            expect(api.session.bubbles[0].status).toBe('thread'),
-        );
+        transcribe.mockResolvedValue([
+            { startMs: 0, endMs: 300, text: 'make' },
+            { startMs: 300, endMs: 600, text: 'this' },
+            { startMs: 600, endMs: 900, text: 'blue' },
+        ]);
 
         await act(async () => {
             api.arm(id, 'mic');
         });
+        expect(startVoice).not.toHaveBeenCalled();
+
+        await keyDown({ key: 'Alt', altKey: true });
         expect(startVoice).toHaveBeenCalledTimes(1);
-        await act(async () => {
-            api.arm(id, 'text');
-        });
+        fireEvent.mouseDown(holdLayer(), { clientX: 10, clientY: 10 });
+        fireEvent.mouseMove(holdLayer(), { clientX: 40, clientY: 40 });
+        fireEvent.mouseUp(holdLayer(), { clientX: 40, clientY: 40 });
+        await keyUp({ key: 'Alt' });
+        await waitFor(() => expect(onSend).toHaveBeenCalledTimes(2));
+        const [reply] = onSend.mock.calls[1];
+        expect(reply.bubbleId).toBe(id);
+        expect(reply.summary).toContain('make this blue');
+        expect(reply.marks).toHaveLength(1);
         expect(stopVoice).toHaveBeenCalledTimes(1);
-        expect(api.session.bubbles[0].input).toBe('text');
     });
 
     it('Esc while a bubble is being sent keeps the bubble and Design Mode', async () => {
@@ -1417,11 +1510,6 @@ describe('useDesignMode', () => {
         await drawMark();
         await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
         const { id } = api.session.bubbles[0];
-        expect(api.session.bubbles[0].input).toBe('mic');
-
-        await act(async () => {
-            api.stop(id);
-        });
         await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
         await waitFor(() =>
             expect(api.session.bubbles[0]).toMatchObject({

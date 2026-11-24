@@ -10,6 +10,7 @@ const setup = (holding: boolean, micOn = false) => {
         <DesignToolbar
             ref={null}
             holding={holding}
+            talking={false}
             micOn={micOn}
             onMicChange={onMicChange}
             onClose={onClose}
@@ -27,6 +28,15 @@ describe('DesignToolbar', () => {
             screen.getByText('Click to pick, drag to draw'),
         ).toBeInTheDocument();
         expect(screen.queryByText('Hold ⌃')).toBeNull();
+    });
+
+    it('with the mic on, says that talking is sent on release', () => {
+        setup(false, true);
+        expect(
+            screen.getByText(
+                'Click to pick, drag to draw · Talk while you hold, release to send',
+            ),
+        ).toBeInTheDocument();
     });
 
     it('shows when Option is held', () => {

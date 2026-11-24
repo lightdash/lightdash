@@ -57,7 +57,6 @@ const setup = (
 ) => {
     const handlers = {
         onSend: vi.fn(),
-        onStop: vi.fn(),
         onDiscard: vi.fn(),
         onClose: vi.fn(),
         onRaise: vi.fn(),
@@ -105,11 +104,19 @@ describe('DesignBubble', () => {
         expect(screen.getByLabelText('Mark 2')).toHaveTextContent('2');
     });
 
-    it('Stop is shown while listening', () => {
-        const { onStop } = setup(bubbleWith('mic'), { listening: true });
+    it('shows it is listening while the key is held, with no Stop button', () => {
+        setup(bubbleWith('mic'), { listening: true });
         expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
-        expect(onStop).toHaveBeenCalledTimes(1);
+        expect(
+            screen.getByText('Listening. Release ⌥ to send'),
+        ).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull();
+    });
+
+    it('shows it is sending once the key is up, until the words are in', () => {
+        setup(bubbleWith('mic'));
+        expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+        expect(screen.getByText('Sending')).toBeInTheDocument();
     });
 
     it('passthrough turns off pointer events', () => {
@@ -266,7 +273,6 @@ describe('DesignBubble', () => {
                 onRaise={noop}
                 onMove={noop}
                 onSend={noop}
-                onStop={noop}
                 onDiscard={noop}
                 onClose={noop}
                 onMinimise={noop}
@@ -443,7 +449,6 @@ describe('DesignBubble', () => {
                 onRaise: vi.fn(),
                 onMove: vi.fn(),
                 onSend: vi.fn(),
-                onStop: vi.fn(),
                 onDiscard: vi.fn(),
                 onClose: vi.fn(),
                 onMinimise: vi.fn(),

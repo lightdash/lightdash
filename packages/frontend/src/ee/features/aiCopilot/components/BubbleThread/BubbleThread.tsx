@@ -91,7 +91,7 @@ const REPLY_TOOLS: {
     },
     {
         label: 'Mic',
-        hint: 'Mic: talk while you mark',
+        hint: 'Mic: hold ⌥, talk and mark, release to send',
         icon: IconMicrophone,
         input: 'mic',
     },

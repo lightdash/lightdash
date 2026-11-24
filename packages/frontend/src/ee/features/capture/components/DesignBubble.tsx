@@ -3,7 +3,6 @@ import {
     ActionIcon,
     Badge,
     Box,
-    Button,
     Group,
     Loader,
     Paper,
@@ -49,14 +48,13 @@ type Props = {
     stack: number;
     /** A hold is down: the bubble fades and lets the pointer through. */
     passthrough: boolean;
-    /** The mic is recording into this bubble. */
+    /** The hold key is down and the mic is recording into this bubble. */
     listening: boolean;
     /** Pressed or focused: it comes to the front. */
     onRaise: () => void;
     /** Dragged by its header to this top left, in viewport pixels. */
     onMove: (position: { x: number; y: number }) => void;
     onSend: (text: string) => void;
-    onStop: () => void;
     onDiscard: () => void;
     onClose: () => void;
     onMinimise: () => void;
@@ -78,7 +76,6 @@ const DesignBubble: FC<Props> = ({
     onRaise,
     onMove,
     onSend,
-    onStop,
     onDiscard,
     onClose,
     onMinimise,
@@ -93,7 +90,8 @@ const DesignBubble: FC<Props> = ({
         bubble.collection?.capture.status === 'recording'
             ? bubble.collection.capture.marks
             : [];
-    const typing = bubble.status === 'collecting' && !listening;
+    const byMic = bubble.input === 'mic';
+    const typing = bubble.status === 'collecting' && !byMic;
 
     // The text box takes focus when it appears and after each new mark, so
     // typing carries on. A hold that made no mark leaves focus where it was.
@@ -199,23 +197,25 @@ const DesignBubble: FC<Props> = ({
         </Group>
     );
 
-    const stopRow = (
-        <Group gap="xs" wrap="nowrap" justify="space-between">
-            <Group gap={6} wrap="nowrap" className={classes.listening}>
-                <MantineIcon icon={IconMicrophone} color="red" />
-                <Text size="sm">Listening</Text>
-            </Group>
-            <Button size="xs" color="red" onClick={onStop}>
-                Stop
-            </Button>
+    const listeningRow = (
+        <Group gap={6} wrap="nowrap" className={classes.listening}>
+            <MantineIcon icon={IconMicrophone} color="red" />
+            <Text size="sm">Listening. Release ⌥ to send</Text>
         </Group>
+    );
+    // The mic's turn: recording while the key is down, sent once it is up.
+    const micRow = listening ? listeningRow : sendingRow;
+    const micHint = (
+        <Text size="xs" c="dimmed">
+            Hold ⌥, mark and talk. Release to send.
+        </Text>
     );
 
     const body = (): ReactNode => {
         switch (bubble.status) {
             case 'collecting':
-                return listening ? (
-                    stopRow
+                return byMic ? (
+                    micRow
                 ) : (
                     <Textarea
                         ref={inputRef}
@@ -269,7 +269,12 @@ const DesignBubble: FC<Props> = ({
                 return (
                     <>
                         {children}
-                        {!minimised && listening && stopRow}
+                        {!minimised &&
+                            byMic &&
+                            bubble.collection !== null &&
+                            (listening || collected.length > 0
+                                ? micRow
+                                : micHint)}
                     </>
                 );
             default:
