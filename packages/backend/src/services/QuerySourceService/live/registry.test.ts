@@ -63,6 +63,10 @@ const SAMPLE_SETTINGS: {
     [ApiConnectorType.AMPLITUDE]: {
         connector: ApiConnectorType.AMPLITUDE,
     },
+    [ApiConnectorType.APP_STORE_CONNECT]: {
+        connector: ApiConnectorType.APP_STORE_CONNECT,
+        appId: '1234567890',
+    },
     [ApiConnectorType.PYLON]: {
         connector: ApiConnectorType.PYLON,
     },

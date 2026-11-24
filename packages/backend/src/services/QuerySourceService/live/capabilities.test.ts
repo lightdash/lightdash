@@ -134,6 +134,17 @@ const SOURCES = [
         },
         date: 'created_at',
     },
+    {
+        apiSource: {
+            connector: ApiConnectorType.APP_STORE_CONNECT,
+            appId: '1234567890',
+        },
+        // A list total can't be split by a dimension, so cases filter on it
+        // instead of selecting it
+        fields: { dimension: 'platform', other: 'state', metric: 'count' },
+        date: 'created_at',
+        selectsDimension: false,
+    },
 ] as const;
 
 const CONNECTORS: ApiConnectorType[] = SOURCES.map(
@@ -282,6 +293,11 @@ const date = (connector: ApiConnectorType) => {
         'date' in source ? String(source.date) : 'date',
     );
 };
+
+// App Store Connect can't filter by any date, so every date filter is refused
+const ASC = ApiConnectorType.APP_STORE_CONNECT;
+const ascDateRefusal = () =>
+    `${fieldLabel(ASC, date(ASC))} can't be filtered on ${sourceLabel(ASC)}.`;
 
 // Every refusal the shared check replaced, with the message users saw
 // before connectors declared capabilities.
@@ -489,11 +505,16 @@ const CASES: Case[] = [
             [ApiConnectorType.GA4]: [
                 'Filter the date with one filter combined with the others by AND, not inside an OR group.',
             ],
+            [ASC]: [
+                'This live data source only combines filters with AND. Replace the OR group with separate queries.',
+                ascDateRefusal(),
+            ],
         },
     },
     {
         name: 'two date filters',
         code: 'live_source.refused.date_range',
+        codes: { [ASC]: 'live_source.refused.filter_operator' },
         query: (connector) => ({
             filters: {
                 dimensions: {
@@ -507,15 +528,19 @@ const CASES: Case[] = [
                 },
             },
         }),
-        expected: wherever(
-            needsDateRange,
-            () =>
-                'Filter the date once: combine the date filters into one range.',
-        ),
+        expected: {
+            ...wherever(
+                needsDateRange,
+                () =>
+                    'Filter the date once: combine the date filters into one range.',
+            ),
+            [ASC]: [ascDateRefusal(), ascDateRefusal()],
+        },
     },
     {
         name: 'a date in the past hours',
         code: 'live_source.refused.date_operator',
+        codes: { [ASC]: 'live_source.refused.filter_operator' },
         query: (connector) => ({
             filters: {
                 dimensions: {
@@ -528,11 +553,14 @@ const CASES: Case[] = [
                 },
             },
         }),
-        expected: wherever(
-            needsDateRange,
-            () =>
-                'Live data sources report by day; filter in days or longer, not hours.',
-        ),
+        expected: {
+            ...wherever(
+                needsDateRange,
+                () =>
+                    'Live data sources report by day; filter in days or longer, not hours.',
+            ),
+            [ASC]: [ascDateRefusal()],
+        },
     },
     {
         name: 'a date operator the API lacks',
@@ -544,6 +572,7 @@ const CASES: Case[] = [
             [ApiConnectorType.HUBSPOT]: 'live_source.refused.filter_operator',
             [ApiConnectorType.SALESFORCE]:
                 'live_source.refused.filter_operator',
+            [ASC]: 'live_source.refused.filter_operator',
         },
         query: (connector) => ({
             filters: {
@@ -560,16 +589,19 @@ const CASES: Case[] = [
             },
         }),
         // GA4 reads it as everything before that range
-        expected: wherever(
-            ({ dates }) =>
-                !dates.operators.includes(FilterOperator.NOT_IN_THE_PAST),
-            (connector, { dates }) =>
-                `${fieldLabel(connector, date(connector))} can't use ${operatorLabel(connector, date(connector), FilterOperator.NOT_IN_THE_PAST)} on ${sourceLabel(connector)}. Use one of: ${dates.operators
-                    .map((operator) =>
-                        operatorLabel(connector, date(connector), operator),
-                    )
-                    .join(', ')}.`,
-        ),
+        expected: {
+            ...wherever(
+                ({ dates }) =>
+                    !dates.operators.includes(FilterOperator.NOT_IN_THE_PAST),
+                (connector, { dates }) =>
+                    `${fieldLabel(connector, date(connector))} can't use ${operatorLabel(connector, date(connector), FilterOperator.NOT_IN_THE_PAST)} on ${sourceLabel(connector)}. Use one of: ${dates.operators
+                        .map((operator) =>
+                            operatorLabel(connector, date(connector), operator),
+                        )
+                        .join(', ')}.`,
+            ),
+            [ASC]: [ascDateRefusal()],
+        },
     },
 ];
 

@@ -1,5 +1,74 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`live data source names > App Store Connect explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "app_store_connect_versions_count",
+        "app_store_connect_versions_created_at",
+        "app_store_connect_versions_downloadable",
+        "app_store_connect_versions_earliest_release_at",
+        "app_store_connect_versions_platform",
+        "app_store_connect_versions_release_type",
+        "app_store_connect_versions_review_type",
+        "app_store_connect_versions_state",
+        "app_store_connect_versions_version",
+        "app_store_connect_versions_version_id",
+      ],
+      "name": "app_store_connect_versions",
+    },
+    {
+      "fieldIds": [
+        "app_store_connect_builds_audience_type",
+        "app_store_connect_builds_build_id",
+        "app_store_connect_builds_build_number",
+        "app_store_connect_builds_count",
+        "app_store_connect_builds_expired",
+        "app_store_connect_builds_expires_at",
+        "app_store_connect_builds_min_os_version",
+        "app_store_connect_builds_processing_state",
+        "app_store_connect_builds_uploaded_at",
+        "app_store_connect_builds_uses_non_exempt_encryption",
+      ],
+      "name": "app_store_connect_builds",
+    },
+    {
+      "fieldIds": [
+        "app_store_connect_customer_reviews_body",
+        "app_store_connect_customer_reviews_count",
+        "app_store_connect_customer_reviews_created_at",
+        "app_store_connect_customer_reviews_rating",
+        "app_store_connect_customer_reviews_review_id",
+        "app_store_connect_customer_reviews_reviewer_nickname",
+        "app_store_connect_customer_reviews_territory",
+        "app_store_connect_customer_reviews_title",
+      ],
+      "name": "app_store_connect_customer_reviews",
+    },
+    {
+      "fieldIds": [
+        "app_store_connect_review_submissions_count",
+        "app_store_connect_review_submissions_platform",
+        "app_store_connect_review_submissions_state",
+        "app_store_connect_review_submissions_submission_id",
+        "app_store_connect_review_submissions_submitted_at",
+      ],
+      "name": "app_store_connect_review_submissions",
+    },
+  ],
+  "reservedExploreNames": [
+    "app_store_connect_downloads",
+    "app_store_connect_sessions",
+    "app_store_connect_installs",
+    "app_store_connect_crashes",
+    "app_store_connect_sales",
+    "app_store_connect_subscriptions",
+    "app_store_connect_ratings",
+  ],
+}
+`;
+
 exports[`live data source names > Attio explore names and field ids never change 1`] = `
 {
   "explores": [

@@ -109,6 +109,14 @@ const SOURCES: {
         scan: {},
     },
     {
+        name: 'App Store Connect',
+        apiSource: {
+            connector: ApiConnectorType.APP_STORE_CONNECT,
+            appId: '1234567890',
+        },
+        scan: {},
+    },
+    {
         name: 'Pylon',
         apiSource: { connector: ApiConnectorType.PYLON },
         scan: {},

@@ -61,6 +61,10 @@ describe('live integration specs', () => {
               "rating": "easy",
               "score": 7,
             },
+            "app_store_connect": {
+              "rating": "medium",
+              "score": 3,
+            },
             "attio": {
               "rating": "easy",
               "score": 7,
