@@ -6,7 +6,7 @@ const EmbeddingVectorIndexName = 'ai_artifact_versions_embedding_vector_idx';
 
 export const classification = {
     kind: 'breaking',
-    reason: 'Drops the verified answers columns of ai_artifact_versions (verified_by_user_uuid, verified_at, verified_question, embedding_vector with its HNSW index, embedding_model_provider, embedding_model) and the ai_prompt_artifact_references table. Releases that contain the verified answers removal neither read nor write them; older releases still read them when loading artifacts and threads. Raw SQL only sets a lock timeout.',
+    reason: 'Drops the verified answers columns of ai_artifact_versions (verified_by_user_uuid, verified_at, verified_question, embedding_vector with its HNSW index, embedding_model_provider, embedding_model) and the ai_prompt_artifact_references table. Releases that contain the verified answers removal neither read nor write them; older releases still read them when loading artifacts and threads. Raw SQL sets a lock timeout and drops the columns.',
 };
 
 export async function up(knex: Knex): Promise<void> {
@@ -26,7 +26,8 @@ export async function down(knex: Knex): Promise<void> {
             .nullable()
             .references('user_uuid')
             .inTable('users')
-            .onDelete('SET NULL');
+            .onDelete('SET NULL')
+            .index();
         table.timestamp('verified_at').nullable();
         table.text('verified_question').nullable();
         table.specificType('embedding_vector', 'vector(1536)').nullable();
