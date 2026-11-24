@@ -41,10 +41,7 @@ import {
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import clsx from 'clsx';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
 import {
-    Fragment,
     memo,
     useCallback,
     useEffect,
@@ -81,6 +78,7 @@ import { useUpdateLiveSourceFields } from '../externalConnections/hooks/useLiveS
 import { useTables } from '../sqlRunner/hooks/useTables';
 import { useExternalSourceActions } from './externalSources/externalSourceActions';
 import { isSameDraft, toFieldChange, toFieldDraft } from './fieldDraft';
+import FieldSummary from './FieldSummary';
 import { KindTypeIcon } from './KindTypeIcon';
 import { useLiveSourceActions } from './liveSources/liveSourceActions';
 import {
@@ -111,8 +109,6 @@ import {
     type ProjectSearch,
     type ViewModel,
 } from './useSemanticStudio';
-
-dayjs.extend(relativeTime);
 
 // ---------------------------------------------------------------------------
 // Icons
@@ -1093,40 +1089,6 @@ const typeLabel = (type: string): string => {
     return words.charAt(0).toUpperCase() + words.slice(1);
 };
 
-/** Where the field comes from, its charts and its last change, in a line. */
-const FieldSummary: FC<{ field: Field }> = ({ field }) => {
-    const parts: ReactNode[] = [
-        <span key="definition">
-            {field.definition.label}{' '}
-            <code className={classes.detailSummaryCode}>
-                {field.definition.value}
-            </code>
-        </span>,
-    ];
-    if (field.chartUsage !== null) {
-        parts.push(
-            field.chartUsage
-                ? `Used in ${field.chartUsage.toLocaleString()} chart${field.chartUsage === 1 ? '' : 's'}`
-                : 'Not used in any chart',
-        );
-    }
-    if (field.lastEdit) {
-        parts.push(
-            `Changed by ${field.lastEdit.by} ${dayjs(field.lastEdit.at).fromNow()}`,
-        );
-    }
-    return (
-        <>
-            {parts.map((part, index) => (
-                <Fragment key={index}>
-                    {index > 0 ? ' · ' : null}
-                    {part}
-                </Fragment>
-            ))}
-        </>
-    );
-};
-
 export const FieldDetailModal: FC<{
     view: ViewModel;
     explore: Explore;
@@ -1336,7 +1298,14 @@ export const FieldDetailModal: FC<{
                     </>
                 ) : undefined
             }
-            summary={<FieldSummary field={field} />}
+            summary={
+                <FieldSummary
+                    field={field}
+                    warehouseProjectUuid={
+                        source.kind === 'modelled' ? view.project.id : null
+                    }
+                />
+            }
             note={note}
             actions={
                 canEdit ? (
