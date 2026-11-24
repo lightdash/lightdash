@@ -5,7 +5,7 @@ import {
     mapValues,
     pickBy,
 } from 'es-toolkit/compat';
-import { ExploreType } from '../../types/explore';
+import type { ExploreType } from '../../types/explore';
 
 type FilterableTable = {
     dimensions: Record<string, { tags?: string[] }>;
@@ -22,6 +22,18 @@ type FilterableExplore<T extends FilterableTable = FilterableTable> = {
 function matcher(tags: string[], availableTags: string[]) {
     return intersection(tags, availableTags).length > 0;
 }
+
+/**
+ * Whether something carrying these tags is open to an agent limited to
+ * `availableTags`. An agent without tags is limited to nothing.
+ */
+export const isTaggedForAgent = (
+    tags: string[] | null | undefined,
+    availableTags: string[] | null,
+): boolean =>
+    !availableTags ||
+    availableTags.length === 0 ||
+    matcher(tags ?? [], availableTags);
 
 function hasFieldMatchingTags<T extends FilterableTable>(
     table: T,
@@ -89,10 +101,9 @@ function hasMatchingTags<
  * | No explore tag, base table fields tagged        | Only matching fields visible              |
  * | No explore tag, only joined table fields tagged | Explore hidden (base table requirement)   |
  * | No matching tags anywhere                       | Explore hidden                            |
- * | Live data source explore (`API_SOURCE`)         | Everything is visible                     |
  *
- * Live data source explores are built from an integration, not dbt, so they
- * never carry tags; the agent's live-sources prompt already lists them.
+ * Live data source explores carry their source's tags at explore level, so
+ * they follow the same rules as dbt explores.
  */
 export function filterExploreByTags<E extends FilterableExplore>({
     explore,
@@ -101,11 +112,7 @@ export function filterExploreByTags<E extends FilterableExplore>({
     explore: E;
     availableTags: string[] | null;
 }) {
-    if (
-        !availableTags ||
-        availableTags.length === 0 ||
-        explore.type === ExploreType.API_SOURCE
-    ) {
+    if (!availableTags || availableTags.length === 0) {
         return explore;
     }
 

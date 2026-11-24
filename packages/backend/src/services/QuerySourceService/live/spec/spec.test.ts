@@ -57,6 +57,10 @@ describe('live integration specs', () => {
             ),
         ).toMatchInlineSnapshot(`
           {
+            "amplitude": {
+              "rating": "easy",
+              "score": 7,
+            },
             "attio": {
               "rating": "easy",
               "score": 7,

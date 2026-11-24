@@ -95,6 +95,8 @@ export type LiveSourceFieldState = {
     fields: LiveSourceFieldEdits | null;
     aiHint: string | null;
     targetLabel: string | null;
+    /** Tags the source's explores carry, for AI agents limited to tags. */
+    tags: string[];
 };
 
 const fieldDefinitionSchema = z.object({
@@ -135,6 +137,7 @@ const editorSchema = z.object({
 const fieldStateSchema = z.object({
     aiHint: z.string().nullish().catch(null),
     targetLabel: z.string().nullish().catch(null),
+    tags: z.array(z.string()).nullish().catch(null),
     lastScan: z
         .object({
             scannedAt: z.string(),
@@ -167,6 +170,7 @@ export const parseLiveSourceFieldState = (
             fields: null,
             aiHint: null,
             targetLabel: null,
+            tags: [],
         };
     }
     return {
@@ -174,6 +178,7 @@ export const parseLiveSourceFieldState = (
         fields: parsed.data.fields ?? null,
         aiHint: parsed.data.aiHint ?? null,
         targetLabel: parsed.data.targetLabel ?? null,
+        tags: parsed.data.tags ?? [],
     };
 };
 

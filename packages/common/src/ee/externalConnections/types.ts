@@ -133,6 +133,14 @@ export type SalesforceApiSource = {
 };
 
 /**
+ * An Amplitude project; its API key and secret key pick it, and the
+ * connection's origin says whether its data lives in the US or the EU.
+ */
+export type AmplitudeApiSource = {
+    connector: ApiConnectorType.AMPLITUDE;
+};
+
+/**
  * Hydra, the test integration: its rows are seeded from the sign-in token,
  * and these settings make its fake API slow, fail, page or rate limit.
  * Every setting is optional; one left out takes its default
@@ -215,6 +223,7 @@ export type ExternalConnectionApiSource =
     | AttioApiSource
     | HubspotApiSource
     | SalesforceApiSource
+    | AmplitudeApiSource
     | HydraApiSource;
 
 /** The settings of one integration's sources. */
@@ -281,6 +290,30 @@ export const getAttioAttributesPath = (object: string) =>
 
 export const getAttioRecordsQueryPath = (object: string) =>
     `/v2/objects/${object}/records/query`;
+
+/** Amplitude's Dashboard REST API, by where the project's data lives. */
+export const AMPLITUDE_REGION_ORIGINS = {
+    us: 'https://amplitude.com',
+    eu: 'https://analytics.eu.amplitude.com',
+} as const;
+export type AmplitudeRegion = keyof typeof AMPLITUDE_REGION_ORIGINS;
+
+export const getAmplitudeRegion = (origin: string): AmplitudeRegion =>
+    origin.replace(/\/+$/, '') === AMPLITUDE_REGION_ORIGINS.eu ? 'eu' : 'us';
+
+/** The Dashboard REST API endpoints a source reads. */
+export const AMPLITUDE_PATHS = {
+    segmentation: '/api/2/events/segmentation',
+    users: '/api/2/users',
+    funnels: '/api/2/funnels',
+    retention: '/api/2/retention',
+    sessionLength: '/api/2/sessions/average',
+    sessionsPerUser: '/api/2/sessions/peruser',
+    eventsList: '/api/2/events/list',
+} as const;
+
+/** Amplitude signs Dashboard REST API calls in with HTTP Basic: the API key, then the secret key. */
+export const AMPLITUDE_AUTH_HEADER = 'Authorization';
 
 export const HUBSPOT_ORIGIN = 'https://api.hubapi.com';
 
@@ -443,6 +476,11 @@ export type ExternalConnection = {
     liveSourceName?: string | null;
     /** What an admin says this live source is for. Reaches the AI agent. */
     aiHint?: string | null;
+    /**
+     * Live sources: tags its explores carry, so an AI agent limited to tags
+     * can use the source when they share one.
+     */
+    tags?: string[] | null;
     /** The name the connection picker showed for the source's target. */
     targetLabel?: string | null;
     /** Live sources: the admin's freshness window; null uses the integration's default. */
@@ -521,11 +559,16 @@ export type CreateExternalConnection = {
 /** Omitted/blank `secret` means the stored secret is left unchanged. */
 export const LIVE_SOURCE_AI_HINT_MAX_LENGTH = 500;
 
+export const LIVE_SOURCE_MAX_TAGS = 20;
+export const LIVE_SOURCE_TAG_MAX_LENGTH = 100;
+
 export type UpdateExternalConnection = Partial<
     Omit<CreateExternalConnection, 'explorePrefix'>
 > & {
     /** Live sources only. Empty or null clears it. */
     aiHint?: string | null;
+    /** Live sources only. Empty or null clears them. */
+    tags?: string[] | null;
 };
 
 /** Whether a new live source can use an explore prefix. */

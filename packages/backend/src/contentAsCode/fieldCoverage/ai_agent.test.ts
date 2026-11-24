@@ -10,8 +10,6 @@ describeContentAsCodeSchemaContract({
         'groupAccess',
         'imageUrlSource',
         'integrations',
-        // Live data source uuids belong to one project and do not port
-        'liveSourceUuids',
         'organizationUuid',
         'projectUuid',
         // Credential pins reference org-specific credential uuids, which do

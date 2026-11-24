@@ -7,11 +7,9 @@ import {
     ForbiddenError,
     getAiAgentConfigSnapshotHash,
     getAiAgentReviewItemFingerprint,
-    isExploreAvailableToAgentLiveSources,
     isExploreError,
     isHiddenAiAgentReviewRootCause,
     ProjectType,
-    type AgentExploreScope,
     type AiAgentAvailableCapability,
     type AiAgentConfigSnapshot,
     type AiAgentConfigurationSetting,
@@ -179,8 +177,8 @@ export type AiAgentReviewJudgeEvidencePacket = {
     recentSimilarPrompts: AiAgentReviewRecentSimilarPrompts;
 };
 
-// What a tag- or integration-restricted agent can see, mirroring its runtime
-// explore scoping. Computed once per agent per run; null = unrestricted.
+// What a tag-restricted agent can see, mirroring filterExploreByTags.
+// Computed once per agent per run; null = unrestricted (no tags).
 type AiAgentReviewCatalogVisibility = {
     visibleExploreNames: Set<string>;
     visibleTables: Set<string>;
@@ -1463,7 +1461,7 @@ export class AiAgentReviewClassifierService extends BaseService {
                 skills: snapshot.skills,
                 catalogVisibility: await this.computeCatalogVisibility(
                     candidate.subject.projectUuid,
-                    agent,
+                    agent.tags,
                 ),
             };
         } catch (error) {
@@ -1506,12 +1504,9 @@ export class AiAgentReviewClassifierService extends BaseService {
      */
     private async computeCatalogVisibility(
         projectUuid: string,
-        { tags: exploreTags, liveSourceUuids }: AgentExploreScope,
+        exploreTags: string[] | null,
     ): Promise<AiAgentReviewCatalogVisibility | null> {
-        if (
-            (!exploreTags || exploreTags.length === 0) &&
-            liveSourceUuids === null
-        ) {
+        if (!exploreTags || exploreTags.length === 0) {
             return null;
         }
         try {
@@ -1527,12 +1522,6 @@ export class AiAgentReviewClassifierService extends BaseService {
             explores
                 .filter(
                     (explore): explore is Explore => !isExploreError(explore),
-                )
-                .filter((explore) =>
-                    isExploreAvailableToAgentLiveSources(
-                        explore,
-                        liveSourceUuids,
-                    ),
                 )
                 .forEach((explore) => {
                     const filtered = filterExploreByTags({

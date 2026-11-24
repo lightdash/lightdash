@@ -118,7 +118,6 @@ const createCandidate = (
     imageUrl: null,
     imageUrlSource: null,
     tags: overrides.tags ?? null,
-    liveSourceUuids: null,
     integrations: [],
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
@@ -145,7 +144,6 @@ const createCandidate = (
         name: overrides.name,
         description: overrides.description ?? null,
         explores: [`${overrides.name.toLowerCase()}_explore`],
-        verifiedQuestions: [`${overrides.name} question`],
         instruction: overrides.instruction ?? null,
     },
 });

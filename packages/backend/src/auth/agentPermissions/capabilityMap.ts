@@ -352,8 +352,6 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'AiAgentController.getModelOptions': [AgentCapability.ReadDiscover],
     'AiAgentController.getUserAgentPreferences': [AgentCapability.ReadDiscover],
-    'AiAgentController.getVerifiedArtifacts': [AgentCapability.ReadDiscover],
-    'AiAgentController.getVerifiedQuestions': [AgentCapability.ReadDiscover],
     'AiAgentController.interruptAgentThreadMessage': [
         AgentCapability.ReadDiscover,
     ],
@@ -380,7 +378,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiAgentController.sendVisualizeSlackChart': [
         AgentCapability.Administration,
     ],
-    'AiAgentController.setArtifactVersionVerified': [AgentCapability.Publish],
     'AiAgentController.setUserDefaultAgent': [AgentCapability.ReadDiscover],
     'AiAgentController.startMcpOAuthConnection': [
         AgentCapability.Administration,

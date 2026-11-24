@@ -2615,50 +2615,6 @@
                             "type": "object"
                         },
                         "type": "array"
-                    },
-                    "relevantVerifiedAnswers": {
-                        "items": {
-                            "additionalProperties": false,
-                            "properties": {
-                                "artifactType": {
-                                    "enum": ["chart", "dashboard"],
-                                    "type": "string"
-                                },
-                                "artifactVersionUuid": {
-                                    "type": "string"
-                                },
-                                "chartConfig": {
-                                    "additionalProperties": {},
-                                    "propertyNames": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
-                                },
-                                "description": {
-                                    "type": ["string", "null"]
-                                },
-                                "similarity": {
-                                    "type": "number"
-                                },
-                                "title": {
-                                    "type": ["string", "null"]
-                                },
-                                "verifiedQuestion": {
-                                    "type": ["string", "null"]
-                                }
-                            },
-                            "required": [
-                                "artifactVersionUuid",
-                                "chartConfig",
-                                "artifactType",
-                                "verifiedQuestion",
-                                "title",
-                                "description",
-                                "similarity"
-                            ],
-                            "type": "object"
-                        },
-                        "type": "array"
                     }
                 },
                 "required": [
@@ -2835,7 +2791,7 @@
                 "readOnlyHint": true,
                 "title": "List agents"
             },
-            "description": "List accessible AI agents for the required projectUuid. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection.",
+            "description": "List accessible AI agents for the required projectUuid. Each agent is pre-configured with specific explores, tags, and instructions that define its domain expertise. Prefer route_agent for automatic selection.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -5132,12 +5088,6 @@
                     },
                     "reasoning": {
                         "type": "string"
-                    },
-                    "verifiedQuestions": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
                     }
                 },
                 "required": [
@@ -5148,7 +5098,6 @@
                     "agentSpaceAccess",
                     "agentProjectUuid",
                     "explores",
-                    "verifiedQuestions",
                     "instruction",
                     "confidence",
                     "reasoning",

@@ -13,8 +13,6 @@ export type DbAiAgent = {
     image_url: string | null;
     image_url_source: 'upload' | 'url' | null;
     tags: string[] | null;
-    /** Integrations the agent can use: null for all, [] for none. No foreign keys. */
-    live_source_uuids?: string[] | null;
     enable_data_access: boolean;
     enable_self_improvement: boolean;
     enable_content_tools: boolean;

@@ -42,7 +42,6 @@ import type {
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentUserMemoriesResponse,
-    ApiAiAgentVerifiedArtifactsResponse,
     ApiAiCreditDailyUsageResponse,
     ApiAiCreditUsageResponse,
     ApiAiGenerateChartMetadataResponse,
@@ -1833,7 +1832,6 @@ type ApiResults =
     | ApiAiAgentEvaluationRunResponse['results']
     | ApiAiAgentEvaluationRunSummaryListResponse['results']
     | ApiAiAgentEvaluationRunResultsResponse['results']
-    | ApiAiAgentVerifiedArtifactsResponse['results']
     | ApiCreateEvaluationResponse['results']
     | ApiAgentSuggestionsResponse['results']
     | ApiAppendInstructionResponse['results']

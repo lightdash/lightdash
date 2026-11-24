@@ -47,8 +47,6 @@ import {
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentThreadUpdateRequest,
     ApiAiAgentThreadWorkstreamsResponse,
-    ApiAiAgentVerifiedArtifactsResponse,
-    ApiAiAgentVerifiedQuestionsResponse,
     ApiAiAgentVisualizeSlackPreviewRequest,
     ApiAiAgentVisualizeSlackSendRequest,
     ApiAiAgentVisualizeSlackSendResponse,
@@ -928,81 +926,6 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: readinessScore,
-        };
-    }
-
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        requireOAuthScopeOperation('AiAgentController.getVerifiedArtifacts'),
-    ])
-    @SuccessResponse('200', 'Success')
-    @Get('/{agentUuid}/verified-artifacts')
-    @OperationId('getVerifiedArtifacts')
-    async getVerifiedArtifacts(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Path() agentUuid: string,
-        @Query() page?: KnexPaginateArgs['page'],
-        @Query() pageSize?: KnexPaginateArgs['pageSize'],
-    ): Promise<ApiAiAgentVerifiedArtifactsResponse> {
-        assertRegisteredAccount(req.account);
-        const paginateArgs: KnexPaginateArgs | undefined =
-            page !== undefined || pageSize !== undefined
-                ? {
-                      page: page ?? 1,
-                      pageSize: pageSize ?? 50,
-                  }
-                : {
-                      page: 1,
-                      pageSize: 50,
-                  };
-
-        const result = await this.getAiAgentService().getVerifiedArtifacts(
-            toSessionUser(req.account),
-            projectUuid,
-            agentUuid,
-            paginateArgs,
-        );
-
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: result,
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/{agentUuid}/verified-questions')
-    @OperationId('getVerifiedQuestions')
-    async getVerifiedQuestions(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Path() agentUuid: string,
-    ): Promise<ApiAiAgentVerifiedQuestionsResponse> {
-        this.setStatus(200);
-
-        if (req.account?.authentication.type === 'jwt') {
-            assertEmbeddedAuth(req.account);
-            return {
-                status: 'ok',
-                results:
-                    await this.getAiAgentService().getEmbedVerifiedQuestions(
-                        req.account,
-                        projectUuid,
-                        agentUuid,
-                    ),
-            };
-        }
-
-        assertRegisteredAccount(req.account);
-        return {
-            status: 'ok',
-            results: await this.getAiAgentService().getVerifiedQuestions(
-                toSessionUser(req.account),
-                agentUuid,
-            ),
         };
     }
 
@@ -2124,10 +2047,7 @@ export class AiAgentController extends BaseController {
     async getAgentExploreAccessSummary(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Body() body: {
-            tags: string[] | null;
-            liveSourceUuids?: string[] | null;
-        },
+        @Body() body: { tags: string[] | null },
     ): Promise<ApiAiAgentExploreAccessSummaryResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -2137,10 +2057,7 @@ export class AiAgentController extends BaseController {
                 await this.getAiAgentService().getAgentExploreAccessSummary(
                     toSessionUser(req.account),
                     projectUuid,
-                    {
-                        tags: body.tags,
-                        liveSourceUuids: body.liveSourceUuids ?? null,
-                    },
+                    body.tags,
                 ),
         };
     }
@@ -2549,43 +2466,6 @@ export class AiAgentController extends BaseController {
                 artifactUuid,
                 versionUuid,
                 savedComposerChartUuid: body.savedComposerChartUuid,
-            },
-        );
-
-        return {
-            status: 'ok',
-            results: undefined,
-        };
-    }
-
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Patch(
-        '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/verified',
-    )
-    @OperationId('setArtifactVersionVerified')
-    async setArtifactVersionVerified(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Path() agentUuid: string,
-        @Path() artifactUuid: string,
-        @Path() versionUuid: string,
-        @Body() body: { verified: boolean },
-    ): Promise<ApiSuccessEmpty> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-
-        await this.getAiAgentService().setArtifactVersionVerified(
-            toSessionUser(req.account),
-            {
-                agentUuid,
-                artifactUuid,
-                versionUuid,
-                verified: body.verified,
             },
         );
 

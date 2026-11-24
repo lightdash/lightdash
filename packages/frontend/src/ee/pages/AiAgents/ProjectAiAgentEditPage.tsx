@@ -23,7 +23,6 @@ import {
     IconAdjustmentsAlt,
     IconArrowLeft,
     IconBook2,
-    IconCircleCheck,
     IconMessageCircleShare,
 } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
@@ -47,8 +46,6 @@ import sidebarDrawerClasses from '../../../components/common/SidebarDrawer.modul
 import { useProjects } from '../../../hooks/useProjects';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
-import { VerifiedArtifactDetail } from '../../features/aiCopilot/components/Admin/VerifiedArtifactDetail';
-import { VerifiedArtifactsLayout } from '../../features/aiCopilot/components/Admin/VerifiedArtifactsLayout';
 import { AgentSettingsActionBar } from '../../features/aiCopilot/components/AgentSettingsActionBar';
 import { AgentSettingsSectionNav } from '../../features/aiCopilot/components/AgentSettingsSectionNav';
 import { AiAgentFormSetup } from '../../features/aiCopilot/components/AiAgentFormSetup';
@@ -104,7 +101,6 @@ const formSchema = z.object({
         }),
     ),
     tags: z.array(z.string()).nullable(),
-    liveSourceUuids: z.array(z.string()).nullable(),
     instruction: z.string().nullable(),
     imageUrl: z.string().url().nullable(),
     groupAccess: z.array(z.string()),
@@ -143,7 +139,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
     useEffect(() => setSidebarOpened(false), [compact]);
 
     const navigate = useNavigate();
-    const { agentUuid, evalUuid, runUuid, artifactUuid } = useParams();
+    const { agentUuid, evalUuid, runUuid } = useParams();
     const projectUuid = useProjectUuid();
     const location = useLocation();
     const canManageAgents = useAiAgentPermission({
@@ -181,7 +177,6 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             description: null,
             integrations: [],
             tags: null,
-            liveSourceUuids: null,
             instruction: null,
             imageUrl: null,
             groupAccess: [],
@@ -222,7 +217,6 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     serviceAccountUuid: integration.serviceAccountUuid ?? null,
                 })),
                 tags: agent.tags && agent.tags.length > 0 ? agent.tags : null,
-                liveSourceUuids: agent.liveSourceUuids ?? null,
                 instruction: agent.instruction,
                 imageUrl: agent.imageUrl,
                 groupAccess: agent.groupAccess ?? [],
@@ -252,11 +246,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
     }, [agent, agentMcpServers, isAgentMcpServersFetched, isCreateMode]);
 
     // Derive activeTab from current pathname
-    const activeTab = location.pathname.includes('/evals')
-        ? 'evals'
-        : location.pathname.includes('/verified-artifacts')
-          ? 'verified-artifacts'
-          : 'setup';
+    const activeTab = location.pathname.includes('/evals') ? 'evals' : 'setup';
 
     const { mutateAsync: createAgent, isLoading: isCreatingAgent } =
         useProjectCreateAiAgentMutation(projectUuid!, {
@@ -474,25 +464,6 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     )}
                     {!isCreateMode && (
                         <Button
-                            variant={
-                                activeTab === 'verified-artifacts'
-                                    ? 'light'
-                                    : 'subtle'
-                            }
-                            fullWidth
-                            justify="flex-start"
-                            leftSection={<MantineIcon icon={IconCircleCheck} />}
-                            onClick={() => {
-                                navigateWithinSettings(
-                                    `/projects/${projectUuid}/ai-agents/${actualAgentUuid}/edit/verified-artifacts`,
-                                );
-                            }}
-                        >
-                            Verified Answers
-                        </Button>
-                    )}
-                    {!isCreateMode && (
-                        <Button
                             fullWidth
                             variant="subtle"
                             justify="flex-start"
@@ -643,13 +614,6 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                 )}
                             </EvalSectionLayout>
                         )}
-
-                        {activeTab === 'verified-artifacts' &&
-                            (artifactUuid ? (
-                                <VerifiedArtifactDetail />
-                            ) : (
-                                <VerifiedArtifactsLayout />
-                            ))}
                     </Box>
 
                     {activeTab === 'setup' && (
