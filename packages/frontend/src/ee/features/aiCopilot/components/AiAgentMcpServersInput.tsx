@@ -548,6 +548,7 @@ const AttachMcpServersModal = ({
     onClose,
     onSubmit,
     onManage,
+    hasMcpServers,
 }: {
     opened: boolean;
     isLoading: boolean;
@@ -556,7 +557,8 @@ const AttachMcpServersModal = ({
     onChange: (value: string[]) => void;
     onClose: () => void;
     onSubmit: () => void;
-    onManage: (() => void) | null;
+    onManage: () => void;
+    hasMcpServers: boolean;
 }) => {
     const hasAttachableOptions = options.some(
         (option) => option.value !== CREATE_NEW_MCP_OPTION_VALUE,
@@ -570,10 +572,9 @@ const AttachMcpServersModal = ({
             icon={IconPlug}
             cancelLabel={false}
             leftActions={
-                onManage && (
+                hasMcpServers && (
                     <Button
                         variant="subtle"
-                        color="ldGray"
                         size="xs"
                         leftSection={<MantineIcon icon={IconSettings} />}
                         onClick={onManage}
@@ -627,7 +628,9 @@ const AttachMcpServersModal = ({
                 />
                 {!hasAttachableOptions && (
                     <Text size="sm" c="dimmed">
-                        No existing MCP servers available yet.
+                        {hasMcpServers
+                            ? 'All MCP servers are already added to this agent.'
+                            : 'No existing MCP servers available yet.'}
                     </Text>
                 )}
             </Stack>
@@ -1406,7 +1409,6 @@ export const AiAgentMcpServersInput = ({
                     hasMcpServers && (
                         <Button
                             variant="subtle"
-                            color="ldGray"
                             c="dimmed"
                             size="compact-xs"
                             leftSection={<MantineIcon icon={IconSettings} />}
@@ -1796,7 +1798,8 @@ export const AiAgentMcpServersInput = ({
                 options={availableMcpServerOptions}
                 value={attachSelection}
                 onChange={handleAttachSelectionChange}
-                onManage={hasMcpServers ? openManageMcpServersModal : null}
+                onManage={openManageMcpServersModal}
+                hasMcpServers={hasMcpServers}
             />
             <ManageMcpServersModal
                 opened={isManageMcpServersModalOpen}
