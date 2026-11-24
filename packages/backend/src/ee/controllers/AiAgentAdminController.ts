@@ -114,8 +114,8 @@ export class AiAgentAdminController extends BaseController {
         @Query() dateFrom?: AiAgentAdminFilters['dateFrom'],
         @Query() dateTo?: AiAgentAdminFilters['dateTo'],
         @Query() search?: AiAgentAdminFilters['search'],
-        @Query() metadataKey?: AiAgentAdminFilters['metadataKey'],
-        @Query() metadataValue?: AiAgentAdminFilters['metadataValue'],
+        @Query() metadataKey?: string,
+        @Query() metadataValue?: string,
         // Sorting
         @Query() sortField?: AiAgentAdminSort['field'],
         @Query() sortDirection?: AiAgentAdminSort['direction'],
@@ -144,9 +144,9 @@ export class AiAgentAdminController extends BaseController {
             ...(dateFrom && { dateFrom }),
             ...(dateTo && { dateTo }),
             ...(search && { search }),
-            ...(metadataKey && { metadataKey }),
-            ...(metadataKey &&
-                metadataValue !== undefined && { metadataValue }),
+            ...(metadataKey && {
+                metadata: { key: metadataKey, value: metadataValue ?? null },
+            }),
         };
 
         const sort: AiAgentAdminSort | undefined = sortField

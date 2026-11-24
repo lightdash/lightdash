@@ -4332,20 +4332,17 @@ export class AiAgentModel {
                     `%${filters.search}%`,
                 );
             }
-            if (filters.metadataKey !== undefined) {
-                if (filters.metadataValue !== undefined) {
+            if (filters.metadata) {
+                const { key, value } = filters.metadata;
+                if (value !== null) {
                     void finalQuery.whereRaw(
                         `${AiThreadTableName}.thread_metadata @> ?::jsonb`,
-                        [
-                            JSON.stringify({
-                                [filters.metadataKey]: filters.metadataValue,
-                            }),
-                        ],
+                        [JSON.stringify({ [key]: value })],
                     );
                 } else {
                     void finalQuery.whereRaw(
                         `${AiThreadTableName}.thread_metadata -> ? IS NOT NULL`,
-                        [filters.metadataKey],
+                        [key],
                     );
                 }
             }

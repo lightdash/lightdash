@@ -74,7 +74,7 @@ the API, such as an end user's id on the caller's platform or an environment.
 A label only: it never changes what the request can access, and the agent
 never reads it. Set once at creation (at most 20 keys); returned by the thread
 APIs and shown to admins on the threads view, where they can filter by it.
-_Avoid_: tags, attributes, user attributes, custom fields
+_Avoid_: tags, attributes, user attributes
 
 **Mention**:
 Attaching content to a prompt by typing `@` and picking it from search, the

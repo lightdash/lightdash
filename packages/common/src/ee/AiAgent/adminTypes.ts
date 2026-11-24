@@ -31,9 +31,8 @@ export type AiAgentAdminFilters = {
     dateFrom?: string; // ISO date string
     dateTo?: string; // ISO date string
     search?: string; // Search by thread title
-    metadataKey?: string;
-    /** Requires metadataKey; matches threads whose metadata has this exact value. */
-    metadataValue?: string;
+    /** Threads whose metadata has this key, with this exact value unless value is null. */
+    metadata?: { key: string; value: string | null };
 };
 
 export type AiAgentAdminSortField = 'createdAt' | 'title';
