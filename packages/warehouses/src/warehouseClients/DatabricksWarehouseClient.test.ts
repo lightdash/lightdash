@@ -6,6 +6,9 @@ import {
     getCatalogNestedColumnShape,
     getCatalogNestedColumnsUnavailableReason,
     getCatalogTimestampDomain,
+    METRIC_VIEW_TABLE_TYPE,
+    TABLE_DEFINITION_MAX_LENGTH,
+    WarehouseTableType,
 } from '@lightdash/common';
 import {
     DatabricksErrorCondition,
@@ -309,6 +312,234 @@ describe('DatabricksWarehouseClient', () => {
             withTimers(() => warehouse.runQuery('fake sql')),
         ).rejects.toMatchObject({ message: 'Syntax error near FROM' });
         expect(mocks.openSession).toHaveBeenCalledOnce();
+    });
+
+    describe('getTableMetadata', () => {
+        // Shapes follow the documented DESCRIBE TABLE EXTENDED ... AS JSON output; names are placeholders.
+        const ownerAndStorage = {
+            owner: 'owner@example.com',
+            created_by: 'creator@example.com',
+            location: 's3://example-bucket/private/path',
+            storage_properties: { 'secret.key': 'storage-secret' },
+            table_properties: { 'delta.secretProperty': 'property-secret' },
+            statistics: { num_rows: 42 },
+        };
+        const describedTable = {
+            table_name: 'orders',
+            catalog_name: 'catalog',
+            schema_name: 'schema',
+            namespace: ['schema'],
+            type: 'MANAGED',
+            provider: 'delta',
+            comment: 'One row per order',
+            columns: [
+                { name: 'order_id', type: { name: 'bigint' }, nullable: true },
+                {
+                    name: 'status',
+                    type: { name: 'string', collation: 'UTF8_BINARY' },
+                    comment: 'Fulfilment status',
+                    nullable: true,
+                },
+            ],
+            partition_columns: ['status'],
+            ...ownerAndStorage,
+        };
+        const describedView = {
+            table_name: 'recent_orders',
+            catalog_name: 'catalog',
+            schema_name: 'schema',
+            type: 'VIEW',
+            columns: [
+                { name: 'order_id', type: { name: 'bigint' }, nullable: true },
+            ],
+            view_text: 'SELECT order_id FROM catalog.schema.orders',
+            view_original_text: 'SELECT order_id FROM orders',
+            view_catalog_and_namespace: 'catalog.schema',
+            ...ownerAndStorage,
+        };
+        const metricViewYaml = [
+            'version: 1.1',
+            'source: catalog.schema.orders',
+            'dimensions:',
+            '  - name: order_month',
+            "    expr: DATE_TRUNC('MONTH', order_date)",
+            'measures:',
+            '  - name: order_count',
+            '    expr: COUNT(1)',
+        ].join('\n');
+        const describedMetricView = {
+            table_name: 'orders_metrics',
+            catalog_name: 'catalog',
+            schema_name: 'schema',
+            type: 'METRIC_VIEW',
+            comment: 'Governed order metrics',
+            view_text: metricViewYaml,
+            language: 'YAML',
+            view_creation_spark_configuration: { 'spark.conf': 'value' },
+            columns: [
+                {
+                    name: 'order_month',
+                    type: { name: 'timestamp_ltz' },
+                    nullable: true,
+                },
+                {
+                    name: 'order_count',
+                    type: { name: 'bigint' },
+                    comment: 'Orders placed',
+                    nullable: false,
+                    is_measure: true,
+                },
+            ],
+            ...ownerAndStorage,
+        };
+        const describing = (description: Record<string, unknown>) => {
+            const session = createSession({
+                executeStatement: vi.fn(async () =>
+                    createOperation({
+                        fetchAll: vi.fn(async () => [
+                            { json_metadata: JSON.stringify(description) },
+                        ]),
+                    }),
+                ),
+            });
+            mocks.openSession.mockResolvedValue(session);
+            return session;
+        };
+        const read = () =>
+            new DatabricksWarehouseClient(credentials).getTableMetadata(
+                'orders',
+                'schema',
+                'catalog',
+            );
+
+        it('reads the type and comments of a table from the describe it already runs', async () => {
+            const session = describing(describedTable);
+
+            expect(await read()).toEqual({
+                tableType: WarehouseTableType.TABLE,
+                comment: 'One row per order',
+                columns: [
+                    { name: 'order_id', comment: null, isMeasure: false },
+                    {
+                        name: 'status',
+                        comment: 'Fulfilment status',
+                        isMeasure: false,
+                    },
+                ],
+                definition: null,
+            });
+            expect(session.executeStatement).toHaveBeenCalledExactlyOnceWith(
+                'DESCRIBE TABLE EXTENDED `catalog`.`schema`.`orders` AS JSON',
+            );
+        });
+
+        it("returns a view's definition", async () => {
+            describing(describedView);
+
+            expect(await read()).toEqual({
+                tableType: WarehouseTableType.VIEW,
+                comment: null,
+                columns: [
+                    { name: 'order_id', comment: null, isMeasure: false },
+                ],
+                definition: {
+                    text: 'SELECT order_id FROM catalog.schema.orders',
+                    truncated: false,
+                },
+            });
+        });
+
+        it("returns a metric view's YAML and marks its measures", async () => {
+            describing(describedMetricView);
+
+            expect(await read()).toEqual({
+                tableType: METRIC_VIEW_TABLE_TYPE,
+                comment: 'Governed order metrics',
+                columns: [
+                    { name: 'order_month', comment: null, isMeasure: false },
+                    {
+                        name: 'order_count',
+                        comment: 'Orders placed',
+                        isMeasure: true,
+                    },
+                ],
+                definition: { text: metricViewYaml, truncated: false },
+            });
+        });
+
+        it.each([
+            ['table', describedTable],
+            ['view', describedView],
+            ['metric view', describedMetricView],
+        ])(
+            'never returns owner, storage or properties of a %s',
+            async (_, description) => {
+                describing(description);
+
+                const metadata = JSON.stringify(await read());
+
+                [
+                    'owner@example.com',
+                    'creator@example.com',
+                    'example-bucket',
+                    'storage-secret',
+                    'property-secret',
+                    'spark.conf',
+                    'num_rows',
+                    'SELECT order_id FROM orders',
+                ].forEach((leak) => expect(metadata).not.toContain(leak));
+                expect(Object.keys(JSON.parse(metadata)).sort()).toEqual([
+                    'columns',
+                    'comment',
+                    'definition',
+                    'tableType',
+                ]);
+            },
+        );
+
+        it('truncates a long definition with a marker', async () => {
+            const longSql = `SELECT ${'order_id, '.repeat(2_000)}1`;
+            describing({ ...describedView, view_text: longSql });
+
+            const metadata = await read();
+
+            expect(metadata?.definition?.truncated).toBe(true);
+            expect(metadata?.definition?.text).toBe(
+                `${longSql.slice(0, TABLE_DEFINITION_MAX_LENGTH)}\n[definition truncated: showing ${TABLE_DEFINITION_MAX_LENGTH} of ${longSql.length} characters]`,
+            );
+        });
+
+        it('returns no metadata on a runtime without the JSON form', async () => {
+            const session = createSession({
+                executeStatement: vi.fn(() =>
+                    Promise.reject(
+                        statusError(
+                            "[PARSE_SYNTAX_ERROR] Syntax error at or near 'JSON'. SQLSTATE: 42601",
+                        ),
+                    ),
+                ),
+            });
+            mocks.openSession.mockResolvedValue(session);
+
+            expect(await read()).toBeNull();
+            expect(session.getColumns).not.toHaveBeenCalled();
+        });
+
+        it('returns no metadata for a table that does not exist', async () => {
+            mocks.openSession.mockResolvedValue(
+                createSession({
+                    executeStatement: vi.fn(() =>
+                        Promise.reject(
+                            statusError(
+                                '[TABLE_OR_VIEW_NOT_FOUND] The table or view cannot be found. SQLSTATE: 42P01',
+                            ),
+                        ),
+                    ),
+                }),
+            );
+
+            expect(await read()).toBeNull();
+        });
     });
 
     describe('getCatalog', () => {

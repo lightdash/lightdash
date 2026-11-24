@@ -1,5 +1,6 @@
 import {
     describeWarehouseTableToolDefinition,
+    METRIC_VIEW_TABLE_TYPE,
     type ToolDescribeWarehouseTableStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -40,6 +41,7 @@ export const getDescribeWarehouseTable = ({
                     resolvedSchema,
                     resolvedDatabase,
                     partitioning,
+                    metadata,
                     warehouseType,
                 } = await describeWarehouseTable({
                     table,
@@ -67,6 +69,7 @@ export const getDescribeWarehouseTable = ({
                             type: nativeType ? `${type} (${nativeType})` : type,
                         })),
                         partitioning,
+                        metadata,
                     };
 
                 if (structuredContent.columnCount === 0) {
@@ -77,14 +80,38 @@ export const getDescribeWarehouseTable = ({
                     };
                 }
 
+                const described = new Map(
+                    (metadata?.columns ?? []).map((c) => [c.name, c]),
+                );
                 const lines = [
                     `Columns for \`${qualifiedName}\` (${structuredContent.columnCount}):`,
+                    ...(metadata
+                        ? [
+                              `Table type: ${metadata.tableType.replace(/_/g, ' ')}`,
+                          ]
+                        : []),
+                    ...(metadata?.comment
+                        ? [`Table comment: ${metadata.comment}`]
+                        : []),
                     ...(partitioning
                         ? [formatPartitioning(partitioning, warehouseType)]
                         : []),
-                    ...structuredContent.columns.map(
-                        (c) => `  - ${c.name}: ${c.type}`,
-                    ),
+                    ...structuredContent.columns.map((c) => {
+                        const column = described.get(c.name);
+                        return [
+                            `  - ${c.name}: ${c.type}`,
+                            ...(column?.isMeasure ? ['Measure'] : []),
+                            ...(column?.comment
+                                ? [`Comment: ${column.comment}`]
+                                : []),
+                        ].join('. ');
+                    }),
+                    ...(metadata?.definition
+                        ? [
+                              `${metadata.tableType === METRIC_VIEW_TABLE_TYPE ? 'Metric view' : 'View'} definition:`,
+                              metadata.definition.text,
+                          ]
+                        : []),
                 ];
 
                 return {

@@ -97,6 +97,7 @@ const checker = (type: WarehouseTypes = WarehouseTypes.POSTGRES) =>
             fields: warehouse.columns,
             nativeTypes: {},
             partitioning: warehouse.partitioning,
+            metadata: null,
             warehouseType: WarehouseTypes.POSTGRES,
         }),
         compileQuery: async () => ({ query: '', compilationErrors: [] }),
