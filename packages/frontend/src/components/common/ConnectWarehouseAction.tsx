@@ -3,7 +3,7 @@ import { type FC } from 'react';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
 import {
-    reportWarehouseCredentialsError,
+    requestWarehouseCredentialsPrompt,
     useHasWarehouseCredentialsPrompt,
 } from '../../hooks/userWarehouseCredentials/warehouseCredentialsError';
 import { getWarehouseLabel } from '../ProjectConnection/ProjectConnectFlow/utils';
@@ -28,11 +28,7 @@ const ConnectWarehouseButton: FC<ButtonProps> = (props) => {
         <Button
             size="xs"
             variant="default"
-            onClick={() =>
-                reportWarehouseCredentialsError(activeProjectUuid, {
-                    name: MISSING_CREDENTIALS,
-                })
-            }
+            onClick={() => requestWarehouseCredentialsPrompt(activeProjectUuid)}
             {...props}
         >
             Connect {getWarehouseLabel(warehouseConnection.type)}
