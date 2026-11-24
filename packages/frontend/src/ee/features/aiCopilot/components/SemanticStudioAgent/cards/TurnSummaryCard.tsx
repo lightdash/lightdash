@@ -456,6 +456,7 @@ export const TurnSummaryCard: FC<{
                     subtitle,
                     rows: fields.map((field) => ({
                         id: `${field.kind}:${field.name}`,
+                        kind: field.kind,
                         change: field.change,
                         action: ACTIONS[field.kind][field.change],
                         // A field keeps the Explorer's own icon and colour; a join is blue and a table green.
