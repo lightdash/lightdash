@@ -1553,6 +1553,67 @@ describe('resolveMcpTools', () => {
         await result.closeMcpClients();
     });
 
+    it('fetches a bearer token on first tool call and fails only that call when the fetch fails', async () => {
+        const bearerTokenProvider = vi
+            .fn()
+            .mockRejectedValueOnce(new Error('Installation not found'))
+            .mockResolvedValueOnce('fresh-token');
+        const server = getMcpServer({
+            name: 'GitHub',
+            authType: 'bearer',
+            enabledToolNames: ['search_issues'],
+            bearerTokenProvider,
+        });
+        vi.mocked(aiAgentModel.listMcpServerTools).mockResolvedValue([
+            getStoredMcpTool('search_issues', 'search tool'),
+        ]);
+        vi.mocked(mcpSdk.createMCPClient).mockResolvedValue({
+            serverInfo: { name: 'GitHub', version: '1.0.0' },
+            tools: async () => ({
+                search_issues: {
+                    inputSchema: jsonSchema({ type: 'object', properties: {} }),
+                    execute: vi.fn().mockResolvedValue({ content: [] }),
+                },
+            }),
+            close: vi.fn().mockResolvedValue(undefined),
+        } as unknown as MCPClient);
+        const options = { toolCallId: 'call-1', messages: [], context: {} };
+
+        const failedTurn = await runtimeClient.resolveTools({
+            mcpServers: [server],
+            userUuid: 'user-uuid',
+            debugLoggingEnabled: false,
+        });
+        expect(failedTurn.unavailableMcpServers).toEqual([]);
+        expect(bearerTokenProvider).not.toHaveBeenCalled();
+        await expect(
+            failedTurn.tools.mcp_github__search_issues.execute!(
+                {} as never,
+                options,
+            ),
+        ).rejects.toThrow(MCP_CONNECTION_MESSAGE);
+        expect(mcpSdk.createMCPClient).not.toHaveBeenCalled();
+        await failedTurn.closeMcpClients();
+
+        const nextTurn = await runtimeClient.resolveTools({
+            mcpServers: [server],
+            userUuid: 'user-uuid',
+            debugLoggingEnabled: false,
+        });
+        await nextTurn.tools.mcp_github__search_issues.execute!(
+            {} as never,
+            options,
+        );
+        expect(mcpSdk.createMCPClient).toHaveBeenCalledWith(
+            expect.objectContaining({
+                transport: expect.objectContaining({
+                    headers: { Authorization: 'Bearer fresh-token' },
+                }),
+            }),
+        );
+        await nextTurn.closeMcpClients();
+    });
+
     it('preserves not_connected for authorization-required OAuth servers', async () => {
         const oauthServer = getMcpServer({
             uuid: 'oauth-server',
