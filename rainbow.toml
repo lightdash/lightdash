@@ -330,6 +330,10 @@ host = "api.github.com"             # GitHub App: repo access for dbt projects
 port = 443
 
 [[egress.allow]]
+host = "api.appstoreconnect.apple.com"  # App Store Connect live data sources
+port = 443
+
+[[egress.allow]]
 host = "lightdash.github.io"        # chart type registry (Chart library)
 port = 443
 
