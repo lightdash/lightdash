@@ -7,8 +7,8 @@ import {
 import { z } from 'zod';
 import { type LiveHttpResponse } from '../../types';
 
-// Mixpanel's Query API errors are JSON with an `error` string, sometimes
-// with a `request` echo, or plain text.
+// Mixpanel's Query API errors are JSON with an `error` string next to a
+// `request` echo, `status` and `error_code`, or plain text.
 const errorSchema = z.union([
     z.string(),
     z.object({ error: z.string() }).transform(({ error }) => error),
@@ -46,6 +46,12 @@ export const toMixpanelError = (response: LiveHttpResponse): Error => {
                     : 'later this hour'
             }, or rely on cached results.`,
             { retryAfterSeconds },
+        );
+    }
+    // The Query API needs a Growth or Enterprise plan; other plans get 402
+    if (response.status === 402) {
+        return new WarehouseConnectionError(
+            `Mixpanel refused the query because of the project's plan${detail}. The Query API needs a Growth or Enterprise plan; upgrade the project in Mixpanel, then try again.`,
         );
     }
     if (response.status === 401) {

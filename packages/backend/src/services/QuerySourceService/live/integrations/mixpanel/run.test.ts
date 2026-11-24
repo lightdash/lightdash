@@ -442,6 +442,17 @@ describe('mixpanelIntegration run', () => {
         ],
         [403, 'Forbidden', WarehouseConnectionError, /data region/],
         [
+            402,
+            {
+                request: '/api/query/segmentation?project_id=12345',
+                status: 'error',
+                error: 'Your plan does not allow API calls. Upgrade at mixpanel.com/pricing',
+                error_code: 'query_api.request.plan_restricted',
+            },
+            WarehouseConnectionError,
+            /Growth or Enterprise plan/,
+        ],
+        [
             400,
             { request: '/api/query/segmentation', error: 'Unknown event' },
             WarehouseQueryError,
