@@ -5771,7 +5771,8 @@ export class AiAgentModel {
             .update({ loadout_base: loadout.base });
     }
 
-    async createPromptTranscript(
+    /** A retried prompt replaces the transcript of its failed attempt. */
+    async upsertPromptTranscript(
         promptUuid: string,
         messages: ModelMessage[],
     ): Promise<void> {
@@ -5781,16 +5782,18 @@ export class AiAgentModel {
                 messages: JSON.stringify(messages),
             })
             .onConflict('ai_prompt_uuid')
-            .ignore();
+            .merge(['messages']);
     }
 
-    /** The latest of these prompts that has a transcript. */
-    async findLatestPromptTranscript(
+    async findPromptTranscripts(
         promptUuids: string[],
     ): Promise<
-        Pick<DbAiPromptTranscript, 'ai_prompt_uuid' | 'messages'> | undefined
+        Array<
+            Pick<DbAiPromptTranscript, 'ai_prompt_uuid' | 'messages'> &
+                Pick<DbAiPrompt, 'model_config'>
+        >
     > {
-        if (promptUuids.length === 0) return undefined;
+        if (promptUuids.length === 0) return [];
         return this.database(AiPromptTranscriptTableName)
             .join(
                 AiPromptTableName,
@@ -5801,9 +5804,8 @@ export class AiAgentModel {
             .select(
                 `${AiPromptTranscriptTableName}.ai_prompt_uuid`,
                 `${AiPromptTranscriptTableName}.messages`,
-            )
-            .orderBy(`${AiPromptTableName}.created_at`, 'desc')
-            .first();
+                `${AiPromptTableName}.model_config`,
+            );
     }
 
     async findThreadMessage(

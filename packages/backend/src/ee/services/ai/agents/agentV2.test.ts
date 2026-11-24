@@ -418,6 +418,7 @@ describe('MCP context preparation at the agent boundary', () => {
             { role: 'assistant', content: 'Built it.' },
             { role: 'user', content: 'What is revenue?' },
         ];
+        args.currentPromptStart = 2;
         args.decisions = new AiDecisionClient(
             { apiKey: 'test', model: 'test', timeoutMs: 100 },
             vi.fn<typeof fetch>().mockResolvedValue(

@@ -3,10 +3,17 @@ import { hasBinaryModelInputs } from '../utils/aiCallTelemetry';
 
 /**
  * Keeps the messages the latest step sent, so a finished turn can be stored and
- * replayed on the next turn exactly as the provider saw it (prompt cache hit).
- * Leading system, compaction and memory messages are rebuilt every turn and left out.
+ * replayed on later turns exactly as the provider saw it (prompt cache hit).
  */
-export const createTurnTranscript = (leadingMessageCount: number) => {
+export const createTurnTranscript = ({
+    start,
+    currentOnlyIndex,
+}: {
+    /** Index of the turn's first message; earlier ones are system messages and earlier turns. */
+    start: number;
+    /** A message only this turn sees (content read now); later turns read it fresh. */
+    currentOnlyIndex: number | null;
+}) => {
     let stepMessages: ModelMessage[] = [];
     return {
         recordStep: (messages: ModelMessage[]) => {
@@ -17,7 +24,9 @@ export const createTurnTranscript = (leadingMessageCount: number) => {
             finalStepResponse: readonly ModelMessage[],
         ): ModelMessage[] | null => {
             const messages = [
-                ...stepMessages.slice(leadingMessageCount),
+                ...stepMessages.filter(
+                    (_, index) => index >= start && index !== currentOnlyIndex,
+                ),
                 ...finalStepResponse,
             ];
             return hasBinaryModelInputs(messages) ? null : messages;

@@ -23,7 +23,7 @@ export async function up(knex: Knex): Promise<void> {
             .json('messages')
             .notNullable()
             .comment(
-                'Model messages exactly as sent in the prompt final step plus its response, without leading system messages.',
+                "This prompt's own model messages exactly as sent (from its user message through the final response), without system messages or earlier turns.",
             );
         table
             .timestamp('created_at', { useTz: true })

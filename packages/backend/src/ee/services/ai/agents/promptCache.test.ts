@@ -45,6 +45,20 @@ describe('withRollingCacheBreakpoint', () => {
         ]);
     });
 
+    it('keeps a pinned breakpoint before content the next turn leaves out', () => {
+        const messages = withRollingCacheBreakpoint(
+            [
+                system,
+                { role: 'user', content: 'Rename the chart' },
+                { role: 'user', content: 'Current content of the bound chart' },
+                { role: 'assistant', content: 'Renamed.' },
+            ],
+            1,
+        );
+
+        expect(messages.map(hasBreakpoint)).toEqual([true, true, false, true]);
+    });
+
     it('keeps other provider options when removing a breakpoint', () => {
         const [first] = withRollingCacheBreakpoint([
             {

@@ -842,6 +842,15 @@ type AgentConversationContext = {
     compactionSummary: string | null;
     /** Full history for the agent; may add verified examples that fast decisions skip. */
     resolveMessageHistory: () => Promise<ModelMessage[]>;
+    /** Where the prompt being answered starts in the history; null when its turn is not stored for replay. */
+    currentPromptStart: number | null;
+};
+
+type TranscriptReplay = {
+    /** The answering prompt's model; turns that ran on another model are rebuilt. */
+    modelConfig: DbAiPrompt['model_config'];
+    /** Set by the history build. */
+    currentPromptStart: number | null;
 };
 
 /** How the history builder treats verified examples for the prompt being answered. */
@@ -9071,10 +9080,13 @@ export class AiAgentService extends BaseService {
             );
             return threadAttachments;
         };
+        const transcriptReplay: TranscriptReplay = {
+            modelConfig: prompt.modelConfig ?? null,
+            currentPromptStart: null,
+        };
         const historyOptions = {
             loadThreadAttachments,
-            // A transcript recorded before a compaction would replay the compacted turns.
-            replayTranscripts: applicableCompaction === null,
+            transcriptReplay,
             organizationUuid: prompt.organizationUuid,
             projectUuid: agent.projectUuid,
             agentUuid: agent.uuid,
@@ -9138,6 +9150,7 @@ export class AiAgentService extends BaseService {
             user,
             chatHistoryMessages,
             resolveChatHistory,
+            currentPromptStart: transcriptReplay.currentPromptStart,
             prompt,
             compaction: applicableCompaction,
         };
@@ -9371,6 +9384,7 @@ export class AiAgentService extends BaseService {
                 user: validatedUser,
                 chatHistoryMessages,
                 resolveChatHistory,
+                currentPromptStart,
                 prompt,
                 compaction,
             } = await this.prepareAgentThreadResponse(user, {
@@ -9441,6 +9455,7 @@ export class AiAgentService extends BaseService {
                         messageHistory: chatHistoryMessages,
                         compactionSummary: compaction?.summary ?? null,
                         resolveMessageHistory: resolveChatHistory,
+                        currentPromptStart,
                     },
                     {
                         prompt,
@@ -10215,6 +10230,7 @@ export class AiAgentService extends BaseService {
                 user: validatedUser,
                 chatHistoryMessages,
                 resolveChatHistory,
+                currentPromptStart,
                 prompt,
                 compaction,
             } = await this.prepareAgentThreadResponse(user, {
@@ -10253,6 +10269,7 @@ export class AiAgentService extends BaseService {
                     messageHistory: chatHistoryMessages,
                     compactionSummary: compaction?.summary ?? null,
                     resolveMessageHistory: resolveChatHistory,
+                    currentPromptStart,
                 },
                 {
                     prompt,
@@ -14088,8 +14105,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             agentScope?: { user: SessionUser; spaceAccess: string[] } | null;
             /** Lets several history builds of one turn share a single read of the images. */
             loadThreadAttachments?: ThreadAttachmentsLoader;
-            /** Replay the latest stored turn transcript instead of rebuilding the turns it covers. */
-            replayTranscripts?: boolean;
+            /**
+             * Replays each earlier prompt's stored transcript, when it ran on this model, instead of
+             * rebuilding it, and reports where the prompt being answered starts in the history.
+             */
+            transcriptReplay?: TranscriptReplay;
         },
     ): Promise<ModelMessage[]> {
         const currentPromptExamples = options.currentPromptExamples ?? {
@@ -14116,29 +14136,39 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 ),
             ]);
 
-        // Replaying the latest transcript byte for byte lets the provider reuse its prompt cache.
-        const transcript = options.replayTranscripts
-            ? await this.aiAgentModel.findLatestPromptTranscript(
+        // Earlier turns replay byte for byte as sent, so the provider reuses its prompt cache.
+        // A turn sent to another model is rebuilt: transcripts carry provider-specific parts.
+        const replay = options.transcriptReplay;
+        const transcripts = replay
+            ? await this.aiAgentModel.findPromptTranscripts(
                   promptUuids.filter(
                       (uuid) => uuid !== options.currentPromptUuid,
                   ),
               )
-            : undefined;
-        const replayedPromptCount = transcript
-            ? promptUuids.indexOf(transcript.ai_prompt_uuid) + 1
-            : 0;
-        const replayedMessages: ModelMessage[] = transcript
-            ? [
-                  ...transcript.messages,
-                  ...AiAgentService.createFeedbackMessages(
-                      threadMessages[replayedPromptCount - 1],
-                  ),
-              ]
             : [];
+        const transcriptByPrompt = new Map(
+            transcripts
+                .filter(
+                    (row) =>
+                        row.model_config?.modelProvider ===
+                            replay?.modelConfig?.modelProvider &&
+                        row.model_config?.modelName ===
+                            replay?.modelConfig?.modelName,
+                )
+                .map((row) => [row.ai_prompt_uuid, row.messages]),
+        );
 
         const messagesWithToolCalls = await Promise.all(
             threadMessages.map(async (message, index) => {
-                if (index < replayedPromptCount) return [];
+                const transcript = transcriptByPrompt.get(
+                    message.ai_prompt_uuid,
+                );
+                if (transcript) {
+                    return [
+                        ...transcript,
+                        ...AiAgentService.createFeedbackMessages(message),
+                    ];
+                }
                 const messages: ModelMessage[] =
                     message.prompt.trim().length > 0
                         ? [
@@ -14262,10 +14292,22 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             }),
         );
 
-        const history = AiAgentService.backfillDanglingToolResults([
-            ...replayedMessages,
-            ...messagesWithToolCalls.flat(),
-        ]);
+        const history = AiAgentService.backfillDanglingToolResults(
+            messagesWithToolCalls.flat(),
+        );
+        if (replay) {
+            const [currentPromptFirst] =
+                messagesWithToolCalls[
+                    threadMessages.findIndex(
+                        (message) =>
+                            message.ai_prompt_uuid ===
+                            options.currentPromptUuid,
+                    )
+                ] ?? [];
+            replay.currentPromptStart = currentPromptFirst
+                ? history.indexOf(currentPromptFirst)
+                : null;
+        }
 
         if (history.length === 0) {
             return [
@@ -15572,7 +15614,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             messages,
         ) => {
             try {
-                await this.aiAgentModel.createPromptTranscript(
+                await this.aiAgentModel.upsertPromptTranscript(
                     promptUuid,
                     messages,
                 );
@@ -18902,6 +18944,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
 
                     compactionSummary,
                     messageHistory,
+                    currentPromptStart: conversation.currentPromptStart,
                     threadUuid: prompt.threadUuid,
                     promptUuid: prompt.promptUuid,
                     ...getPromptUsageAttribution(prompt),
@@ -21282,6 +21325,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     messageHistory: chatHistoryMessages,
                     compactionSummary: null,
                     resolveMessageHistory: async () => chatHistoryMessages,
+                    currentPromptStart: null,
                 },
                 {
                     prompt: slackPrompt,

@@ -552,9 +552,10 @@ const makeStreamSafePersist = (
         }
     };
 
+    /** False when the update failed. */
     return async (
         update: Parameters<AiAgentDependencies['updatePrompt']>[0],
-    ): Promise<void> => {
+    ): Promise<boolean> => {
         const outcome = await bounded(update);
         if (outcome === 'failed' && update.response !== undefined) {
             await bounded({
@@ -563,6 +564,7 @@ const makeStreamSafePersist = (
                     'Something went wrong while saving the response. Please try again.',
             });
         }
+        return outcome !== 'failed';
     };
 };
 
@@ -1621,6 +1623,7 @@ export const buildPrepareStep = ({
     invalidToolCallIds,
     agentContext,
     turnTranscript,
+    boundContentIndex = null,
 }: {
     args: AiAgentArgs;
     dependencies: AiAgentDependencies;
@@ -1634,6 +1637,7 @@ export const buildPrepareStep = ({
     invalidToolCallIds: ReadonlySet<string>;
     agentContext?: AgentContext;
     turnTranscript?: TurnTranscript;
+    boundContentIndex?: number | null;
 }) => {
     const forcedFirstStep = buildForcedFirstStep(args, tools);
     const retryMarkersPersisted = new Set<string>();
@@ -1815,10 +1819,12 @@ export const buildPrepareStep = ({
             );
         }
         const stepActiveTools = stepBudgetOverride?.activeTools ?? activeTools;
-        const preparedMessages = withRollingCacheBreakpoint([
-            ...stepMessages,
-            ...extraMessages,
-        ]);
+        // The next turn replays this one without the bound content, so a breakpoint
+        // just before it keeps the replayed prefix cached.
+        const preparedMessages = withRollingCacheBreakpoint(
+            [...stepMessages, ...extraMessages],
+            boundContentIndex === null ? null : boundContentIndex - 1,
+        );
         turnTranscript?.recordStep(preparedMessages);
 
         return {
@@ -2090,6 +2096,7 @@ export const getAgentTools = (
                 readContent: dependencies.readContent,
                 siteUrl: args.siteUrl,
                 documentsEnabled,
+                contentFormat: 'yaml',
             }),
         editContent: () =>
             getAgentEditContent({
@@ -3063,10 +3070,13 @@ const prepareAgentTurn = async ({
         );
     }
     const turnIntent = preparedContext?.turnIntent ?? null;
-    // A follow-up keeps the whole toolbox, so the previous turn's cached prefix still matches.
-    const isFollowUp = args.messageHistory.some(
-        (message) => message.role === 'assistant',
-    );
+    // Turns are stored and replayed as sent only for standard web turns (currentPromptStart set).
+    const replaysTurns =
+        args.execution.mode === 'standard' && args.currentPromptStart !== null;
+    // A follow-up keeps the whole toolbox, so the replayed previous turn's cached prefix still matches.
+    const isFollowUp =
+        replaysTurns &&
+        args.messageHistory.some((message) => message.role === 'assistant');
     // A bound thread exists to change its content: start with the whole toolbox, no loadAgentTools step.
     const isBoundContentThread =
         args.threadBinding !== null && !!tools.editContent;
@@ -3124,10 +3134,10 @@ const prepareAgentTurn = async ({
         !!preparedContext?.projectContextEntryIds.length,
         deferredSections,
     );
-    const turnTranscript =
-        args.execution.mode === 'standard'
-            ? createTurnTranscript(messages.length - args.messageHistory.length)
-            : undefined;
+    const turnStart =
+        messages.length -
+        args.messageHistory.length +
+        (args.currentPromptStart ?? 0);
     if (preparedContext?.content) {
         messages.push({
             role: 'user',
@@ -3141,7 +3151,16 @@ const prepareAgentTurn = async ({
               siteUrl: args.siteUrl,
           })
         : null;
-    if (boundContent) messages.push({ role: 'user', content: boundContent });
+    // Read fresh each turn and left out of the stored transcript, so no later turn sees a stale copy.
+    const boundContentIndex = boundContent
+        ? messages.push({ role: 'user', content: boundContent }) - 1
+        : null;
+    const turnTranscript = replaysTurns
+        ? createTurnTranscript({
+              start: turnStart,
+              currentOnlyIndex: boundContentIndex,
+          })
+        : undefined;
     const invalidToolCallIds = new Set<string>();
     const prepareStep = buildPrepareStep({
         args,
@@ -3156,6 +3175,7 @@ const prepareAgentTurn = async ({
         invalidToolCallIds,
         agentContext,
         turnTranscript,
+        boundContentIndex,
     });
 
     return {
@@ -3182,7 +3202,7 @@ const prepareAgentTurn = async ({
     };
 };
 
-/** Stores a cleanly finished turn so the next turn replays it as sent. */
+/** Stores a cleanly finished, persisted turn so later turns replay it as sent. */
 const storeTurnTranscript = async (
     args: AiAgentArgs,
     dependencies: AiAgentDependencies,
@@ -3606,12 +3626,6 @@ const runGenerateAgentResponse = async ({
         }
 
         if (args.execution.mode !== 'deep_research') {
-            await storeTurnTranscript(
-                args,
-                dependencies,
-                turnTranscript,
-                result.finalStep,
-            );
             await dependencies.updatePrompt({
                 promptUuid: args.promptUuid,
                 response: agentContext.responseBlocks.render(
@@ -3631,6 +3645,12 @@ const runGenerateAgentResponse = async ({
                     stages: timing.getStageTiming(),
                 },
             });
+            await storeTurnTranscript(
+                args,
+                dependencies,
+                turnTranscript,
+                result.finalStep,
+            );
         }
 
         const totalTime = Date.now() - startTime;
@@ -4210,13 +4230,7 @@ const runStreamAgentResponse = async ({
                         responseTiming,
                     });
                 } else {
-                    await storeTurnTranscript(
-                        args,
-                        dependencies,
-                        turnTranscript,
-                        finalStep,
-                    );
-                    await persistPrompt({
+                    const persisted = await persistPrompt({
                         response: completeResponse,
                         promptUuid: args.promptUuid,
                         tokenUsage: completedPromptTokenUsage(
@@ -4227,6 +4241,14 @@ const runStreamAgentResponse = async ({
                         ),
                         responseTiming,
                     });
+                    if (persisted) {
+                        await storeTurnTranscript(
+                            args,
+                            dependencies,
+                            turnTranscript,
+                            finalStep,
+                        );
+                    }
                 }
 
                 logger(

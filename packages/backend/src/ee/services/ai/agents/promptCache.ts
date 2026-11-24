@@ -32,15 +32,15 @@ const withoutBreakpoint = (message: ModelMessage): ModelMessage => {
 };
 
 /**
- * Moves the conversation cache breakpoint to the last message, so each step reads the
- * history the previous step wrote. AI SDK carries prepared messages into the next step,
- * so earlier markers are removed to stay under Anthropic's 4-breakpoint cap.
- * System messages keep their own breakpoint.
+ * Breakpoints on the last message and `pinnedIndex` only: AI SDK carries prepared messages into
+ * the next step and Anthropic allows 4 breakpoints. System messages keep their own.
  */
 export const withRollingCacheBreakpoint = (
     messages: ModelMessage[],
+    pinnedIndex: number | null = null,
 ): ModelMessage[] =>
     messages.map((message, index) => {
-        if (index === messages.length - 1) return withBreakpoint(message);
+        if (index === messages.length - 1 || index === pinnedIndex)
+            return withBreakpoint(message);
         return message.role === 'system' ? message : withoutBreakpoint(message);
     });

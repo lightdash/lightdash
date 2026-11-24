@@ -10,6 +10,8 @@ vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
         }),
 }));
 
+const sonnet = { modelProvider: 'anthropic', modelName: 'claude-sonnet' };
+
 const prompt = (uuid: string, text: string, response: string | null) => ({
     ai_prompt_uuid: uuid,
     prompt: text,
@@ -19,7 +21,7 @@ const prompt = (uuid: string, text: string, response: string | null) => ({
     human_feedback: null,
 });
 
-const transcript: ModelMessage[] = [
+const secondTurn: ModelMessage[] = [
     { role: 'user', content: 'Build a dashboard\n\nCandidate fields: ...' },
     {
         role: 'assistant',
@@ -46,22 +48,33 @@ const transcript: ModelMessage[] = [
     { role: 'assistant', content: 'Built it.' },
 ];
 
-const buildHistory = (replayTranscripts: boolean) => {
-    const findLatestPromptTranscript = vi.fn().mockResolvedValue({
-        ai_prompt_uuid: 'second',
-        messages: transcript,
-    });
+const buildHistory = (
+    transcriptModel: typeof sonnet,
+    currentModel: typeof sonnet,
+) => {
+    const findPromptTranscripts = vi.fn().mockResolvedValue([
+        {
+            ai_prompt_uuid: 'second',
+            messages: secondTurn,
+            model_config: transcriptModel,
+        },
+    ]);
     const service = new AiAgentService({
         aiAgentModel: {
             getContextForPromptUuids: vi.fn().mockResolvedValue(new Map()),
             getToolCallsAndResultsForPrompt: vi.fn().mockResolvedValue([]),
-            findLatestPromptTranscript,
+            findPromptTranscripts,
         },
         lightdashConfig: {},
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
+    const transcriptReplay = {
+        modelConfig: currentModel,
+        currentPromptStart: null as number | null,
+    };
 
     return {
-        findLatestPromptTranscript,
+        findPromptTranscripts,
+        transcriptReplay,
         history: service.getChatHistoryFromThreadMessages(
             [
                 prompt('first', 'Hello', 'Hi'),
@@ -75,28 +88,32 @@ const buildHistory = (replayTranscripts: boolean) => {
                 retrieveRelevantArtifacts: false,
                 currentPromptUuid: 'current',
                 threadUuid: 'thread-1',
-                replayTranscripts,
+                transcriptReplay,
             },
         ),
     };
 };
 
 describe('AiAgentService turn transcript replay', () => {
-    it('replays the latest transcript in place of the turns it covers', async () => {
-        const { history, findLatestPromptTranscript } = buildHistory(true);
+    it('replays each stored turn in its place and reports where the current prompt starts', async () => {
+        const { history, findPromptTranscripts, transcriptReplay } =
+            buildHistory(sonnet, sonnet);
 
         expect(await history).toEqual([
-            ...transcript,
+            { role: 'user', content: 'Hello' },
+            { role: 'assistant', content: 'Hi' },
+            ...secondTurn,
             { role: 'user', content: 'Change a chart' },
         ]);
-        expect(findLatestPromptTranscript).toHaveBeenCalledWith([
-            'first',
-            'second',
-        ]);
+        expect(findPromptTranscripts).toHaveBeenCalledWith(['first', 'second']);
+        expect(transcriptReplay.currentPromptStart).toBe(6);
     });
 
-    it('rebuilds every turn when replay is off', async () => {
-        const { history, findLatestPromptTranscript } = buildHistory(false);
+    it('rebuilds a turn that ran on another model', async () => {
+        const { history } = buildHistory(
+            { modelProvider: 'openai', modelName: 'gpt' },
+            sonnet,
+        );
 
         expect(await history).toEqual([
             { role: 'user', content: 'Hello' },
@@ -105,6 +122,5 @@ describe('AiAgentService turn transcript replay', () => {
             { role: 'assistant', content: 'Built it.' },
             { role: 'user', content: 'Change a chart' },
         ]);
-        expect(findLatestPromptTranscript).not.toHaveBeenCalled();
     });
 });

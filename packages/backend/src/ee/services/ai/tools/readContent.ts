@@ -19,6 +19,8 @@ type Dependencies = {
     readContent: ReadContentFn;
     siteUrl: string;
     documentsEnabled?: boolean;
+    // The agent reads charts and dashboards as YAML, the text its edits match against; MCP reads JSON.
+    contentFormat?: 'json' | 'yaml';
 };
 
 const toolDefinition = readContentToolDefinition.for('agent');
@@ -26,50 +28,40 @@ const toolDefinition = readContentToolDefinition.for('agent');
 type ReadContentResult = Awaited<ReturnType<ReadContentFn>>;
 
 // Shown with every dashboard read so the first filter edit has the right shape without a skill round trip.
-const DASHBOARD_READ_HINT =
-    'Filter rules under filters.dimensions need "target": { "fieldId", "tableName" }; per-tile overrides go in "tileTargets" keyed by tileSlug. Each saved_chart tile carries a read-only "chartQuery" (exploreName, fieldIds) to pick targets without reading charts; leave chartQuery unchanged.';
+const DASHBOARD_READ_HINT = {
+    json: 'Filter rules under /filters/dimensions need "target": { "fieldId", "tableName" }; per-tile overrides go in "tileTargets" keyed by tileSlug. Each saved_chart tile carries a read-only "chartQuery" (exploreName, fieldIds) to pick targets without reading charts; never patch chartQuery. Load the "developing-in-lightdash" skill resource "dashboard-reference" before editing filters or tiles.',
+    yaml: 'Filter rules under filters.dimensions need "target": { "fieldId", "tableName" }; per-tile overrides go in "tileTargets" keyed by tileSlug. Each saved_chart tile carries a read-only "chartQuery" (exploreName, fieldIds) to pick targets without reading charts; leave chartQuery unchanged.',
+};
 
-const contentResult = ({
-    content,
-    href,
-    type,
-    note,
-}: {
-    content: unknown;
-    href: string;
-    type: ReadContentResult['type'];
-    note: string | null;
-}) =>
-    [
+/** The text a read returns: YAML for charts and dashboards when the agent reads, JSON otherwise. */
+export const readContentText = (
+    read: ReadContentResult,
+    {
+        siteUrl,
+        note,
+        format,
+    }: { siteUrl: string; note: string | null; format: 'json' | 'yaml' },
+): string => {
+    const href = toAbsoluteHref(siteUrl, read.href);
+    const asYaml =
+        format === 'yaml' &&
+        read.type !== 'document' &&
+        read.type !== 'data_app';
+    return [
         ...(note ? [note] : []),
-        `<${type} href="${href}" />`,
-        ...(type === 'dashboard' ? [DASHBOARD_READ_HINT] : []),
+        asYaml
+            ? `<${read.type} href="${href}" slug="${read.content.slug}" />`
+            : `<${read.type} href="${href}" />`,
+        ...(read.type === 'dashboard' ? [DASHBOARD_READ_HINT[format]] : []),
         '---',
-        JSON.stringify(content, null, 2),
+        asYaml
+            ? serializeContent(read.content)
+            : JSON.stringify(
+                  read.type === 'document' ? { ...read, href } : read.content,
+                  null,
+                  2,
+              ),
     ].join('\n');
-
-// The agent reads charts and dashboards as the exact text its edits match against.
-export const agentReadOutput = (
-    read: ToolReadContentStructuredContent,
-    siteUrl: string,
-): string | null => {
-    switch (read.type) {
-        case 'dashboard':
-        case 'chart':
-        case 'sql_chart':
-        case 'composer_chart':
-            return [
-                `<${read.type} href="${toAbsoluteHref(siteUrl, read.href)}" slug="${read.slug}" />`,
-                ...(read.type === 'dashboard' ? [DASHBOARD_READ_HINT] : []),
-                '---',
-                serializeContent(read.content),
-            ].join('\n');
-        case 'data_app':
-        case 'document':
-            return null;
-        default:
-            return assertUnreachable(read, 'Unknown read content type');
-    }
 };
 
 const toStructuredContent = (
@@ -104,6 +96,7 @@ export const getReadContent = ({
     readContent,
     siteUrl,
     documentsEnabled = false,
+    contentFormat = 'json',
 }: Dependencies) => {
     const definition = documentsEnabled
         ? mcpReadContentToolDefinition.for('agent')
@@ -158,19 +151,11 @@ export const getReadContent = ({
                         : {}),
                 };
 
-                const absoluteHref = toAbsoluteHref(
-                    siteUrl,
-                    structuredContent.href,
-                );
                 return {
-                    result: contentResult({
-                        content:
-                            read.type === 'document'
-                                ? { ...read, href: absoluteHref }
-                                : read.content,
-                        href: absoluteHref,
-                        type: structuredContent.type,
+                    result: readContentText(read, {
+                        siteUrl,
                         note,
+                        format: contentFormat,
                     }),
                     metadata,
                     structuredContent,
@@ -182,15 +167,6 @@ export const getReadContent = ({
                 );
             }
         },
-        toModelOutput: ({ output }) => {
-            const view =
-                output.metadata.status === 'success' &&
-                !('error' in output.structuredContent)
-                    ? agentReadOutput(output.structuredContent, siteUrl)
-                    : null;
-            return view === null
-                ? toModelOutput(output)
-                : { type: 'text', value: view };
-        },
+        toModelOutput: ({ output }) => toModelOutput(output),
     });
 };

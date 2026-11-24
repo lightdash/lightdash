@@ -299,6 +299,8 @@ export type AiAgentArgs = AnyAiModel & {
     mcpServers: AiAgentMcpServer[];
     compactionSummary: string | null;
     messageHistory: ModelMessage[];
+    /** Where this prompt's messages start in messageHistory; null when the turn is not stored for replay. */
+    currentPromptStart: number | null;
     userQuestion?: string;
     promptUuid: string;
     threadUuid: string;

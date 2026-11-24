@@ -1,28 +1,15 @@
 import { DashboardTileTypes } from '@lightdash/common';
-import { agentReadOutput } from '../tools/readContent';
+import { readContentText } from '../tools/readContent';
 import type { AiAgentThreadBindingContext } from '../types/aiAgent';
 import type { ReadContentFn } from '../types/aiAgentDependencies';
 
-// ~6k tokens of YAML; larger dashboards keep the read-on-demand path for their charts.
+// ~6k tokens of YAML; past it, content is read on demand.
 const MAX_PRELOAD_CHARS = 24_000;
 
-type Read = Awaited<ReturnType<ReadContentFn>>;
+const EDIT_HINT =
+    'read at the start of this request. Edit it with editContent without reading it first.';
 
-const render = (read: Read, siteUrl: string): string | null =>
-    read.type === 'document' || read.type === 'data_app'
-        ? null
-        : agentReadOutput(
-              {
-                  type: read.type,
-                  slug: read.content.slug,
-                  name: read.content.name,
-                  href: read.href,
-                  content: read.content,
-              } as Parameters<typeof agentReadOutput>[0],
-              siteUrl,
-          );
-
-/** The bound dashboard (with its charts) or chart as readContent shows it, so an edit needs no read step. */
+/** The bound dashboard (with the charts that fit) or chart as readContent shows it, so an edit needs no read step. */
 export const getBoundContentPreload = async ({
     threadBinding,
     readContent,
@@ -32,52 +19,60 @@ export const getBoundContentPreload = async ({
     readContent: ReadContentFn;
     siteUrl: string;
 }): Promise<string | null> => {
+    const toText = (read: Awaited<ReturnType<ReadContentFn>>) =>
+        readContentText(read, { siteUrl, note: null, format: 'yaml' });
     try {
-        let reads: Read[] = [];
-        if (threadBinding?.type === 'dashboard' && threadBinding.dashboard) {
-            const dashboard = await readContent({
-                slug: threadBinding.dashboard.slug,
-                type: 'dashboard',
-            });
-            const chartSlugs =
-                dashboard.type === 'dashboard'
-                    ? dashboard.content.tiles.flatMap((tile) =>
-                          tile.type === DashboardTileTypes.SAVED_CHART &&
-                          tile.properties.chartSlug
-                              ? [tile.properties.chartSlug]
-                              : [],
-                      )
-                    : [];
-            const charts = await Promise.all(
-                [...new Set(chartSlugs)].map((slug) =>
-                    readContent({ slug, type: 'chart' }).catch(() => null),
-                ),
-            );
-            reads = [
-                dashboard,
-                ...charts.filter((chart): chart is Read => chart !== null),
-            ];
-        } else if (threadBinding?.type === 'chart' && threadBinding.chart) {
-            reads = [
+        if (threadBinding?.type === 'chart' && threadBinding.chart) {
+            const chart = toText(
                 await readContent({
                     slug: threadBinding.chart.slug,
                     type: 'chart',
                 }),
-            ];
+            );
+            return chart.length <= MAX_PRELOAD_CHARS
+                ? `Current content of the bound chart, ${EDIT_HINT}\n\n${chart}`
+                : null;
         }
-        const parts: string[] = [];
-        for (const read of reads) {
-            const text = render(read, siteUrl);
-            if (
-                text &&
-                [...parts, text].join('\n\n').length <= MAX_PRELOAD_CHARS
-            ) {
-                parts.push(text);
+        if (threadBinding?.type !== 'dashboard' || !threadBinding.dashboard)
+            return null;
+        const dashboard = await readContent({
+            slug: threadBinding.dashboard.slug,
+            type: 'dashboard',
+        });
+        if (dashboard.type !== 'dashboard') return null;
+        const parts = [toText(dashboard)];
+        if (parts[0].length > MAX_PRELOAD_CHARS) return null;
+
+        const chartSlugs = [
+            ...new Set(
+                dashboard.content.tiles.flatMap((tile) =>
+                    tile.type === DashboardTileTypes.SAVED_CHART &&
+                    tile.properties.chartSlug
+                        ? [tile.properties.chartSlug]
+                        : [],
+                ),
+            ),
+        ];
+        const charts = await Promise.all(
+            chartSlugs.map((slug) =>
+                readContent({ slug, type: 'chart' })
+                    .then(toText)
+                    .catch(() => null),
+            ),
+        );
+        let size = parts[0].length;
+        for (const chart of charts) {
+            if (chart && size + chart.length + 2 <= MAX_PRELOAD_CHARS) {
+                parts.push(chart);
+                size += chart.length + 2;
             }
         }
-        return parts.length > 0
-            ? `Current content of the bound ${threadBinding?.type}, read at the start of this request. Edit it with editContent without reading it first.\n\n${parts.join('\n\n')}`
-            : null;
+        const shown = parts.length - 1;
+        const scope =
+            shown === chartSlugs.length
+                ? 'the bound dashboard and its charts'
+                : `the bound dashboard and ${shown} of its ${chartSlugs.length} charts (read the others before editing them)`;
+        return `Current content of ${scope}, ${EDIT_HINT}\n\n${parts.join('\n\n')}`;
     } catch {
         return null;
     }
