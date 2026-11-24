@@ -1051,23 +1051,28 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         tableName: string,
         schema: string,
         database: string,
+        { keysAndTags }: { keysAndTags: boolean },
     ): Promise<WarehouseTableMetadata | null> {
         const { session, close } = await this.openSession(
             new DatabricksWarehouseStartupRetry(),
         );
         const q = '`';
         const informationSchema = `${q}${database}${q}.information_schema`;
-        // Best effort: the constraint views are in preview and filtered by privilege
-        const readQuietly = (sql: string, values: string[]) =>
-            DatabricksWarehouseClient.fetchAllRows(
-                session.executeStatement(sql, { ordinalParameters: values }),
-                'getTableMetadata',
-            ).catch((e: unknown) => {
-                console.debug(
-                    `Could not read keys or tags of ${tableName}: ${getDatabricksErrorMessage(e)}`,
-                );
-                return [];
-            });
+        // Best effort: the constraint views are in preview and filtered by privilege; information_schema stores names in lower case
+        const readQuietly = async (sql: string, values: string[]) =>
+            !keysAndTags
+                ? []
+                : DatabricksWarehouseClient.fetchAllRows(
+                      session.executeStatement(sql, {
+                          ordinalParameters: values,
+                      }),
+                      'getTableMetadata',
+                  ).catch((e: unknown) => {
+                      console.warn(
+                          `Could not read keys or tags of ${tableName}: ${getDatabricksErrorMessage(e)}`,
+                      );
+                      return [];
+                  });
         try {
             const [described, keyRows, tagRows] = await Promise.all([
                 DatabricksWarehouseClient.describeAsJson(session, {
@@ -1087,16 +1092,16 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                      LEFT JOIN ${informationSchema}.key_column_usage r
                        ON r.constraint_catalog = rc.unique_constraint_catalog AND r.constraint_schema = rc.unique_constraint_schema
                        AND r.constraint_name = rc.unique_constraint_name AND r.ordinal_position = k.position_in_unique_constraint
-                     WHERE tc.table_schema = ? AND tc.table_name = ? AND tc.constraint_type IN ('PRIMARY KEY', 'FOREIGN KEY')
+                     WHERE tc.table_schema = lower(?) AND tc.table_name = lower(?) AND tc.constraint_type IN ('PRIMARY KEY', 'FOREIGN KEY')
                      ORDER BY k.constraint_name, k.ordinal_position`,
                     [schema, tableName],
                 ),
                 readQuietly(
                     `SELECT NULL AS column_name, tag_name, tag_value
-                     FROM ${informationSchema}.table_tags WHERE schema_name = ? AND table_name = ?
+                     FROM ${informationSchema}.table_tags WHERE schema_name = lower(?) AND table_name = lower(?)
                      UNION ALL
                      SELECT column_name, tag_name, tag_value
-                     FROM ${informationSchema}.column_tags WHERE schema_name = ? AND table_name = ?`,
+                     FROM ${informationSchema}.column_tags WHERE schema_name = lower(?) AND table_name = lower(?)`,
                     [schema, tableName, schema, tableName],
                 ),
             ]);

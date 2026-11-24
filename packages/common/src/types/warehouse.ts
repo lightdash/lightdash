@@ -452,7 +452,7 @@ export type WarehouseTableMetadata = {
     definition: { text: string; truncated: boolean } | null;
     /** A metric view's definition as data, read from its whole source; null when it is not one or does not parse. */
     metricView: WarehouseMetricViewDefinition | null;
-    /** Declared primary key columns in key order; null when none is declared or it could not be read. */
+    /** Declared primary key columns in key order; null when none is declared, it could not be read or keys were not requested. */
     primaryKey: string[] | null;
     /** Declared foreign keys; `referencedTable` is fully qualified and `referencedColumns` pair with `columns` by position. */
     foreignKeys: {
@@ -776,10 +776,12 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
     ): Promise<WarehouseCatalog>;
 
     // Absent where the adapter cannot describe tables; null when this table or runtime gives no description
+    // keysAndTags reads declared keys and tags too, at the cost of extra metadata queries
     getTableMetadata?(
         tableName: string,
         schema: string,
         database: string,
+        options: { keysAndTags: boolean },
     ): Promise<WarehouseTableMetadata | null>;
 
     // null when the table has no partitions or the warehouse does not report them

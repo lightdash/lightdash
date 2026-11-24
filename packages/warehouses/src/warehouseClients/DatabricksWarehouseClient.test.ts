@@ -425,11 +425,12 @@ describe('DatabricksWarehouseClient', () => {
             mocks.openSession.mockResolvedValue(session);
             return session;
         };
-        const read = () =>
+        const read = (keysAndTags = true) =>
             new DatabricksWarehouseClient(credentials).getTableMetadata(
                 'orders',
                 'schema',
                 'catalog',
+                { keysAndTags },
             );
 
         it('reads the type and comments of a table from the describe it already runs', async () => {
@@ -679,6 +680,36 @@ describe('DatabricksWarehouseClient', () => {
                 ),
                 { ordinalParameters: ['schema', 'orders', 'schema', 'orders'] },
             );
+        });
+
+        it('reads only the describe when keys and tags are not asked for', async () => {
+            const session = describing(describedTable, keyRows, tagRows);
+
+            expect(await read(false)).toMatchObject({
+                primaryKey: null,
+                foreignKeys: [],
+                tags: [],
+            });
+            expect(session.executeStatement).toHaveBeenCalledOnce();
+        });
+
+        it('matches names in lower case, as information_schema stores them', async () => {
+            const session = describing(describedTable, keyRows, tagRows);
+
+            await read();
+
+            const [keysSql, tagsSql] = vi
+                .mocked(session.executeStatement)
+                .mock.calls.map(([sql]) => String(sql))
+                .filter((sql) => sql.includes('information_schema'));
+            expect(keysSql).toContain(
+                'tc.table_schema = lower(?) AND tc.table_name = lower(?)',
+            );
+            expect(
+                tagsSql.match(
+                    /schema_name = lower\(\?\) AND table_name = lower\(\?\)/g,
+                ),
+            ).toHaveLength(2);
         });
 
         it('still describes the table when keys and tags cannot be read', async () => {

@@ -6268,6 +6268,7 @@ export class AiAgentToolsService extends BaseService {
                         databaseName: resolvedDatabase ?? undefined,
                     },
                     context.querySurface,
+                    { keysAndTags: true },
                 );
                 return {
                     columns: Object.entries(fields).map(([name, type]) => ({

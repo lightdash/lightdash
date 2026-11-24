@@ -7056,7 +7056,12 @@ describe('ProjectService', () => {
                     { name: 'order_month', isMeasure: false },
                     { name: 'order_count', isMeasure: true },
                 ]);
-                expect(getTableMetadata).toHaveBeenCalledOnce();
+                expect(getTableMetadata).toHaveBeenCalledExactlyOnceWith(
+                    expect.any(String),
+                    expect.any(String),
+                    expect.any(String),
+                    { keysAndTags: false },
+                );
                 expect(sent.filter((sql) => probe.test(sql))).toEqual([]);
             });
 

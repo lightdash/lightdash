@@ -15610,6 +15610,8 @@ export class ProjectService
             databaseName?: string;
         },
         querySurface?: QuerySurface,
+        // Keys and tags cost two extra queries on Databricks, so only callers that show them ask
+        { keysAndTags }: { keysAndTags: boolean } = { keysAndTags: false },
     ): Promise<
         WarehouseTableFields & {
             partitioning: TablePartitioning | null;
@@ -15657,6 +15659,7 @@ export class ProjectService
                                   resolved.tableName,
                                   resolved.schemaName,
                                   resolved.database,
+                                  { keysAndTags },
                               )
                               .catch((error: unknown) => {
                                   this.logger.warn(

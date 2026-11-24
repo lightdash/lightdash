@@ -1177,6 +1177,7 @@ describe('AiAgentToolsService', () => {
                     databaseName: 'analytics',
                 },
                 QuerySurface.SLACK,
+                { keysAndTags: true },
             );
         });
 
@@ -1223,6 +1224,7 @@ describe('AiAgentToolsService', () => {
                         databaseName: 'postgres3',
                     },
                     QuerySurface.SLACK,
+                    { keysAndTags: true },
                 );
             },
         );
@@ -1265,6 +1267,7 @@ describe('AiAgentToolsService', () => {
                     databaseName: 'main',
                 },
                 QuerySurface.SLACK,
+                { keysAndTags: true },
             );
         });
     });
