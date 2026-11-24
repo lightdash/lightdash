@@ -295,44 +295,6 @@ export const dataAppsChartSpecs: UsageChartSpec[] = [
             query: null,
         },
     },
-    ranking({
-        key: 'adoption-app-creators',
-        name: 'Who is creating data apps?',
-        description:
-            'People who created data apps, and the apps they created, by day. Iterations and loads are not counted.',
-        explore: 'data_app_events',
-        by: 'data_app_events_user_name',
-        then: 'data_app_events_app_name',
-        dimensions: [
-            'data_app_events_user_name',
-            'data_app_events_app_name',
-            'data_app_events_event_ts_day',
-            'data_app_events_user_id',
-            'data_app_events_app_id',
-            'data_app_events_project_id',
-        ],
-        metrics: ['data_app_events_total_events'],
-        filters: [
-            {
-                field: 'data_app_events_event_name',
-                values: ['data_app.created'],
-            },
-            // The same data apps as the running total beside it: no custom chart types, and none of
-            // Lightdash's own analytics apps
-            {
-                field: 'data_app_events_is_organization_data_app',
-                values: [true],
-            },
-        ],
-        limit: 100,
-        fieldLabels: {
-            data_app_events_event_ts_day: 'Created',
-            data_app_events_user_name: 'Creator',
-            data_app_events_total_events: 'Data apps created',
-        },
-        libraryDescription:
-            'Data apps created by each person; open a person to see their data apps. Iterations and loads are not counted.',
-    }),
     seriesByDay({
         key: 'apps-errors-by-day',
         name: 'Data app errors by day',
