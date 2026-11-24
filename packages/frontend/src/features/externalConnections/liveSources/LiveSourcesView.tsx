@@ -262,13 +262,8 @@ export const LiveSourceSummary: FC<{
     const rateLimit = getRateLimitStat(rateLimits);
     const isProjectCacheOff = projectCache?.enabled === false;
     const row = toLiveSourceRow(connection, usage);
-    // Every explore whose fields can be curated, not only the first
-    const allFields = fields?.explores.flatMap((explore) => explore.fields);
-    // A switched-off explore isn't built, so none of its fields can be queried
-    const inUse = fields?.explores
-        .filter((explore) => explore.inUse)
-        .flatMap((explore) => explore.fields)
-        .filter((field) => field.inUse).length;
+    const explores = fields?.explores;
+    const exploresInUse = explores?.filter((explore) => explore.inUse).length;
     const freshness = getLiveSourceFreshness(connection);
     const cachingTitle =
         freshness === 0
@@ -286,10 +281,10 @@ export const LiveSourceSummary: FC<{
                 value={connection.liveSourceName ?? '—'}
             />
             <Stat
-                label="Fields in use"
+                label="Explores in use"
                 value={
-                    allFields && inUse !== undefined
-                        ? `${inUse.toLocaleString()} of ${allFields.length.toLocaleString()}`
+                    explores && exploresInUse !== undefined
+                        ? `${exploresInUse.toLocaleString()} of ${explores.length.toLocaleString()}`
                         : '—'
                 }
             />
