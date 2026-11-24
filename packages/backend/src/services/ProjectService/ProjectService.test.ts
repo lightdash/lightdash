@@ -6985,6 +6985,7 @@ describe('ProjectService', () => {
                     },
                 ],
                 definition: null,
+                metricView: null,
             };
             // A warehouse that refuses to select from a metric view, as Databricks does
             const describing = (metadata: WarehouseTableMetadata) => {

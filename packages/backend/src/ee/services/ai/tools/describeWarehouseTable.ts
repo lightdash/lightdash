@@ -2,6 +2,7 @@ import {
     describeWarehouseTableToolDefinition,
     METRIC_VIEW_TABLE_TYPE,
     type ToolDescribeWarehouseTableStructuredContent,
+    type WarehouseMetricViewDefinition,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { DescribeWarehouseTableFn } from '../types/aiAgentDependencies';
@@ -22,6 +23,40 @@ type ExecuteResult =
           { status: 'success' | 'not_found' }
       >
     | ExecuteToolErrorResult;
+
+type DefinedField = WarehouseMetricViewDefinition['measures'][number];
+
+const formatDefinedField = (field: DefinedField): string[] => [
+    ...(field.synonyms.length > 0
+        ? [`Synonyms: ${field.synonyms.join(', ')}`]
+        : []),
+    `Defined as: ${field.expr}`,
+    ...field.window.map((window) =>
+        [
+            `Window: order by ${window.order}, range ${window.range}`,
+            ...(window.semiAdditive
+                ? [`semi-additive ${window.semiAdditive}`]
+                : []),
+            ...(window.offset ? [`offset ${window.offset}`] : []),
+        ].join(', '),
+    ),
+];
+
+const formatMetricViewSource = (
+    metricView: WarehouseMetricViewDefinition,
+): string[] => [
+    ...(metricView.source ? [`Metric view source: ${metricView.source}`] : []),
+    ...(metricView.filter ? [`Metric view filter: ${metricView.filter}`] : []),
+    ...metricView.joins.map(
+        (join) =>
+            `Metric view join ${join.name}: ${join.source} ${join.on ? `on ${join.on}` : `using ${join.using.join(', ')}`}`,
+    ),
+    ...(metricView.parameterized
+        ? [
+              'This metric view takes parameters, so it is queried as a table function with named arguments.',
+          ]
+        : []),
+];
 
 const toolDefinition = describeWarehouseTableToolDefinition.for('agent');
 
@@ -83,6 +118,16 @@ export const getDescribeWarehouseTable = ({
                 const described = new Map(
                     (metadata?.columns ?? []).map((c) => [c.name, c]),
                 );
+                const metricView = metadata?.metricView ?? null;
+                const definedFields = new Map<string, DefinedField>(
+                    [
+                        ...(metricView?.dimensions ?? []).map((field) => ({
+                            ...field,
+                            window: [],
+                        })),
+                        ...(metricView?.measures ?? []),
+                    ].map((field) => [field.name, field]),
+                );
                 const lines = [
                     `Columns for \`${qualifiedName}\` (${structuredContent.columnCount}):`,
                     ...(metadata
@@ -98,15 +143,21 @@ export const getDescribeWarehouseTable = ({
                         : []),
                     ...structuredContent.columns.map((c) => {
                         const column = described.get(c.name);
+                        const defined = definedFields.get(c.name);
+                        const comment = column?.comment ?? defined?.comment;
                         return [
                             `  - ${c.name}: ${c.type}`,
                             ...(column?.isMeasure ? ['Measure'] : []),
-                            ...(column?.comment
-                                ? [`Comment: ${column.comment}`]
+                            ...(defined?.label
+                                ? [`Label: ${defined.label}`]
                                 : []),
+                            ...(comment ? [`Comment: ${comment}`] : []),
+                            ...(defined ? formatDefinedField(defined) : []),
                         ].join('. ');
                     }),
-                    ...(metadata?.definition
+                    ...(metricView ? formatMetricViewSource(metricView) : []),
+                    // The parsed fields above replace the raw YAML, which can be cut short
+                    ...(metadata?.definition && !metricView
                         ? [
                               `${metadata.tableType === METRIC_VIEW_TABLE_TYPE ? 'Metric view' : 'View'} definition:`,
                               metadata.definition.text,
