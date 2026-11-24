@@ -38420,6 +38420,7 @@
                     "describeWarehouseTable",
                     "discoverFields",
                     "discoverRepos",
+                    "draftProjectContext",
                     "editContent",
                     "editDbtProject",
                     "editProjectContext",
@@ -44189,6 +44190,13 @@
             },
             "SemanticLayerDraftChange": {
                 "properties": {
+                    "projectContextEntries": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Ids of the project context entries this change adds or replaces."
+                    },
                     "models": {
                         "items": {
                             "properties": {
@@ -44237,6 +44245,7 @@
                     }
                 },
                 "required": [
+                    "projectContextEntries",
                     "models",
                     "createdAt",
                     "question",
@@ -44389,6 +44398,21 @@
                 "type": "object",
                 "description": "A model as the draft leaves it, against what is live."
             },
+            "SemanticLayerDraftProjectContext": {
+                "properties": {
+                    "contentAfter": {
+                        "type": "string"
+                    },
+                    "contentBefore": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null when the project has no context yet."
+                    }
+                },
+                "required": ["contentAfter", "contentBefore"],
+                "type": "object",
+                "description": "What the draft does to the project's context, as its file; publishing makes it what agents read."
+            },
             "SemanticLayerSettledDraftChange": {
                 "properties": {
                     "models": {
@@ -44504,6 +44528,15 @@
                         "type": "array",
                         "description": "Models the draft leaves unable to compile."
                     },
+                    "projectContext": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SemanticLayerDraftProjectContext"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Null when the draft leaves the project context as it is."
+                    },
                     "models": {
                         "items": {
                             "$ref": "#/components/schemas/SemanticLayerDraftModel"
@@ -44523,6 +44556,7 @@
                     "inReview",
                     "settled",
                     "errors",
+                    "projectContext",
                     "models",
                     "changes"
                 ],
@@ -81481,7 +81515,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.387.0",
+        "version": "3.388.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
