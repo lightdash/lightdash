@@ -40,7 +40,7 @@ export const toMixpanelError = (response: LiveHttpResponse): Error => {
     if (response.status === 429) {
         const retryAfterSeconds = getRetryAfterSeconds(response.headers);
         return new TooManyRequestsError(
-            `Mixpanel rate limit reached${detail}. Mixpanel allows 60 queries an hour and 5 at once per project; retry ${
+            `Mixpanel rate limit reached${detail}. Mixpanel allows 60 queries an hour and 5 at once per project, shared with its other clients; retry ${
                 retryAfterSeconds
                     ? `in ${retryAfterSeconds} seconds`
                     : 'later this hour'

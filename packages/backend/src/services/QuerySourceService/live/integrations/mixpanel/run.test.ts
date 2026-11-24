@@ -235,7 +235,7 @@ describe('mixpanelIntegration run', () => {
         const { send, source } = connect(
             jsonResponse({
                 '2026-10-02': { counts: [8, 3], first: 10 },
-                '2026-10-01': { counts: [5, 2, 1], first: 5 },
+                '2026-10-01': { counts: [4, 2, 1], first: 5 },
             }),
         );
 
@@ -264,9 +264,9 @@ describe('mixpanelIntegration run', () => {
             {
                 date: '2026-10-01',
                 period: 0,
-                retained_users: 5,
+                retained_users: 4,
                 cohort_users: 5,
-                retention_rate: 1,
+                retention_rate: 0.8,
             },
             {
                 date: '2026-10-01',
@@ -297,6 +297,25 @@ describe('mixpanelIntegration run', () => {
                 retention_rate: 0.3,
             },
         ]);
+    });
+
+    it('says there were more rows when the range needs more periods than Mixpanel reads', async () => {
+        const { send, source } = connect(
+            jsonResponse({ '2025-01-06': { counts: [4, 2], first: 9 } }),
+        );
+        const result = await source.run({
+            query: JSON.stringify({
+                endpoint: 'retention',
+                start: '2025-01-01',
+                end: '2026-10-31',
+                unit: 'week',
+                startEvent: 'Sign Up',
+                returnEvent: null,
+            }),
+            limit: 5_000,
+        });
+        expect(requestOf(send).query?.interval_count).toBe('52');
+        expect(result.hasMoreRows).toBe(true);
     });
 
     it('reads recurring retention when no start event is set', async () => {
@@ -474,7 +493,12 @@ describe('toWhereExpression', () => {
 
 describe('getRetentionPeriods', () => {
     it('reads enough periods to reach the end of the range, capped per unit', () => {
-        expect(getRetentionPeriods('2026-10-01', '2026-10-31', 'week')).toBe(6);
-        expect(getRetentionPeriods('2025-01-01', '2026-10-31', 'day')).toBe(90);
+        expect(getRetentionPeriods('2026-10-01', '2026-10-31', 'week')).toEqual(
+            { count: 6, capped: false },
+        );
+        expect(getRetentionPeriods('2025-01-01', '2026-10-31', 'day')).toEqual({
+            count: 90,
+            capped: true,
+        });
     });
 });

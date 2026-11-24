@@ -409,22 +409,30 @@ const retentionResponseSchema = z.record(
 const UNIT_DAYS = { day: 1, week: 7, month: 30 } as const;
 const COHORT_COLUMNS = { day: 'date', week: 'week', month: 'month' } as const;
 
-/** Periods to read: enough to reach the end of the range from its start. */
+/**
+ * Periods to read: enough to reach the end of the range from its start, up
+ * to the cap; `capped` says the earliest cohorts lose their later periods.
+ */
 export const getRetentionPeriods = (
     start: string,
     end: string,
     unit: keyof typeof UNIT_DAYS,
-) =>
-    Math.min(
-        Math.ceil(countDays(start, end) / UNIT_DAYS[unit]) + 1,
-        MIXPANEL_MAX_RETENTION_PERIODS[unit],
-    );
+) => {
+    const needed = Math.ceil(countDays(start, end) / UNIT_DAYS[unit]) + 1;
+    const max = MIXPANEL_MAX_RETENTION_PERIODS[unit];
+    return { count: Math.min(needed, max), capped: needed > max };
+};
 
 const runRetention = async (
     request: Extract<MixpanelRequest, { endpoint: 'retention' }>,
     projectId: string,
     calls: LiveCalls,
 ) => {
+    const periods = getRetentionPeriods(
+        request.start,
+        request.end,
+        request.unit,
+    );
     const response = await get(
         calls,
         projectId,
@@ -442,10 +450,7 @@ const runRetention = async (
                 ? [['event', request.returnEvent]]
                 : []) as Params),
             ['unit', request.unit],
-            [
-                'interval_count',
-                getRetentionPeriods(request.start, request.end, request.unit),
-            ],
+            ['interval_count', periods.count],
         ],
         retentionResponseSchema,
     );
@@ -466,6 +471,8 @@ const runRetention = async (
             })),
         );
     return {
+        // Periods past the cap are dropped from the earliest cohorts
+        truncated: periods.capped,
         columns: [
             { name: cohortColumn, type: DimensionType.DATE },
             { name: 'period', type: DimensionType.NUMBER },

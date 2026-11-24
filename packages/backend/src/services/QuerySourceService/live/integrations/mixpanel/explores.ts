@@ -348,7 +348,7 @@ export const MIXPANEL_RETENTION_EXPLORE: LiveExploreDefinition = {
                 label: `${unit[0].toUpperCase()}${unit.slice(1)}s after start`,
                 type: DimensionType.NUMBER,
                 filterOperators: [],
-                description: `${unit[0].toUpperCase()}${unit.slice(1)}s after the cohort started; 0 is the ${unit} it started. Pick the one matching the cohort grain.`,
+                description: `${unit[0].toUpperCase()}${unit.slice(1)}s after the cohort started, as Mixpanel counts them: 0 is the first ${unit}. Pick the one matching the cohort grain. Mixpanel reads at most 90 days, 52 weeks or 24 months after start.`,
                 groups: ['Retention period'],
             }),
         ),

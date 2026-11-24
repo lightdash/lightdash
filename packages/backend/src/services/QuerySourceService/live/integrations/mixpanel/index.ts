@@ -104,7 +104,8 @@ export const mixpanelIntegration = defineLiveIntegration({
             'No paging: segmentation returns up to 10,000 property values per call, funnels and retention every cohort and step at once.',
     },
     // Mixpanel allows 60 Query API calls an hour and 5 at once per project,
-    // shared with every other client. One call at a time leaves room for them.
+    // shared with every other client. One call at a time and 40 an hour leave
+    // room for them.
     rateLimits: {
         concurrentCalls: 1,
         callsPerSecond: null,
@@ -113,10 +114,10 @@ export const mixpanelIntegration = defineLiveIntegration({
                 id: 'hour',
                 label: 'per hour',
                 windowMs: 3_600_000,
-                capacity: 60,
+                capacity: 40,
             },
         ],
-        note: 'Shared with every other client of the project: 60 queries an hour and 5 at once.',
+        note: 'Mixpanel allows 60 queries an hour and 5 at once per project, shared with every other client; Lightdash keeps to 40 an hour.',
     },
     useCases: mixpanelUseCases,
     validate: ({ projectId }) => {
@@ -129,7 +130,7 @@ export const mixpanelIntegration = defineLiveIntegration({
     checkAuth: ({ type }) => {
         if (type !== 'api_key') {
             throw new ParameterError(
-                'Mixpanel connections authenticate with a service account username and secret',
+                'Mixpanel live data sources sign in with a service account username and secret',
             );
         }
     },
