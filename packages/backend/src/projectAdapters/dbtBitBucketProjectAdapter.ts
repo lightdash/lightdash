@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import type { DbtPartialParseBaseline } from '../dbt/dbtPartialParseBaseline';
 import type { DbtTargetResult } from '../services/WarehouseClientFactory/CredentialResolver';
 import { CachedWarehouse } from '../types';
 import { DEFAULT_BITBUCKET_HOST_DOMAIN } from '../utils/credentialDestination';
@@ -26,12 +27,12 @@ type Args = {
     dbtVersion: SupportedDbtVersions;
     selector?: string;
     analytics?: LightdashAnalytics;
-    partialParseBaselinePath: string | null;
+    partialParseBaseline: DbtPartialParseBaseline | null;
 };
 
 export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
     constructor({
-        partialParseBaselinePath,
+        partialParseBaseline,
         analytics,
         warehouseClient,
         username,
@@ -54,7 +55,7 @@ export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
         }/${repository}.git`;
         super({
             analytics,
-            partialParseBaselinePath,
+            partialParseBaseline,
             warehouseClient,
             gitBranch: branch,
             remoteRepositoryUrl,

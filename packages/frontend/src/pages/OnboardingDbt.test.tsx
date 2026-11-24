@@ -1,6 +1,5 @@
 import {
     ExploreType,
-    FeatureFlags,
     type ApiExploresResults,
     type HealthState,
 } from '@lightdash/common';
@@ -10,13 +9,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useExplores } from '../hooks/useExplores';
 import { useProject } from '../hooks/useProject';
 import { useProjects } from '../hooks/useProjects';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
 import OnboardingDbt from './OnboardingDbt';
-
-vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: vi.fn(),
-}));
 
 vi.mock('../hooks/useProjects', () => ({
     useProjects: vi.fn(),
@@ -89,10 +83,6 @@ const mockWarehouseProject = (provisioningSource: string | null) => {
 
 describe('OnboardingDbt', () => {
     beforeEach(() => {
-        vi.mocked(useServerFeatureFlag).mockReturnValue({
-            data: { id: FeatureFlags.NewOnboarding, enabled: true },
-            isLoading: false,
-        } as ReturnType<typeof useServerFeatureFlag>);
         mockProjects(['project-1']);
         vi.mocked(useProject).mockReturnValue({
             data: undefined,

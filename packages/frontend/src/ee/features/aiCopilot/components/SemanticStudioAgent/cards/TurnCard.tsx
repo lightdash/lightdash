@@ -26,6 +26,7 @@ import {
     type TaskState,
 } from '../../../../../../features/semanticStudio/TaskRow';
 import { ISSUE_KINDS, type Issue } from './proposalIssues';
+import { RejectionDetails } from './RejectionDetails';
 import classes from './TurnCard.module.css';
 
 /** One changed part of a model, linking to where it can be looked at. */
@@ -149,37 +150,43 @@ const ModelStep: FC<{ group: TurnGroup }> = ({
         {rows.map((row) => (
             <Row key={row.id} row={row} text={`${row.action} ${row.label}`} />
         ))}
-        {issues.map(({ kind, detail }) => (
-            <Group
-                key={`${kind}|${detail}`}
-                gap={6}
-                wrap="nowrap"
-                align="flex-start"
-            >
-                <Box className={classes.node}>
-                    <MantineIcon
-                        icon={ISSUE_KINDS[kind].icon}
-                        size={14}
-                        color={ISSUE_KINDS[kind].color}
-                    />
-                </Box>
-                {/* A warehouse error runs long; its start says what went wrong and the rest is on hover. */}
-                <Text
-                    fz="xs"
-                    fw={500}
-                    flex={1}
-                    miw={0}
-                    className={classes.wrap}
-                    lineClamp={kind === 'failed' ? 2 : undefined}
-                    title={kind === 'failed' ? detail : undefined}
+        {issues.map(({ kind, detail, rejection }) => {
+            // An error saved before rejections had a kind runs long; its start says what went wrong and the rest is on hover.
+            const isRawError = kind === 'failed' && rejection === null;
+            return (
+                <Group
+                    key={`${kind}|${detail}`}
+                    gap={6}
+                    wrap="nowrap"
+                    align="flex-start"
                 >
-                    {ISSUE_KINDS[kind].label}
-                    <Text span inherit fw={400} c="dimmed">
-                        {` · ${detail}`}
-                    </Text>
-                </Text>
-            </Group>
-        ))}
+                    <Box className={classes.node}>
+                        <MantineIcon
+                            icon={ISSUE_KINDS[kind].icon}
+                            size={14}
+                            color={ISSUE_KINDS[kind].color}
+                        />
+                    </Box>
+                    <Box flex={1} miw={0}>
+                        <Text
+                            fz="xs"
+                            fw={500}
+                            className={classes.wrap}
+                            lineClamp={isRawError ? 2 : undefined}
+                            title={isRawError ? detail : undefined}
+                        >
+                            {ISSUE_KINDS[kind].label}
+                            <Text span inherit fw={400} c="dimmed">
+                                {` · ${detail}`}
+                            </Text>
+                        </Text>
+                        {rejection?.detail ? (
+                            <RejectionDetails detail={rejection.detail} />
+                        ) : null}
+                    </Box>
+                </Group>
+            );
+        })}
     </Step>
 );
 

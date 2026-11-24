@@ -1,4 +1,7 @@
-import { type SemanticLayerDraftModelInput } from '@lightdash/common';
+import {
+    type ProjectContextEntry,
+    type SemanticLayerDraftModelInput,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const ProjectModelDraftChangesTableName = 'project_model_draft_changes';
@@ -26,6 +29,8 @@ export type DbProjectModelDraftChange = {
     discarded_by_user_uuid: string | null;
     /** When someone other than the owner discarded this; null otherwise. */
     discarded_at: Date | null;
+    /** Project context entries this change adds or replaces by id; null when it touches no project context. */
+    project_context_entries: ProjectContextEntry[] | null;
     created_at: Date;
 };
 
@@ -37,7 +42,12 @@ export type ProjectModelDraftChangesTable = Knex.CompositeTableType<
         | 'created_by_user_uuid'
         | 'prompt_uuid'
         | 'workspace_uuid'
-    > & { models: string; base_versions?: string | null; created_at?: Date },
+    > & {
+        models: string;
+        base_versions?: string | null;
+        project_context_entries?: string | null;
+        created_at?: Date;
+    },
     Partial<
         Pick<
             DbProjectModelDraftChange,

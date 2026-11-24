@@ -76,6 +76,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     proposeSemanticLayerChange: 'propose_semantic_layer_change',
     listChanges: 'list_changes',
     readSemanticModel: 'read_semantic_model',
+    draftProjectContext: 'draft_project_context',
     verify: 'verify',
     read: 'read_project_files',
     editRepo: 'edit_repo',

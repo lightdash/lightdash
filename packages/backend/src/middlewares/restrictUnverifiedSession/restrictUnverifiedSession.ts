@@ -13,7 +13,6 @@ const allowedRequests = [
     { method: 'GET', path: '/api/v1/user/me/email/status' },
     { method: 'GET', path: '/api/v1/logout' },
     { method: 'DELETE', path: '/api/v1/user/me' },
-    { method: 'GET', path: '/api/v2/feature-flag/new-onboarding' },
     { method: 'GET', path: '/api/v1/org/brand/favicon' },
     { method: 'GET', path: '/api/v1/org/brand/instance-logo' },
 ] as const;

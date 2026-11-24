@@ -1,8 +1,10 @@
 import {
     ApiConnectorType,
+    getHubspotPipelinesPath,
     getHubspotPropertiesPath,
     getHubspotSearchPath,
     HUBSPOT_OBJECTS,
+    HUBSPOT_PIPELINE_OBJECTS,
     HUBSPOT_ORIGIN,
 } from '@lightdash/common';
 import { type TokenLiveSourceForm } from './tokenLiveSource';
@@ -16,10 +18,13 @@ export const HUBSPOT_TOKEN_FORM = {
     getAccountId: () => '',
     getAccess: () => ({
         allowedMethods: ['GET', 'POST'],
-        allowedPathPrefixes: HUBSPOT_OBJECTS.flatMap((object) => [
-            getHubspotPropertiesPath(object),
-            getHubspotSearchPath(object),
-        ]),
+        allowedPathPrefixes: [
+            ...HUBSPOT_OBJECTS.flatMap((object) => [
+                getHubspotPropertiesPath(object),
+                getHubspotSearchPath(object),
+            ]),
+            ...HUBSPOT_PIPELINE_OBJECTS.map(getHubspotPipelinesPath),
+        ],
         allowedContentTypes: ['application/json'],
     }),
     getTestRequest: () => ({

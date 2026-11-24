@@ -1,0 +1,10 @@
+.toggle {
+    display: inline-flex;
+    gap: 2px;
+    align-items: center;
+}
+
+.detail {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}

@@ -40,10 +40,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { groupBy } from 'es-toolkit/compat';
-import {
-    LightdashAnalytics,
-    OnboardingFlow,
-} from '../../analytics/LightdashAnalytics';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -732,14 +729,6 @@ export class OrganizationService extends BaseService {
             throw new ForbiddenError('User already has an organization');
         }
         const org = await this.organizationModel.create(data);
-        const { enabled: newOnboardingEnabled } =
-            await this.featureFlagModel.get({
-                user,
-                featureFlagId: FeatureFlags.NewOnboarding,
-            });
-        const onboardingFlow: OnboardingFlow = newOnboardingEnabled
-            ? 'new'
-            : 'legacy';
         this.analytics.track({
             event: 'organization.created',
             userId: user.userUuid,
@@ -750,7 +739,7 @@ export class OrganizationService extends BaseService {
                         : 'self-hosted',
                 organizationId: org.organizationUuid,
                 organizationName: org.name,
-                onboardingFlow,
+                onboardingFlow: 'new',
             },
         });
         this.analytics.track({
@@ -759,7 +748,7 @@ export class OrganizationService extends BaseService {
             properties: {
                 step: 'org_created',
                 stepIndex: 3,
-                onboardingFlow,
+                onboardingFlow: 'new',
                 organizationId: org.organizationUuid,
             },
         });

@@ -22,6 +22,7 @@ const TOOLS_WITHOUT_DESCRIPTION = [
     'proposeSemanticLayerChange',
     'listChanges',
     'readSemanticModel',
+    'draftProjectContext',
     'verify',
     'read',
     'editRepo',

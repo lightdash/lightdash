@@ -70,6 +70,7 @@ export const resolveLoadout = (input: LoadoutInput): Loadout =>
 export const getStudioAbilities = (loadout: Pick<Loadout, 'toolNames'>) => ({
     builder: loadout.toolNames.has('read'),
     canRunMetrics: loadout.toolNames.has('runMetricQuery'),
+    canDraftContext: loadout.toolNames.has('draftProjectContext'),
 });
 
 /** The loadout's built-in skills, then the agent's custom skills. */

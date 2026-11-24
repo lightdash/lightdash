@@ -41,6 +41,37 @@ describe('listProposalIssues', () => {
                 kind: 'skipped',
                 model: 'orders',
                 detail: 'metrics.revenue is not in the model.',
+                rejection: null,
+            },
+        ]);
+    });
+});
+
+describe('a rejection with a kind', () => {
+    it('reads as one sentence, with the raw error kept apart', () => {
+        const rejection = {
+            kind: 'warehouse_refused' as const,
+            detail: '[ERROR_CODE] column_a, column_b',
+        };
+        expect(
+            listProposalIssues({
+                models: [
+                    {
+                        model: 'orders',
+                        status: 'failed',
+                        changes: [],
+                        refusals: [],
+                        error: 'The warehouse refused orders when it was checked. [ERROR_CODE] column_a, column_b',
+                        rejection,
+                    },
+                ],
+            }),
+        ).toEqual([
+            {
+                kind: 'failed',
+                model: 'orders',
+                detail: 'The warehouse refused orders when it was checked.',
+                rejection,
             },
         ]);
     });
@@ -124,11 +155,13 @@ describe('listTurnIssues', () => {
                 kind: 'skipped',
                 model: 'orders',
                 detail: 'tags changes who can see it, which cannot be changed here.',
+                rejection: null,
             },
             {
                 kind: 'skipped',
                 model: 'orders',
                 detail: 'dimensions.status uses a name another field of this model already has.',
+                rejection: null,
             },
         ]);
     });
@@ -153,6 +186,7 @@ describe('listTurnIssues', () => {
             kind: 'failed',
             model: 'orders',
             detail: 'The warehouse rejected this model',
+            rejection: null,
         };
         expect(listTurnIssues([failed])).toEqual([issue]);
         expect(listTurnIssues([attempt('ready', null), failed])).toEqual([

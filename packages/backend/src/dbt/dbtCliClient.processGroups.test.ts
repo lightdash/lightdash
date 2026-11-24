@@ -34,7 +34,7 @@ it.skipIf(process.platform !== 'linux')(
             environmentVariableAllowlist: [],
             explicitCredentials: false,
             dbtVersion: SupportedDbtVersions.V1_12,
-            partialParseBaselinePath: null,
+            partialParseBaseline: null,
         });
         try {
             vi.mocked(execa).mockReturnValueOnce(
