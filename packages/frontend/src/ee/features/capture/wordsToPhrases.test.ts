@@ -38,7 +38,7 @@ describe('wordsToPhrases', () => {
             w(2200, 'here'),
         ];
         expect(
-            wordsToPhrases(words, { offsetMs: 0, breakAtMs: [900, 2100] }),
+            wordsToPhrases(words, { offsetMs: 0, breakAtMs: [900, 2300] }),
         ).toEqual([
             { atMs: 1000, text: 'move this over' },
             { atMs: 1900, text: 'to here' },

@@ -189,13 +189,34 @@ describe('buildSummary', () => {
         expect(out).toContain('- ① (0:00) circled, top right on Revenue tile');
     });
 
+    it('words said after a mark stay with it, not with the next mark', () => {
+        const out = buildSummary({
+            durationMs: 8000,
+            imageCount: 1,
+            marks: [
+                mark({ number: 1, startMs: 2000, endMs: 2000, shape: 'pick' }),
+                mark({ number: 2, startMs: 5000, endMs: 5000, shape: 'pick' }),
+            ],
+            transcript: [
+                { atMs: 1700, text: 'this bar' },
+                { atMs: 2600, text: 'is too high' },
+                { atMs: 4600, text: 'and this one' },
+                { atMs: 5400, text: 'is fine' },
+            ],
+        });
+        expect(out.split('\n').slice(1, 3)).toEqual([
+            '- ① (0:02) picked, top right: "this bar is too high"',
+            '- ② (0:05) picked, top right: "and this one is fine"',
+        ]);
+    });
+
     it('joins two phrases on one mark and speech just before it', () => {
         const out = buildSummary({
             durationMs: 6000,
             imageCount: 1,
             marks: [mark({ number: 1, startMs: 2000, endMs: 3000 })],
             transcript: [
-                { atMs: 1000, text: 'so' },
+                { atMs: 1600, text: 'so' },
                 { atMs: 2100, text: 'this one' },
                 { atMs: 4500, text: 'is wrong' },
             ],

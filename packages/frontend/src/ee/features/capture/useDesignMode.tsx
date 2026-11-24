@@ -92,7 +92,9 @@ type Shot = {
  * the next pick, so marks number in the order they were made.
  */
 type Hold = {
-    /** When the next mark began: the hold's start, or the last mark's end. */
+    /** When the key went down: the start of a new bubble's clock. */
+    downAbs: number;
+    /** When the mark in hand began: its first stroke, or its click. */
     startAbs: number;
     rect: DOMRect;
     scroll: { x: number; y: number };
@@ -568,7 +570,7 @@ export const useDesignMode = (
 
                 const open = activeCollection(before);
                 const bubbleId = open?.bubble.id ?? hold.newBubbleId;
-                const clock = clocksRef.current.get(bubbleId) ?? hold.startAbs;
+                const clock = clocksRef.current.get(bubbleId) ?? hold.downAbs;
                 const capture = open?.collection.capture;
                 const lastSlot =
                     capture?.status === 'recording'
@@ -899,6 +901,7 @@ export const useDesignMode = (
             });
         }
         holdRef.current = {
+            downAbs: performance.now(),
             startAbs: performance.now(),
             rect: region,
             scroll: current.getScroll(),
@@ -1041,6 +1044,9 @@ export const useDesignMode = (
         (point: Point) => {
             const hold = holdRef.current;
             if (!hold) return;
+            if (!hold.current && hold.strokes.length === 0) {
+                hold.startAbs = performance.now();
+            }
             hold.current = {
                 points: hold.current
                     ? [...hold.current.points, point]

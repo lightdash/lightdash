@@ -1,8 +1,9 @@
 import { assertUnreachable } from '@lightdash/common';
 import { type CaptureMark, type Point, type TranscriptPhrase } from './types';
+import { MARK_LEAD_MS } from './wordsToPhrases';
 
-// Speech this close to a mark (before its start, after its end) belongs to it.
-const LEAD_MS = 1500;
+// Speech belongs to the latest mark made when it was said, unless it starts
+// this long after that mark was finished.
 const TRAIL_MS = 2000;
 
 const NOT_SHOWN = -1;
@@ -85,11 +86,11 @@ const assignSpeech = (
     const speechByMark = new Map<number, string[]>();
     const loose: TranscriptPhrase[] = [];
     for (const phrase of transcript) {
-        const owner = marks.findLast(
-            (mark) =>
-                phrase.atMs >= mark.startMs - LEAD_MS &&
-                phrase.atMs <= mark.endMs + TRAIL_MS,
+        const latest = marks.findLast(
+            (mark) => phrase.atMs >= mark.startMs - MARK_LEAD_MS,
         );
+        const owner =
+            latest && phrase.atMs <= latest.endMs + TRAIL_MS ? latest : null;
         if (owner) {
             speechByMark.set(owner.number, [
                 ...(speechByMark.get(owner.number) ?? []),
