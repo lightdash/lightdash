@@ -960,7 +960,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             // Ranked bars with the names beside them: twenty long names under a chart had to be
             // written at an angle. One measure, so one axis.
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.18.4',
+            minVersion: '0.18.9',
             fieldMapping: {
                 x: 'query_events_dashboard_name',
                 m1: 'query_events_p95_response_time_s',
@@ -969,6 +969,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 seriesType: 'bar',
                 orientation: 'horizontal',
                 m1Name: 'P95 response time (s)',
+                // One very slow dashboard would squeeze every other bar against the axis. Its bar is cut
+                // short at the edge with a break mark, and its label keeps the true value.
+                capOutliers: true,
                 showDataLabels: true,
                 lightdashLabels: false,
                 showAxisTitles: false,

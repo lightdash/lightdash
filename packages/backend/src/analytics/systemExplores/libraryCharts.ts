@@ -161,6 +161,8 @@ export const libraryChartOptions: Record<
         splitShadeRank: '0.18.8',
         // 'groups' lists one legend entry for each colour group instead of one for each series
         legendMode: '0.18.7',
+        // Ends the value axis just above the bulk of the bars when one or two dwarf the rest
+        capOutliers: '0.18.9',
     },
     'big-number-with-sparkline-trend': {
         ...sinceFirstBinding(
