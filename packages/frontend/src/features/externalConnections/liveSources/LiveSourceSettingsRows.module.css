@@ -41,8 +41,12 @@
     color: var(--mantine-color-dimmed);
 }
 
-.testOutcomeIcon {
+.testErrorIcon {
     flex: none;
+}
+
+.testResult {
+    padding: 0 14px 14px;
 }
 
 .settingsCode {

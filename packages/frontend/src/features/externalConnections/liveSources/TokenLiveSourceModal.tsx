@@ -3,19 +3,16 @@
  * settings: how it reaches the integration first, then what it is called.
  */
 import { LIVE_INTEGRATION_CATALOG } from '@lightdash/common';
-import { Button, PasswordInput, Stack, TextInput } from '@mantine/core';
+import { PasswordInput, Stack, TextInput } from '@mantine/core';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import { useCreateExternalConnection } from '../hooks/useCreateExternalConnection';
 import { useNewSourceId } from '../hooks/useNewSourceId';
 import { useTestConnectionConfig } from '../hooks/useTestConnectionConfig';
 import { LiveSourceTitle } from './LiveSourceIcon';
-import {
-    SettingsCard,
-    SettingsRow,
-    TestOutcome,
-} from './LiveSourceSettingsRows';
+import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
 import { LiveSourceSetupCard } from './LiveSourceSetupCard';
+import { LiveSourceTestCard } from './LiveSourceTestCard';
 import { NewLiveSourceDetails } from './NewLiveSourceDetails';
 import {
     normalizeAccountId,
@@ -45,7 +42,7 @@ export const TokenLiveSourceModal: FC<Props> = ({
     const { connector } = definition.toApiSource('');
     const form = useTokenLiveSourceForm(definition, null);
     const createMutation = useCreateExternalConnection();
-    const testMutation = useTestConnectionConfig();
+    const testMutation = useTestConnectionConfig({ showErrorToast: false });
     const sourceId = useNewSourceId({
         projectUuid,
         connector,
@@ -115,14 +112,7 @@ export const TokenLiveSourceModal: FC<Props> = ({
                     ) : null}
                     <SettingsRow
                         label={definition.tokenLabel}
-                        hint={
-                            testMutation.data ? (
-                                <TestOutcome response={testMutation.data} />
-                            ) : (
-                                (definition.tokenHint ??
-                                'Read access is enough')
-                            )
-                        }
+                        hint={definition.tokenHint ?? 'Read access is enough'}
                     >
                         <PasswordInput
                             w={FIELD_WIDTH}
@@ -131,16 +121,14 @@ export const TokenLiveSourceModal: FC<Props> = ({
                             data-autofocus={account ? undefined : true}
                             {...form.getInputProps('token')}
                         />
-                        <Button
-                            size="xs"
-                            variant="default"
-                            onClick={handleTest}
-                            loading={testMutation.isLoading}
-                        >
-                            Test
-                        </Button>
                     </SettingsRow>
                 </SettingsCard>
+
+                <LiveSourceTestCard
+                    hint="Runs a small read with the details above, without saving"
+                    test={testMutation}
+                    onTest={handleTest}
+                />
 
                 <NewLiveSourceDetails
                     nameProps={form.getInputProps('name')}

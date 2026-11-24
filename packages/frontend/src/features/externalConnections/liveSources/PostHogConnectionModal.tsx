@@ -4,7 +4,6 @@
  */
 import { ApiConnectorType, POSTHOG_TEST_QUERY } from '@lightdash/common';
 import {
-    Button,
     PasswordInput,
     SegmentedControl,
     Stack,
@@ -19,12 +18,9 @@ import {
 import { useNewSourceId } from '../hooks/useNewSourceId';
 import { useTestConnectionConfig } from '../hooks/useTestConnectionConfig';
 import { LiveSourceTitle } from './LiveSourceIcon';
-import {
-    SettingsCard,
-    SettingsRow,
-    TestOutcome,
-} from './LiveSourceSettingsRows';
+import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
 import { LiveSourceSetupCard } from './LiveSourceSetupCard';
+import { LiveSourceTestCard } from './LiveSourceTestCard';
 import { NewLiveSourceDetails } from './NewLiveSourceDetails';
 import {
     getPostHogQueryPath,
@@ -58,7 +54,7 @@ export const PostHogConnectionModal: FC<Props> = ({
     const createMutation = useCreateExternalConnection(
         LIVE_SOURCE_CREATE_MESSAGES,
     );
-    const testMutation = useTestConnectionConfig();
+    const testMutation = useTestConnectionConfig({ showErrorToast: false });
     const sourceId = useNewSourceId({
         projectUuid,
         connector: ApiConnectorType.POSTHOG,
@@ -178,15 +174,7 @@ export const PostHogConnectionModal: FC<Props> = ({
                             </SettingsRow>
                             <SettingsRow
                                 label="Personal API key"
-                                hint={
-                                    testMutation.data ? (
-                                        <TestOutcome
-                                            response={testMutation.data}
-                                        />
-                                    ) : (
-                                        'Read access is enough'
-                                    )
-                                }
+                                hint="Read access is enough"
                             >
                                 <PasswordInput
                                     w={FIELD_WIDTH}
@@ -195,18 +183,19 @@ export const PostHogConnectionModal: FC<Props> = ({
                                     placeholder="phx_..."
                                     {...form.getInputProps('apiKey')}
                                 />
-                                <Button
-                                    size="xs"
-                                    variant="default"
-                                    onClick={handleTest}
-                                    loading={testMutation.isLoading}
-                                >
-                                    Test
-                                </Button>
                             </SettingsRow>
                         </>
                     )}
                 </SettingsCard>
+
+                {/* A sign-in can only be tested once PostHog sends it back */}
+                {isSignIn ? null : (
+                    <LiveSourceTestCard
+                        hint="Runs a small read with the details above, without saving"
+                        test={testMutation}
+                        onTest={handleTest}
+                    />
+                )}
 
                 <NewLiveSourceDetails
                     nameProps={form.getInputProps('name')}

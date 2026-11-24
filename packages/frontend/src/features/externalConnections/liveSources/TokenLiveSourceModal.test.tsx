@@ -79,10 +79,13 @@ describe('TokenLiveSourceModal', () => {
         };
         renderModal();
 
-        expect(screen.getByRole('status')).toHaveTextContent(
-            /^HubSpot rejected the access token\.$/,
+        const result = screen.getByRole('status');
+        expect(result).toHaveTextContent(
+            "Signed in, but this account can't read from HubSpot",
         );
-        expect(screen.queryByText(/can't read from/)).not.toBeInTheDocument();
+        expect(result).toHaveTextContent(
+            'HubSpot rejected the access token. Check its scopes.',
+        );
     });
 
     it('creates the source with the explore prefix the admin typed', async () => {
