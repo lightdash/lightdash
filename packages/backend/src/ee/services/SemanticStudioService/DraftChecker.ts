@@ -1154,15 +1154,21 @@ GROUP BY ${aliases.join(', ')}
                         usesAnyModel(explore, writes) &&
                         !usesAnyModel(explore, redefined),
                 )
-                .map(async (explore) => ({
-                    name: explore.name,
-                    error: await this.findExploreError(
+                .map(async (explore) => {
+                    const detail = await this.findExploreError(
                         user,
                         projectUuid,
                         explore,
                         { warehouse: false },
-                    ),
-                })),
+                    );
+                    return {
+                        name: explore.name,
+                        error:
+                            detail === null
+                                ? null
+                                : { kind: 'query_builder' as const, detail },
+                    };
+                }),
         );
         const usable = await Promise.all(
             afterCompile.explores

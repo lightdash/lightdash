@@ -723,7 +723,7 @@ ${metrics}`;
                     ],
                 ]),
             );
-            expect(rejected.get('orders')).toContain('missing');
+            expect(rejected.get('orders')?.detail).toContain('missing');
             expect(warehouse.queries).toEqual([]);
         });
 
@@ -735,7 +735,9 @@ ${metrics}`;
                 new Map([['orders', withCount]]),
                 new Map([['orders', `${withCount}description: Every order\n`]]),
             );
-            expect(rejected.get('orders')).toContain('cannot group by id');
+            expect(rejected.get('orders')?.detail).toContain(
+                'cannot group by id',
+            );
             expect(warehouse.queries).toEqual([]);
         });
 
@@ -760,7 +762,9 @@ ${metrics}`;
                     ['orders', model('orders')],
                 ]),
             );
-            expect(rejected.get('customers')).toContain('cannot plan orders');
+            expect(rejected.get('customers')?.detail).toContain(
+                'cannot plan orders',
+            );
         });
     });
 
