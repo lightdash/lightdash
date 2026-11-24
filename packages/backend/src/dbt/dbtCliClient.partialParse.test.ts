@@ -8,7 +8,10 @@ import { DbtBaseProjectAdapter } from '../projectAdapters/dbtBaseProjectAdapter'
 import { warehouseClientMock } from '../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { DbtCliClient } from './dbtCliClient';
 import { cliArgs, manifestMock } from './dbtCliClient.mock';
-import { DBT_PARTIAL_PARSE_FILE } from './dbtPartialParseBaseline';
+import {
+    DBT_PARTIAL_PARSE_FILE,
+    getDbtPartialParseBaselineLimits,
+} from './dbtPartialParseBaseline';
 
 vi.mock('execa');
 
@@ -27,7 +30,15 @@ const unableToPartialParseLog = JSON.stringify({
     },
 });
 
-const fakeDbt = (runs: DbtRun[], output: string, logs: string[] = []) =>
+const dbtLog = (name: string, level: string, msg: string) =>
+    JSON.stringify({ info: { name, level, msg } });
+
+const fakeDbt = (
+    runs: DbtRun[],
+    output: string | null,
+    logs: string[] = [],
+    stdout = '',
+) =>
     execaMock.mockImplementation(
         async (
             _exec: string,
@@ -43,12 +54,12 @@ const fakeDbt = (runs: DbtRun[], output: string, logs: string[] = []) =>
                 partialParseEnv: options.env.DBT_PARTIAL_PARSE,
                 seeded: await fs.readFile(seedPath, 'utf8').catch(() => null),
             });
-            await fs.writeFile(seedPath, output);
+            if (output !== null) await fs.writeFile(seedPath, output);
             await fs.writeFile(
                 path.join(targetPath, 'manifest.json'),
                 JSON.stringify(manifestMock),
             );
-            return { all: logs.join('\n'), stdout: '' };
+            return { all: logs.join('\n'), stdout };
         },
     );
 
@@ -96,8 +107,14 @@ describe('DbtCliClient partial parse', () => {
             'this compile',
         );
         expect(info).toHaveBeenCalledWith(
-            'dbt.partialParse command=ls seeded=true reused=true',
-            expect.objectContaining({ seeded: true, reused: true }),
+            expect.stringMatching(
+                /^dbt\.partialParse command=ls seeded=true reused=true status=saved /,
+            ),
+            expect.objectContaining({
+                seeded: true,
+                reused: true,
+                status: 'saved',
+            }),
         );
     });
 
@@ -135,7 +152,9 @@ describe('DbtCliClient partial parse', () => {
             'first compile',
         );
         expect(info).toHaveBeenCalledWith(
-            'dbt.partialParse command=ls seeded=false reused=false',
+            expect.stringMatching(
+                /^dbt\.partialParse command=ls seeded=false reused=false status=saved /,
+            ),
             expect.objectContaining({ seeded: false, reused: false }),
         );
     });
@@ -149,7 +168,9 @@ describe('DbtCliClient partial parse', () => {
         await buildClient(baselinePath).getDbtManifest();
 
         expect(info).toHaveBeenCalledWith(
-            'dbt.partialParse command=ls seeded=true reused=false reason="Unable to do partial parsing because profile has changed"',
+            expect.stringMatching(
+                /^dbt\.partialParse command=ls seeded=true reused=false reason="Unable to do partial parsing because profile has changed" status=saved /,
+            ),
             expect.objectContaining({
                 seeded: true,
                 reused: false,
@@ -181,5 +202,99 @@ describe('DbtCliClient partial parse', () => {
 
         expect(runs).toEqual([{ partialParseEnv: 'false', seeded: null }]);
         await expect(fs.readdir(root)).resolves.toEqual([]);
+    });
+
+    it('appends the save outcome and the dbt parse events to the old prefix', async () => {
+        fakeDbt([], 'first compile', [
+            dbtLog(
+                'UnableToPartialParse',
+                'info',
+                'Unable to do partial parsing because saved manifest not found. Starting full parse.',
+            ),
+            dbtLog('ParsedFileLoadFailed', 'debug', 'Failed to load'),
+            dbtLog('FoundStats', 'info', 'Found 1 model'),
+        ]);
+        const info = vi.spyOn(Logger, 'info');
+        const capBytes = getDbtPartialParseBaselineLimits().maxBytes;
+
+        await buildClient(baselinePath).getDbtManifest();
+
+        expect(info).toHaveBeenCalledWith(
+            `dbt.partialParse command=ls seeded=false reused=false reason="Unable to do partial parsing because saved manifest not found. Starting full parse." status=saved baselineBytes=13 cacheBytes=13 capBytes=${capBytes} prunedFiles=0 prunedBytes=0 prunedOwnBaseline=false dbtParseEvents=UnableToPartialParse,ParsedFileLoadFailed`,
+            {
+                event: 'dbt.partialParse',
+                command: 'ls',
+                seeded: false,
+                reused: false,
+                unableReason:
+                    'Unable to do partial parsing because saved manifest not found. Starting full parse.',
+                status: 'saved',
+                baselineBytes: 13,
+                cacheBytes: 13,
+                capBytes,
+                prunedFiles: 0,
+                prunedBytes: 0,
+                prunedOwnBaseline: false,
+                dbtParseEvents: [
+                    'UnableToPartialParse',
+                    'ParsedFileLoadFailed',
+                ],
+            },
+        );
+        expect(
+            info.mock.calls.filter(([message]) =>
+                String(message).startsWith('dbt.partialParse'),
+            ),
+        ).toHaveLength(1);
+    });
+
+    it('logs no_file when dbt leaves no partial parse file in the target directory', async () => {
+        fakeDbt([], null);
+        const info = vi.spyOn(Logger, 'info');
+        const warn = vi.spyOn(Logger, 'warn');
+        const capBytes = getDbtPartialParseBaselineLimits().maxBytes;
+
+        await buildClient(baselinePath).getDbtManifest();
+
+        expect(info).toHaveBeenCalledWith(
+            `dbt.partialParse command=ls seeded=false reused=false status=no_file baselineBytes=null cacheBytes=0 capBytes=${capBytes} prunedFiles=0 prunedBytes=0 prunedOwnBaseline=false dbtParseEvents=none`,
+            expect.objectContaining({
+                status: 'no_file',
+                baselineBytes: null,
+                dbtParseEvents: [],
+            }),
+        );
+        expect(warn).not.toHaveBeenCalledWith(
+            expect.stringContaining('Could not save'),
+        );
+        await expect(fs.stat(baselinePath)).rejects.toMatchObject({
+            code: 'ENOENT',
+        });
+    });
+
+    it('logs the dbt ls duration and model count as structured fields', async () => {
+        fakeDbt(
+            [],
+            'parsed',
+            [],
+            JSON.stringify({
+                info: { code: 'Z052' },
+                data: { msg: '{"unique_id": "model.project.a"}' },
+            }),
+        );
+        const info = vi.spyOn(Logger, 'info');
+
+        await buildClient(baselinePath).getDbtManifest();
+
+        expect(info).toHaveBeenCalledWith(
+            expect.stringMatching(
+                /^dbt ls completed in \d+ms, found 1 model\(s\)$/,
+            ),
+            {
+                event: 'dbt.ls',
+                durationMs: expect.any(Number),
+                modelCount: 1,
+            },
+        );
     });
 });

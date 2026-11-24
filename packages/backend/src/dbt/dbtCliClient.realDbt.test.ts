@@ -187,10 +187,14 @@ describe.skipIf(!executables)('empty selectors with real dbt', () => {
                     if (partial) {
                         expect(client.partialParseSeeded).toBe(true);
                         expect(info).toHaveBeenCalledWith(
-                            'dbt.partialParse command=ls seeded=true reused=true',
+                            expect.stringMatching(
+                                /^dbt\.partialParse command=ls seeded=true reused=true status=saved /,
+                            ),
                             expect.objectContaining({
                                 seeded: true,
                                 reused: true,
+                                status: 'saved',
+                                prunedOwnBaseline: false,
                             }),
                         );
                     }
