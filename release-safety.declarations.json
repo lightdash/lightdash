@@ -258,11 +258,11 @@
             "requiredStop": false
         },
         "ai-agent-artifact-verified-fields-removed": {
-            "reason": "Removes AI agent verified answers: AI artifact responses from GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid} and .../versions/{versionUuid} no longer carry verifiedByUserUuid and verifiedAt. They marked an answer verified for the chart verify toggle, which is removed together with verified answers. Only that toggle in the Lightdash web app read them. An old tab treats the missing fields like an unverified answer, and its toggle already gets a 404.",
+            "reason": "Removes AI agent verified answers: AI artifact responses from GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid} and .../versions/{versionUuid} no longer carry verifiedByUserUuid and verifiedAt. They marked an answer verified for the chart verify toggle, which is removed together with verified answers. Only that toggle in the Lightdash web app read them. An old tab reads the missing fields as verified and shows a stale verified icon until refresh; clicking it already gets a 404.",
             "requiredStop": false,
             "impact": {
                 "kind": "no-external-callers",
-                "firstPartyOnly": "The chart verify toggle in the Lightdash web app was the only reader of verifiedByUserUuid and verifiedAt on AI artifacts. An old tab reads the missing fields as unverified.",
+                "firstPartyOnly": "The chart verify toggle in the Lightdash web app was the only reader of verifiedByUserUuid and verifiedAt on AI artifacts. An old tab shows a stale verified icon until refresh.",
                 "covers": {
                     "rest": [
                         "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}",
