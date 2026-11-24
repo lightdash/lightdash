@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import {
+    act,
+    render,
+    renderHook,
+    screen,
+    waitFor,
+} from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockedLightdashApi } from '../../../../testing/mockedLightdashApi';
@@ -12,6 +18,7 @@ import {
     useHasActiveDeepResearchRun,
     useDeepResearchRun,
     useDeepResearchRunQuery,
+    useDeepResearchThreadRunRegistrationState,
     useDeepResearchThreadRunRegistrations,
     useStartDeepResearchMutation,
     useTrackDeepResearchFollowUp,
@@ -331,6 +338,39 @@ describe('useDeepResearchThreadRunRegistrations', () => {
                 }),
             ]),
         );
+    });
+
+    it('lets a page gated on the lookup render once the lookup fails', async () => {
+        lightdashApiMock.mockRejectedValue({
+            status: 'error',
+            error: { name: 'NotFoundError', statusCode: 404 },
+        });
+        const Child = () => {
+            useHasActiveDeepResearchRun({
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            });
+            return <p>thread</p>;
+        };
+        const Page = () => {
+            const { isFirstLookupPending } =
+                useDeepResearchThreadRunRegistrationState({
+                    projectUuid: 'project-1',
+                    threadUuid: 'thread-1',
+                });
+            return isFirstLookupPending ? <p>loading</p> : <Child />;
+        };
+        const Wrapper = getWrapper();
+        render(
+            <Wrapper>
+                <Page />
+            </Wrapper>,
+        );
+
+        expect(await screen.findByText('thread')).toBeInTheDocument();
+        await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+        expect(screen.getByText('thread')).toBeInTheDocument();
+        expect(lightdashApiMock.mock.calls.length).toBeLessThanOrEqual(2);
     });
 });
 
