@@ -231,6 +231,16 @@ const buildService = ({
     const savedChartModel = {
         getChartCountPerField: vi.fn().mockResolvedValue([]),
         getChartCountForExplores: vi.fn().mockResolvedValue(chartCount),
+        getContentOnExplore: vi
+            .fn()
+            .mockResolvedValue({ charts: [], dashboards: [] }),
+    };
+    const spacePermissionService = {
+        getAccessibleSpaceUuids: vi
+            .fn()
+            .mockImplementation(async (_action, _user, spaceUuids: string[]) =>
+                spaceUuids.filter((uuid) => uuid !== 'private-space'),
+            ),
     };
     const analytics = { track: vi.fn(), trackAccount: vi.fn() };
     const schedulerClient = {
@@ -252,6 +262,7 @@ const buildService = ({
     const service = new ExternalConnectionService({
         projectModel,
         savedChartModel,
+        spacePermissionService,
         allowedPrivateHostCidrs: {},
         externalConnectionModel,
         analytics,
@@ -1600,6 +1611,53 @@ describe('ExternalConnectionService live source explores', () => {
                     description: 'Every tracked event',
                     aiHint: null,
                 });
+            });
+
+            it('lists the content on an explore or one of its fields', async () => {
+                const { service, savedChartModel } = await createScanned();
+                savedChartModel.getContentOnExplore.mockResolvedValueOnce({
+                    charts: [
+                        { uuid: 'c1', name: 'Open', spaceUuid: 'team-space' },
+                        {
+                            uuid: 'c2',
+                            name: 'Private',
+                            spaceUuid: 'private-space',
+                        },
+                    ],
+                    dashboards: [
+                        { uuid: 'd1', name: 'Board', spaceUuid: 'team-space' },
+                    ],
+                });
+                const usage = await service.getLiveSourceContentUsage(
+                    account,
+                    'proj-1',
+                    'conn-1',
+                    'product_analytics_events',
+                    'event',
+                );
+                expect(
+                    savedChartModel.getContentOnExplore,
+                ).toHaveBeenCalledWith(
+                    'proj-1',
+                    'product_analytics_events',
+                    'product_analytics_events_event',
+                );
+                // Content in spaces the editor can't open is counted, not named
+                expect(usage).toEqual({
+                    charts: [{ uuid: 'c1', name: 'Open' }],
+                    hiddenChartCount: 1,
+                    dashboards: [{ uuid: 'd1', name: 'Board' }],
+                    hiddenDashboardCount: 0,
+                });
+                await expect(
+                    service.getLiveSourceContentUsage(
+                        account,
+                        'proj-1',
+                        'conn-1',
+                        'orders',
+                        null,
+                    ),
+                ).rejects.toThrow(ParameterError);
             });
 
             it('refuses an explore the source does not have, or an empty label', async () => {

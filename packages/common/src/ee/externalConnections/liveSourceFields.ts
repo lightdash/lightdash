@@ -87,3 +87,19 @@ export type ApiUpdateLiveSourceFieldsRequest = {
     changes: LiveSourceFieldChange[];
     exploreChanges?: LiveSourceExploreChange[];
 };
+
+/** Saved content one item of a live data source is used by. */
+export type LiveSourceContentUsage = {
+    /** The charts the caller can open. */
+    charts: { uuid: string; name: string }[];
+    /** Charts in spaces the caller can't open, counted but not named. */
+    hiddenChartCount: number;
+    /** Dashboards showing any of the charts, or holding one of them. */
+    dashboards: { uuid: string; name: string }[];
+    hiddenDashboardCount: number;
+};
+
+export type ApiLiveSourceContentUsageResponse = {
+    status: 'ok';
+    results: LiveSourceContentUsage;
+};

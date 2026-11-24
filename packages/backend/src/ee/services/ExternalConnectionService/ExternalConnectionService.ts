@@ -58,6 +58,7 @@ import {
     type ExternalFetchResponse,
     type GoogleLiveSourceChoice,
     type GoogleLiveSourcePendingChoice,
+    type LiveSourceContentUsage,
     type LiveSourceExploreChange,
     type LiveSourceFieldChange,
     type LiveSourceFieldEditor,
@@ -232,7 +233,9 @@ type ExternalConnectionServiceArguments = {
     schedulerClient: Pick<CommercialSchedulerClient, 'scanApiSourceSchema'>;
     savedChartModel: Pick<
         SavedChartModel,
-        'getChartCountPerField' | 'getChartCountForExplores'
+        | 'getChartCountPerField'
+        | 'getChartCountForExplores'
+        | 'getContentOnExplore'
     >;
     projectModel: Pick<
         ProjectModel,
@@ -1796,6 +1799,78 @@ export class ExternalConnectionService extends BaseService {
             },
         });
         return this.readLiveSourceFields(connection, apiSource);
+    }
+
+    /**
+     * The saved charts on one explore of a live source, or on one of its
+     * fields, and their dashboards: what switching it off stops. Needs the
+     * same access as editing the source's fields.
+     */
+    async getLiveSourceContentUsage(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+        exploreName: string,
+        fieldName: string | null,
+    ): Promise<LiveSourceContentUsage> {
+        const connection = await this.getOwnedConnection(
+            account,
+            projectUuid,
+            connectionUuid,
+        );
+        const apiSource =
+            ExternalConnectionService.getLiveSourceSettings(connection);
+        const sourceName = await this.resolveLiveSourceName(
+            connection,
+            apiSource,
+        );
+        if (
+            !getLiveExploreNames(apiSource.connector, sourceName).includes(
+                exploreName,
+            )
+        ) {
+            throw new ParameterError(
+                `"${exploreName}" isn't an explore of this source.`,
+            );
+        }
+        const content = await this.savedChartModel.getContentOnExplore(
+            projectUuid,
+            exploreName,
+            fieldName === null
+                ? null
+                : getItemId({ table: exploreName, name: fieldName }),
+        );
+        // Name only what the editor can open; the rest is counted
+        const viewable = new Set(
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                account.user,
+                [
+                    ...new Set(
+                        [...content.charts, ...content.dashboards].map(
+                            ({ spaceUuid }) => spaceUuid,
+                        ),
+                    ),
+                ],
+            ),
+        );
+        const split = (items: typeof content.charts) => {
+            const shown = items.filter(({ spaceUuid }) =>
+                viewable.has(spaceUuid),
+            );
+            return {
+                shown: shown.map(({ uuid, name }) => ({ uuid, name })),
+                hiddenCount: items.length - shown.length,
+            };
+        };
+        const charts = split(content.charts);
+        const dashboards = split(content.dashboards);
+        return {
+            charts: charts.shown,
+            hiddenChartCount: charts.hiddenCount,
+            dashboards: dashboards.shown,
+            hiddenDashboardCount: dashboards.hiddenCount,
+        };
     }
 
     private static getLiveSourceSettings(

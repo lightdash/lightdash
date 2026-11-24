@@ -922,6 +922,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.getExternalConnectionSchema': [
         AgentCapability.ReadDiscover,
     ],
+    'ExternalConnectionController.getLiveSourceContentUsage': [
+        AgentCapability.Administration,
+    ],
     'ExternalConnectionController.getLiveSourceFields': [
         AgentCapability.Administration,
     ],

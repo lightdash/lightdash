@@ -21,6 +21,7 @@ import {
 } from 'react';
 import { Link, useNavigate } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useLiveSourceFields } from '../externalConnections/hooks/useLiveSourceFields';
 import { useLiveSourceActions } from '../externalConnections/liveSources/liveSourceActions';
 import { LiveSourceBetaBadge } from '../externalConnections/liveSources/LiveSourceBetaBadge';
 import { LiveSourceSettings } from '../externalConnections/liveSources/LiveSourceSettings';
@@ -40,6 +41,7 @@ import { DraftMarksContext } from './draftMarks';
 import { FieldDetailModal } from './FieldDetailModal';
 import { FieldList, FieldListToolbar } from './FieldList';
 import { JoinDiagram } from './JoinDiagram';
+import { LiveExploresTable } from './LiveExploresTable';
 import {
     containerOf,
     fieldGroups,
@@ -467,6 +469,18 @@ export const MainPane: FC<{
             ? source.connectionUuid
             : undefined,
     );
+    // A source with several explores, or one switched off, lists every
+    // explore with its switch, built or not
+    const { data: liveFields } = useLiveSourceFields({
+        projectUuid: view.project.id,
+        connectionUuid: liveConnection?.externalConnectionUuid ?? '',
+        enabled: !!liveConnection && ref?.type !== 'explore',
+    });
+    const showsLiveExplores =
+        ref?.type !== 'explore' &&
+        !!liveFields &&
+        (liveFields.explores.length > 1 ||
+            liveFields.explores.some(({ inUse }) => !inUse));
     // A source's settings sit in a tab beside its fields or explores
     const liveSettings = liveConnection ? (
         <LiveSourceSettings
@@ -567,7 +581,6 @@ export const MainPane: FC<{
                         <LiveSourceSummary
                             projectUuid={view.project.id}
                             connection={liveConnection}
-                            exploreLabels={sourceExploreLabels}
                         />
                     ) : null}
                     {externalSource ? (
@@ -622,6 +635,30 @@ export const MainPane: FC<{
                                     openFieldId={openFieldId}
                                 />
                             }
+                        />
+                    ) : liveConnection && liveSettings && showsLiveExplores ? (
+                        <SourceTabs
+                            explores={
+                                <LiveExploresTable
+                                    projectUuid={view.project.id}
+                                    connectionUuid={
+                                        liveConnection.externalConnectionUuid
+                                    }
+                                    sourceName={liveConnection.name}
+                                    isOpenable={(exploreName) =>
+                                        view.project.explores.some(
+                                            ({ id }) => id === exploreName,
+                                        )
+                                    }
+                                    onOpen={(exploreName) =>
+                                        onOpen({
+                                            type: 'explore',
+                                            exploreId: exploreName,
+                                        })
+                                    }
+                                />
+                            }
+                            settings={liveSettings}
                         />
                     ) : nodes.length > 0 && liveSettings ? (
                         <SourceTabs

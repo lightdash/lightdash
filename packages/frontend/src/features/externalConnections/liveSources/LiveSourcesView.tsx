@@ -248,9 +248,7 @@ const Stat: FC<{
 export const LiveSourceSummary: FC<{
     projectUuid: string;
     connection: LiveSourceConnection;
-    /** The labels of the source's explores, when it has several. */
-    exploreLabels?: string[];
-}> = ({ projectUuid, connection, exploreLabels = [] }) => {
+}> = ({ projectUuid, connection }) => {
     const { data: usage } = useExternalConnectionApiUsage(projectUuid);
     const { data: fields } = useLiveSourceFields({
         projectUuid,
@@ -272,11 +270,17 @@ export const LiveSourceSummary: FC<{
     // Every explore whose fields can be curated, not only the first
     const allFields = fields?.explores.flatMap((explore) => explore.fields);
     const inUse = allFields?.filter((field) => field.inUse).length;
+    const exploresOn = fields?.explores.filter(
+        (explore) => explore.inUse,
+    ).length;
     return (
         <Box className={tableClasses.summary} aria-label="Live data source">
             <Stat label="Integration" value={row.integration} />
-            {exploreLabels.length > 1 ? (
-                <Stat label="Explores" value={exploreLabels.join(', ')} />
+            {fields && fields.explores.length > 1 ? (
+                <Stat
+                    label="Explores"
+                    value={`${exploresOn?.toLocaleString()} of ${fields.explores.length.toLocaleString()} on`}
+                />
             ) : (
                 <Stat label="Explore" value={fields?.exploreName ?? '—'} />
             )}
