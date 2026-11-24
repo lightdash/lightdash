@@ -610,6 +610,61 @@ ${metrics}`;
         });
     });
 
+    describe('an edit that only changes metadata', () => {
+        beforeEach(() => {
+            warehouse.planError = (sql) =>
+                sql.includes('public.orders') ? 'cannot plan orders' : null;
+        });
+
+        test.each([
+            ['a description', `${model('orders')}description: Every order\n`],
+            [
+                'an AI hint',
+                model('orders').replace(
+                    '    sql: ${TABLE}.id\n',
+                    '    sql: ${TABLE}.id\n    ai_hint: The order number\n',
+                ),
+            ],
+        ])(
+            'to %s is kept without asking the warehouse',
+            async (_edit, contents) => {
+                const { rejected, writes } = await checker().check(
+                    user,
+                    'project',
+                    new Map([['orders', model('orders')]]),
+                    new Map([['orders', contents]]),
+                );
+                expect(rejected.size).toBe(0);
+                expect(writes.get('orders')).toBe(contents);
+                expect(warehouse.queries).toEqual([]);
+            },
+        );
+
+        test('still plans a model that joins one the draft redefines', async () => {
+            const joined = `${model('customers')}joins:
+  - join: orders
+    relationship: many-to-one
+    sql_on: \${customers.id} = \${orders.id}
+`;
+            const { rejected } = await checker().check(
+                user,
+                'project',
+                new Map([
+                    ['customers', joined],
+                    [
+                        'orders',
+                        model('orders').replace('public.orders', 'public.old'),
+                    ],
+                ]),
+                new Map([
+                    ['customers', `${joined}description: Every customer\n`],
+                    ['orders', model('orders')],
+                ]),
+            );
+            expect(rejected.get('customers')).toContain('cannot plan orders');
+        });
+    });
+
     describe('with the table in the catalog', () => {
         const table = { tableType: WarehouseTableType.TABLE };
         const check = (contents: string) => {

@@ -8,7 +8,7 @@ import {
     type LightdashModelMetric,
     type ModelFragmentChange,
 } from '@lightdash/common';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual, mapValues, omit } from 'es-toolkit/compat';
 import { toModelPath } from './draftFold';
 
 // A name match, so a window function reads as an aggregate too; parse the SQL if that turns up.
@@ -20,11 +20,38 @@ const metricsOf = (model: LightdashModel): [string, LightdashModelMetric][] => [
     ...Object.entries(model.metrics ?? {}),
 ];
 
+// Text that never reaches SQL; any key not listed here counts as a change the warehouse must check.
+const METADATA_KEYS = [
+    'label',
+    'description',
+    'ai_hint',
+    'group_label',
+    'groups',
+] as const;
+
+const withoutMetadata = <T extends object>(field: T) =>
+    omit(field, METADATA_KEYS);
+
+const structureOf = (model: LightdashModel) => ({
+    ...withoutMetadata(model),
+    dimensions: model.dimensions.map((dimension) => ({
+        ...withoutMetadata(dimension),
+        metrics: mapValues(dimension.metrics, withoutMetadata),
+        additional_dimensions: mapValues(
+            dimension.additional_dimensions,
+            withoutMetadata,
+        ),
+    })),
+    metrics: mapValues(model.metrics, withoutMetadata),
+});
+
 export type ChangedFields = {
     /** Names of the dimensions the write adds or defines differently. */
     dimensions: Set<string>;
     /** Why a metric the write adds or defines differently is not well formed, or null. */
     metricError: string | null;
+    /** True when the write only changes labels, descriptions, AI hints or groups of a published model. */
+    isMetadataOnly: boolean;
 };
 
 /** What a write to a model adds or defines differently from what is live, so only that is held to the rules for new work. */
@@ -65,6 +92,8 @@ export const findChangedFields = (
         metricError: selfAggregating
             ? `Metric ${selfAggregating[0]} is a number metric that aggregates in its own sql. A number metric combines other metrics: give each aggregate its own metric, then reference them as \${metric_name}.`
             : null,
+        isMetadataOnly:
+            stored !== null && isEqual(structureOf(model), structureOf(stored)),
     };
 };
 
