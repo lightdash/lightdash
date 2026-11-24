@@ -1,3 +1,10 @@
+# [3.384.0](https://github.com/lightdash/lightdash/compare/3.383.2...3.384.0) (2026-11-24)
+
+
+### Features
+
+* **live-sources:** gate on the Enterprise licence instead of the api-query-sources flag ([#33314](https://github.com/lightdash/lightdash/issues/33314)) ([28a6446](https://github.com/lightdash/lightdash/commit/28a6446649b5cf04245af887b3cf6eb5736a55b7)), closes [#33313](https://github.com/lightdash/lightdash/issues/33313)
+
 ## [3.383.2](https://github.com/lightdash/lightdash/compare/3.383.1...3.383.2) (2026-11-24)
 
 
