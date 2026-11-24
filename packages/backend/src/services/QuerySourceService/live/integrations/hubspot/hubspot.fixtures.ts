@@ -132,3 +132,73 @@ export const hubspotSearchPage = (
           }
         : {}),
 });
+
+/** Shaped like HubSpot's documented CRM v3 pipelines responses. */
+export const HUBSPOT_DEAL_PIPELINES = {
+    results: [
+        {
+            id: 'renewals',
+            label: 'Renewals',
+            displayOrder: 1,
+            archived: false,
+            stages: [
+                {
+                    id: '1001',
+                    label: 'Renewal won',
+                    displayOrder: 0,
+                    metadata: { isClosed: 'true', probability: '1.0' },
+                    archived: false,
+                },
+            ],
+        },
+        {
+            id: 'default',
+            label: 'Sales Pipeline',
+            displayOrder: 0,
+            archived: false,
+            stages: [
+                {
+                    id: 'closedwon',
+                    label: 'Closed Won',
+                    displayOrder: 1,
+                    metadata: { isClosed: 'true', probability: '1.0' },
+                    archived: false,
+                },
+                {
+                    id: 'appointmentscheduled',
+                    label: 'Appointment Scheduled',
+                    displayOrder: 0,
+                    metadata: { isClosed: 'false', probability: '0.2' },
+                    archived: false,
+                },
+            ],
+        },
+    ],
+};
+
+export const HUBSPOT_TICKET_PIPELINES = {
+    results: [
+        {
+            id: '0',
+            label: 'Support Pipeline',
+            displayOrder: 0,
+            archived: false,
+            stages: [
+                {
+                    id: '1',
+                    label: 'New',
+                    displayOrder: 0,
+                    metadata: { ticketState: 'OPEN' },
+                    archived: false,
+                },
+                {
+                    id: '4',
+                    label: 'Closed',
+                    displayOrder: 3,
+                    metadata: { ticketState: 'CLOSED' },
+                    archived: false,
+                },
+            ],
+        },
+    ],
+};

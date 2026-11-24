@@ -217,9 +217,6 @@ function buildService(opts: {
         encryptionUtil: {} as never,
         lightdashConfig: lightdashConfigMock,
         orgAiCopilotConfigResolver: orgAiCopilotConfigResolver as never,
-        featureFlagModel: {
-            get: vi.fn().mockResolvedValue({ enabled: true }),
-        } as never,
         schedulerClient: { scanApiSourceSchema: vi.fn() },
     });
     return { service, model, orgAiCopilotConfigResolver };

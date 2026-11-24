@@ -4,6 +4,7 @@ import {
     getInitialLiveSourceFieldEdits,
     getLiveFieldEditKey,
     getLiveModelFieldInputs,
+    parseLiveSourceFieldState,
     type ScannedLiveSourceField,
 } from './fields';
 
@@ -94,5 +95,34 @@ describe('fields of several scanned explores', () => {
             'contacts.createdate',
             'companies.createdate',
         ]);
+    });
+});
+
+describe('stored live source field state', () => {
+    it('keeps a scanned field’s value labels', () => {
+        const valueLabels = { closedwon: 'Closed Won' };
+        const state = parseLiveSourceFieldState({
+            lastScan: {
+                scannedAt: '2026-11-24T10:00:00.000Z',
+                fields: [
+                    {
+                        kind: 'dimension',
+                        definition: {
+                            name: 'dealstage_label',
+                            apiName: 'dealstage:label',
+                            label: 'Deal Stage',
+                            filterOperators: [],
+                            type: DimensionType.STRING,
+                            valueLabels,
+                        },
+                        isInternal: false,
+                    },
+                ],
+            },
+            fields: null,
+        });
+        expect(state.lastScan?.fields[0].definition).toMatchObject({
+            valueLabels,
+        });
     });
 });

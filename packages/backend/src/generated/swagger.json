@@ -22125,6 +22125,10 @@
             },
             "ApiSourceFieldRule": {
                 "properties": {
+                    "valueLabels": {
+                        "$ref": "#/components/schemas/Record_string.string_",
+                        "description": "Display labels by the API's internal value, for fields that show an\noption's label: filters on the field turn labels back into values."
+                    },
                     "filterOperators": {
                         "items": {
                             "$ref": "#/components/schemas/FilterOperator"
@@ -81477,7 +81481,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.385.2",
+        "version": "3.387.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -115265,7 +115269,7 @@
                         }
                     }
                 },
-                "description": "Return the organization's existing project or provision its sample-data\nplayground when the new onboarding flow is available.",
+                "description": "Return the organization's existing project or provision its sample-data\nplayground on a licensed instance.",
                 "summary": "Ensure playground project",
                 "tags": ["Organizations"],
                 "security": [],

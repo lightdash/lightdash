@@ -1,9 +1,11 @@
 import {
     ApiConnectorType,
+    getHubspotPipelinesPath,
     getHubspotPropertiesPath,
     getHubspotSearchPath,
     HUBSPOT_OBJECTS,
     HUBSPOT_ORIGIN,
+    HUBSPOT_PIPELINE_OBJECTS,
     LIVE_INTEGRATION_CATALOG,
     ParameterError,
     TimeFrames,
@@ -45,10 +47,13 @@ export const hubspotIntegration = defineLiveIntegration({
     settings: CATALOG.settings,
     origins: [HUBSPOT_ORIGIN],
     access: () => ({
-        pathPrefixes: HUBSPOT_OBJECTS.flatMap((object) => [
-            getHubspotPropertiesPath(object),
-            getHubspotSearchPath(object),
-        ]),
+        pathPrefixes: [
+            ...HUBSPOT_OBJECTS.flatMap((object) => [
+                getHubspotPropertiesPath(object),
+                getHubspotSearchPath(object),
+            ]),
+            ...HUBSPOT_PIPELINE_OBJECTS.map(getHubspotPipelinesPath),
+        ],
         // Records are searched with POST, properties read with GET
         methods: ['GET', 'POST'],
     }),
@@ -121,7 +126,7 @@ export const hubspotIntegration = defineLiveIntegration({
         }
     },
     describeTarget: () =>
-        'HubSpot CRM: deals, contacts, companies, tickets and leads',
+        'HubSpot CRM: deals, contacts, companies, tickets and leads, plus deal and ticket pipeline stages',
     parseRequest: jsonRequest(`${LABEL} search`, hubspotRequestSchema),
     compile: ({ explore, metricQuery, now }) =>
         compileHubspotQuery({

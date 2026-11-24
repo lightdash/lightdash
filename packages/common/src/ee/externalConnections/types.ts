@@ -322,6 +322,13 @@ export const getHubspotPropertiesPath = (object: string) =>
 
 export const getHubspotSearchPath = (object: string) =>
     `/crm/v3/objects/${object}/search`;
+
+/** The objects whose pipelines and stages a source reads. */
+export const HUBSPOT_PIPELINE_OBJECTS = ['deals', 'tickets'] as const;
+export type HubspotPipelineObject = (typeof HUBSPOT_PIPELINE_OBJECTS)[number];
+
+export const getHubspotPipelinesPath = (object: string) =>
+    `/crm/v3/pipelines/${object}`;
 /** Every Salesforce call goes to this REST API version, so responses keep one shape. */
 export const SALESFORCE_API_VERSION = 'v62.0';
 

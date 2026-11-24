@@ -20,7 +20,7 @@ it.skipIf(process.platform !== 'linux')(
             environmentVariableAllowlist: [],
             explicitCredentials: false,
             dbtVersion: SupportedDbtVersions.V1_12,
-            partialParseBaselinePath: null,
+            partialParseBaseline: null,
         });
         const controller = new AbortController();
         let pids: number[] = [];

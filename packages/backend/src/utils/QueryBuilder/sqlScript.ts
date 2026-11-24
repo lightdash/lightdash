@@ -71,6 +71,9 @@ const isHoistableStatement = (statement: string): boolean =>
         statement.slice(skipLeadingComments(statement)),
     );
 
+/** Metadata statements return a result set but can't take a LIMIT or be wrapped. */
+const METADATA_STATEMENT_PATTERN = /^(describe|desc|show)\b/i;
+
 const attachCommentOnlyStatements = (statements: string[]): string[] => {
     const grouped = statements.reduce<{
         statements: string[];
@@ -146,6 +149,17 @@ export const splitSqlStatements = (sql: string): string[] => {
     }
     pushStatement(sql.length);
     return statements;
+};
+
+// Any `;` or a later `*/` (nested block comments) could hide a second statement, so those keep their limit.
+export const isMetadataStatement = (sql: string): boolean => {
+    const statement = sql.trim().replace(/[;\s]+$/, '');
+    const body = statement.slice(skipLeadingComments(statement));
+    return (
+        !statement.includes(';') &&
+        !body.includes('*/') &&
+        METADATA_STATEMENT_PATTERN.test(body)
+    );
 };
 
 export type SqlScript =
