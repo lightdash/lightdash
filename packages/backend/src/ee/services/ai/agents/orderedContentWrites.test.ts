@@ -2,33 +2,37 @@ import type { ToolSet } from 'ai';
 import { describe, expect, it } from 'vitest';
 import { withOrderedContentWrites } from './orderedContentWrites';
 
-const sleep = (ms: number) =>
-    new Promise((resolve) => {
-        setTimeout(resolve, ms);
-    });
+type Execute = (input: unknown, options: unknown) => Promise<unknown>;
 
 describe('withOrderedContentWrites', () => {
-    it('runs dashboard and chart writes in call order even when earlier ones are slower', async () => {
-        const done: string[] = [];
+    it('starts a chart write only after the dashboard write called before it finishes', async () => {
+        let finishDashboard = () => {};
+        const started: string[] = [];
         const tools = withOrderedContentWrites({
             createContent: {
-                execute: async (input: { type: string; slug: string }) => {
-                    await sleep(input.type === 'dashboard' ? 30 : 1);
-                    done.push(input.slug);
-                    return input.slug;
+                execute: (input: { type: string; slug: string }) => {
+                    started.push(input.slug);
+                    return input.type === 'dashboard'
+                        ? new Promise<void>((resolve) => {
+                              finishDashboard = resolve;
+                          })
+                        : Promise.resolve();
                 },
             },
         } as unknown as ToolSet);
-        const execute = tools.createContent.execute as (
-            input: unknown,
-            options: unknown,
-        ) => Promise<unknown>;
-        await Promise.all([
+        const execute = tools.createContent.execute as Execute;
+
+        const writes = Promise.all([
             execute({ type: 'dashboard', slug: 'd' }, {}),
             execute({ type: 'chart', slug: 'c1' }, {}),
             execute({ type: 'chart', slug: 'c2' }, {}),
         ]);
-        expect(done).toEqual(['d', 'c1', 'c2']);
+        await Promise.resolve();
+        expect(started).toEqual(['d']);
+
+        finishDashboard();
+        await writes;
+        expect(started).toEqual(['d', 'c1', 'c2']);
     });
 
     it('keeps going after a failed write', async () => {
@@ -40,10 +44,7 @@ describe('withOrderedContentWrites', () => {
                 },
             },
         } as unknown as ToolSet);
-        const execute = tools.editContent.execute as (
-            input: unknown,
-            options: unknown,
-        ) => Promise<unknown>;
+        const execute = tools.editContent.execute as Execute;
         await expect(
             execute({ type: 'chart', fail: true }, {}),
         ).rejects.toThrow('boom');

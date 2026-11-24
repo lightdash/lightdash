@@ -9997,6 +9997,48 @@ describe('AiAgentToolsService in a thread bound to a dashboard', () => {
             );
         });
 
+        it('checks chart fields against the explore without the agent tags', async () => {
+            const upsertChart = vi.fn().mockResolvedValue({
+                charts: [
+                    { data: { uuid: 'chart-uuid', slug: 'orders-chart' } },
+                ],
+            });
+            const service = makeService({
+                explores: {
+                    orders: makeExplore({
+                        name: 'orders',
+                        tags: ['finance'],
+                        metrics: {
+                            count: {
+                                name: 'count',
+                                table: 'orders',
+                                fieldType: 'metric',
+                            },
+                        },
+                    }),
+                },
+                savedChartService: {
+                    get: vi.fn().mockResolvedValue({ uuid: 'chart-uuid' }),
+                },
+                coderService: {
+                    upsertChart,
+                    getChartsForRead: vi.fn().mockResolvedValue({
+                        charts: [makeChart(undefined)],
+                    }),
+                },
+                aiAgentContentValidation: contentValidation(),
+            });
+
+            await service
+                .createRuntime(makeRuntimeContext({ tags: ['ai'] }))
+                .createContent({
+                    type: 'chart',
+                    content: makeChart(undefined),
+                } as never);
+
+            expect(upsertChart).toHaveBeenCalled();
+        });
+
         it('rejects a new SQL chart', async () => {
             const upsertSqlChart = vi.fn();
             const service = makeService({

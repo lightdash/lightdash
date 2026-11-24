@@ -1,12 +1,12 @@
 import type { ToolSet } from 'ai';
 
 const WRITE_TOOLS = new Set(['createContent', 'editContent']);
+// SQL and composer chart writes can wait on user approval, so they never hold the queue.
 const ORDERED_TYPES = new Set(['dashboard', 'chart']);
 
 /**
  * Runs a turn's dashboard and chart writes one at a time in the order the model called them.
- * The queue is joined when the SDK calls execute, before any wrapper awaits (permission checks),
- * so a dashboard created in the same response is saved before its charts.
+ * The queue is joined when the SDK calls execute, before any wrapper awaits (permission checks).
  */
 export const withOrderedContentWrites = (tools: ToolSet): ToolSet => {
     let queue: Promise<unknown> = Promise.resolve();
@@ -19,8 +19,12 @@ export const withOrderedContentWrites = (tools: ToolSet): ToolSet => {
                 toolName,
                 {
                     ...toolDef,
-                    execute: (input: { type?: unknown }, options: never) => {
-                        if (!ORDERED_TYPES.has(String(input?.type)))
+                    // Both write tools' input schemas require `type`.
+                    execute: (
+                        input: { type: string },
+                        options: Parameters<typeof execute>[1],
+                    ) => {
+                        if (!ORDERED_TYPES.has(input.type))
                             return execute(input, options);
                         const run = queue.then(() => execute(input, options));
                         queue = run.catch(() => undefined);

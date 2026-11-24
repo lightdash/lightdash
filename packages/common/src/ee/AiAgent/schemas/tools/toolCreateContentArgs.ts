@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { ChartAsCode } from '../../../../types/coder';
-import { type ToolDescriptionContext } from '../defineTool';
+import { type ToolDescriptionContext, type ToolRuntime } from '../defineTool';
 import { toolErrorStructuredContentSchema } from '../outputMetadata';
 import { composerChartVizConfigSchema } from './composerChartVizConfigSchema';
 import { toolNameFor } from './discoveryToolNames';
@@ -11,6 +11,12 @@ export const SQL_CHART_CREATE_GUIDANCE =
 export const COMPOSER_CHART_CREATE_GUIDANCE =
     'A composer chart (type composer_chart) is saved onto an existing dashboard, from a query node (from: "node") or from full pipeline and chart JSON (from: "json"); the composer-chart-reference skill resource has both shapes and when each needs SQL approval.';
 
+// The agent's createContent places the tile; MCP's create_content does not.
+export const chartTilePlacementGuidance = (runtime: ToolRuntime): string =>
+    runtime === 'agent'
+        ? ' A chart created with a dashboardSlug is saved in that dashboard and placed on it as a new tile, laid out in rows.'
+        : '';
+
 export const TOOL_CREATE_CONTENT_DESCRIPTION = ({
     runtime,
 }: ToolDescriptionContext): string =>
@@ -20,7 +26,9 @@ export const TOOL_CREATE_CONTENT_DESCRIPTION = ({
     )} or ${toolNameFor(
         'listContent',
         runtime,
-    )} results; a write to any other space is refused. A chart created with a dashboardSlug is saved in that dashboard and placed on it as a new tile, laid out in rows. ${SQL_CHART_CREATE_GUIDANCE} ${COMPOSER_CHART_CREATE_GUIDANCE}`;
+    )} results; a write to any other space is refused.${chartTilePlacementGuidance(
+        runtime,
+    )} ${SQL_CHART_CREATE_GUIDANCE} ${COMPOSER_CHART_CREATE_GUIDANCE}`;
 
 type RequiredMetricQueryKeys = keyof Omit<
     ChartAsCode['metricQuery'],

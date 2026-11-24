@@ -1,4 +1,8 @@
-import { ParameterError, type ContentTextEdit } from '@lightdash/common';
+import {
+    getErrorMessage,
+    ParameterError,
+    type ContentTextEdit,
+} from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { toAbsoluteHref } from './absoluteHref';
@@ -59,9 +63,7 @@ const parseContentText = (text: string): unknown => {
         return parseYaml(text);
     } catch (error) {
         throw new ParameterError(
-            `The edited content is not valid YAML: ${
-                error instanceof Error ? error.message : String(error)
-            }`,
+            `The edited content is not valid YAML: ${getErrorMessage(error)}`,
         );
     }
 };

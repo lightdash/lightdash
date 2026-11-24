@@ -3,6 +3,7 @@ import type { DocumentChartContent } from '../../../../types/document';
 import { type ToolDescriptionContext } from '../defineTool';
 import { toolNameFor } from './discoveryToolNames';
 import {
+    chartTilePlacementGuidance,
     COMPOSER_CHART_CREATE_GUIDANCE,
     SQL_CHART_CREATE_GUIDANCE,
     toolChartAsCodeMetricQuerySchema,
@@ -196,7 +197,9 @@ const getDocumentCreateGuidance = ({
 export const MCP_CREATE_CONTENT_DESCRIPTION = (
     context: ToolDescriptionContext,
 ): string =>
-    `Create a dashboard, chart, SQL chart, composer chart or Document from its JSON; the developing-in-lightdash skill has the chart and dashboard shapes. A chart created with a dashboardSlug is saved in that dashboard and placed on it as a new tile, laid out in rows. ${SQL_CHART_CREATE_GUIDANCE} ${COMPOSER_CHART_CREATE_GUIDANCE} ${getDocumentCreateGuidance(context)}`;
+    `Create a dashboard, chart, SQL chart, composer chart or Document from its JSON; the developing-in-lightdash skill has the chart and dashboard shapes.${chartTilePlacementGuidance(
+        context.runtime,
+    )} ${SQL_CHART_CREATE_GUIDANCE} ${COMPOSER_CHART_CREATE_GUIDANCE} ${getDocumentCreateGuidance(context)}`;
 
 /** For an actor who can save Documents but not charts or dashboards. */
 export const DOCUMENT_CREATE_CONTENT_DESCRIPTION = (
