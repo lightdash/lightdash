@@ -1,3 +1,11 @@
+## [3.385.3](https://github.com/lightdash/lightdash/compare/3.385.2...3.385.3) (2026-11-24)
+
+
+### Bug Fixes
+
+* **semantic-studio:** add a model's proposed change to the draft whole or not at all ([#33043](https://github.com/lightdash/lightdash/issues/33043)) ([2669b0f](https://github.com/lightdash/lightdash/commit/2669b0fd52160293d10aee90e86eb7185e48d745))
+* **semantic-studio:** reject a change only for a warehouse failure it causes ([#33046](https://github.com/lightdash/lightdash/issues/33046)) ([c00a686](https://github.com/lightdash/lightdash/commit/c00a686c4144aaafbfb67d197171fbdd412b2159))
+
 ## [3.385.2](https://github.com/lightdash/lightdash/compare/3.385.1...3.385.2) (2026-11-24)
 
 
