@@ -16,12 +16,14 @@ import {
     DimensionType,
     Explore,
     ExploreType,
+    FeatureFlags,
     FieldType,
     FilterOperator,
     ForbiddenError,
     JobStatusType,
     mcpFindCustomChartTypesOutputSchema,
     MergeJoinType,
+    MetricType,
     NotFoundError,
     ParameterError,
     PossibleAbilities,
@@ -2930,6 +2932,257 @@ describe('AiAgentToolsService', () => {
                 ).resolves.toEqual({ rows: [] });
             });
         });
+    });
+
+    describe('ai_access: never', () => {
+        const field = (
+            fieldType: FieldType,
+            table: string,
+            name: string,
+            extra: Record<string, unknown> = {},
+        ) => ({
+            fieldType,
+            type:
+                fieldType === FieldType.DIMENSION
+                    ? DimensionType.STRING
+                    : MetricType.COUNT,
+            name,
+            label: name,
+            table,
+            tableLabel: table,
+            sql: `\${TABLE}.${name}`,
+            hidden: false,
+            ...extra,
+        });
+        const makeExplores = () => ({
+            customers: makeExplore({
+                name: 'customers',
+                dimensions: {
+                    name: field(FieldType.DIMENSION, 'customers', 'name'),
+                    email: field(FieldType.DIMENSION, 'customers', 'email', {
+                        aiAccess: 'never',
+                    }),
+                },
+                metrics: {
+                    count: field(FieldType.METRIC, 'customers', 'count'),
+                },
+            }),
+            payments: {
+                ...makeExplore({ name: 'payments' }),
+                tables: {
+                    payments: {
+                        ...makeExplore({ name: 'payments' }).tables.payments,
+                        aiAccess: 'never',
+                    },
+                },
+            } as Explore,
+        });
+        const setup = ({
+            enabled,
+            savedChart,
+        }: {
+            enabled: boolean;
+            savedChart?: Record<string, unknown>;
+        }) => {
+            const executeMetricQueryAndGetResults = vi
+                .fn()
+                .mockResolvedValue({ rows: [] });
+            const executeSavedChartQueryAndGetResults = vi
+                .fn()
+                .mockResolvedValue({ rows: [] });
+            const service = makeService({
+                explores: makeExplores(),
+                featureFlagService: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            enabled &&
+                            featureFlagId === FeatureFlags.AiAccessNever,
+                    })),
+                },
+                savedChartService: {
+                    get: vi.fn().mockResolvedValue(savedChart),
+                },
+                asyncQueryService: {
+                    executeMetricQueryAndGetResults,
+                    executeSavedChartQueryAndGetResults,
+                },
+            });
+            return {
+                service,
+                runtime: service.createRuntime(makeRuntimeContext()),
+                executeMetricQueryAndGetResults,
+                executeSavedChartQueryAndGetResults,
+            };
+        };
+        const metricQuery = (
+            overrides: Record<string, unknown> = {},
+        ): Parameters<
+            ReturnType<AiAgentToolsService['createRuntime']>['runAsyncQuery']
+        >[0] => ({
+            exploreName: 'customers',
+            dimensions: ['customers_name'],
+            metrics: ['customers_count'],
+            filters: {},
+            sorts: [],
+            limit: 10,
+            tableCalculations: [],
+            additionalMetrics: [],
+            customMetrics: null,
+            ...overrides,
+        });
+        const refusal = {
+            refusal: expect.objectContaining({
+                reason: AiAccessRefusalReason.AI_ACCESS_NEVER,
+                message:
+                    "I can't use some of this data with AI in this project. Ask your admin.",
+            }),
+        };
+
+        it('leaves hidden fields and models absent from AI explores', async () => {
+            const { service } = setup({ enabled: true });
+
+            const explores = await service.getAvailableExplores({
+                user,
+                projectUuid,
+                availableTags: null,
+            });
+
+            expect(explores.map((explore) => explore.name)).toEqual([
+                'customers',
+            ]);
+            expect(
+                Object.keys(explores[0].tables.customers.dimensions),
+            ).toEqual(['name']);
+        });
+
+        it('keeps every field when the flag is off', async () => {
+            const { service } = setup({ enabled: false });
+
+            const explores = await service.getAvailableExplores({
+                user,
+                projectUuid,
+                availableTags: null,
+            });
+
+            expect(explores.map((explore) => explore.name).sort()).toEqual([
+                'customers',
+                'payments',
+            ]);
+            expect(
+                Object.keys(explores[0].tables.customers.dimensions),
+            ).toEqual(['name', 'email']);
+        });
+
+        it.each([
+            ['selects', { dimensions: ['customers_email'] }],
+            [
+                'filters on',
+                {
+                    filters: {
+                        dimensions: {
+                            id: 'root',
+                            and: [
+                                {
+                                    id: 'rule',
+                                    target: { fieldId: 'customers_email' },
+                                    operator: FilterOperator.EQUALS,
+                                    values: ['a@example.com'],
+                                },
+                            ],
+                        },
+                    },
+                },
+            ],
+            [
+                'sorts by',
+                { sorts: [{ fieldId: 'customers_email', descending: true }] },
+            ],
+        ])(
+            'refuses a query that %s a hidden field without naming it',
+            async (_case, overrides) => {
+                const { runtime, executeMetricQueryAndGetResults } = setup({
+                    enabled: true,
+                });
+
+                const error = await runtime
+                    .runAsyncQuery(metricQuery(overrides))
+                    .catch((caught: unknown) => caught);
+
+                expect(error).toBeInstanceOf(AiAccessRefusedError);
+                expect(error).toMatchObject(refusal);
+                expect(String((error as Error).message)).not.toContain('email');
+                expect(executeMetricQueryAndGetResults).not.toHaveBeenCalled();
+            },
+        );
+
+        it('runs a query on visible fields', async () => {
+            const { runtime, executeMetricQueryAndGetResults } = setup({
+                enabled: true,
+            });
+
+            await runtime.runAsyncQuery(metricQuery());
+
+            expect(executeMetricQueryAndGetResults).toHaveBeenCalledTimes(1);
+        });
+
+        it.each([
+            [
+                'a hidden field',
+                {
+                    exploreName: 'customers',
+                    dimensions: ['customers_email'],
+                    metrics: [],
+                },
+            ],
+            [
+                'custom SQL',
+                {
+                    exploreName: 'customers',
+                    dimensions: [],
+                    metrics: [],
+                    customDimensions: [
+                        {
+                            id: 'custom',
+                            name: 'custom',
+                            table: 'customers',
+                            type: CustomDimensionType.SQL,
+                            sql: 'customers.email',
+                            dimensionType: DimensionType.STRING,
+                        },
+                    ],
+                },
+            ],
+        ])(
+            'refuses to run a saved chart that uses %s',
+            async (_case, chartQuery) => {
+                const { runtime, executeSavedChartQueryAndGetResults } = setup({
+                    enabled: true,
+                    savedChart: {
+                        uuid: 'chart-uuid',
+                        spaceUuid: 'space-uuid',
+                        metricQuery: {
+                            filters: {},
+                            sorts: [],
+                            tableCalculations: [],
+                            additionalMetrics: [],
+                            ...chartQuery,
+                        },
+                    },
+                });
+
+                await expect(
+                    runtime.runSavedChartQuery({
+                        chartUuid: 'chart-uuid',
+                        dashboardSlug: null,
+                        limit: 100,
+                    }),
+                ).rejects.toMatchObject(refusal);
+                expect(
+                    executeSavedChartQueryAndGetResults,
+                ).not.toHaveBeenCalled();
+            },
+        );
     });
 
     describe('date zoom on a dashboard chart query', () => {

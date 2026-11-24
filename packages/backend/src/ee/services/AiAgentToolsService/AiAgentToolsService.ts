@@ -2,6 +2,8 @@ import { subject } from '@casl/ability';
 import {
     Account,
     AgentActorSurface,
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     AnyType,
     AppVizBuildContext,
     assertRegisteredAccount,
@@ -26,6 +28,7 @@ import {
     ExploreType,
     FeatureFlags,
     filterExploreByTags,
+    filterExploreForAi,
     filterStaticFilterAutocompleteValues,
     findFieldByIdInExplore,
     ForbiddenError,
@@ -55,6 +58,7 @@ import {
     isSameApprovalSql,
     JobStatusType,
     mcpDocumentEditSchema,
+    metricQueryUsesAiHiddenData,
     normalizeDateZoomConfig,
     NotFoundError,
     ParameterError,
@@ -873,6 +877,7 @@ export class AiAgentToolsService extends BaseService {
                     { tableSelection },
                     liveExplores,
                     inDevelopment,
+                    aiAccessNeverEnabled,
                 ] = await Promise.all([
                     this.userAttributesModel.getAttributeValuesForOrgMember({
                         organizationUuid,
@@ -887,6 +892,7 @@ export class AiAgentToolsService extends BaseService {
                     developmentView
                         .getStore()
                         ?.findExplores(fromSession(user), projectUuid) ?? null,
+                    this.isAiAccessNeverEnabled(user),
                 ]);
                 const userAttributes = mergeUserAttributes(
                     dbAttributes,
@@ -936,6 +942,11 @@ export class AiAgentToolsService extends BaseService {
                     .map((explore) =>
                         getFilteredExplore(explore, userAttributes),
                     )
+                    .flatMap((explore) => {
+                        if (!aiAccessNeverEnabled) return [explore];
+                        const visible = filterExploreForAi(explore);
+                        return visible ? [visible] : [];
+                    })
                     .map((explore) =>
                         filterExploreByTags({
                             explore,
@@ -945,6 +956,42 @@ export class AiAgentToolsService extends BaseService {
                     .filter((explore): explore is Explore => !!explore);
             },
         );
+    }
+
+    private async isAiAccessNeverEnabled(
+        user: Pick<SessionUser, 'organizationUuid' | 'userUuid'>,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagService.get({
+            user: {
+                organizationUuid: user.organizationUuid,
+                userUuid: user.userUuid,
+            },
+            featureFlagId: FeatureFlags.AiAccessNever,
+        });
+        return enabled;
+    }
+
+    private async assertAiMayUseMetricQuery(
+        context: AiAgentToolsRuntimeContext,
+        metricQuery: Parameters<typeof metricQueryUsesAiHiddenData>[1],
+    ): Promise<void> {
+        if (!(await this.isAiAccessNeverEnabled(context.user))) return;
+        const explores = await this.projectModel.findExploresFromCache(
+            context.projectUuid,
+            'name',
+            [metricQuery.exploreName],
+        );
+        const explore = explores[metricQuery.exploreName];
+        if (
+            explore &&
+            !isExploreError(explore) &&
+            metricQueryUsesAiHiddenData(explore, metricQuery)
+        ) {
+            throw new AiAccessRefusedError(
+                AiAccessRefusalReason.AI_ACCESS_NEVER,
+                { projectUuid: context.projectUuid },
+            );
+        }
     }
 
     async getExplore({
@@ -4982,6 +5029,7 @@ export class AiAgentToolsService extends BaseService {
             metricQuery,
             async () => {
                 abortSignal?.throwIfAborted();
+                await this.assertAiMayUseMetricQuery(context, metricQuery);
                 const explore = await this.getExploreForRuntime(context, {
                     table: metricQuery.exploreName,
                 });
@@ -5172,13 +5220,24 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         chartUuid: string,
     ) {
-        if (!context.tags || context.tags.length === 0) return;
+        const aiAccessNeverEnabled = await this.isAiAccessNeverEnabled(
+            context.user,
+        );
+        if (
+            !aiAccessNeverEnabled &&
+            (!context.tags || context.tags.length === 0)
+        )
+            return;
 
         const { metricQuery } = await this.savedChartService.get(
             chartUuid,
             context.account,
             { projectUuid: context.projectUuid },
         );
+        if (aiAccessNeverEnabled) {
+            await this.assertAiMayUseMetricQuery(context, metricQuery);
+        }
+        if (!context.tags || context.tags.length === 0) return;
         const explore = await this.getExploreForRuntime(context, {
             table: metricQuery.exploreName,
         });

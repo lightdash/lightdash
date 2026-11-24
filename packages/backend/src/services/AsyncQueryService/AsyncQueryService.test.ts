@@ -33979,3 +33979,207 @@ describe('bound composer chart runs', () => {
         await expect(read()).rejects.toBe(revoked);
     });
 });
+
+describe('ai_access: never', () => {
+    const hiddenExplore: Explore = {
+        ...validExplore,
+        tables: {
+            ...validExplore.tables,
+            a: {
+                ...validExplore.tables.a,
+                dimensions: {
+                    ...validExplore.tables.a.dimensions,
+                    secret: {
+                        ...validExplore.tables.a.dimensions.dim1,
+                        name: 'secret',
+                        aiAccess: 'never',
+                    },
+                },
+            },
+        },
+    };
+    const queryOnHidden: MetricQuery = {
+        ...metricQueryMock,
+        dimensions: ['a_secret'],
+    };
+    const refusal = {
+        refusal: expect.objectContaining({
+            reason: AiAccessRefusalReason.AI_ACCESS_NEVER,
+            message:
+                "I can't use some of this data with AI in this project. Ask your admin.",
+        }),
+    };
+    const makeService = (
+        enabled: boolean,
+        explore: Explore = hiddenExplore,
+    ) => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.mocked(service.featureFlagModel.get).mockImplementation(
+            async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled:
+                    enabled && featureFlagId === FeatureFlags.AiAccessNever,
+            }),
+        );
+        Object.assign((service as AnyType).projectModel, {
+            findExploresFromCache: vi.fn(async () => ({
+                [explore.name]: explore,
+            })),
+            getExploreFromCache: vi.fn(async () => explore),
+        });
+        return service;
+    };
+
+    describe('metric queries', () => {
+        const prepare = (
+            service: AsyncQueryService,
+            context: QueryExecutionContext,
+            metricQuery: MetricQuery,
+        ) =>
+            service['prepareMetricQueryAsyncQueryArgs']({
+                account: sessionAccount,
+                metricQuery,
+                explore: hiddenExplore,
+                warehouseSqlBuilder: warehouses.warehouseSqlBuilderFromType(
+                    WarehouseTypes.POSTGRES,
+                ),
+                projectUuid,
+                context,
+            });
+
+        it.each([
+            QueryExecutionContext.AI,
+            QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            QueryExecutionContext.MCP_SEARCH_FIELD_VALUES,
+            QueryExecutionContext.DATA_APP_SAMPLE,
+        ])('refuses a %s query that uses a hidden field', async (context) => {
+            await expect(
+                prepare(makeService(true), context, queryOnHidden),
+            ).rejects.toMatchObject(refusal);
+        });
+
+        it.each([
+            ['a person', true, QueryExecutionContext.EXPLORE],
+            ['AI with the flag off', false, QueryExecutionContext.AI],
+        ])('does not refuse %s', async (_case, enabled, context) => {
+            const service = makeService(enabled);
+            await expect(
+                service['assertAiMayUseMetricQuery']({
+                    account: sessionAccount,
+                    projectUuid,
+                    context,
+                    explore: hiddenExplore,
+                    metricQuery: queryOnHidden,
+                }),
+            ).resolves.toBeUndefined();
+        });
+    });
+
+    describe('AI result reads', () => {
+        const node = (overrides: Partial<QueryHistory>): QueryHistory =>
+            ({
+                queryUuid: 'query-uuid',
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                context: QueryExecutionContext.EXPLORE,
+                metricQuery: queryOnHidden,
+                requestParameters: {},
+                ...overrides,
+            }) as QueryHistory;
+        const read = (
+            service: AsyncQueryService,
+            queryHistory: QueryHistory,
+            aiAccessOnly: boolean,
+        ) => {
+            Object.assign((service as AnyType).aiAccessService, {
+                assertCanReadResults: vi.fn(
+                    async (
+                        _account: unknown,
+                        _projectUuid: unknown,
+                        query: QueryHistory,
+                        options: {
+                            authorizeNode: (n: QueryHistory) => Promise<void>;
+                        },
+                    ) => options.authorizeNode(query),
+                ),
+            });
+            return service['assertCanReadStoredResultsForQueries'](
+                sessionAccount,
+                projectUuid,
+                [queryHistory],
+                { kind: 'user', userUuid: sessionAccount.user.id } as AnyType,
+                null,
+                false,
+                aiAccessOnly,
+            );
+        };
+
+        it('refuses an AI read of a person query that used a hidden field', async () => {
+            await expect(
+                read(makeService(true), node({}), true),
+            ).rejects.toMatchObject(refusal);
+        });
+
+        it('refuses an AI read of raw SQL in a project with hidden fields', async () => {
+            await expect(
+                read(
+                    makeService(true),
+                    node({
+                        metricQuery: undefined as AnyType,
+                        requestParameters: { sql: 'select 1' } as AnyType,
+                        context: QueryExecutionContext.AI,
+                    }),
+                    false,
+                ),
+            ).rejects.toMatchObject(refusal);
+        });
+
+        it('does not apply the rule to a person reading their own results', async () => {
+            const service = makeService(true);
+            await expect(
+                service['assertAiMayReadQueryResult']({
+                    account: sessionAccount,
+                    projectUuid,
+                    node: node({}),
+                    aiRead: false,
+                    getExplore: async () => hiddenExplore,
+                }),
+            ).resolves.toBeUndefined();
+        });
+    });
+
+    describe('raw SQL from AI', () => {
+        it.each([QueryExecutionContext.AI, QueryExecutionContext.MCP_RUN_SQL])(
+            'refuses %s SQL when the project has hidden fields',
+            async (context) => {
+                await expect(
+                    makeService(true)['assertAiMayRunRawSql']({
+                        account: sessionAccount,
+                        projectUuid,
+                        context,
+                    }),
+                ).rejects.toMatchObject(refusal);
+            },
+        );
+
+        it('allows AI SQL when no field is hidden', async () => {
+            await expect(
+                makeService(true, validExplore)['assertAiMayRunRawSql']({
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.AI,
+                }),
+            ).resolves.toBeUndefined();
+        });
+
+        it('allows a person to run SQL', async () => {
+            await expect(
+                makeService(true)['assertAiMayRunRawSql']({
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.SQL_RUNNER,
+                }),
+            ).resolves.toBeUndefined();
+        });
+    });
+});
