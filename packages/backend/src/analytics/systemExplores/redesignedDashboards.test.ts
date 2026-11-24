@@ -20,6 +20,7 @@ import { compactedStreamSchemas } from '../eventStream/registry';
 import { SPARKLINE_CARD_ROWS } from './chartBuilders';
 import {
     libraryChartFields,
+    libraryChartFieldVersions,
     libraryChartFloors,
     libraryChartOptions,
     withLibraryCharts,
@@ -1246,12 +1247,17 @@ describe('library chart options', () => {
         );
     });
 
-    it('asks for a version that has every option it sets, and no newer', () => {
+    it('asks for a version that has every option it sets and field it maps, and no newer', () => {
         entries.forEach(([slug, binding]) => {
-            // The newest option it sets, or the version with a fix every binding of the type needs
+            // The newest option it sets or field it maps, or the version with a fix every binding of
+            // the type needs
             const needed = [
                 ...Object.keys(binding.optionValues).map(
                     (name) => libraryChartOptions[binding.slug][name],
+                ),
+                ...Object.keys(binding.fieldMapping).map(
+                    (name) =>
+                        libraryChartFieldVersions[binding.slug]?.[name] ?? null,
                 ),
                 libraryChartFloors[binding.slug] ?? null,
             ]
@@ -2198,14 +2204,11 @@ describe('one table style', () => {
                 )
                 .map(({ slug }) => slug),
         );
-        // The library table shows one or two names and then numbers, and its names are not links.
+        // The library table shows one or two names and then numbers. A name can open its content.
         expect(plain.sort()).toEqual(
             [
                 // A list of runs: a time and three names on every row
                 'lightdash-analytics-overview-recent-evaluation-runs',
-                // Each dashboard's name opens the dashboard
-                'lightdash-analytics-query-activity-dashboards-warehouse-and-response-time',
-                'lightdash-analytics-query-activity-query-failures-affected-people',
                 // The change from month to month, green up and orange down
                 'lightdash-analytics-query-activity-querying-users-month-over-month',
                 // Three or more names on every row
@@ -2391,5 +2394,29 @@ describe('People who have not used Lightdash', () => {
                 ({ name }) => name === 'last_used',
             )!.displayName,
         ).toBe('Last used (UTC)');
+    });
+});
+
+describe('dashboard names in the library table', () => {
+    it('open the dashboard: the link slot is the address column the plain table links with', () => {
+        const linked = [
+            'lightdash-analytics-query-activity-dashboards-warehouse-and-response-time',
+            'lightdash-analytics-query-activity-query-failures-affected-people',
+        ];
+        for (const slug of linked) {
+            const binding = analyticsLibraryChartBindings.get(slug)!;
+            expect(binding.fieldMapping).toMatchObject({
+                rowDimension: 'query_events_dashboard_name',
+                link: 'query_events_dashboard_url',
+            });
+            // It shares the plain table's query, so the address must be one of its columns
+            expect(binding.query).toBeNull();
+            const chart = analyticsContentAsCode
+                .flatMap(({ charts }) => charts)
+                .find((item) => item.slug === slug)!;
+            expect(chart.metricQuery.dimensions).toContain(
+                'query_events_dashboard_url',
+            );
+        }
     });
 });

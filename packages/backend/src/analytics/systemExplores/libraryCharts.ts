@@ -62,7 +62,8 @@ export const libraryChartFields: Record<
         required: ['x', 'value'],
     },
     'sortable-pivot-table': {
-        fields: ['rowDimension', 'rowDimension2', 'series', 'metric'],
+        // 'link' (from 0.15.0) holds a web address: the row's name opens it
+        fields: ['rowDimension', 'rowDimension2', 'series', 'metric', 'link'],
         required: ['rowDimension', 'metric'],
     },
     'customizable-cartesian-chart': {
@@ -82,6 +83,15 @@ export const libraryChartFields: Record<
         ],
         required: ['value'],
     },
+};
+
+// A field slot added after the type was first bound: a binding that maps it must ask for at least the
+// version that introduced it.
+export const libraryChartFieldVersions: Record<
+    string,
+    Record<string, string>
+> = {
+    'sortable-pivot-table': { link: '0.15.0' },
 };
 
 // Option names each supported type accepts. An option added after the type was first bound carries the
