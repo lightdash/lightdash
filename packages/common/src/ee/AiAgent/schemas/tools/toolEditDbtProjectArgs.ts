@@ -44,7 +44,7 @@ export const toolWriteArgsSchema = z.object({
     prompt: z
         .string()
         .describe(
-            'The change in words: a one-line summary under 72 characters, like a commit subject, which becomes the pull request title; then the models and fields and what each becomes. With a null script the sandbox makes the change from this alone, so include every detail.',
+            'The change in words: a one-line summary under 72 characters, like a commit subject, then the models and fields and what each becomes. With a script, the first line becomes the pull request title. With a null script the sandbox makes the change from this alone, so include every detail.',
         ),
     script: z
         .string()

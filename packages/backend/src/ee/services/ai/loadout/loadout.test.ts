@@ -10,6 +10,7 @@ import {
     BUILT_IN_SKILL_NAMES,
     DEFERRED_SECTION_TOOLS,
     getAvailableSkills,
+    getStudioAbilities,
     resolveLoadout,
     type AgentToolName,
     type Loadout,
@@ -223,7 +224,7 @@ const renderPrompt = (
         canRunQuery: loadout.toolNames.has('runQuery'),
         repoFsRoot: '.',
         studio,
-        projectContextInRead: studio?.kind === 'dbt' && studio.mode === 'build',
+        projectContextInRead: getStudioAbilities(loadout).builder,
     }).content;
 
 const fixture = (name: string) =>

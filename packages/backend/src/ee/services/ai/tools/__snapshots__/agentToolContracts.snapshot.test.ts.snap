@@ -12183,7 +12183,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
           "type": "array",
         },
         "prompt": {
-          "description": "The change in words: a one-line summary under 72 characters, like a commit subject, which becomes the pull request title; then the models and fields and what each becomes. With a null script the sandbox makes the change from this alone, so include every detail.",
+          "description": "The change in words: a one-line summary under 72 characters, like a commit subject, then the models and fields and what each becomes. With a script, the first line becomes the pull request title. With a null script the sandbox makes the change from this alone, so include every detail.",
           "type": "string",
         },
         "script": {
