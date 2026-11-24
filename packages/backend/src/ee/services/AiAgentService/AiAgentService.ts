@@ -6927,8 +6927,8 @@ export class AiAgentService extends BaseService {
         });
     }
 
-    // Stored credentials don't always match runtime auth: App orgs mint tokens
-    // per run, and stored PATs may be disabled by the ai-mcp-github-pat flag.
+    // Stored credentials don't always match runtime auth: App orgs fetch tokens
+    // at runtime, and stored PATs may be disabled by the ai-mcp-github-pat flag.
     private async applyGithubMcpDisplayStatus<
         T extends Pick<
             AiMcpServer,
@@ -7839,7 +7839,7 @@ export class AiAgentService extends BaseService {
             return unavailable;
         }
 
-        // With an App installation a fresh token is minted per run, so the
+        // With an App installation the token is fetched at runtime, so the
         // server is connected regardless of any stored credential.
         const alreadyConnected =
             !!githubServer &&
@@ -7937,8 +7937,8 @@ export class AiAgentService extends BaseService {
         return server;
     }
 
-    // The stored installation token expires in ~1h; runtime mints a fresh one
-    // per run, so the App path keeps no long-lived secret.
+    // The stored installation token expires in ~1h; runtime fetches its own,
+    // so the App path keeps no long-lived secret.
     public async connectGithubMcpServerApp(
         user: SessionUser,
         projectUuid: string,

@@ -1577,28 +1577,33 @@ describe('resolveMcpTools', () => {
             }),
             close: vi.fn().mockResolvedValue(undefined),
         } as unknown as MCPClient);
-        const call = async () => {
-            const result = await runtimeClient.resolveTools({
-                mcpServers: [server],
-                userUuid: 'user-uuid',
-                debugLoggingEnabled: false,
-            });
-            expect(result.unavailableMcpServers).toEqual([]);
-            try {
-                return await result.tools.mcp_github__search_issues.execute!(
-                    {} as never,
-                    { toolCallId: 'call-1', messages: [], context: {} },
-                );
-            } finally {
-                await result.closeMcpClients();
-            }
-        };
+        const options = { toolCallId: 'call-1', messages: [], context: {} };
 
-        await expect(call()).rejects.toThrow();
+        const failedTurn = await runtimeClient.resolveTools({
+            mcpServers: [server],
+            userUuid: 'user-uuid',
+            debugLoggingEnabled: false,
+        });
+        expect(failedTurn.unavailableMcpServers).toEqual([]);
+        expect(bearerTokenProvider).not.toHaveBeenCalled();
+        await expect(
+            failedTurn.tools.mcp_github__search_issues.execute!(
+                {} as never,
+                options,
+            ),
+        ).rejects.toThrow(MCP_CONNECTION_MESSAGE);
         expect(mcpSdk.createMCPClient).not.toHaveBeenCalled();
+        await failedTurn.closeMcpClients();
 
-        await call();
-        expect(bearerTokenProvider).toHaveBeenCalledTimes(2);
+        const nextTurn = await runtimeClient.resolveTools({
+            mcpServers: [server],
+            userUuid: 'user-uuid',
+            debugLoggingEnabled: false,
+        });
+        await nextTurn.tools.mcp_github__search_issues.execute!(
+            {} as never,
+            options,
+        );
         expect(mcpSdk.createMCPClient).toHaveBeenCalledWith(
             expect.objectContaining({
                 transport: expect.objectContaining({
@@ -1606,6 +1611,7 @@ describe('resolveMcpTools', () => {
                 }),
             }),
         );
+        await nextTurn.closeMcpClients();
     });
 
     it('preserves not_connected for authorization-required OAuth servers', async () => {
