@@ -2305,7 +2305,7 @@ export class SchedulerWorker extends SchedulerTask {
                 const result =
                     await this.projectService.reconcilePlaygroundBundles();
                 Logger.info(
-                    `Playground bundle ${result.version}: moved ${result.adopted} projects, ${result.waiting} waiting, ${result.failed} failed`,
+                    `Playground bundle ${result.version}: untagged ${result.untagged} repointed projects, moved ${result.adopted} projects, ${result.waiting} waiting, ${result.failed} failed`,
                 );
             },
             [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: async () => {

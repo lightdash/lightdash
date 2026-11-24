@@ -1,3 +1,8 @@
+import {
+    DuckdbConnectionType,
+    WarehouseTypes,
+    type CreateWarehouseCredentials,
+} from '@lightdash/common';
 import { readEmbeddedBundle } from '@lightdash/warehouses';
 import { createHash } from 'crypto';
 import fs from 'fs/promises';
@@ -157,6 +162,18 @@ describe('playground bundle', () => {
     });
 
     describe('reconcilePlaygroundBundles', () => {
+        const sampleCredentials: CreateWarehouseCredentials = {
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.EMBEDDED,
+            dataset: 'jaffle_shop',
+        };
+        const motherduckCredentials: CreateWarehouseCredentials = {
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.MOTHERDUCK,
+            database: 'analytics',
+            schema: 'main',
+            token: 'token',
+        };
         const buildProjectModel = (firstSeenMinutesAgo: number) => ({
             recordPlaygroundBundleVersionSeen: vi.fn(async () =>
                 minutesAgo(firstSeenMinutesAgo),
@@ -178,6 +195,12 @@ describe('playground bundle', () => {
             saveExploresToCache: vi.fn(async () => ({
                 cachedExploreUuids: [],
             })),
+            getPlaygroundProjectUuids: vi.fn(async (): Promise<string[]> => []),
+            getWarehouseCredentialsForProject: vi.fn(
+                async (): Promise<CreateWarehouseCredentials> =>
+                    sampleCredentials,
+            ),
+            clearPlaygroundProvisioning: vi.fn(async () => undefined),
         });
 
         it('moves only unservable projects during the adoption delay', async () => {
@@ -192,6 +215,7 @@ describe('playground bundle', () => {
                 }),
             ).resolves.toEqual({
                 version: currentVersion,
+                untagged: 0,
                 adopted: 1,
                 waiting: 2,
                 failed: 0,
@@ -225,6 +249,7 @@ describe('playground bundle', () => {
                 }),
             ).resolves.toEqual({
                 version: currentVersion,
+                untagged: 0,
                 adopted: 2,
                 waiting: 0,
                 failed: 1,
@@ -247,6 +272,59 @@ describe('playground bundle', () => {
             });
 
             expect(validate).not.toHaveBeenCalled();
+        });
+
+        it('untags a sample data project that no longer uses the embedded database', async () => {
+            const projectModel = buildProjectModel(5);
+            projectModel.getPlaygroundBundleProjectsNotOnVersion.mockResolvedValue(
+                [],
+            );
+            projectModel.getPlaygroundProjectUuids.mockResolvedValue([
+                'sample-project',
+                'motherduck-project',
+                'unreadable-project',
+            ]);
+            projectModel.getWarehouseCredentialsForProject
+                .mockResolvedValueOnce(sampleCredentials)
+                .mockResolvedValueOnce(motherduckCredentials)
+                .mockRejectedValueOnce(new Error('no credentials'));
+
+            const result = await reconcilePlaygroundBundles({
+                projectModel,
+                dataDirectory: shippedDirectory,
+                validatePlaygroundDatabase: vi.fn(async () => undefined),
+                now,
+            });
+
+            expect(result.untagged).toBe(1);
+            expect(
+                projectModel.clearPlaygroundProvisioning,
+            ).toHaveBeenCalledExactlyOnceWith('motherduck-project');
+        });
+
+        it('untags before choosing which projects to move', async () => {
+            const projectModel = buildProjectModel(5);
+            projectModel.getPlaygroundProjectUuids.mockResolvedValue([
+                'repointed-project',
+            ]);
+            projectModel.getWarehouseCredentialsForProject.mockResolvedValue(
+                motherduckCredentials,
+            );
+
+            await reconcilePlaygroundBundles({
+                projectModel,
+                dataDirectory: shippedDirectory,
+                validatePlaygroundDatabase: vi.fn(async () => undefined),
+                now,
+            });
+
+            expect(
+                projectModel.clearPlaygroundProvisioning.mock
+                    .invocationCallOrder[0],
+            ).toBeLessThan(
+                projectModel.getPlaygroundBundleProjectsNotOnVersion.mock
+                    .invocationCallOrder[0],
+            );
         });
     });
 });

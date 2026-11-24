@@ -2,6 +2,7 @@ import {
     DuckdbConnectionType,
     isExploreError,
     WarehouseTypes,
+    type CreateWarehouseCredentials,
     type Explore,
     type ExploreError,
 } from '@lightdash/common';
@@ -237,14 +238,56 @@ export const shouldAdoptPlaygroundBundle = ({
     );
 };
 
+const isSampleConnection = (credentials: CreateWarehouseCredentials) =>
+    credentials.type === WarehouseTypes.DUCKDB &&
+    credentials.connectionType === DuckdbConnectionType.EMBEDDED;
+
+/**
+ * Untags sample data projects that no longer use the embedded sample
+ * database. MotherDuck and DuckLake share the DuckDB warehouse type, so only
+ * the decrypted credentials can tell them apart.
+ */
+const untagRepointedPlaygroundProjects = async (
+    projectModel: Pick<
+        ProjectModel,
+        | 'getPlaygroundProjectUuids'
+        | 'getWarehouseCredentialsForProject'
+        | 'clearPlaygroundProvisioning'
+    >,
+): Promise<number> => {
+    const projectUuids = await projectModel.getPlaygroundProjectUuids();
+    let untagged = 0;
+    await projectUuids.reduce(async (previous, projectUuid) => {
+        await previous;
+        try {
+            const credentials =
+                await projectModel.getWarehouseCredentialsForProject(
+                    projectUuid,
+                );
+            if (isSampleConnection(credentials)) return;
+            await projectModel.clearPlaygroundProvisioning(projectUuid);
+            untagged += 1;
+        } catch (error) {
+            // Unreadable credentials say nothing about the connection; keep the tag.
+            Logger.warn(
+                `Could not check the connection of sample data project ${projectUuid}: ${
+                    error instanceof Error ? error.message : String(error)
+                }`,
+            );
+        }
+    }, Promise.resolve());
+    return untagged;
+};
+
 export type ReconcilePlaygroundBundlesResult = {
     version: string;
+    untagged: number;
     adopted: number;
     waiting: number;
     failed: number;
 };
 
-/** Moves playground and training projects to this server's bundle when the adoption rule allows it. */
+/** Untags repointed sample data projects, then moves playground and training projects to this server's bundle when the adoption rule allows it. */
 export const reconcilePlaygroundBundles = async ({
     projectModel,
     dataDirectory = getPlaygroundDataDirectory(),
@@ -256,6 +299,9 @@ export const reconcilePlaygroundBundles = async ({
         | 'recordPlaygroundBundleVersionSeen'
         | 'getPlaygroundBundleProjectsNotOnVersion'
         | 'saveExploresToCache'
+        | 'getPlaygroundProjectUuids'
+        | 'getWarehouseCredentialsForProject'
+        | 'clearPlaygroundProvisioning'
     >;
     dataDirectory?: string;
     validatePlaygroundDatabase?: (
@@ -268,6 +314,8 @@ export const reconcilePlaygroundBundles = async ({
     if (currentVersion === undefined) {
         throw new Error(`No playground bundle found in ${dataDirectory}`);
     }
+    // Before adoption, so a repointed project never gets the sample explores.
+    const untagged = await untagRepointedPlaygroundProjects(projectModel);
     const currentFirstSeenAt =
         await projectModel.recordPlaygroundBundleVersionSeen(currentVersion);
     const projects =
@@ -285,6 +333,7 @@ export const reconcilePlaygroundBundles = async ({
     );
     const result: ReconcilePlaygroundBundlesResult = {
         version: currentVersion,
+        untagged,
         adopted: 0,
         waiting: projects.length - toAdopt.length,
         failed: 0,
