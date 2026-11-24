@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    getTableListingFailure,
     PartitionType,
     type PartitionColumn,
     type WarehouseTableType,
@@ -45,6 +46,7 @@ import {
     type TableTypeFilter,
 } from '../utils/tableRows';
 import { getTableTypeDisplay } from '../utils/tableTypeDisplay';
+import { TableListingFailureNotice } from './TableListingFailureNotice';
 import styles from './Tables.module.css';
 import { TablesToolbar } from './TablesToolbar';
 
@@ -455,7 +457,7 @@ export const Tables: FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
         [filterKey],
     );
 
-    const { data, isLoading, isSuccess } = useTables({ projectUuid });
+    const { data, error, isLoading, isSuccess } = useTables({ projectUuid });
     const { recentTables, addRecentTable } = useRecentTables(projectUuid);
     const selectTable = useCallback<SelectTable>(
         (ref, partitionColumn) => {
@@ -585,6 +587,14 @@ export const Tables: FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
                 onRefresh={onRefresh}
                 isRefreshDisabled={isLoading}
             />
+
+            {error && (
+                <Box p="sm">
+                    <TableListingFailureNotice
+                        failure={getTableListingFailure(error.error)}
+                    />
+                </Box>
+            )}
 
             <Box className={styles.list}>
                 <Box
