@@ -771,7 +771,6 @@ const setup = ({
         compileQuery,
         deleteCachedExplores,
         findModelHistory,
-        projectModelDocumentModel: args.projectModelDocumentModel,
         drafts,
         requestedBases,
         settled,
