@@ -2,6 +2,7 @@ import {
     AgentActorSurface,
     AiAccessRefusalReason,
     AiAccessRefusedError,
+    DashboardTileTypes,
     ForbiddenError,
     InvalidUser,
     QueryExecutionContext,
@@ -542,3 +543,108 @@ test.each(['inactive', 'missing', 'policy'])(
         ).toHaveBeenCalledTimes(2);
     },
 );
+
+describe('scheduled summary with ai_access: never', () => {
+    const neverRefusal = () =>
+        new AiAccessRefusedError(AiAccessRefusalReason.AI_ACCESS_NEVER);
+    const tile = (uuid: string, chartName: string) => ({
+        uuid,
+        type: DashboardTileTypes.SAVED_CHART,
+        tabUuid: null,
+        properties: { savedChartUuid: `${uuid}-chart`, chartName },
+    });
+    const dashboardScheduler = {
+        dashboardUuid: 'dashboard',
+        savedChartUuid: null,
+        aiAugmentation: { type: 'fast_model', prompt: 'Summarize' },
+    } as unknown as SendNowScheduler;
+
+    test('skips a dashboard chart that uses a hidden field and says so', async () => {
+        const { service, aiService } = setup(false);
+        const executeDashboardChartQueryAndGetResults = vi.fn(
+            async ({ tileUuid }: { tileUuid: string }) => {
+                if (tileUuid === 'secret') throw neverRefusal();
+                return { rows: [{ total: { value: { raw: 5 } } }], fields: {} };
+            },
+        );
+        Object.assign(service, {
+            dashboardModel: {
+                getByIdOrSlug: vi.fn().mockResolvedValue({
+                    uuid: 'dashboard',
+                    projectUuid: 'project',
+                    organizationUuid: 'org',
+                    filters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    parameters: {},
+                    tiles: [tile('open', 'Revenue'), tile('secret', 'Emails')],
+                    tabs: [],
+                }),
+            },
+        });
+        Object.assign(
+            (service as never as { asyncQueryService: object })
+                .asyncQueryService,
+            {
+                executeDashboardChartQueryAndGetResults,
+            },
+        );
+
+        const result = await service.runForDelivery({
+            scheduler: dashboardScheduler,
+            createdBy: 'user',
+        });
+
+        expect(executeDashboardChartQueryAndGetResults).toHaveBeenCalledTimes(
+            2,
+        );
+        const { content } = aiService.generateDeliverySummary.mock.calls[0][1];
+        expect(content).toContain('Revenue');
+        expect(content).not.toContain('Emails');
+        expect(result?.message).toBe(
+            'summary\n\n1 chart left out by AI access rules',
+        );
+    });
+
+    test('skips delivery results that used a hidden field', async () => {
+        const { service, asyncQueryService, aiService } = setup(false);
+        asyncQueryService.getRawAsyncQueryResults.mockImplementation(
+            async ({ queryUuid }: { queryUuid: string }) => {
+                if (queryUuid !== 'open') throw neverRefusal();
+                return { rows: [], fields: {}, truncated: false };
+            },
+        );
+
+        const result = await service.runForDelivery({
+            scheduler,
+            createdBy: 'user',
+            deliveryQueries: [
+                { chartName: 'Revenue', queryUuid: 'open' },
+                { chartName: 'Emails', queryUuid: 'secret-1' },
+                { chartName: 'Phones', queryUuid: 'secret-2' },
+            ],
+        });
+
+        expect(aiService.generateDeliverySummary).toHaveBeenCalledOnce();
+        expect(result?.message).toBe(
+            'summary\n\n2 charts left out by AI access rules',
+        );
+    });
+
+    test('does not call the model when every chart is left out', async () => {
+        const { service, asyncQueryService, aiService } = setup(false);
+        asyncQueryService.executeSavedChartQueryAndGetResults.mockRejectedValue(
+            neverRefusal(),
+        );
+
+        const result = await service.runForDelivery({
+            scheduler,
+            createdBy: 'user',
+        });
+
+        expect(aiService.generateDeliverySummary).not.toHaveBeenCalled();
+        expect(result?.message).toBe('1 chart left out by AI access rules');
+    });
+});

@@ -15410,20 +15410,29 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         user,
         projectUuid,
         prompt,
+        availableTags,
     }: {
         user: SessionUser;
         projectUuid: string;
         prompt: string;
+        availableTags: string[] | null;
     }): Promise<Array<{ candidate: FieldCandidate; tableName: string }>> {
         if (!user.organizationUuid) return [];
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
+        const [userAttributes, filteredExplores] = await Promise.all([
+            this.userAttributesModel.getAttributeValuesForOrgMember({
                 organizationUuid: user.organizationUuid,
                 userUuid: user.userUuid,
-            });
+            }),
+            this.aiAgentToolsService.getAvailableExplores({
+                user,
+                projectUuid,
+                availableTags,
+            }),
+        ]);
         const { data } = await this.catalogService.searchCatalog({
             projectUuid,
             userAttributes,
+            filteredExplores,
             catalogSearch: { searchQuery: prompt, type: CatalogType.Field },
             context: CatalogSearchContext.AI_AGENT,
             paginateArgs: { page: 1, pageSize: 25 },
@@ -15503,6 +15512,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 user,
                 projectUuid: prompt.projectUuid,
                 prompt: prompt.prompt,
+                availableTags: agent.tags,
             }).catch(() => []),
             this.contentVerificationModel
                 .getVerifiedFieldUsage(prompt.projectUuid)

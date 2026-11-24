@@ -37,9 +37,11 @@ import {
     DEFAULT_DATA_APP_CODEX_MODEL,
     DEFAULT_DATA_APP_VIZ_LIST_SORT,
     DirectAccessResourceType,
+    exploreHasAiAccessRules,
     extractDataAppDataReferences,
     extractLockfilePackages,
     FeatureFlags,
+    filterExploreForAi,
     FilterOperator,
     ForbiddenError,
     formatPromptWithClarifications,
@@ -50,6 +52,8 @@ import {
     getDocumentRuntimeChartConfig,
     getEffectiveFieldAiHints,
     getErrorMessage,
+    getItemId,
+    getProjectAiAccessRules,
     getSdkFeaturesForTarget,
     getSdkFeatureTargetForTemplate,
     getVisibleDataAppClaudeModels,
@@ -1899,6 +1903,23 @@ export class AppGenerateService extends BaseService {
         return (await this.areDataAppCapturesEnabled(organizationUuid))
             ? fileIds
             : [];
+    }
+
+    private async isAiAccessNeverEnabledForProject(
+        projectUuid: string,
+        builder?: { userUuid: string; organizationUuid: string },
+    ): Promise<boolean> {
+        const organizationUuid =
+            builder?.organizationUuid ??
+            (await this.projectModel.getSummary(projectUuid)).organizationUuid;
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                organizationUuid,
+                ...(builder ? { userUuid: builder.userUuid } : {}),
+            },
+            featureFlagId: FeatureFlags.AiAccessNever,
+        });
+        return enabled;
     }
 
     async dataAppsEnabledFor(user: SessionUser): Promise<boolean> {
@@ -3986,13 +4007,25 @@ export class AppGenerateService extends BaseService {
                     this.catalogModel.getChartUsageByTable(projectUuid),
                     this.projectModel.getTablesConfiguration(projectUuid),
                 ]);
-            const explores = Object.values(exploresByUuid)
+            const selectedExplores = Object.values(exploresByUuid)
                 .filter(
                     (explore): explore is Explore => !isExploreError(explore),
                 )
                 .filter((explore) =>
                     isExploreIncludedInTableSelection(explore, tableSelection),
                 );
+            const hideFromAi =
+                selectedExplores.some(exploreHasAiAccessRules) &&
+                (await this.isAiAccessNeverEnabledForProject(
+                    projectUuid,
+                    builder,
+                ));
+            const explores = hideFromAi
+                ? selectedExplores.flatMap((explore) => {
+                      const visible = filterExploreForAi(explore);
+                      return visible ? [visible] : [];
+                  })
+                : selectedExplores;
             const catalog = AppGenerateService.exploresToModelFiles(
                 explores,
                 chartUsageByTable,
@@ -7761,8 +7794,33 @@ export class AppGenerateService extends BaseService {
     private async buildCatalogSummaryForClarifier(
         projectUuid: string,
     ): Promise<string> {
-        const items =
-            await this.catalogModel.getCatalogItemsSummary(projectUuid);
+        const [allItems, aiAccessNeverEnabled] = await Promise.all([
+            this.catalogModel.getCatalogItemsSummary(projectUuid),
+            this.isAiAccessNeverEnabledForProject(projectUuid),
+        ]);
+        let items = allItems;
+        if (aiAccessNeverEnabled) {
+            const { hiddenTables, hiddenFieldIds } = getProjectAiAccessRules(
+                Object.values(
+                    await this.projectModel.getAllExploresFromCache(
+                        projectUuid,
+                    ),
+                ).filter(
+                    (explore): explore is Explore => !isExploreError(explore),
+                ),
+            );
+            items = allItems.filter(
+                (item) =>
+                    !hiddenTables.has(item.tableName) &&
+                    (item.type !== 'field' ||
+                        !hiddenFieldIds.has(
+                            getItemId({
+                                table: item.tableName,
+                                name: item.name,
+                            }),
+                        )),
+            );
+        }
         const byTable = new Map<
             string,
             { dimensions: string[]; metrics: string[] }

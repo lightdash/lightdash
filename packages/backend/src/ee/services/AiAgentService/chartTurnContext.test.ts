@@ -106,3 +106,37 @@ test.each<[string, VersionKind[]]>([
         `version-${history.length}`,
     );
 });
+
+test('the edit shortcut searches only fields the agent may see', async () => {
+    const visibleExplores = [{ name: 'orders' }];
+    const getAvailableExplores = vi.fn().mockResolvedValue(visibleExplores);
+    const searchCatalog = vi.fn().mockResolvedValue({ data: [] });
+    const service = new AiAgentService({
+        userAttributesModel: {
+            getAttributeValuesForOrgMember: vi.fn().mockResolvedValue({}),
+        },
+        aiAgentToolsService: { getAvailableExplores },
+        catalogService: { searchCatalog },
+    } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
+    const user = toSessionUser(buildAccount());
+
+    await (
+        service as unknown as {
+            searchAddableCatalogFields: (args: unknown) => Promise<unknown>;
+        }
+    ).searchAddableCatalogFields({
+        user,
+        projectUuid: 'project',
+        prompt: 'by email',
+        availableTags: ['ai'],
+    });
+
+    expect(getAvailableExplores).toHaveBeenCalledWith({
+        user,
+        projectUuid: 'project',
+        availableTags: ['ai'],
+    });
+    expect(searchCatalog).toHaveBeenCalledWith(
+        expect.objectContaining({ filteredExplores: visibleExplores }),
+    );
+});

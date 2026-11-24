@@ -676,3 +676,110 @@ describe('AppGenerateService external connection linking', () => {
         expect(linkToApp).not.toHaveBeenCalled();
     });
 });
+
+describe('AppGenerateService catalog with ai_access: never', () => {
+    const field = (table: string, name: string, extra = {}) => ({
+        fieldType: 'dimension',
+        type: 'string',
+        name,
+        label: name,
+        table,
+        tableLabel: table,
+        sql: `\${TABLE}.${name}`,
+        compiledSql: `${table}.${name}`,
+        tablesReferences: [table],
+        hidden: false,
+        ...extra,
+    });
+    const explore = {
+        name: 'customers',
+        label: 'Customers',
+        tags: [],
+        baseTable: 'customers',
+        joinedTables: [],
+        targetDatabase: 'postgres',
+        tables: {
+            customers: {
+                name: 'customers',
+                label: 'Customers',
+                database: 'db',
+                schema: 'public',
+                sqlTable: 'customers',
+                dimensions: {
+                    name: field('customers', 'name'),
+                    email: field('customers', 'email', { aiAccess: 'never' }),
+                },
+                metrics: {},
+                lineageGraph: {},
+            },
+        },
+    };
+
+    it.each([
+        [true, false],
+        [false, true],
+    ])(
+        'flag %s: the sandbox catalog includes the hidden field = %s',
+        async (enabled, included) => {
+            const sandbox = makeSandbox();
+            const { service, featureFlagModel } = buildService();
+            featureFlagModel.get.mockImplementation(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    enabled:
+                        featureFlagId === FeatureFlags.AiAccessNever
+                            ? enabled
+                            : true,
+                }),
+            );
+            vi.spyOn(
+                service as unknown as PrivateWithSamples,
+                'resolveExternalConnectionSamples',
+            ).mockResolvedValue([]);
+            const privateService = service as unknown as {
+                writeCatalogAndPrompt: (...args: unknown[]) => Promise<unknown>;
+                projectModel: Record<string, import('vitest').Mock>;
+                projectParametersModel: { find: import('vitest').Mock };
+            };
+            privateService.projectModel = {
+                getAllExploresFromCache: vi
+                    .fn()
+                    .mockResolvedValue({ customers: explore }),
+                getTablesConfiguration: vi.fn().mockResolvedValue({
+                    tableSelection: {
+                        type: TableSelectionType.ALL,
+                        value: null,
+                    },
+                }),
+                getSummary: vi
+                    .fn()
+                    .mockResolvedValue({ organizationUuid: 'org-1' }),
+            };
+            privateService.projectParametersModel = {
+                find: vi.fn().mockResolvedValue([]),
+            };
+
+            await privateService.writeCatalogAndPrompt(
+                sandbox,
+                'app-1',
+                'project-1',
+                'build me an app',
+                undefined,
+                {} as never,
+                'bucket',
+                undefined,
+                undefined,
+            );
+
+            const tar = sandbox.files.write.mock.calls.find(
+                ([path]) => path === '/tmp/dbt-repo/models.tar',
+            )?.[1] as ArrayBuffer | Uint8Array | Blob;
+            const bytes =
+                tar instanceof Blob
+                    ? new Uint8Array(await tar.arrayBuffer())
+                    : new Uint8Array(tar);
+            const written = Buffer.from(bytes).toString('latin1');
+            expect(written).toContain('customers');
+            expect(written.includes('email')).toBe(included);
+        },
+    );
+});

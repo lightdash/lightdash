@@ -13,6 +13,7 @@ import {
     exploreHasAiAccessRules,
     filterExploreForAi,
     getAiAccessRules,
+    getProjectAiAccessRules,
     metricQueryUsesAiHiddenData,
 } from './aiAccess';
 
@@ -355,5 +356,17 @@ describe('metricQueryUsesAiHiddenData', () => {
                 }),
             ),
         ).toBe(false);
+    });
+});
+
+describe('getProjectAiAccessRules', () => {
+    it('combines the rules of every explore', () => {
+        const rules = getProjectAiAccessRules([
+            buildExplore({ ordersAiAccess: 'never' }),
+        ]);
+
+        expect(rules.hiddenTables.has('orders')).toBe(true);
+        expect(rules.hiddenFieldIds.has('customers_email')).toBe(true);
+        expect(rules.hiddenFieldIds.has('customers_name')).toBe(false);
     });
 });
