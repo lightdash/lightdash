@@ -12062,7 +12062,6 @@ export class AiAgentService extends BaseService {
         });
     }
 
-    /** The project's API connections the user may query, offered as composer api nodes. */
     /** The integrations an agent can use: all of them, or those sharing a tag with it. */
     private async getAgentLiveSources(
         user: SessionUser,

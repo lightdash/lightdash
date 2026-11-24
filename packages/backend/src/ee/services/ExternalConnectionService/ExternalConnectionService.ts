@@ -1019,6 +1019,24 @@ export class ExternalConnectionService extends BaseService {
             data.tags === undefined
                 ? undefined
                 : ExternalConnectionService.parseLiveSourceTags(data.tags);
+        // A hint or tags only reach the explores, so they need no scan
+        const { aiHint: _aiHint, tags: _tags, ...settings } = data;
+        const changesOnlyExploreDetails =
+            (data.aiHint !== undefined || data.tags !== undefined) &&
+            Object.entries(settings).every(
+                ([key, value]) =>
+                    value === undefined ||
+                    isEqual(value, existing[key as keyof ExternalConnection]),
+            );
+        const changesTags =
+            tags !== undefined && !isEqual(tags, existing.tags ?? []);
+        // Other changes sync the explores without failing the save, which
+        // could leave them on the old tags
+        if (changesTags && !changesOnlyExploreDetails) {
+            throw new ParameterError(
+                'Save tags on their own, without other settings',
+            );
+        }
         if (data.type !== undefined && data.type !== existing.type) {
             ExternalConnectionService.assertNotSignInType(data.type);
         }
@@ -1092,22 +1110,13 @@ export class ExternalConnectionService extends BaseService {
         ) {
             await this.scheduleApiSourceSchemaScan(account, updated);
         }
-        // A hint or tags only reach the explores, so they need no scan
-        const { aiHint: _aiHint, tags: _tags, ...settings } = data;
-        const changesOnlyHint =
-            (data.aiHint !== undefined || data.tags !== undefined) &&
-            Object.entries(settings).every(
-                ([key, value]) =>
-                    value === undefined ||
-                    isEqual(value, existing[key as keyof ExternalConnection]),
-            );
-        if (changesOnlyHint && updated.apiSource) {
-            await this.rebuildAfterHintChange(
+        if (changesOnlyExploreDetails && updated.apiSource) {
+            await this.rebuildAfterExploreDetailsChange(
                 account,
                 existing,
                 updated,
                 updated.apiSource,
-                tags !== undefined && !isEqual(tags, existing.tags ?? []),
+                changesTags,
             );
             return updated;
         }
@@ -1131,9 +1140,9 @@ export class ExternalConnectionService extends BaseService {
     /**
      * A hint or tags need no scan. A hint reaches the prompt either way, so a
      * failed rebuild only logs. Tags decide which agents see the explores, so
-     * a failed rebuild puts the old tags back to match them.
+     * a failed rebuild puts the old tags and hint back to match them.
      */
-    private async rebuildAfterHintChange(
+    private async rebuildAfterExploreDetailsChange(
         account: RegisteredAccount,
         existing: ExternalConnection,
         connection: ExternalConnection,
@@ -1144,11 +1153,20 @@ export class ExternalConnectionService extends BaseService {
             await this.rebuildApiSourceExplores(connection, apiSource);
         } catch (error) {
             if (changesTags) {
-                await this.externalConnectionModel.update(
-                    connection.externalConnectionUuid,
-                    account.user.id,
-                    { tags: existing.tags ?? [] },
-                );
+                await this.externalConnectionModel
+                    .update(
+                        connection.externalConnectionUuid,
+                        account.user.id,
+                        {
+                            tags: existing.tags ?? [],
+                            aiHint: existing.aiHint ?? null,
+                        },
+                    )
+                    .catch((rollbackError) =>
+                        this.logger.error(
+                            `Failed to restore the tags of live data source ${connection.externalConnectionUuid}: ${getErrorMessage(rollbackError)}`,
+                        ),
+                    );
                 throw error;
             }
             this.logger.error(
