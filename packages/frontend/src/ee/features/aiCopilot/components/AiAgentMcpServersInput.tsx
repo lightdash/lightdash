@@ -41,12 +41,12 @@ import {
     IconPlug,
     IconPlugConnected,
     IconRefresh,
+    IconSettings,
     IconTrash,
 } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
-import { BetaBadge } from '../../../../components/common/BetaBadge';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import useToaster from '../../../../hooks/toaster/useToaster';
@@ -556,7 +556,7 @@ const AttachMcpServersModal = ({
     onChange: (value: string[]) => void;
     onClose: () => void;
     onSubmit: () => void;
-    onManage: () => void;
+    onManage: (() => void) | null;
 }) => {
     const hasAttachableOptions = options.some(
         (option) => option.value !== CREATE_NEW_MCP_OPTION_VALUE,
@@ -569,6 +569,19 @@ const AttachMcpServersModal = ({
             title="Add MCP"
             icon={IconPlug}
             cancelLabel={false}
+            leftActions={
+                onManage && (
+                    <Button
+                        variant="subtle"
+                        color="ldGray"
+                        size="xs"
+                        leftSection={<MantineIcon icon={IconSettings} />}
+                        onClick={onManage}
+                    >
+                        Manage MCP servers
+                    </Button>
+                )
+            }
             actions={
                 <Button
                     onClick={onSubmit}
@@ -617,16 +630,6 @@ const AttachMcpServersModal = ({
                         No existing MCP servers available yet.
                     </Text>
                 )}
-                <Anchor
-                    size="xs"
-                    component="button"
-                    type="button"
-                    ta="left"
-                    w="fit-content"
-                    onClick={onManage}
-                >
-                    Manage MCP servers
-                </Anchor>
             </Stack>
         </MantineModal>
     );
@@ -812,6 +815,7 @@ export const AiAgentMcpServersInput = ({
         !isGithubConnectedToAgent;
     const showGithubConnectButton =
         canOneClickConnectGithub || showGithubAppNudge;
+    const hasMcpServers = (mcpServers?.length ?? 0) > 0;
 
     const selectedMcpServers = useMemo(
         () =>
@@ -1398,7 +1402,20 @@ export const AiAgentMcpServersInput = ({
             <AgentSettingsSubsection
                 title="MCP servers"
                 description="External tool servers this agent can call. Adding or removing one applies immediately, without saving the page."
-                badge={<BetaBadge />}
+                badge={
+                    hasMcpServers && (
+                        <Button
+                            variant="subtle"
+                            color="ldGray"
+                            size="compact-xs"
+                            leftSection={<MantineIcon icon={IconSettings} />}
+                            onClick={openManageMcpServersModal}
+                            disabled={isPersistingSelection}
+                        >
+                            Manage
+                        </Button>
+                    )
+                }
                 action={
                     selectedMcpServers.length > 0 && (
                         <Group align="center" gap="sm" wrap="wrap">
@@ -1444,14 +1461,6 @@ export const AiAgentMcpServersInput = ({
                             <Button
                                 variant="default"
                                 size="compact-xs"
-                                onClick={openManageMcpServersModal}
-                                disabled={isPersistingSelection}
-                            >
-                                Manage MCPs
-                            </Button>
-                            <Button
-                                variant="default"
-                                size="compact-xs"
                                 onClick={openAttachMcpServersModal}
                                 disabled={isPersistingSelection}
                             >
@@ -1471,17 +1480,6 @@ export const AiAgentMcpServersInput = ({
                                 <Group gap="xs">
                                     {showGithubConnectButton &&
                                         renderGithubConnectButton('xs')}
-                                    <Button
-                                        variant="default"
-                                        size="xs"
-                                        disabled={
-                                            isLoadingMcpServers ||
-                                            isPersistingSelection
-                                        }
-                                        onClick={openManageMcpServersModal}
-                                    >
-                                        Manage MCPs
-                                    </Button>
                                     <Button
                                         variant="default"
                                         size="xs"
@@ -1797,7 +1795,7 @@ export const AiAgentMcpServersInput = ({
                 options={availableMcpServerOptions}
                 value={attachSelection}
                 onChange={handleAttachSelectionChange}
-                onManage={openManageMcpServersModal}
+                onManage={hasMcpServers ? openManageMcpServersModal : null}
             />
             <ManageMcpServersModal
                 opened={isManageMcpServersModalOpen}
