@@ -18,6 +18,36 @@ export const retiredAnalyticsDashboards: readonly string[] = [
 // Charts, each with the slug of the dashboard it belonged to. A chart is only removed while it still
 // belongs to that dashboard.
 export const retiredAnalyticsCharts: Readonly<Record<string, string>> = {
+    // Adoption became People: its restatements of other dashboards were removed, and the data app
+    // tiles moved to Data apps under new slugs
+    'lightdash-analytics-adoption-adoption-dashboard-audience':
+        'lightdash-analytics-adoption',
+    'lightdash-analytics-adoption-adoption-app-audience':
+        'lightdash-analytics-adoption',
+    'lightdash-analytics-adoption-adoption-apps-created-by-day':
+        'lightdash-analytics-adoption',
+    'lightdash-analytics-adoption-adoption-app-creators':
+        'lightdash-analytics-adoption',
+    'lightdash-analytics-adoption-adoption-app-reader-trend':
+        'lightdash-analytics-adoption',
+    'lightdash-analytics-adoption-adoption-app-reader-detail':
+        'lightdash-analytics-adoption',
+    'lightdash-analytics-adoption-adoption-app-first-audience':
+        'lightdash-analytics-adoption',
+    'lightdash-analytics-adoption-adoption-app-outcome-trend':
+        'lightdash-analytics-adoption',
+    'lightdash-analytics-adoption-adoption-app-outcome-detail':
+        'lightdash-analytics-adoption',
+    'lightdash-analytics-adoption-adoption-ask-ai-questions':
+        'lightdash-analytics-adoption',
+    'lightdash-analytics-adoption-adoption-ask-ai-people':
+        'lightdash-analytics-adoption',
+    'lightdash-analytics-adoption-adoption-ask-ai-frequency':
+        'lightdash-analytics-adoption',
+    'lightdash-analytics-adoption-adoption-ask-ai-users':
+        'lightdash-analytics-adoption',
+    'lightdash-analytics-adoption-adoption-ask-ai-agents':
+        'lightdash-analytics-adoption',
     'lightdash-analytics-adoption-adoption-apps-created':
         'lightdash-analytics-adoption',
     'lightdash-analytics-adoption-adoption-people-history':
