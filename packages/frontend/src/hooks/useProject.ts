@@ -16,6 +16,7 @@ import {
     type MostPopularAndRecentlyUpdated,
     type Project,
     type UpdateAgentSqlScope,
+    type UpdateAiExcludedTags,
     type UpdateDefaultUserSpaces,
     type UpdateProject,
     type UpdateQueryTimezoneSettings,
@@ -438,6 +439,49 @@ export const useProjectUpdateAgentSqlScope = (uuid: string) => {
                     uuid,
                 ]);
                 await queryClient.invalidateQueries(['project', uuid]);
+            },
+        },
+    );
+};
+
+const getAiExcludedTags = async (lightdashApi: LightdashApi, uuid: string) =>
+    lightdashApi<string[]>({
+        url: `/projects/${uuid}/aiExcludedTags`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useAiExcludedTags = (uuid: string) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<string[], ApiError>({
+        queryKey: ['project_ai_excluded_tags', uuid],
+        queryFn: () => getAiExcludedTags(lightdashApi, uuid),
+    });
+};
+
+const updateAiExcludedTags = async (
+    lightdashApi: LightdashApi,
+    uuid: string,
+    data: UpdateAiExcludedTags,
+) =>
+    lightdashApi<undefined>({
+        url: `/projects/${uuid}/aiExcludedTags`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+
+export const useProjectUpdateAiExcludedTags = (uuid: string) => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+    return useMutation<undefined, ApiError, UpdateAiExcludedTags>(
+        (data) => updateAiExcludedTags(lightdashApi, uuid, data),
+        {
+            mutationKey: ['project_ai_excluded_tags_update', uuid],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries([
+                    'project_ai_excluded_tags',
+                    uuid,
+                ]);
             },
         },
     );

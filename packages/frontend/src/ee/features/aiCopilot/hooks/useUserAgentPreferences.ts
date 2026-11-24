@@ -169,10 +169,15 @@ export const useDeleteUserAgentPreferences = (projectUuid: string) => {
     });
 };
 
+type AgentExploreAccessSummaryPayload = {
+    tags: string[] | null;
+    excludedTags?: string[] | null;
+};
+
 const getAgentExploreAccessSummary = (
     lightdashApi: LightdashApi,
     projectUuid: string,
-    payload: { tags: string[] | null },
+    payload: AgentExploreAccessSummaryPayload,
 ) =>
     lightdashApi<ApiAiAgentExploreAccessSummaryResponse['results']>({
         url: `/projects/${projectUuid}/aiAgents/explore-access-summary`,
@@ -182,7 +187,7 @@ const getAgentExploreAccessSummary = (
 
 export const useGetAgentExploreAccessSummary = (
     projectUuid: string,
-    payload: { tags: string[] | null },
+    payload: AgentExploreAccessSummaryPayload,
 ) => {
     const lightdashApi = useLightdashApi();
 
@@ -195,6 +200,7 @@ export const useGetAgentExploreAccessSummary = (
             projectUuid,
             'exploreAccessSummary',
             payload.tags,
+            payload.excludedTags,
         ],
         queryFn: () =>
             getAgentExploreAccessSummary(lightdashApi, projectUuid, payload),

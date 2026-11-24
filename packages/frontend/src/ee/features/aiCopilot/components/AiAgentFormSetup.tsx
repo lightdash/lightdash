@@ -98,6 +98,7 @@ const formSchema = z.object({
         }),
     ),
     tags: z.array(z.string()).nullable(),
+    excludedTags: z.array(z.string()).nullable(),
     instruction: z.string().nullable(),
     imageUrl: z.string().url().nullable(),
     groupAccess: z.array(z.string()),
@@ -251,10 +252,18 @@ export const AiAgentFormSetup = ({
         }
         return options;
     }, [providerCredentialsQuery.data, pinnedCredentialUuid]);
+    const aiExcludedTagsFlagQuery = useServerFeatureFlag(
+        FeatureFlags.AiExcludedTags,
+    );
+    const isExcludedTagsEnabled =
+        aiExcludedTagsFlagQuery.data?.enabled === true;
     const exploreAccessSummaryQuery = useGetAgentExploreAccessSummary(
         projectUuid!,
         {
             tags: form.values.tags,
+            ...(isExcludedTagsEnabled && {
+                excludedTags: form.values.excludedTags,
+            }),
         },
     );
 
@@ -853,6 +862,23 @@ export const AiAgentFormSetup = ({
                                         );
                                     }}
                                 />
+
+                                {isExcludedTagsEnabled && (
+                                    <TagsInput
+                                        variant="subtle"
+                                        mt="md"
+                                        label="Excluded tags"
+                                        description="Hide models, metrics and dimensions with these tags from this agent. Excluded tags win over the tags above."
+                                        placeholder="Select tags"
+                                        value={form.values.excludedTags ?? []}
+                                        onChange={(value) => {
+                                            form.setFieldValue(
+                                                'excludedTags',
+                                                value.length > 0 ? value : null,
+                                            );
+                                        }}
+                                    />
+                                )}
 
                                 {exploreAccessSummaryQuery.isSuccess ? (
                                     <Collapse

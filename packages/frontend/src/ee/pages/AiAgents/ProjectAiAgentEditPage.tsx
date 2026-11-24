@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     MAX_RETENTION_WINDOW_HOURS,
     MIN_RETENTION_WINDOW_HOURS,
     ProjectType,
@@ -45,6 +46,7 @@ import {
 import sidebarDrawerClasses from '../../../components/common/SidebarDrawer.module.css';
 import { useProjects } from '../../../hooks/useProjects';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import { AgentSettingsActionBar } from '../../features/aiCopilot/components/AgentSettingsActionBar';
 import { AgentSettingsSectionNav } from '../../features/aiCopilot/components/AgentSettingsSectionNav';
@@ -101,6 +103,7 @@ const formSchema = z.object({
         }),
     ),
     tags: z.array(z.string()).nullable(),
+    excludedTags: z.array(z.string()).nullable(),
     instruction: z.string().nullable(),
     imageUrl: z.string().url().nullable(),
     groupAccess: z.array(z.string()),
@@ -177,6 +180,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             description: null,
             integrations: [],
             tags: null,
+            excludedTags: null,
             instruction: null,
             imageUrl: null,
             groupAccess: [],
@@ -217,6 +221,10 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     serviceAccountUuid: integration.serviceAccountUuid ?? null,
                 })),
                 tags: agent.tags && agent.tags.length > 0 ? agent.tags : null,
+                excludedTags:
+                    agent.excludedTags && agent.excludedTags.length > 0
+                        ? agent.excludedTags
+                        : null,
                 instruction: agent.instruction,
                 imageUrl: agent.imageUrl,
                 groupAccess: agent.groupAccess ?? [],
@@ -259,6 +267,11 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
 
     const isSaving = isCreatingAgent || isUpdatingAgent || isUploadingAvatar;
 
+    const { data: aiExcludedTagsFlag } = useServerFeatureFlag(
+        FeatureFlags.AiExcludedTags,
+    );
+    const isExcludedTagsEnabled = aiExcludedTagsFlag?.enabled === true;
+
     // Lets the intentional post-save navigation through the unsaved-changes
     // blocker, whose captured state is a render behind resetDirty().
     const isLeavingAfterSaveRef = useRef(false);
@@ -272,10 +285,15 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
         [navigate, location.state],
     );
 
-    const handleSubmit = form.onSubmit(async (values) => {
+    const handleSubmit = form.onSubmit(async (formValues) => {
         if (!projectUuid || !user?.data) {
             return;
         }
+
+        const { excludedTags, ...valuesWithoutExcludedTags } = formValues;
+        const values = isExcludedTagsEnabled
+            ? { ...valuesWithoutExcludedTags, excludedTags }
+            : valuesWithoutExcludedTags;
 
         if (isCreateMode) {
             const createdAgent = await createAgent({

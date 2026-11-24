@@ -22,6 +22,7 @@ const agent: AiAgentSummary = {
     description: null,
     integrations: [],
     tags: null,
+    excludedTags: null,
     projectUuid: 'project-1',
     organizationUuid: 'org-1',
     createdAt: new Date(0),

@@ -63,6 +63,7 @@ import ProjectPreviewExpiration from '../ProjectPreviewExpiration';
 import ProjectResultsCache from '../ProjectResultsCache';
 import ProjectTablesConfiguration from '../ProjectTablesConfiguration/ProjectTablesConfiguration';
 import SettingsAgentDataScope from '../SettingsAgentDataScope';
+import SettingsAiExcludedTags from '../SettingsAiExcludedTags';
 import SettingsQueryTimezone from '../SettingsQueryTimezone';
 import SettingsScheduler from '../SettingsScheduler';
 import SettingsUsageAnalytics from '../SettingsUsageAnalytics';
@@ -126,6 +127,10 @@ const ProjectSettings: FC<{
         useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { data: agentIdentityFlag, isLoading: isAgentIdentityFlagLoading } =
         useServerFeatureFlag(FeatureFlags.AgentIdentity);
+    const { data: aiExcludedTagsFlag } = useServerFeatureFlag(
+        FeatureFlags.AiExcludedTags,
+    );
+    const isAiExcludedTagsEnabled = aiExcludedTagsFlag?.enabled === true;
     const canManageAgentIdentity =
         agentIdentityFlag?.enabled === true &&
         !!project &&
@@ -380,11 +385,22 @@ const ProjectSettings: FC<{
                           element: (
                               <ProjectSettingsPage
                                   title="Agent data scope"
-                                  description="Limit which schemas an AI agent can read when it writes raw SQL."
+                                  description={
+                                      isAiExcludedTagsEnabled
+                                          ? 'Limit which schemas and tagged data AI can read.'
+                                          : 'Limit which schemas an AI agent can read when it writes raw SQL.'
+                                  }
                               >
-                                  <SettingsAgentDataScope
-                                      projectUuid={projectUuid}
-                                  />
+                                  <Stack gap="lg">
+                                      <SettingsAgentDataScope
+                                          projectUuid={projectUuid}
+                                      />
+                                      {isAiExcludedTagsEnabled && (
+                                          <SettingsAiExcludedTags
+                                              projectUuid={projectUuid}
+                                          />
+                                      )}
+                                  </Stack>
                               </ProjectSettingsPage>
                           ),
                       },
@@ -644,6 +660,7 @@ const ProjectSettings: FC<{
         project,
         canViewContentReviewSettings,
         isAiCopilotEnabledOrTrial,
+        isAiExcludedTagsEnabled,
         canManageOrgAiAgent,
     ]);
     const routesElements = useRoutes(routes);

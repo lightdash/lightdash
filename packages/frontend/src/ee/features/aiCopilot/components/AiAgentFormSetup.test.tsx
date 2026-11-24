@@ -71,6 +71,7 @@ const AgentForm = ({
             description: null,
             integrations: [],
             tags: null,
+            excludedTags: null,
             instruction: null,
             imageUrl: null,
             groupAccess: ['operations'],
