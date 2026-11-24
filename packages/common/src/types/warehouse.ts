@@ -442,7 +442,12 @@ export type WarehouseTableMetadata = {
     tableType: WarehouseTableType | typeof METRIC_VIEW_TABLE_TYPE;
     comment: string | null;
     /** Top-level columns in warehouse order; `isMeasure` marks a metric view's measures. */
-    columns: { name: string; comment: string | null; isMeasure: boolean }[];
+    columns: {
+        name: string;
+        type: DimensionType;
+        comment: string | null;
+        isMeasure: boolean;
+    }[];
     /** View or metric-view source, cut to `TABLE_DEFINITION_MAX_LENGTH` characters plus a marker. */
     definition: { text: string; truncated: boolean } | null;
 };

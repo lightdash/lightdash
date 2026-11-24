@@ -462,6 +462,11 @@ const getDescribedTableMetadata = (
                 ? [
                       {
                           name: column.name,
+                          type: mapFieldType(
+                              isRecord(column.type)
+                                  ? describeNode(column.type).typeName
+                                  : DatabricksTypes.STRING,
+                          ),
                           comment: nonEmptyString(column.comment),
                           isMeasure: column.is_measure === true,
                       },

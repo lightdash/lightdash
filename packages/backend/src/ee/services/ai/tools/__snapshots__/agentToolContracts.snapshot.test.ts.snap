@@ -123,9 +123,20 @@ For explore-backed tables use grepFields and getMetadata; to find a table's name
                               "name": {
                                 "type": "string",
                               },
+                              "type": {
+                                "enum": [
+                                  "string",
+                                  "number",
+                                  "timestamp",
+                                  "date",
+                                  "boolean",
+                                ],
+                                "type": "string",
+                              },
                             },
                             "required": [
                               "name",
+                              "type",
                               "comment",
                               "isMeasure",
                             ],

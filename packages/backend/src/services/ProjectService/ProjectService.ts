@@ -196,6 +196,7 @@ import {
     MergeQueryMetricSource,
     mergeReservedDefinitions,
     mergeWarehouseCredentials,
+    METRIC_VIEW_TABLE_TYPE,
     MetricQuery,
     MetricType,
     MIN_RESULTS_CACHE_TTL_SECONDS,
@@ -15675,8 +15676,15 @@ export class ProjectService
                 table: resolved,
                 queryTags,
             }) => {
-                const [fields, partitioning, metadata] = await Promise.all([
-                    this.getTableFields(warehouseClient, resolved, queryTags),
+                const [listed, partitioning, metadata] = await Promise.all([
+                    this.getTableFields(
+                        warehouseClient,
+                        resolved,
+                        queryTags,
+                    ).then(
+                        (columns) => ({ columns, error: null }),
+                        (error: unknown) => ({ columns: null, error }),
+                    ),
                     warehouseClient
                         .getTablePartitioning(
                             resolved.tableName,
@@ -15706,7 +15714,29 @@ export class ProjectService
                               })
                         : null,
                 ]);
-                return { ...fields, partitioning, metadata, warehouseType };
+                if (metadata?.tableType === METRIC_VIEW_TABLE_TYPE) {
+                    // Columns come from the describe, so a metric view needs no probe that selects from it
+                    return {
+                        fields: Object.fromEntries(
+                            metadata.columns.map((column) => [
+                                column.name,
+                                listed.columns?.fields[column.name] ??
+                                    column.type,
+                            ]),
+                        ),
+                        nativeTypes: listed.columns?.nativeTypes ?? {},
+                        partitioning,
+                        metadata,
+                        warehouseType,
+                    };
+                }
+                if (listed.columns === null) throw listed.error;
+                return {
+                    ...listed.columns,
+                    partitioning,
+                    metadata,
+                    warehouseType,
+                };
             },
         );
     }
