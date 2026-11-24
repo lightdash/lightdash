@@ -14,6 +14,7 @@ import {
     type SemanticLayerDraftUsage,
     type SemanticLayerTouchedField,
     type SemanticLayerModelCode,
+    type SemanticLayerOthersDraftModel,
     type SemanticLayerStatus,
     type SemanticLayerStoredModels,
     type SemanticStudioBranchCompile,
@@ -223,7 +224,7 @@ export const useAppliesAsPullRequest = (projectUuid: string): boolean =>
     useSemanticLayerStatus(projectUuid)?.appliesAs === 'pull_request';
 
 /** How publishing lands: live here, merged into the repository, or as a pull request for someone who can merge it. */
-type PublishMode = 'live' | 'merge' | 'pull_request';
+export type PublishMode = 'live' | 'merge' | 'pull_request';
 
 export const usePublishMode = (projectUuid: string): PublishMode => {
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
@@ -284,6 +285,33 @@ export const useSemanticLayerDraft = (
         undefined,
         withDraftDefaults,
     );
+
+/** One model as someone else's draft leaves it, read-only; nothing is read while closed. */
+export const useOthersDraftModel = (
+    projectUuid: string,
+    ownerUuid: string,
+    model: string,
+    enabled: boolean,
+) =>
+    useGet<SemanticLayerOthersDraftModel>(
+        [DRAFT_KEY, projectUuid, 'others', ownerUuid, model],
+        projectUuid,
+        `/drafts/${ownerUuid}/models/${encodeURIComponent(model)}`,
+        enabled,
+    );
+
+/** Takes one model out of someone else's stale draft; a project admin only. */
+export const useDiscardOthersDraftModel = (projectUuid: string) =>
+    useWrite<undefined, { ownerUuid: string; model: string }>({
+        projectUuid,
+        request: ({ ownerUuid, model }) => ({
+            path: `/drafts/${ownerUuid}/models/${encodeURIComponent(model)}`,
+            method: 'DELETE',
+            body: undefined,
+        }),
+        errorTitle: 'Could not discard their draft',
+        changesLive: false,
+    });
 
 /** One of this person's workspaces, replayed on what is live; nothing is read for null. */
 export const useSemanticLayerWorkspaceDraft = (

@@ -11,6 +11,7 @@ import {
     isPullRequestOpen,
     SEMANTIC_STUDIO_PROJECT_CONTEXT_FILE,
     type SemanticLayerBlocker,
+    type SemanticLayerDrafter,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -300,9 +301,9 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             ),
             others: new Map(
                 (draft?.othersDrafting ?? []).map(
-                    ({ model, drafters }): [string, string[]] => [
+                    ({ model, drafters }): [string, SemanticLayerDrafter[]] => [
                         model,
-                        drafters.map(({ name }) => name),
+                        drafters,
                     ],
                 ),
             ),
@@ -598,7 +599,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             : hasDraftChanges
               ? {
                     name: 'Draft',
-                    hint: 'Only you see these changes until you publish them.',
+                    hint: 'Not live until you publish. Others can see them, but only you can change them.',
                 }
               : null;
     // Only models with YAML here have a file: a deployed model's YAML lives where it was deployed from.

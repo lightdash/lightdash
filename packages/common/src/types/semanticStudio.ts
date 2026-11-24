@@ -297,7 +297,29 @@ export type SemanticLayerDraftReconciliation = {
 };
 
 /** Someone else with a draft of a model, and the parts of it they are changing. */
-export type SemanticLayerDrafter = { name: string; paths: string[] };
+export type SemanticLayerDrafter = {
+    userUuid: string;
+    name: string;
+    paths: string[];
+    /** When they last added to their draft. */
+    lastActiveAt: Date;
+    /** No activity for a week or more. */
+    isStale: boolean;
+    /** Whether the viewer may discard this model's part of their draft: a project admin, once it is stale. */
+    canDiscard: boolean;
+};
+
+/** One model as someone else's draft leaves it, against what is live; read-only. */
+export type SemanticLayerOthersDraftModel = {
+    model: string;
+    /** Null when their draft creates the model. */
+    contentBefore: string | null;
+    /** Null when their draft removes the model. */
+    contentAfter: string | null;
+};
+
+export type ApiSemanticLayerOthersDraftModelResponse =
+    ApiSuccess<SemanticLayerOthersDraftModel>;
 
 /** A model as the draft leaves it, against what is live. */
 export type SemanticLayerDraftModel = {

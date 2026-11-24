@@ -39,6 +39,7 @@ import {
     ModelDocumentsChangedError,
     type ChangeSet,
     type DraftImpactCheck,
+    type OtherDrafter,
     type ProjectModelDocumentModel,
     type StoredDraftChange,
 } from '../../models/ProjectModelDocumentModel';
@@ -90,6 +91,29 @@ const REVENUE_YAML = `dimensions:
         type: sum
 `;
 
+const OTHER_UUID = '00000000-0000-0000-0000-000000000004';
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const otherDrafter = ({
+    name = 'Person A',
+    lastActiveAt = new Date(),
+    changes,
+}: {
+    name?: string;
+    lastActiveAt?: Date;
+    changes: ReturnType<typeof draftModel>[][];
+}): OtherDrafter => ({
+    userUuid: OTHER_UUID,
+    name,
+    models: [...new Set(changes.flat().map((model) => model.name))],
+    lastActiveAt,
+    changes: changes.map((models, index) => ({
+        draftChangeUuid: `other-change-${index}`,
+        workspaceUuid: 'other-workspace',
+        models,
+    })),
+});
+
 const withAbility = (
     rules: ConstructorParameters<typeof Ability<PossibleAbilities>>[0],
 ): SessionUser => ({
@@ -103,6 +127,10 @@ const deployer = withAbility([
     { subject: 'Project', action: 'view' },
 ]);
 const viewer = withAbility([]);
+const projectAdmin = withAbility([
+    { subject: 'DeployProject', action: 'manage' },
+    { subject: 'Project', action: 'manage' },
+]);
 const repoWriter = withAbility([
     { subject: 'DeployProject', action: 'manage' },
     { subject: 'Project', action: 'view' },
@@ -173,11 +201,7 @@ const setup = ({
     liveContext = [],
 }: {
     stored?: { name: string; content: string; version?: number }[];
-    otherDrafters?: {
-        name: string;
-        models: string[];
-        changes: ReturnType<typeof draftModel>[][];
-    }[];
+    otherDrafters?: OtherDrafter[];
     /** Changes sent as pull requests that are still open. */
     inReview?: {
         pullRequestUrl: string;
@@ -1679,14 +1703,12 @@ dimensions:
             const at = new Date('2026-01-02T00:00:00Z');
             const context = setup({
                 otherDrafters: [
-                    {
+                    otherDrafter({
                         name: 'Ada Lovelace',
-                        models: ['orders'],
                         changes: [[draftModel('label: Sales\n')]],
-                    },
-                    {
+                    }),
+                    otherDrafter({
                         name: 'Alan Turing',
-                        models: ['customers'],
                         changes: [
                             [
                                 draftModel('label: People\n', {
@@ -1694,7 +1716,7 @@ dimensions:
                                 }),
                             ],
                         ],
-                    },
+                    }),
                 ],
                 publishedSince: new Map([
                     ['orders', { by: 'Grace Hopper', at, isYours: false }],
@@ -1714,7 +1736,14 @@ dimensions:
             expect(draft.models).toEqual([
                 expect.objectContaining({
                     model: 'orders',
-                    alsoChanging: [{ name: 'Ada Lovelace', paths: ['label'] }],
+                    alsoChanging: [
+                        expect.objectContaining({
+                            name: 'Ada Lovelace',
+                            paths: ['label'],
+                            isStale: false,
+                            canDiscard: false,
+                        }),
+                    ],
                     publishedSince: { by: 'Grace Hopper', at, isYours: false },
                 }),
             ]);
@@ -1742,6 +1771,119 @@ dimensions:
                 contentAfter: expect.stringContaining('revenue:'),
             },
         ]);
+    });
+
+    describe("someone else's draft", () => {
+        const stale = () =>
+            otherDrafter({
+                lastActiveAt: new Date(Date.now() - 8 * DAY_MS),
+                changes: [[draftModel('label: Sales\n')]],
+            });
+        const recent = () =>
+            otherDrafter({
+                lastActiveAt: new Date(Date.now() - DAY_MS),
+                changes: [[draftModel('label: Sales\n')]],
+            });
+
+        it('marks a draft stale after a week, and only an admin may discard it', async () => {
+            const context = setup({ otherDrafters: [stale()] });
+            const drafterAs = async (person: SessionUser) =>
+                (await context.service.getDraft(person, PROJECT_UUID))
+                    .othersDrafting[0].drafters[0];
+            expect(await drafterAs(projectAdmin)).toEqual(
+                expect.objectContaining({
+                    userUuid: OTHER_UUID,
+                    isStale: true,
+                    canDiscard: true,
+                }),
+            );
+            expect(await drafterAs(deployer)).toEqual(
+                expect.objectContaining({ isStale: true, canDiscard: false }),
+            );
+        });
+
+        it('shows their draft of a model against live', async () => {
+            const context = setup({ otherDrafters: [recent()] });
+            const shown = await context.service.getOthersDraftModel(
+                deployer,
+                PROJECT_UUID,
+                OTHER_UUID,
+                'orders',
+            );
+            expect(shown.contentBefore).toBe(orders);
+            expect(shown.contentAfter).toContain('label: Sales');
+            await expect(
+                context.service.getOthersDraftModel(
+                    viewer,
+                    PROJECT_UUID,
+                    OTHER_UUID,
+                    'orders',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            await expect(
+                context.service.getOthersDraftModel(
+                    deployer,
+                    PROJECT_UUID,
+                    OTHER_UUID,
+                    'customers',
+                ),
+            ).rejects.toThrow(NotFoundError);
+        });
+
+        it('lets an admin discard a stale draft of a model, as its owner', async () => {
+            const context = setup({ otherDrafters: [stale()] });
+            const update = vi.spyOn(
+                context.projectModelDocumentModel,
+                'updateDraftChangeStatus',
+            );
+            await context.service.discardOthersDraftModel(
+                projectAdmin,
+                PROJECT_UUID,
+                OTHER_UUID,
+                'orders',
+            );
+            expect(update).toHaveBeenCalledWith({
+                projectUuid: PROJECT_UUID,
+                userUuid: OTHER_UUID,
+                workspaceUuid: 'other-workspace',
+                drafts: { changeUuids: ['other-change-0'], model: 'orders' },
+                status: 'discarded',
+                pullRequestUrl: null,
+            });
+        });
+
+        it.each([
+            ['someone who is not an admin', deployer, stale],
+            ['an admin, but the draft is not stale', projectAdmin, recent],
+            ['someone who cannot use Studio', viewer, stale],
+        ])('refuses %s', async (_case, person, drafter) => {
+            const context = setup({ otherDrafters: [drafter()] });
+            const update = vi.spyOn(
+                context.projectModelDocumentModel,
+                'updateDraftChangeStatus',
+            );
+            await expect(
+                context.service.discardOthersDraftModel(
+                    person,
+                    PROJECT_UUID,
+                    OTHER_UUID,
+                    'orders',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(update).not.toHaveBeenCalled();
+        });
+
+        it('only ever reaches other people, never the viewer', async () => {
+            const context = setup({ otherDrafters: [stale()] });
+            await expect(
+                context.service.discardOthersDraftModel(
+                    projectAdmin,
+                    PROJECT_UUID,
+                    USER_UUID,
+                    'orders',
+                ),
+            ).rejects.toThrow(NotFoundError);
+        });
     });
 
     describe('reconciling the draft with live', () => {

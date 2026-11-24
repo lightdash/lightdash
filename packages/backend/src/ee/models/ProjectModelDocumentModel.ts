@@ -85,6 +85,21 @@ export type DraftImpactCheck = {
     startedAt: Date;
 };
 
+/** Someone else's open draft on a project. */
+export type OtherDrafter = {
+    userUuid: string;
+    name: string;
+    models: string[];
+    /** When they last added to their draft. */
+    lastActiveAt: Date;
+    /** Their draft, oldest change first. */
+    changes: {
+        draftChangeUuid: string;
+        workspaceUuid: string | null;
+        models: SemanticLayerDraftModelInput[];
+    }[];
+};
+
 /** How a check ended: with what the draft breaks, or without an answer. */
 export type DraftImpactOutcome =
     | { status: 'done'; breaks: DraftImpactBreaks }
@@ -421,18 +436,11 @@ export class ProjectModelDocumentModel {
         );
     }
 
-    /** The models other people have unpublished changes to, with who; never what the changes are. */
+    /** The models other people have unpublished changes to, with who and when they last changed their draft. */
     async findOtherDrafters(
         projectUuid: string,
         userUuid: string,
-    ): Promise<
-        {
-            name: string;
-            models: string[];
-            /** Their draft, oldest change first. */
-            changes: SemanticLayerDraftModelInput[][];
-        }[]
-    > {
+    ): Promise<OtherDrafter[]> {
         const rows = await this.database(ProjectModelDraftChangesTableName)
             .innerJoin(
                 UserTableName,
@@ -444,12 +452,18 @@ export class ProjectModelDocumentModel {
                     userUuid: string;
                     firstName: string;
                     lastName: string;
+                    draftChangeUuid: string;
+                    workspaceUuid: string | null;
+                    createdAt: Date;
                     models: SemanticLayerDraftModelInput[];
                 }[]
             >({
                 userUuid: `${UserTableName}.user_uuid`,
                 firstName: `${UserTableName}.first_name`,
                 lastName: `${UserTableName}.last_name`,
+                draftChangeUuid: `${ProjectModelDraftChangesTableName}.project_model_draft_change_uuid`,
+                workspaceUuid: `${ProjectModelDraftChangesTableName}.workspace_uuid`,
+                createdAt: `${ProjectModelDraftChangesTableName}.created_at`,
                 models: `${ProjectModelDraftChangesTableName}.models`,
             })
             .where(
@@ -464,6 +478,7 @@ export class ProjectModelDocumentModel {
             .orderBy(`${ProjectModelDraftChangesTableName}.created_at`, 'asc');
         return Object.values(groupBy(rows, (row) => row.userUuid)).map(
             (changes) => ({
+                userUuid: changes[0].userUuid,
                 name: `${changes[0].firstName} ${changes[0].lastName}`.trim(),
                 models: [
                     ...new Set(
@@ -472,7 +487,18 @@ export class ProjectModelDocumentModel {
                         ),
                     ),
                 ],
-                changes: changes.map(({ models }) => models),
+                lastActiveAt: new Date(
+                    Math.max(
+                        ...changes.map(({ createdAt }) => createdAt.getTime()),
+                    ),
+                ),
+                changes: changes.map(
+                    ({ draftChangeUuid, workspaceUuid, models }) => ({
+                        draftChangeUuid,
+                        workspaceUuid,
+                        models,
+                    }),
+                ),
             }),
         );
     }
