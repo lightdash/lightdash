@@ -4,8 +4,8 @@ import path from 'path';
 import Logger from '../logging/logger';
 import {
     DBT_PARTIAL_PARSE_FILE,
+    getDbtPartialParseBaseline,
     getDbtPartialParseBaselineLimits,
-    getDbtPartialParseBaselinePath,
     getDbtPartialParseBaselineSize,
     pruneDbtPartialParseBaselines,
     saveDbtPartialParse,
@@ -139,32 +139,36 @@ describe('dbt partial parse baselines', () => {
     });
 
     it('keys a baseline by project and dbt source', () => {
-        const projectConnection = getDbtPartialParseBaselinePath({
+        const projectConnection = getDbtPartialParseBaseline({
             projectUuid: 'project-a',
             dbtSourceUuid: null,
             root: store,
-        });
+            access: 'read-write',
+        }).path;
 
         expect(
-            getDbtPartialParseBaselinePath({
+            getDbtPartialParseBaseline({
                 projectUuid: 'project-a',
                 dbtSourceUuid: null,
                 root: store,
-            }),
+                access: 'read-write',
+            }).path,
         ).toBe(projectConnection);
         expect(
             new Set([
                 projectConnection,
-                getDbtPartialParseBaselinePath({
+                getDbtPartialParseBaseline({
                     projectUuid: 'project-a',
                     dbtSourceUuid: 'source-1',
                     root: store,
-                }),
-                getDbtPartialParseBaselinePath({
+                    access: 'read-write',
+                }).path,
+                getDbtPartialParseBaseline({
                     projectUuid: 'project-b',
                     dbtSourceUuid: null,
                     root: store,
-                }),
+                    access: 'read-write',
+                }).path,
             ]).size,
         ).toBe(3);
         expect(path.dirname(projectConnection)).toBe(store);

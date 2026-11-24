@@ -1,6 +1,5 @@
 import {
     BigqueryAuthenticationType,
-    FeatureFlags,
     ProjectMemberRole,
     ProjectMemberRoleLabels,
     usesBigqueryWorkloadIdentity,
@@ -45,7 +44,6 @@ import {
     useBigqueryProjects,
     useIsBigQueryAuthenticated,
 } from '../../../hooks/useBigquerySSO';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -109,12 +107,8 @@ export const BigQuerySchemaInput: FC<{
         isAuthenticated && isSso,
         debouncedProject,
     );
-    const isNewOnboarding =
-        useServerFeatureFlag(FeatureFlags.NewOnboarding).data?.enabled === true;
     const keyfileContents =
-        isNewOnboarding &&
-        form.values.warehouse?.type === WarehouseTypes.BIGQUERY &&
-        !isSso
+        form.values.warehouse?.type === WarehouseTypes.BIGQUERY && !isSso
             ? form.values.warehouse.keyfileContents
             : undefined;
     const keyfileDatasets = useBigqueryKeyfileDatasets(keyfileContents);
@@ -354,13 +348,7 @@ const BigQueryForm: FC<{
     const defaultAuthenticationType =
         getBigqueryDefaultAuthenticationType(isGoogleSsoAvailable);
 
-    const warehouseConnectFlag = useServerFeatureFlag(
-        FeatureFlags.NewOnboarding,
-    );
-    const shouldDefaultToSso =
-        !savedProject &&
-        (warehouseConnectFlag.data?.enabled ?? false) &&
-        isGoogleSsoAvailable;
+    const shouldDefaultToSso = !savedProject && isGoogleSsoAvailable;
     useEffect(() => {
         if (shouldDefaultToSso && !form.isTouched()) {
             form.setFieldValue(

@@ -28,6 +28,7 @@ import {
     useWarehouseConnectCodeClaim,
 } from '../../../hooks/useWarehouseConnectCode';
 import useApp from '../../../providers/App/useApp';
+import { getOnboardingFlow } from '../../../providers/Tracking/onboardingFlow';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
@@ -147,9 +148,7 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
     const { health } = useApp();
     const { track } = useTracking();
     const { pathname } = useLocation();
-    const onboardingFlow = pathname.startsWith('/onboarding/')
-        ? 'new'
-        : 'legacy';
+    const onboardingFlow = getOnboardingFlow(pathname);
     const form = useFormContext();
     const siteUrl = health.data?.siteUrl ?? '';
     const mint = useMintWarehouseConnectCode();

@@ -69,6 +69,11 @@ export type ApiSourceFieldRule = {
     apiName: string;
     /** Empty when the API can't filter on the field. */
     filterOperators: FilterOperator[];
+    /**
+     * Display labels by the API's internal value, for fields that show an
+     * option's label: filters on the field turn labels back into values.
+     */
+    valueLabels?: Record<string, string>;
 };
 
 /** Fields the API refuses to return in the same query. */

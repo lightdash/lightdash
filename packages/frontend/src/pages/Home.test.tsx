@@ -21,9 +21,6 @@ vi.mock('../hooks/useProjectUuid', () => ({
     useProjectUuid: () => homepageFlag.projectUuid,
 }));
 vi.mock('../hooks/useQueryError', () => ({ default: () => vi.fn() }));
-vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: false } }),
-}));
 vi.mock('../providers/App/useApp', () => ({
     default: () => ({
         user: {
@@ -148,6 +145,7 @@ describe('homepage content loading', () => {
                 dbtConnection: { type: 'manual' },
                 pinnedListUuid: 'pins-1',
             },
+            '/org': { createdAt: '2020-01-01' },
             '/org/onboardingStatus': { ranQuery: true },
             '/projects/project-1/homepage': resolvedHomepage,
             '/projects/project-1/favorites': [],

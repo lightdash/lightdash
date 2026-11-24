@@ -251,6 +251,21 @@ export const mergeProjectContextEntry = (
     return { entries, entryId, op };
 };
 
+/** The entries with each update put in place of the entry sharing its id, or added at the end. */
+export const upsertProjectContextEntries = (
+    existing: ProjectContextEntry[],
+    updates: ProjectContextEntry[],
+): ProjectContextEntry[] =>
+    updates.reduce(
+        (entries, update) =>
+            entries.some(({ id }) => id === update.id)
+                ? entries.map((entry) =>
+                      entry.id === update.id ? update : entry,
+                  )
+                : [...entries, update],
+        existing,
+    );
+
 // Prepended when the file is first generated so the artifact a reviewer is asked
 // to merge explains itself. Survives later edits because the writeback path
 // preserves leading comments.

@@ -59,6 +59,8 @@ const useGet = <T extends ApiResponse['results']>(
     isPending: (data: T) => boolean = () => false,
     /** How often to read again otherwise; false never does. */
     idlePollMs: number | false = false,
+    /** Shapes what the server answered before it is cached. */
+    read: (data: T) => T = (data) => data,
 ) => {
     const lightdashApi = useLightdashApi();
     // Not asked for at all while this read is off: some callers sit on pages everyone opens.
@@ -72,7 +74,7 @@ const useGet = <T extends ApiResponse['results']>(
                 url: toUrl(projectUuid, path),
                 method: 'GET',
                 body: undefined,
-            }),
+            }).then(read),
         enabled: enabled && flag.data?.enabled === true,
         refetchInterval: (data) =>
             data !== undefined && isPending(data)
@@ -259,6 +261,16 @@ export const useSemanticLayerModel = (projectUuid: string, modelName: string) =>
         modelName !== '',
     );
 
+// A server from before drafted project context leaves its fields out.
+const withDraftDefaults = (draft: SemanticLayerDraft): SemanticLayerDraft => ({
+    ...draft,
+    projectContext: draft.projectContext ?? null,
+    changes: draft.changes.map((change) => ({
+        ...change,
+        projectContextEntries: change.projectContextEntries ?? [],
+    })),
+});
+
 /** This person's draft, replayed on what is live; empty for someone who cannot change the project. */
 export const useSemanticLayerDraft = (
     projectUuid: string,
@@ -269,6 +281,9 @@ export const useSemanticLayerDraft = (
         projectUuid,
         '/draft',
         enabled,
+        undefined,
+        undefined,
+        withDraftDefaults,
     );
 
 /** One model as someone else's draft leaves it, read-only; nothing is read while closed. */
@@ -308,6 +323,9 @@ export const useSemanticLayerWorkspaceDraft = (
         projectUuid,
         `/workspaces/${workspaceUuid ?? ''}/draft`,
         workspaceUuid !== null,
+        undefined,
+        undefined,
+        withDraftDefaults,
     );
 
 /**

@@ -11,6 +11,7 @@ import { cliArgs, manifestMock } from './dbtCliClient.mock';
 import {
     DBT_PARTIAL_PARSE_FILE,
     getDbtPartialParseBaselineLimits,
+    type DbtPartialParseBaseline,
 } from './dbtPartialParseBaseline';
 
 vi.mock('execa');
@@ -68,12 +69,15 @@ describe('DbtCliClient partial parse', () => {
     let baselinePath: string;
     let clients: DbtCliClient[];
 
-    const buildClient = (partialParseBaselinePath: string | null) => {
+    const buildClient = (
+        access: DbtPartialParseBaseline['access'] | null = 'read-write',
+    ) => {
         const client = new DbtCliClient({
             ...cliArgs,
             dbtProjectDirectory: root,
             dbtVersion: SupportedDbtVersions.V1_11,
-            partialParseBaselinePath,
+            partialParseBaseline:
+                access === null ? null : { path: baselinePath, access },
         });
         clients.push(client);
         return client;
@@ -98,7 +102,7 @@ describe('DbtCliClient partial parse', () => {
         fakeDbt(runs, 'this compile');
         const info = vi.spyOn(Logger, 'info');
 
-        await buildClient(baselinePath).getDbtManifest();
+        await buildClient().getDbtManifest();
 
         expect(runs).toEqual([
             { partialParseEnv: 'true', seeded: 'previous compile' },
@@ -118,9 +122,47 @@ describe('DbtCliClient partial parse', () => {
         );
     });
 
+    it.each([true, false])(
+        'branch parse and ls leave the live baseline untouched (warm=%s)',
+        async (warm) => {
+            if (warm) {
+                await fs.mkdir(path.dirname(baselinePath));
+                await fs.writeFile(baselinePath, 'live');
+            }
+            const runs: DbtRun[] = [];
+            fakeDbt(runs, 'branch');
+            const info = vi.spyOn(Logger, 'info');
+            const client = buildClient('read-only');
+            await client.test();
+            const liveContents = () =>
+                fs
+                    .readFile(baselinePath, 'utf8')
+                    .catch((error: NodeJS.ErrnoException) => {
+                        if (error.code === 'ENOENT') return null;
+                        throw error;
+                    });
+            expect(await liveContents()).toBe(warm ? 'live' : null);
+            await client.getDbtManifest();
+            expect(await liveContents()).toBe(warm ? 'live' : null);
+            expect(runs).toEqual([
+                { partialParseEnv: 'true', seeded: warm ? 'live' : null },
+                { partialParseEnv: 'true', seeded: 'branch' },
+            ]);
+            expect(info).toHaveBeenCalledWith(
+                expect.stringContaining('baselineAccess=read-only'),
+                expect.objectContaining({
+                    command: 'parse',
+                    baselineAccess: 'read-only',
+                    status: 'skipped',
+                    seeded: warm,
+                }),
+            );
+        },
+    );
+
     it('keeps the baseline when adapter disk is released before destroy', async () => {
         fakeDbt([], 'leaf_a baseline');
-        const client = buildClient(baselinePath);
+        const client = buildClient();
         const adapter = new DbtBaseProjectAdapter(
             client,
             warehouseClientMock,
@@ -145,7 +187,7 @@ describe('DbtCliClient partial parse', () => {
         fakeDbt(runs, 'first compile');
         const info = vi.spyOn(Logger, 'info');
 
-        await buildClient(baselinePath).getDbtManifest();
+        await buildClient().getDbtManifest();
 
         expect(runs).toEqual([{ partialParseEnv: 'true', seeded: null }]);
         await expect(fs.readFile(baselinePath, 'utf8')).resolves.toBe(
@@ -165,7 +207,7 @@ describe('DbtCliClient partial parse', () => {
         fakeDbt([], 'full parse', [unableToPartialParseLog]);
         const info = vi.spyOn(Logger, 'info');
 
-        await buildClient(baselinePath).getDbtManifest();
+        await buildClient().getDbtManifest();
 
         expect(info).toHaveBeenCalledWith(
             expect.stringMatching(
@@ -187,7 +229,7 @@ describe('DbtCliClient partial parse', () => {
         const runs: DbtRun[] = [];
         fakeDbt(runs, 'parsed once');
 
-        const client = buildClient(baselinePath);
+        const client = buildClient();
         await client.test();
         await client.getDbtManifest();
 
@@ -217,7 +259,7 @@ describe('DbtCliClient partial parse', () => {
         const info = vi.spyOn(Logger, 'info');
         const capBytes = getDbtPartialParseBaselineLimits().maxBytes;
 
-        await buildClient(baselinePath).getDbtManifest();
+        await buildClient().getDbtManifest();
 
         expect(info).toHaveBeenCalledWith(
             `dbt.partialParse command=ls seeded=false reused=false reason="Unable to do partial parsing because saved manifest not found. Starting full parse." status=saved baselineBytes=13 cacheBytes=13 capBytes=${capBytes} prunedFiles=0 prunedBytes=0 prunedOwnBaseline=false dbtParseEvents=UnableToPartialParse,ParsedFileLoadFailed`,
@@ -239,6 +281,7 @@ describe('DbtCliClient partial parse', () => {
                     'UnableToPartialParse',
                     'ParsedFileLoadFailed',
                 ],
+                baselineAccess: 'read-write',
             },
         );
         expect(
@@ -254,7 +297,7 @@ describe('DbtCliClient partial parse', () => {
         const warn = vi.spyOn(Logger, 'warn');
         const capBytes = getDbtPartialParseBaselineLimits().maxBytes;
 
-        await buildClient(baselinePath).getDbtManifest();
+        await buildClient().getDbtManifest();
 
         expect(info).toHaveBeenCalledWith(
             `dbt.partialParse command=ls seeded=false reused=false status=no_file baselineBytes=null cacheBytes=0 capBytes=${capBytes} prunedFiles=0 prunedBytes=0 prunedOwnBaseline=false dbtParseEvents=none`,
@@ -284,7 +327,7 @@ describe('DbtCliClient partial parse', () => {
         );
         const info = vi.spyOn(Logger, 'info');
 
-        await buildClient(baselinePath).getDbtManifest();
+        await buildClient().getDbtManifest();
 
         expect(info).toHaveBeenCalledWith(
             expect.stringMatching(

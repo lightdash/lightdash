@@ -126,6 +126,7 @@ const studioInput = (canRunSql: boolean): LoadoutInput => ({
     enableEditProjectContext: false,
     isSemanticStudioThread: true,
     semanticStudioDrafts: false,
+    semanticStudioKeepsContext: false,
     enableReadAttachments: false,
     enableReadPinnedThread: false,
     enableAskUser: false,
@@ -229,9 +230,7 @@ const runAsk = async (prompt: string, canRunSql: boolean) => {
             repoFsRoot: '.',
             studio: getSemanticStudioTurn(loadout, {
                 drafts: false,
-                hasRepository: true,
                 projectMap: null,
-                siteUrl: '',
                 repoFsRoot: '.',
                 repoFsSupportsCodeSearch: true,
             }),

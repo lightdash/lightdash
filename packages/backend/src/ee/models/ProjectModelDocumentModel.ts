@@ -1,5 +1,6 @@
 import {
     NotFoundError,
+    type ProjectContextEntry,
     type SemanticLayerDraftModelInput,
     type SemanticLayerModelChange,
     type SemanticLayerModelCode,
@@ -47,6 +48,8 @@ export type StoredDraftChange = {
     models: SemanticLayerDraftModelInput[];
     /** The version each model was at when the change was made; null when that was not recorded. */
     baseVersions: Record<string, number | null> | null;
+    /** Project context entries the change adds or replaces by id; null when it touches none. */
+    projectContextEntries: ProjectContextEntry[] | null;
 };
 
 export type ChangeSet = {
@@ -69,6 +72,7 @@ type NewDraftChange = DraftOwner & {
     promptUuid: string | null;
     models: SemanticLayerDraftModelInput[];
     baseVersions: Record<string, number | null> | null;
+    projectContextEntries: ProjectContextEntry[] | null;
 };
 
 /** One workspace's draft alone, without changes from before drafts had workspaces. */
@@ -283,6 +287,7 @@ export class ProjectModelDocumentModel {
                 createdAt: `${ProjectModelDraftChangesTableName}.created_at`,
                 models: `${ProjectModelDraftChangesTableName}.models`,
                 baseVersions: `${ProjectModelDraftChangesTableName}.base_versions`,
+                projectContextEntries: `${ProjectModelDraftChangesTableName}.project_context_entries`,
             })
             .orderBy(`${ProjectModelDraftChangesTableName}.created_at`, 'asc');
     }
@@ -703,6 +708,7 @@ export class ProjectModelDocumentModel {
             promptUuid,
             models,
             baseVersions,
+            projectContextEntries,
         }: NewDraftChange,
         database: Knex = this.database,
     ): Promise<string> {
@@ -718,6 +724,10 @@ export class ProjectModelDocumentModel {
                         baseVersions === null
                             ? null
                             : JSON.stringify(baseVersions),
+                    project_context_entries:
+                        projectContextEntries === null
+                            ? null
+                            : JSON.stringify(projectContextEntries),
                 })
                 .returning('project_model_draft_change_uuid');
         return draftChangeUuid;
@@ -893,25 +903,31 @@ export class ProjectModelDocumentModel {
         drafts,
         status,
         pullRequestUrl,
+        withSettled,
         ...owner
     }: DraftOwner & {
         drafts: DraftSelection;
         status: SettledDraftChangeStatus;
         /** The pull request an applied draft was sent as; null for anything else. */
         pullRequestUrl: string | null;
+        /** Runs in the same transaction once the rows are settled, given how many were; a throw settles nothing. */
+        withSettled?: (trx: Knex.Transaction, settled: number) => Promise<void>;
     }): Promise<number> {
-        return this.database.transaction((trx) =>
-            ProjectModelDocumentModel.updateSelectedDraftChanges(
-                trx,
-                owner,
-                drafts,
-                {
-                    status,
-                    applied_change_set_uuid: null,
-                    applied_pull_request_url: pullRequestUrl,
-                },
-            ),
-        );
+        return this.database.transaction(async (trx) => {
+            const settled =
+                await ProjectModelDocumentModel.updateSelectedDraftChanges(
+                    trx,
+                    owner,
+                    drafts,
+                    {
+                        status,
+                        applied_change_set_uuid: null,
+                        applied_pull_request_url: pullRequestUrl,
+                    },
+                );
+            await withSettled?.(trx, settled);
+            return settled;
+        });
     }
 
     /** Writes documents, revisions and a change set, then runs `deploy`, under a per-project lock; throws ModelDocumentsChangedError on a stale read. */
@@ -920,6 +936,7 @@ export class ProjectModelDocumentModel {
             source,
             readVersions,
             documents,
+            withSettled,
             ...owner
         }: DraftOwner & {
             source: ChangeSetSource;
@@ -927,6 +944,8 @@ export class ProjectModelDocumentModel {
             readVersions: Map<string, number>;
             /** Content null deletes the document. */
             documents: { name: string; content: string | null }[];
+            /** Runs in the same transaction once the draft's rows are settled; a throw writes nothing. */
+            withSettled?: (trx: Knex.Transaction) => Promise<void>;
         },
         deploy: () => Promise<T>,
     ): Promise<{ changeSetUuid: string; deployed: T }> {
@@ -1059,6 +1078,7 @@ export class ProjectModelDocumentModel {
                         applied_pull_request_url: null,
                     },
                 );
+                await withSettled?.(trx);
             }
 
             // Deploy inside the lock so two writers never deploy out of order.

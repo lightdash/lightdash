@@ -22,6 +22,11 @@ export const DBT_PARTIAL_PARSE_BASELINE_LIMITS = {
     abandonedWriteAgeMs: 60 * 60 * 1000,
 };
 
+export type DbtPartialParseBaseline = {
+    path: string;
+    access: 'read-only' | 'read-write';
+};
+
 type BaselineLimits = typeof DBT_PARTIAL_PARSE_BASELINE_LIMITS;
 
 export const getDbtPartialParseBaselineLimits = (
@@ -61,22 +66,27 @@ export const getDbtPartialParseBaselineSize = (
  * One baseline per project and dbt source. `dbtSourceUuid` is null for the
  * project's own dbt connection.
  */
-export const getDbtPartialParseBaselinePath = ({
+export const getDbtPartialParseBaseline = ({
     projectUuid,
     dbtSourceUuid,
     root = DBT_PARTIAL_PARSE_BASELINE_ROOT,
+    access,
 }: {
     projectUuid: string;
     dbtSourceUuid: string | null;
     root?: string;
-}): string =>
-    path.join(
+    /** read-only for a compile whose parse state must not replace the live one, such as a branch. */
+    access: DbtPartialParseBaseline['access'];
+}): DbtPartialParseBaseline => ({
+    access,
+    path: path.join(
         root,
         `${createHash('sha256')
             .update(`${projectUuid}:${dbtSourceUuid ?? 'project'}`)
             .digest('hex')
             .slice(0, 32)}${BASELINE_EXTENSION}`,
-    );
+    ),
+});
 
 const isMissingFileError = (error: unknown) =>
     error instanceof Error && 'code' in error && error.code === 'ENOENT';
@@ -113,7 +123,7 @@ export type DbtPartialParsePruneResult = {
 };
 
 export type DbtPartialParseSaveOutcome = {
-    status: 'saved' | 'no_file' | 'failed';
+    status: 'saved' | 'skipped' | 'no_file' | 'failed';
     baselineBytes: number | null;
     cacheBytes: number;
     prunedFiles: number;

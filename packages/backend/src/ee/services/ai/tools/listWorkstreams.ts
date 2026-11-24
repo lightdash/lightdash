@@ -12,6 +12,8 @@ import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     listWorkstreams: ListWorkstreamsFn;
+    /** Studio's builder saves with write, which always joins this conversation's draft. */
+    savesWithWrite: boolean;
 };
 
 const toolDefinition = listWorkstreamsToolDefinition.for('agent');
@@ -30,6 +32,7 @@ const renderPullRequests = (
 
 const renderResult = (
     repoTarget: string | null,
+    savesWithWrite: boolean,
     {
         workstreams,
         pendingChanges,
@@ -40,7 +43,11 @@ const renderResult = (
     const lines: string[] = [];
     if (workstreams.length > 0) {
         lines.push(
-            `${plural(workstreams.length, 'pull request')} opened in this conversation${scope}. To continue one, pass its URL as the edit tool's \`prUrl\`; for an unrelated change, set \`startNewPullRequest\`:`,
+            `${plural(workstreams.length, 'pull request')} opened in this conversation${scope}${
+                savesWithWrite
+                    ? ':'
+                    : ". To continue one, pass its URL as the edit tool's `prUrl`; for an unrelated change, set `startNewPullRequest`:"
+            }`,
             ...renderPullRequests(workstreams),
         );
     }
@@ -51,7 +58,7 @@ const renderResult = (
         lines.push(
             `${plural(pendingChanges.length, 'change')} started ${plural(oldest, 'minute')} ago ${
                 pendingChanges.length === 1 ? 'is' : 'are'
-            } still being opened; the pull request will appear here when done.`,
+            } still being ${savesWithWrite ? 'saved' : 'opened'}; the pull request will appear here when done.`,
         );
     }
     if (lines.length === 0) {
@@ -61,14 +68,21 @@ const renderResult = (
     }
     if (otherConversations.length > 0) {
         lines.push(
-            `${plural(otherConversations.length, 'pull request')} opened by other conversations on this project${scope}. Continue one with \`prUrl\` when the change belongs to it:`,
+            `${plural(otherConversations.length, 'pull request')} opened by other conversations on this project${scope}${
+                savesWithWrite
+                    ? ':'
+                    : '. Continue one with `prUrl` when the change belongs to it:'
+            }`,
             ...renderPullRequests(otherConversations),
         );
     }
     return lines.join('\n');
 };
 
-export const getListWorkstreams = ({ listWorkstreams }: Dependencies) =>
+export const getListWorkstreams = ({
+    listWorkstreams,
+    savesWithWrite,
+}: Dependencies) =>
     tool({
         ...toolDefinition,
         execute: async ({
@@ -109,7 +123,11 @@ export const getListWorkstreams = ({ listWorkstreams }: Dependencies) =>
                     };
 
                 return {
-                    result: renderResult(repoTarget, structuredContent),
+                    result: renderResult(
+                        repoTarget,
+                        savesWithWrite,
+                        structuredContent,
+                    ),
                     metadata: { status: 'success' },
                     structuredContent,
                 };

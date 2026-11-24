@@ -17,7 +17,7 @@ it.each([true, false])(
             environmentVariableAllowlist: [],
             explicitCredentials: false,
             dbtVersion: SupportedDbtVersions.V1_12,
-            partialParseBaselinePath: null,
+            partialParseBaseline: null,
         });
         try {
             await fs.mkdir(ambientTmp);

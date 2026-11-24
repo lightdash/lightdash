@@ -629,7 +629,7 @@ export const listPublishedParts = (
               entry,
           );
 
-/** How many changes a publish carries: each part touched, and each model added or removed whole. */
+/** How many changes a publish carries: each part touched, each model added or removed whole, and each project context entry. */
 export const countPublishedChanges = (
     draft: SemanticLayerDraft,
     model: string | null,
@@ -640,4 +640,11 @@ export const countPublishedChanges = (
             (total, entry) =>
                 total + Math.max(listPublishedParts(draft, entry).length, 1),
             0,
-        );
+        ) +
+    (model === null
+        ? new Set(
+              draft.changes.flatMap(
+                  ({ projectContextEntries }) => projectContextEntries,
+              ),
+          ).size
+        : 0);

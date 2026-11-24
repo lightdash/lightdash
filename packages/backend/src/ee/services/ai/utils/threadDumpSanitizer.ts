@@ -45,6 +45,7 @@ const DUMP_TOOL_RESULT_POLICIES = {
     proposeSemanticLayerChange: 'keep',
     listChanges: 'keep',
     readSemanticModel: 'keep',
+    draftProjectContext: 'keep',
     verify: 'keep',
     read: 'keep',
     editRepo: 'keep',
