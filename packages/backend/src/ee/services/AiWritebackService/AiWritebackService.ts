@@ -102,17 +102,17 @@ import {
     type SandboxSpec,
 } from '../SandboxRuntime';
 import {
+    type DbtScriptChange,
+    type DbtScriptCheck,
+} from '../SemanticStudioService/dbtManifestPatch';
+import {
     diffLineCounts,
     runCodeMode,
     unifiedDiffs,
     validateSemanticLayerYaml,
     type CodeModeLibraries,
     type CodeModeRepo,
-} from '../SemanticStudioService/codeMode/codeMode';
-import {
-    type DbtScriptChange,
-    type DbtScriptCheck,
-} from '../SemanticStudioService/codeMode/dbtManifestPatch';
+} from './codeMode';
 import {
     ALLOWED_TOOLS,
     ASSISTANT_TEXT_TAIL_CHARS,

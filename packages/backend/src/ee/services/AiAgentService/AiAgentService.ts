@@ -531,6 +531,7 @@ import {
     resolveKeyManagement,
     resolveModelConfigForPrompt,
 } from '../ai/models';
+import { findSemanticStudioPreset } from '../ai/models/modelPreference';
 import {
     OrgAiCopilotConfigResolver,
     type AiConfigScope,
@@ -741,7 +742,8 @@ import { type ExternalConnectionService } from '../ExternalConnectionService/Ext
 import { type MobilePushNotificationService } from '../MobilePushNotificationService/MobilePushNotificationService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import { createReviewRemediationAgentWorkGuard } from '../reviewRemediationAgentWork';
-import { findSemanticStudioPreset } from '../SemanticStudioService/modelPreference';
+import { type IncrementalDbtCompileService } from '../SemanticStudioService/IncrementalDbtCompileService';
+import { type SemanticStudioCheckoutService } from '../SemanticStudioService/SemanticStudioCheckoutService';
 import { type SemanticStudioService } from '../SemanticStudioService/SemanticStudioService';
 import {
     parseAgentSelectionValue,
@@ -1100,6 +1102,8 @@ type AiAgentServiceDependencies = {
     aiWritebackService: AiWritebackService;
     projectContextService: ProjectContextService;
     semanticStudioService: SemanticStudioService;
+    semanticStudioCheckoutService: SemanticStudioCheckoutService;
+    incrementalDbtCompileService: IncrementalDbtCompileService;
     writebackPreviewService: WritebackPreviewService;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     githubAppService: GithubAppService;
@@ -1486,6 +1490,10 @@ export class AiAgentService extends BaseService {
     private readonly projectContextService: ProjectContextService;
 
     private readonly semanticStudioService: SemanticStudioService;
+
+    private readonly semanticStudioCheckoutService: SemanticStudioCheckoutService;
+
+    private readonly incrementalDbtCompileService: IncrementalDbtCompileService;
 
     private readonly writebackPreviewService: WritebackPreviewService;
 
@@ -2262,6 +2270,10 @@ export class AiAgentService extends BaseService {
         this.aiWritebackService = dependencies.aiWritebackService;
         this.projectContextService = dependencies.projectContextService;
         this.semanticStudioService = dependencies.semanticStudioService;
+        this.semanticStudioCheckoutService =
+            dependencies.semanticStudioCheckoutService;
+        this.incrementalDbtCompileService =
+            dependencies.incrementalDbtCompileService;
         this.writebackPreviewService = dependencies.writebackPreviewService;
         this.githubAppInstallationsModel =
             dependencies.githubAppInstallationsModel;
@@ -13629,7 +13641,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                                         dryRun: false,
                                         assertPublishAllowed,
                                         checkDbt: (change) =>
-                                            this.semanticStudioService.checkDbtScriptChange(
+                                            this.incrementalDbtCompileService.checkDbtScriptChange(
                                                 user,
                                                 projectUuid,
                                                 change,
@@ -13640,7 +13652,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                             if (saved?.status === 'saved') {
                                 changedModels = saved.changedModels;
                                 if (saved.explores !== null) {
-                                    await this.semanticStudioService
+                                    await this.semanticStudioCheckoutService
                                         .saveDbtScriptTryOut(
                                             user,
                                             projectUuid,
@@ -13784,7 +13796,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 result.commitSha &&
                 isSemanticStudioThread(prompt.threadCreatedFrom)
             ) {
-                await this.semanticStudioService
+                await this.semanticStudioCheckoutService
                     .queueBranchCompile(
                         user,
                         projectUuid,
@@ -14785,7 +14797,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                         dryRun: true,
                         assertPublishAllowed: null,
                         checkDbt: (change) =>
-                            this.semanticStudioService.checkDbtScriptChange(
+                            this.incrementalDbtCompileService.checkDbtScriptChange(
                                 user,
                                 projectUuid,
                                 change,
@@ -15218,12 +15230,18 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             );
 
         const verify: VerifyFn = () =>
-            this.semanticStudioService.waitForBranchCompile(user, projectUuid, {
-                threadUuid: prompt.threadUuid,
-                isSaving: () =>
-                    this.aiWritebackService.hasRunInProgress(prompt.threadUuid),
-                timeoutMs: 60_000,
-            });
+            this.semanticStudioCheckoutService.waitForBranchCompile(
+                user,
+                projectUuid,
+                {
+                    threadUuid: prompt.threadUuid,
+                    isSaving: () =>
+                        this.aiWritebackService.hasRunInProgress(
+                            prompt.threadUuid,
+                        ),
+                    timeoutMs: 60_000,
+                },
+            );
 
         // Deterministic project_context.yml writeback (no sandbox). Only wired
         // into review-remediation work threads; the source thread is linked
@@ -17548,7 +17566,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 const semanticStudioProjectMap =
                     semanticStudioStatus?.appliesAs === 'dbt_pull_request' &&
                     semanticStudioStatus.enabled
-                        ? await this.semanticStudioService.getDbtProjectMap(
+                        ? await this.incrementalDbtCompileService.getDbtProjectMap(
                               promptProject.projectUuid,
                           )
                         : null;

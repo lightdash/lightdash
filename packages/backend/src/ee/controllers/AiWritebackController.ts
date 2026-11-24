@@ -40,7 +40,10 @@ import {
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import { AiWritebackService } from '../services/AiWritebackService/AiWritebackService';
-import { type SemanticStudioService } from '../services/SemanticStudioService/SemanticStudioService';
+import {
+    pullRequestStateOf,
+    type SemanticStudioService,
+} from '../services/SemanticStudioService/SemanticStudioService';
 
 // The target repo (owner/repo) and dbt sub-folder are resolved server-side from
 // the chosen dbt source. `dbtSourceUuid` selects it when the project has more
@@ -161,14 +164,14 @@ export class AiWritebackController extends BaseController {
             .getCiService()
             .getPullRequestChecks({ user, projectUuid, prUrl, commitSha });
         if (results) {
-            const studio =
-                this.services.getSemanticStudioService<SemanticStudioService>();
-            const openOrClosed = results.state === 'open' ? 'open' : 'closed';
-            const state = results.merged ? 'merged' : openOrClosed;
-            await studio.recordPullRequestState(projectUuid, prUrl, state);
-            if (state !== 'open') {
-                await studio.retireDbtTryOut(user, projectUuid, prUrl);
-            }
+            await this.services
+                .getSemanticStudioService<SemanticStudioService>()
+                .recordPullRequestState(
+                    user,
+                    projectUuid,
+                    prUrl,
+                    pullRequestStateOf(results),
+                );
         }
         return {
             status: 'ok',
@@ -283,6 +286,7 @@ export class AiWritebackController extends BaseController {
             await this.services
                 .getSemanticStudioService<SemanticStudioService>()
                 .recordPullRequestState(
+                    toSessionUser(req.account),
                     projectUuid,
                     parsed.data.prUrl,
                     'merged',
