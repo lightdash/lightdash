@@ -1,4 +1,8 @@
-import { AI_DEFAULT_MAX_QUERY_LIMIT } from '@lightdash/common';
+import {
+    AI_DEFAULT_MAX_QUERY_LIMIT,
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
+} from '@lightdash/common';
 import { truncateCsvAtRowBoundary } from './truncation';
 
 export const MAX_ROWS_PER_CHART = AI_DEFAULT_MAX_QUERY_LIMIT;
@@ -14,12 +18,23 @@ export type SectionAccumulator = {
     parts: string[];
     remainingChars: number;
     omittedCharts: string[];
+    aiAccessExcludedCount: number;
 };
+
+export const isAiAccessNeverRefusal = (error: unknown): boolean =>
+    error instanceof AiAccessRefusedError &&
+    error.refusal.reason === AiAccessRefusalReason.AI_ACCESS_NEVER;
+
+export const getAiAccessExcludedNote = (count: number): string | null =>
+    count > 0
+        ? `${count} ${count === 1 ? 'chart' : 'charts'} left out by AI access rules`
+        : null;
 
 export const emptySectionAccumulator = (): SectionAccumulator => ({
     parts: [],
     remainingChars: MAX_CONTENT_CHARS,
     omittedCharts: [],
+    aiAccessExcludedCount: 0,
 });
 
 export const appendCsvSection = (
@@ -45,8 +60,16 @@ export const appendCsvSection = (
         parts: [...acc.parts, section],
         remainingChars: acc.remainingChars - section.length,
         omittedCharts: acc.omittedCharts,
+        aiAccessExcludedCount: acc.aiAccessExcludedCount,
     };
 };
+
+export const excludeSectionByAiAccess = (
+    acc: SectionAccumulator,
+): SectionAccumulator => ({
+    ...acc,
+    aiAccessExcludedCount: acc.aiAccessExcludedCount + 1,
+});
 
 export const omitSection = (
     acc: SectionAccumulator,
@@ -65,5 +88,8 @@ export const serializeSections = (acc: SectionAccumulator): string =>
                       ', ',
                   )}]`,
               ]
+            : []),
+        ...(getAiAccessExcludedNote(acc.aiAccessExcludedCount)
+            ? [`[${getAiAccessExcludedNote(acc.aiAccessExcludedCount)}]`]
             : []),
     ].join('\n\n');

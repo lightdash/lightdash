@@ -313,3 +313,16 @@ export const metricQueryUsesAiHiddenData = (
         ...tableCalculationRefs,
     ].some(isHiddenId);
 };
+
+export const getProjectAiAccessRules = (
+    explores: AiAccessExplore[],
+): Pick<AiAccessRules, 'hiddenTables' | 'hiddenFieldIds'> => {
+    const hiddenTables = new Set<string>();
+    const hiddenFieldIds = new Set<string>();
+    explores.filter(exploreHasAiAccessRules).forEach((explore) => {
+        const rules = getAiAccessRules(explore);
+        rules.hiddenTables.forEach((table) => hiddenTables.add(table));
+        rules.hiddenFieldIds.forEach((fieldId) => hiddenFieldIds.add(fieldId));
+    });
+    return { hiddenTables, hiddenFieldIds };
+};

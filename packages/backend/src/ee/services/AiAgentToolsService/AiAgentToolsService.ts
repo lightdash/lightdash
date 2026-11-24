@@ -25,6 +25,7 @@ import {
     documentAsCodeSchema,
     doesPatchTouchSqlChartSql,
     Explore,
+    exploreHasAiAccessRules,
     ExploreType,
     FeatureFlags,
     filterExploreByTags,
@@ -32,6 +33,7 @@ import {
     filterStaticFilterAutocompleteValues,
     findFieldByIdInExplore,
     ForbiddenError,
+    getAiAccessRules,
     getAppDisplayName,
     getComposerChartPatchSql,
     getComposerChartSaveDraft,
@@ -98,6 +100,7 @@ import {
     type CustomChartType,
     type Dashboard,
     type DashboardAsCode,
+    type DashboardFilters,
     type DataAppCreationExperience,
     type DataAppVizSchema,
     type DateZoom,
@@ -987,6 +990,57 @@ export class AiAgentToolsService extends BaseService {
             !isExploreError(explore) &&
             metricQueryUsesAiHiddenData(explore, metricQuery)
         ) {
+            throw new AiAccessRefusedError(
+                AiAccessRefusalReason.AI_ACCESS_NEVER,
+                { projectUuid: context.projectUuid },
+            );
+        }
+    }
+
+    private async getProjectAiHiddenFieldIds(
+        context: AiAgentToolsRuntimeContext,
+    ): Promise<ReadonlySet<string> | null> {
+        if (!(await this.isAiAccessNeverEnabled(context.user))) return null;
+        const explores = await this.projectModel.findExploresFromCache(
+            context.projectUuid,
+            'name',
+        );
+        const hidden = new Set<string>();
+        Object.values(explores).forEach((explore) => {
+            if (isExploreError(explore) || !exploreHasAiAccessRules(explore))
+                return;
+            const { hiddenFieldIds } = getAiAccessRules(explore);
+            hiddenFieldIds.forEach((fieldId) => hidden.add(fieldId));
+        });
+        return hidden;
+    }
+
+    private async assertAiMayReadDashboard(
+        context: AiAgentToolsRuntimeContext,
+        filters: DashboardFilters | undefined,
+    ): Promise<void> {
+        const rules = filters
+            ? [
+                  ...filters.dimensions,
+                  ...filters.metrics,
+                  ...filters.tableCalculations,
+              ]
+            : [];
+        if (rules.length === 0) return;
+        const hidden = await this.getProjectAiHiddenFieldIds(context);
+        if (rules.some((rule) => hidden?.has(rule.target.fieldId))) {
+            throw new AiAccessRefusedError(
+                AiAccessRefusalReason.AI_ACCESS_NEVER,
+                { projectUuid: context.projectUuid },
+            );
+        }
+    }
+
+    private async assertAiMayReadRawSql(
+        context: AiAgentToolsRuntimeContext,
+    ): Promise<void> {
+        const hidden = await this.getProjectAiHiddenFieldIds(context);
+        if (hidden !== null && hidden.size > 0) {
             throw new AiAccessRefusedError(
                 AiAccessRefusalReason.AI_ACCESS_NEVER,
                 { projectUuid: context.projectUuid },
@@ -3470,6 +3524,10 @@ export class AiAgentToolsService extends BaseService {
                         dashboard.slug,
                         { projectUuid: context.projectUuid },
                     );
+                await this.assertAiMayReadDashboard(
+                    context,
+                    savedDashboard.filters,
+                );
                 return {
                     type: 'dashboard',
                     content: dashboard,
@@ -3500,6 +3558,10 @@ export class AiAgentToolsService extends BaseService {
                     chart.slug,
                     context.account,
                     { projectUuid: context.projectUuid },
+                );
+                await this.assertAiMayUseMetricQuery(
+                    context,
+                    savedChart.metricQuery,
                 );
                 return {
                     type: 'chart',
@@ -3534,6 +3596,7 @@ export class AiAgentToolsService extends BaseService {
                     context.projectUuid,
                     sqlChart.slug,
                 );
+                await this.assertAiMayReadRawSql(context);
                 return {
                     type: 'sql_chart',
                     content: sqlChart,

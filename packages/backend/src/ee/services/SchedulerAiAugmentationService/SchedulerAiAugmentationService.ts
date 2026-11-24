@@ -61,6 +61,9 @@ import { convertQueryResultsToCsv } from '../ai/utils/convertQueryResultsToCsv';
 import {
     appendCsvSection,
     emptySectionAccumulator,
+    excludeSectionByAiAccess,
+    getAiAccessExcludedNote,
+    isAiAccessNeverRefusal,
     MAX_ROWS_PER_CHART,
     omitSection,
     serializeSections,
@@ -75,6 +78,28 @@ import {
     getDeliveryDashboardParameters,
     getDeliverySelectedTabs,
 } from './deliveryContext';
+
+type DeliveryContent = {
+    content: string;
+    hasData: boolean;
+    aiAccessExcludedCount: number;
+};
+
+const toDeliveryContent = (acc: SectionAccumulator): DeliveryContent => ({
+    content: serializeSections(acc),
+    hasData: acc.parts.length > 0 || acc.omittedCharts.length > 0,
+    aiAccessExcludedCount: acc.aiAccessExcludedCount,
+});
+
+const withAiAccessNote = async (
+    { hasData, aiAccessExcludedCount }: DeliveryContent,
+    generate: () => Promise<string>,
+): Promise<string> => {
+    const note = getAiAccessExcludedNote(aiAccessExcludedCount);
+    if (!note) return generate();
+    if (!hasData) return note;
+    return `${await generate()}\n\n${note}`;
+};
 
 type Dependencies = {
     agentPermissionService: Pick<
@@ -467,27 +492,29 @@ export class SchedulerAiAugmentationService
             deliveryQueries,
         });
 
-        return this.aiAgentService.generateScheduledReport(creator, {
-            agentUuid: augmentation.agentUuid,
-            prompt: augmentation.prompt,
-            deliveryContent,
-            chart: scheduler.savedChartUuid
-                ? {
-                      chartUuid: scheduler.savedChartUuid,
-                      runtimeOverrides: getChartRuntimeOverrides(scheduler),
-                  }
-                : null,
-            dashboard: dashboard
-                ? {
-                      dashboardUuid: dashboard.uuid,
-                      runtimeOverrides: getDashboardRuntimeOverrides(
-                          dashboard,
-                          scheduler,
-                      ),
-                  }
-                : null,
-            sourceThreadUuid: augmentation.sourceThreadUuid,
-        });
+        return withAiAccessNote(deliveryContent, () =>
+            this.aiAgentService.generateScheduledReport(creator, {
+                agentUuid: augmentation.agentUuid,
+                prompt: augmentation.prompt,
+                deliveryContent: deliveryContent.content,
+                chart: scheduler.savedChartUuid
+                    ? {
+                          chartUuid: scheduler.savedChartUuid,
+                          runtimeOverrides: getChartRuntimeOverrides(scheduler),
+                      }
+                    : null,
+                dashboard: dashboard
+                    ? {
+                          dashboardUuid: dashboard.uuid,
+                          runtimeOverrides: getDashboardRuntimeOverrides(
+                              dashboard,
+                              scheduler,
+                          ),
+                      }
+                    : null,
+                sourceThreadUuid: augmentation.sourceThreadUuid,
+            }),
+        );
     }
 
     // The dashboard is loaded once and serves both the project/org context and
@@ -518,7 +545,7 @@ export class SchedulerAiAugmentationService
         }
 
         const account = fromSession(creator);
-        const content = await this.getDeliveryContent({
+        const deliveryContent = await this.getDeliveryContent({
             account,
             projectUuid,
             dashboard,
@@ -526,11 +553,13 @@ export class SchedulerAiAugmentationService
             deliveryQueries,
         });
 
-        return this.aiService.generateDeliverySummary(creator, {
-            prompt,
-            content,
-            projectUuid,
-        });
+        return withAiAccessNote(deliveryContent, () =>
+            this.aiService.generateDeliverySummary(creator, {
+                prompt,
+                content: deliveryContent.content,
+                projectUuid,
+            }),
+        );
     }
 
     // Prefers the delivery's own query results (CSV/XLSX formats) so the
@@ -549,7 +578,7 @@ export class SchedulerAiAugmentationService
         dashboard: DashboardDAO | null;
         scheduler: SchedulerAndTargets | SendNowScheduler;
         deliveryQueries: SchedulerDeliveryQuery[] | undefined;
-    }): Promise<string> {
+    }): Promise<DeliveryContent> {
         if (deliveryQueries && deliveryQueries.length > 0) {
             try {
                 return await this.getDeliveryQueriesContent(
@@ -583,29 +612,36 @@ export class SchedulerAiAugmentationService
         account: Account,
         projectUuid: string,
         deliveryQueries: SchedulerDeliveryQuery[],
-    ): Promise<string> {
+    ): Promise<DeliveryContent> {
         const sections = await deliveryQueries.reduce<
             Promise<SectionAccumulator>
         >(async (accPromise, { chartName, queryUuid }) => {
             const acc = await accPromise;
             if (acc.remainingChars <= 0) return omitSection(acc, chartName);
-            const { rows, fields, truncated } =
-                await this.asyncQueryService.getRawAsyncQueryResults({
-                    account,
-                    projectUuid,
-                    queryUuid,
-                    maxRows: MAX_ROWS_PER_CHART,
-                    aiAccessOnly: true,
-                });
-            return appendCsvSection(
-                acc,
-                chartName,
-                convertQueryResultsToCsv({ rows, fields }),
-                truncated,
-            );
+            try {
+                const { rows, fields, truncated } =
+                    await this.asyncQueryService.getRawAsyncQueryResults({
+                        account,
+                        projectUuid,
+                        queryUuid,
+                        maxRows: MAX_ROWS_PER_CHART,
+                        aiAccessOnly: true,
+                    });
+                return appendCsvSection(
+                    acc,
+                    chartName,
+                    convertQueryResultsToCsv({ rows, fields }),
+                    truncated,
+                );
+            } catch (error) {
+                if (isAiAccessNeverRefusal(error)) {
+                    return excludeSectionByAiAccess(acc);
+                }
+                throw error;
+            }
         }, Promise.resolve(emptySectionAccumulator()));
 
-        return serializeSections(sections);
+        return toDeliveryContent(sections);
     }
 
     // Re-runs the delivery's query with the scheduler's filter/parameter
@@ -615,11 +651,12 @@ export class SchedulerAiAugmentationService
         account: Account,
         scheduler: SchedulerAndTargets | SendNowScheduler,
         projectUuid: string,
-    ): Promise<string> {
-        if (!scheduler.savedChartUuid) return '';
+    ): Promise<DeliveryContent> {
+        if (!scheduler.savedChartUuid)
+            return toDeliveryContent(emptySectionAccumulator());
 
-        const { rows, fields } =
-            await this.asyncQueryService.executeSavedChartQueryAndGetResults(
+        const results = await this.asyncQueryService
+            .executeSavedChartQueryAndGetResults(
                 {
                     account,
                     projectUuid,
@@ -633,9 +670,19 @@ export class SchedulerAiAugmentationService
                     context: QueryExecutionContext.AI,
                 },
                 this.schedulerPollingOptions,
+            )
+            .catch((error: unknown) => {
+                if (isAiAccessNeverRefusal(error)) return null;
+                throw error;
+            });
+        if (results === null) {
+            return toDeliveryContent(
+                excludeSectionByAiAccess(emptySectionAccumulator()),
             );
+        }
+        const { rows, fields } = results;
         const limitedRows = rows.slice(0, MAX_ROWS_PER_CHART);
-        return serializeSections(
+        return toDeliveryContent(
             appendCsvSection(
                 emptySectionAccumulator(),
                 null,
@@ -649,7 +696,7 @@ export class SchedulerAiAugmentationService
         account: Account,
         dashboard: DashboardDAO,
         scheduler: SchedulerAndTargets | SendNowScheduler,
-    ): Promise<string> {
+    ): Promise<DeliveryContent> {
         const dashboardFilters = getDeliveryDashboardFilters(
             dashboard,
             scheduler,
@@ -669,8 +716,8 @@ export class SchedulerAiAugmentationService
                 const chartName = tile.properties.chartName ?? 'Untitled chart';
                 if (acc.remainingChars <= 0) return omitSection(acc, chartName);
                 const chartUuid = tile.properties.savedChartUuid!;
-                const { rows, fields } =
-                    await this.asyncQueryService.executeDashboardChartQueryAndGetResults(
+                const results = await this.asyncQueryService
+                    .executeDashboardChartQueryAndGetResults(
                         {
                             account,
                             projectUuid: dashboard.projectUuid,
@@ -683,7 +730,13 @@ export class SchedulerAiAugmentationService
                             parameters,
                         },
                         this.schedulerPollingOptions,
-                    );
+                    )
+                    .catch((error: unknown) => {
+                        if (isAiAccessNeverRefusal(error)) return null;
+                        throw error;
+                    });
+                if (results === null) return excludeSectionByAiAccess(acc);
+                const { rows, fields } = results;
                 const limitedRows = rows.slice(0, MAX_ROWS_PER_CHART);
                 return appendCsvSection(
                     acc,
@@ -695,6 +748,6 @@ export class SchedulerAiAugmentationService
             Promise.resolve(emptySectionAccumulator()),
         );
 
-        return serializeSections(sections);
+        return toDeliveryContent(sections);
     }
 }

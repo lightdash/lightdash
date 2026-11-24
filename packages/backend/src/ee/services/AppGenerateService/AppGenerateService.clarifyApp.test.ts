@@ -99,6 +99,7 @@ function buildService(
             getSummary: vi
                 .fn()
                 .mockResolvedValue({ organizationUuid: 'org-1' }),
+            getAllExploresFromCache: vi.fn().mockResolvedValue({}),
         } as never,
         projectParametersModel: {} as never,
         spaceModel: {} as never,

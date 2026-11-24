@@ -3126,6 +3126,77 @@ describe('AiAgentToolsService', () => {
             expect(executeMetricQueryAndGetResults).toHaveBeenCalledTimes(1);
         });
 
+        describe('read_content', () => {
+            const readService = (enabled: boolean) =>
+                makeService({
+                    explores: makeExplores(),
+                    featureFlagService: {
+                        get: vi.fn(async ({ featureFlagId }) => ({
+                            id: featureFlagId,
+                            enabled:
+                                enabled &&
+                                featureFlagId === FeatureFlags.AiAccessNever,
+                        })),
+                    },
+                    savedChartService: {
+                        get: vi.fn().mockResolvedValue({
+                            uuid: 'chart-uuid',
+                            metricQuery: {
+                                exploreName: 'customers',
+                                dimensions: ['customers_email'],
+                                metrics: [],
+                                filters: {},
+                                sorts: [],
+                                tableCalculations: [],
+                            },
+                        }),
+                    },
+                    savedSqlService: {
+                        assertCanViewSqlChartBySlug: vi
+                            .fn()
+                            .mockResolvedValue(undefined),
+                    },
+                    coderService: {
+                        getChartsForRead: vi.fn().mockResolvedValue({
+                            charts: [{ slug: 'emails', spaceSlug: 'space' }],
+                        }),
+                        getSqlChartsForRead: vi.fn().mockResolvedValue({
+                            sqlCharts: [
+                                {
+                                    slug: 'raw',
+                                    spaceSlug: 'space',
+                                    sql: 'select email from customers',
+                                },
+                            ],
+                        }),
+                    },
+                });
+
+            it.each([
+                ['chart', 'emails'],
+                ['sql_chart', 'raw'],
+            ] as const)(
+                'refuses to read a %s that uses hidden data',
+                async (type, slug) => {
+                    const runtime =
+                        readService(true).createRuntime(makeRuntimeContext());
+
+                    await expect(
+                        runtime.readContent({ type, slug }),
+                    ).rejects.toMatchObject(refusal);
+                },
+            );
+
+            it('reads the chart when the flag is off', async () => {
+                const runtime =
+                    readService(false).createRuntime(makeRuntimeContext());
+
+                await expect(
+                    runtime.readContent({ type: 'chart', slug: 'emails' }),
+                ).resolves.toMatchObject({ type: 'chart' });
+            });
+        });
+
         it.each([
             [
                 'a hidden field',
