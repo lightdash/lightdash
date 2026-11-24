@@ -1,5 +1,6 @@
 import {
     AnyType,
+    ApiConnectorType,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     CompiledDimension,
@@ -23,6 +24,7 @@ import {
     ExploreType,
     FeatureFlags,
     FieldType,
+    LiveExploreSwitchedOffError,
     MetricType,
     NotFoundError,
     OrganizationMemberRole,
@@ -1425,6 +1427,10 @@ describe('ProjectModel', () => {
         });
     });
     describe('getExploreFromCache', () => {
+        beforeEach(() => {
+            tracker.on.select('external_connections').response([]);
+        });
+
         const createQualifiedExplore = (
             name: string,
         ): ExploreTableSummaryRecord => ({
@@ -1493,6 +1499,32 @@ describe('ProjectModel', () => {
             );
             expect(findExploresFromCache).toHaveBeenCalledTimes(1);
             expect(findExploreTableSummariesFromCache).toHaveBeenCalledTimes(1);
+        });
+
+        test('says a live explore is switched off instead of missing', async () => {
+            tracker.reset();
+            tracker.on.select('external_connections').response([
+                {
+                    name: 'Product Hydra',
+                    source_name: 'hydra',
+                    connector: ApiConnectorType.HYDRA,
+                    api_source: {
+                        connector: ApiConnectorType.HYDRA,
+                        explores: { events: { inUse: false } },
+                    },
+                },
+            ]);
+            vi.spyOn(model, 'findExploresFromCache').mockResolvedValueOnce({});
+
+            await expect(
+                model.getExploreFromCache(projectUuid, 'hydra_events'),
+            ).rejects.toEqual(
+                new LiveExploreSwitchedOffError({
+                    exploreName: 'hydra_events',
+                    sourceName: 'Product Hydra',
+                    exploreLabel: 'Events',
+                }),
+            );
         });
 
         test('keeps the plain not found error for one original-name match', async () => {

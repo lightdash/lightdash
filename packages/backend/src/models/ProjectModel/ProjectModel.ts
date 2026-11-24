@@ -216,8 +216,6 @@ import {
     markCompilePublished,
 } from '../../scheduler/compileShutdown';
 import { type StoredPreAggregateRefresh } from '../../services/ProjectService/preAggregateRefresh';
-import { findSwitchedOffLiveExplore } from '../../services/QuerySourceService/live/explores/build';
-import { parseLiveSourceFieldState } from '../../services/QuerySourceService/live/explores/fields';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
 import { AwsWebIdentityResolver } from '../../utils/awsWebIdentity/AwsWebIdentityResolver';
 import {
@@ -3661,6 +3659,14 @@ export class ProjectModel {
                 this.database.raw("api_source->>'connector' as connector"),
                 'api_source',
             );
+        if (rows.length === 0) return undefined;
+        // Loaded here, not at the top: the live integrations build warehouse
+        // clients when they load, which every ProjectModel import would pay for
+        const [{ findSwitchedOffLiveExplore }, { parseLiveSourceFieldState }] =
+            await Promise.all([
+                import('../../services/QuerySourceService/live/explores/build'),
+                import('../../services/QuerySourceService/live/explores/fields'),
+            ]);
         return findSwitchedOffLiveExplore(
             rows.flatMap((row) =>
                 row.source_name
