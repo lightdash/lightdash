@@ -1,0 +1,18 @@
+/* A narrow panel moves the location and count under the name rather than cutting the count off. */
+.heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: var(--mantine-spacing-xs);
+    row-gap: 2px;
+    min-width: 0;
+}
+
+.status {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
