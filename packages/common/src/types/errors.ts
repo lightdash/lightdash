@@ -461,6 +461,24 @@ export class ExploreSplitError extends NotFoundError {
     }
 }
 
+/** A saved chart's explore is a live data source explore an admin switched off. */
+export class LiveExploreSwitchedOffError extends NotFoundError {
+    constructor({
+        exploreName,
+        sourceName,
+        exploreLabel,
+    }: {
+        exploreName: string;
+        sourceName: string;
+        exploreLabel: string;
+    }) {
+        super(
+            `${sourceName} · ${exploreLabel} is switched off in the Semantic Layer.`,
+            { exploreName },
+        );
+    }
+}
+
 export class ExpectedNotFoundError
     extends NotFoundError
     implements ExpectedError

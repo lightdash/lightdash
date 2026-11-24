@@ -20,7 +20,7 @@ import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { createHash } from 'crypto';
 import { isPlainObject, memoize } from 'es-toolkit/compat';
 import { tooManyRowsError } from '../query/rows';
-import { getLiveIntegration } from '../registry';
+import { getLiveIntegration, isLiveIntegrationRegistered } from '../registry';
 import { type LiveCapabilities, type LiveScanResult } from '../types';
 import {
     buildLiveExplore,
@@ -601,3 +601,44 @@ export const toLiveResult = ({
         columns,
     };
 };
+
+/** A stored live source, as much of it as names its explores. */
+export type StoredLiveSourceExplores = {
+    /** The source's display name. */
+    name: string;
+    sourceName: string;
+    connector: ApiConnectorType;
+    exploreEdits: LiveSourceExploreEdits;
+};
+
+/**
+ * The source and label of a live explore an admin switched off, when the
+ * explore name is one, so a chart on it can say so instead of "not found".
+ */
+export const findSwitchedOffLiveExplore = (
+    sources: StoredLiveSourceExplores[],
+    exploreName: string,
+): { sourceName: string; exploreLabel: string } | undefined =>
+    sources
+        .filter(({ connector }) => isLiveIntegrationRegistered(connector))
+        .flatMap((source) =>
+            getLiveBaseLayer(source.connector)
+                .definitions.filter(
+                    (definition) =>
+                        getLiveExploreName(
+                            source.sourceName,
+                            definition.name,
+                        ) === exploreName &&
+                        !isLiveExploreInUse(
+                            source.exploreEdits,
+                            definition.name,
+                        ),
+                )
+                .map((definition) => ({
+                    sourceName: source.name,
+                    exploreLabel:
+                        getLiveExploreEdit(source.exploreEdits, definition.name)
+                            ?.label ?? definition.label,
+                })),
+        )
+        .at(0);

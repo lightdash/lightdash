@@ -19,6 +19,7 @@ import {
     buildLiveExplores,
     compileLiveMetricQuery,
     describeLiveTarget,
+    findSwitchedOffLiveExplore,
     getLiveDefinitionHashes,
     getLiveExploreNames,
     getLostLiveFieldIds,
@@ -254,6 +255,41 @@ describe('switching explores off and editing them', () => {
         ]);
         expect(users.apiSource?.definitionHash).toBe(
             hydra({}).at(1)?.apiSource?.definitionHash,
+        );
+    });
+});
+
+describe('findSwitchedOffLiveExplore', () => {
+    const source = (exploreEdits: LiveSourceExploreEdits) => ({
+        name: 'Product Hydra',
+        sourceName: 'hydra',
+        connector: ApiConnectorType.HYDRA,
+        exploreEdits,
+    });
+
+    it('names the source and explore of a switched-off explore', () => {
+        expect(
+            findSwitchedOffLiveExplore(
+                [source({ events: { inUse: false } })],
+                'hydra_events',
+            ),
+        ).toEqual({ sourceName: 'Product Hydra', exploreLabel: 'Events' });
+        expect(
+            findSwitchedOffLiveExplore(
+                [source({ events: { inUse: false, label: 'Activity' } })],
+                'hydra_events',
+            ),
+        ).toEqual({ sourceName: 'Product Hydra', exploreLabel: 'Activity' });
+    });
+
+    it('finds nothing for an explore that is on, or not a live explore', () => {
+        const sources = [source({ events: { inUse: false } })];
+        expect(findSwitchedOffLiveExplore(sources, 'hydra_users')).toBe(
+            undefined,
+        );
+        expect(findSwitchedOffLiveExplore(sources, 'orders')).toBe(undefined);
+        expect(findSwitchedOffLiveExplore([source({})], 'hydra_events')).toBe(
+            undefined,
         );
     });
 });
