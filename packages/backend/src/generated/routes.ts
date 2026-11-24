@@ -20986,6 +20986,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                valueLabels: { ref: 'Record_string.string_' },
                 filterOperators: {
                     dataType: 'array',
                     array: { dataType: 'refEnum', ref: 'FilterOperator' },
@@ -36530,6 +36531,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['describeWarehouseTable'] },
                 { dataType: 'enum', enums: ['discoverFields'] },
                 { dataType: 'enum', enums: ['discoverRepos'] },
+                { dataType: 'enum', enums: ['draftProjectContext'] },
                 { dataType: 'enum', enums: ['editContent'] },
                 { dataType: 'enum', enums: ['editDbtProject'] },
                 { dataType: 'enum', enums: ['editProjectContext'] },
@@ -49229,6 +49231,11 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                projectContextEntries: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
                 models: {
                     dataType: 'array',
                     array: {
@@ -49445,6 +49452,25 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerDraftProjectContext: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                contentAfter: { dataType: 'string', required: true },
+                contentBefore: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerSettledDraftChange: {
         dataType: 'refAlias',
         type: {
@@ -49559,6 +49585,14 @@ const models: TsoaRoute.Models = {
                             model: { dataType: 'string', required: true },
                         },
                     },
+                    required: true,
+                },
+                projectContext: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'SemanticLayerDraftProjectContext' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
                     required: true,
                 },
                 models: {
