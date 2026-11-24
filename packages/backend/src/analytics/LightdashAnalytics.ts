@@ -135,7 +135,8 @@ type Identify = {
 };
 export type BaseTrack = Omit<AnalyticsTrack, 'context'>;
 export const ANONYMOUS_TRACKING_UUID = '00000000-0000-0000-0000-000000000000';
-export type OnboardingFlow = 'new' | 'legacy';
+// Every flow is the new onboarding; the property stays so events keep their shape
+export type OnboardingFlow = 'new';
 export type OneTimePasscodePurpose =
     | 'signup_verification'
     | 'login'
