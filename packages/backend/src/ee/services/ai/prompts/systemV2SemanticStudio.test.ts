@@ -182,6 +182,15 @@ describe('getSemanticStudioSystemPrompt', () => {
         expect(prompt).toContain('set moreToDo and carry them out next');
     });
 
+    it('bounds every check on the draft by a date filter', () => {
+        expect(
+            getSemanticStudioSystemPrompt({
+                ...base,
+                studio: { ...draft, canQueryDraft: true },
+            }),
+        ).toContain('never run its metrics without a date filter');
+    });
+
     it('leaves out drafting project context when project context is off', () => {
         const prompt = (projectContextEnabled: boolean) => {
             const loadout = resolveLoadout({

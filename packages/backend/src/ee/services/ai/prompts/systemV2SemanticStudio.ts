@@ -151,7 +151,7 @@ ${getModelling('A model is one table at one grain, and its label says what one r
 };
 
 const DRAFT_QUERY = `
-- runMetricQuery reads the draft, so it runs a metric as your proposals leave it, with no approval. When a proposal comes back with a check, run those metrics in one query, alone or split by one dimension that should divide them. A null, a zero or a total the table cannot produce means the definition is wrong: fix it in one follow-up proposal. A number that looks right needs no comment.
+- runMetricQuery reads the draft, so it runs a metric as your proposals leave it, with no approval. When a proposal comes back with a check, run those metrics in one query filtered to the window the check names, alone or split by one dimension that should divide them. A new or changed model can be large, so never run its metrics without a date filter. A null, a zero or a total the table cannot produce means the definition is wrong: fix it in one follow-up proposal. A number that looks right needs no comment.
 - To say what a metric returns, run it; do not work it out from its sql.`;
 
 const DRAFT_CONTEXT = `
