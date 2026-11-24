@@ -14,9 +14,12 @@ export const getPreviousQueryUuid = (
         if (message.role === 'user') break;
         if (message.role === 'tool') {
             message.content.forEach((part) => {
-                if (part.type !== 'tool-result' || part.output.type !== 'json')
-                    return;
-                const { value } = part.output;
+                if (part.type !== 'tool-result') return;
+                // A replayed turn carries it beside the output the model saw.
+                const value =
+                    part.output.type === 'json'
+                        ? part.output.value
+                        : part.providerOptions?.lightdash;
                 if (
                     value &&
                     typeof value === 'object' &&

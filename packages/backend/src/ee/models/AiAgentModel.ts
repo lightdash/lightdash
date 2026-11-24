@@ -201,6 +201,7 @@ import {
     AiPromptSkillSnapshot,
     AiPromptSteerTableName,
     AiPromptTableName,
+    AiPromptTranscriptTableName,
     AiSlackPromptTableName,
     AiSlackThreadTableName,
     AiSqlApprovalTableName,
@@ -218,6 +219,7 @@ import {
     DbAiPromptDecisionInsert,
     DbAiPromptInterrupt,
     DbAiPromptSteer,
+    DbAiPromptTranscript,
     DbAiPromptTurnDecision,
     DbAiSlackPrompt,
     DbAiSlackThread,
@@ -304,6 +306,7 @@ import {
     type SqlApprovalDecisionOnCall,
 } from '../services/ai/tools/sqlApprovals';
 import { type AiAgentThreadBindingContext } from '../services/ai/types/aiAgent';
+import { type StoreTurnTranscriptFn } from '../services/ai/types/aiAgentDependencies';
 import { normalizeAiMcpOAuthClientCredentials } from '../services/ai/utils/mcpServerCredentials';
 import { type AiAgentThreadLiveStateSignals } from '../services/AiAgentService/aiAgentThreadLiveStatus';
 import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from '../services/AiDeepResearchService/constants';
@@ -5768,6 +5771,45 @@ export class AiAgentModel {
             .update({ loadout_base: loadout.base });
     }
 
+    async upsertPromptTranscript(
+        promptUuid: string,
+        transcript: Parameters<StoreTurnTranscriptFn>[1],
+    ): Promise<void> {
+        await this.database(AiPromptTranscriptTableName)
+            .insert({
+                ai_prompt_uuid: promptUuid,
+                messages: JSON.stringify(transcript.messages),
+                format_version: transcript.formatVersion,
+                model: transcript.model,
+            })
+            .onConflict('ai_prompt_uuid')
+            .merge(['messages', 'format_version', 'model']);
+    }
+
+    async findPromptTranscripts(
+        promptUuids: string[],
+    ): Promise<
+        Pick<
+            DbAiPromptTranscript,
+            'ai_prompt_uuid' | 'messages' | 'format_version' | 'model'
+        >[]
+    > {
+        if (promptUuids.length === 0) return [];
+        return this.database(AiPromptTranscriptTableName)
+            .whereIn('ai_prompt_uuid', promptUuids)
+            .select('ai_prompt_uuid', 'messages', 'format_version', 'model');
+    }
+
+    // A transcript replays one attempt's stored tool results; any change to them drops it.
+    private async deletePromptTranscript(
+        trx: Knex,
+        promptUuid: string,
+    ): Promise<void> {
+        await trx(AiPromptTranscriptTableName)
+            .where('ai_prompt_uuid', promptUuid)
+            .delete();
+    }
+
     async findThreadMessage(
         role: 'user',
         {
@@ -6560,38 +6602,46 @@ export class AiAgentModel {
         promptUuid: string,
         previousState: AiPromptResponseState,
     ): Promise<boolean> {
-        const rows = await this.database(AiPromptTableName)
-            .update({
-                responded_at: this.database.raw('NULL'),
-                error_message: null,
-                token_usage: null,
-                needs_user_input: null,
-                needs_user_input_metadata: null,
-                retried_at: this.database.fn.now(),
-            })
-            .where('ai_prompt_uuid', promptUuid)
-            .modify((query) => wherePromptResponseState(query, previousState))
-            .returning<{ ai_prompt_uuid: string }[]>('ai_prompt_uuid');
-
-        return rows.length > 0;
+        return this.database.transaction(async (trx) => {
+            const rows = await trx(AiPromptTableName)
+                .update({
+                    responded_at: trx.raw('NULL'),
+                    error_message: null,
+                    token_usage: null,
+                    needs_user_input: null,
+                    needs_user_input_metadata: null,
+                    retried_at: trx.fn.now(),
+                })
+                .where('ai_prompt_uuid', promptUuid)
+                .modify((query) =>
+                    wherePromptResponseState(query, previousState),
+                )
+                .returning<{ ai_prompt_uuid: string }[]>('ai_prompt_uuid');
+            if (rows.length > 0)
+                await this.deletePromptTranscript(trx, promptUuid);
+            return rows.length > 0;
+        });
     }
 
     async resetFailedPromptForRetry(promptUuid: string): Promise<boolean> {
-        const rows = await this.database(AiPromptTableName)
-            .update({
-                responded_at: this.database.raw('NULL'),
-                error_message: null,
-                token_usage: null,
-                needs_user_input: null,
-                needs_user_input_metadata: null,
-                retried_at: this.database.fn.now(),
-            })
-            .where('ai_prompt_uuid', promptUuid)
-            .whereNull('response')
-            .whereNotNull('error_message')
-            .returning<{ ai_prompt_uuid: string }[]>('ai_prompt_uuid');
-
-        return rows.length > 0;
+        return this.database.transaction(async (trx) => {
+            const rows = await trx(AiPromptTableName)
+                .update({
+                    responded_at: trx.raw('NULL'),
+                    error_message: null,
+                    token_usage: null,
+                    needs_user_input: null,
+                    needs_user_input_metadata: null,
+                    retried_at: trx.fn.now(),
+                })
+                .where('ai_prompt_uuid', promptUuid)
+                .whereNull('response')
+                .whereNotNull('error_message')
+                .returning<{ ai_prompt_uuid: string }[]>('ai_prompt_uuid');
+            if (rows.length > 0)
+                await this.deletePromptTranscript(trx, promptUuid);
+            return rows.length > 0;
+        });
     }
 
     async claimPromptExecutionMode(
@@ -10134,15 +10184,18 @@ export class AiAgentModel {
         toolCallId: string,
         data: { result: string; metadata: AgentToolOutput['metadata'] },
     ): Promise<void> {
-        await this.database(AiAgentToolResultTableName)
-            .where({
-                ai_prompt_uuid: promptUuid,
-                tool_call_id: toolCallId,
-            })
-            .update({
-                result: data.result,
-                metadata: data.metadata,
-            });
+        await this.database.transaction(async (trx) => {
+            await trx(AiAgentToolResultTableName)
+                .where({
+                    ai_prompt_uuid: promptUuid,
+                    tool_call_id: toolCallId,
+                })
+                .update({
+                    result: data.result,
+                    metadata: data.metadata,
+                });
+            await this.deletePromptTranscript(trx, promptUuid);
+        });
     }
 
     // Terminal-once transition: updates only while the stored result is still
@@ -10153,17 +10206,20 @@ export class AiAgentModel {
         toolCallId: string,
         data: { result: string; metadata: AgentToolOutput['metadata'] },
     ): Promise<boolean> {
-        const updated = await this.database(AiAgentToolResultTableName)
-            .where({
-                ai_prompt_uuid: promptUuid,
-                tool_call_id: toolCallId,
-            })
-            .whereRaw(`metadata->>'status' = ?`, ['pending'])
-            .update({
-                result: data.result,
-                metadata: data.metadata,
-            });
-        return updated > 0;
+        return this.database.transaction(async (trx) => {
+            const updated = await trx(AiAgentToolResultTableName)
+                .where({
+                    ai_prompt_uuid: promptUuid,
+                    tool_call_id: toolCallId,
+                })
+                .whereRaw(`metadata->>'status' = ?`, ['pending'])
+                .update({
+                    result: data.result,
+                    metadata: data.metadata,
+                });
+            if (updated > 0) await this.deletePromptTranscript(trx, promptUuid);
+            return updated > 0;
+        });
     }
 
     async hasToolResult(

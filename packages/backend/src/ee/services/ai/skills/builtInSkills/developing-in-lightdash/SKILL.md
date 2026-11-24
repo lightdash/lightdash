@@ -14,6 +14,8 @@ Use this skill when working with Lightdash dashboards and charts.
 This skill is shared with Lightdash's native agent, so its workflows use camelCase tool names. When reading it through MCP:
 
 - Use `read_content`, `edit_content`, and `create_content` for `readContent`, `editContent`, and `createContent`.
+- Where a workflow calls `editContent` with text edits, call `edit_content` with an RFC6902 JSON Patch against the JSON `read_content` returned.
+- `create_content` and `edit_content` neither check field ids nor place chart tiles: check each new or changed chart's `metricQuery` with `run_metric_query` before saving it, and add a created chart's tile with `edit_content` (see `dashboard-reference`).
 - Use `grep_fields` and `get_metadata` for native `grepFields` and `getMetadata`.
 - Use `generate_hashes` for native `generateHashes`.
 - Replace `runContentQuery` with `run_metric_query` to check a chart's governed semantic-layer `metricQuery`. Do not use `run_sql` for this check.
@@ -28,18 +30,15 @@ This skill is shared with Lightdash's native agent, so its workflows use camelCa
 | Create, read, edit SQL charts      | `createContent` / `readContent` / `editContent`, `sql_chart`      | `sql-chart-reference`                 |
 | Create, read, edit composer charts | `createContent` / `readContent` / `editContent`, `composer_chart` | `composer-chart-reference`            |
 | Read data apps (read-only)         | `readContent` with `type: data_app`                               | manifest-shaped JSON, no source code  |
-| Edit dashboards                    | `editContent` with RFC6902 JSON Patch                             | `dashboard-reference`                 |
+| Edit dashboards                    | `editContent` with text edits                                     | `dashboard-reference`                 |
 | Edit charts and tiles              | `editContent`, then update referencing dashboards if needed       | Chart refs, `dashboard-reference`     |
-| Create charts                      | `grepFields`, `getMetadata`, `runContentQuery`, `createContent`   | Chart refs                            |
+| Create charts                      | `grepFields`, `getMetadata`, `createContent`                      | Chart refs                            |
 | Create dashboards                  | `grepFields`, `getMetadata`, `createContent`                      | `dashboard-reference`, best practices |
 | Add period comparisons             | Edit chart `metricQuery` and config                               | `period-over-period-reference`        |
-| Check changed metric queries       | `runContentQuery` with `source.type: "metricQuery"`               | Chart refs                            |
 
 Rules:
 
-- Always read content before editing if you have not read it since the last user message.
 - Preserve unrelated fields.
-- Prefer minimal patches.
 - Follow the dashboard or chart shape from the resource instead of inventing structure.
 - When you create or edit content, please provide links for them in the final response
 
@@ -57,13 +56,11 @@ Rules:
 
 ### Edit Dashboards
 
-1. Call `readContent` and inspect the current JSON shape.
-2. Always read the `dashboard-reference` resource.
-3. Build the smallest possible JSON Patch.
-4. Call `editContent` with that patch.
-5. Re-read if needed to verify the final state.
+1. Call `readContent` unless the dashboard's current text is already in the conversation.
+2. For tabs, non-chart tiles, filter settings beyond a plain dimension filter, or layout rules, read the `dashboard-reference` resource.
+3. Call `editContent` with the smallest text edits.
 
-To add or retarget a dashboard filter, take each tile's explore and field ids from its read-only `chartQuery` in the dashboard JSON (see `Per-Tile Filter Targeting` in `dashboard-reference`). Do not read every chart on the dashboard for that. A dimension filter is added to `/filters/dimensions` with this shape; `target` and `tileTargets` values are objects with `fieldId` and `tableName`, never bare field id strings:
+To add or retarget a dashboard filter, take each tile's explore and field ids from its read-only `chartQuery` in the dashboard JSON (see `Per-Tile Filter Targeting` in `dashboard-reference`). Do not read every chart on the dashboard for that. A dimension filter is added to `filters.dimensions` with this shape; `target` and `tileTargets` values are objects with `fieldId` and `tableName`, never bare field id strings:
 
 ```json
 {
@@ -84,26 +81,21 @@ To add or retarget a dashboard filter, take each tile's explore and field ids fr
 
 When `config.controlOrder` is present, add a `{ "kind": "filter", "slug": ... }` entry with the new filter's `slug` where it should sit on the filter bar, and remove a deleted filter's entry. Control slugs only link entries within the edit and are never saved. See `Control order` in `dashboard-reference`.
 
-To put a filter in an existing section, set its `sectionSlug` to a `slug` from `config.controlSections`. Group controls into sections only when the user asks or the dashboard already uses them, and read `Control sections` in `dashboard-reference` before creating, renaming or removing one. A patch that changes something else leaves `controlSections`, every `sectionSlug`, `dateZoomConfig` and `controlOrder` as read.
+To put a filter in an existing section, set its `sectionSlug` to a `slug` from `config.controlSections`. Group controls into sections only when the user asks or the dashboard already uses them, and read `Control sections` in `dashboard-reference` before creating, renaming or removing one. An edit that changes something else leaves `controlSections`, every `sectionSlug`, `dateZoomConfig` and `controlOrder` as read.
 
 ### Edit Charts and Dashboard Tiles
 
-1. Call `readContent` for the chart slug.
-2. Always read the chart reference for chart type (see `Choosing the Right Chart Type` below).
-3. If you add or change filters, verify exact filter values before patching.
+1. Call `readContent` for the chart slug unless its current text is already in the conversation.
+2. For options beyond the shape you have, read the chart reference for the chart type (see `Choosing the Right Chart Type` below).
+3. If you add or change filters, verify exact filter values before editing.
 4. If you change the chart's name or purpose, also update dashboards that reference that chart.
-5. Build the smallest possible JSON Patch.
-6. If you changed the chart's `metricQuery`, check it: call `runContentQuery` with `source.type: "metricQuery"` and the edited chart's `tableName`/`metricQuery` as it will be saved.
-7. Call `editContent` with that patch.
-8. Re-read if needed to verify the final state.
+5. Call `editContent` with the smallest text edits.
 
 ### Create Charts
 
-1. Use `grepFields`, then `getMetadata`, to explore available fields and plan your chart.
-2. Always read the chart reference for chart type (see `Choosing the Right Chart Type` below) to understand required fields and configuration.
-3. Build the full chart JSON with that metric query and other required fields.
-4. Check the chart: call `runContentQuery` with `source.type: "metricQuery"` and the chart's `tableName`/`metricQuery` as it will be saved.
-5. Call `createContent` with the checked chart JSON.
+1. Use `grepFields`, then `getMetadata` if needed, to find the fields.
+2. For options beyond the shape you have, read the chart reference for the chart type (see `Choosing the Right Chart Type` below).
+3. Call `createContent` with the full chart JSON.
 
 When explore fields cannot produce the chart, read `sql-chart-reference` before going further: it says what to offer the user.
 
@@ -111,11 +103,8 @@ For a weekly chart of "the last 12 weeks up to today" where every week starts on
 
 ### Create Dashboards
 
-1. Always read the `dashboard-reference` and `dashboard-best-practices` resources.
-2. Explore existing dashboards and charts to find reusable content and inspiration for layout and design.
-3. Use `grepFields`, then `getMetadata`, to explore available fields and plan which charts to include.
-4. Create an empty dashboard shell first.
-5. Start building charts and adding them to the dashboard one by one, using the workflow above for creating charts.
+1. Use `grepFields`, then `getMetadata` if needed, to find the fields for each chart. When the user leaves the charts open, `dashboard-best-practices` has design guidance.
+2. Create the dashboard without chart tiles, then each chart with `dashboardSlug` set to its slug; each chart is placed on it as a tile. Edit the dashboard only to change that layout or add non-chart tiles, tabs or filters (`dashboard-reference`).
 
 ### Create and Edit SQL Charts
 

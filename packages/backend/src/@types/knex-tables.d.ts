@@ -596,6 +596,8 @@ import {
     AiPromptSteerTableName,
     AiPromptTable,
     AiPromptTableName,
+    AiPromptTranscriptTable,
+    AiPromptTranscriptTableName,
     AiSlackPromptTable,
     AiSlackPromptTableName,
     AiSlackThreadTable,
@@ -752,12 +754,6 @@ import {
     ApiSourceCallLeasesTableName,
     ApiSourceCallsTable,
     ApiSourceCallsTableName,
-    ApiSourceRateBucketsTable,
-    ApiSourceRateBucketsTableName,
-    ApiSourceRatePacingTable,
-    ApiSourceRatePacingTableName,
-    ApiSourceRateSlotsTable,
-    ApiSourceRateSlotsTableName,
     AppExternalConnectionsTable,
     AppExternalConnectionsTableName,
     ExternalConnectionRateCountersTable,
@@ -999,6 +995,7 @@ declare module 'knex/types/tables' {
         [AiWebAppThreadTableName]: AiWebAppThreadTable;
         [AiPromptTableName]: AiPromptTable;
         [AiPromptInterruptTableName]: AiPromptInterruptTable;
+        [AiPromptTranscriptTableName]: AiPromptTranscriptTable;
         [AiPromptSteerTableName]: AiPromptSteerTable;
         [AiPromptContextTableName]: AiPromptContextTable;
         [AiPromptDecisionTableName]: AiPromptDecisionTable;
@@ -1131,9 +1128,6 @@ declare module 'knex/types/tables' {
         [ApiSourceCallCountersTableName]: ApiSourceCallCountersTable;
         [ApiSourceCallLeasesTableName]: ApiSourceCallLeasesTable;
         [ApiSourceCallsTableName]: ApiSourceCallsTable;
-        [ApiSourceRateBucketsTableName]: ApiSourceRateBucketsTable;
-        [ApiSourceRatePacingTableName]: ApiSourceRatePacingTable;
-        [ApiSourceRateSlotsTableName]: ApiSourceRateSlotsTable;
         [AppUserStateTableName]: AppUserStateTable;
         [AppSharedStateTableName]: AppSharedStateTable;
         [AppSharedStateHistoryTableName]: AppSharedStateHistoryTable;

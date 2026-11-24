@@ -3,12 +3,15 @@ import type { DocumentChartContent } from '../../../../types/document';
 import { type ToolDescriptionContext } from '../defineTool';
 import { toolNameFor } from './discoveryToolNames';
 import {
+    chartTilePlacementGuidance,
     COMPOSER_CHART_CREATE_GUIDANCE,
     SQL_CHART_CREATE_GUIDANCE,
     toolChartAsCodeMetricQuerySchema,
     toolCreateContentArgsSchema,
 } from './toolCreateContentArgs';
 import {
+    AGENT_EDIT_CONTENT_DESCRIPTION,
+    agentEditContentArgsSchema,
     TOOL_EDIT_CONTENT_DESCRIPTION,
     toolEditContentArgsSchema,
 } from './toolEditContentArgs';
@@ -194,7 +197,9 @@ const getDocumentCreateGuidance = ({
 export const MCP_CREATE_CONTENT_DESCRIPTION = (
     context: ToolDescriptionContext,
 ): string =>
-    `Create a dashboard, chart, SQL chart, composer chart or Document from its JSON; the developing-in-lightdash skill has the chart and dashboard shapes. ${SQL_CHART_CREATE_GUIDANCE} ${COMPOSER_CHART_CREATE_GUIDANCE} ${getDocumentCreateGuidance(context)}`;
+    `Create a dashboard, chart, SQL chart, composer chart or Document from its JSON; the developing-in-lightdash skill has the chart and dashboard shapes.${chartTilePlacementGuidance(
+        context.runtime,
+    )} ${SQL_CHART_CREATE_GUIDANCE} ${COMPOSER_CHART_CREATE_GUIDANCE} ${getDocumentCreateGuidance(context)}`;
 
 /** For an actor who can save Documents but not charts or dashboards. */
 export const DOCUMENT_CREATE_CONTENT_DESCRIPTION = (
@@ -269,6 +274,17 @@ export const mcpEditContentArgsSchema = toolEditContentArgsSchema.extend({
             'A Document edit: replace the Markdown (content), patch one chart (chart), or update metadata (metadata).',
         ),
 });
+
+export const AGENT_DOCUMENTS_EDIT_CONTENT_DESCRIPTION = (
+    context: ToolDescriptionContext,
+): string =>
+    `${AGENT_EDIT_CONTENT_DESCRIPTION(context)} For a Document, pass documentEdit instead.`;
+
+export const agentDocumentsEditContentArgsSchema =
+    agentEditContentArgsSchema.extend({
+        type: mcpEditContentArgsSchema.shape.type,
+        documentEdit: mcpEditContentArgsSchema.shape.documentEdit,
+    });
 
 export const documentEditContentArgsSchema = z.object({
     slug: toolEditContentArgsSchema.shape.slug,

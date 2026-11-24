@@ -64,6 +64,7 @@ import {
     WarehouseTypes,
     type SqlApprovalToolName,
 } from '@lightdash/common';
+import type { ModelMessage } from 'ai';
 import {
     AiAgentFindContentCoverageEvent,
     AiAgentResponseStreamed,
@@ -518,6 +519,8 @@ export type CreateContentFn = (
           content: ChartAsCode;
           uuid: string;
           href: string;
+          /** Why its dashboard tile could not be placed; null when placed or not asked for. */
+          placementError: string | null;
       }
     | {
           type: 'sql_chart';
@@ -724,6 +727,16 @@ export type StoreReasoningFn = (
         reasoningId: string;
         text: string;
     }>,
+) => Promise<void>;
+
+export type StoreTurnTranscriptFn = (
+    promptUuid: string,
+    transcript: {
+        messages: ModelMessage[];
+        formatVersion: number;
+        /** Provider and model id that ran the turn. */
+        model: string;
+    },
 ) => Promise<void>;
 
 export type StoreLoadoutFn = (

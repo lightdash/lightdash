@@ -480,6 +480,10 @@ import {
     type SuggestionPromptContext,
 } from '../ai/agents/suggestionGenerator';
 import { generateThreadTitle as generateTitleFromMessages } from '../ai/agents/titleGenerator';
+import {
+    getReplayableTranscript,
+    getTranscriptModel,
+} from '../ai/agents/turnTranscript';
 import { AiAgentMcpRuntimeClient } from '../ai/AiAgentMcpRuntimeClient';
 import {
     resolveAttachmentPaths,
@@ -632,6 +636,7 @@ import {
     StoreToolCallErrorFn,
     StoreToolCallFn,
     StoreToolResultsFn,
+    StoreTurnTranscriptFn,
     UpdateProgressFn,
     UpdateSlackMessageFn,
     VerifyFn,
@@ -840,6 +845,15 @@ type AgentConversationContext = {
     compactionSummary: string | null;
     /** Full history for the agent; may add verified examples that fast decisions skip. */
     resolveMessageHistory: () => Promise<ModelMessage[]>;
+    /** Where the prompt being answered starts in the history; null when its turn is not stored for replay. */
+    currentPromptStart: number | null;
+};
+
+type TranscriptReplay = {
+    /** Provider and model id that will answer; turns that ran on another model are rebuilt. */
+    model: string;
+    /** Set by the history build. */
+    currentPromptStart: number | null;
 };
 
 /** How the history builder treats verified examples for the prompt being answered. */
@@ -8873,11 +8887,14 @@ export class AiAgentService extends BaseService {
             aiCreditCheck,
             flagPinnedOutsideAgentSpaces = true,
             threadImages = 'load',
+            replayTurnTranscripts = false,
         }: {
             agentUuid: string;
             threadUuid: string;
             promptUuid?: string;
             aiCreditCheck: AiCreditCheck | null;
+            /** For the agent's own turns: earlier turns' tool steps replay as sent when they ran on the same model. */
+            replayTurnTranscripts?: boolean;
             /** Off for embeds, whose space limits come from the token, not the agent. */
             flagPinnedOutsideAgentSpaces?: boolean;
             /** 'omit' names the attached images without reading them from storage. */
@@ -9069,8 +9086,15 @@ export class AiAgentService extends BaseService {
             );
             return threadAttachments;
         };
+        const transcriptReplay = replayTurnTranscripts
+            ? await this.getTranscriptReplay(
+                  prompt,
+                  agent.providerCredentialUuid,
+              )
+            : undefined;
         const historyOptions = {
             loadThreadAttachments,
+            transcriptReplay,
             organizationUuid: prompt.organizationUuid,
             projectUuid: agent.projectUuid,
             agentUuid: agent.uuid,
@@ -9134,9 +9158,42 @@ export class AiAgentService extends BaseService {
             user,
             chatHistoryMessages,
             resolveChatHistory,
+            currentPromptStart: transcriptReplay?.currentPromptStart ?? null,
             prompt,
             compaction: applicableCompaction,
         };
+    }
+
+    /** The model this prompt will run on, resolved as the agent run resolves it; undefined turns replay off. */
+    private async getTranscriptReplay(
+        prompt: Pick<
+            AiWebAppPrompt,
+            'organizationUuid' | 'projectUuid' | 'modelConfig'
+        >,
+        credentialUuid: string | null,
+    ): Promise<TranscriptReplay | undefined> {
+        try {
+            const copilotConfig =
+                await this.orgAiCopilotConfigResolver.getCopilotConfig({
+                    organizationUuid: prompt.organizationUuid,
+                    projectUuid: prompt.projectUuid,
+                    credentialUuid,
+                });
+            const { model } = getModel(copilotConfig, {
+                enableReasoning: prompt.modelConfig?.reasoning,
+                modelName: prompt.modelConfig?.modelName,
+                provider: prompt.modelConfig?.modelProvider as AnyType,
+            });
+            return {
+                model: getTranscriptModel(model),
+                currentPromptStart: null,
+            };
+        } catch (error) {
+            this.logger.warn(
+                `Turn transcripts not replayed: ${getErrorMessage(error)}`,
+            );
+            return undefined;
+        }
     }
 
     private beginStreamPreparation(): void {
@@ -9367,6 +9424,7 @@ export class AiAgentService extends BaseService {
                 user: validatedUser,
                 chatHistoryMessages,
                 resolveChatHistory,
+                currentPromptStart,
                 prompt,
                 compaction,
             } = await this.prepareAgentThreadResponse(user, {
@@ -9374,6 +9432,7 @@ export class AiAgentService extends BaseService {
                 threadUuid,
                 resetErrorForStreamRetry: true,
                 expectedDeepResearchRunUuid: null,
+                replayTurnTranscripts: true,
                 deferCurrentVerifiedExamples: true,
                 enableFastDecisions,
                 aiCreditCheck: { isEmbedViewer: runtimeOptions !== undefined },
@@ -9437,6 +9496,7 @@ export class AiAgentService extends BaseService {
                         messageHistory: chatHistoryMessages,
                         compactionSummary: compaction?.summary ?? null,
                         resolveMessageHistory: resolveChatHistory,
+                        currentPromptStart,
                     },
                     {
                         prompt,
@@ -10211,6 +10271,7 @@ export class AiAgentService extends BaseService {
                 user: validatedUser,
                 chatHistoryMessages,
                 resolveChatHistory,
+                currentPromptStart,
                 prompt,
                 compaction,
             } = await this.prepareAgentThreadResponse(user, {
@@ -10223,6 +10284,7 @@ export class AiAgentService extends BaseService {
                         : null,
                 aiCreditCheck,
                 flagPinnedOutsideAgentSpaces: !aiCreditCheck?.isEmbedViewer,
+                replayTurnTranscripts: true,
                 onPromptResolved: (uuid) => {
                     resolvedPromptUuid = uuid;
                 },
@@ -10249,6 +10311,7 @@ export class AiAgentService extends BaseService {
                     messageHistory: chatHistoryMessages,
                     compactionSummary: compaction?.summary ?? null,
                     resolveMessageHistory: resolveChatHistory,
+                    currentPromptStart,
                 },
                 {
                     prompt,
@@ -14044,6 +14107,74 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         return { threadFiles, threadImages };
     }
 
+    /** Stored tool steps by prompt; a row that cannot be read or replayed to `model` is rebuilt instead. */
+    private async findReplayableTranscripts(
+        promptUuids: string[],
+        model: string,
+    ): Promise<Map<string, ModelMessage[]>> {
+        try {
+            const rows =
+                await this.aiAgentModel.findPromptTranscripts(promptUuids);
+            return new Map(
+                rows.flatMap((row) => {
+                    const transcript = getReplayableTranscript(row, model);
+                    return transcript ? [[row.ai_prompt_uuid, transcript]] : [];
+                }),
+            );
+        } catch (error) {
+            this.logger.warn(
+                `Turn transcripts not read, rebuilding history: ${getErrorMessage(error)}`,
+            );
+            return new Map();
+        }
+    }
+
+    /** Replayed tool results get the status and queryUuid a rebuilt turn has, under a key no provider sends. */
+    private static withToolResultStatus(
+        transcript: ModelMessage[],
+        toolCallsAndResults: Awaited<
+            ReturnType<
+                typeof AiAgentModel.prototype.getToolCallsAndResultsForPrompt
+            >
+        >,
+    ): ModelMessage[] {
+        const metadataById = new Map(
+            toolCallsAndResults.flatMap(({ toolResult }) =>
+                toolResult?.metadata
+                    ? [[toolResult.toolCallId, toolResult.metadata] as const]
+                    : [],
+            ),
+        );
+        return transcript.map((message) =>
+            message.role !== 'tool'
+                ? message
+                : {
+                      ...message,
+                      content: message.content.map((part) => {
+                          if (part.type !== 'tool-result') return part;
+                          const metadata = metadataById.get(part.toolCallId);
+                          if (!metadata) return part;
+                          return {
+                              ...part,
+                              providerOptions: {
+                                  ...part.providerOptions,
+                                  lightdash: {
+                                      status:
+                                          typeof metadata.status === 'string'
+                                              ? metadata.status
+                                              : null,
+                                      ...('queryUuid' in metadata &&
+                                      typeof metadata.queryUuid === 'string'
+                                          ? { queryUuid: metadata.queryUuid }
+                                          : {}),
+                                  },
+                              },
+                          };
+                      }),
+                  },
+        );
+    }
+
     async getChatHistoryFromThreadMessages(
         // TODO: move getThreadMessages to AiAgentModel and improve types
         // also, it should be called through a service method...
@@ -14065,6 +14196,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             agentScope?: { user: SessionUser; spaceAccess: string[] } | null;
             /** Lets several history builds of one turn share a single read of the images. */
             loadThreadAttachments?: ThreadAttachmentsLoader;
+            /**
+             * Replays each earlier prompt's stored tool steps, when they ran on this model, instead of
+             * rebuilding them, and reports where the prompt being answered starts in the history.
+             */
+            transcriptReplay?: TranscriptReplay;
         },
     ): Promise<ModelMessage[]> {
         const currentPromptExamples = options.currentPromptExamples ?? {
@@ -14090,6 +14226,16 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     options.agentScope ?? null,
                 ),
             ]);
+
+        const replay = options.transcriptReplay;
+        const transcriptByPrompt = replay
+            ? await this.findReplayableTranscripts(
+                  promptUuids.filter(
+                      (uuid) => uuid !== options.currentPromptUuid,
+                  ),
+                  replay.model,
+              )
+            : new Map<string, ModelMessage[]>();
 
         const messagesWithToolCalls = await Promise.all(
             threadMessages.map(async (message, index) => {
@@ -14180,12 +14326,23 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                         ),
                     );
                 }
+                // An earlier turn's tool steps replay as sent, so the provider reuses its prompt
+                // cache; only with its answer saved, which follows them as rebuilt.
+                const transcript =
+                    message.response && !message.error_message
+                        ? transcriptByPrompt.get(message.ai_prompt_uuid)
+                        : undefined;
                 messages.push(
-                    ...AiAgentService.buildToolCallTurnMessages(
-                        toolCallsAndResults,
-                        isCurrentPrompt,
-                        options.fastDecisionsEnabled,
-                    ),
+                    ...(transcript
+                        ? AiAgentService.withToolResultStatus(
+                              transcript,
+                              toolCallsAndResults,
+                          )
+                        : AiAgentService.buildToolCallTurnMessages(
+                              toolCallsAndResults,
+                              isCurrentPrompt,
+                              options.fastDecisionsEnabled,
+                          )),
                 );
 
                 // The current prompt resuming mid SQL-approval has only a
@@ -14232,6 +14389,19 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         const history = AiAgentService.backfillDanglingToolResults(
             messagesWithToolCalls.flat(),
         );
+        if (replay) {
+            const [currentPromptFirst] =
+                messagesWithToolCalls[
+                    threadMessages.findIndex(
+                        (message) =>
+                            message.ai_prompt_uuid ===
+                            options.currentPromptUuid,
+                    )
+                ] ?? [];
+            replay.currentPromptStart = currentPromptFirst
+                ? history.indexOf(currentPromptFirst)
+                : null;
+        }
 
         if (history.length === 0) {
             return [
@@ -15533,6 +15703,22 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             );
         };
 
+        const storeTurnTranscript: StoreTurnTranscriptFn = async (
+            promptUuid,
+            transcript,
+        ) => {
+            try {
+                await this.aiAgentModel.upsertPromptTranscript(
+                    promptUuid,
+                    transcript,
+                );
+            } catch (error) {
+                this.logger.warn(
+                    `Failed to store transcript for prompt ${promptUuid}: ${getErrorMessage(error)}`,
+                );
+            }
+        };
+
         const storeLoadout: StoreLoadoutFn = async (promptUuid, loadout) => {
             try {
                 await this.aiAgentModel.updatePromptLoadout(
@@ -16132,6 +16318,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             storeToolResults,
             storeReasoning,
             storeLoadout,
+            storeTurnTranscript,
             isPromptInterrupted: (promptUuid: string) =>
                 this.aiAgentModel.hasAiPromptInterrupt(promptUuid),
             consumePromptSteers: (args: {
@@ -18328,9 +18515,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                           promptProject.projectUuid,
                       )
                     : null;
-                // Only a project with no repository has nowhere to keep project context.
-                const semanticStudioHasRepository =
-                    semanticStudioStatus?.appliesAs !== 'live';
                 // Studio saves a dbt change with a script wherever Studio itself is on for the person.
                 const semanticStudioCodeMode =
                     semanticStudioStatus?.appliesAs === 'dbt_pull_request' &&
@@ -18562,6 +18746,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     storeToolResults,
                     storeReasoning,
                     storeLoadout,
+                    storeTurnTranscript,
                     isPromptInterrupted,
                     consumePromptSteers,
                     searchFieldValues,
@@ -18853,6 +19038,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
 
                     compactionSummary,
                     messageHistory,
+                    currentPromptStart: conversation.currentPromptStart,
                     threadUuid: prompt.threadUuid,
                     promptUuid: prompt.promptUuid,
                     ...getPromptUsageAttribution(prompt),
@@ -18872,7 +19058,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     isSemanticStudioThread,
                     semanticStudioDrafts,
                     semanticStudioCodeMode,
-                    semanticStudioHasRepository,
                     semanticStudioProjectMap,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
@@ -19096,6 +19281,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     storeToolResults,
                     storeReasoning,
                     storeLoadout,
+                    storeTurnTranscript,
                     isPromptInterrupted,
                     consumePromptSteers,
                     searchFieldValues,
@@ -21233,6 +21419,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     messageHistory: chatHistoryMessages,
                     compactionSummary: null,
                     resolveMessageHistory: async () => chatHistoryMessages,
+                    currentPromptStart: null,
                 },
                 {
                     prompt: slackPrompt,

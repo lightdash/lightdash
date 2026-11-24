@@ -109,7 +109,7 @@ import { getCreateScheduledDelivery } from '../tools/createScheduledDelivery';
 import { getDelegateResearchTask } from '../tools/delegateResearchTask';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getDiscoverRepos } from '../tools/discoverRepos';
-import { getEditContent } from '../tools/editContent';
+import { getAgentEditContent } from '../tools/editContent';
 import { getEditDbtProject } from '../tools/editDbtProject';
 import { getEditProjectContext } from '../tools/editProjectContext';
 import { getExploreRepo } from '../tools/exploreRepo';
@@ -210,9 +210,12 @@ import {
     summarizeToolResult,
 } from '../utils/toolSummaries';
 import { getAgentLogContext, withToolCallLogContext } from './agentLogContext';
+import { getBoundContentPreload } from './boundContentPreload';
 import { pruneSupersededContentReads } from './contentReadRetention';
 import { getMcpActiveTools } from './mcpToolGating';
+import { withOrderedContentWrites } from './orderedContentWrites';
 import { compactChartDiscovery, getPreviousQueryUuid } from './previousQuery';
+import { withRollingCacheBreakpoint } from './promptCache';
 import { buildQueryRetryStepOverride } from './queryRetryCap';
 import { createQueryToolCallRepair } from './queryToolCallRepair';
 import {
@@ -228,6 +231,12 @@ import {
     withNonStreamingProviderTiming,
     type StepTiming,
 } from './turnTiming';
+import {
+    createTurnTranscript,
+    getTranscriptModel,
+    TURN_TRANSCRIPT_FORMAT_VERSION,
+    type TurnTranscript,
+} from './turnTranscript';
 
 const createAiAgentLogger =
     (debugLoggingEnabled: boolean) => (context: string, message: string) => {
@@ -548,9 +557,10 @@ const makeStreamSafePersist = (
         }
     };
 
+    /** True only when the update is confirmed written, not failed or still running. */
     return async (
         update: Parameters<AiAgentDependencies['updatePrompt']>[0],
-    ): Promise<void> => {
+    ): Promise<boolean> => {
         const outcome = await bounded(update);
         if (outcome === 'failed' && update.response !== undefined) {
             await bounded({
@@ -559,6 +569,7 @@ const makeStreamSafePersist = (
                     'Something went wrong while saving the response. Please try again.',
             });
         }
+        return outcome === 'persisted';
     };
 };
 
@@ -1616,6 +1627,8 @@ export const buildPrepareStep = ({
     logger,
     invalidToolCallIds,
     agentContext,
+    turnTranscript,
+    cachePinIndex = null,
 }: {
     args: AiAgentArgs;
     dependencies: AiAgentDependencies;
@@ -1628,6 +1641,9 @@ export const buildPrepareStep = ({
     // onStepEnd/onChunk as the turn progresses (shared mutable set).
     invalidToolCallIds: ReadonlySet<string>;
     agentContext?: AgentContext;
+    turnTranscript?: TurnTranscript;
+    /** Last message the next turn sends unchanged: earlier turns end there. */
+    cachePinIndex?: number | null;
 }) => {
     const forcedFirstStep = buildForcedFirstStep(args, tools);
     const retryMarkersPersisted = new Set<string>();
@@ -1808,16 +1824,13 @@ export const buildPrepareStep = ({
                 `Step ${stepNumber} for prompt UUID ${args.promptUuid}: replaced ${replacedReads} earlier content read(s) with stubs`,
             );
         }
-        if (
-            stepMessages === messages &&
-            extraMessages.length === 0 &&
-            activeTools === undefined &&
-            stepBudgetOverride === undefined
-        ) {
-            return forced;
-        }
-
         const stepActiveTools = stepBudgetOverride?.activeTools ?? activeTools;
+        // The next turn rebuilds this turn's user messages, so it reuses the cache up to the pin.
+        const preparedMessages = withRollingCacheBreakpoint(
+            [...stepMessages, ...extraMessages],
+            cachePinIndex,
+        );
+        turnTranscript?.recordStep(preparedMessages);
 
         return {
             ...forced,
@@ -1827,7 +1840,7 @@ export const buildPrepareStep = ({
             ...(stepBudgetOverride?.toolChoice !== undefined
                 ? { toolChoice: stepBudgetOverride.toolChoice }
                 : {}),
-            messages: [...stepMessages, ...extraMessages],
+            messages: preparedMessages,
         };
     };
 };
@@ -2088,10 +2101,12 @@ export const getAgentTools = (
                 readContent: dependencies.readContent,
                 siteUrl: args.siteUrl,
                 documentsEnabled,
+                contentFormat: 'yaml',
             }),
         editContent: () =>
-            getEditContent({
+            getAgentEditContent({
                 editContent: dependencies.editContent,
+                readContent: dependencies.readContent,
                 prepareComposerChartEdit: dependencies.prepareComposerChartEdit,
                 siteUrl: args.siteUrl,
                 documentsEnabled,
@@ -2112,6 +2127,7 @@ export const getAgentTools = (
                 chartsEnabled: args.enableContentTools,
                 artifacts: dependencies.chartExportArtifacts,
                 sqlChartSaving: getSqlChartSaving(),
+                resultFormat: 'ack',
             }),
         createScheduledDelivery: () =>
             getCreateScheduledDelivery({
@@ -2838,7 +2854,7 @@ export const getAgentMessages = (
         canRunSql: args.canRunSql,
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
-        semanticStudioHasRepository: args.semanticStudioHasRepository,
+        semanticStudioCodeMode: args.semanticStudioCodeMode,
         semanticStudioBuilder: loadout.withheldToolNames.size > 0,
         semanticStudioProjectMap: args.semanticStudioProjectMap,
         semanticStudioQueriesDraft: loadout.toolNames.has('runMetricQuery'),
@@ -3059,7 +3075,20 @@ const prepareAgentTurn = async ({
         );
     }
     const turnIntent = preparedContext?.turnIntent ?? null;
-    const toolIntents = preparedContext?.toolIntents ?? [];
+    // Turns are stored and replayed as sent only for standard web turns (currentPromptStart set).
+    const replaysTurns =
+        args.execution.mode === 'standard' && args.currentPromptStart !== null;
+    // A follow-up keeps the whole toolbox, so the replayed previous turn's cached prefix still matches.
+    const isFollowUp =
+        replaysTurns &&
+        args.messageHistory.some((message) => message.role === 'assistant');
+    // A bound thread exists to change its content: start with the whole toolbox, no loadAgentTools step.
+    const isBoundContentThread =
+        args.threadBinding !== null && !!tools.editContent;
+    const toolIntents =
+        isFollowUp || isBoundContentThread
+            ? []
+            : (preparedContext?.toolIntents ?? []);
     const deferredSections = getDeferredPromptSections(
         getIntentToolNames(tools, toolIntents),
     );
@@ -3082,15 +3111,17 @@ const prepareAgentTurn = async ({
             ),
         );
     }
-    tools = withToolCallLogContext(
-        reportEarlyToolProgress
-            ? withEarlyToolProgress(
-                  intentToolGate.tools,
-                  dependencies.updateProgress,
-                  args.execution.mode === 'deep_research',
-              )
-            : intentToolGate.tools,
-        getAgentLogContext(args),
+    tools = withOrderedContentWrites(
+        withToolCallLogContext(
+            reportEarlyToolProgress
+                ? withEarlyToolProgress(
+                      intentToolGate.tools,
+                      dependencies.updateProgress,
+                      args.execution.mode === 'deep_research',
+                  )
+                : intentToolGate.tools,
+            getAgentLogContext(args),
+        ),
     );
     const messages = getAgentMessages(
         args,
@@ -3108,12 +3139,28 @@ const prepareAgentTurn = async ({
         !!preparedContext?.projectContextEntryIds.length,
         deferredSections,
     );
+    const turnStart =
+        messages.length -
+        args.messageHistory.length +
+        (args.currentPromptStart ?? 0);
     if (preparedContext?.content) {
         messages.push({
             role: 'user',
             content: `Reference material preloaded from the available tools for this request:\n${preparedContext.content}`,
         });
     }
+    const boundContent = isBoundContentThread
+        ? await getBoundContentPreload({
+              threadBinding: args.threadBinding,
+              readContent: dependencies.readContent,
+              siteUrl: args.siteUrl,
+          })
+        : null;
+    // Read fresh each turn; the stored transcript keeps no user messages, so no later turn sees a stale copy.
+    if (boundContent) messages.push({ role: 'user', content: boundContent });
+    const turnTranscript = replaysTurns
+        ? createTurnTranscript({ start: turnStart })
+        : undefined;
     const invalidToolCallIds = new Set<string>();
     const prepareStep = buildPrepareStep({
         args,
@@ -3127,10 +3174,13 @@ const prepareAgentTurn = async ({
         logger,
         invalidToolCallIds,
         agentContext,
+        turnTranscript,
+        cachePinIndex: turnTranscript ? turnStart - 1 : null,
     });
 
     return {
         agentContext,
+        turnTranscript,
         answerVerifier,
         loadout,
         tools,
@@ -3150,6 +3200,23 @@ const prepareAgentTurn = async ({
             logger,
         ),
     };
+};
+
+/** Stores a cleanly finished, persisted turn so later turns replay its tool steps as sent. */
+const storeTurnTranscript = async (
+    args: AiAgentArgs,
+    dependencies: AiAgentDependencies,
+    turnTranscript: TurnTranscript | undefined,
+    finalStep: { finishReason: string },
+) => {
+    if (!turnTranscript || finalStep.finishReason !== 'stop') return;
+    const messages = turnTranscript.complete();
+    if (messages)
+        await dependencies.storeTurnTranscript(args.promptUuid, {
+            messages,
+            formatVersion: TURN_TRANSCRIPT_FORMAT_VERSION,
+            model: getTranscriptModel(args.model),
+        });
 };
 
 // Forked scope so every capture in the turn, including from tool execute, carries the model.
@@ -3209,6 +3276,7 @@ const runGenerateAgentResponse = async ({
             prepareStep,
             stopWhenPromptInterrupted,
             repairToolCall,
+            turnTranscript,
         } = await prepareAgentTurn({
             args,
             dependencies,
@@ -3578,6 +3646,12 @@ const runGenerateAgentResponse = async ({
                     stages: timing.getStageTiming(),
                 },
             });
+            await storeTurnTranscript(
+                args,
+                dependencies,
+                turnTranscript,
+                result.finalStep,
+            );
         }
 
         const totalTime = Date.now() - startTime;
@@ -3677,6 +3751,7 @@ const runStreamAgentResponse = async ({
             prepareStep,
             stopWhenPromptInterrupted,
             repairToolCall,
+            turnTranscript,
         } = await prepareAgentTurn({
             args,
             dependencies,
@@ -4156,7 +4231,7 @@ const runStreamAgentResponse = async ({
                         responseTiming,
                     });
                 } else {
-                    await persistPrompt({
+                    const persisted = await persistPrompt({
                         response: completeResponse,
                         promptUuid: args.promptUuid,
                         tokenUsage: completedPromptTokenUsage(
@@ -4167,6 +4242,14 @@ const runStreamAgentResponse = async ({
                         ),
                         responseTiming,
                     });
+                    if (persisted) {
+                        await storeTurnTranscript(
+                            args,
+                            dependencies,
+                            turnTranscript,
+                            finalStep,
+                        );
+                    }
                 }
 
                 logger(

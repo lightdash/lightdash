@@ -19,6 +19,7 @@ import { z } from 'zod';
 import type { CreateContentFn } from '../types/aiAgentDependencies';
 import { toAbsoluteHref } from '../utils/absoluteHref';
 import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
+import { contentAck } from '../utils/contentText';
 import { getContentWarnings } from '../utils/contentWarnings';
 import { resolveDocumentConversationTags } from '../utils/documentConversationTags';
 import {
@@ -44,6 +45,8 @@ type Dependencies = {
     /** False when the actor can save Documents but not charts or dashboards. */
     chartsEnabled?: boolean;
     artifacts?: ArtifactChartExportAccess;
+    // The agent gets a short ack; MCP gets the created content.
+    resultFormat?: 'content' | 'ack';
 };
 
 type CreatedContent = Awaited<ReturnType<CreateContentFn>>;
@@ -131,6 +134,7 @@ export const getCreateContent = ({
     documentsEnabled = false,
     chartsEnabled = true,
     artifacts,
+    resultFormat = 'content',
 }: Dependencies) => {
     // A composer chart create carries any SQL in the call itself.
     const sqlChartGate = createSqlChartGate(
@@ -198,10 +202,12 @@ export const getCreateContent = ({
                     const result = await createContent(
                         await getCreateArgs(args, approveSql),
                     );
-                    const created = toCreatedContent(
-                        result,
-                        getContentWarnings(result),
-                    );
+                    const created = toCreatedContent(result, [
+                        ...getContentWarnings(result),
+                        ...(result.type === 'chart' && result.placementError
+                            ? [result.placementError]
+                            : []),
+                    ]);
                     const metadata = {
                         status: 'success' as const,
                         slug: created.slug,
@@ -214,6 +220,13 @@ export const getCreateContent = ({
                             : {}),
                     };
 
+                    if (resultFormat === 'ack' && created.type !== 'document') {
+                        return {
+                            result: contentAck(created, siteUrl),
+                            metadata,
+                            structuredContent: created,
+                        };
+                    }
                     const absoluteHref = toAbsoluteHref(siteUrl, created.href);
                     return {
                         result: contentResult({

@@ -754,7 +754,7 @@ describe('ExternalConnectionService.testConnection', () => {
                 path: '/v1/current',
                 config: { origin: 'https://other.example.com' },
             }),
-        ).rejects.toThrow('Re-enter the secret to change the origin');
+        ).rejects.toThrow('type "bearer_token" requires a secret');
 
         expect(model.getDecryptedSecret).not.toHaveBeenCalled();
         expect(executeExternalFetchSpy).not.toHaveBeenCalled();

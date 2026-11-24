@@ -20,7 +20,7 @@ This conversation is bound to the dashboard "${dashboard.name}" (slug: \`${dashb
 
 Saved content changes are limited to this dashboard. You can:
 - Edit this dashboard with editContent: tiles, tabs, filters and layout. Adding existing charts as tiles is allowed.
-- Create charts saved in this dashboard with createContent by setting \`dashboardSlug\` to \`${dashboard.slug}\`, then add them as tiles.
+- Create charts saved in this dashboard with createContent by setting \`dashboardSlug\` to \`${dashboard.slug}\`.
 - Edit charts that are saved in this dashboard.${
         enableSchedulingTools
             ? '\n- Schedule deliveries of this dashboard or the charts saved in it.'

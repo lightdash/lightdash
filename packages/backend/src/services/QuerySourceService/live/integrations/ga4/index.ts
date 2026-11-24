@@ -49,7 +49,12 @@ export const ga4Integration = defineLiveIntegration({
         // GET reads the property metadata the semantic layer scans
         methods: ['POST', 'GET'],
     }),
+    // Standard properties allow 10 concurrent requests; reports spend hourly
+    // tokens per property, which Google enforces and reports back.
     limits: {
+        concurrentCalls: 5,
+        callsPerMinute: 60,
+        callsPerHour: 1_000,
         callsPerQuery: 1,
         timeoutMs: 30_000,
         maxRows: GA4_MAX_QUERY_ROWS,
@@ -99,8 +104,6 @@ export const ga4Integration = defineLiveIntegration({
         description:
             'One report call returns up to 250,000 rows; offset pages beyond that.',
     },
-    // Standard properties allow 10 concurrent requests; reports spend hourly
-    // tokens per property, which Google enforces and reports back.
     rateLimits: {
         concurrentCalls: 5,
         callsPerSecond: null,

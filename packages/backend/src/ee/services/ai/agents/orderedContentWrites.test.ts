@@ -1,0 +1,151 @@
+import type { ToolSet } from 'ai';
+import { describe, expect, it } from 'vitest';
+import { withOrderedContentWrites } from './orderedContentWrites';
+
+type Execute = (input: unknown, options: unknown) => Promise<unknown>;
+
+describe('withOrderedContentWrites', () => {
+    it('starts a chart write only after the dashboard write called before it finishes', async () => {
+        let finishDashboard = () => {};
+        const started: string[] = [];
+        const tools = withOrderedContentWrites({
+            createContent: {
+                execute: (input: { type: string; slug: string }) => {
+                    started.push(input.slug);
+                    return input.type === 'dashboard'
+                        ? new Promise<void>((resolve) => {
+                              finishDashboard = resolve;
+                          })
+                        : Promise.resolve();
+                },
+            },
+        } as unknown as ToolSet);
+        const execute = tools.createContent.execute as Execute;
+
+        const writes = Promise.all([
+            execute({ type: 'dashboard', slug: 'd' }, {}),
+            execute({ type: 'chart', slug: 'c1' }, {}),
+            execute({ type: 'chart', slug: 'c2' }, {}),
+        ]);
+        await Promise.resolve();
+        expect(started).toEqual(['d']);
+
+        finishDashboard();
+        await writes;
+        expect(started).toEqual(['d', 'c1', 'c2']);
+    });
+
+    it('saves no chart for a dashboard whose create failed in the turn', async () => {
+        const saved: string[] = [];
+        const tools = withOrderedContentWrites({
+            createContent: {
+                execute: async (input: {
+                    type: string;
+                    content: { slug: string };
+                }) => {
+                    if (input.type === 'dashboard')
+                        return { metadata: { status: 'error' } };
+                    saved.push(input.content.slug);
+                    return { metadata: { status: 'success' } };
+                },
+            },
+        } as unknown as ToolSet);
+        const execute = tools.createContent.execute as Execute;
+
+        const [, chart, other] = await Promise.all([
+            execute({ type: 'dashboard', content: { slug: 'd' } }, {}),
+            execute(
+                { type: 'chart', content: { slug: 'c1', dashboardSlug: 'd' } },
+                {},
+            ),
+            execute(
+                { type: 'chart', content: { slug: 'c2', dashboardSlug: 'x' } },
+                {},
+            ),
+        ]);
+        expect(saved).toEqual(['c2']);
+        expect(chart).toMatchObject({ metadata: { status: 'error' } });
+        expect(other).toMatchObject({ metadata: { status: 'success' } });
+    });
+
+    it('saves charts for a dashboard whose create succeeded on retry', async () => {
+        let dashboardCalls = 0;
+        const tools = withOrderedContentWrites({
+            createContent: {
+                execute: async (input: { type: string }) => {
+                    if (input.type === 'dashboard') dashboardCalls += 1;
+                    return {
+                        metadata: {
+                            status: dashboardCalls === 1 ? 'error' : 'success',
+                        },
+                    };
+                },
+            },
+        } as unknown as ToolSet);
+        const execute = tools.createContent.execute as Execute;
+        const dashboard = { type: 'dashboard', content: { slug: 'd' } };
+
+        await execute(dashboard, {});
+        await execute(dashboard, {});
+        await expect(
+            execute(
+                { type: 'chart', content: { slug: 'c1', dashboardSlug: 'd' } },
+                {},
+            ),
+        ).resolves.toMatchObject({ metadata: { status: 'success' } });
+    });
+
+    it('points charts at a dashboard saved under another slug only in the response that created it', async () => {
+        const savedIn: string[] = [];
+        const tools = withOrderedContentWrites({
+            createContent: {
+                execute: async (input: {
+                    type: string;
+                    content: { slug: string; dashboardSlug?: string };
+                }) => {
+                    if (input.type === 'dashboard')
+                        return {
+                            metadata: { status: 'success', slug: 'sales-1' },
+                        };
+                    savedIn.push(input.content.dashboardSlug ?? '');
+                    return { metadata: { status: 'success' } };
+                },
+            },
+        } as unknown as ToolSet);
+        const execute = tools.createContent.execute as Execute;
+        const firstResponse = { messages: [] };
+        const laterResponse = { messages: [] };
+        const chart = {
+            type: 'chart',
+            content: { slug: 'c', dashboardSlug: 'sales' },
+        };
+
+        await Promise.all([
+            execute(
+                { type: 'dashboard', content: { slug: 'sales' } },
+                firstResponse,
+            ),
+            execute(chart, firstResponse),
+        ]);
+        await execute(chart, laterResponse);
+        expect(savedIn).toEqual(['sales-1', 'sales']);
+    });
+
+    it('keeps going after a failed write', async () => {
+        const tools = withOrderedContentWrites({
+            editContent: {
+                execute: async (input: { type: string; fail: boolean }) => {
+                    if (input.fail) throw new Error('boom');
+                    return 'ok';
+                },
+            },
+        } as unknown as ToolSet);
+        const execute = tools.editContent.execute as Execute;
+        await expect(
+            execute({ type: 'chart', fail: true }, {}),
+        ).rejects.toThrow('boom');
+        await expect(execute({ type: 'chart', fail: false }, {})).resolves.toBe(
+            'ok',
+        );
+    });
+});

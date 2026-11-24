@@ -3356,6 +3356,7 @@ describe('AiAgentToolsService', () => {
                 charts: [{ data: { uuid: 'chart-uuid', slug: stored.slug } }],
             });
             const service = makeService({
+                explores: { orders: makeExplore({ name: 'orders' }) },
                 savedChartService: {
                     get: vi.fn().mockResolvedValue({ uuid: 'chart-uuid' }),
                 },
@@ -9003,6 +9004,7 @@ describe.each(agentActionTestCases)(
                         .mockResolvedValue({ versionUuid: 'version' }),
                 });
                 const service = makeService({
+                    explores: { orders: makeExplore({ name: 'orders' }) },
                     coderService: coderService as unknown as Record<
                         string,
                         unknown
@@ -9927,21 +9929,43 @@ describe('AiAgentToolsService in a thread bound to a dashboard', () => {
             },
         );
 
-        it('creates a chart saved in the bound dashboard', async () => {
+        it('creates a chart saved in the bound dashboard and places its tile', async () => {
             const upsertChart = vi.fn().mockResolvedValue({
                 charts: [
                     { data: { uuid: 'chart-uuid', slug: 'orders-chart' } },
                 ],
             });
+            const upsertDashboard = vi.fn().mockResolvedValue({
+                dashboards: [{ data: { uuid: boundDashboard.uuid } }],
+            });
             const service = makeService({
+                explores: {
+                    orders: makeExplore({
+                        name: 'orders',
+                        metrics: {
+                            count: {
+                                name: 'count',
+                                table: 'orders',
+                                fieldType: 'metric',
+                            },
+                        },
+                    }),
+                },
                 dashboardModel: dashboardModel(),
+                dashboardService: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue(boundDashboard),
+                },
                 savedChartService: {
                     get: vi.fn().mockResolvedValue({ uuid: 'chart-uuid' }),
                 },
                 coderService: {
                     upsertChart,
+                    upsertDashboard,
                     getChartsForRead: vi.fn().mockResolvedValue({
                         charts: [makeChart(boundDashboard.slug)],
+                    }),
+                    getDashboardsForRead: vi.fn().mockResolvedValue({
+                        dashboards: [makeDashboard(boundDashboard.slug)],
                     }),
                 },
                 aiAgentContentValidation: contentValidation(),
@@ -9953,6 +9977,158 @@ describe('AiAgentToolsService in a thread bound to a dashboard', () => {
             } as never);
 
             expect(upsertChart).toHaveBeenCalled();
+            expect(upsertDashboard).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.anything(),
+                boundDashboard.slug,
+                expect.objectContaining({
+                    tiles: [
+                        expect.objectContaining({
+                            type: 'saved_chart',
+                            x: 0,
+                            y: 0,
+                            w: 36,
+                            properties: expect.objectContaining({
+                                chartSlug: 'orders-chart',
+                            }),
+                        }),
+                    ],
+                }),
+                expect.anything(),
+            );
+        });
+
+        it('checks chart fields against the explore without the agent tags', async () => {
+            const upsertChart = vi.fn().mockResolvedValue({
+                charts: [
+                    { data: { uuid: 'chart-uuid', slug: 'orders-chart' } },
+                ],
+            });
+            const service = makeService({
+                explores: {
+                    orders: makeExplore({
+                        name: 'orders',
+                        tags: ['finance'],
+                        metrics: {
+                            count: {
+                                name: 'count',
+                                table: 'orders',
+                                fieldType: 'metric',
+                            },
+                        },
+                    }),
+                },
+                savedChartService: {
+                    get: vi.fn().mockResolvedValue({ uuid: 'chart-uuid' }),
+                },
+                coderService: {
+                    upsertChart,
+                    getChartsForRead: vi.fn().mockResolvedValue({
+                        charts: [makeChart(undefined)],
+                    }),
+                },
+                aiAgentContentValidation: contentValidation(),
+            });
+
+            await service
+                .createRuntime(makeRuntimeContext({ tags: ['ai'] }))
+                .createContent({
+                    type: 'chart',
+                    content: makeChart(undefined),
+                } as never);
+
+            expect(upsertChart).toHaveBeenCalled();
+        });
+
+        it.each([
+            ['cannot be found', {}, /Explore "orders" is not available/],
+            [
+                'cannot be loaded',
+                {
+                    findExploresFromCache: vi
+                        .fn()
+                        .mockRejectedValue(new Error('cache read timed out')),
+                },
+                /cache read timed out/,
+            ],
+        ])(
+            'saves no chart whose explore %s',
+            async (_, projectModel, reason) => {
+                const upsertChart = vi.fn();
+                const service = makeService({
+                    projectModel,
+                    coderService: { upsertChart },
+                    aiAgentContentValidation: contentValidation(),
+                });
+
+                const create = service
+                    .createRuntime(makeRuntimeContext())
+                    .createContent({
+                        type: 'chart',
+                        content: makeChart(undefined),
+                    } as never);
+                await expect(create).rejects.toThrow(/was not saved/);
+                await expect(create).rejects.toThrow(reason);
+                expect(upsertChart).not.toHaveBeenCalled();
+            },
+        );
+
+        it('keeps a saved chart whose tile cannot be placed, and says how to add it', async () => {
+            const upsertChart = vi.fn().mockResolvedValue({
+                charts: [
+                    { data: { uuid: 'chart-uuid', slug: 'orders-chart' } },
+                ],
+            });
+            const service = makeService({
+                explores: {
+                    orders: makeExplore({
+                        name: 'orders',
+                        metrics: {
+                            count: {
+                                name: 'count',
+                                table: 'orders',
+                                fieldType: 'metric',
+                            },
+                        },
+                    }),
+                },
+                dashboardModel: dashboardModel(),
+                dashboardService: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue(boundDashboard),
+                },
+                savedChartService: {
+                    get: vi.fn().mockResolvedValue({ uuid: 'chart-uuid' }),
+                },
+                coderService: {
+                    upsertChart,
+                    upsertDashboard: vi
+                        .fn()
+                        .mockRejectedValue(new Error('dashboard locked')),
+                    getChartsForRead: vi.fn().mockResolvedValue({
+                        charts: [makeChart(boundDashboard.slug)],
+                    }),
+                    getDashboardsForRead: vi.fn().mockResolvedValue({
+                        dashboards: [makeDashboard(boundDashboard.slug)],
+                    }),
+                },
+                aiAgentContentValidation: contentValidation(),
+            });
+
+            const created = await service
+                .createRuntime(makeRuntimeContext())
+                .createContent({
+                    type: 'chart',
+                    content: makeChart(boundDashboard.slug),
+                } as never);
+
+            expect(upsertChart).toHaveBeenCalledTimes(1);
+            expect(created).toMatchObject({
+                type: 'chart',
+                uuid: 'chart-uuid',
+                placementError: expect.stringMatching(
+                    /dashboard locked\. Add its tile with editContent/,
+                ),
+            });
         });
 
         it('rejects a new SQL chart', async () => {

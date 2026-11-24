@@ -18,6 +18,36 @@ export const toolEditContentArgsSchema = z.object({
         .describe('RFC6902 operations applied to the current JSON'),
 });
 
+export const AGENT_EDIT_CONTENT_DESCRIPTION = ({
+    runtime,
+}: ToolDescriptionContext): string =>
+    `Edit a dashboard or chart by exact text replacement on the content as ${toolNameFor('readContent', runtime)} returned it (the text after the --- line). Each edit replaces "old", which must match exactly once, with "new"; edits apply in order and are saved together as one version, or not at all. Keep "old" short but unique, and put every change to one item in one call. No re-read is needed between edits: the content changes only by your edits. The result is the link and any warnings. Edit a SQL chart or composer chart with patch instead of edits: RFC6902 operations against its JSON as ${toolNameFor('readContent', runtime)} returned it. The content's space must show canEdit true in ${toolNameFor('findContent', runtime)} or ${toolNameFor('listContent', runtime)} results. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL. A composer chart is saved in place on its dashboard as a new version; new warehouse SQL in its nodes waits for approval the same way.`;
+
+export const contentTextEditSchema = z.object({
+    old: z
+        .string()
+        .min(1)
+        .describe('Exact text to replace; must match exactly once'),
+    new: z.string().describe('Replacement text'),
+});
+
+export type ContentTextEdit = z.infer<typeof contentTextEditSchema>;
+
+export const agentEditContentArgsSchema = z.object({
+    slug: toolEditContentArgsSchema.shape.slug,
+    type: toolEditContentArgsSchema.shape.type,
+    edits: z
+        .array(contentTextEditSchema)
+        .min(1)
+        .nullish()
+        .describe('Dashboards and charts: text replacements, applied in order'),
+    patch: toolEditContentArgsSchema.shape.patch
+        .nullish()
+        .describe(
+            'SQL and composer charts: RFC6902 operations applied to the current JSON',
+        ),
+});
+
 const toolEditContentMetadataSchema = z.discriminatedUnion('status', [
     z.object({ status: z.literal('error') }),
     // The user rejected, or never answered, the SQL chart's approval.

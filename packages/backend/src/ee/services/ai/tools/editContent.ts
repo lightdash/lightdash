@@ -1,4 +1,7 @@
 import {
+    agentDocumentsEditContentArgsSchema,
+    agentDocumentsEditContentToolDefinition,
+    agentEditContentToolDefinition,
     documentEditContentArgsSchema,
     documentEditContentToolDefinition,
     editContentToolDefinition,
@@ -13,9 +16,11 @@ import { z } from 'zod';
 import type {
     EditContentFn,
     PrepareComposerChartEditFn,
+    ReadContentFn,
 } from '../types/aiAgentDependencies';
 import { toAbsoluteHref } from '../utils/absoluteHref';
 import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
+import { contentAck, textEditsToPatch } from '../utils/contentText';
 import { getContentWarnings } from '../utils/contentWarnings';
 import { resolveDocumentConversationTags } from '../utils/documentConversationTags';
 import { toModelOutput } from '../utils/toModelOutput';
@@ -40,24 +45,15 @@ type Dependencies = {
 
 type EditedContent = Awaited<ReturnType<EditContentFn>>;
 
+// MCP's patch-based edit; the agent edits with getAgentEditContent.
 const toolDefinition = editContentToolDefinition.for('agent');
 
-const getToolVariant = (documentsEnabled: boolean, chartsEnabled: boolean) => {
-    if (!documentsEnabled) {
-        return {
-            definition: toolDefinition,
-            schema: toolEditContentArgsSchema,
-        };
-    }
+// What the actor may edit decides which args validate.
+const getArgsSchema = (documentsEnabled: boolean, chartsEnabled: boolean) => {
+    if (!documentsEnabled) return toolEditContentArgsSchema;
     return chartsEnabled
-        ? {
-              definition: mcpEditContentToolDefinition.for('agent'),
-              schema: mcpEditContentArgsSchema,
-          }
-        : {
-              definition: documentEditContentToolDefinition.for('agent'),
-              schema: documentEditContentArgsSchema,
-          };
+        ? mcpEditContentArgsSchema
+        : documentEditContentArgsSchema;
 };
 
 const contentResult = ({
@@ -113,13 +109,15 @@ export const executeEditContent = async (
     }: Dependencies,
     args: z.infer<typeof mcpEditContentArgsSchema>,
     approveSql: ApproveSqlFn | null = null,
+    // The agent gets a short ack; other callers get the edited content.
+    resultFormat: 'content' | 'ack' = 'content',
 ) => {
     const { slug, type } = args;
     // Models send null for the one of these they leave unused
     const patch = args.patch ?? null;
     const documentEdit = args.documentEdit ?? null;
     try {
-        getToolVariant(documentsEnabled, chartsEnabled).schema.parse(args);
+        getArgsSchema(documentsEnabled, chartsEnabled).parse(args);
         const getEditArgs = async (): Promise<Parameters<EditContentFn>[0]> => {
             if (type === 'document') {
                 if (patch !== null || documentEdit === null) {
@@ -194,6 +192,21 @@ export const executeEditContent = async (
         };
 
         const absoluteHref = toAbsoluteHref(siteUrl, result.href);
+        if (resultFormat === 'ack' && result.type !== 'document') {
+            return {
+                result: contentAck(
+                    {
+                        type: result.type,
+                        href: result.href,
+                        slug: result.content.slug,
+                        warnings,
+                    },
+                    siteUrl,
+                ),
+                metadata,
+                structuredContent: toStructuredContent(result, warnings),
+            };
+        }
         return {
             result: contentResult({
                 content:
@@ -223,17 +236,13 @@ export const getEditContent = ({
     prepareComposerChartEdit,
     siteUrl,
     sqlChartSaving = { mode: 'disabled' },
-    documentsEnabled = false,
-    chartsEnabled = true,
-    artifacts,
-}: Dependencies & {
+}: Pick<Dependencies, 'editContent' | 'siteUrl' | 'sqlChartSaving'> & {
     // Null where no thread approval runs (MCP clients approve their own calls).
     prepareComposerChartEdit: PrepareComposerChartEditFn | null;
 }) => {
-    const { definition } = getToolVariant(documentsEnabled, chartsEnabled);
     const inputSchema: FlexibleSchema<
-        z.infer<typeof mcpEditContentArgsSchema>
-    > = definition.inputSchema;
+        z.infer<typeof toolEditContentArgsSchema>
+    > = toolDefinition.inputSchema;
     const sqlChartGate = createSqlChartGate(
         sqlChartSaving,
         'editContent',
@@ -252,24 +261,127 @@ export const getEditContent = ({
     );
 
     return tool({
-        ...definition,
+        ...toolDefinition,
         inputSchema,
         needsApproval: sqlChartGate.needsApproval,
         execute: (args, { toolCallId }) =>
             sqlChartGate.run({ toolCallId, args }, (approveSql) =>
                 executeEditContent(
-                    {
-                        editContent,
-                        siteUrl,
-                        sqlChartSaving,
-                        documentsEnabled,
-                        chartsEnabled,
-                        artifacts,
-                    },
+                    { editContent, siteUrl, sqlChartSaving },
                     args,
                     approveSql,
                 ),
             ),
+        toModelOutput: ({ output }) => toModelOutput(output),
+    });
+};
+
+const getAgentToolVariant = (
+    documentsEnabled: boolean,
+    chartsEnabled: boolean,
+) => {
+    if (!documentsEnabled) return agentEditContentToolDefinition.for('agent');
+    return chartsEnabled
+        ? agentDocumentsEditContentToolDefinition.for('agent')
+        : documentEditContentToolDefinition.for('agent');
+};
+
+type AgentEditContentArgs = z.infer<typeof agentDocumentsEditContentArgsSchema>;
+type PatchEditContentArgs = z.infer<typeof mcpEditContentArgsSchema>;
+
+/** The agent's edit tool: text edits on the content as readContent shows it. */
+export const getAgentEditContent = ({
+    editContent,
+    readContent,
+    prepareComposerChartEdit,
+    siteUrl,
+    sqlChartSaving = { mode: 'disabled' },
+    documentsEnabled = false,
+    chartsEnabled = true,
+    artifacts,
+}: Dependencies & {
+    readContent: ReadContentFn;
+    prepareComposerChartEdit: PrepareComposerChartEditFn;
+}) => {
+    const definition = getAgentToolVariant(documentsEnabled, chartsEnabled);
+    const inputSchema: FlexibleSchema<AgentEditContentArgs> =
+        definition.inputSchema;
+    const deps = {
+        editContent,
+        siteUrl,
+        sqlChartSaving,
+        documentsEnabled,
+        chartsEnabled,
+        artifacts,
+    };
+
+    // SQL and composer charts keep the model's patch, which approval handlers read from the call.
+    const toPatchArgs = async (
+        args: AgentEditContentArgs,
+    ): Promise<PatchEditContentArgs> => {
+        const { slug, type } = args;
+        if (type === 'document') {
+            return { slug, type, documentEdit: args.documentEdit ?? null };
+        }
+        if (type === 'sql_chart' || type === 'composer_chart') {
+            if (!args.patch) {
+                throw new ParameterError(
+                    'SQL and composer charts require patch instead of edits.',
+                );
+            }
+            return { slug, type, patch: args.patch };
+        }
+        if (!args.edits || args.edits.length === 0) {
+            throw new ParameterError('Charts and dashboards require edits.');
+        }
+        const current = await readContent({ slug, type });
+        if (current.type !== 'chart' && current.type !== 'dashboard') {
+            throw new ParameterError(
+                `No ${type} "${slug}" could be edited; "${slug}" is a ${current.type}. Edit it with type ${current.type}.`,
+            );
+        }
+        return {
+            slug,
+            type,
+            patch: textEditsToPatch(current, args.edits),
+        };
+    };
+
+    const sqlChartGate = createSqlChartGate(
+        sqlChartSaving,
+        'editContent',
+        async (args) => {
+            const { slug, patch } = toolEditContentArgsSchema
+                .pick({ slug: true, patch: true })
+                .parse(args);
+            const { approvalSql } = await prepareComposerChartEdit({
+                slug,
+                patch,
+            });
+            return approvalSql;
+        },
+    );
+
+    return tool({
+        ...definition,
+        inputSchema,
+        needsApproval: sqlChartGate.needsApproval,
+        execute: async (args, { toolCallId }) => {
+            let patchArgs: PatchEditContentArgs;
+            try {
+                patchArgs = await toPatchArgs(args);
+            } catch (error) {
+                return toolErrorOutput(
+                    error,
+                    `Error editing ${args.type} "${args.slug}". Changes were not applied.`,
+                );
+            }
+            return sqlChartGate.run(
+                { toolCallId, args: patchArgs },
+                (approveSql) =>
+                    executeEditContent(deps, patchArgs, approveSql, 'ack'),
+            );
+        },
         toModelOutput: ({ output }) => toModelOutput(output),
     });
 };

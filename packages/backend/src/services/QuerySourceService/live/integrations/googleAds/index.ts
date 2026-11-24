@@ -43,7 +43,12 @@ export const googleAdsIntegration = defineLiveIntegration({
             ? { 'login-customer-id': loginCustomerId }
             : null,
     }),
+    // Daily operations are shared by every connection of the server's Google
+    // client (2,880 at Explorer access), so one connection can't take them all.
     limits: {
+        concurrentCalls: 5,
+        callsPerMinute: 60,
+        callsPerHour: 1_000,
         callsPerQuery: 1,
         timeoutMs: 60_000,
         maxRows: GOOGLE_ADS_MAX_QUERY_ROWS,
@@ -104,8 +109,6 @@ export const googleAdsIntegration = defineLiveIntegration({
         description:
             'GAQL search returns results in pages of up to 10,000 rows.',
     },
-    // Daily operations are shared by every connection of the server's Google
-    // client (2,880 at Explorer access), so one connection can't take them all.
     rateLimits: {
         concurrentCalls: 5,
         callsPerSecond: null,

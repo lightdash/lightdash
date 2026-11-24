@@ -80,10 +80,11 @@ describe('AiAgentModel prompt input classification', () => {
         );
     });
 
-    it('stamps retry freshness while clearing a failed response', async () => {
+    it('stamps retry freshness while clearing a failed response and its transcript', async () => {
         tracker.on
             .update('ai_prompt')
             .responseOnce([{ ai_prompt_uuid: 'prompt-uuid' }]);
+        tracker.on.delete('ai_prompt_transcript').responseOnce(1);
 
         await expect(
             model.resetPromptResponseForRetry('prompt-uuid', {
@@ -103,6 +104,7 @@ describe('AiAgentModel prompt input classification', () => {
                 'Previous failure',
             ]),
         );
+        expect(tracker.history.delete[0].bindings).toEqual(['prompt-uuid']);
     });
 
     it('allows one final response to replace intermediate text', async () => {

@@ -918,9 +918,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.getExternalConnectionApiUsage': [
         AgentCapability.ReadDiscover,
     ],
-    'ExternalConnectionController.getExternalConnectionRateLimitUsage': [
-        AgentCapability.ReadDiscover,
-    ],
     'ExternalConnectionController.getExternalConnectionSchema': [
         AgentCapability.ReadDiscover,
     ],

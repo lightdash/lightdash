@@ -561,6 +561,7 @@ describe('trusted surface to persisted chart identity', () => {
                     messageHistory: [],
                     compactionSummary: null,
                     resolveMessageHistory: async () => [],
+                    currentPromptStart: null,
                 },
                 {
                     prompt: prompt as AiWebAppPrompt,
