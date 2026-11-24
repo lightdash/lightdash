@@ -3,10 +3,12 @@ import {
     buildAgentRunSqlDescription,
     DEFAULT_RUN_SQL_LIMIT,
     DEFAULT_RUN_SQL_MAX_LIMIT,
+    ExploreType,
     GET_METADATA_DESCRIPTION,
     getMetadataInputSchema,
     GREP_FIELDS_DESCRIPTION,
     grepFieldsInputSchema,
+    SupportedDbtAdapter,
     TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION,
     TOOL_EXPLORE_REPO_DESCRIPTION,
     TOOL_LIST_WAREHOUSE_TABLES_DESCRIPTION,
@@ -14,18 +16,22 @@ import {
     toolExploreRepoArgsSchema,
     toolListWarehouseTablesArgsSchema,
     toolRunSqlArgsSchema,
+    WarehouseTypes,
+    type Explore,
 } from '@lightdash/common';
 import { generateText, tool, type Tool } from 'ai';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { aiCopilotConfigSchema } from '../../../../config/aiConfigSchema';
 import { getAiConfig } from '../../../../config/parseConfig';
 import {
+    getStudioAbilities,
     resolveLoadout,
     type AgentToolName,
     type LoadoutInput,
 } from '../loadout';
 import { getModel } from '../models';
-import { getSemanticStudioSystemPrompt } from './systemV2SemanticStudio';
+import { getSystemPromptV2 } from './systemV2';
+import { getSemanticStudioTurn } from './systemV2SemanticStudio';
 
 // Live model eval, opt in: SEMANTIC_STUDIO_EVAL=1 plus a provider key. Repository tools are stubs and runSql reads an in-memory table.
 const describeEval =
@@ -79,6 +85,17 @@ select
     case when i % 20 = 0 or i % 5 = 0 then null else timestamp '2025-01-01' + interval (i) hour end as resolved_at,
     case when i % 7 = 0 then null else (i % 90) + 1 end as handling_minutes
 from range(5000) t(i)`;
+
+const TICKETS_EXPLORE: Explore = {
+    name: 'tickets',
+    label: 'Tickets',
+    tags: [],
+    baseTable: 'tickets',
+    joinedTables: [],
+    tables: {},
+    targetDatabase: SupportedDbtAdapter.DUCKDB,
+    type: ExploreType.DEFAULT,
+};
 
 let warehouse: DuckDBConnection;
 
@@ -188,33 +205,38 @@ const runAsk = async (prompt: string, canRunSql: boolean) => {
         }),
     };
     // Only the tools the Studio loadout offers; its other tools have no stub here.
+    const loadout = resolveLoadout(studioInput(canRunSql));
+    const { builder } = getStudioAbilities(loadout);
     const tools = Object.fromEntries(
-        [...resolveLoadout(studioInput(canRunSql)).toolNames].flatMap(
-            (name) => {
-                const stubbed = stubs[name];
-                return stubbed ? [[name, stubbed] as const] : [];
-            },
-        ),
+        [...loadout.toolNames].flatMap((name) => {
+            const stubbed = stubs[name];
+            return stubbed ? [[name, stubbed] as const] : [];
+        }),
     );
     const { text } = await generateText({
         ...callOptions,
         providerOptions,
         model,
         stopWhen: ({ steps }) => steps.length >= 15,
-        instructions: getSemanticStudioSystemPrompt({
+        instructions: getSystemPromptV2({
             agentName: 'Agent',
             date: '2026-01-01',
-            instructions: undefined,
-            projectContext: null,
-            warehouse: canRunSql ? { type: 'duckdb', schema: 'public' } : null,
-            hasRepository: true,
-            dbt: {
-                saves: false,
+            availableExplores: [TICKETS_EXPLORE],
+            promptSections: loadout.promptSections,
+            canRunSql: loadout.toolNames.has('runSql'),
+            warehouseType: WarehouseTypes.DUCKDB,
+            warehouseSchema: 'public',
+            repoFsRoot: '.',
+            studio: getSemanticStudioTurn(loadout, {
+                drafts: false,
+                hasRepository: true,
                 projectMap: null,
-                sections: [],
-            },
-            canQueryDraft: false,
-        }),
+                siteUrl: '',
+                repoFsRoot: '.',
+                repoFsSupportsCodeSearch: true,
+            }),
+            projectContextInRead: builder,
+        }).content,
         prompt,
         tools,
     });

@@ -47,7 +47,10 @@ import { getRequestingUserSection } from './systemV2RequestingUser';
 import { getRunSqlSection } from './systemV2RunSql';
 import { getSchedulingToolsSection } from './systemV2SchedulingTools';
 import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
-import { getSemanticStudioSystemPrompt } from './systemV2SemanticStudio';
+import {
+    getSemanticStudioSystemPrompt,
+    type SemanticStudioTurn,
+} from './systemV2SemanticStudio';
 import { renderAvailableSkills } from './systemV2Skills';
 import { getSlackLinksOnlySection } from './systemV2SlackLinksOnly';
 import {
@@ -210,13 +213,9 @@ export const getSystemPromptV2 = (
         // Whether the repo host supports server-side code search (GitHub yes,
         // GitLab no). Defaults true; when false the prompt steers off `search`.
         repoFsSupportsCodeSearch?: boolean;
-        semanticStudioBuilder?: boolean;
-        // A Studio dbt project's layout from its last compile.
-        semanticStudioProjectMap?: string | null;
-        // Semantic Studio can run a metric query, which reads the person's draft.
-        semanticStudioQueriesDraft?: boolean;
-        // False only for a Studio project with no repository.
-        semanticStudioHasRepository?: boolean;
+        studio?: SemanticStudioTurn;
+        // Project context is loaded through read rather than its own tool.
+        projectContextInRead?: boolean;
         // Org Slack setting: the answer may not carry query results into Slack.
         slackLinksOnly?: boolean;
         canRunSql?: boolean;
@@ -240,10 +239,8 @@ export const getSystemPromptV2 = (
         siteUrl = '',
         repoFsRoot = null,
         repoFsSupportsCodeSearch = true,
-        semanticStudioBuilder = false,
-        semanticStudioProjectMap = null,
-        semanticStudioQueriesDraft = false,
-        semanticStudioHasRepository = true,
+        studio = { kind: 'draft', canQueryDraft: false, hasRepository: true },
+        projectContextInRead = false,
         promptSections = NO_PROMPT_SECTIONS,
         slackChannelId = null,
         slackLinksOnly = false,
@@ -337,7 +334,7 @@ export const getSystemPromptV2 = (
     let projectContextContent =
         'No project context has been configured for this project.';
     if (promptSections.has('projectContext') && args.hasProjectContext) {
-        const contextTool = semanticStudioBuilder
+        const contextTool = projectContextInRead
             ? `\`${readLibraryPath('loadProjectContext')}\` in read`
             : '`loadProjectContext`';
         const projectContextDefinition =
@@ -377,44 +374,13 @@ export const getSystemPromptV2 = (
                     args.hasProjectContext
                         ? projectContextContent
                         : null,
-                canQueryDraft: semanticStudioQueriesDraft,
-                hasRepository: semanticStudioHasRepository,
+                studio,
                 warehouse: promptSections.has('runSql')
                     ? {
                           type: args.warehouseType ?? null,
                           schema: args.warehouseSchema ?? null,
                       }
                     : null,
-                // Only a dbt project's Studio thread reads the repository; it saves when the writeback tools load.
-                dbt:
-                    promptSections.has('repoFs') ||
-                    promptSections.has('aiWriteback')
-                        ? {
-                              saves: promptSections.has('aiWriteback'),
-                              projectMap: semanticStudioProjectMap,
-                              sections: [
-                                  ...(promptSections.has('aiWriteback')
-                                      ? [
-                                            getAiWritebackSection({
-                                                // The pull request card offers linking, so the reply stays short.
-                                                attribution: null,
-                                                siteUrl,
-                                                canEditContent: false,
-                                            }),
-                                        ]
-                                      : []),
-                                  ...(promptSections.has('repoFs')
-                                      ? [
-                                            getRepoFsSection({
-                                                root: repoFsRoot,
-                                                supportsCodeSearch:
-                                                    repoFsSupportsCodeSearch,
-                                            }),
-                                        ]
-                                      : []),
-                              ],
-                          }
-                        : null,
             }),
         );
     }
