@@ -837,7 +837,7 @@ describe('built-in usage dashboards', () => {
         );
         expect(heading.h).toBe(1);
         expect((heading.properties as { content: string }).content).toMatch(
-            /^\*\*Current ownership\*\* {2}\n/,
+            /^\*\*Who owns the dashboards today\*\* {2}\n/,
         );
     });
 

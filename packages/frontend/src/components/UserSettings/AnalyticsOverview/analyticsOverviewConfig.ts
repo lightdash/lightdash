@@ -360,7 +360,8 @@ export const analyticsTabs: {
         id: 'content',
         summary: null,
         label: 'Content',
-        description: 'Audience, trust, adoption and current content inventory.',
+        description:
+            'What content is read, what could be cleaned up and who owns it?',
         dashboardSlug: 'lightdash-analytics-content',
         charts: [
             time(
@@ -421,8 +422,9 @@ export const analyticsTabs: {
     {
         id: 'tools',
         summary: null,
-        label: 'Tools & operations',
-        description: 'MCP tool usage, exports and outcomes.',
+        label: 'Exports & MCP',
+        description:
+            'Who takes data out through downloads, Google Sheets and MCP tools?',
         dashboardSlug: 'lightdash-analytics-tools',
         charts: [
             time('Tool calls per day', 'tools', 'total_calls'),

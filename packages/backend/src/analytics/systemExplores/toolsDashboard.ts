@@ -188,8 +188,8 @@ export const toolsChartSpecs: UsageChartSpec[] = [
 
 export const toolsDashboardSpec: UsageDashboardSpec = {
     key: 'lightdash-analytics-tools',
-    name: 'Tools & operations',
-    description: 'MCP tool usage, downloads and Google Sheets.',
+    name: 'Exports & MCP',
+    description: 'Downloads, Google Sheets queries and MCP tool calls.',
     tabs: [
         {
             key: 'mcp',
@@ -232,7 +232,7 @@ export const toolsDashboardSpec: UsageDashboardSpec = {
         },
         {
             key: 'exports',
-            name: 'Exports',
+            name: 'Exports & Google Sheets',
             sections: [
                 {
                     title: 'Export activity',

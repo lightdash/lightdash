@@ -70,7 +70,7 @@ describe('Analytics settings query scopes', () => {
             ['Queries', 'lightdash-analytics-query-activity'],
             ['Content', 'lightdash-analytics-content'],
             ['Data apps', 'lightdash-analytics-apps'],
-            ['Tools & operations', 'lightdash-analytics-tools'],
+            ['Exports & MCP', 'lightdash-analytics-tools'],
             ['Adoption', 'lightdash-analytics-adoption'],
             ['AI token usage', 'lightdash-analytics-ai-tokens'],
             ['Embed', 'lightdash-analytics-embed'],

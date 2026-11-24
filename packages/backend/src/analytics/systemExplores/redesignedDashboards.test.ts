@@ -147,25 +147,34 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'content-viewers-latest-day',
                 0,
                 1,
-                12,
+                9,
                 4,
                 'big-number-with-sparkline-trend',
                 'big_number',
             ],
             [
                 'content-views',
-                12,
+                9,
                 1,
-                12,
+                9,
                 4,
                 'big-number-with-sparkline-trend',
                 'big_number',
             ],
             [
                 'verified-content-audience-share',
-                24,
+                18,
                 1,
-                12,
+                9,
+                4,
+                'big-number-with-sparkline-trend',
+                'big_number',
+            ],
+            [
+                'content-created-in-period',
+                27,
+                1,
+                9,
                 4,
                 'big-number-with-sparkline-trend',
                 'big_number',
@@ -197,28 +206,17 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'sortable-pivot-table',
                 'table',
             ],
-        ],
-        adoption: [
             [
                 'new-content-adoption-creation-week-proxy',
                 0,
-                1,
+                22,
                 36,
                 8,
                 'sortable-pivot-table',
                 'table',
             ],
-            [
-                'content-creation-by-month',
-                0,
-                9,
-                36,
-                7,
-                'customizable-cartesian-chart',
-                'cartesian',
-            ],
         ],
-        health: [
+        inventory: [
             [
                 'content-with-activity',
                 0,
@@ -254,6 +252,15 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 8,
                 null,
                 'table',
+            ],
+            [
+                'content-creation-by-month',
+                0,
+                12,
+                36,
+                7,
+                'customizable-cartesian-chart',
+                'cartesian',
             ],
         ],
         ownership: [
@@ -2262,5 +2269,28 @@ describe('a fix that every card needs', () => {
         expect(new Set(cards.map(({ minVersion }) => minVersion))).toEqual(
             new Set(['0.8.4']),
         );
+    });
+});
+
+describe('one number in two places', () => {
+    it('shows the same Content created on Overview and on Content', () => {
+        const charts = analyticsContentAsCode.flatMap(
+            (bundle) => bundle.charts,
+        );
+        const home = charts.find(
+            ({ slug }) => slug === 'lightdash-analytics-home-content-created',
+        )!;
+        const content = charts.find(
+            ({ slug }) =>
+                slug ===
+                'lightdash-analytics-content-content-created-in-period',
+        )!;
+        const withoutIds = (chart: ChartAsCode) =>
+            JSON.stringify(chart.metricQuery).replaceAll(
+                /"id":"[^"]*"/g,
+                '"id":""',
+            );
+        expect(withoutIds(content)).toBe(withoutIds(home));
+        expect(sqlOf(content)).toBe(sqlOf(home));
     });
 });
