@@ -249,9 +249,6 @@ const buildService = ({
         externalConnectionModel,
         analytics,
         schedulerClient,
-        featureFlagModel: {
-            get: vi.fn(async () => ({ enabled: true })),
-        },
     } as never);
     vi.spyOn(
         service as unknown as { createAuditedAbility: () => unknown },

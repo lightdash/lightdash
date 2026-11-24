@@ -136,7 +136,7 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                                     color="black"
                                 />
                             }
-                            description="Fastest way to get started — connect directly and query your tables"
+                            description="Fastest way to get started: connect directly and query your tables"
                         >
                             Connect to your warehouse
                         </OnboardingButton>
