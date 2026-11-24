@@ -65,8 +65,12 @@ export const useStudioPullRequest = (
             : ([
                   ...(workspaces?.mine ?? []),
                   ...(workspaces?.recent ?? []).filter((item) => item.isMine),
-              ].find(({ threadUuid }) => threadUuid === thread?.threadUuid) ??
-              null);
+              ].find((item) =>
+                  // With no chat, a hand save's draft is the one checked out.
+                  thread
+                      ? item.threadUuid === thread.threadUuid
+                      : item.isActive,
+              ) ?? null);
     const isChatOfChange =
         !workspace || workspace.threadUuid === thread?.threadUuid;
     const results = (isChatOfChange ? (data?.messages ?? []) : [])

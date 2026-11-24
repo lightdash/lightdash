@@ -70,6 +70,7 @@ import { WarehouseLogoStack } from '../../components/ProjectConnection/ProjectCo
 import { AgentChatInput } from '../../ee/features/aiCopilot/components/ChatElements/AgentChatInput';
 import { useDefaultAiAgent } from '../../ee/features/aiCopilot/components/Launcher/useDefaultAiAgent';
 import { useStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
+import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import {
     getLiveSource,
     getLiveSourceIconClass,
@@ -1817,6 +1818,8 @@ export const EmptyProject: FC<{ view: ViewModel }> = ({ view }) => {
     const { data: project } = useProject(view.project.id);
     const canEdit = useCanEditSemanticLayer(view.project.id);
     const { agents } = useDefaultAiAgent(view.project.id);
+    const isCopilotEnabled =
+        useAiOrganizationSettings().data?.isCopilotEnabled === true;
     if (!project) return null;
 
     const hasWarehouse = !!project.warehouseConnection;
@@ -1838,7 +1841,7 @@ export const EmptyProject: FC<{ view: ViewModel }> = ({ view }) => {
                     'Your tables and metrics come from the connected project. They show up here after it refreshes.',
             };
         }
-        if (canEdit && !hasAgent) {
+        if (canEdit && !hasAgent && isCopilotEnabled) {
             return {
                 title: 'Build your semantic layer',
                 description:
@@ -1870,7 +1873,8 @@ export const EmptyProject: FC<{ view: ViewModel }> = ({ view }) => {
                 {hasWarehouse &&
                 !hasConnectedProject &&
                 !hasAgent &&
-                canEdit ? (
+                canEdit &&
+                isCopilotEnabled ? (
                     <Button
                         component={Link}
                         to={`/projects/${view.project.id}/ai-agents/new`}
