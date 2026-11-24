@@ -448,7 +448,7 @@ export const analyticsTabs: {
         id: 'adoption',
         summary: null,
         label: 'Adoption',
-        description: 'Explore usage and feature adoption by team.',
+        description: 'Who is using Lightdash, and who is not?',
         // Shown where the Adoption app is not available
         dashboardSlug: 'lightdash-analytics-adoption',
         charts: [
@@ -459,12 +459,6 @@ export const analyticsTabs: {
                 ['content_name', 'content_id'],
                 'distinct_viewers',
                 { content_type: ['dashboard'] },
-            ),
-            time(
-                'People asking agents in the web app by day',
-                'requests',
-                'distinct_requesters',
-                { surface: ['web_app'] },
             ),
             time('Data apps in use by day', 'apps', 'unique_apps', {
                 event_name: ['data_app.view'],

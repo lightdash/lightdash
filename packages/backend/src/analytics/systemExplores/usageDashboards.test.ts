@@ -65,10 +65,10 @@ describe('built-in usage dashboards', () => {
                     /_(chart|dashboard|content)_name$/.test(field),
                 ),
         );
-        expect(linked.map(({ slug }) => slug)).toHaveLength(10);
+        expect(linked.map(({ slug }) => slug)).toHaveLength(9);
         expect(
             linked.some(({ slug }) =>
-                slug.endsWith('-adoption-dashboard-audience'),
+                slug.endsWith('-who-visited-which-dashboard'),
             ),
         ).toBe(true);
         for (const chart of linked) {
@@ -478,7 +478,7 @@ describe('built-in usage dashboards', () => {
         }
     });
 
-    it('names embedded viewers apart from loads with no user, without inventing an identity', async () => {
+    it('leaves embedded loads out of the people who use data apps, without inventing an identity', async () => {
         const instance = await DuckDBInstance.create(':memory:', {
             threads: '1',
             memory_limit: '128MB',
@@ -501,22 +501,16 @@ describe('built-in usage dashboards', () => {
             const rows = (
                 await db.runAndReadAll(compile(chart).query)
             ).getRowObjects();
-            // Two kinds of nobody: loads through an embed, and loads with no user at all
-            expect(rows).toHaveLength(2);
-            expect(rows).toEqual(
-                expect.arrayContaining([
-                    expect.objectContaining({
-                        user_display_name: 'Embedded viewer',
-                        data_app_events_activity_origin: 'Embed',
-                        data_app_events_total_views: 2n,
-                    }),
-                    expect.objectContaining({
-                        user_display_name: 'No user recorded',
-                        data_app_events_activity_origin: 'App',
-                        data_app_events_total_views: 1n,
-                    }),
-                ]),
-            );
+            // An embed is not a person opening the data app, so only the standalone load is listed,
+            // under no invented name
+            expect(rows).toHaveLength(1);
+            expect(rows).toEqual([
+                expect.objectContaining({
+                    user_display_name: 'No user recorded',
+                    data_app_events_activity_origin: 'App',
+                    data_app_events_total_views: 1n,
+                }),
+            ]);
         } finally {
             db.closeSync();
             instance.closeSync();
@@ -1042,11 +1036,10 @@ describe('built-in usage dashboards', () => {
 
     it('keeps tile geometry for sections without a layout hint', () => {
         const { dashboard } = analyticsContentAsCode.find(
-            ({ dashboard: item }) =>
-                item.slug === 'lightdash-analytics-adoption',
+            ({ dashboard: item }) => item.slug === 'lightdash-analytics-apps',
         )!;
         const geometry = dashboard.tiles
-            .filter((tile) => tile.tabSlug === 'app-outcomes')
+            .filter((tile) => tile.tabSlug === 'reliability')
             .map((tile) => [tile.x, tile.y, tile.w, tile.h]);
         expect(geometry).toEqual([
             [0, 0, 36, 1],
@@ -1055,23 +1048,23 @@ describe('built-in usage dashboards', () => {
         ]);
     });
 
-    it('scopes outcome filters and the default date range to the two outcome charts', () => {
-        const { dashboard, charts: adoptionCharts } =
-            analyticsContentAsCode.find(
-                ({ dashboard: item }) =>
-                    item.slug === 'lightdash-analytics-adoption',
-            )!;
-        const outcomeCharts = adoptionCharts.filter(
+    it('scopes the Data app and Surface filters to the two reliability charts, with Date on every period chart', () => {
+        const { dashboard, charts: appCharts } = analyticsContentAsCode.find(
+            ({ dashboard: item }) => item.slug === 'lightdash-analytics-apps',
+        )!;
+        const outcomeCharts = appCharts.filter(
             ({ tableName }) => tableName === 'data_app_outcomes',
         );
         expect(outcomeCharts).toHaveLength(2);
-        expect(dashboard.filters?.dimensions?.[0]).toMatchObject({
-            label: 'Date',
-            operator: FilterOperator.IN_THE_PAST,
-            values: [30],
-        });
-        for (const filter of dashboard.filters?.dimensions ?? []) {
-            for (const chart of adoptionCharts) {
+        const filters = dashboard.filters?.dimensions ?? [];
+        expect(filters.map(({ label }) => label)).toEqual([
+            'Data app',
+            'Surface',
+            'Date',
+            'Project',
+        ]);
+        for (const filter of filters.slice(0, 2)) {
+            for (const chart of appCharts) {
                 expect(filter.tileTargets?.[chart.slug]).toEqual(
                     chart.tableName === 'data_app_outcomes'
                         ? filter.target
@@ -1079,12 +1072,36 @@ describe('built-in usage dashboards', () => {
                 );
             }
         }
+        const date = filters[2];
+        expect(date).toMatchObject({
+            operator: FilterOperator.IN_THE_PAST,
+            values: [30],
+        });
+        // The running total is the one tile that covers all recorded history
+        expect(
+            appCharts
+                .filter(({ slug }) => date.tileTargets?.[slug] === false)
+                .map(({ slug }) => slug),
+        ).toEqual(['lightdash-analytics-apps-apps-running-total-by-week']);
         const outcomeTiles = dashboard.tiles.filter(
             (tile) =>
                 tile.type === DashboardTileTypes.SAVED_CHART &&
-                tile.tabSlug === 'app-outcomes',
+                tile.tabSlug === 'reliability',
         );
         expect(outcomeTiles).toHaveLength(2);
+        // People has no filter of its own: its first tab follows Date, its second is a state
+        const people = analyticsContentAsCode.find(
+            ({ dashboard: item }) =>
+                item.slug === 'lightdash-analytics-adoption',
+        )!;
+        expect(people.dashboard.name).toBe('People');
+        expect(people.dashboard.tabs.map(({ name }) => name)).toEqual([
+            'Active people',
+            'People who have not used Lightdash',
+        ]);
+        expect(
+            people.dashboard.filters?.dimensions?.map(({ label }) => label),
+        ).toEqual(['Date', 'Project']);
     });
 
     it('keeps Embed date filters on every tile and query counts restricted to embeds', () => {
@@ -1286,7 +1303,7 @@ describe('built-in usage dashboards', () => {
         }
     });
 
-    it('reconciles Adoption prompts, audience and creator filters against synthetic activity', async () => {
+    it('reconciles People and the moved data app tiles against synthetic activity', async () => {
         const instance = await DuckDBInstance.create(':memory:');
         const db = await instance.connect();
         try {
@@ -1347,15 +1364,24 @@ describe('built-in usage dashboards', () => {
                 ('org','project','app','2026-01-05','data_app.view_outcome','builder',1,'b','sdk_started'),
                 ('org','project','app','2026-01-05','data_app.view_outcome','embed',1,'c','html_error'),
                 ('org','project','app','2026-01-05','data_app.view_outcome',NULL,1,NULL,'runtime_error')`);
+            // The People tiles, and the data app tiles that moved from Adoption to Data apps
             const rows = new Map<string, Record<string, unknown>[]>();
             for (const chart of charts.filter(
-                (c) => c.dashboardSlug === 'lightdash-analytics-adoption',
+                (c) =>
+                    c.dashboardSlug === 'lightdash-analytics-adoption' ||
+                    [
+                        'apps-errors-by-day',
+                        'apps-outcomes-by-app-and-surface',
+                        'apps-loads-by-surface',
+                        'apps-viewers-latest-day',
+                    ].some(
+                        (key) => c.slug === `lightdash-analytics-apps-${key}`,
+                    ),
             )) {
                 rows.set(
-                    chart.slug.replace(
-                        'lightdash-analytics-adoption-adoption-',
-                        '',
-                    ),
+                    chart.slug
+                        .replace('lightdash-analytics-adoption-adoption-', '')
+                        .replace('lightdash-analytics-apps-', ''),
                     (
                         await db.runAndReadAll(compile(chart).query)
                     ).getRowObjectsJS(),
@@ -1375,14 +1401,16 @@ describe('built-in usage dashboards', () => {
             expect(rows.get('active-people-latest-day')).toEqual([
                 expect.objectContaining({ user_activity_unique_users: 1n }),
             ]);
-            expect(rows.get('app-outcome-trend')).toEqual([
+            expect(rows.get('apps-errors-by-day')).toEqual([
                 expect.objectContaining({
                     data_app_outcomes_html_error: 1n,
                     data_app_outcomes_runtime_error: 1n,
                 }),
             ]);
-            expect(rows.get('app-outcome-detail')).toHaveLength(4);
-            expect(rows.get('app-outcome-detail')).toEqual(
+            expect(rows.get('apps-outcomes-by-app-and-surface')).toHaveLength(
+                4,
+            );
+            expect(rows.get('apps-outcomes-by-app-and-surface')).toEqual(
                 expect.arrayContaining([
                     expect.objectContaining({
                         data_app_outcomes_app_name: 'Sales',
@@ -1404,51 +1432,20 @@ describe('built-in usage dashboards', () => {
                     }),
                 ]),
             );
-            expect(rows.get('ask-ai-questions')).toEqual([
-                expect.objectContaining({ agent_requests_total_requests: 4n }),
-            ]);
-            expect(rows.get('ask-ai-people')).toEqual([
-                expect.objectContaining({
-                    agent_requests_distinct_requesters: 2n,
-                }),
-            ]);
-            expect(rows.get('ask-ai-frequency')).toEqual([
-                expect.objectContaining({ questions_per_person: 1.5 }),
-            ]);
-            expect(rows.get('ask-ai-users')).toHaveLength(3);
-            expect(rows.get('app-creators')).toEqual([
-                expect.objectContaining({
-                    data_app_events_user_name: 'Alex',
-                    data_app_events_user_id: 'a',
-                    data_app_events_app_name: 'Sales',
-                    data_app_events_app_id: 'app',
-                }),
-            ]);
-            expect(rows.get('app-creators')![0]).not.toHaveProperty(
-                'data_app_events_unique_apps',
+            // One definition of a data app viewer: the People card and the Data apps card agree, and
+            // neither counts the chart tile person b drew with a custom chart type
+            expect(
+                Number(
+                    rows.get('app-viewers-latest-day')![0]
+                        .data_app_reach_distinct_viewers,
+                ),
+            ).toBe(
+                Number(
+                    rows.get('apps-viewers-latest-day')![0]
+                        .data_app_events_unique_viewers,
+                ),
             );
-            // Person b also drew a chart tile with a custom chart type: that is not a data app load
-            expect(rows.get('app-reader-detail')).toEqual([
-                expect.objectContaining({
-                    data_app_reach_user_name: 'Alex',
-                    data_app_reach_user_id: 'b',
-                    data_app_reach_total_loads: 2n,
-                }),
-                expect.objectContaining({
-                    data_app_reach_user_name: 'Alex',
-                    data_app_reach_user_id: 'a',
-                    data_app_reach_total_loads: 1n,
-                }),
-            ]);
-            for (const key of ['app-audience', 'app-reader-trend']) {
-                expect(rows.get(key)).toEqual([
-                    expect.objectContaining({
-                        data_app_reach_total_loads: 3n,
-                        data_app_reach_distinct_viewers: 2n,
-                    }),
-                ]);
-            }
-            const surfaces = rows.get('app-first-audience')!;
+            const surfaces = rows.get('apps-loads-by-surface')!;
             expect(
                 surfaces.reduce(
                     (total, row) =>
@@ -1618,13 +1615,15 @@ describe('built-in usage dashboards', () => {
                 semantic_usage_total_queries: 4n,
                 field_list_share: 0.25,
             });
-            await db.run(`INSERT INTO data_app_events (org_id, project_id, app_id, user_id, event_name, event_ts) VALUES
-                ('org-a','project-a','app-a','person-a','data_app.view',CURRENT_TIMESTAMP),
-                ('org-a','project-a','app-a',NULL,'data_app.view',CURRENT_TIMESTAMP),
-                ('org-a','project-a','historical-app','person-a','data_app.view',CURRENT_TIMESTAMP),
-                ('org-a','project-a','app-b','person-b','data_app.view',CURRENT_TIMESTAMP),
-                ('org-a','project-b','app-a','person-a','data_app.view',CURRENT_TIMESTAMP),
-                ('org-a','project-a',NULL,NULL,'data_app.view',CURRENT_TIMESTAMP)`);
+            await db.run(`INSERT INTO data_app_events (org_id, project_id, app_id, user_id, event_name, event_ts, view_context) VALUES
+                ('org-a','project-a','app-a','person-a','data_app.view',CURRENT_TIMESTAMP,'standalone'),
+                ('org-a','project-a','app-a',NULL,'data_app.view',CURRENT_TIMESTAMP,'standalone'),
+                ('org-a','project-a','historical-app','person-a','data_app.view',CURRENT_TIMESTAMP,'dashboard'),
+                ('org-a','project-a','app-b','person-b','data_app.view',CURRENT_TIMESTAMP,'standalone'),
+                ('org-a','project-b','app-a','person-a','data_app.view',CURRENT_TIMESTAMP,'standalone'),
+                ('org-a','project-a',NULL,NULL,'data_app.view',CURRENT_TIMESTAMP,'standalone'),
+                -- A builder preview is not a person using the data app
+                ('org-a','project-a','app-a','person-a','data_app.view',CURRENT_TIMESTAMP,'builder')`);
             // A custom chart type drawing a chart tile is not a data app being used
             await db.run(`INSERT INTO data_app_events (org_id, project_id, app_id, user_id, event_name, event_ts, view_context) VALUES
                 ('org-a','project-a','chart-type','person-a','data_app.view',CURRENT_TIMESTAMP,'chart'),

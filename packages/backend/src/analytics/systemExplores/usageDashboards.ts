@@ -710,11 +710,7 @@ export const buildUsageDashboards = (
             }
         }
         return {
-            // Adoption's filters are set by hand for its two outcome charts only
-            dashboard:
-                spec === adoptionDashboardSpec
-                    ? dashboard
-                    : withUsageDashboardFilters(dashboard, charts),
+            dashboard: withUsageDashboardFilters(dashboard, charts),
             charts: charts.map((chart) =>
                 withContentLinks(withUserActivityLabels(chart)),
             ),
