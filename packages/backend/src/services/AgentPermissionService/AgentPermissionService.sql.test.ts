@@ -532,7 +532,11 @@ test.each([
     });
     expect(h.deps.areGroupsAvailable).not.toHaveBeenCalled();
     if (profile.name === 'partly deleted')
-        expect(tracker.history.select[1].bindings).toEqual([
+        expect(
+            tracker.history.select.find((query) =>
+                query.sql.includes('from "group_memberships"'),
+            )?.bindings,
+        ).toEqual([
             h.operation.account.user.id,
             h.operation.organizationUuid,
             'live',

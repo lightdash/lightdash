@@ -144,6 +144,7 @@ import type { PivotValuesColumn } from '../visualizations/types';
 import {
     type AgentCapabilityPolicy,
     type AgentCapabilityPolicyOverview,
+    type AgentProjectCapabilityPolicy,
 } from './agentCapabilityPolicy';
 import {
     type AgentConnectionApprovalDecisionResponse,
@@ -1503,6 +1504,8 @@ type ApiResults =
     | AgentConnectionApprovalDecisionResponse['results']
     | AgentCapabilityPolicy
     | AgentCapabilityPolicyOverview
+    | AgentProjectCapabilityPolicy
+    | AgentProjectCapabilityPolicy[]
     | OrganizationAgentIdentitySettings
     | ApiAiThreadFileResponse['results']
     | SharedSignInStatus

@@ -34,6 +34,23 @@ export type AgentCapabilityPoliciesTable = Knex.CompositeTableType<
     Partial<DbAgentCapabilityPolicy>
 >;
 
+export const ProjectAgentCapabilityPoliciesTableName =
+    'project_agent_capability_policies';
+
+export interface DbProjectAgentCapabilityPolicy {
+    project_uuid: string;
+    allowed_capabilities: AgentCapability[] | null;
+    updated_by_user_uuid: string | null;
+    created_at: Date;
+    updated_at: Date;
+}
+
+export type ProjectAgentCapabilityPoliciesTable = Knex.CompositeTableType<
+    DbProjectAgentCapabilityPolicy,
+    Omit<DbProjectAgentCapabilityPolicy, 'created_at' | 'updated_at'>,
+    Partial<DbProjectAgentCapabilityPolicy>
+>;
+
 export interface DbAgentSystemRoleCapability {
     organization_uuid: string;
     system_role: OrganizationMemberRole;

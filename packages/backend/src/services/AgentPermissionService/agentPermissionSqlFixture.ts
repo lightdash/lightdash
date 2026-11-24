@@ -68,6 +68,11 @@ export const setupPermissionSql = (
                 .filter((uuid) => query.bindings.includes(uuid))
                 .map((user_uuid) => ({ user_uuid, group_uuid: 'live' })),
         );
+    tracker.on
+        .select((query) =>
+            query.sql.includes('from "project_agent_capability_policies"'),
+        )
+        .response([]);
     const deps = {
         agentCapabilityPolicyModel: new AgentCapabilityPolicyModel({
             database,
@@ -112,7 +117,12 @@ export const expectAdmissionSql = (
         membership: number;
     },
 ) => {
-    const queries = tracker.history.select;
+    // Every policy read is paired with one read of the project restrictions.
+    const queries = tracker.history.select.filter(
+        (query) =>
+            !query.sql.includes('from "project_agent_capability_policies"'),
+    );
+    expect(tracker.history.select).toHaveLength(queries.length + counts.policy);
     expect(queries).toHaveLength(
         Object.values(counts).reduce((sum, n) => sum + n, 0),
     );

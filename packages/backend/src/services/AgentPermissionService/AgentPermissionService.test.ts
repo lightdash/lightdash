@@ -56,6 +56,9 @@ const setup = () => {
                         : policy.allowedGroupUuids.length > 0,
             })),
             save: vi.fn(),
+            getProjectPolicies: vi.fn().mockResolvedValue([]),
+            saveProjectPolicy: vi.fn(),
+            deleteProjectPolicy: vi.fn(),
         },
         userModel: {
             getAgentRoleAssignments: vi
@@ -1435,4 +1438,111 @@ test('diagnostic evaluation failure retains the group refusal', async () => {
         },
     });
     expect(deps.agentActionLogModel.insert).toHaveBeenCalledOnce();
+});
+
+describe('project restrictions', () => {
+    const everything = {
+        systemRoles: [OrganizationMemberRole.VIEWER],
+        customRoles: [],
+    };
+    const rawSql = (projectUuid: string) => ({
+        projectUuid,
+        kind: 'capability' as const,
+        key: AgentCapability.RawSql,
+    });
+    const withoutRawSql = Object.values(AgentCapability).filter(
+        (capability) => capability !== AgentCapability.RawSql,
+    );
+
+    test('a project list replaces the organization list for that project only', async () => {
+        const { service, deps, operation } = setup();
+        deps.userModel.getAgentRoleAssignments.mockResolvedValue(everything);
+        deps.agentCapabilityPolicyModel.getProjectPolicies.mockResolvedValue([
+            { projectUuid: 'restricted', allowedCapabilities: withoutRawSql },
+        ]);
+        await expect(
+            service.assertOperation({ ...operation, ...rawSql('open') }),
+        ).resolves.toBeUndefined();
+        await expect(
+            service.assertOperation({ ...operation, ...rawSql('restricted') }),
+        ).rejects.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                capability: AgentCapability.RawSql,
+                policyLayer: 'project_scope',
+                settingsUrl:
+                    '/generalSettings/projectManagement/restricted/agentIdentity',
+            },
+        });
+        await expect(
+            service.assertOperation({
+                ...operation,
+                projectUuid: 'restricted',
+                kind: 'capability',
+                key: AgentCapability.Query,
+            }),
+        ).resolves.toBeUndefined();
+    });
+
+    test('a project can restrict agents when the organization does not', async () => {
+        const { service, deps, operation, policy } = setup();
+        policy.mode = 'legacy';
+        deps.userModel.getAgentRoleAssignments.mockResolvedValue(everything);
+        deps.agentCapabilityPolicyModel.getProjectPolicies.mockResolvedValue([
+            { projectUuid: 'restricted', allowedCapabilities: withoutRawSql },
+        ]);
+        expect(
+            (await service.loadRequest(operation.organizationUuid))
+                .enforcementMode,
+        ).toBe('managed');
+        await expect(
+            service.assertOperation({ ...operation, ...rawSql('open') }),
+        ).resolves.toBeUndefined();
+        await expect(
+            service.assertOperation({ ...operation, ...rawSql('restricted') }),
+        ).rejects.toMatchObject({
+            refusal: { policyLayer: 'project_scope' },
+        });
+    });
+
+    test('a project with no restrictions overrides an organization restriction', async () => {
+        const { service, deps, operation, policy } = setup();
+        policy.allowedCapabilities = withoutRawSql;
+        deps.userModel.getAgentRoleAssignments.mockResolvedValue(everything);
+        deps.agentCapabilityPolicyModel.getProjectPolicies.mockResolvedValue([
+            { projectUuid: 'open', allowedCapabilities: null },
+        ]);
+        await expect(
+            service.assertOperation({ ...operation, ...rawSql('open') }),
+        ).resolves.toBeUndefined();
+        await expect(
+            service.assertOperation({ ...operation, ...rawSql('other') }),
+        ).rejects.toMatchObject({
+            refusal: { policyLayer: 'organization_setting' },
+        });
+    });
+
+    test('a project with no restrictions does not turn enforcement on', async () => {
+        const { service, deps, operation, policy } = setup();
+        policy.mode = 'legacy';
+        deps.agentCapabilityPolicyModel.getProjectPolicies.mockResolvedValue([
+            { projectUuid: 'open', allowedCapabilities: null },
+        ]);
+        expect(
+            (await service.loadRequest(operation.organizationUuid))
+                .enforcementMode,
+        ).toBe('off');
+    });
+
+    test('project restrictions are not read when agent identity is off', async () => {
+        const { service, deps, operation } = setup();
+        deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
+        await service.assertOperation({
+            ...operation,
+            ...rawSql('restricted'),
+        });
+        expect(
+            deps.agentCapabilityPolicyModel.getProjectPolicies,
+        ).not.toHaveBeenCalled();
+    });
 });

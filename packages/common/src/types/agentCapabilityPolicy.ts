@@ -40,3 +40,23 @@ export interface AgentPolicyOverviewResponse extends Omit<
 > {
     results: AgentCapabilityPolicyOverview;
 }
+
+/**
+ * A project's own agent restrictions. When a project has one, it replaces the
+ * organization's restrictions for that project.
+ */
+export interface AgentProjectCapabilityPolicy {
+    projectUuid: string;
+    /** Null means agents have no restrictions in this project. */
+    allowedCapabilities: AgentCapability[] | null;
+}
+export interface AgentProjectCapabilityPolicySave {
+    /** Null means agents have no restrictions in this project. */
+    allowedCapabilities: AgentCapability[] | null;
+}
+export interface AgentProjectPoliciesResponse extends AgentPolicyResponseBase {
+    results: AgentProjectCapabilityPolicy[];
+}
+export interface AgentProjectPolicyResponse extends AgentPolicyResponseBase {
+    results: AgentProjectCapabilityPolicy;
+}
