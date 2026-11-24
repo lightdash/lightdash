@@ -29,6 +29,17 @@
     flex: 1;
 }
 
+/* On a scrolling page the list virtualises against the page, so the table
+   is as tall as its rows and never scrolls by itself. */
+[data-page-scroll] .table {
+    flex: none;
+}
+
+[data-page-scroll] .fieldList {
+    flex: none;
+    overflow: visible;
+}
+
 /* Field and description. Rows sit indented under their Dimensions / Metrics
    heading; fields not in use read dimmed when shown. */
 .fieldHeader,

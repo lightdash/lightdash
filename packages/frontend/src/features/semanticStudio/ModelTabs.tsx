@@ -629,8 +629,11 @@ export const ModelTabs: FC<{
     return (
         <Tabs
             className={classes.root}
-            // Settings are as tall as they are; the page scrolls them
-            data-fit-content={view === 'settings' || undefined}
+            // Fields and settings are as tall as they are; the page scrolls
+            // them, and the field list virtualises against that scroll
+            data-fit-content={
+                view === 'fields' || view === 'settings' || undefined
+            }
             value={view}
             onChange={(next) => {
                 const tab = MODEL_TABS.find((item) => item === next);
