@@ -124,9 +124,30 @@ describe('built-in usage dashboards', () => {
         }
     });
 
-    const aiTokens = analyticsContentAsCode.find(
+    // The month-to-date tabs of AI token usage. Its Any period tab follows the Date filter and is
+    // tested with the tiles it took over from Agents & AI.
+    const allAiTokens = analyticsContentAsCode.find(
         ({ dashboard }) => dashboard.slug === 'lightdash-analytics-ai-tokens',
     )!;
+    const anyPeriodSlugs = allAiTokens.dashboard.tiles.flatMap((tile) =>
+        tile.tabSlug === 'any-period' && 'chartSlug' in tile.properties
+            ? [tile.properties.chartSlug]
+            : [],
+    );
+    const aiTokens = {
+        charts: allAiTokens.charts.filter(
+            ({ slug }) => !anyPeriodSlugs.includes(slug),
+        ),
+        dashboard: {
+            ...allAiTokens.dashboard,
+            tabs: allAiTokens.dashboard.tabs.filter(
+                ({ slug }) => slug !== 'any-period',
+            ),
+            tiles: allAiTokens.dashboard.tiles.filter(
+                ({ tabSlug }) => tabSlug !== 'any-period',
+            ),
+        },
+    };
 
     it('uses existing AI Usage fields and distinguishes billing scope from all usage', () => {
         expect(aiTokens.charts).toHaveLength(24);
@@ -572,7 +593,7 @@ describe('built-in usage dashboards', () => {
         expect(inactivityCharts).toHaveLength(1);
     });
 
-    it('lists the Agent adoption charts in order with their fallback types', () => {
+    it('lists the Agents use charts in order with their fallback types', () => {
         const { dashboard, charts: overviewCharts } =
             analyticsContentAsCode.find(
                 ({ dashboard: item }) =>
@@ -583,20 +604,26 @@ describe('built-in usage dashboards', () => {
             .filter(
                 (tile) =>
                     tile.type === DashboardTileTypes.SAVED_CHART &&
-                    tile.tabSlug === 'adoption',
+                    tile.tabSlug === 'use',
             )
             .map(
                 (tile) => (tile.properties as { chartSlug: string }).chartSlug,
             );
+        // Requests by agent and day is drawn once, as the heatmap
         expect(slugs).toEqual(
             [
                 'agent-requests-trend',
                 'agent-requesters-trend',
                 'agent-requests-by-agent-and-day',
-                'agent-daily-requests-per-agent',
                 'agent-adoption-by-week',
             ].map((key) => `${prefix}${key}`),
         );
+        expect(dashboard.name).toBe('Agents');
+        expect(dashboard.tabs.map(({ name }) => name)).toEqual([
+            'Use',
+            'Outcomes, retries & feedback',
+            'Evaluations',
+        ]);
         const fallbackType = (key: string) =>
             overviewCharts.find(({ slug }) => slug === `${prefix}${key}`)!
                 .chartConfig.type;
@@ -607,13 +634,10 @@ describe('built-in usage dashboards', () => {
         expect(fallbackType('agent-requests-by-agent-and-day')).toBe(
             ChartType.TABLE,
         );
-        expect(fallbackType('agent-daily-requests-per-agent')).toBe(
-            ChartType.TABLE,
-        );
         expect(fallbackType('agent-adoption-by-week')).toBe(ChartType.TABLE);
     });
 
-    it('lays the Agent adoption sections out as explicit rows', () => {
+    it('lays the Agents use sections out as explicit rows', () => {
         const { dashboard } = analyticsContentAsCode.find(
             ({ dashboard: item }) =>
                 item.slug === 'lightdash-analytics-overview',
@@ -622,7 +646,7 @@ describe('built-in usage dashboards', () => {
             dashboard.tiles.find(
                 (item) =>
                     item.type === DashboardTileTypes.SAVED_CHART &&
-                    item.tabSlug === 'adoption' &&
+                    item.tabSlug === 'use' &&
                     (item.properties as { chartSlug: string }).chartSlug ===
                         `lightdash-analytics-overview-${key}`,
             )!;
@@ -633,32 +657,10 @@ describe('built-in usage dashboards', () => {
         expect(a.y).toBe(b.y);
         const heatmap = tile('agent-requests-by-agent-and-day');
         expect([heatmap.x, heatmap.w, heatmap.h]).toEqual([0, 36, 7]);
-        const trellis = tile('agent-daily-requests-per-agent');
-        expect([trellis.x, trellis.w, trellis.h]).toEqual([0, 36, 14]);
         expect(tile('agent-adoption-by-week').w).toBe(36);
     });
 
-    it('draws Daily requests per agent as one smooth filled row per agent', () => {
-        expect(
-            analyticsLibraryChartBindings.get(
-                'lightdash-analytics-overview-agent-daily-requests-per-agent',
-            ),
-        ).toMatchObject({
-            slug: 'vega-trellis',
-            optionValues: {
-                arrangement: 'rows',
-                minPanelHeight: 70,
-                sharedY: false,
-                markType: 'area',
-                curve: 'smooth',
-                fillOpacity: 25,
-                showLine: true,
-                showPoints: false,
-            },
-        });
-    });
-
-    it('lists the Outcomes and Retries & consumption charts in order with their fallback types', () => {
+    it('lists the Outcomes, retries and feedback charts in order with their fallback types', () => {
         const { dashboard, charts: overviewCharts } =
             analyticsContentAsCode.find(
                 ({ dashboard: item }) =>
@@ -676,23 +678,40 @@ describe('built-in usage dashboards', () => {
                     (tile) =>
                         (tile.properties as { chartSlug: string }).chartSlug,
                 );
+        // The retry tiles joined the outcomes; the token tiles went to AI token usage
         expect(slugsFor('outcomes')).toEqual(
             [
                 'agent-requests-and-completion-by-day',
                 'agent-request-outcomes',
                 'agent-feedback-rating-and-sample-coverage',
-            ].map((key) => `${prefix}${key}`),
-        );
-        expect(slugsFor('consumption')).toEqual(
-            [
-                'ai-consumption-by-person-feature-and-model',
-                'ai-tokens-by-feature-and-model',
                 'request-consumption-by-outcome-and-feedback',
                 'agent-retries-latency-and-consumption',
             ].map((key) => `${prefix}${key}`),
         );
+        const tokens = analyticsContentAsCode.find(
+            ({ dashboard: item }) =>
+                item.slug === 'lightdash-analytics-ai-tokens',
+        )!;
+        const tokenPrefix = 'lightdash-analytics-ai-tokens-';
+        expect(
+            tokens.dashboard.tiles
+                .filter((tile) => tile.tabSlug === 'any-period')
+                .flatMap(({ properties }) =>
+                    'chartSlug' in properties ? [properties.chartSlug] : [],
+                )
+                .slice(-2),
+        ).toEqual(
+            [
+                'ai-consumption-by-person-feature-and-model',
+                'ai-tokens-by-feature-and-model',
+            ].map((key) => `${tokenPrefix}${key}`),
+        );
         const find = (key: string) =>
-            overviewCharts.find(({ slug }) => slug === `${prefix}${key}`)!;
+            [...overviewCharts, ...tokens.charts].find(
+                ({ slug }) =>
+                    slug === `${prefix}${key}` ||
+                    slug === `${tokenPrefix}${key}`,
+            )!;
         expect(
             find('agent-requests-and-completion-by-day').chartConfig.type,
         ).toBe(ChartType.CARTESIAN);
@@ -714,12 +733,12 @@ describe('built-in usage dashboards', () => {
         ).toBe('customizable-cartesian-chart');
         expect(
             analyticsLibraryChartBindings.get(
-                `${prefix}ai-tokens-by-feature-and-model`,
+                `${tokenPrefix}ai-tokens-by-feature-and-model`,
             )?.slug,
         ).toBe('heatmap');
         expect(
             analyticsLibraryChartBindings.get(
-                `${prefix}ai-consumption-by-person-feature-and-model`,
+                `${tokenPrefix}ai-consumption-by-person-feature-and-model`,
             )?.slug,
         ).toBe('customizable-cartesian-chart');
         expect(
@@ -741,7 +760,7 @@ describe('built-in usage dashboards', () => {
         ).toBe('big-number-with-sparkline-trend');
     });
 
-    it('lays out the Outcomes and Retries sections as explicit rows', () => {
+    it('lays out the Outcomes, retries and feedback sections as explicit rows', () => {
         const { dashboard } = analyticsContentAsCode.find(
             ({ dashboard: item }) =>
                 item.slug === 'lightdash-analytics-overview',
@@ -765,29 +784,20 @@ describe('built-in usage dashboards', () => {
             'agent-feedback-rating-and-sample-coverage',
         );
         expect([feedback.x, feedback.w, feedback.h]).toEqual([0, 36, 7]);
-        const [person, tokens] = [
-            'ai-consumption-by-person-feature-and-model',
-            'ai-tokens-by-feature-and-model',
-        ].map((key) => tile('consumption', key));
-        expect([person.x, tokens.x, person.w, tokens.w]).toEqual([
-            0, 18, 18, 18,
-        ]);
-        expect([person.h, tokens.h]).toEqual([8, 8]);
-        expect(person.y).toBe(tokens.y);
         // The card shares the last row with the retries chart, so it never sits alone on a full-width row
         const [failed, retries] = [
             'request-consumption-by-outcome-and-feedback',
             'agent-retries-latency-and-consumption',
-        ].map((key) => tile('consumption', key));
+        ].map((key) => tile('outcomes', key));
         expect([failed.x, retries.x, failed.w, retries.w]).toEqual([
             0, 12, 12, 24,
         ]);
         expect([failed.h, retries.h]).toEqual([6, 6]);
         expect(failed.y).toBe(retries.y);
-        expect(failed.y).toBeGreaterThan(person.y);
+        expect(failed.y).toBeGreaterThan(feedback.y);
     });
 
-    it('renders Agents & AI sections as one-line captions and leaves other dashboards headed', () => {
+    it('renders the Agents use and outcomes sections as one-line captions and leaves other dashboards headed', () => {
         const dashboardBySlug = (slug: string) =>
             analyticsContentAsCode.find(
                 ({ dashboard }) => dashboard.slug === slug,
@@ -796,29 +806,33 @@ describe('built-in usage dashboards', () => {
             ({ key }) => key === 'lightdash-analytics-overview',
         )!;
         const overview = dashboardBySlug('lightdash-analytics-overview');
-        spec.tabs.forEach((tab) => {
-            const notes = overview.tiles.filter(
-                (tile) =>
-                    tile.tabSlug === tab.key &&
-                    tile.type === DashboardTileTypes.MARKDOWN,
-            );
-            expect(notes).toHaveLength(tab.sections.length);
-            tab.sections.forEach((section, index) => {
-                expect(section.caption).toBe(true);
-                expect(notes[index].h).toBe(1);
-                expect(
-                    (notes[index].properties as { content: string }).content,
-                ).toBe(section.description);
+        // Evaluations came from a dashboard with headed sections and keeps them
+        spec.tabs
+            .filter(({ key }) => key !== 'evaluations')
+            .forEach((tab) => {
+                const notes = overview.tiles.filter(
+                    (tile) =>
+                        tile.tabSlug === tab.key &&
+                        tile.type === DashboardTileTypes.MARKDOWN,
+                );
+                expect(notes).toHaveLength(tab.sections.length);
+                tab.sections.forEach((section, index) => {
+                    expect(section.caption).toBe(true);
+                    expect(notes[index].h).toBe(1);
+                    expect(
+                        (notes[index].properties as { content: string })
+                            .content,
+                    ).toBe(section.description);
+                });
             });
-        });
         const [firstNote] = overview.tiles.filter(
             (tile) =>
-                tile.tabSlug === 'adoption' &&
+                tile.tabSlug === 'use' &&
                 tile.type === DashboardTileTypes.MARKDOWN,
         );
         const firstChart = overview.tiles.find(
             (tile) =>
-                tile.tabSlug === 'adoption' &&
+                tile.tabSlug === 'use' &&
                 tile.type === DashboardTileTypes.SAVED_CHART,
         )!;
         expect([firstNote.y, firstChart.y]).toEqual([0, 1]);
@@ -832,28 +846,6 @@ describe('built-in usage dashboards', () => {
         expect(heading.h).toBe(1);
         expect((heading.properties as { content: string }).content).toMatch(
             /^\*\*Who owns the dashboards today\*\* {2}\n/,
-        );
-    });
-
-    it('orders the per-agent panels by agent then day and shows summed totals compactly', () => {
-        const trellis = charts.find(
-            ({ slug }) =>
-                slug ===
-                'lightdash-analytics-overview-agent-daily-requests-per-agent',
-        )!;
-        expect(trellis.metricQuery.sorts).toEqual([
-            { fieldId: 'agent_requests_agent_name', descending: false },
-            { fieldId: 'agent_requests_requested_at_day', descending: false },
-        ]);
-        expect(trellis.metricQuery.limit).toBe(5000);
-        const summed = [...analyticsLibraryChartBindings.values()].filter(
-            (binding) =>
-                binding.slug === 'big-number-with-sparkline-trend' &&
-                binding.optionValues.valueAggregation === 'sum',
-        );
-        expect(summed.length).toBeGreaterThan(0);
-        summed.forEach((binding) =>
-            expect(binding.optionValues.style).toBe('compact'),
         );
     });
 
@@ -1759,7 +1751,7 @@ describe('display fixes', () => {
 
     it('queries one row for the newest day on the latest-day cards', () => {
         [
-            'lightdash-analytics-overview-ai-users',
+            'lightdash-analytics-ai-tokens-ai-users',
             'lightdash-analytics-overview-agent-requesters-trend',
             'lightdash-analytics-query-activity-query-users',
             'lightdash-analytics-query-activity-avg-execution-time',

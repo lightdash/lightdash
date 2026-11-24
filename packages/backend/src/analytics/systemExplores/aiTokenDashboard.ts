@@ -1083,7 +1083,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
     const tabs = [
         ...breakdowns
             .filter(({ billingScope }) => billingScope)
-            .map(({ key, title, tabSlug, top }) => ({
+            .map(({ key, title, tabSlug, top }, index) => ({
                 key: tabSlug ?? key,
                 name: title,
                 rows: [
@@ -1091,7 +1091,10 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                         1,
                         '**Current month up to yesterday (UTC). Today is excluded.** Tokens in billing scope include unpriced models. Credits and allowance are measured separately.',
                     ),
-                    row(3, 'eligible', 'total', 'records'),
+                    // The three totals do not change from tab to tab, so they are on the first only
+                    ...(index === 0
+                        ? [row(3, 'eligible', 'total', 'records')]
+                        : []),
                     row(7, `${key}-daily`),
                     row(8, `${key}-rank`),
                     note(

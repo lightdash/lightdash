@@ -141,71 +141,63 @@ export const agentEvaluationsChartSpecs: UsageChartSpec[] = [
     }),
 ];
 
-export const agentEvaluationsDashboardSpec: UsageDashboardSpec = {
-    key: 'lightdash-analytics-agent-evaluations',
-    name: 'Agent evaluations',
-    description: 'Evaluation quality over time, by agent and evaluation.',
-    filters: {
-        dimensions: [
-            { label: 'Agent', fieldId: 'agent_evaluation_runs_agent_name' },
-            {
-                label: 'Evaluation',
-                fieldId: 'agent_evaluation_runs_evaluation_name',
-            },
-        ].map(({ label, fieldId }) => ({
-            label,
-            target: { fieldId, tableName: 'agent_evaluation_runs' },
-            operator: FilterOperator.EQUALS,
-            values: [],
-            disabled: true,
-        })),
-        metrics: [],
-        tableCalculations: [],
-    },
-    tabs: [
+// Evaluations are a tab of the Agents dashboard: test runs of the agents, beside how their live
+// requests end. The Agent and Evaluation filters reach only these tiles.
+export const agentEvaluationFilters: NonNullable<
+    UsageDashboardSpec['filters']
+> = {
+    dimensions: [
+        { label: 'Agent', fieldId: 'agent_evaluation_runs_agent_name' },
         {
-            key: 'quality',
-            name: 'Evaluation quality',
-            sections: [
-                {
-                    title: 'Assessment trends',
-                    description:
-                        'Filter by agent or evaluation to track quality across runs. Pass rate is passing assessments divided by all assessments.',
-                    charts: [
-                        'evals-runs',
-                        'evals-passed-assessments',
-                        'evals-failed-assessments',
-                    ],
-                },
-                {
-                    title: 'Assessments by day',
-                    description: '',
-                    note: false,
-                    charts: [
-                        'assessment-pass-rate-by-day',
-                        'assessment-volume-by-day',
-                    ],
-                    layout: 'row',
-                    rowHeight: 8,
-                },
-                {
-                    title: 'Results by evaluation and run',
-                    description:
-                        'Compare evaluations and inspect individual runs. Results reflect the latest nightly refresh and may change if evaluation history is removed.',
-                    charts: ['quality-by-evaluation'],
-                    layout: 'row',
-                    // A handful of evaluations is usual: room for six rows, more by scrolling
-                    rowHeight: 5,
-                },
-                {
-                    title: 'Recent runs',
-                    description: '',
-                    note: false,
-                    charts: ['recent-evaluation-runs'],
-                    layout: 'row',
-                    rowHeight: 7,
-                },
+            label: 'Evaluation',
+            fieldId: 'agent_evaluation_runs_evaluation_name',
+        },
+    ].map(({ label, fieldId }) => ({
+        label,
+        target: { fieldId, tableName: 'agent_evaluation_runs' },
+        operator: FilterOperator.EQUALS,
+        values: [],
+        disabled: true,
+    })),
+    metrics: [],
+    tableCalculations: [],
+};
+
+export const agentEvaluationSections: UsageDashboardSpec['tabs'][number]['sections'] =
+    [
+        {
+            title: 'Do the agents pass their evaluations?',
+            description:
+                'Test runs of agents, in the selected period; empty until an evaluation has run. Filter by agent or evaluation; pass rate is passing assessments divided by all assessments.',
+            charts: [
+                'evals-runs',
+                'evals-passed-assessments',
+                'evals-failed-assessments',
             ],
         },
-    ],
-};
+        {
+            title: 'Assessments by day',
+            description: '',
+            note: false,
+            charts: ['assessment-pass-rate-by-day', 'assessment-volume-by-day'],
+            layout: 'row',
+            rowHeight: 8,
+        },
+        {
+            title: 'Results by evaluation and run',
+            description:
+                'Compare evaluations and inspect individual runs. Results reflect the latest nightly refresh and may change if evaluation history is removed.',
+            charts: ['quality-by-evaluation'],
+            layout: 'row',
+            // A handful of evaluations is usual: room for six rows, more by scrolling
+            rowHeight: 5,
+        },
+        {
+            title: 'Recent runs',
+            description: '',
+            note: false,
+            charts: ['recent-evaluation-runs'],
+            layout: 'row',
+            rowHeight: 7,
+        },
+    ];
