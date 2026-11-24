@@ -544,7 +544,7 @@ test.each(['inactive', 'missing', 'policy'])(
     },
 );
 
-describe('scheduled summary with ai_access: never', () => {
+describe('scheduled summary with excluded tags', () => {
     const neverRefusal = () =>
         new AiAccessRefusedError(AiAccessRefusalReason.AI_EXCLUDED_DATA);
     const tile = (uuid: string, chartName: string) => ({

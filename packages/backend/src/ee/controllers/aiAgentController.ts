@@ -109,6 +109,7 @@ import {
 import express from 'express';
 import { Readable } from 'stream';
 import { toSessionUser } from '../../auth/account';
+import { assertExcludedTagsChangedByPerson } from '../../auth/agentPermissions/excludedTagsChange';
 import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
@@ -945,6 +946,10 @@ export class AiAgentController extends BaseController {
         @Body() body: ApiCreateAiAgent,
     ): Promise<ApiCreateAiAgentResponse> {
         assertRegisteredAccount(req.account);
+        assertExcludedTagsChangedByPerson(
+            req.account,
+            body.excludedTags !== undefined,
+        );
         this.setStatus(201);
         const agent = await this.getAiAgentService().createAgent(
             toSessionUser(req.account),
@@ -974,6 +979,10 @@ export class AiAgentController extends BaseController {
         @Body() body: ApiUpdateAiAgent,
     ): Promise<ApiAiAgentResponse> {
         assertRegisteredAccount(req.account);
+        assertExcludedTagsChangedByPerson(
+            req.account,
+            body.excludedTags !== undefined,
+        );
         this.setStatus(200);
         const agent = await this.getAiAgentService().updateAgent(
             toSessionUser(req.account),

@@ -418,3 +418,82 @@ describe('deny tags on fields', () => {
         ).toBe(0);
     });
 });
+
+describe('filters and narrowed explores', () => {
+    it('hides a metric whose filter uses an excluded field', () => {
+        const explore = buildExplore();
+        explore.tables.customers.metrics.email_filtered = metric(
+            'customers',
+            'email_filtered',
+            {
+                filters: [
+                    {
+                        id: 'f',
+                        target: { fieldRef: 'email' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['a@example.com'],
+                    },
+                ],
+            },
+        );
+
+        expect(
+            getExcludedTagRules(explore, EXCLUDED).hiddenFieldIds.has(
+                'customers_email_filtered',
+            ),
+        ).toBe(true);
+    });
+
+    it('refuses a custom metric filtered on an excluded field', () => {
+        expect(
+            metricQueryUsesExcludedData(
+                buildExplore(),
+                query({
+                    additionalMetrics: [
+                        {
+                            name: 'id_count',
+                            table: 'customers',
+                            type: MetricType.COUNT,
+                            sql: '${TABLE}.customer_id',
+                            baseDimensionName: 'customer_id',
+                            filters: [
+                                {
+                                    id: 'f',
+                                    target: { fieldRef: 'customers.email' },
+                                    operator: FilterOperator.EQUALS,
+                                    values: ['a@example.com'],
+                                },
+                            ],
+                        },
+                    ],
+                }),
+                EXCLUDED,
+            ),
+        ).toBe(true);
+    });
+
+    it('uses the full explore to find fields built from an excluded field', () => {
+        const full = buildExplore();
+        const narrowed = {
+            ...full,
+            tables: {
+                ...full.tables,
+                customers: {
+                    ...full.tables.customers,
+                    dimensions: {
+                        email_upper:
+                            full.tables.customers.dimensions.email_upper,
+                        name: full.tables.customers.dimensions.name,
+                    },
+                },
+            },
+        } as Explore;
+
+        expect(
+            Object.keys(
+                filterExploreByExcludedTags(narrowed, EXCLUDED, full)!.tables
+                    .customers.dimensions,
+            ),
+        ).toEqual(['name']);
+    });
+});

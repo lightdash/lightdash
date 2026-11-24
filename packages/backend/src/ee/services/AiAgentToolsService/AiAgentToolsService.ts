@@ -946,20 +946,19 @@ export class AiAgentToolsService extends BaseService {
                             userAttributes,
                         ),
                     )
-                    .map((explore) =>
-                        getFilteredExplore(explore, userAttributes),
-                    )
-                    .map((explore) =>
-                        filterExploreByTags({
-                            explore,
+                    .flatMap((cachedExplore) => {
+                        const allowed = filterExploreByTags({
+                            explore: getFilteredExplore(
+                                cachedExplore,
+                                userAttributes,
+                            ),
                             availableTags,
-                        }),
-                    )
-                    .filter((explore): explore is Explore => !!explore)
-                    .flatMap((explore) => {
+                        });
+                        if (!allowed) return [];
                         const visible = filterExploreByExcludedTags(
-                            explore,
+                            allowed,
                             activeExcludedTags,
+                            cachedExplore,
                         );
                         return visible ? [visible] : [];
                     });
@@ -1026,9 +1025,16 @@ export class AiAgentToolsService extends BaseService {
     }
 
     private async getProjectExcludedFieldIds(
-        context: AiAgentToolsRuntimeContext,
+        context: Pick<
+            AiAgentToolsRuntimeContext,
+            'user' | 'projectUuid' | 'excludedTags'
+        >,
     ): Promise<ReadonlySet<string>> {
-        const excludedTags = await this.getContextExcludedTags(context);
+        const excludedTags = await this.getActiveExcludedTags(
+            context.user,
+            context.projectUuid,
+            context.excludedTags,
+        );
         if (excludedTags.length === 0) return new Set();
         const explores = await this.projectModel.findExploresFromCache(
             context.projectUuid,
@@ -1063,8 +1069,12 @@ export class AiAgentToolsService extends BaseService {
         }
     }
 
-    private async assertAiMayReadRawSql(
-        context: AiAgentToolsRuntimeContext,
+    /** Refuses raw SQL from an agent whose project or own excluded tags match data. */
+    async assertAiMayReadRawSql(
+        context: Pick<
+            AiAgentToolsRuntimeContext,
+            'user' | 'projectUuid' | 'excludedTags'
+        >,
     ): Promise<void> {
         const hidden = await this.getProjectExcludedFieldIds(context);
         if (hidden.size > 0) {

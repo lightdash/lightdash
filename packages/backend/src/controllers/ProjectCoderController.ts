@@ -81,6 +81,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../auth/account';
+import { assertExcludedTagsChangedByPerson } from '../auth/agentPermissions/excludedTagsChange';
 import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import { BaseController } from './baseController';
 import {
@@ -1306,6 +1307,10 @@ export class ProjectCoderController extends BaseController {
         @Query() force?: boolean,
     ): Promise<ApiAgentAsCodeUpsertResponse> {
         assertRegisteredAccount(req.account);
+        assertExcludedTagsChangedByPerson(
+            req.account,
+            body.agents.some((agent) => agent.excludedTags !== undefined),
+        );
         this.setStatus(200);
         return codeSuccess(
             await this.services

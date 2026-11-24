@@ -5063,6 +5063,23 @@ export class McpService extends BaseService {
                     );
 
                     try {
+                        const pinnedAgentUuid =
+                            ctx.authInfo?.extra.headerAgentUuid;
+                        const sessionUser = ctx.authInfo?.extra.user;
+                        if (pinnedAgentUuid && sessionUser) {
+                            const scope = await this.getEffectiveScope(
+                                ctx,
+                                projectUuid,
+                                pinnedAgentUuid,
+                            );
+                            await this.aiAgentToolsService.assertAiMayReadRawSql(
+                                {
+                                    user: sessionUser,
+                                    projectUuid,
+                                    excludedTags: scope.excludedTags,
+                                },
+                            );
+                        }
                         const deadlineMs =
                             Date.now() + McpService.getMcpQueryWaitMs(extra);
                         const { queryUuid } =

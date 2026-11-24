@@ -4,6 +4,8 @@ import { getFilterRules } from '../types/filter';
 import { type AdditionalMetric, type MetricQuery } from '../types/metricQuery';
 import { getItemId } from './item';
 
+type FieldFilterTarget = { target: { fieldRef?: string; fieldId?: string } };
+
 type TaggedField = {
     name: string;
     table: string;
@@ -11,6 +13,7 @@ type TaggedField = {
     tags?: string[];
     dimensionReference?: string;
     tablesReferences?: string[];
+    filters?: FieldFilterTarget[];
 };
 
 type TaggedTable = {
@@ -68,6 +71,19 @@ const getReferencedTables = (sql: string): string[] =>
         return parts.length > 1 ? [parts[0]] : [];
     });
 
+const getFilterFieldIds = (
+    filters: readonly FieldFilterTarget[] | undefined,
+    currentTable: string,
+): string[] =>
+    (filters ?? []).flatMap(({ target }) => {
+        const ref = target.fieldRef ?? target.fieldId;
+        if (!ref) return [];
+        const [head, ...rest] = ref.split('.');
+        return rest.length === 0
+            ? [getItemId({ table: currentTable, name: head })]
+            : [getItemId({ table: head, name: rest.join('.') })];
+    });
+
 const getTableColumns = (sql: string): string[] =>
     [...sql.matchAll(tableColumnPattern)].flatMap((match) =>
         match[1] === undefined ? [] : [match[1].toLowerCase()],
@@ -105,9 +121,10 @@ const usesHiddenData = (
         return true;
     }
     if (
-        getReferencedFieldIds(sql, field.table).some((id) =>
-            hiddenFieldIds.has(id),
-        )
+        [
+            ...getReferencedFieldIds(sql, field.table),
+            ...getFilterFieldIds(field.filters, field.table),
+        ].some((id) => hiddenFieldIds.has(id))
     ) {
         return true;
     }
@@ -216,10 +233,12 @@ export const getExcludedTagRules = (
 export const filterExploreByExcludedTags = <E extends Explore>(
     explore: E,
     excludedTags: readonly string[],
+    /** The full explore to find excluded data in, when `explore` is already narrowed. */
+    rulesSource: TaggedExplore = explore,
 ): E | undefined => {
-    if (!exploreHasExcludedTags(explore, excludedTags)) return explore;
+    if (!exploreHasExcludedTags(rulesSource, excludedTags)) return explore;
     const { hiddenTables, hiddenFieldIds } = getExcludedTagRules(
-        explore,
+        rulesSource,
         excludedTags,
     );
     if (hiddenTables.has(explore.baseTable)) return undefined;
@@ -283,6 +302,7 @@ export const metricQueryUsesExcludedData = (
         additionalMetrics?: ReadonlyArray<
             Pick<AdditionalMetric, 'table' | 'baseDimensionName'> & {
                 sql?: string;
+                filters?: FieldFilterTarget[];
             }
         >;
     },
@@ -326,6 +346,9 @@ export const metricQueryUsesExcludedData = (
                     rules.hiddenTables.has(table),
                 ) ||
                 getReferencedFieldIds(sql, metric.table).some(isHiddenId) ||
+                getFilterFieldIds(metric.filters, metric.table).some(
+                    isHiddenId,
+                ) ||
                 containsWord(sql, rules.hiddenColumnNames)
             );
         })
