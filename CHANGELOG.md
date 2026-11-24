@@ -1,3 +1,10 @@
+## [3.390.1](https://github.com/lightdash/lightdash/compare/3.390.0...3.390.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* **backend:** keep join aliases when refreshing git projects with explore name allocations ([#33365](https://github.com/lightdash/lightdash/issues/33365)) ([b5b1b4c](https://github.com/lightdash/lightdash/commit/b5b1b4ce6834eb98c8d205f75004b3260e27d548))
+
 # [3.390.0](https://github.com/lightdash/lightdash/compare/3.389.0...3.390.0) (2026-11-24)
 
 

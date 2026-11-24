@@ -1,28 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.390.0",
-  "previousVersion": "3.389.0",
-  "releaseDate": "2026-11-24T18:33:42.410Z",
+  "version": "3.390.1",
+  "previousVersion": "3.390.0",
+  "releaseDate": "2026-11-24T19:53:01.197Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261124171501_add_discarded_by_to_project_model_draft_changes.ts",
-        "edition": "core",
-        "tables": [
-          "project_model_draft_changes",
-          "users"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
