@@ -26,6 +26,7 @@ import { useProject } from '../../hooks/useProject';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import classes from './EmptyProject.module.css';
 import sharedClasses from './shared.module.css';
+import { describeBlocker, deploysWithCli } from './studioBlocker';
 import { StudioDraftIllustration } from './StudioDraftIllustration';
 import { getNewAgentUrl } from './urls';
 import { useAddSource, WAREHOUSE_OPTION } from './useAddSource';
@@ -309,8 +310,8 @@ export const EmptyProject: FC<{
         isLoadingAgents,
     });
     const connect = options.find(({ key }) => key === WAREHOUSE_OPTION);
-    // Without the right to deploy, the status says no_access.
-    const canDeploy = status !== undefined && status.blocker !== 'no_access';
+    const canDeploy = status !== undefined && deploysWithCli(status.blocker);
+    const blocker = status?.blocker ?? null;
 
     switch (state) {
         case 'loading':
@@ -368,8 +369,10 @@ export const EmptyProject: FC<{
                             <Text c="dimmed" fz="sm">
                                 {state === 'editingOff'
                                     ? "Semantic layer editing isn't turned on for this organization."
-                                    : state === 'cannotEdit' && !canDeploy
-                                      ? NO_ROLE_COPY
+                                    : state === 'cannotEdit' && blocker
+                                      ? blocker === 'no_access'
+                                          ? NO_ROLE_COPY
+                                          : describeBlocker(blocker)
                                       : SEMANTIC_LAYER_LINE}
                             </Text>
                         </Stack>

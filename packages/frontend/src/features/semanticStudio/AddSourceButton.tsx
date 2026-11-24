@@ -12,10 +12,7 @@ export const AddSourceButton: FC<{
     view: ViewModel;
     kind?: Kind;
 }> = ({ view, kind }) => {
-    const { options, menuOptions, pathOf, addInPlace } = useAddSource(
-        view,
-        kind,
-    );
+    const { options, pathOf, addInPlace } = useAddSource(view, kind);
     if (options.length === 0) return null;
     const button = {
         size: 'xs',
@@ -26,7 +23,7 @@ export const AddSourceButton: FC<{
         children: 'Add',
     } as const;
     // A menu of one is a detour: Add goes straight to the only option.
-    if (menuOptions.length === 1) {
+    if (options.length === 1) {
         const [only] = options;
         const path = pathOf(only);
         return path ? (
@@ -42,8 +39,8 @@ export const AddSourceButton: FC<{
                     <Button {...button} />
                 </Menu.Target>
                 <Menu.Dropdown>
-                    {menuOptions.map(({ option, disabled }) => {
-                        const path = disabled ? null : pathOf(option);
+                    {options.map((option) => {
+                        const path = pathOf(option);
                         const content = (
                             <Text fz="sm" fw={500}>
                                 {option.label}
@@ -61,7 +58,6 @@ export const AddSourceButton: FC<{
                         ) : (
                             <Menu.Item
                                 key={option.key}
-                                disabled={disabled}
                                 onClick={() => addInPlace(option)}
                                 leftSection={option.icon}
                             >

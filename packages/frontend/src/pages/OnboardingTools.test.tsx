@@ -1,4 +1,4 @@
-import { FeatureFlags, type HealthState } from '@lightdash/common';
+import { type HealthState } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -28,13 +28,6 @@ vi.mock('../hooks/useExplores', () => ({
         isInitialLoading: project.isLoadingExplores,
     }),
 }));
-// The onboarding pages are only for orgs on the new onboarding
-vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: (flag: string) => ({
-        data: { id: flag, enabled: flag === FeatureFlags.NewOnboarding },
-        isLoading: false,
-    }),
-}));
 vi.mock('../features/externalConnections/hooks/useExternalConnections', () => ({
     useExternalConnections: vi.fn(),
 }));
@@ -52,9 +45,9 @@ const LICENSED: Partial<HealthState> = {
     license: { hasLicenseKey: true, valid: true },
 };
 
-const renderPage = (health: Partial<HealthState>) =>
+const renderPage = (health: Partial<HealthState>, search = '') =>
     renderWithProviders(
-        <MemoryRouter initialEntries={['/onboarding/tools/project-1']}>
+        <MemoryRouter initialEntries={[`/onboarding/tools/project-1${search}`]}>
             <Routes>
                 <Route
                     path="/onboarding/tools/:projectUuid"
@@ -97,6 +90,22 @@ describe('OnboardingTools', () => {
         vi.mocked(useExternalSources).mockReturnValue({
             data: [],
         } as unknown as ReturnType<typeof useExternalSources>);
+    });
+
+    it('finishes onboarding without querying external connections on an unlicensed instance', async () => {
+        vi.mocked(useExternalConnections).mockClear();
+        renderPage(
+            { license: { hasLicenseKey: false, valid: false } },
+            '?step=done',
+        );
+
+        expect(
+            await screen.findByRole('link', { name: 'Go to home' }),
+        ).toHaveAttribute('href', '/projects/project-1/home');
+        expect(vi.mocked(useExternalConnections).mock.calls).toContainEqual([
+            undefined,
+        ]);
+        expect(useExternalConnections).not.toHaveBeenCalledWith('project-1');
     });
 
     it('offers every enabled group and lets the user skip', async () => {

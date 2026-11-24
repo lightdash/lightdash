@@ -357,7 +357,6 @@ import {
     LightdashAnalytics,
     MetricQueryExecutionProperties,
     ProjectEvent,
-    type OnboardingFlow,
 } from '../../analytics/LightdashAnalytics';
 import { trackSafely } from '../../analytics/trackSafely';
 import {
@@ -376,7 +375,10 @@ import { LightdashConfig } from '../../config/parseConfig';
 import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
 import type { DbTagUpdate } from '../../database/entities/tags';
-import { getDbtPartialParseBaselinePath } from '../../dbt/dbtPartialParseBaseline';
+import {
+    getDbtPartialParseBaseline,
+    type DbtPartialParseBaseline,
+} from '../../dbt/dbtPartialParseBaseline';
 import { DbtSourceError } from '../../dbt/DbtSourceError';
 import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preAggregates';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
@@ -1413,17 +1415,14 @@ export class ProjectService
         });
     }
 
-    protected async trackFirstQuery(
-        account: Account,
-        organizationUuid: string,
-        onboardingFlow: OnboardingFlow,
-    ): Promise<void> {
+    protected async trackFirstQuery(account: Account): Promise<void> {
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } = account.organization;
         // Analytics only: never fail the query
         try {
             await trackFirstQuery({
                 account,
                 organizationUuid,
-                onboardingFlow,
                 onboardingModel: this.onboardingModel,
                 analytics: this.analytics,
             });
@@ -1432,16 +1431,6 @@ export class ProjectService
                 `Failed to track first query for organization ${organizationUuid}: ${getErrorMessage(error)}`,
             );
         }
-    }
-
-    protected async getOnboardingFlow(
-        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-    ): Promise<OnboardingFlow> {
-        const { enabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.NewOnboarding,
-        });
-        return enabled ? 'new' : 'legacy';
     }
 
     private async provisionDefaultAiAgent(
@@ -1525,7 +1514,6 @@ export class ProjectService
             return;
         }
         try {
-            if ((await this.getOnboardingFlow(user)) !== 'new') return;
             await this.schedulerClient.warmWarehouseTablesCache({
                 organizationUuid,
                 projectUuid,
@@ -5777,11 +5765,6 @@ export class ProjectService
             }
             assertIsAccountWithOrg(account);
             const { organizationUuid } = account.organization;
-            const onboardingFlow = await this.getOnboardingFlow({
-                userUuid: account.user.id,
-                organizationUuid,
-            });
-            if (onboardingFlow !== 'new') return;
             const projects =
                 await this.projectModel.getAllByOrganizationUuid(
                     organizationUuid,
@@ -5799,7 +5782,7 @@ export class ProjectService
                 properties: {
                     step: 'warehouse_connected',
                     stepIndex: 4,
-                    onboardingFlow,
+                    onboardingFlow: 'new',
                     organizationId: organizationUuid,
                 },
             });
@@ -5822,7 +5805,6 @@ export class ProjectService
     ): Promise<void> {
         // Analytics only: never fail project creation
         try {
-            const onboardingFlow = await this.getOnboardingFlow(user);
             const customerProjects =
                 createProject.type === ProjectType.DEFAULT &&
                 provisioningSource === null &&
@@ -5849,24 +5831,19 @@ export class ProjectService
                         projectUuid,
                         user,
                         method,
-                        onboardingFlow,
                     ),
                     provisioningSource,
                     isFirstProject,
                 },
             });
-            if (
-                onboardingFlow === 'new' &&
-                isFirstProject &&
-                createProject.warehouseConnection
-            ) {
+            if (isFirstProject && createProject.warehouseConnection) {
                 this.analytics.track({
                     event: 'onboarding.step_completed',
                     userId: user.userUuid,
                     properties: {
                         step: 'warehouse_connected',
                         stepIndex: 4,
-                        onboardingFlow,
+                        onboardingFlow: 'new',
                         organizationId: user.organizationUuid,
                     },
                 });
@@ -5900,7 +5877,6 @@ export class ProjectService
         projectUuid: string,
         user: SessionUser,
         method: RequestMethod,
-        onboardingFlow: OnboardingFlow,
     ): ProjectEvent['properties'] {
         const authenticationType =
             ProjectService.getWarehouseAuthenticationType(
@@ -5918,7 +5894,7 @@ export class ProjectService
             authenticationType,
             requireUserCredentials:
                 createProject.warehouseConnection?.requireUserCredentials,
-            onboardingFlow,
+            onboardingFlow: 'new',
         };
     }
 
@@ -7355,7 +7331,6 @@ export class ProjectService
                 ...updatedProject,
                 warehouseConnection: updatedProject.warehouseConnection,
             };
-            const onboardingFlow = await this.getOnboardingFlow(user);
             this.analytics.track({
                 event: 'project.updated',
                 userId: user.userUuid,
@@ -7364,7 +7339,6 @@ export class ProjectService
                     projectUuid,
                     user,
                     method,
-                    onboardingFlow,
                 ),
             });
             const totalTime = performance.now() - totalStartTime;
@@ -7495,7 +7469,6 @@ export class ProjectService
         dbtPartialParse: boolean;
         dbtTargetPolicy: DbtTargetPolicy;
     }> {
-        const onboardingFlow = await this.getOnboardingFlow(user);
         const testedConnectionProperties = {
             organizationId:
                 projectOrganizationUuid ?? user.organizationUuid ?? null,
@@ -7507,7 +7480,7 @@ export class ProjectService
                 ) ?? null,
             context,
             method,
-            onboardingFlow,
+            onboardingFlow: 'new' as const,
         };
         let lease: WarehouseConnectionLease | null = null;
         let adapter: ProjectAdapter | undefined;
@@ -7604,9 +7577,10 @@ export class ProjectService
                 dbtVersionOption,
                 this.lightdashConfig.dbt.environmentVariableAllowlist,
                 dbtPartialParse && projectUuid !== null
-                    ? getDbtPartialParseBaselinePath({
+                    ? getDbtPartialParseBaseline({
                           projectUuid,
                           dbtSourceUuid: null,
+                          access: 'read-write',
                       })
                     : null,
                 {
@@ -7639,18 +7613,6 @@ export class ProjectService
                     errorCategory: null,
                 },
             });
-            if (context === 'project_create' && onboardingFlow === 'legacy') {
-                this.analytics.track({
-                    event: 'onboarding.step_completed',
-                    userId: user.userUuid,
-                    properties: {
-                        step: 'warehouse_connected',
-                        stepIndex: 4,
-                        onboardingFlow,
-                        organizationId: user.organizationUuid,
-                    },
-                });
-            }
             return {
                 adapter,
                 lease,
@@ -8414,12 +8376,16 @@ export class ProjectService
         branch: string | null = null,
     ): Promise<T> {
         const prepared = await this.prepareCompileAdapter(projectUuid, user);
-        const { project, warehouseCredentials, dbtVersionOption } = prepared;
+        const {
+            project,
+            warehouseCredentials,
+            dbtVersionOption,
+            dbtPartialParse,
+        } = prepared;
         const dbtConnection =
             branch === null
                 ? prepared.dbtConnection
                 : withGitBranch(prepared.dbtConnection, branch);
-        const dbtPartialParse = branch === null && prepared.dbtPartialParse;
         // Columns a branch adds stay out of the live project's warehouse cache.
         const cachedWarehouse: CachedWarehouse =
             branch === null
@@ -8454,9 +8420,11 @@ export class ProjectService
                     dbtVersionOption,
                     this.lightdashConfig.dbt.environmentVariableAllowlist,
                     dbtPartialParse
-                        ? getDbtPartialParseBaselinePath({
+                        ? getDbtPartialParseBaseline({
                               projectUuid,
                               dbtSourceUuid: null,
+                              access:
+                                  branch === null ? 'read-write' : 'read-only',
                           })
                         : null,
                     {
@@ -8642,7 +8610,7 @@ export class ProjectService
             dbtVersionOption: DbtVersionOption;
             connection: ScopedWarehouseConnection;
         },
-        partialParseBaselinePath: string | null,
+        partialParseBaseline: DbtPartialParseBaseline | null,
         dbtTargetPolicy: DbtTargetPolicy,
     ): Promise<ProjectAdapter> {
         const resolvedConnection =
@@ -8660,7 +8628,7 @@ export class ProjectService
             shared.cachedWarehouse,
             shared.dbtVersionOption,
             this.lightdashConfig.dbt.environmentVariableAllowlist,
-            partialParseBaselinePath,
+            partialParseBaseline,
             {
                 resolve: () =>
                     this.warehouseClientFactory.toDbtTarget(
@@ -9117,10 +9085,11 @@ export class ProjectService
                                 organizationUuid,
                                 shared,
                                 primary.dbtPartialParse
-                                    ? getDbtPartialParseBaselinePath({
+                                    ? getDbtPartialParseBaseline({
                                           projectUuid,
                                           dbtSourceUuid:
                                               source.projectDbtSourceUuid,
+                                          access: 'read-write',
                                       })
                                     : null,
                                 primary.dbtTargetPolicy,
@@ -9480,9 +9449,10 @@ export class ProjectService
                         dbtVersionOption: primary.dbtVersionOption,
                     },
                     primary.dbtPartialParse
-                        ? getDbtPartialParseBaselinePath({
+                        ? getDbtPartialParseBaseline({
                               projectUuid,
                               dbtSourceUuid: source.projectDbtSourceUuid,
+                              access: 'read-write',
                           })
                         : null,
                     primary.dbtTargetPolicy,
@@ -12592,18 +12562,7 @@ export class ProjectService
                                     ),
                                 );
 
-                            const onboardingFlow = await this.getOnboardingFlow(
-                                {
-                                    userUuid: account.user.id,
-                                    organizationUuid:
-                                        account.organization.organizationUuid,
-                                },
-                            );
-                            await this.trackFirstQuery(
-                                account,
-                                account.organization.organizationUuid,
-                                onboardingFlow,
-                            );
+                            await this.trackFirstQuery(account);
 
                             this.analytics.trackAccount(account, {
                                 event: 'query.executed',
@@ -12624,7 +12583,7 @@ export class ProjectService
                                     organizationId: organizationUuid,
                                     projectId: projectUuid,
                                     context,
-                                    onboardingFlow,
+                                    onboardingFlow: 'new',
                                     ...ProjectService.getMetricQueryExecutionProperties(
                                         {
                                             metricQuery: metricQueryWithLimit,
@@ -12823,7 +12782,7 @@ export class ProjectService
                         projectId: projectUuid,
                         context: QueryExecutionContext.SQL_RUNNER,
                         usingStreaming: false,
-                        onboardingFlow: await this.getOnboardingFlow(user),
+                        onboardingFlow: 'new',
                     },
                 });
 
@@ -12911,10 +12870,7 @@ export class ProjectService
                         context,
                         sqlChartId: sqlChartUuid,
                         usingStreaming: true,
-                        onboardingFlow: await this.getOnboardingFlow({
-                            userUuid,
-                            organizationUuid,
-                        }),
+                        onboardingFlow: 'new',
                     },
                 });
 
@@ -13056,10 +13012,7 @@ export class ProjectService
                         context,
                         sqlChartId: sqlChartUuid,
                         usingStreaming: true,
-                        onboardingFlow: await this.getOnboardingFlow({
-                            userUuid,
-                            organizationUuid,
-                        }),
+                        onboardingFlow: 'new',
                     },
                 });
 

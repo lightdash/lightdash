@@ -12,7 +12,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import nock from 'nock';
 import { MemoryRouter } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { unusedDbtFormValues } from '../connectionFormDefaults';
 import ProjectFormContext from '../context';
@@ -143,12 +143,6 @@ const errorResponse = (statusCode: number, code: string): ApiError => ({
 });
 
 describe('BigQuery workload identity form', () => {
-    beforeEach(() => {
-        nock(api)
-            .get(`/api/v2/feature-flag/${FeatureFlags.NewOnboarding}`)
-            .reply(200, { status: 'ok', results: { enabled: false } });
-    });
-
     it.each([false, true])(
         'skips the identity request when the flag is off (saved: %s)',
         async (saved) => {

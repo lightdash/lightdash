@@ -55,6 +55,7 @@ import {
 } from '@lightdash/common';
 import { isArray } from 'es-toolkit/compat';
 import { hasUserAttribute } from '../../services/UserAttributesService/UserAttributeUtils';
+import { isMetadataStatement } from './sqlScript';
 
 export {
     findTablesWithMetricInflation,
@@ -615,8 +616,8 @@ export const applyLimitToSqlQuery = ({
     sqlQuery: string;
     limit: number | null | undefined;
 }): string => {
-    // do nothing if limit is undefined
-    if (limit === undefined) {
+    // do nothing if limit is undefined or the statement can't take a limit
+    if (limit === undefined || isMetadataStatement(sqlQuery)) {
         // strip any trailing semicolons and comments
         let sql = removeComments(sqlQuery);
         sql = sql.trim().replace(/;+$/g, '');

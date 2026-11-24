@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     CompleteUserSchema,
     describeInvalidOrganizationName,
-    FeatureFlags,
     getEmailDomain,
     LightdashMode,
     ProjectType,
@@ -53,7 +52,6 @@ import {
 } from '../hooks/organization/useOrganizationBrand';
 import { type UserWithAbility } from '../hooks/user/useUser';
 import { useUserCompleteMutation } from '../hooks/user/useUserCompleteMutation';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
@@ -628,7 +626,6 @@ const OrganizationSetup: FC = () => {
         !redirectParam.startsWith('/organization-setup')
             ? redirectParam
             : '/';
-    const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
     const organization = useOrganization({
         enabled: !!user.data?.organizationUuid,
     });
@@ -647,8 +644,6 @@ const OrganizationSetup: FC = () => {
         organization.data?.needsProject &&
         canCreateProject
             ? getNoProjectPath({
-                  isNewOnboardingEnabled:
-                      orgSetupPageFlag.data?.enabled ?? false,
                   isHomepageBuilderEnabled: homepageBuilderFlag.isEnabled,
               })
             : redirectTo;
@@ -673,7 +668,7 @@ const OrganizationSetup: FC = () => {
         return <Navigate to="/login" />;
     }
 
-    if (user.isInitialLoading || orgSetupPageFlag.isLoading) {
+    if (user.isInitialLoading) {
         return <PageSpinner />;
     }
 
@@ -687,10 +682,6 @@ const OrganizationSetup: FC = () => {
 
     if (user.data.isSetupComplete && !isCompletingSetup) {
         return <Navigate to={redirectTo} />;
-    }
-
-    if (!orgSetupPageFlag.data?.enabled) {
-        return <Navigate to="/" />;
     }
 
     if (organization.isInitialLoading) {
