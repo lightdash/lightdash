@@ -665,6 +665,22 @@ describe('definition hashes', () => {
         );
     });
 
+    it('changes the hash when a built-in explore hint changes', () => {
+        const hashOf = () => {
+            getLiveDefinitionHashes.cache.clear?.();
+            return getLiveDefinitionHashes(ApiConnectorType.HYDRA).users;
+        };
+        const { aiHint } = HYDRA_USERS_EXPLORE;
+        const before = hashOf();
+        try {
+            HYDRA_USERS_EXPLORE.aiHint = `${aiHint} Count seats per workspace.`;
+            expect(hashOf()).not.toBe(before);
+        } finally {
+            HYDRA_USERS_EXPLORE.aiHint = aiHint;
+            getLiveDefinitionHashes.cache.clear?.();
+        }
+    });
+
     it('stores the same hash when a field edit changes the explore', () => {
         const apiSource = {
             connector: ApiConnectorType.SEARCH_CONSOLE,

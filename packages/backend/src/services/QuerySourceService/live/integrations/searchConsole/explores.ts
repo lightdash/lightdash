@@ -118,7 +118,7 @@ export const SEARCH_CONSOLE_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
                 'search_appearance',
                 'Search appearance',
                 'Search result feature the site appeared with, such as product snippets or videos.',
-                'Usable only on its own, with no other selected dimension.',
+                "Values are Google's codes, such as PRODUCT_SNIPPETS, VIDEO or AMP_BLUE_LINK. Usable only on its own, with no other selected dimension.",
             ),
             apiName: 'searchAppearance',
         },

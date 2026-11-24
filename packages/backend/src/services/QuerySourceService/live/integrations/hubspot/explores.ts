@@ -149,7 +149,7 @@ const toObjectExplore = (object: HubspotObject): LiveExploreDefinition => ({
     description: `${HUBSPOT_OBJECT_LABELS[object]} in HubSpot, one row per record, with their properties.`,
     aiHint: `Read live from HubSpot search, one row per record; listing reads at most ${HUBSPOT_MAX_ROWS.toLocaleString(
         'en-US',
-    )} records. Count is HubSpot's search total for the filters (one call, any size) and cannot be split by any field: query Count alone with filters, or list records without Count. At most ${HUBSPOT_MAX_FILTERS} filters per query. Dropdown properties come as two fields: the internal value and the label HubSpot shows; filter the label field with labels and the internal-value field with internal values. Checkbox (multi-select) values are separated by semicolons. Text 'contains' matches whole words or the start of a word. Most hs_ properties start hidden. Pipeline and stage IDs map to labels via the Pipeline stages explore.`,
+    )} records. Count is HubSpot's search total for the filters (one call, any size) and cannot be split by any field: query Count alone with filters, or list records without Count. At most ${HUBSPOT_MAX_FILTERS} filters per query. Dropdown properties come as two fields: the internal value and the label HubSpot shows; filter the label field with labels and the internal-value field with internal values. Checkbox (multi-select) values are separated by semicolons. Text 'contains' matches whole words or part of a word. Most hs_ properties start hidden. Pipeline and stage IDs map to labels via the Pipeline stages explore.`,
     dimensions: BUILT_IN_DIMENSIONS,
     metrics: [toCount(object)],
     maxDimensions: null,

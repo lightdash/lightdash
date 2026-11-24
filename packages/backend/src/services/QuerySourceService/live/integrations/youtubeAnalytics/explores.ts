@@ -148,7 +148,7 @@ export const YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE: LiveExploreDefinition = {
             'Device type',
             'Type of device the video was watched on, such as MOBILE, DESKTOP or TV.',
             [],
-            'Only works with Views, Engaged views and Estimated minutes watched.',
+            'Values are DESKTOP, MOBILE, TABLET, TV, GAME_CONSOLE, AUTOMOTIVE, WEARABLE or UNKNOWN_PLATFORM. Only works with Views, Engaged views and Estimated minutes watched.',
         ),
         dimension(
             'traffic_source_type',
