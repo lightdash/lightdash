@@ -30,6 +30,7 @@ import { trendRows } from './homeDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
 import { noteRows, titledNote } from './noteLayout';
 import { buildQueryCalendarChart } from './queryCalendarChart';
+import { usageDashboardProjectFilterLabel } from './usageDashboardFilters';
 import {
     buildUsageDashboards,
     compactAxisOverrides,
@@ -1242,12 +1243,19 @@ const tokenDashboard = {
                 anyPeriodTokens.dashboard.filters?.dimensions ?? []
             ).map((filter) => ({
                 ...filter,
+                // The month-to-date tabs keep their own period, so the Date filter passes them by.
+                // The Project filter still reaches them: a chosen project narrows every tab
                 tileTargets: {
                     ...filter.tileTargets,
                     ...Object.fromEntries(
-                        aiTokenDashboard.charts.map(({ slug }) => [
+                        aiTokenDashboard.charts.map(({ slug, tableName }) => [
                             slug,
-                            false as const,
+                            filter.label === usageDashboardProjectFilterLabel
+                                ? {
+                                      fieldId: `${tableName}_project_id`,
+                                      tableName,
+                                  }
+                                : (false as const),
                         ]),
                     ),
                 },
