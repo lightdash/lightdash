@@ -104,9 +104,13 @@ it('keeps only the latest request, keeps good explores through a failure, and dr
     );
     await model.requestBranchCompile(workspaceUuid, true);
     expect(await model.findBranchCompile(workspaceUuid)).toMatchObject({
-        requested_by_agent: true,
-        follow_up_claimed_at: null,
+        requestedByAgent: true,
     });
+    expect(
+        await database('semantic_studio_branch_compiles')
+            .where('semantic_studio_workspace_uuid', workspaceUuid)
+            .first(),
+    ).toMatchObject({ follow_up_claimed_at: null });
 
     await model.deleteFinishedBranchCompiles(project.project_uuid);
     expect(await model.findBranchCompile(workspaceUuid)).not.toBeNull();
