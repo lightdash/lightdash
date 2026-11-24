@@ -1,3 +1,7 @@
+import {
+    DEVELOPMENT_PREVIEW_HEADER,
+    DEVELOPMENT_VIEW_HEADER,
+} from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
 import {
     hashQueryKey,
@@ -7,6 +11,19 @@ import {
 } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
+import {
+    PULL_REQUEST_CI_CHECKS_KEY,
+    PULL_REQUEST_DIFF_KEY,
+    WRITEBACK_RUN_STATUS_KEY,
+} from '../writeback/writebackQueryKeys';
+import {
+    CHECKOUT_KEY,
+    DRAFT_KEY,
+    DRAFT_STATE_KEY,
+    MODEL_VERSION_KEY,
+    SOURCES_KEY,
+    WORKSPACES_KEY,
+} from './studioQueryKeys';
 
 /** Open Try it sessions; each keeps the view it started on, so no other tab or page moves it or switches it off under them. */
 let pins = 0;
@@ -28,23 +45,31 @@ const PREVIEW_STORAGE_KEY = 'lightdash-development-preview';
 /** The project the person has a draft checked out on, so the whole app reads it from the first request. */
 const CHECKOUT_STORAGE_KEY = 'lightdash-checked-out-project';
 
-/** Asks the server to apply this person's unpublished model changes to what a request reads. */
-export const DEVELOPMENT_VIEW_HEADER = 'Lightdash-Development-View';
-/** Names the preview project to read instead, for a project whose unpublished changes live on a branch. */
-export const DEVELOPMENT_PREVIEW_HEADER = 'Lightdash-Development-Preview';
+/** Reads what is published, whatever view the page is in. */
+export const PUBLISHED_HEADERS: Record<string, string> = {
+    [DEVELOPMENT_VIEW_HEADER]: 'false',
+};
+
+/** Reads the person's changes, from the preview project that holds them when there is one. */
+export const developmentHeadersFor = (previewProjectUuid: string | null) => ({
+    [DEVELOPMENT_VIEW_HEADER]: 'true',
+    ...(previewProjectUuid
+        ? { [DEVELOPMENT_PREVIEW_HEADER]: previewProjectUuid }
+        : {}),
+});
 
 // Queries that read the repository or name their own view, so switching the view cannot change them.
 const SAME_IN_EITHER_VIEW = new Set([
-    'pullRequestCiChecks',
-    'pullRequestDiff',
-    'aiWritebackRunStatus',
-    'semantic-studio-sources',
-    'semantic-studio-workspaces',
-    'semantic-studio-model-version',
-    'semantic-studio-checkout',
+    PULL_REQUEST_CI_CHECKS_KEY,
+    PULL_REQUEST_DIFF_KEY,
+    WRITEBACK_RUN_STATUS_KEY,
+    SOURCES_KEY,
+    WORKSPACES_KEY,
+    MODEL_VERSION_KEY,
+    CHECKOUT_KEY,
     // The draft is the person's own whichever view reads the models.
-    'semantic-layer-draft',
-    'semantic-layer-draft-state',
+    DRAFT_KEY,
+    DRAFT_STATE_KEY,
     // Who may ask the agent is the same in either view; refetching it blanks the chat's composer.
     'ai-access',
 ]);
@@ -102,22 +127,15 @@ export const getDevelopmentViewHeaders = (): Record<string, string> => {
     try {
         const { pathname } = window.location;
         if (pins > 0 && findProjectInPath(pathname) !== null) {
-            return {
-                [DEVELOPMENT_VIEW_HEADER]: 'true',
-                ...(pinnedPreview
-                    ? { [DEVELOPMENT_PREVIEW_HEADER]: pinnedPreview }
-                    : {}),
-            };
+            return developmentHeadersFor(pinnedPreview);
         }
         if (isOnFor(localStorage.getItem(STORAGE_KEY), pathname)) {
-            const preview = localStorage.getItem(PREVIEW_STORAGE_KEY);
-            return {
-                [DEVELOPMENT_VIEW_HEADER]: 'true',
-                ...(preview ? { [DEVELOPMENT_PREVIEW_HEADER]: preview } : {}),
-            };
+            return developmentHeadersFor(
+                localStorage.getItem(PREVIEW_STORAGE_KEY),
+            );
         }
         return isOnFor(localStorage.getItem(CHECKOUT_STORAGE_KEY), pathname)
-            ? { [DEVELOPMENT_VIEW_HEADER]: 'true' }
+            ? developmentHeadersFor(null)
             : {};
     } catch {
         return {};

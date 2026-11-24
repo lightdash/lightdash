@@ -133,26 +133,80 @@ export type SalesforceApiSource = {
 };
 
 /**
+ * An Amplitude project; its API key and secret key pick it, and the
+ * connection's origin says whether its data lives in the US or the EU.
+ */
+export type AmplitudeApiSource = {
+    connector: ApiConnectorType.AMPLITUDE;
+};
+
+/**
  * Hydra, the test integration: its rows are seeded from the sign-in token,
- * and these settings make its fake API slow, fail or rate limit on demand.
+ * and these settings make its fake API slow, fail, page or rate limit.
+ * Every setting is optional; one left out takes its default
+ * (`HYDRA_DEFAULT_SETTINGS`).
  */
 export type HydraApiSource = {
     connector: ApiConnectorType.HYDRA;
-    /** Milliseconds each call waits before answering. */
-    latencyMs: number;
-    /** Share of calls, 0 to 1, that fail with a 500. */
-    errorRate: number;
-    /** Every Nth call answers 429 with Retry-After; 0 never does. */
-    retryAfterEvery: number;
-    /** The Retry-After those 429s carry, in seconds. */
-    retryAfterSeconds: number;
-    /** Every call answers 401, as a revoked sign-in would. */
-    failAuth: boolean;
     /** Events seeded per sign-in token, over the last 90 days. */
-    rowCount: number;
-    /** The limits Lightdash keeps the source's calls under. */
-    callsPerMinute: number;
-    callsPerHour: number;
+    rowCount?: number;
+    /** Rows per call, 10 or more; a bigger report takes several calls. 0 never pages. */
+    pageSize?: number;
+    /** Milliseconds each call waits before answering. */
+    latencyMs?: number;
+    /** Up to this many milliseconds more, at random, per call. */
+    jitterMs?: number;
+    /** Share of calls, 0 to 1, that fail with a 500. */
+    errorRate?: number;
+    /** Every call answers 401, as a revoked sign-in would. */
+    failAuth?: boolean;
+    /** The limits Hydra's API enforces, refusing calls past them; null enforces none. */
+    vendorLimits?: HydraRateLimits | null;
+    /** How Hydra refuses a call past `vendorLimits`. */
+    onLimit?: HydraOnLimit;
+    /**
+     * The limits Lightdash keeps the source's calls under: "vendor" copies
+     * `vendorLimits`, and null declares none.
+     */
+    declaredLimits?: 'vendor' | HydraRateLimits | null;
+    /** Fake answers a test sets for given calls, counted per source from 1; the first match wins. */
+    mockResponses?: HydraMockResponse[];
+};
+
+/** A Hydra source's settings with every default filled in. */
+export type HydraSettings = Required<Omit<HydraApiSource, 'connector'>>;
+
+/** Rate limits, in the shape the rate-limit gate reads. */
+export type HydraRateLimits = {
+    /** Calls in flight at once; null for no cap. */
+    concurrentCalls: number | null;
+    callsPerSecond: number | null;
+    /** Fixed windows of calls, like a minute or an hour: up to 5, unique ids, "second" kept for `callsPerSecond`. */
+    buckets: { id: string; windowMs: number; capacity: number }[];
+};
+
+export type HydraOnLimit = {
+    status: number;
+    /** How Retry-After is written: as seconds, as an HTTP date, or left out. */
+    retryAfterFormat: 'seconds' | 'date' | 'none';
+    /** The body Hydra answers; `{"code": "rate_limited"}` marks a throttle in a non-429. */
+    body?: Record<string, unknown>;
+};
+
+/**
+ * A fake answer a test sets for one call (`call`) or a range (`fromCall`, and `toCall`
+ * or every call after). Status 200 answers as usual, skipping `errorRate`;
+ * 400 to 599 is answered as given.
+ */
+export type HydraMockResponse = {
+    call?: number;
+    fromCall?: number;
+    toCall?: number;
+    status: number;
+    /** Sent as Retry-After; error statuses only. */
+    retryAfterSeconds?: number;
+    /** The error body; error statuses only. */
+    body?: Record<string, unknown>;
 };
 
 /** Connector settings of a live source; the server fixes its access rules. */
@@ -169,6 +223,7 @@ export type ExternalConnectionApiSource =
     | AttioApiSource
     | HubspotApiSource
     | SalesforceApiSource
+    | AmplitudeApiSource
     | HydraApiSource;
 
 /** The settings of one integration's sources. */
@@ -235,6 +290,30 @@ export const getAttioAttributesPath = (object: string) =>
 
 export const getAttioRecordsQueryPath = (object: string) =>
     `/v2/objects/${object}/records/query`;
+
+/** Amplitude's Dashboard REST API, by where the project's data lives. */
+export const AMPLITUDE_REGION_ORIGINS = {
+    us: 'https://amplitude.com',
+    eu: 'https://analytics.eu.amplitude.com',
+} as const;
+export type AmplitudeRegion = keyof typeof AMPLITUDE_REGION_ORIGINS;
+
+export const getAmplitudeRegion = (origin: string): AmplitudeRegion =>
+    origin.replace(/\/+$/, '') === AMPLITUDE_REGION_ORIGINS.eu ? 'eu' : 'us';
+
+/** The Dashboard REST API endpoints a source reads. */
+export const AMPLITUDE_PATHS = {
+    segmentation: '/api/2/events/segmentation',
+    users: '/api/2/users',
+    funnels: '/api/2/funnels',
+    retention: '/api/2/retention',
+    sessionLength: '/api/2/sessions/average',
+    sessionsPerUser: '/api/2/sessions/peruser',
+    eventsList: '/api/2/events/list',
+} as const;
+
+/** Amplitude signs Dashboard REST API calls in with HTTP Basic: the API key, then the secret key. */
+export const AMPLITUDE_AUTH_HEADER = 'Authorization';
 
 export const HUBSPOT_ORIGIN = 'https://api.hubapi.com';
 
@@ -725,6 +804,38 @@ export type ExternalConnectionApiUsage = {
 export type ApiExternalConnectionApiUsageResponse = {
     status: 'ok';
     results: ExternalConnectionApiUsage[];
+};
+
+/** One of an integration's declared limits, with Lightdash's calls in its current window. */
+export type ExternalConnectionRateLimitBucket = {
+    id: string;
+    /** As declared, such as "per hour". */
+    label: string;
+    windowMs: number;
+    capacity: number;
+    /** Calls in the current window; 0 when no window is open. */
+    used: number;
+    /** When the current window ends, ISO; null when no window is open. */
+    resetsAt: string | null;
+};
+
+/**
+ * Lightdash's own calls against an integration's declared rate limits, as of
+ * `checkedAt`. Other apps on the same vendor account aren't counted.
+ */
+export type ExternalConnectionRateLimitUsage = {
+    /** The integration's name, such as HubSpot. */
+    integrationLabel: string;
+    checkedAt: string;
+    /** Shortest window first. */
+    buckets: ExternalConnectionRateLimitBucket[];
+    /** When the vendor's pause ends, ISO; null when it hasn't paused the integration. */
+    limitedUntil: string | null;
+};
+
+export type ApiExternalConnectionRateLimitUsageResponse = {
+    status: 'ok';
+    results: ExternalConnectionRateLimitUsage;
 };
 
 export type ApiSourceSchemaEvent = {

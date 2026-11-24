@@ -1,12 +1,11 @@
 import { Stack, Text } from '@mantine/core';
-import { type FC, type ReactNode } from 'react';
+import { type FC } from 'react';
 import { StudioDraftIllustration } from '../../../../../features/semanticStudio/StudioDraftIllustration';
 
 /** What the chat shows before a conversation starts. */
-export const StudioChatEmptyState: FC<{
-    keepsDraft: boolean;
-    children?: ReactNode;
-}> = ({ keepsDraft, children }) => (
+export const StudioChatEmptyState: FC<{ keepsDraft: boolean }> = ({
+    keepsDraft,
+}) => (
     <Stack flex={1} justify="center" align="center" gap="md" px="md">
         <StudioDraftIllustration />
         <Stack gap={2} align="center" maw={280}>
@@ -19,6 +18,5 @@ export const StudioChatEmptyState: FC<{
                     : 'Nothing is published until you publish the draft.'}
             </Text>
         </Stack>
-        {children}
     </Stack>
 );

@@ -16589,6 +16589,7 @@
                     "attio",
                     "hubspot",
                     "salesforce",
+                    "amplitude",
                     "hydra"
                 ],
                 "type": "string"
@@ -16836,67 +16837,185 @@
                 "type": "object",
                 "description": "One sign-in reads every object in SALESFORCE_OBJECTS, so nothing else is set."
             },
+            "ApiConnectorType.AMPLITUDE": {
+                "enum": ["amplitude"],
+                "type": "string"
+            },
+            "AmplitudeApiSource": {
+                "properties": {
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.AMPLITUDE"
+                    }
+                },
+                "required": ["connector"],
+                "type": "object",
+                "description": "An Amplitude project; its API key and secret key pick it, and the\nconnection's origin says whether its data lives in the US or the EU."
+            },
             "ApiConnectorType.HYDRA": {
                 "enum": ["hydra"],
                 "type": "string"
             },
-            "HydraApiSource": {
+            "HydraRateLimits": {
                 "properties": {
-                    "callsPerHour": {
+                    "buckets": {
+                        "items": {
+                            "properties": {
+                                "capacity": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "windowMs": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "id": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["capacity", "windowMs", "id"],
+                            "type": "object"
+                        },
+                        "type": "array",
+                        "description": "Fixed windows of calls, like a minute or an hour: up to 5, unique ids, \"second\" kept for `callsPerSecond`."
+                    },
+                    "callsPerSecond": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "concurrentCalls": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Calls in flight at once; null for no cap."
+                    }
+                },
+                "required": ["buckets", "callsPerSecond", "concurrentCalls"],
+                "type": "object",
+                "description": "Rate limits, in the shape the rate-limit gate reads."
+            },
+            "HydraOnLimit": {
+                "properties": {
+                    "body": {
+                        "$ref": "#/components/schemas/Record_string.unknown_",
+                        "description": "The body Hydra answers; `{\"code\": \"rate_limited\"}` marks a throttle in a non-429."
+                    },
+                    "retryAfterFormat": {
+                        "type": "string",
+                        "enum": ["seconds", "date", "none"],
+                        "description": "How Retry-After is written: as seconds, as an HTTP date, or left out."
+                    },
+                    "status": {
                         "type": "number",
                         "format": "double"
-                    },
-                    "callsPerMinute": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "The limits Lightdash keeps the source's calls under."
-                    },
-                    "rowCount": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Events seeded per sign-in token, over the last 90 days."
-                    },
-                    "failAuth": {
-                        "type": "boolean",
-                        "description": "Every call answers 401, as a revoked sign-in would."
+                    }
+                },
+                "required": ["retryAfterFormat", "status"],
+                "type": "object"
+            },
+            "HydraMockResponse": {
+                "properties": {
+                    "body": {
+                        "$ref": "#/components/schemas/Record_string.unknown_",
+                        "description": "The error body; error statuses only."
                     },
                     "retryAfterSeconds": {
                         "type": "number",
                         "format": "double",
-                        "description": "The Retry-After those 429s carry, in seconds."
+                        "description": "Sent as Retry-After; error statuses only."
                     },
-                    "retryAfterEvery": {
+                    "status": {
                         "type": "number",
-                        "format": "double",
-                        "description": "Every Nth call answers 429 with Retry-After; 0 never does."
+                        "format": "double"
+                    },
+                    "toCall": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "fromCall": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "call": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["status"],
+                "type": "object",
+                "description": "A fake answer a test sets for one call (`call`) or a range (`fromCall`, and `toCall`\nor every call after). Status 200 answers as usual, skipping `errorRate`;\n400 to 599 is answered as given."
+            },
+            "HydraApiSource": {
+                "properties": {
+                    "mockResponses": {
+                        "items": {
+                            "$ref": "#/components/schemas/HydraMockResponse"
+                        },
+                        "type": "array",
+                        "description": "Fake answers a test sets for given calls, counted per source from 1; the first match wins."
+                    },
+                    "declaredLimits": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/HydraRateLimits"
+                            },
+                            {
+                                "type": "string",
+                                "enum": ["vendor"]
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The limits Lightdash keeps the source's calls under: \"vendor\" copies\n`vendorLimits`, and null declares none."
+                    },
+                    "onLimit": {
+                        "$ref": "#/components/schemas/HydraOnLimit",
+                        "description": "How Hydra refuses a call past `vendorLimits`."
+                    },
+                    "vendorLimits": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/HydraRateLimits"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The limits Hydra's API enforces, refusing calls past them; null enforces none."
+                    },
+                    "failAuth": {
+                        "type": "boolean",
+                        "description": "Every call answers 401, as a revoked sign-in would."
                     },
                     "errorRate": {
                         "type": "number",
                         "format": "double",
                         "description": "Share of calls, 0 to 1, that fail with a 500."
                     },
+                    "jitterMs": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Up to this many milliseconds more, at random, per call."
+                    },
                     "latencyMs": {
                         "type": "number",
                         "format": "double",
                         "description": "Milliseconds each call waits before answering."
                     },
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Rows per call, 10 or more; a bigger report takes several calls. 0 never pages."
+                    },
+                    "rowCount": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Events seeded per sign-in token, over the last 90 days."
+                    },
                     "connector": {
                         "$ref": "#/components/schemas/ApiConnectorType.HYDRA"
                     }
                 },
-                "required": [
-                    "callsPerHour",
-                    "callsPerMinute",
-                    "rowCount",
-                    "failAuth",
-                    "retryAfterSeconds",
-                    "retryAfterEvery",
-                    "errorRate",
-                    "latencyMs",
-                    "connector"
-                ],
+                "required": ["connector"],
                 "type": "object",
-                "description": "Hydra, the test integration: its rows are seeded from the sign-in token,\nand these settings make its fake API slow, fail or rate limit on demand."
+                "description": "Hydra, the test integration: its rows are seeded from the sign-in token,\nand these settings make its fake API slow, fail, page or rate limit.\nEvery setting is optional; one left out takes its default\n(`HYDRA_DEFAULT_SETTINGS`)."
             },
             "ExternalConnectionApiSource": {
                 "anyOf": [
@@ -16935,6 +17054,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/SalesforceApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AmplitudeApiSource"
                     },
                     {
                         "$ref": "#/components/schemas/HydraApiSource"
@@ -17831,6 +17953,90 @@
                         ],
                         "nullable": true,
                         "description": "Null when the connection was never scanned."
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ExternalConnectionRateLimitBucket": {
+                "properties": {
+                    "resetsAt": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "When the current window ends, ISO; null when no window is open."
+                    },
+                    "used": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Calls in the current window; 0 when no window is open."
+                    },
+                    "capacity": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "windowMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "label": {
+                        "type": "string",
+                        "description": "As declared, such as \"per hour\"."
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "resetsAt",
+                    "used",
+                    "capacity",
+                    "windowMs",
+                    "label",
+                    "id"
+                ],
+                "type": "object",
+                "description": "One of an integration's declared limits, with Lightdash's calls in its current window."
+            },
+            "ExternalConnectionRateLimitUsage": {
+                "properties": {
+                    "limitedUntil": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "When the vendor's pause ends, ISO; null when it hasn't paused the integration."
+                    },
+                    "buckets": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnectionRateLimitBucket"
+                        },
+                        "type": "array",
+                        "description": "Shortest window first."
+                    },
+                    "checkedAt": {
+                        "type": "string"
+                    },
+                    "integrationLabel": {
+                        "type": "string",
+                        "description": "The integration's name, such as HubSpot."
+                    }
+                },
+                "required": [
+                    "limitedUntil",
+                    "buckets",
+                    "checkedAt",
+                    "integrationLabel"
+                ],
+                "type": "object",
+                "description": "Lightdash's own calls against an integration's declared rate limits, as of\n`checkedAt`. Other apps on the same vendor account aren't counted."
+            },
+            "ApiExternalConnectionRateLimitUsageResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExternalConnectionRateLimitUsage"
                     },
                     "status": {
                         "type": "string",
@@ -36362,150 +36568,6 @@
             "ApiAgentReadinessScoreResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_ReadinessScore_"
             },
-            "AiAgentVerifiedArtifact": {
-                "properties": {
-                    "promptUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "threadUuid": {
-                        "type": "string"
-                    },
-                    "referenceCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "verifiedBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "userUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "userUuid"],
-                        "type": "object"
-                    },
-                    "verifiedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "title": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "artifactType": {
-                        "type": "string",
-                        "enum": ["chart", "dashboard"]
-                    },
-                    "versionUuid": {
-                        "type": "string"
-                    },
-                    "artifactUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "promptUuid",
-                    "threadUuid",
-                    "referenceCount",
-                    "verifiedBy",
-                    "verifiedAt",
-                    "description",
-                    "title",
-                    "artifactType",
-                    "versionUuid",
-                    "artifactUuid"
-                ],
-                "type": "object"
-            },
-            "KnexPaginatedData_AiAgentVerifiedArtifact-Array_": {
-                "properties": {
-                    "pagination": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/KnexPaginateArgs"
-                            },
-                            {
-                                "properties": {
-                                    "totalResults": {
-                                        "type": "number",
-                                        "format": "double"
-                                    },
-                                    "totalPageCount": {
-                                        "type": "number",
-                                        "format": "double"
-                                    }
-                                },
-                                "required": ["totalResults", "totalPageCount"],
-                                "type": "object"
-                            }
-                        ]
-                    },
-                    "data": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiAgentVerifiedArtifact"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["data"],
-                "type": "object"
-            },
-            "ApiSuccess_KnexPaginatedData_AiAgentVerifiedArtifact-Array__": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/KnexPaginatedData_AiAgentVerifiedArtifact-Array_"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAiAgentVerifiedArtifactsResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_AiAgentVerifiedArtifact-Array__"
-            },
-            "ApiSuccess__question-string--uuid-string_-Array_": {
-                "properties": {
-                    "results": {
-                        "items": {
-                            "properties": {
-                                "uuid": {
-                                    "type": "string"
-                                },
-                                "question": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["uuid", "question"],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAiAgentVerifiedQuestionsResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__question-string--uuid-string_-Array_"
-            },
             "ApiCreateAiAgentResponse": {
                 "properties": {
                     "results": {
@@ -41380,13 +41442,6 @@
                         ],
                         "nullable": true
                     },
-                    "referencedArtifacts": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiAgentMessageAssistantArtifact"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
                     "artifacts": {
                         "items": {
                             "$ref": "#/components/schemas/AiAgentMessageAssistantArtifact"
@@ -41461,7 +41516,6 @@
                     "responseTiming",
                     "tokenUsage",
                     "modelConfig",
-                    "referencedArtifacts",
                     "artifacts",
                     "savedQueryUuid",
                     "reasoning",
@@ -41750,7 +41804,8 @@
                         "type": "string"
                     },
                     "modelConfig": {
-                        "$ref": "#/components/schemas/AiAgentModelConfig"
+                        "$ref": "#/components/schemas/AiAgentModelConfig",
+                        "description": "Model and reasoning settings for the first prompt. The thread keeps its first recorded configuration."
                     },
                     "context": {
                         "$ref": "#/components/schemas/AiPromptContextInput"
@@ -41789,7 +41844,8 @@
                         "type": "string"
                     },
                     "modelConfig": {
-                        "$ref": "#/components/schemas/AiAgentModelConfig"
+                        "$ref": "#/components/schemas/AiAgentModelConfig",
+                        "description": "Must match the thread's recorded model and reasoning settings, otherwise returns HTTP 400. Omit to reuse them; start a new thread to change them. If no configuration is recorded yet, selects it for this prompt."
                     },
                     "context": {
                         "$ref": "#/components/schemas/AiPromptContextInput"
@@ -42552,15 +42608,6 @@
                     "versionCreatedAt": {
                         "type": "string",
                         "format": "date-time"
-                    },
-                    "verifiedByUserUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "verifiedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
                     }
                 },
                 "required": [
@@ -42578,9 +42625,7 @@
                     "savedDashboardUuid",
                     "savedComposerChartUuid",
                     "savedComposerChartDashboardUuid",
-                    "versionCreatedAt",
-                    "verifiedByUserUuid",
-                    "verifiedAt"
+                    "versionCreatedAt"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -44120,10 +44165,10 @@
                 "type": "string",
                 "enum": [
                     "access",
+                    "not_found",
                     "name_taken",
                     "incomplete",
-                    "invalid_filter",
-                    "not_found"
+                    "invalid_filter"
                 ]
             },
             "ModelFragmentRefusal": {
@@ -62181,8 +62226,6 @@
                     "sendContentReviewNotification",
                     "createReviewJiraIssue",
                     "createReviewLinearIssue",
-                    "embedArtifactVersion",
-                    "generateArtifactQuestion",
                     "appGeneratePipeline",
                     "appBuildFromSource",
                     "appCaptureThumbnail",
@@ -81434,7 +81477,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.375.0",
+        "version": "3.385.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -92569,116 +92612,6 @@
                 ]
             }
         },
-        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-artifacts": {
-            "get": {
-                "operationId": "getVerifiedArtifacts",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAiAgentVerifiedArtifactsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "agentUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "page",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "pageSize",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-questions": {
-            "get": {
-                "operationId": "getVerifiedQuestions",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAiAgentVerifiedQuestionsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "agentUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
         "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/avatar": {
             "post": {
                 "operationId": "uploadAgentAvatar",
@@ -93241,6 +93174,16 @@
                             }
                         }
                     },
+                    "400": {
+                        "description": "modelConfig differs from the thread configuration",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    },
                     "default": {
                         "description": "Error",
                         "content": {
@@ -93252,6 +93195,8 @@
                         }
                     }
                 },
+                "description": "Adds a message using the thread's recorded model and reasoning settings.\nA different modelConfig returns HTTP 400; start a new thread to change it.",
+                "summary": "Create AI agent thread message",
                 "security": [],
                 "parameters": [
                     {
@@ -95004,84 +94949,6 @@
                                     }
                                 },
                                 "required": ["savedComposerChartUuid"],
-                                "type": "object"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/verified": {
-            "patch": {
-                "operationId": "setArtifactVersionVerified",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "agentUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "artifactUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "versionUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "properties": {
-                                    "verified": {
-                                        "type": "boolean"
-                                    }
-                                },
-                                "required": ["verified"],
                                 "type": "object"
                             }
                         }

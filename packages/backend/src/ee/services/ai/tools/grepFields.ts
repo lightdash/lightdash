@@ -80,8 +80,7 @@ type GrepFieldsContext = {
     requiredFiltersByExplore: Map<string, FindExploresRequiredFilter[]>;
 };
 
-// Turn the regex patterns into a plain-keyword query, used for the FTS
-// fallback and as the search text for verified-answer relevance lookups.
+// Turn the regex patterns into a plain-keyword query for the FTS fallback.
 export const grepPatternsToSearchQuery = (patterns: string[]): string =>
     patterns
         .join(' ')

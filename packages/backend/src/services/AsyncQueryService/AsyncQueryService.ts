@@ -12960,7 +12960,7 @@ export class AsyncQueryService extends ProjectService {
         parameters,
     }: ExecuteAsyncApiQueryArgs): Promise<{ queryUuid: string }> {
         assertIsAccountWithOrg(account);
-        await this.assertApiQuerySourcesEnabled(account);
+        this.getLiveSourceResolver();
 
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -13024,18 +13024,14 @@ export class AsyncQueryService extends ProjectService {
         return { queryUuid };
     }
 
-    private async assertApiQuerySourcesEnabled(account: Account) {
-        assertIsAccountWithOrg(account);
-        const { enabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.ApiQuerySources,
-        });
-        if (!enabled) {
-            throw new ForbiddenError('Live data sources are not enabled');
+    // Live data sources are wired only with a valid Enterprise licence
+    private getLiveSourceResolver(): LiveSourceResolver {
+        if (!this.getLiveSourceForExplore) {
+            throw new ForbiddenError(
+                'Live data sources need an Enterprise licence',
+            );
         }
+        return this.getLiveSourceForExplore;
     }
 
     /**
@@ -13159,15 +13155,12 @@ export class AsyncQueryService extends ProjectService {
             });
             throw toLiveQueryError(issues);
         }
-        if (!this.getLiveSourceForExplore) {
-            throw new ForbiddenError('Live data sources are not enabled');
-        }
-        await this.assertApiQuerySourcesEnabled(account);
+        const getLiveSource = this.getLiveSourceResolver();
         await this.trackFirstQueryForAccount(account);
 
         const metricQuery = queryComposer.getMetricQuery();
         const fields = queryComposer.getFields();
-        const source = await this.getLiveSourceForExplore(
+        const source = await getLiveSource(
             account,
             projectUuid,
             apiSource.connectionUuid,

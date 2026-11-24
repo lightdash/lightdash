@@ -30,7 +30,6 @@ const context: SuggestionPromptContext = {
     canManageContent: false,
     enabledTools: ['findContent'],
     explores: [],
-    verifiedQuestions: [],
     verifiedContentTags: [],
     verifiedContent: [],
 };

@@ -70,7 +70,6 @@ const buildService = ({
     connections = [posthogConnection()],
     canView = true,
     canManage = canView,
-    liveSourcesEnabled = true,
     newOnboardingEnabled = true,
     deletedSources = [],
     takenExploreNames = [],
@@ -81,7 +80,6 @@ const buildService = ({
     connections?: ExternalConnection[];
     canView?: boolean;
     canManage?: boolean;
-    liveSourcesEnabled?: boolean;
     newOnboardingEnabled?: boolean;
     deletedSources?: DeletedLiveSource[];
     takenExploreNames?: string[];
@@ -129,6 +127,10 @@ const buildService = ({
         purgeLiveSourceCache: vi.fn().mockResolvedValue(undefined),
         rotateSecret: vi.fn().mockResolvedValue(undefined),
         getApiSourceUsage: vi.fn().mockResolvedValue([]),
+        getApiSourceRateUsage: vi.fn().mockResolvedValue({
+            now: new Date('2026-11-23T14:00:00.000Z'),
+            buckets: [],
+        }),
         setApiSourceSchema: vi.fn().mockResolvedValue(undefined),
         getApiSourceSchemas: vi.fn().mockResolvedValue(new Map()),
         listDeletedLiveSources: vi.fn().mockResolvedValue(deletedSources),
@@ -255,7 +257,7 @@ const buildService = ({
                 enabled:
                     featureFlagId === FeatureFlags.NewOnboarding
                         ? newOnboardingEnabled
-                        : liveSourcesEnabled,
+                        : true,
             })),
         },
     } as never);
@@ -610,6 +612,46 @@ describe('ExternalConnectionService api sources', () => {
     });
 });
 
+describe('ExternalConnectionService rate-limit usage', () => {
+    it('reads the shared buckets of the source under its integration limits', async () => {
+        const { service, externalConnectionModel } = buildService();
+        const usage = await service.getApiSourceRateLimitUsage(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+
+        expect(
+            externalConnectionModel.getApiSourceRateUsage,
+        ).toHaveBeenCalledWith('conn-1');
+        expect(usage).toMatchObject({
+            checkedAt: '2026-11-23T14:00:00.000Z',
+            limitedUntil: null,
+        });
+    });
+
+    it('refuses an account that cannot view the source', async () => {
+        const { service, externalConnectionModel } = buildService({
+            canView: false,
+        });
+        await expect(
+            service.getApiSourceRateLimitUsage(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow(ForbiddenError);
+        expect(
+            externalConnectionModel.getApiSourceRateUsage,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('refuses a connection that is not a live data source', async () => {
+        const { service } = buildService({
+            connections: [posthogConnection({ apiSource: null })],
+        });
+        await expect(
+            service.getApiSourceRateLimitUsage(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow(ParameterError);
+    });
+});
+
 describe('ExternalConnectionService api source schema scans', () => {
     it('scans events and property keys in two calls and stores the result', async () => {
         mockSecureFetch
@@ -779,13 +821,6 @@ describe('ExternalConnectionService api source schema scans', () => {
             externalConnectionModel.getApiSourceSchemas,
         ).not.toHaveBeenCalled();
     });
-
-    it('refuses the schema while live sources are off', async () => {
-        const { service } = buildService({ liveSourcesEnabled: false });
-        await expect(
-            service.getApiSourceSchema(account, 'proj-1', 'conn-1'),
-        ).rejects.toThrow(ForbiddenError);
-    });
 });
 
 describe('ExternalConnectionService live source writes', () => {
@@ -869,31 +904,6 @@ describe('ExternalConnectionService live source writes', () => {
                 }),
             }),
         ]);
-    });
-
-    it('refuses to create a live source while live sources are off', async () => {
-        const { service } = buildService({ liveSourcesEnabled: false });
-        await expect(
-            service.create(account, 'proj-1', postHogCreate),
-        ).rejects.toThrow(ForbiddenError);
-    });
-
-    it('refuses to test a live source while live sources are off', async () => {
-        const { service } = buildService({ liveSourcesEnabled: false });
-        await expect(
-            service.testConfig(account, 'proj-1', postHogCreate, {
-                method: 'POST',
-                path: '/api/projects/303731/query/',
-            }),
-        ).rejects.toThrow(ForbiddenError);
-        expect(mockSecureFetch).not.toHaveBeenCalled();
-    });
-
-    it('refuses to edit a live source while live sources are off', async () => {
-        const { service } = buildService({ liveSourcesEnabled: false });
-        await expect(
-            service.update(account, 'proj-1', 'conn-1', { name: 'Renamed' }),
-        ).rejects.toThrow(ForbiddenError);
     });
 
     it('refuses to turn a data app connection into a live source', async () => {
@@ -1141,7 +1151,8 @@ describe('ExternalConnectionService live source explores', () => {
         const [explore] =
             projectModel.replaceApiSourceExplores.mock.calls[0][2];
         expect(explore.name).toBe('product_analytics_events');
-        expect(explore.label).toContain('Renamed');
+        // The source's name labels the folder; the explore keeps its model's
+        expect(explore.groupLabel).toContain('Renamed');
     });
 
     it("doesn't build a changed target from the old target's last scan", async () => {
@@ -1202,6 +1213,56 @@ describe('ExternalConnectionService live source explores', () => {
         expect(
             externalConnectionModel.purgeLiveSourceCache,
         ).toHaveBeenCalledTimes(2);
+    });
+
+    it('moves a key source to another region and project with a new key', async () => {
+        const target = {
+            connector: ApiConnectorType.POSTHOG,
+            projectId: '999',
+        } as const;
+        const { service, externalConnectionModel } = buildService();
+        externalConnectionModel.update.mockResolvedValue(
+            posthogConnection({
+                origin: 'https://us.posthog.com',
+                apiSource: target,
+            }),
+        );
+
+        await service.update(account, 'proj-1', 'conn-1', {
+            origin: 'https://us.posthog.com',
+            apiSource: target,
+            secret: 'phx_us',
+        });
+
+        expect(externalConnectionModel.update).toHaveBeenCalledWith(
+            'conn-1',
+            expect.anything(),
+            expect.objectContaining({
+                origin: 'https://us.posthog.com',
+                secret: 'phx_us',
+                apiSource: target,
+                allowedPathPrefixes: expect.arrayContaining([
+                    '/api/projects/999/query/',
+                ]),
+            }),
+        );
+        expect(
+            externalConnectionModel.purgeLiveSourceCache,
+        ).toHaveBeenCalledExactlyOnceWith('conn-1', expect.any(Date));
+    });
+
+    it('asks for the key again to move a key source to another region', async () => {
+        const { service, externalConnectionModel } = buildService();
+
+        await expect(
+            service.update(account, 'proj-1', 'conn-1', {
+                origin: 'https://us.posthog.com',
+            }),
+        ).rejects.toThrow('Re-enter the secret to change the origin');
+        expect(externalConnectionModel.update).not.toHaveBeenCalled();
+        expect(
+            externalConnectionModel.purgeLiveSourceCache,
+        ).not.toHaveBeenCalled();
     });
 
     it('keeps reusing results after a rename', async () => {
@@ -1968,34 +2029,39 @@ describe('ExternalConnectionService live source explores', () => {
         expect(projectModel.replaceApiSourceExplores).not.toHaveBeenCalled();
     });
 
-    it.each([
-        ['without manage access', { canManage: false }, ForbiddenError],
-        [
-            'with live data sources off',
-            { liveSourcesEnabled: false },
-            ForbiddenError,
-        ],
-    ])('refuses reattach routes %s', async (_name, options, error) => {
-        const { service } = buildService({
-            deletedSources: [deletedSource()],
-            ...options,
-        });
+    it.each([['without manage access', { canManage: false }, ForbiddenError]])(
+        'refuses reattach routes %s',
+        async (_name, options, error) => {
+            const { service } = buildService({
+                deletedSources: [deletedSource()],
+                ...options,
+            });
 
-        await expect(
-            service.checkExplorePrefix(
-                account,
-                'proj-1',
-                ApiConnectorType.POSTHOG,
-                'free_name',
-            ),
-        ).rejects.toThrow(error);
-        await expect(
-            service.listReattachableLiveSources(account, 'proj-1', 'conn-1'),
-        ).rejects.toThrow(error);
-        await expect(
-            service.reattachLiveSource(account, 'proj-1', 'conn-1', 'old-conn'),
-        ).rejects.toThrow(error);
-    });
+            await expect(
+                service.checkExplorePrefix(
+                    account,
+                    'proj-1',
+                    ApiConnectorType.POSTHOG,
+                    'free_name',
+                ),
+            ).rejects.toThrow(error);
+            await expect(
+                service.listReattachableLiveSources(
+                    account,
+                    'proj-1',
+                    'conn-1',
+                ),
+            ).rejects.toThrow(error);
+            await expect(
+                service.reattachLiveSource(
+                    account,
+                    'proj-1',
+                    'conn-1',
+                    'old-conn',
+                ),
+            ).rejects.toThrow(error);
+        },
+    );
 
     it('refuses to reattach something that is not a deleted source of the integration', async () => {
         const { service } = buildService({ deletedSources: [] });

@@ -5315,6 +5315,76 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('sample data project connection lock', () => {
+        const sampleProject = {
+            ...projectWithSensitiveFields,
+            provisioningSource: 'playground',
+        };
+        const redshiftConnection: CreateWarehouseCredentials = {
+            type: WarehouseTypes.REDSHIFT,
+            host: 'warehouse.example.com',
+            user: 'user',
+            password: 'password',
+            port: 5439,
+            dbname: 'analytics',
+            schema: 'public',
+        };
+        const managedMessage = "The sample data project can't be reconnected";
+
+        beforeEach(() => {
+            projectModel.update.mockClear();
+            jobModel.create.mockClear();
+        });
+
+        test('refuses a warehouse credential update', async () => {
+            projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                sampleProject,
+            );
+            await expect(
+                service.updateWarehouseCredentials(
+                    sampleProject.projectUuid,
+                    developerAccount,
+                    { warehouseConnection: redshiftConnection },
+                ),
+            ).rejects.toThrow(managedMessage);
+            expect(projectModel.update).not.toHaveBeenCalled();
+        });
+
+        test('refuses an update-and-compile', async () => {
+            projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                sampleProject,
+            );
+            await expect(
+                service.updateAndScheduleAsyncWork(
+                    sampleProject.projectUuid,
+                    developerAccount,
+                    {
+                        name: sampleProject.name,
+                        dbtConnection: sampleProject.dbtConnection,
+                        dbtVersion: sampleProject.dbtVersion,
+                        warehouseConnection: redshiftConnection,
+                    },
+                    RequestMethod.WEB_APP,
+                ),
+            ).rejects.toThrow(managedMessage);
+            expect(jobModel.create).not.toHaveBeenCalled();
+            expect(projectModel.update).not.toHaveBeenCalled();
+        });
+
+        test('refuses a connection write through the shared policy check', () => {
+            expect(() =>
+                service.assertCanWriteWarehouseConnection(
+                    developerAccount,
+                    {
+                        organizationUuid: sampleProject.organizationUuid,
+                        provisioningSource: 'playground',
+                    },
+                    { warehouseConnection: redshiftConnection },
+                ),
+            ).toThrow(ForbiddenError);
+        });
+    });
+
     test.each(['createWithoutCompile', 'scheduleCreate'] as const)(
         '%s rejects previews of managed analytics before creating or scheduling work',
         async (creationMethod) => {

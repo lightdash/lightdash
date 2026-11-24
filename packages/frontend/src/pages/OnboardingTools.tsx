@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     ApiConnectorType,
-    FeatureFlags,
     isSemanticLayerExplore,
     type ExternalConnectionListItem,
     type WarehouseTypes,
@@ -48,6 +47,7 @@ import { useInstallStarterChartTypes } from '../features/chartTypes/hooks/useIns
 import { useCreateExternalConnection } from '../features/externalConnections/hooks/useCreateExternalConnection';
 import { useExternalConnections } from '../features/externalConnections/hooks/useExternalConnections';
 import { useLiveSourceFields } from '../features/externalConnections/hooks/useLiveSourceFields';
+import { useLiveSourcesAvailability } from '../features/externalConnections/hooks/useLiveSourcesAvailability';
 import {
     getGoogleSignInUrl,
     getGoogleSource,
@@ -71,7 +71,6 @@ import { useExplores } from '../hooks/useExplores';
 import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
 import { useProject } from '../hooks/useProject';
 import { type UserWithAbility } from '../hooks/user/useUser';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
 import gitlabIcon from '../svgs/gitlab-icon.svg';
@@ -517,7 +516,7 @@ const OnboardingToolsContent: FC<{
     const { track } = useTracking();
     const [searchParams] = useSearchParams();
     const { health } = useApp();
-    const liveSourcesFlag = useServerFeatureFlag(FeatureFlags.ApiQuerySources);
+    const liveSourcesAvailability = useLiveSourcesAvailability();
     const [isPostHogOpen, setIsPostHogOpen] = useState(
         () =>
             searchParams.get('connect')?.split(',').includes('posthog') ??
@@ -533,7 +532,7 @@ const OnboardingToolsContent: FC<{
         projectUuid,
     });
     const showLiveSources =
-        liveSourcesFlag.data?.enabled === true &&
+        liveSourcesAvailability.isAvailable &&
         user.ability.can(
             'manage',
             subject('ExternalConnection', projectSubject()),
@@ -563,7 +562,7 @@ const OnboardingToolsContent: FC<{
         return <OnboardingDoneStep projectUuid={projectUuid} />;
     }
 
-    if (liveSourcesFlag.isLoading) {
+    if (liveSourcesAvailability.isLoading) {
         return (
             <OnboardingLayout
                 journey={{

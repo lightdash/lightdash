@@ -42,7 +42,6 @@ import type {
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentUserMemoriesResponse,
-    ApiAiAgentVerifiedArtifactsResponse,
     ApiAiCreditDailyUsageResponse,
     ApiAiCreditUsageResponse,
     ApiAiGenerateChartMetadataResponse,
@@ -125,6 +124,7 @@ import type {
     EmbedUrl,
     ExternalConnection,
     ExternalConnectionLinkedApps,
+    ExternalConnectionRateLimitUsage,
     ExternalConnectionSample,
     ExternalFetchResponse,
     ManagedAgentRuntimeInfo,
@@ -1832,7 +1832,6 @@ type ApiResults =
     | ApiAiAgentEvaluationRunResponse['results']
     | ApiAiAgentEvaluationRunSummaryListResponse['results']
     | ApiAiAgentEvaluationRunResultsResponse['results']
-    | ApiAiAgentVerifiedArtifactsResponse['results']
     | ApiCreateEvaluationResponse['results']
     | ApiAgentSuggestionsResponse['results']
     | ApiAppendInstructionResponse['results']
@@ -1920,6 +1919,7 @@ type ApiResults =
     | ExternalConnection
     | ExternalConnection[]
     | ExternalConnectionLinkedApps
+    | ExternalConnectionRateLimitUsage
     | ExternalConnectionSample
     | ExternalConnectionSample[]
     | AppExternalConnectionLink

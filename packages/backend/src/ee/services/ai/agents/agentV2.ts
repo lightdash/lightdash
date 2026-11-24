@@ -5,12 +5,13 @@ import {
     AnyType,
     assertUnreachable,
     DBT_SAVE_CARD_REPLY,
-    describeSemanticLayerProposals,
+    endsTurnOnCard,
     Explore,
     getErrorMessage,
+    getRunProposals,
+    getStudioCardReply,
     isDbtWriteToolName,
     isSqlApprovalToolCall,
-    toolProposeSemanticLayerChangeOutputSchema,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
     type CustomChartTypeLibrary,
@@ -73,6 +74,7 @@ import { queryErrorOverride } from '../decisions/queryErrors';
 import { createQueryReviewer } from '../decisions/queryReview';
 import {
     getAvailableSkills,
+    getStudioAbilities,
     hasDecisionsInStandardMode,
     resolveLoadout,
     type AgentToolName,
@@ -91,6 +93,7 @@ import {
     includesDocumentOffer,
     MIN_CHARTS_FOR_DOCUMENT_OFFER,
 } from '../prompts/systemV2ContentTools';
+import { getSemanticStudioTurn } from '../prompts/systemV2SemanticStudio';
 import {
     accumulatePromptTokenUsage,
     completedPromptTokenUsage,
@@ -1357,21 +1360,11 @@ export const withStudioCardReply = (
     steps: ReadonlyArray<FastChartStep>,
 ): string => {
     if (reply.trim()) return reply;
-    const proposals = steps
-        .flatMap((step) => step.toolResults)
-        .flatMap(({ toolName, output }) => {
-            if (toolName !== 'proposeSemanticLayerChange') return [];
-            const parsed =
-                toolProposeSemanticLayerChangeOutputSchema.safeParse(output);
-            return parsed.success &&
-                parsed.data.metadata.status === 'success' &&
-                parsed.data.metadata.draftChangeUuid !== null
-                ? [parsed.data.metadata]
-                : [];
-        });
-    return proposals.length > 0
-        ? describeSemanticLayerProposals(proposals)
-        : reply;
+    return (
+        getStudioCardReply(
+            getRunProposals(steps.flatMap((step) => step.toolResults)),
+        ) ?? reply
+    );
 };
 
 /** A Studio turn ends on its card: once a change joined the draft cleanly, or a save started, there is nothing left to say. */
@@ -1380,34 +1373,13 @@ export const getStudioCardResponse = (
 ): string | null => {
     const last = steps.at(-1);
     if (!last) return null;
-    const proposals = last.toolResults.flatMap(({ toolName, output }) => {
-        if (toolName !== 'proposeSemanticLayerChange') return [];
-        const parsed =
-            toolProposeSemanticLayerChangeOutputSchema.safeParse(output);
-        return parsed.success && parsed.data.metadata.status === 'success'
-            ? [parsed.data.metadata]
-            : [];
-    });
+    const proposals = getRunProposals(last.toolResults);
     if (proposals.length > 0) {
-        // A failed model or advice means the agent still has work to do this turn.
-        const isClean = proposals.every(
-            ({ draftChangeUuid, models, needsFollowUp }) =>
-                draftChangeUuid !== null &&
-                !needsFollowUp &&
-                models.every(({ status }) => status !== 'failed'),
-        );
-        return isClean ? describeSemanticLayerProposals(proposals) : null;
+        return endsTurnOnCard(proposals) ? getStudioCardReply(proposals) : null;
     }
-    // Only Studio's save takes a script; the main chat's keeps its own reply.
     const studioSaves = new Set(
         last.toolCalls
-            .filter(
-                ({ toolName, input }) =>
-                    isDbtWriteToolName(toolName) &&
-                    !!input &&
-                    typeof input === 'object' &&
-                    'script' in input,
-            )
+            .filter(({ toolName }) => isDbtWriteToolName(toolName))
             .map(({ toolCallId }) => toolCallId),
     );
     const isSaving = last.toolResults.some(
@@ -1417,16 +1389,20 @@ export const getStudioCardResponse = (
     return isSaving ? DBT_SAVE_CARD_REPLY : null;
 };
 
-const getTurnFastResponse = (
+export const getTurnFastResponse = (
     enableDataAnswerFastResponse: boolean,
     turnIntent: TurnIntent | null | undefined,
     steps: ReadonlyArray<FastChartStep>,
     siteUrl: string,
+    isStudioThread: boolean,
 ) => {
     // Asking ends the turn on any intent; the questions are its reply.
     const askUserResponse = getAskUserResponse(steps);
     if (askUserResponse !== null) return askUserResponse;
-    const studioCardResponse = getStudioCardResponse(steps);
+    // The main chat's save keeps its own reply.
+    const studioCardResponse = isStudioThread
+        ? getStudioCardResponse(steps)
+        : null;
     if (studioCardResponse !== null) return studioCardResponse;
     if (enableDataAnswerFastResponse && turnIntent === 'data_answer')
         return getDataAnswerFastResponse(steps);
@@ -2278,7 +2254,7 @@ export const getAgentTools = (
             getProposeSemanticLayerChange({
                 proposeSemanticLayerChange:
                     dependencies.proposeSemanticLayerChange,
-                canRunMetrics: loadout.toolNames.has('runMetricQuery'),
+                canRunMetrics: getStudioAbilities(loadout).canRunMetrics,
             }),
         listChanges: () => getListChanges(dependencies.listChanges),
         readSemanticModel: () =>
@@ -2838,10 +2814,17 @@ export const getAgentMessages = (
         canRunSql: args.canRunSql,
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
-        semanticStudioHasRepository: args.semanticStudioHasRepository,
-        semanticStudioBuilder: loadout.withheldToolNames.size > 0,
-        semanticStudioProjectMap: args.semanticStudioProjectMap,
-        semanticStudioQueriesDraft: loadout.toolNames.has('runMetricQuery'),
+        studio: loadout.promptSections.has('semanticStudio')
+            ? getSemanticStudioTurn(loadout, {
+                  drafts: args.semanticStudioDrafts,
+                  hasRepository: args.semanticStudioHasRepository,
+                  projectMap: args.semanticStudioProjectMap,
+                  siteUrl: args.siteUrl,
+                  repoFsRoot: args.repoFsRoot,
+                  repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
+              })
+            : undefined,
+        projectContextInRead: getStudioAbilities(loadout).builder,
         slackLinksOnly: args.slackLinksOnly,
         enableComposerPythonNodes: args.enableComposerQueries,
         liveSources: args.liveSources,
@@ -3258,6 +3241,7 @@ const runGenerateAgentResponse = async ({
                         preparedContext?.turnIntent,
                         steps,
                         args.siteUrl,
+                        args.isSemanticStudioThread,
                     ) !== null,
             ],
             abortSignal,
@@ -3516,6 +3500,7 @@ const runGenerateAgentResponse = async ({
                       preparedContext?.turnIntent,
                       result.steps,
                       args.siteUrl,
+                      args.isSemanticStudioThread,
                   ) ?? result.text),
             result.steps,
         );
@@ -3720,6 +3705,7 @@ const runStreamAgentResponse = async ({
                         preparedContext?.turnIntent,
                         steps,
                         args.siteUrl,
+                        args.isSemanticStudioThread,
                     ) !== null,
             ],
             providerOptions: args.providerOptions,
@@ -3891,6 +3877,7 @@ const runStreamAgentResponse = async ({
                                     },
                                 ],
                                 args.siteUrl,
+                                args.isSemanticStudioThread,
                             );
                         }
                         logger(
@@ -4089,6 +4076,7 @@ const runStreamAgentResponse = async ({
                               preparedContext?.turnIntent,
                               steps,
                               args.siteUrl,
+                              args.isSemanticStudioThread,
                           ) ?? modelResponse),
                     steps,
                 );

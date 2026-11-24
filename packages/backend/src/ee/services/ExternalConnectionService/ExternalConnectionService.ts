@@ -14,6 +14,7 @@ import {
     getErrorMessage,
     getExplorePrefixError,
     getItemId,
+    getLegacyLiveSourceName,
     getLiveSourceCacheTtlSeconds,
     getLiveSourceErrorOrigin,
     getSalesforceDescribePath,
@@ -49,6 +50,7 @@ import {
     type ExternalConnectionLinkedApps,
     type ExternalConnectionListItem,
     type ExternalConnectionMethod,
+    type ExternalConnectionRateLimitUsage,
     type ExternalConnectionSample,
     type ExternalConnectionSampleRequest,
     type ExternalConnectionTestResponse,
@@ -88,7 +90,6 @@ import {
 import {
     buildLiveExplores,
     describeLiveTarget,
-    getLegacyLiveSourceName,
     getLiveDefinitionHashes,
     getLiveExploreName,
     getLiveExploreNames,
@@ -205,6 +206,7 @@ import {
     serializeRequestBody,
     validateCustomHeaders,
 } from './proxyValidation';
+import { toRateLimitUsage } from './rateLimitUsage';
 import {
     buildSalesforceAuthorizeUrl,
     getSalesforceOAuthRedirectUri,
@@ -399,23 +401,6 @@ export class ExternalConnectionService extends BaseService {
         this.savedChartModel = args.savedChartModel;
     }
 
-    private async assertLiveSourcesEnabled(
-        account: RegisteredAccount,
-    ): Promise<void> {
-        const { enabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.ApiQuerySources,
-        });
-        if (!enabled) {
-            throw new ForbiddenError(
-                'Live data sources are not enabled for this organization',
-            );
-        }
-    }
-
     private async isNewOnboardingEnabled(
         account: RegisteredAccount,
     ): Promise<boolean> {
@@ -551,7 +536,6 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
-        if (data.apiSource) await this.assertLiveSourcesEnabled(account);
         ExternalConnectionService.assertNotSignInType(data.type);
         const config = withApiSourceAccessRules(data);
         validateExternalConnectionConfig(config, Boolean(config.secret));
@@ -743,6 +727,16 @@ export class ExternalConnectionService extends BaseService {
 
         // A stored secret is valid only for its current auth type and credential
         // destinations. Changing one requires the caller to supply a new one.
+        if (
+            originChanged &&
+            !typeChanged &&
+            data.secret === undefined &&
+            existing.hasSecret
+        ) {
+            throw new ParameterError(
+                'Re-enter the secret to change the origin: a saved secret is never sent to a new origin',
+            );
+        }
         let hasSecretAfter: boolean;
         if (data.secret === null) {
             hasSecretAfter = false;
@@ -874,9 +868,6 @@ export class ExternalConnectionService extends BaseService {
             connectionUuid,
         );
         const isLiveSource = existing.kind === 'live_source';
-        if (isLiveSource || data.apiSource) {
-            await this.assertLiveSourcesEnabled(account);
-        }
         if (!isLiveSource && data.apiSource) {
             throw new ParameterError(
                 'A data app connection cannot become a live data source',
@@ -1419,7 +1410,6 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
-        await this.assertLiveSourcesEnabled(account);
         if (connection.kind !== 'live_source' || !connection.apiSource) {
             throw new ParameterError(
                 `"${connection.name}" is not a live data source`,
@@ -1439,7 +1429,6 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
-        await this.assertLiveSourcesEnabled(account);
         if (connection.kind !== 'live_source' || !connection.apiSource) {
             throw new ParameterError(
                 `"${connection.name}" is not a live data source`,
@@ -1659,7 +1648,6 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
-        await this.assertLiveSourcesEnabled(account);
         return this.readLiveSourceFields(
             connection,
             ExternalConnectionService.getLiveSourceSettings(connection),
@@ -1681,7 +1669,6 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
-        await this.assertLiveSourcesEnabled(account);
         const apiSource =
             ExternalConnectionService.getLiveSourceSettings(connection);
         if (changes.length === 0) {
@@ -1997,7 +1984,6 @@ export class ExternalConnectionService extends BaseService {
         prefix: string,
     ): Promise<ExplorePrefixCheck> {
         await this.assertCanManageLiveSources(account, projectUuid);
-        await this.assertLiveSourcesEnabled(account);
         return this.getExplorePrefixCheck(projectUuid, connector, prefix);
     }
 
@@ -2113,7 +2099,6 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
-        await this.assertLiveSourcesEnabled(account);
         const apiSource =
             ExternalConnectionService.getLiveSourceSettings(connection);
         const deleted = await this.listDeletedSourcesToReattach(
@@ -2172,7 +2157,6 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
-        await this.assertLiveSourcesEnabled(account);
         const apiSource =
             ExternalConnectionService.getLiveSourceSettings(connection);
         const { connector } = apiSource;
@@ -2429,12 +2413,42 @@ export class ExternalConnectionService extends BaseService {
         projectUuid: string,
         connectionUuid: string,
     ): Promise<ApiSourceSchemaScan | null> {
-        await this.assertLiveSourcesEnabled(account);
         await this.getViewableConnection(account, projectUuid, connectionUuid);
         const scans = await this.externalConnectionModel.getApiSourceSchemas([
             connectionUuid,
         ]);
         return scans.get(connectionUuid) ?? null;
+    }
+
+    /** Lightdash's calls against the live source's declared rate limits, now. */
+    async getApiSourceRateLimitUsage(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<ExternalConnectionRateLimitUsage> {
+        const connection = await this.getViewableConnection(
+            account,
+            projectUuid,
+            connectionUuid,
+        );
+        if (!connection.apiSource) {
+            throw new ParameterError(
+                'Rate limits apply only to live data sources',
+            );
+        }
+        const target = ExternalConnectionService.getRateLimitTarget(
+            connection,
+            connection.apiSource,
+        );
+        const snapshot =
+            await this.externalConnectionModel.getApiSourceRateUsage(
+                target.limitKey,
+            );
+        return toRateLimitUsage({
+            integrationLabel: target.label,
+            rateLimits: target.rateLimits,
+            snapshot,
+        });
     }
 
     /** Live sources the account may query, each with its last schema scan. */
@@ -2484,20 +2498,22 @@ export class ExternalConnectionService extends BaseService {
         );
     }
 
-    /** What the rate-limit gate limits for a live source: its integration's declared limits. */
+    /** What the rate-limit gate limits for a live source: the limits its integration declares for it. */
     private static getRateLimitTarget(
         connection: Pick<
             ExternalConnection,
             'externalConnectionUuid' | 'timeoutMs'
         >,
-        { connector }: Pick<ExternalConnectionApiSource, 'connector'>,
+        apiSource: ExternalConnectionApiSource,
     ): RateLimitTarget {
-        const integration = getLiveIntegration(connector);
+        const integration = getLiveIntegration(apiSource.connector);
         return {
             limitKey: connection.externalConnectionUuid,
-            integration: connector,
+            integration: apiSource.connector,
             label: integration.label,
-            rateLimits: integration.rateLimits,
+            rateLimits:
+                integration.rateLimitsFor?.(apiSource) ??
+                integration.rateLimits,
             timeoutMs: connection.timeoutMs,
         };
     }
@@ -2528,7 +2544,7 @@ export class ExternalConnectionService extends BaseService {
         let callsThisQuery = 0;
         const integration = getLiveIntegration(apiSource.connector);
         const { label } = integration;
-        const limits = integration.limitsFor?.(apiSource) ?? integration.limits;
+        const { limits } = integration;
         const usage: LiveCallUsage = {
             apiCalls: 0,
             responseBytes: 0,
@@ -2732,7 +2748,6 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
-        await this.assertLiveSourcesEnabled(account);
         const { region, connectionUuid, explorePrefix } = request;
         if (!ExternalConnectionService.isPostHogRegion(region)) {
             throw new ParameterError('Pick the US or EU PostHog region');
@@ -2797,7 +2812,6 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
-        await this.assertLiveSourcesEnabled(account);
 
         const origin = POSTHOG_REGION_ORIGINS[session.region];
         const client: OAuthAuthorizationCodeClientConfig = {
@@ -2985,7 +2999,6 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
-        await this.assertLiveSourcesEnabled(account);
         return organizationUuid;
     }
 
@@ -3068,7 +3081,6 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
-        await this.assertLiveSourcesEnabled(account);
         const name = request.name.trim();
         if (!name) {
             throw new ParameterError('Name is required');
@@ -3158,7 +3170,6 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
-        await this.assertLiveSourcesEnabled(account);
 
         const client: OAuthAuthorizationCodeClientConfig = {
             tokenUrl: LINKEDIN_ADS_TOKEN_URL,
@@ -3382,7 +3393,6 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
-        await this.assertLiveSourcesEnabled(account);
 
         const client: OAuthAuthorizationCodeClientConfig = {
             // Sessions started before this field existed have none: production
@@ -4708,7 +4718,6 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
-        if (requested.apiSource) await this.assertLiveSourcesEnabled(account);
         ExternalConnectionService.assertNotSignInType(requested.type);
 
         // Same validation create runs, so a test can never exercise a config we

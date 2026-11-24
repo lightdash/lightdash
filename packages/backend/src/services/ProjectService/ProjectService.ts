@@ -628,7 +628,7 @@ import {
     getDatabaseListFailureReason,
     listConnectionDatabases,
 } from './connectionSqlRunner';
-import { developmentView, toExploreSummary } from './developmentView';
+import { developmentView, toExploreSummaryWithAccess } from './developmentView';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
 import { mergePersonalWarehouseCredentials } from './personalWarehouseCredentials';
@@ -6419,7 +6419,16 @@ export class ProjectService
             throw new ForbiddenError(
                 ProjectService.TRAINING_CONNECTION_MANAGED_MESSAGE,
             );
+        // Seeded charts and explores only match the sample data; a real
+        // warehouse belongs on a separate project.
+        if (project.provisioningSource === 'playground')
+            throw new ForbiddenError(
+                ProjectService.PLAYGROUND_CONNECTION_MANAGED_MESSAGE,
+            );
     }
+
+    private static readonly PLAYGROUND_CONNECTION_MANAGED_MESSAGE =
+        "The sample data project can't be reconnected. Connect your data to create your own project";
 
     private static readonly TRAINING_CONNECTION_MANAGED_MESSAGE =
         'The training project keeps the sample data it shipped with; its connection cannot be changed';
@@ -14778,7 +14787,7 @@ export class ProjectService
                       ({ name }) => !inDevelopment.has(name),
                   ),
                   ...[...inDevelopment.values()].flatMap((explore) =>
-                      explore ? [toExploreSummary(explore)] : [],
+                      explore ? [toExploreSummaryWithAccess(explore)] : [],
                   ),
               ]
             : liveSummaries;

@@ -39,7 +39,7 @@ Your metrics, charts, and dashboards live as files. Build them with coding agent
 
 ### AI agents
 
-Lightdash agents answer from your context layer, not raw table guesses. They respect permissions, return inspectable queries, reuse verified answers, and improve through reviews and evaluations.
+Lightdash agents answer from your context layer, not raw table guesses. They respect permissions, return inspectable queries, and improve through reviews and evaluations.
 
 [Explore Conversational Analytics](https://www.lightdash.com/conversational-analytics)
 

@@ -22,8 +22,6 @@ const chart = (version: number, query: object = {}): AiArtifact =>
         savedComposerChartDashboardUuid: null,
         createdAt: new Date('2026-09-20T00:00:00Z'),
         versionCreatedAt: new Date('2026-09-20T00:00:00Z'),
-        verifiedByUserUuid: null,
-        verifiedAt: null,
         chartConfig: {
             source: 'semantic',
             config: {

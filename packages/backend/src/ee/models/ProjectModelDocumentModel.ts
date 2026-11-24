@@ -24,7 +24,7 @@ import {
 import { UserTableName } from '../../database/entities/users';
 import { AiPromptTableName } from '../database/entities/ai';
 import { SemanticStudioWorkspacesTableName } from '../database/entities/semanticStudioWorkspaces';
-import { lockStudioWorkspaceOwner } from './SemanticStudioWorkspaceModel';
+import { SemanticStudioWorkspaceModel } from './SemanticStudioWorkspaceModel';
 
 const MODEL_HISTORY_LIMIT = 50;
 const SETTLED_DRAFT_CHANGES_LIMIT = 100;
@@ -642,81 +642,30 @@ export class ProjectModelDocumentModel {
         );
     }
 
-    /** A draft keeps the chat that first changed it, so opening the draft opens that chat; a chat already kept by another draft stays there. */
-    private static async attachPromptThread(
-        trx: Knex.Transaction,
-        workspaceUuid: string,
-        promptUuid: string,
-    ) {
-        const prompt = await trx(AiPromptTableName)
-            .select('ai_thread_uuid')
-            .where('ai_prompt_uuid', promptUuid)
-            .first();
-        if (!prompt) return;
-        const taken = await trx(SemanticStudioWorkspacesTableName)
-            .where('ai_thread_uuid', prompt.ai_thread_uuid)
-            .first();
-        if (taken) return;
-        await trx(SemanticStudioWorkspacesTableName)
-            .where('semantic_studio_workspace_uuid', workspaceUuid)
-            .whereNull('ai_thread_uuid')
-            .update({ ai_thread_uuid: prompt.ai_thread_uuid });
-    }
-
     async createCheckedOutDraftChange(
         /** `changeName` names the change this starts when the person is on Live. */
         input: NewDraftChange & { changeName: string },
         organizationUuid: string,
     ) {
         return this.database.transaction(async (trx) => {
-            await lockStudioWorkspaceOwner(trx, input);
-            const active = await trx(SemanticStudioWorkspacesTableName)
-                .where({
-                    project_uuid: input.projectUuid,
-                    created_by_user_uuid: input.userUuid,
-                    is_active: true,
-                })
-                .forUpdate()
-                .first();
-            if (
-                (active?.semantic_studio_workspace_uuid ?? null) !==
-                input.workspaceUuid
-            ) {
-                throw new ModelDocumentsChangedError();
-            }
-            const workspace =
-                active ??
-                (
-                    await trx(SemanticStudioWorkspacesTableName)
-                        .insert({
-                            organization_uuid: organizationUuid,
-                            project_uuid: input.projectUuid,
-                            created_by_user_uuid: input.userUuid,
-                            ai_thread_uuid: null,
-                            name: input.changeName,
-                            is_active: true,
-                        })
-                        .returning(['semantic_studio_workspace_uuid', 'name'])
-                )[0];
-            const workspaceUuid = workspace.semantic_studio_workspace_uuid;
-            if (input.promptUuid && !active?.ai_thread_uuid) {
-                await ProjectModelDocumentModel.attachPromptThread(
+            const checkedOut =
+                await SemanticStudioWorkspaceModel.checkOutForDraft(
                     trx,
-                    workspaceUuid,
-                    input.promptUuid,
+                    input,
+                    {
+                        expectedWorkspaceUuid: input.workspaceUuid,
+                        organizationUuid,
+                        name: input.changeName,
+                        promptUuid: input.promptUuid,
+                    },
                 );
-            }
+            if (!checkedOut) throw new ModelDocumentsChangedError();
+            const { workspaceUuid, startedChange } = checkedOut;
             const draftChangeUuid = await this.createDraftChange(
                 { ...input, workspaceUuid },
                 trx,
             );
-            return {
-                workspaceUuid,
-                draftChangeUuid,
-                startedChange: active
-                    ? null
-                    : { workspaceUuid, name: workspace.name },
-            };
+            return { workspaceUuid, draftChangeUuid, startedChange };
         });
     }
 

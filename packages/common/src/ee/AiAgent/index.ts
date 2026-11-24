@@ -76,6 +76,7 @@ export * from './skillValidation';
 export * from './filterExploreByTags';
 export * from './projectContext';
 export * from './requestTypes';
+export * from './semanticStudioProposals';
 export * from './schemas';
 export * from './schemas/agentReadiness';
 export * from './schemas/agentSuggestions';
@@ -402,7 +403,6 @@ export type AiAgentMessageAssistant = {
     savedQueryUuid: string | null;
 
     artifacts: AiAgentMessageAssistantArtifact[] | null;
-    referencedArtifacts: AiAgentMessageAssistantArtifact[] | null;
     modelConfig: AiAgentModelConfig | null;
     tokenUsage: AiPromptTokenUsage | null;
     responseTiming: AiPromptResponseTiming | null;
@@ -921,6 +921,7 @@ export type ApiAiAgentThreadCreateRequest = {
     /** First message. Optional when `binding` or `threadContext` is set; the thread then starts empty. */
     prompt?: string;
     context?: AiPromptContextInput;
+    /** Model and reasoning settings for the first prompt. The thread keeps its first recorded configuration. */
     modelConfig?: AiAgentModelConfig;
     originatingInstallationUuid?: string;
     /** Internal feature-speed battle; accepted only behind battle mode. */
@@ -938,6 +939,7 @@ export type ApiAiAgentThreadCreateResponse = ApiSuccess<AiAgentThreadSummary>;
 export type ApiAiAgentThreadMessageCreateRequest = {
     prompt: string;
     context?: AiPromptContextInput;
+    /** Must match the thread's recorded model and reasoning settings, otherwise returns HTTP 400. Omit to reuse them; start a new thread to change them. If no configuration is recorded yet, selects it for this prompt. */
     modelConfig?: AiAgentModelConfig;
     originatingInstallationUuid?: string;
     /**
@@ -1283,8 +1285,6 @@ export type AiArtifact = {
     chartConfig: AiChartArtifactConfig | null;
     dashboardConfig: ToolDashboardV2Args | null;
     versionCreatedAt: Date;
-    verifiedByUserUuid: string | null;
-    verifiedAt: Date | null;
 };
 
 export const isAiSqlChartArtifactConfig = (
@@ -1358,31 +1358,6 @@ export type ApiAiAgentVisualizeSlackSendResponse = {
         permalink: string | null;
     };
 };
-
-export type AiAgentVerifiedArtifact = {
-    artifactUuid: string;
-    versionUuid: string;
-    artifactType: 'chart' | 'dashboard';
-    title: string | null;
-    description: string | null;
-    verifiedAt: Date;
-    verifiedBy: {
-        userUuid: string;
-        firstName: string;
-        lastName: string;
-    };
-    referenceCount: number;
-    threadUuid: string;
-    promptUuid: string | null;
-};
-
-export type ApiAiAgentVerifiedArtifactsResponse = ApiSuccess<
-    KnexPaginatedData<AiAgentVerifiedArtifact[]>
->;
-
-export type ApiAiAgentVerifiedQuestionsResponse = ApiSuccess<
-    { question: string; uuid: string }[]
->;
 
 export type AiAgentEvaluationPrompt = {
     evalPromptUuid: string;
@@ -1537,7 +1512,6 @@ export type AgentSummaryContext = {
     name: string;
     description: string | null;
     explores: string[];
-    verifiedQuestions: string[];
     instruction: string | null;
 };
 

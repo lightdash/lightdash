@@ -1,3 +1,4 @@
+import { isOpenWorkspace } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -17,13 +18,10 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
-import {
-    isOpenWorkspace,
-    useCheckOut,
-    useStudioCheckout,
-} from './useStudioCheckout';
+import { useStoredStudioThread } from './studioChange';
+import classes from './StudioCheckoutPicker.module.css';
+import { useCheckOut, useStudioCheckout } from './useStudioCheckout';
 import { useStudioWorkspaces } from './useStudioWorkspaces';
-import classes from './WorkbenchView.module.css';
 
 dayjs.extend(relativeTime);
 
@@ -209,6 +207,7 @@ export const StudioCheckoutPicker: FC<{
     const { data: workspaces } = useStudioWorkspaces(projectUuid);
     const { checkOut, createChange, isBusy, isError } =
         useCheckOut(projectUuid);
+    const [, setStoredThread] = useStoredStudioThread(projectUuid);
     const current = shown?.workspace ?? null;
     const mine = (workspaces?.mine ?? []).filter(isOpenWorkspace);
     const announcement = isBusy
@@ -245,7 +244,8 @@ export const StudioCheckoutPicker: FC<{
                     );
                     if (target) checkOut(target);
                 }}
-                onNew={createChange}
+                // A new draft starts its own chat.
+                onNew={() => createChange(() => setStoredThread(null))}
                 onShowAll={onShowChanges}
             />
             <VisuallyHidden role="status" aria-live="polite">

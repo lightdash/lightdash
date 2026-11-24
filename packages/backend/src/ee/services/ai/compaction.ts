@@ -140,20 +140,6 @@ export class Compaction {
                     );
                 }
 
-                if (
-                    message.referencedArtifacts &&
-                    message.referencedArtifacts.length > 0
-                ) {
-                    lines.push(
-                        `[Referenced artifacts]: ${message.referencedArtifacts
-                            .map(
-                                (artifact) =>
-                                    `${artifact.artifactType} ${artifact.title}`,
-                            )
-                            .join('; ')}`,
-                    );
-                }
-
                 if (message.errorMessage) {
                     lines.push(`[Assistant error]: ${message.errorMessage}`);
                 }

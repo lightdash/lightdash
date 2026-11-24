@@ -1,7 +1,8 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type PropsWithChildren } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import { ModelCodeView } from './ModelTabs';
 import { draftModel, draftOf, workspaceOf } from './studioCheckout.mock';
@@ -50,19 +51,47 @@ vi.mock('@pierre/diffs/react', () => ({
         </pre>
     ),
 }));
-const saveModel = vi.hoisted(() => vi.fn());
-vi.mock('./useSemanticLayerModel', () => ({
-    useSaveDraftModel: () => ({ mutate: saveModel, isLoading: false }),
-    useSemanticLayerModel: (_projectUuid: string, name: string) => ({
-        isLoading: false,
-        data:
-            name === 'orders'
-                ? { name, content: 'live orders', version: 3, history: [] }
-                : null,
-    }),
-    useAppliesAsPullRequest: () => false,
-    useUndoSemanticLayerChanges: () => ({ mutate: vi.fn() }),
+type Request = { url: string; method: string; body: string | undefined };
+const api = vi.hoisted(() => vi.fn<(request: Request) => Promise<unknown>>());
+vi.mock('../../providers/LightdashApi/useLightdashApi', () => ({
+    useLightdashApi: () => api,
 }));
+vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({ data: { enabled: true } }),
+}));
+
+type SaveResult = { status: 'ready' } | { status: 'failed'; error: string };
+
+const MODELS = '/projects/project/semantic-studio/models/';
+const SAVE = '/projects/project/semantic-studio/draft/models/orders/edit';
+
+/** A server whose only stored model is orders, answering a save of it with `saved`. */
+const serve = (saved: SaveResult = { status: 'ready' }) => {
+    api.mockReset();
+    api.mockImplementation(({ url }) => {
+        if (url.endsWith('/status')) {
+            return Promise.resolve({
+                enabled: true,
+                blocker: null,
+                appliesAs: 'live',
+            });
+        }
+        if (url.startsWith(MODELS)) {
+            const name = url.slice(MODELS.length);
+            return Promise.resolve(
+                name === 'orders'
+                    ? { name, content: 'live orders', version: 3, history: [] }
+                    : null,
+            );
+        }
+        if (url === SAVE) return Promise.resolve(saved);
+        return Promise.resolve(null);
+    });
+};
+const savedBodies = () =>
+    api.mock.calls.flatMap(([{ url, body }]) =>
+        url === SAVE && body ? [JSON.parse(body)] : [],
+    );
 
 const on = (
     uuid: string | null,
@@ -80,16 +109,24 @@ const codeOf = (
     modelName: string,
     readOnlyReason: string | null = null,
 ) => (
-    <StudioCheckoutProvider value={state}>
-        <ModelCodeView
-            projectUuid="project"
-            modelName={modelName}
-            fieldName={null}
-            readOnlyReason={readOnlyReason}
-            startsEditing={false}
-        />
-    </StudioCheckoutProvider>
+    <QueryClientProvider client={client}>
+        <StudioCheckoutProvider value={state}>
+            <ModelCodeView
+                projectUuid="project"
+                modelName={modelName}
+                fieldName={null}
+                readOnlyReason={readOnlyReason}
+                startsEditing={false}
+            />
+        </StudioCheckoutProvider>
+    </QueryClientProvider>
 );
+
+// Kept across rerenders, so only a newly opened model is read again.
+let client = new QueryClient();
+
+/** Waits for the model and status reads to answer. */
+const settle = () => waitFor(() => expect(client.isFetching()).toBe(0));
 
 const type = (contents: string) =>
     fireEvent.change(screen.getByTestId('editor'), {
@@ -97,13 +134,21 @@ const type = (contents: string) =>
     });
 
 describe('ModelCodeView', () => {
-    it('shows the code of whatever is checked out, from A to B to Published', () => {
+    beforeEach(() => {
+        client = new QueryClient({
+            defaultOptions: { queries: { retry: false } },
+        });
+        serve();
+    });
+
+    it('shows the code of whatever is checked out, from A to B to Published', async () => {
         const { rerender } = renderWithProviders(
             codeOf(
                 on('A', [draftModel('orders', 'live orders', 'orders in A')]),
                 'orders',
             ),
         );
+        await settle();
         expect(screen.getByTestId('code')).toHaveTextContent('orders in A');
         // A file the draft changes shows its lines marked.
         expect(screen.getByTestId('code')).toHaveAttribute('data-marked');
@@ -115,35 +160,40 @@ describe('ModelCodeView', () => {
                 'orders',
             ),
         );
+        await settle();
         expect(screen.getByTestId('code')).toHaveTextContent('orders in B');
 
         // Published has nothing to mark, so it opens ready to edit.
         rerender(codeOf(on(null), 'orders'));
+        await settle();
         expect(screen.getByTestId('editor')).toHaveValue('live orders');
     });
 
-    it('opens a model the change adds ready to edit, and says when it removes one', () => {
+    it('opens a model the change adds ready to edit, and says when it removes one', async () => {
         const change = on('A', [
             draftModel('payments', null, 'payments in A'),
             draftModel('orders', 'live orders', null),
         ]);
         const { rerender } = renderWithProviders(codeOf(change, 'payments'));
+        await settle();
         expect(screen.getByTestId('editor')).toHaveValue('payments in A');
 
         rerender(codeOf(change, 'orders'));
+        await settle();
         expect(
             screen.getByText('This draft removes this model.'),
         ).toBeInTheDocument();
 
         rerender(codeOf(on(null), 'payments'));
+        await settle();
         expect(screen.queryByTestId('code')).not.toBeInTheDocument();
         expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
     });
 
     it('edits Published and saves it as a new draft, from what the edit started on', async () => {
-        saveModel.mockReset();
         const user = userEvent.setup();
         renderWithProviders(codeOf(on(null), 'orders'));
+        await settle();
         expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'Redo' })).toBeDisabled();
         expect(
@@ -157,17 +207,15 @@ describe('ModelCodeView', () => {
         await user.click(
             screen.getByRole('button', { name: 'Save as a new draft' }),
         );
-        expect(saveModel).toHaveBeenCalledWith(
-            { model: 'orders', base: 'live orders', content: 'edited orders' },
-            expect.anything(),
+        await waitFor(() =>
+            expect(savedBodies()).toEqual([
+                { base: 'live orders', content: 'edited orders' },
+            ]),
         );
     });
 
     it('saves into the draft on a draft, and shows why a save failed', async () => {
-        saveModel.mockReset();
-        saveModel.mockImplementation((_input, { onSuccess }) =>
-            onSuccess({ status: 'failed', error: 'Not today.' }),
-        );
+        serve({ status: 'failed', error: 'Not today.' });
         const user = userEvent.setup();
         renderWithProviders(
             codeOf(
@@ -175,18 +223,20 @@ describe('ModelCodeView', () => {
                 'orders',
             ),
         );
+        await settle();
         // The draft's marked lines read first; clicking them starts editing.
         await user.click(screen.getByTestId('code'));
         type('edited orders');
         await user.click(screen.getByRole('button', { name: 'Save' }));
-        expect(screen.getByText('Not today.')).toBeInTheDocument();
+        expect(await screen.findByText('Not today.')).toBeInTheDocument();
         expect(screen.getByTestId('editor')).toHaveValue('edited orders');
     });
 
-    it('says why the code cannot be edited', () => {
+    it('says why the code cannot be edited', async () => {
         renderWithProviders(
             codeOf(on(null), 'orders', 'Only Ana can edit this draft.'),
         );
+        await settle();
         expect(
             screen.getByText('Only Ana can edit this draft.'),
         ).toBeInTheDocument();
@@ -204,6 +254,7 @@ describe('ModelCodeView', () => {
                 'orders',
             ),
         );
+        await settle();
         await user.click(screen.getByTestId('code'));
         type('my orders');
         rerender(
@@ -212,6 +263,7 @@ describe('ModelCodeView', () => {
                 'orders',
             ),
         );
+        await settle();
         expect(screen.getByTestId('editor')).toHaveValue('my orders');
         expect(
             screen.getByText(/This model changed while you were editing/),

@@ -51,6 +51,7 @@ describe('ConnectWarehouseAction', () => {
         expect(listener.mock.calls[0][0].detail).toEqual({
             projectUuid: 'project',
             error: missing,
+            requested: true,
         });
         window.removeEventListener(WAREHOUSE_CREDENTIALS_ERROR, listener);
     });

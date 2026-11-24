@@ -146,6 +146,8 @@ export type AiAgentMcpServer = AiMcpServer & {
     resolvedCredential: AiMcpCredentialPayload | null;
     resolvedCredentialScope: 'shared' | 'user' | null;
     oauthProvider?: OAuthClientProvider;
+    // Fetches a bearer token when the server is first reached, replacing resolvedCredential
+    bearerTokenProvider?: () => Promise<string>;
     enabledToolNames?: string[];
 };
 
