@@ -44,11 +44,15 @@ const RENDER_OPTIONS = {
 };
 const NO_CODE_BLOCKS: WordsCodeBlockRenderer[] = [];
 
-const renderPlainLink = ({ href, children }: WordsLinkProps) => (
-    <a href={href} target="_blank" rel="noreferrer noopener">
-        {children}
-    </a>
-);
+// In-page anchors (footnotes) stay in this tab and keep their ids.
+const renderPlainLink = ({ href, attributes, children }: WordsLinkProps) =>
+    href.startsWith('#') ? (
+        <a {...attributes}>{children}</a>
+    ) : (
+        <a {...attributes} target="_blank" rel="noreferrer noopener">
+            {children}
+        </a>
+    );
 
 /** Completed blocks never change, so each revision's addition is converted once. */
 const renderBlocks = (

@@ -133,6 +133,13 @@ describe('WordsMarkdown', () => {
         expect(refs.map((ref) => ref.getAttribute('href'))).toEqual(
             ids.map((id) => `#${id}`),
         );
+        refs.forEach((ref) => expect(ref).not.toHaveAttribute('target'));
+        const backrefs = [...container.querySelectorAll('li[id] a')];
+        expect(backrefs).toHaveLength(2);
+        backrefs.forEach((backref) => {
+            const target = backref.getAttribute('href')?.slice(1) ?? '';
+            expect(document.getElementById(target)?.tagName).toBe('A');
+        });
     });
 
     it('converts emoji shortcodes outside code', () => {
