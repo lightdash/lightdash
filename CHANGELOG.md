@@ -1,3 +1,11 @@
+## [3.384.3](https://github.com/lightdash/lightdash/compare/3.384.2...3.384.3) (2026-11-24)
+
+
+### Bug Fixes
+
+* lock the sample data project connection and untag repointed projects ([#33300](https://github.com/lightdash/lightdash/issues/33300)) ([9f8431a](https://github.com/lightdash/lightdash/commit/9f8431ad0901bf30b7e05f302b19b90b4e63b856))
+* point the sample data project's connection settings at connect your data ([#33303](https://github.com/lightdash/lightdash/issues/33303)) ([0ea1e39](https://github.com/lightdash/lightdash/commit/0ea1e390e9dfcf836ca40051cd040e4f81f62446))
+
 ## [3.384.2](https://github.com/lightdash/lightdash/compare/3.384.1...3.384.2) (2026-11-24)
 
 
