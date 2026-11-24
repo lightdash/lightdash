@@ -36568,150 +36568,6 @@
             "ApiAgentReadinessScoreResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_ReadinessScore_"
             },
-            "AiAgentVerifiedArtifact": {
-                "properties": {
-                    "promptUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "threadUuid": {
-                        "type": "string"
-                    },
-                    "referenceCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "verifiedBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "userUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "userUuid"],
-                        "type": "object"
-                    },
-                    "verifiedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "title": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "artifactType": {
-                        "type": "string",
-                        "enum": ["chart", "dashboard"]
-                    },
-                    "versionUuid": {
-                        "type": "string"
-                    },
-                    "artifactUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "promptUuid",
-                    "threadUuid",
-                    "referenceCount",
-                    "verifiedBy",
-                    "verifiedAt",
-                    "description",
-                    "title",
-                    "artifactType",
-                    "versionUuid",
-                    "artifactUuid"
-                ],
-                "type": "object"
-            },
-            "KnexPaginatedData_AiAgentVerifiedArtifact-Array_": {
-                "properties": {
-                    "pagination": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/KnexPaginateArgs"
-                            },
-                            {
-                                "properties": {
-                                    "totalResults": {
-                                        "type": "number",
-                                        "format": "double"
-                                    },
-                                    "totalPageCount": {
-                                        "type": "number",
-                                        "format": "double"
-                                    }
-                                },
-                                "required": ["totalResults", "totalPageCount"],
-                                "type": "object"
-                            }
-                        ]
-                    },
-                    "data": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiAgentVerifiedArtifact"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["data"],
-                "type": "object"
-            },
-            "ApiSuccess_KnexPaginatedData_AiAgentVerifiedArtifact-Array__": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/KnexPaginatedData_AiAgentVerifiedArtifact-Array_"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAiAgentVerifiedArtifactsResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_AiAgentVerifiedArtifact-Array__"
-            },
-            "ApiSuccess__question-string--uuid-string_-Array_": {
-                "properties": {
-                    "results": {
-                        "items": {
-                            "properties": {
-                                "uuid": {
-                                    "type": "string"
-                                },
-                                "question": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["uuid", "question"],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAiAgentVerifiedQuestionsResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__question-string--uuid-string_-Array_"
-            },
             "ApiCreateAiAgentResponse": {
                 "properties": {
                     "results": {
@@ -41586,13 +41442,6 @@
                         ],
                         "nullable": true
                     },
-                    "referencedArtifacts": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiAgentMessageAssistantArtifact"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
                     "artifacts": {
                         "items": {
                             "$ref": "#/components/schemas/AiAgentMessageAssistantArtifact"
@@ -41667,7 +41516,6 @@
                     "responseTiming",
                     "tokenUsage",
                     "modelConfig",
-                    "referencedArtifacts",
                     "artifacts",
                     "savedQueryUuid",
                     "reasoning",
@@ -42758,15 +42606,6 @@
                     "versionCreatedAt": {
                         "type": "string",
                         "format": "date-time"
-                    },
-                    "verifiedByUserUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "verifiedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
                     }
                 },
                 "required": [
@@ -42784,9 +42623,7 @@
                     "savedDashboardUuid",
                     "savedComposerChartUuid",
                     "savedComposerChartDashboardUuid",
-                    "versionCreatedAt",
-                    "verifiedByUserUuid",
-                    "verifiedAt"
+                    "versionCreatedAt"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -62387,8 +62224,6 @@
                     "sendContentReviewNotification",
                     "createReviewJiraIssue",
                     "createReviewLinearIssue",
-                    "embedArtifactVersion",
-                    "generateArtifactQuestion",
                     "appGeneratePipeline",
                     "appBuildFromSource",
                     "appCaptureThumbnail",
@@ -81640,7 +81475,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.380.0",
+        "version": "3.381.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -92775,116 +92610,6 @@
                 ]
             }
         },
-        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-artifacts": {
-            "get": {
-                "operationId": "getVerifiedArtifacts",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAiAgentVerifiedArtifactsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "agentUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "page",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "pageSize",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-questions": {
-            "get": {
-                "operationId": "getVerifiedQuestions",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAiAgentVerifiedQuestionsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "agentUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
         "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/avatar": {
             "post": {
                 "operationId": "uploadAgentAvatar",
@@ -95210,84 +94935,6 @@
                                     }
                                 },
                                 "required": ["savedComposerChartUuid"],
-                                "type": "object"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/verified": {
-            "patch": {
-                "operationId": "setArtifactVersionVerified",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "agentUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "artifactUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "versionUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "properties": {
-                                    "verified": {
-                                        "type": "boolean"
-                                    }
-                                },
-                                "required": ["verified"],
                                 "type": "object"
                             }
                         }

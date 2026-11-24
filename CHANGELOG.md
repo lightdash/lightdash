@@ -1,3 +1,13 @@
+# [3.381.0](https://github.com/lightdash/lightdash/compare/3.380.0...3.381.0) (2026-11-24)
+
+
+### Features
+
+* **ai-agents:** remove verified answer plumbing ([#33290](https://github.com/lightdash/lightdash/issues/33290)) ([7841c41](https://github.com/lightdash/lightdash/commit/7841c41fcb440ebc495018d48b9969d7b1789029))
+* **ai-agents:** remove verified answer types and column reads ([#33291](https://github.com/lightdash/lightdash/issues/33291)) ([a8d414c](https://github.com/lightdash/lightdash/commit/a8d414c51cedd2a336ddd9a6ebe9d20d75ab2731))
+* **ai-agents:** remove verified questions ([#33289](https://github.com/lightdash/lightdash/issues/33289)) ([f460d9f](https://github.com/lightdash/lightdash/commit/f460d9f1e567033611422de28eec880e749061c0))
+* **ai-agents:** stop using verified answers ([#33288](https://github.com/lightdash/lightdash/issues/33288)) ([f9633b8](https://github.com/lightdash/lightdash/commit/f9633b8490194cc42dafaa8184d97022fd8c1c43))
+
 # [3.380.0](https://github.com/lightdash/lightdash/compare/3.379.1...3.380.0) (2026-11-24)
 
 
