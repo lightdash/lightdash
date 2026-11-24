@@ -147,7 +147,7 @@ const StartFromLiveSource: FC<{ view: ViewModel }> = ({ view }) => {
 const SEMANTIC_LAYER_LINE =
     'A semantic layer defines your tables and metrics once, so every chart, dashboard and answer calculates them the same way.';
 
-const CARD_TABLES = 5;
+const CARD_TABLES = 3;
 
 /** What the warehouse holds; each table starts the chat when onModel is given, otherwise the card is read-only. */
 const WarehouseCard: FC<{
@@ -246,7 +246,7 @@ export const BuildFirstModel: FC<{
 }> = ({ view, onAsk, firstRequest }) => (
     <Box className={classes.starter}>
         <Stack align="center" gap="lg" w="100%" maw={640}>
-            <StudioDraftIllustration width={280} />
+            <StudioDraftIllustration width={180} />
             <Stack gap="xs" align="center" ta="center" maw={480}>
                 <Title order={3}>Build your semantic layer</Title>
                 <Text c="dimmed" fz="sm">

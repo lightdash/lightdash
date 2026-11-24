@@ -46,21 +46,13 @@ export const summarizeWarehouseCatalog = (
 export const modelTablePrompt = (table: WarehouseTable) =>
     `Turn ${table.reference} into a model with its column descriptions.`;
 
-/** Starters that name real tables when the catalog lists some, so the first ask fits this warehouse. */
+/** With tables listed, the warehouse card offers each one, so the starters keep only the two open asks. */
 export const getStudioStarters = (
     summary: WarehouseSummary | null,
 ): { label: string; prompt: string }[] => {
-    const tables = summary?.tables.slice(0, 2) ?? [];
-    if (tables.length === 0) return STUDIO_STARTERS;
+    if (!summary || summary.tables.length === 0) return STUDIO_STARTERS;
     const [explore, , metrics] = STUDIO_STARTERS;
-    return [
-        explore,
-        ...tables.map((table) => ({
-            label: `Model ${table.name}`,
-            prompt: modelTablePrompt(table),
-        })),
-        metrics,
-    ];
+    return [explore, metrics];
 };
 
 /** The project's warehouse and what its catalog lists; summary is null until listed or when listing fails, and listingFailure says why it failed. */
