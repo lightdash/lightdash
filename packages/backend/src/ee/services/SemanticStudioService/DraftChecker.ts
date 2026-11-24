@@ -1081,6 +1081,8 @@ GROUP BY ${aliases.join(', ')}
                 reject(name, { kind: 'query_builder', detail: metricError });
             }
         });
+        const isMetadataOnly = (name: string) =>
+            changed.get(name)?.isMetadataOnly ?? false;
         // The catalog knows a table's columns, so a wrong name or type is caught before any query, in the same words on every warehouse.
         const inCatalog = new Set<string>();
         // Dimensions the change leaves alone that do not fit their column, which is the usual cause of a model that already fails.
@@ -1090,7 +1092,7 @@ GROUP BY ${aliases.join(', ')}
         >();
         await Promise.all(
             [...writes].map(async ([name, contents]) => {
-                if (contents === null) return;
+                if (contents === null || isMetadataOnly(name)) return;
                 const facts = await this.findTableFacts(
                     user,
                     projectUuid,
@@ -1139,11 +1141,33 @@ GROUP BY ${aliases.join(', ')}
             (await this.compile(projectUuid, live)).explores
                 .filter(isCompiled)
                 .find((explore) => explore.name === name) ?? null;
-        // Redefining a model can break those that join it.
+        // Redefining a model can break those that join it; relabelling one cannot, so it never reaches the warehouse.
+        const redefined = new Map(
+            [...writes].filter(([name]) => !isMetadataOnly(name)),
+        );
+        // A relabelled model still has to work in a query.
+        const relabelled = await Promise.all(
+            afterCompile.explores
+                .filter(isCompiled)
+                .filter(
+                    (explore) =>
+                        usesAnyModel(explore, writes) &&
+                        !usesAnyModel(explore, redefined),
+                )
+                .map(async (explore) => ({
+                    name: explore.name,
+                    error: await this.findExploreError(
+                        user,
+                        projectUuid,
+                        explore,
+                        { warehouse: false },
+                    ),
+                })),
+        );
         const usable = await Promise.all(
             afterCompile.explores
                 .filter(isCompiled)
-                .filter((explore) => usesAnyModel(explore, writes))
+                .filter((explore) => usesAnyModel(explore, redefined))
                 .map(async (explore) => ({
                     name: explore.name,
                     ...(await this.findNewModelError(
@@ -1165,7 +1189,7 @@ GROUP BY ${aliases.join(', ')}
                 error === null && already !== null ? [[name, already]] : [],
             ),
         );
-        const unusable = usable.flatMap(({ name, error }) =>
+        const unusable = [...usable, ...relabelled].flatMap(({ name, error }) =>
             error === null ? [] : [{ name, error }],
         );
         unusable.forEach(({ name, error }) => {
@@ -1185,7 +1209,13 @@ GROUP BY ${aliases.join(', ')}
             afterUse.explores.filter(isCompiled).flatMap((explore) => {
                 const contents = writes.get(explore.name);
                 // A compiled explore is never a removal, so only written models are measured.
-                if (contents === undefined || contents === null) return [];
+                if (
+                    contents === undefined ||
+                    contents === null ||
+                    isMetadataOnly(explore.name)
+                ) {
+                    return [];
+                }
                 return [
                     this.measureModel(
                         user,
