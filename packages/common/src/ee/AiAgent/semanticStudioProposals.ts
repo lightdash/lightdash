@@ -2,6 +2,8 @@ import {
     type SemanticLayerDraft,
     type SemanticLayerDraftChange,
 } from '../../types/semanticStudio';
+import type { AiAgentThread } from './index';
+import { isToolEditDbtProjectResult } from './schemas/tools/toolEditDbtProjectArgs';
 import {
     isToolProposeSemanticLayerChangeResult,
     type SemanticLayerProposal,
@@ -16,6 +18,14 @@ export const getSavedProposals = <
     toolResults
         .filter(isToolProposeSemanticLayerChangeResult)
         .map(({ metadata }) => metadata);
+
+/** Every save of a dbt change in a thread's replies, oldest first. */
+export const getDbtSaves = (messages: AiAgentThread['messages']) =>
+    messages.flatMap((message) =>
+        message.role === 'assistant'
+            ? message.toolResults.filter(isToolEditDbtProjectResult)
+            : [],
+    );
 
 /** Proposals in tool outputs as a run returns them (agent steps, stream parts), before the turn is saved. */
 export const getRunProposals = (

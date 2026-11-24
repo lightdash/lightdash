@@ -3,6 +3,7 @@ import {
     getErrorMessage,
     type Project,
     type SemanticLayerApplyMode,
+    type SemanticLayerStatus,
     type SessionUser,
 } from '@lightdash/common';
 import {
@@ -31,6 +32,13 @@ export const applyModeOf = (
         ? 'live'
         : 'dbt_pull_request';
 };
+
+/** Whether a status lets this person work on the project as a dbt project's pull requests. */
+export const worksAsDbtPullRequests = ({
+    enabled,
+    appliesAs,
+}: Pick<SemanticLayerStatus, 'enabled' | 'appliesAs'>): boolean =>
+    enabled && appliesAs === 'dbt_pull_request';
 
 /** Never awaited, so a failed lookup cannot hold up or fail the action it describes. */
 export const trackStudioActivity = (

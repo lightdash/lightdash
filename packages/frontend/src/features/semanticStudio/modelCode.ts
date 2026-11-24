@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     diffModelDocuments,
     isWholeModelPath,
+    MODEL_FRAGMENT_REFUSAL_TEXT,
     parseModelPartPath,
     type ModelFragmentChange,
     type ModelFragmentRefusal,
@@ -13,6 +14,39 @@ import { parseDiffFromFile } from '@pierre/diffs';
 import { load } from 'js-yaml';
 
 export const VIEW_PARAM = 'view';
+/** What the workbench shows, beside the model's own tabs that share the param. */
+const STUDIO_VIEWS = [
+    'models',
+    'code',
+    'sources',
+    'changes',
+    'workspaces',
+] as const;
+export type StudioView = (typeof STUDIO_VIEWS)[number];
+export const MODEL_TABS = [
+    'fields',
+    'lineage',
+    'pre-aggregates',
+    'history',
+    'settings',
+] as const;
+export type ModelTab = (typeof MODEL_TABS)[number];
+
+const isStudioView = (value: string | null): value is StudioView =>
+    STUDIO_VIEWS.some((view) => view === value);
+
+export const readStudioView = (
+    searchParams: URLSearchParams,
+): StudioView | null => {
+    const value = searchParams.get(VIEW_PARAM);
+    return isStudioView(value) ? value : null;
+};
+
+/** Search params that name a workbench view, plus any others. */
+export type StudioParams = { [VIEW_PARAM]?: StudioView } & Record<
+    string,
+    string
+>;
 export const FIELD_PARAM = 'field';
 export const DRAFT_PARAM = 'draft';
 export const DRAFT_REVIEW = 'review';
@@ -130,6 +164,28 @@ export const CHANGE_GLYPHS: Record<ChangeKind, string> = {
     removed: '−',
 };
 
+/** How a field change is marked wherever it is listed. */
+export const CHANGE_KIND_STYLE: Record<
+    ChangeKind,
+    { label: string; glyph: string; color: string }
+> = {
+    new: {
+        label: CHANGE_KIND_LABELS.new,
+        glyph: CHANGE_GLYPHS.new,
+        color: 'green',
+    },
+    changed: {
+        label: CHANGE_KIND_LABELS.changed,
+        glyph: CHANGE_GLYPHS.changed,
+        color: 'yellow',
+    },
+    removed: {
+        label: CHANGE_KIND_LABELS.removed,
+        glyph: CHANGE_GLYPHS.removed,
+        color: 'red',
+    },
+};
+
 /** What an applied change did to a model, as its history reads it. */
 export const CHANGE_KIND_VERBS: Record<ChangeKind, string> = {
     new: 'Created',
@@ -148,7 +204,8 @@ export const getChangeKind = ({
 export const refusalText = (
     model: string,
     { path, reason }: ModelFragmentRefusal,
-): string => `Left out ${model}.${path} (${reason.replaceAll('_', ' ')})`;
+): string =>
+    `Left out ${model}.${path} because it ${MODEL_FRAGMENT_REFUSAL_TEXT[reason]}.`;
 
 /** The field or join a change path names, and the key changed on it; a null key means the whole thing. */
 const parseChangePath = (

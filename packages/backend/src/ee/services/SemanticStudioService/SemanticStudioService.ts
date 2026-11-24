@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     DbtProjectType,
+    describeModelFragmentRefusal,
     diffModelDocuments,
     doModelPathsOverlap,
     FeatureFlags,
@@ -20,15 +21,12 @@ import {
     toDraftEdit,
     UNTITLED_WORKSPACE_NAME,
     ValidationTarget,
-    type CiChecks,
     type Explore,
     type ExploreError,
     type ExploreType,
     type LightdashError,
     type LightdashModelWithSource,
     type ModelFragmentChange,
-    type ModelFragmentRefusal,
-    type ModelFragmentRefusalReason,
     type SaveSemanticLayerDraftModelRequest,
     type SemanticLayerBlocker,
     type SemanticLayerDraft,
@@ -53,6 +51,7 @@ import {
     type SemanticStudioWorkspaces,
     type SemanticStudioWorkspaceStartBody,
     type SessionUser,
+    type WritebackMergeResult,
 } from '@lightdash/common';
 import { groupBy } from 'es-toolkit/compat';
 import { createHash } from 'node:crypto';
@@ -81,11 +80,8 @@ import {
 import { type SemanticStudioWorkspaceModel } from '../../models/SemanticStudioWorkspaceModel';
 import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
 import { type AiWritebackService } from '../AiWritebackService/AiWritebackService';
-import {
-    findDbtDraftExplores,
-    retireDbtTryOut,
-    type DbtTryOutStorage,
-} from './dbtTryOut';
+import { type StudioFileStorage } from './checkedExplores';
+import { retireDbtTryOut } from './dbtTryOut';
 import {
     DraftChecker,
     isModelExplore,
@@ -159,7 +155,7 @@ export type SemanticStudioServiceArguments = {
     validationService: Pick<ValidationService, 'generateValidation'>;
     projectService: Pick<ProjectService, 'setExplores'> &
         DraftCheckerProjectService;
-    fileStorageClient: DbtTryOutStorage;
+    fileStorageClient: StudioFileStorage;
     repoModels: Pick<
         RepoModelSource,
         | 'isInstalled'
@@ -189,7 +185,6 @@ export type SemanticStudioServiceArguments = {
         | 'finish'
         | 'attachPullRequest'
         | 'recordPullRequestState'
-        | 'findBranchCompile'
         | 'deleteFinishedBranchCompiles'
     >;
 };
@@ -266,17 +261,6 @@ const failed = (
     error,
 });
 
-const REFUSAL_REASONS: Record<ModelFragmentRefusalReason, string> = {
-    access: 'changes who can see it, which cannot be changed here.',
-    name_taken: 'uses a name another field of this model already has.',
-    incomplete: 'is missing what it needs, such as its type or sql.',
-    invalid_filter: 'has a filter that is not a single field: value pair.',
-    not_found: 'is not in the model.',
-};
-
-const describeRefusal = ({ path, reason }: ModelFragmentRefusal): string =>
-    `${path} ${REFUSAL_REASONS[reason]}`;
-
 // A draft that redefines more fields than this is only partly looked up; page the lookup if drafts grow that large.
 const MAX_USAGE_FIELDS = 40;
 
@@ -289,18 +273,6 @@ const RECENT_WORKSPACE_MS = 14 * 24 * 60 * 60 * 1000;
 type Blocker = { reason: SemanticLayerBlocker; error: LightdashError };
 
 const CANNOT_USE_STUDIO = "You cannot change this project's models here";
-
-/** A pull request's state as its CI checks report it. */
-export const pullRequestStateOf = ({
-    state,
-    merged,
-}: Pick<
-    CiChecks,
-    'state' | 'merged'
->): SemanticStudioWorkspacePullRequestState => {
-    if (merged) return 'merged';
-    return state === 'open' ? 'open' : 'closed';
-};
 
 /** Keeps a project's native models on the server and takes reviewed drafts of them live. */
 export class SemanticStudioService extends BaseService {
@@ -981,7 +953,7 @@ export class SemanticStudioService extends BaseService {
         );
         const problems = results.flatMap(({ error, refusals }) => [
             ...(error === null ? [] : [error]),
-            ...refusals.map(describeRefusal),
+            ...refusals.map(describeModelFragmentRefusal),
         ]);
         if (problems.length > 0) {
             return fail('check_failed', problems.join(' '));
@@ -1039,22 +1011,10 @@ export class SemanticStudioService extends BaseService {
      * the draft removes; null when they have nothing drafted or cannot change the
      * project. This is what lets them query their own changes on the live project.
      */
-    async findDevelopmentExplores(
+    async findDraftExplores(
         user: SessionUser,
         projectUuid: string,
     ): Promise<Map<string, Explore | ExploreError | null> | null> {
-        const status = await this.getStatus(user, projectUuid);
-        if (status.appliesAs === 'dbt_pull_request') {
-            return status.enabled
-                ? findDbtDraftExplores(
-                      {
-                          storage: this.fileStorageClient,
-                          workspaceModel: this.workspaceModel,
-                      },
-                      { projectUuid, userUuid: user.userUuid },
-                  )
-                : null;
-        }
         if (!(await this.canEditModels(user, projectUuid))) return null;
         // Asked first: with nothing drafted there is no reason to read the live models, which for a repository is a network call.
         const owner = await this.findDraftOwner(projectUuid, user.userUuid);
@@ -1934,10 +1894,8 @@ export class SemanticStudioService extends BaseService {
         const merge = async (triesLeft: number): Promise<boolean> => {
             try {
                 return (
-                    await this.aiWritebackService.mergePullRequest({
-                        user,
-                        projectUuid,
-                        prUrl,
+                    await this.mergePullRequest(user, projectUuid, prUrl, {
+                        sha: undefined,
                         incrementalCompile: true,
                     })
                 ).merged;
@@ -1960,12 +1918,6 @@ export class SemanticStudioService extends BaseService {
                     reason: 'The repository did not merge it.',
                 };
             }
-            await this.recordPullRequestState(
-                user,
-                projectUuid,
-                prUrl,
-                'merged',
-            );
             return { merged: true };
         } catch (error) {
             return { merged: false, reason: getErrorMessage(error) };
@@ -2404,16 +2356,9 @@ export class SemanticStudioService extends BaseService {
                         projectUuid,
                         prUrl,
                         state,
+                        false,
                     );
                     changed = true;
-                    // Merged outside the app, so nothing has refreshed the project with it yet.
-                    if (state === 'merged') {
-                        await this.aiWritebackService.scheduleCompileAfterMerge(
-                            user,
-                            projectUuid,
-                            true,
-                        );
-                    }
                 }
             } catch (error) {
                 this.logger.warn(
@@ -2596,16 +2541,43 @@ export class SemanticStudioService extends BaseService {
         });
     }
 
+    /** Merges a pull request and, once merged, records it so the change reads merged from that moment. */
+    async mergePullRequest(
+        user: SessionUser,
+        projectUuid: string,
+        prUrl: string,
+        opts: { sha: string | undefined; incrementalCompile: boolean },
+    ): Promise<WritebackMergeResult> {
+        const result = await this.aiWritebackService.mergePullRequest({
+            user,
+            projectUuid,
+            prUrl,
+            ...opts,
+        });
+        if (result.merged) {
+            await this.recordPullRequestState(
+                user,
+                projectUuid,
+                prUrl,
+                'merged',
+                true,
+            );
+        }
+        return result;
+    }
+
     /**
      * Records a pull request's state as its provider reported it to someone allowed to ask. A draft sent as that
      * pull request is settled by its merge, and kept when it closes, so the work can be sent again or discarded;
      * once settled, the asker's try-out of it and the compiles of finished changes are dropped.
+     * The first to record a merge refreshes the project with it, unless the merge already scheduled that compile.
      */
     async recordPullRequestState(
         user: SessionUser,
         projectUuid: string,
         prUrl: string,
         state: SemanticStudioWorkspacePullRequestState,
+        mergeCompileScheduled: boolean,
     ): Promise<void> {
         const drafted =
             state === 'open'
@@ -2623,13 +2595,21 @@ export class SemanticStudioService extends BaseService {
                 ),
             );
         }
-        await this.workspaceModel.recordPullRequestState(
+        const recorded = await this.workspaceModel.recordPullRequestState(
             projectUuid,
             prUrl,
             state,
             // A closed pull request with a draft behind it leaves the workspace open.
             state === 'merged' || drafted.length === 0,
         );
+        // Merged outside the app, so nothing has refreshed the project with it yet.
+        if (state === 'merged' && recorded && !mergeCompileScheduled) {
+            await this.aiWritebackService.scheduleCompileAfterMerge(
+                user,
+                projectUuid,
+                true,
+            );
+        }
         if (state === 'open') return;
         await this.workspaceModel.deleteFinishedBranchCompiles(projectUuid);
         await retireDbtTryOut(

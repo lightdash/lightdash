@@ -1,5 +1,5 @@
 import {
-    isToolEditDbtProjectResult,
+    getDbtSaves,
     type ApiError,
     type CiChecks,
     type SemanticStudioWorkspace,
@@ -7,20 +7,23 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef } from 'react';
 import {
-    getModelsOfFiles,
-    splitPatchIntoFiles,
-} from '../../../../../features/semanticStudio/splitPatch';
-import {
     type StudioPendingChange,
     type StudioPullRequest,
 } from '../../../../../features/semanticStudio/studioChange';
 import {
+    findThreadWorkspace,
+    useStudioWorkspaces,
+} from '../../../../../features/semanticStudio/useStudioWorkspaces';
+import { findPreviewProjectUuid } from '../../../../../features/semanticStudio/useTryInExplore';
+import {
+    getModelsOfFiles,
+    splitPatchIntoFiles,
+} from '../../../../../features/writeback/splitPatch';
+import {
     pullRequestCiChecksKey,
     pullRequestCiChecksQuery,
-} from '../../../../../features/semanticStudio/usePullRequestCiChecks';
-import { useWholePullRequestDiff } from '../../../../../features/semanticStudio/usePullRequestDiff';
-import { useStudioWorkspaces } from '../../../../../features/semanticStudio/useStudioWorkspaces';
-import { findPreviewProjectUuid } from '../../../../../features/semanticStudio/useTryInExplore';
+} from '../../../../../features/writeback/usePullRequestCiChecks';
+import { useWholePullRequestDiff } from '../../../../../features/writeback/usePullRequestDiff';
 import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 import {
     getOpenProposal,
@@ -45,34 +48,28 @@ const useOpenStudioThread = (projectUuid: string) => {
 /** The last revision each pull request was seen at, so its checks are read again once when it moves. */
 const seenRevisions = new Map<string, string>();
 
-/** A change's pull request from its own record, then its conversation; without `shown`, the change your chat is on. */
+/** A change's pull request from its own record, then its conversation; with `shown` null, the change your chat is on. */
 export const useStudioPullRequest = (
     projectUuid: string,
-    shown?: SemanticStudioWorkspace | null,
+    shown: SemanticStudioWorkspace | null,
 ): StudioPullRequest | null => {
     const { thread, data } = useOpenStudioThread(projectUuid);
     const { data: workspaces } = useStudioWorkspaces(projectUuid);
     const workspace =
-        shown !== undefined
-            ? shown
-            : ([
-                  ...(workspaces?.mine ?? []),
-                  ...(workspaces?.recent ?? []).filter((item) => item.isMine),
-              ].find(({ threadUuid }) => threadUuid === thread?.threadUuid) ??
-              null);
+        shown ??
+        findThreadWorkspace(
+            [...(workspaces?.mine ?? []), ...(workspaces?.recent ?? [])],
+            thread?.threadUuid ?? null,
+        );
     const isChatOfChange =
         !workspace || workspace.threadUuid === thread?.threadUuid;
-    const results = (isChatOfChange ? (data?.messages ?? []) : [])
-        .flatMap((message) =>
-            message.role === 'assistant'
-                ? message.toolResults.filter(isToolEditDbtProjectResult)
-                : [],
-        )
-        .flatMap((result) =>
-            result.metadata.status === 'success' && result.metadata.prUrl
-                ? [{ ...result.metadata, prUrl: result.metadata.prUrl }]
-                : [],
-        );
+    const results = getDbtSaves(
+        isChatOfChange ? (data?.messages ?? []) : [],
+    ).flatMap((result) =>
+        result.metadata.status === 'success' && result.metadata.prUrl
+            ? [{ ...result.metadata, prUrl: result.metadata.prUrl }]
+            : [],
+    );
     const prUrl = workspace?.pullRequest?.url ?? results.at(-1)?.prUrl ?? null;
     const ofThisPullRequest = results.filter(
         (result) => result.prUrl === prUrl,
@@ -127,7 +124,6 @@ export const useStudioPullRequest = (
         previewProjectUuid: findPreviewProjectUuid(metadata?.previewUrl),
         ciChecks: ciChecks ?? null,
         state,
-        isOpen: state === 'open',
         isMine: workspace?.isMine ?? true,
     };
 };
@@ -138,13 +134,7 @@ export const useStudioPendingChange = (
 ): StudioPendingChange | null => {
     const { data } = useOpenStudioThread(projectUuid);
     // The latest change of the whole thread, so a message sent while it runs does not hide it.
-    const latest = (data?.messages ?? [])
-        .flatMap((message) =>
-            message.role === 'assistant'
-                ? message.toolResults.filter(isToolEditDbtProjectResult)
-                : [],
-        )
-        .at(-1);
+    const latest = getDbtSaves(data?.messages ?? []).at(-1);
     return latest?.metadata.status === 'pending'
         ? {
               aiWritebackRunUuid: latest.metadata.aiWritebackRunUuid,
@@ -166,7 +156,7 @@ export type StudioProposal = {
 export const useStudioProposal = (projectUuid: string): StudioProposal => {
     const { data } = useOpenStudioThread(projectUuid);
     // A proposal saved by hand is in the pull request without the agent knowing.
-    const pullRequest = useStudioPullRequest(projectUuid);
+    const pullRequest = useStudioPullRequest(projectUuid, null);
     const {
         data: diff,
         isPreviousData,

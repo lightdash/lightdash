@@ -28,7 +28,7 @@ import {
 import { useMemo, useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { usePullRequestCiChecks } from '../../../../../features/semanticStudio/usePullRequestCiChecks';
+import { usePullRequestCiChecks } from '../../../../../features/writeback/usePullRequestCiChecks';
 import { useProjectValidation } from '../../../../../hooks/validation/useValidation';
 import {
     useAiAgentReviewItemPrDiff,

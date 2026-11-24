@@ -2,7 +2,6 @@ import {
     CiCheckState,
     CiMergeState,
     CiProviderType,
-    isOpenWorkspace,
     type CiChecks,
     type SemanticStudioWorkspace,
 } from '@lightdash/common';
@@ -85,21 +84,5 @@ describe('toStudioRun', () => {
         expect(
             toStudioRun(workspace(), { savingStep: null, ciChecks: null }),
         ).toEqual({ kind: 'draft' });
-    });
-});
-
-describe('isOpenWorkspace', () => {
-    it('drops finished, merged and closed work', () => {
-        expect(isOpenWorkspace(inReview)).toBe(true);
-        expect(isOpenWorkspace(workspace({ finishedAt: new Date() }))).toBe(
-            false,
-        );
-        expect(
-            isOpenWorkspace(
-                workspace({
-                    pullRequest: { url: 'x/pull/1', state: 'merged' },
-                }),
-            ),
-        ).toBe(false);
     });
 });

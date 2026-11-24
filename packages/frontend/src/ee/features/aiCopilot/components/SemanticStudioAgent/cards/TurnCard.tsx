@@ -18,7 +18,7 @@ import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import {
-    CHANGE_KIND_LABELS,
+    CHANGE_KIND_STYLE,
     type ChangeKind,
 } from '../../../../../../features/semanticStudio/modelCode';
 import {
@@ -26,7 +26,7 @@ import {
     type TaskState,
 } from '../../../../../../features/semanticStudio/TaskRow';
 import { ISSUE_KINDS, type Issue } from './proposalIssues';
-import classes from './TurnSummaryCard.module.css';
+import classes from './TurnCard.module.css';
 
 /** One changed part of a model, linking to where it can be looked at. */
 export type TurnRow = {
@@ -54,12 +54,6 @@ export type TurnGroup = {
 };
 
 export type Safety = { state: TaskState; text: string; why: string | null };
-
-const CHANGE_COLORS: Record<ChangeKind, string> = {
-    new: 'green',
-    changed: 'blue',
-    removed: 'red',
-};
 
 /** One stop on the card's line: an icon, what it is, and what there is to say about it. */
 const Step: FC<{
@@ -138,10 +132,10 @@ const ModelStep: FC<{ group: TurnGroup }> = ({
                     <MantineIcon
                         icon={IconCheck}
                         size={12}
-                        color={CHANGE_COLORS[change]}
+                        color={CHANGE_KIND_STYLE[change].color}
                     />
                     <Text fz="xs" c="dimmed">
-                        {CHANGE_KIND_LABELS[change]}
+                        {CHANGE_KIND_STYLE[change].label}
                     </Text>
                 </Group>
             )

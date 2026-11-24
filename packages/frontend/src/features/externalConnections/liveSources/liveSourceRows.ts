@@ -17,7 +17,7 @@ export type LiveSourceConnection = ExternalConnection & {
     apiSource: ExternalConnectionApiSource;
 };
 
-export type LiveSourceUsage = {
+type LiveSourceUsage = {
     /** Bytes read from the integration, in words, such as 361 KB. */
     dataRead: string;
     apiCalls: string;
@@ -27,7 +27,7 @@ export type LiveSourceUsage = {
     medianLatency: string | null;
 };
 
-export type LiveSourceRow = {
+type LiveSourceRow = {
     connection: LiveSourceConnection;
     integration: string;
     /** What it reads: a PostHog project, a Search Console site, a GA4 property. */

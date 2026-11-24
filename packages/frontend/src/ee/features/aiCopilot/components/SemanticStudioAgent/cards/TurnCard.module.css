@@ -120,29 +120,3 @@
 .fold:focus-visible {
     background: var(--mantine-color-default-hover);
 }
-
-/* The small card of an open draft's latest turn: one line to open it, then what it did. */
-.compactHead {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 8px var(--mantine-spacing-sm);
-    background: var(--ld-color-page);
-}
-
-.compactHead:hover,
-.compactHead:focus-visible {
-    background: var(--mantine-color-default-hover);
-}
-
-.compactBody {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 10px var(--mantine-spacing-sm);
-}
-
-.compactFoot {
-    padding: 6px var(--mantine-spacing-sm);
-}

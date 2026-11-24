@@ -38,7 +38,7 @@ import {
     type ProjectModelDocumentModel,
     type StoredDraftChange,
 } from '../../models/ProjectModelDocumentModel';
-import { saveDbtTryOut } from './dbtTryOut';
+import { findDbtDraftExplores, saveDbtTryOut } from './dbtTryOut';
 import {
     SemanticStudioService,
     type SemanticStudioServiceArguments,
@@ -403,11 +403,16 @@ const setup = ({
             state: SemanticStudioWorkspacePullRequestState,
             finishes: boolean,
         ) => {
+            let changed = activeWorkspace?.prUrl === url;
             for (const workspace of workspaces) {
-                if (workspace.pullRequest?.url === url) {
+                if (
+                    workspace.pullRequest?.url === url &&
+                    !workspace.finishedAt
+                ) {
                     workspace.pullRequest.state = state;
                     workspace.finishedAt = new Date();
                     workspace.isActive = false;
+                    changed = true;
                 }
             }
             if (
@@ -417,6 +422,7 @@ const setup = ({
             ) {
                 activeWorkspace = null;
             }
+            return changed;
         },
     );
     const args: SemanticStudioServiceArguments = {
@@ -477,7 +483,6 @@ const setup = ({
                 if (activeWorkspace) activeWorkspace.prUrl = url;
             },
             recordPullRequestState,
-            findBranchCompile: async () => null,
             deleteFinishedBranchCompiles: async () => undefined,
         },
         featureFlagModel: {
@@ -1423,10 +1428,7 @@ dimensions:
         it('compiles the drafted models for the person who drafted them', async () => {
             const context = setup();
             expect(
-                await context.service.findDevelopmentExplores(
-                    deployer,
-                    PROJECT_UUID,
-                ),
+                await context.service.findDraftExplores(deployer, PROJECT_UUID),
             ).toBeNull();
             await context.service.proposeDraftChange(
                 deployer,
@@ -1435,7 +1437,7 @@ dimensions:
                 null,
                 null,
             );
-            const explores = await context.service.findDevelopmentExplores(
+            const explores = await context.service.findDraftExplores(
                 deployer,
                 PROJECT_UUID,
             );
@@ -1459,17 +1461,14 @@ dimensions:
             );
             expect(
                 (
-                    await context.service.findDevelopmentExplores(
+                    await context.service.findDraftExplores(
                         deployer,
                         PROJECT_UUID,
                     )
                 )?.get('orders'),
             ).toBeNull();
             expect(
-                await context.service.findDevelopmentExplores(
-                    viewer,
-                    PROJECT_UUID,
-                ),
+                await context.service.findDraftExplores(viewer, PROJECT_UUID),
             ).toBeNull();
         });
     });
@@ -1479,44 +1478,27 @@ dimensions:
             prUrl: 'https://github.com/acme/shop/pull/1',
             explores: [TRY_OUT_EXPLORE],
         };
-        const dbt = (overrides: Parameters<typeof setup>[0] = {}) =>
-            setup({ dbtConnection: DBT_IN_GITHUB, ...overrides });
-
-        it('shows the person who made the change what it compiles to, and no one else', async () => {
-            const context = dbt();
-            expect(
-                await context.service.findDevelopmentExplores(
-                    repoWriter,
-                    PROJECT_UUID,
-                ),
-            ).toBeNull();
-            await saveDbtTryOut(
-                context.fileStorageClient,
-                { projectUuid: PROJECT_UUID, userUuid: repoWriter.userUuid },
-                null,
-                project,
-            );
-            expect(
-                (
-                    await context.service.findDevelopmentExplores(
-                        repoWriter,
-                        PROJECT_UUID,
-                    )
-                )?.get('try_out'),
-            ).toEqual(TRY_OUT_EXPLORE);
-            expect(
-                await context.service.findDevelopmentExplores(
-                    deployer,
-                    PROJECT_UUID,
-                ),
-            ).toBeNull();
-        });
 
         it('is forgotten once its own pull request settles, not another one', async () => {
-            const context = dbt();
+            const context = setup({ dbtConnection: DBT_IN_GITHUB });
+            const owner = {
+                projectUuid: PROJECT_UUID,
+                userUuid: repoWriter.userUuid,
+            };
+            const findTryOut = () =>
+                findDbtDraftExplores(
+                    {
+                        storage: context.fileStorageClient,
+                        workspaceModel: {
+                            findActive: context.workspaceModel.findActive,
+                            findBranchCompile: async () => null,
+                        },
+                    },
+                    owner,
+                );
             await saveDbtTryOut(
                 context.fileStorageClient,
-                { projectUuid: PROJECT_UUID, userUuid: repoWriter.userUuid },
+                owner,
                 null,
                 project,
             );
@@ -1525,71 +1507,17 @@ dimensions:
                 PROJECT_UUID,
                 'https://github.com/acme/shop/pull/2',
                 'closed',
+                false,
             );
-            expect(
-                await context.service.findDevelopmentExplores(
-                    repoWriter,
-                    PROJECT_UUID,
-                ),
-            ).not.toBeNull();
+            expect(await findTryOut()).not.toBeNull();
             await context.service.recordPullRequestState(
                 repoWriter,
                 PROJECT_UUID,
                 project.prUrl,
                 'merged',
+                false,
             );
-            expect(
-                await context.service.findDevelopmentExplores(
-                    repoWriter,
-                    PROJECT_UUID,
-                ),
-            ).toBeNull();
-        });
-
-        it("reads the active workspace's own change, not an older one for another pull request", async () => {
-            const context = dbt();
-            await saveDbtTryOut(
-                context.fileStorageClient,
-                { projectUuid: PROJECT_UUID, userUuid: repoWriter.userUuid },
-                null,
-                project,
-            );
-            context.setActiveWorkspace({
-                threadUuid: 'thread-2',
-                prUrl: 'https://github.com/acme/shop/pull/2',
-            });
-            expect(
-                await context.service.findDevelopmentExplores(
-                    repoWriter,
-                    PROJECT_UUID,
-                ),
-            ).toBeNull();
-            await saveDbtTryOut(
-                context.fileStorageClient,
-                { projectUuid: PROJECT_UUID, userUuid: repoWriter.userUuid },
-                'thread-2',
-                project,
-            );
-            expect(
-                (
-                    await context.service.findDevelopmentExplores(
-                        repoWriter,
-                        PROJECT_UUID,
-                    )
-                )?.get('try_out'),
-            ).toEqual(TRY_OUT_EXPLORE);
-            context.setActiveWorkspace({
-                threadUuid: 'thread-1',
-                prUrl: project.prUrl,
-            });
-            expect(
-                (
-                    await context.service.findDevelopmentExplores(
-                        repoWriter,
-                        PROJECT_UUID,
-                    )
-                )?.get('try_out'),
-            ).toEqual(TRY_OUT_EXPLORE);
+            expect(await findTryOut()).toBeNull();
         });
     });
 
@@ -2948,6 +2876,7 @@ dimensions:
                 PROJECT_UUID,
                 PULL_REQUEST_URL,
                 'closed',
+                false,
             );
             expect(context.recordPullRequestState).toHaveBeenLastCalledWith(
                 PROJECT_UUID,
@@ -2961,6 +2890,7 @@ dimensions:
                 PROJECT_UUID,
                 PULL_REQUEST_URL,
                 'merged',
+                false,
             );
             expect(context.recordPullRequestState).toHaveBeenLastCalledWith(
                 PROJECT_UUID,
@@ -3350,6 +3280,45 @@ describe('workspace pull request reconciliation', () => {
             }
         },
     );
+
+    it('refreshes the project once when checks first see a merge made elsewhere', async () => {
+        const context = setup();
+        context.workspaces.push(workspace(1));
+        const url = workspace(1).pullRequest?.url ?? '';
+        await context.service.recordPullRequestState(
+            deployer,
+            PROJECT_UUID,
+            url,
+            'merged',
+            false,
+        );
+        await context.service.recordPullRequestState(
+            deployer,
+            PROJECT_UUID,
+            url,
+            'merged',
+            false,
+        );
+        expect(context.scheduleCompileAfterMerge).toHaveBeenCalledTimes(1);
+        expect(context.scheduleCompileAfterMerge).toHaveBeenCalledWith(
+            deployer,
+            PROJECT_UUID,
+            true,
+        );
+    });
+
+    it('does not compile again for a merge made in the app', async () => {
+        const context = setup();
+        context.workspaces.push(workspace(1));
+        await context.service.mergePullRequest(
+            deployer,
+            PROJECT_UUID,
+            workspace(1).pullRequest?.url ?? '',
+            { sha: undefined, incrementalCompile: false },
+        );
+        expect(context.mergePullRequest).toHaveBeenCalledTimes(1);
+        expect(context.scheduleCompileAfterMerge).not.toHaveBeenCalled();
+    });
 
     it('only checks five own unfinished pull requests, active first', async () => {
         const context = setup();

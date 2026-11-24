@@ -24,7 +24,7 @@ const getModelValidator = (): ModelValidator => {
     return modelValidator;
 };
 /** The `type` values that make a YAML file a native model. */
-export const NATIVE_MODEL_TYPES = ['model', 'model/v1beta', 'model/v1'];
+const NATIVE_MODEL_TYPES = ['model', 'model/v1beta', 'model/v1'];
 
 /** Where a native project's models live, in the order they are looked for. */
 export const NATIVE_MODEL_DIRECTORIES = ['models', 'lightdash/models'];

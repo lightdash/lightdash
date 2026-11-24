@@ -17,9 +17,13 @@ it('reuses the created thread when retrying a save whose response was lost', asy
     const wrapper = ({ children }: PropsWithChildren) => (
         <QueryClientProvider client={client}>{children}</QueryClientProvider>
     );
-    const { result } = renderHook(() => useSaveStudioSource('project'), {
-        wrapper,
-    });
+    const startThread = vi.fn((agentUuid: string) =>
+        Promise.resolve({ threadUuid: 'thread', agentUuid }),
+    );
+    const { result } = renderHook(
+        () => useSaveStudioSource('project', startThread),
+        { wrapper },
+    );
     const request = {
         path: 'models/orders.sql',
         content: 'select 1',
@@ -29,9 +33,7 @@ it('reuses the created thread when retrying a save whose response was lost', asy
         newChangeAgentUuid: 'agent',
     };
     let saves = 0;
-    api.mockImplementation(({ url }) => {
-        if (url.endsWith('/threads'))
-            return Promise.resolve({ uuid: 'thread' });
+    api.mockImplementation(() => {
         saves += 1;
         return saves === 1
             ? Promise.reject(new Error('Connection lost'))
@@ -46,7 +48,7 @@ it('reuses the created thread when retrying a save whose response was lost', asy
         await result.current.mutateAsync(request);
     });
     const calls = api.mock.calls.map(([call]) => call);
-    expect(calls.filter(({ url }) => url.endsWith('/threads'))).toHaveLength(1);
+    expect(startThread).toHaveBeenCalledTimes(1);
     const saveBodies = calls
         .filter(({ url }) => url.endsWith('/sources/file'))
         .map(({ body }) => JSON.parse(body ?? 'null'));

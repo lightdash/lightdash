@@ -1,4 +1,4 @@
-import { getItemId, TimeFrames, type Explore } from '@lightdash/common';
+import { getItemId, TimeFrames } from '@lightdash/common';
 import { useQueries } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
@@ -29,34 +29,12 @@ export const useModelFieldChanges = (
                 : null,
         [live.data, mine.data],
     );
-    return { live: live.data ?? null, mine: mine.data ?? null, changes };
-};
-
-/** Explore's id of each field a change adds or redefines, by its `table.name` key. */
-export const findChangedFieldIds = (
-    mine: Explore,
-    changes: FieldChange[],
-): Map<string, { id: string; isMetric: boolean }> => {
-    const table = mine.tables[mine.baseTable];
-    const ids = new Map<string, { id: string; isMetric: boolean }>();
-    if (!table) return ids;
-    changes.forEach(({ key, kind }) => {
-        const name = key.slice(table.name.length + 1);
-        const metric = kind === 'removed' ? undefined : table.metrics[name];
-        const dimension =
-            kind === 'removed' ? undefined : table.dimensions[name];
-        if (metric) ids.set(key, { id: getItemId(metric), isMetric: true });
-        else if (dimension && !dimension.hidden) {
-            ids.set(key, { id: getItemId(dimension), isMetric: false });
-        }
-    });
-    return ids;
+    return { live: live.data ?? null, changes };
 };
 
 /** A field a change touches, as Explore names it; a removed one is named from the live version. */
 export type ChangedField = FieldChange & {
     fieldId: string;
-    isMetric: boolean;
     /** The date it is a grain of, or is the base of; null for anything else. */
     date: { base: string; grain: TimeFrames | null } | null;
 };
@@ -81,19 +59,15 @@ export const withOneGrainPerDate = (fields: ChangedField[]) => {
     return fields.filter((field) => !field.date || kept.has(field));
 };
 
-const describeChangedFields = (
-    live: Explore | null,
-    mine: Explore,
+/** The changes Explore can show, named as Explore names them; a hidden field is left out, and so is a hidden metric unless `keepsHiddenMetrics`. */
+export const describeChangedFields = (
+    changes: FieldChange[],
+    { keepsHiddenMetrics }: { keepsHiddenMetrics: boolean },
 ): ChangedField[] =>
-    diffModelFields(live, mine).flatMap((change) => {
-        const source = change.kind === 'removed' ? live : mine;
-        const table = source?.tables[source.baseTable];
-        if (!table) return [];
-        const name = change.key.slice(table.name.length + 1);
-        const metric = table.metrics[name];
-        const dimension = metric ? undefined : table.dimensions[name];
-        const field = metric ?? dimension;
-        if (!field || field.hidden) return [];
+    changes.flatMap((change) => {
+        const { field, name } = change;
+        if (field.hidden && !(keepsHiddenMetrics && change.isMetric)) return [];
+        const dimension = change.isMetric ? undefined : change.field;
         const base = dimension?.isIntervalBase
             ? name
             : dimension?.timeIntervalBaseDimensionName;
@@ -101,7 +75,6 @@ const describeChangedFields = (
             {
                 ...change,
                 fieldId: getItemId(field),
-                isMetric: !!metric,
                 date: base
                     ? { base, grain: dimension?.timeInterval ?? null }
                     : null,
@@ -146,7 +119,12 @@ export const useChangeSet = (
                           const live = sides[index * 2].data ?? null;
                           return [
                               model,
-                              mine ? describeChangedFields(live, mine) : [],
+                              mine
+                                  ? describeChangedFields(
+                                        diffModelFields(live, mine),
+                                        { keepsHiddenMetrics: false },
+                                    )
+                                  : [],
                           ];
                       }),
                   ),

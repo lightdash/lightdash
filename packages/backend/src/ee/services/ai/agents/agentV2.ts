@@ -93,6 +93,7 @@ import {
     includesDocumentOffer,
     MIN_CHARTS_FOR_DOCUMENT_OFFER,
 } from '../prompts/systemV2ContentTools';
+import { getSemanticStudioTurn } from '../prompts/systemV2SemanticStudio';
 import {
     accumulatePromptTokenUsage,
     completedPromptTokenUsage,
@@ -1376,16 +1377,9 @@ export const getStudioCardResponse = (
     if (proposals.length > 0) {
         return endsTurnOnCard(proposals) ? getStudioCardReply(proposals) : null;
     }
-    // Only Studio's save takes a script; the main chat's keeps its own reply.
     const studioSaves = new Set(
         last.toolCalls
-            .filter(
-                ({ toolName, input }) =>
-                    isDbtWriteToolName(toolName) &&
-                    !!input &&
-                    typeof input === 'object' &&
-                    'script' in input,
-            )
+            .filter(({ toolName }) => isDbtWriteToolName(toolName))
             .map(({ toolCallId }) => toolCallId),
     );
     const isSaving = last.toolResults.some(
@@ -1395,16 +1389,20 @@ export const getStudioCardResponse = (
     return isSaving ? DBT_SAVE_CARD_REPLY : null;
 };
 
-const getTurnFastResponse = (
+export const getTurnFastResponse = (
     enableDataAnswerFastResponse: boolean,
     turnIntent: TurnIntent | null | undefined,
     steps: ReadonlyArray<FastChartStep>,
     siteUrl: string,
+    isStudioThread: boolean,
 ) => {
     // Asking ends the turn on any intent; the questions are its reply.
     const askUserResponse = getAskUserResponse(steps);
     if (askUserResponse !== null) return askUserResponse;
-    const studioCardResponse = getStudioCardResponse(steps);
+    // The main chat's save keeps its own reply.
+    const studioCardResponse = isStudioThread
+        ? getStudioCardResponse(steps)
+        : null;
     if (studioCardResponse !== null) return studioCardResponse;
     if (enableDataAnswerFastResponse && turnIntent === 'data_answer')
         return getDataAnswerFastResponse(steps);
@@ -2816,10 +2814,17 @@ export const getAgentMessages = (
         canRunSql: args.canRunSql,
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
-        semanticStudioHasRepository: args.semanticStudioHasRepository,
-        semanticStudioBuilder: getStudioAbilities(loadout).builder,
-        semanticStudioProjectMap: args.semanticStudioProjectMap,
-        semanticStudioQueriesDraft: getStudioAbilities(loadout).canRunMetrics,
+        studio: loadout.promptSections.has('semanticStudio')
+            ? getSemanticStudioTurn(loadout, {
+                  drafts: args.semanticStudioDrafts,
+                  hasRepository: args.semanticStudioHasRepository,
+                  projectMap: args.semanticStudioProjectMap,
+                  siteUrl: args.siteUrl,
+                  repoFsRoot: args.repoFsRoot,
+                  repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
+              })
+            : undefined,
+        projectContextInRead: getStudioAbilities(loadout).builder,
         slackLinksOnly: args.slackLinksOnly,
         enableComposerPythonNodes: args.enableComposerQueries,
         liveSources: args.liveSources,
@@ -3236,6 +3241,7 @@ const runGenerateAgentResponse = async ({
                         preparedContext?.turnIntent,
                         steps,
                         args.siteUrl,
+                        args.isSemanticStudioThread,
                     ) !== null,
             ],
             abortSignal,
@@ -3494,6 +3500,7 @@ const runGenerateAgentResponse = async ({
                       preparedContext?.turnIntent,
                       result.steps,
                       args.siteUrl,
+                      args.isSemanticStudioThread,
                   ) ?? result.text),
             result.steps,
         );
@@ -3698,6 +3705,7 @@ const runStreamAgentResponse = async ({
                         preparedContext?.turnIntent,
                         steps,
                         args.siteUrl,
+                        args.isSemanticStudioThread,
                     ) !== null,
             ],
             providerOptions: args.providerOptions,
@@ -3869,6 +3877,7 @@ const runStreamAgentResponse = async ({
                                     },
                                 ],
                                 args.siteUrl,
+                                args.isSemanticStudioThread,
                             );
                         }
                         logger(
@@ -4067,6 +4076,7 @@ const runStreamAgentResponse = async ({
                               preparedContext?.turnIntent,
                               steps,
                               args.siteUrl,
+                              args.isSemanticStudioThread,
                           ) ?? modelResponse),
                     steps,
                 );

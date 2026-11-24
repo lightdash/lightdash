@@ -25,7 +25,6 @@ import {
     type WritebackMergeResult,
 } from '@lightdash/common';
 import { NATIVE_MODEL_DIRECTORIES } from '@lightdash/common/lightdash/loader';
-import { createHash } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import {
     type LightdashAnalytics,
@@ -38,27 +37,35 @@ import { startStepTimings } from '../../../utils/stepTimings';
 import { type SemanticStudioWorkspaceModel } from '../../models/SemanticStudioWorkspaceModel';
 import { type AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
+import { sourceRevision } from '../AiWritebackService/utils';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import {
     quoteCompileOutput,
     type BranchCompileCheck,
 } from './branchCompileCheck';
+import { type StudioFileStorage } from './checkedExplores';
 import { type DbtScriptChange } from './dbtManifestPatch';
 import {
     findDbtDraftExplores,
     saveDbtTryOut,
     type DbtTryOut,
-    type DbtTryOutStorage,
 } from './dbtTryOut';
 import { type IncrementalDbtCompileService } from './IncrementalDbtCompileService';
 import { type SemanticStudioService } from './SemanticStudioService';
-import { trackStudioActivity, type ModelProject } from './studioProject';
+import {
+    trackStudioActivity,
+    worksAsDbtPullRequests,
+    type ModelProject,
+} from './studioProject';
 
 export type SemanticStudioCheckoutServiceArguments = {
     analytics: Pick<LightdashAnalytics, 'track'>;
     studio: Pick<
         SemanticStudioService,
-        'getStatus' | 'assertCanUseStudio' | 'recordPullRequestState'
+        | 'getStatus'
+        | 'assertCanUseStudio'
+        | 'mergePullRequest'
+        | 'findDraftExplores'
     >;
     projectModel: {
         get: (projectUuid: string) => Promise<ModelProject>;
@@ -92,7 +99,7 @@ export type SemanticStudioCheckoutServiceArguments = {
         ) => Promise<unknown>;
     };
     projectService: Pick<ProjectService, 'compileExploresFromBranch'>;
-    fileStorageClient: DbtTryOutStorage;
+    fileStorageClient: StudioFileStorage;
     jobModel: Pick<JobModel, 'findLatestCompileStatus'>;
     writebackPreviewService: Pick<
         WritebackPreviewService,
@@ -100,10 +107,7 @@ export type SemanticStudioCheckoutServiceArguments = {
     >;
     aiWritebackService: Pick<
         AiWritebackService,
-        | 'openStudioCheckout'
-        | 'saveWithScript'
-        | 'findPullRequestBranch'
-        | 'mergePullRequest'
+        'openStudioCheckout' | 'saveWithScript' | 'findPullRequestBranch'
     >;
     incrementalDbtCompile: Pick<
         IncrementalDbtCompileService,
@@ -215,11 +219,9 @@ export class SemanticStudioCheckoutService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<boolean> {
-        const { enabled, appliesAs } = await this.studio.getStatus(
-            user,
-            projectUuid,
+        return worksAsDbtPullRequests(
+            await this.studio.getStatus(user, projectUuid),
         );
-        return enabled && appliesAs === 'dbt_pull_request';
     }
 
     /** Refuses anyone who cannot use Studio here, and with `notDbt` a project that is not a dbt project in a repository. */
@@ -228,28 +230,10 @@ export class SemanticStudioCheckoutService extends BaseService {
         projectUuid: string,
         notDbt: string,
     ): Promise<void> {
-        const { appliesAs } = await this.studio.assertCanUseStudio(
-            user,
-            projectUuid,
-        );
-        if (appliesAs !== 'dbt_pull_request') {
+        const status = await this.studio.assertCanUseStudio(user, projectUuid);
+        if (!worksAsDbtPullRequests(status)) {
             throw new ParameterError(notDbt);
         }
-    }
-
-    /** Keeps what a code-mode change compiled to as the conversation's try-out, until the preview project is built. */
-    async saveDbtScriptTryOut(
-        user: SessionUser,
-        projectUuid: string,
-        threadUuid: string | null,
-        tryOut: DbtTryOut,
-    ): Promise<void> {
-        await saveDbtTryOut(
-            this.fileStorageClient,
-            { projectUuid, userUuid: user.userUuid },
-            threadUuid,
-            tryOut,
-        );
     }
 
     /**
@@ -340,10 +324,9 @@ export class SemanticStudioCheckoutService extends BaseService {
             userUuid: user.userUuid,
         });
         if (!active) return null;
-        const compile =
-            status.appliesAs === 'dbt_pull_request'
-                ? await this.findOrStartBranchCompile(user, active)
-                : null;
+        const compile = worksAsDbtPullRequests(status)
+            ? await this.findOrStartBranchCompile(user, active)
+            : null;
         return {
             workspaceUuid: active.workspaceUuid,
             name: active.name,
@@ -591,20 +574,12 @@ export class SemanticStudioCheckoutService extends BaseService {
                 'This draft can be published once its latest edit compiles',
             );
         }
-        const result = await this.aiWritebackService.mergePullRequest({
+        const result = await this.studio.mergePullRequest(
             user,
             projectUuid,
             prUrl,
-            incrementalCompile: true,
-        });
-        if (result.merged) {
-            await this.studio.recordPullRequestState(
-                user,
-                projectUuid,
-                prUrl,
-                'merged',
-            );
-        }
+            { sha: undefined, incrementalCompile: true },
+        );
         this.track(
             user,
             projectUuid,
@@ -712,6 +687,26 @@ export class SemanticStudioCheckoutService extends BaseService {
         }
     }
 
+    /** Every explore as the person's unpublished change leaves it: their checked-out dbt change, else their draft. */
+    async findDevelopmentExplores(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<Map<string, Explore | ExploreError | null> | null> {
+        const status = await this.studio.getStatus(user, projectUuid);
+        if (status.appliesAs !== 'dbt_pull_request') {
+            return this.studio.findDraftExplores(user, projectUuid);
+        }
+        return status.enabled
+            ? findDbtDraftExplores(
+                  {
+                      storage: this.fileStorageClient,
+                      workspaceModel: this.workspaceModel,
+                  },
+                  { projectUuid, userUuid: user.userUuid },
+              )
+            : null;
+    }
+
     /**
      * Every explore as a dbt project's pull request leaves it, read from the preview
      * project built from that branch; null when this is not such a preview or the
@@ -814,10 +809,7 @@ export class SemanticStudioCheckoutService extends BaseService {
         return {
             path,
             content,
-            revision:
-                content === null
-                    ? null
-                    : createHash('sha256').update(content).digest('hex'),
+            revision: content === null ? null : sourceRevision(content),
         };
     }
 
@@ -963,10 +955,12 @@ export class SemanticStudioCheckoutService extends BaseService {
             );
         }
         if (threadUuid && saved.explores !== null && saved.result.prUrl) {
-            await this.saveDbtScriptTryOut(user, projectUuid, threadUuid, {
-                prUrl: saved.result.prUrl,
-                explores: saved.explores,
-            }).catch((error: unknown) => {
+            await saveDbtTryOut(
+                this.fileStorageClient,
+                { projectUuid, userUuid: user.userUuid },
+                threadUuid,
+                { prUrl: saved.result.prUrl, explores: saved.explores },
+            ).catch((error: unknown) => {
                 this.logger.warn(
                     `SemanticStudio: failed to keep the try-out of a hand edit: ${getErrorMessage(error)}`,
                 );
@@ -1017,7 +1011,7 @@ export class SemanticStudioCheckoutService extends BaseService {
             prAction: saved.result.prAction === 'opened' ? 'opened' : 'updated',
             commitSha,
             checked: saved.checked,
-            revision: createHash('sha256').update(content).digest('hex'),
+            revision: sourceRevision(content),
         };
     }
 }

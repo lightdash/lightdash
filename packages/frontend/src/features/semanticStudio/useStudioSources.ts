@@ -1,5 +1,4 @@
 import {
-    type ApiAiAgentThreadCreateResponse,
     type ApiError,
     type SaveSemanticStudioSourceRequest,
     type SemanticStudioSourceFile,
@@ -8,12 +7,15 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef } from 'react';
-import { getAiAgentApiBase } from '../../ee/features/aiCopilot/hooks/aiAgentRouting';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
-import { type StoredThread } from './studioChange';
+import { type StartStudioThread, type StoredThread } from './studioChange';
 import { invalidateStudio, SOURCES_KEY } from './studioQueryKeys';
 
 export const SOURCE_PARAM = 'path';
+
+/** `models/orders.yml` and `models/orders.sql` are the model `orders`. */
+export const modelNameOfSourcePath = (path: string) =>
+    (path.split('/').pop() ?? path).replace(/\.(ya?ml|sql)$/, '');
 
 const withPrUrl = (prUrl: string | null, params: Record<string, string> = {}) =>
     new URLSearchParams(prUrl ? { ...params, prUrl } : params).toString();
@@ -59,7 +61,10 @@ export const useStudioSourceFile = (
 };
 
 /** Saves a hand edit as a commit on the change, then reads the files and the change's diff again. */
-export const useSaveStudioSource = (projectUuid: string) => {
+export const useSaveStudioSource = (
+    projectUuid: string,
+    startThread: StartStudioThread,
+) => {
     const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const pendingThread = useRef<StoredThread | null>(null);
@@ -73,23 +78,12 @@ export const useSaveStudioSource = (projectUuid: string) => {
     >({
         mutationFn: async ({ newChangeAgentUuid, ...body }) => {
             // A save that then fails leaves a conversation no change points at.
-            const startThread = async (agentUuid: string) => {
-                const created = await lightdashApi<
-                    ApiAiAgentThreadCreateResponse['results']
-                >({
-                    url: `${getAiAgentApiBase(projectUuid)}/${agentUuid}/threads`,
-                    method: 'POST',
-                    body: JSON.stringify({
-                        createdFrom: 'semantic_studio',
-                        threadContext: `This change started with a hand edit to ${body.path}.`,
-                    }),
-                });
-                return { threadUuid: created.uuid, agentUuid };
-            };
             const thread =
                 body.threadUuid === null && newChangeAgentUuid
-                    ? (pendingThread.current ??=
-                          await startThread(newChangeAgentUuid))
+                    ? (pendingThread.current ??= await startThread(
+                          newChangeAgentUuid,
+                          `This change started with a hand edit to ${body.path}.`,
+                      ))
                     : null;
             const saved = await lightdashApi<SemanticStudioSourceSave>({
                 url: `/projects/${projectUuid}/semantic-studio/sources/file`,

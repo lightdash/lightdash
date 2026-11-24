@@ -1,13 +1,13 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+    useChatOpen,
     useStoredStudioThread,
     type StoredThread,
 } from '../../../../../features/semanticStudio/studioChange';
 import {
     useCompileFollowUp,
     useFinishDiscardedWork,
-    useChatOpen,
     useStudioAgent,
     useStudioThread,
 } from './useSemanticStudioChat';
@@ -51,7 +51,6 @@ vi.mock('../../../../../features/semanticStudio/useStudioWorkspaces', () => ({
 }));
 
 vi.mock('../../../../../features/semanticStudio/useSemanticLayerModel', () => ({
-    useKeepsSemanticLayerDraft: () => true,
     useCanEditSemanticLayer: () => true,
     useDraftCheckout: () => ({ data: { branchCompile: held.compile } }),
     useClaimCompileFollowUp: () => ({ mutateAsync: held.claim }),

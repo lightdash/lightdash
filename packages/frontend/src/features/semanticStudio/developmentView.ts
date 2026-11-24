@@ -12,15 +12,17 @@ import {
 import { useCallback } from 'react';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import {
+    PULL_REQUEST_CI_CHECKS_KEY,
+    PULL_REQUEST_DIFF_KEY,
+    WRITEBACK_RUN_STATUS_KEY,
+} from '../writeback/writebackQueryKeys';
+import {
     CHECKOUT_KEY,
     DRAFT_KEY,
     DRAFT_STATE_KEY,
     MODEL_VERSION_KEY,
-    PULL_REQUEST_CI_CHECKS_KEY,
-    PULL_REQUEST_DIFF_KEY,
     SOURCES_KEY,
     WORKSPACES_KEY,
-    WRITEBACK_RUN_STATUS_KEY,
 } from './studioQueryKeys';
 
 /** Open Try it sessions; each keeps the view it started on, so no other tab or page moves it or switches it off under them. */

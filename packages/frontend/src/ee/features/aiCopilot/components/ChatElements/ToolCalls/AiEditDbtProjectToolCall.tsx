@@ -25,8 +25,8 @@ import confetti from 'canvas-confetti';
 import { useContext, useEffect, useRef, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import { isMergeable } from '../../../../../../features/semanticStudio/pullRequestActions';
-import { usePullRequestCiChecks } from '../../../../../../features/semanticStudio/usePullRequestCiChecks';
+import { isMergeable } from '../../../../../../features/writeback/pullRequestActions';
+import { usePullRequestCiChecks } from '../../../../../../features/writeback/usePullRequestCiChecks';
 import { useClosePullRequest } from '../../../hooks/useClosePullRequest';
 import { useMergePullRequest } from '../../../hooks/useMergePullRequest';
 import {
@@ -34,8 +34,8 @@ import {
     useProjectAiAgent,
 } from '../../../hooks/useProjectAiAgents';
 import { POST_MERGE_MIGRATION_PROMPT } from '../../../postMergeMigrationPrompt';
+import { DbtTurnSummaryCard } from '../../SemanticStudioAgent/cards/DbtTurnSummaryCard';
 import styles from './AiEditDbtProjectToolCall.module.css';
-import { DbtTurnSummaryCard } from './DbtTurnSummaryCard';
 import {
     INSTALL_ACTIONS,
     summarisePrUrl,
@@ -43,7 +43,7 @@ import {
 } from './pullRequestCardUtils';
 import { PullRequestCiChecks } from './PullRequestCiChecks';
 import { PullRequestViewMenu } from './PullRequestViewMenu';
-import { QuietCardsContext, StudioAskContext } from './quietCards';
+import { InStudioChatContext, StudioAskContext } from './studioChatContext';
 import { WritebackProgressCard } from './WritebackProgressCard';
 
 type Props = {
@@ -90,7 +90,7 @@ export const PullRequestActionButtons: FC<{
     onMerge: () => void;
     onClose: () => void;
 }> = ({ ciChecks, isMerging, isClosing, onMerge, onClose }) => {
-    const quiet = useContext(QuietCardsContext);
+    const quiet = useContext(InStudioChatContext);
     const [armed, setArmed] = useState<'merge' | 'close' | null>(null);
     const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const mergeButtonRef = useRef<HTMLButtonElement>(null);
@@ -255,7 +255,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     isLatest = true,
     note = null,
 }) => {
-    const quiet = useContext(QuietCardsContext);
+    const quiet = useContext(InStudioChatContext);
     const askStudio = useContext(StudioAskContext);
     // Hooks must run before the early returns below; the query is disabled until
     // there's a PR URL, so the error/no-PR branches don't fetch anything.

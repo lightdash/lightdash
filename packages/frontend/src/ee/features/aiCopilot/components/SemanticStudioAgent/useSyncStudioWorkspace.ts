@@ -7,6 +7,7 @@ import { useStoredStudioThread } from '../../../../../features/semanticStudio/st
 import { splitStudioChatCode } from '../../../../../features/semanticStudio/studioChatRefs';
 import {
     findActiveWorkspace,
+    findThreadWorkspace,
     useStudioWorkspaceAction,
     useStudioWorkspaces,
 } from '../../../../../features/semanticStudio/useStudioWorkspaces';
@@ -75,9 +76,7 @@ export const useSyncStudioWorkspace = (
     useEffect(() => {
         if (!syncThread || !stored || !hasChanges || !workspaces || isLoading)
             return;
-        const own = workspaces.mine.find(
-            ({ threadUuid }) => threadUuid === stored.threadUuid,
-        );
+        const own = findThreadWorkspace(workspaces.mine, stored.threadUuid);
         if (own?.isActive || started.current === stored.threadUuid) return;
         started.current = stored.threadUuid;
         mutate({
@@ -103,9 +102,7 @@ export const useSyncStudioWorkspace = (
     useEffect(() => {
         if (!syncThread || !stored || !title || !workspaces || isLoading)
             return;
-        const own = workspaces.mine.find(
-            ({ threadUuid }) => threadUuid === stored.threadUuid,
-        );
+        const own = findThreadWorkspace(workspaces.mine, stored.threadUuid);
         if (!own || own.name === title) return;
         // A workspace the server started before the chat had a title is named for no request.
         if (

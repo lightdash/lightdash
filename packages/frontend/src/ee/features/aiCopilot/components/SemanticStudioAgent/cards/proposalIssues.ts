@@ -1,4 +1,7 @@
-import { type SemanticLayerProposal } from '@lightdash/common';
+import {
+    describeModelFragmentRefusal,
+    type SemanticLayerProposal,
+} from '@lightdash/common';
 import {
     IconAlertTriangle,
     IconInfoCircle,
@@ -24,10 +27,10 @@ export const listProposalIssues = (
 ): Issue[] =>
     proposal.models.flatMap(({ model, error, refusals, notes }) => [
         ...(error ? [{ kind: 'failed' as const, model, detail: error }] : []),
-        ...refusals.map(({ path, reason }) => ({
+        ...refusals.map((refusal) => ({
             kind: 'skipped' as const,
             model,
-            detail: `${path}: ${reason.replaceAll('_', ' ')}`,
+            detail: describeModelFragmentRefusal(refusal),
         })),
         ...(notes ?? []).map((detail) => ({
             kind: 'note' as const,

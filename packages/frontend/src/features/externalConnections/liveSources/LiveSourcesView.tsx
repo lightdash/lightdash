@@ -22,6 +22,7 @@ import {
     type ReactNode,
 } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import tableClasses from '../../../components/common/sourceTable.module.css';
 import { useResultsCacheStatus } from '../../../hooks/useProjectResultsCacheSettings';
 import { useExternalConnectionApiUsage } from '../hooks/useExternalConnectionApiUsage';
 import { useExternalConnectionRateLimitUsage } from '../hooks/useExternalConnectionRateLimitUsage';
@@ -134,20 +135,20 @@ export const LiveSourcesTable: FC<{
             }
         };
     return (
-        <Box className={classes.table} role="table">
+        <Box className={tableClasses.table} role="table">
             <Box className={classes.row} data-head role="row">
                 <span role="columnheader">Integration</span>
                 <span role="columnheader">Name</span>
                 <span
                     role="columnheader"
-                    className={`${classes.number} ${classes.headWithInfo}`}
+                    className={`${tableClasses.number} ${classes.headWithInfo}`}
                 >
                     Data read
                     <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
                 </span>
                 <span
                     role="columnheader"
-                    className={`${classes.number} ${classes.headWithInfo}`}
+                    className={`${tableClasses.number} ${classes.headWithInfo}`}
                 >
                     API calls
                     <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
@@ -173,19 +174,19 @@ export const LiveSourcesTable: FC<{
                     </Group>
                     <Text
                         role="cell"
-                        className={classes.name}
+                        className={tableClasses.name}
                         miw={0}
                         truncate
                         title={target}
                     >
                         {connection.name}
                     </Text>
-                    <span role="cell" className={classes.number}>
+                    <span role="cell" className={tableClasses.number}>
                         {used.dataRead}
                     </span>
                     <span
                         role="cell"
-                        className={classes.number}
+                        className={tableClasses.number}
                         title={
                             used.medianLatency
                                 ? `${used.apiCalls} calls, median latency ${used.medianLatency}`
@@ -194,7 +195,7 @@ export const LiveSourcesTable: FC<{
                     >
                         {used.apiCalls}
                         {used.medianLatency ? (
-                            <span className={classes.statDetail}>
+                            <span className={tableClasses.statDetail}>
                                 {' '}
                                 ({used.medianLatency})
                             </span>
@@ -225,18 +226,20 @@ const Stat: FC<{
     /** Colours the value: red for a full rate limit, orange for a warning. */
     tone?: 'danger' | 'warning';
 }> = ({ label, value, detail, title, labelExtra, tone }) => (
-    <Box className={classes.stat}>
-        <span className={classes.statLabel}>
+    <Box className={tableClasses.stat}>
+        <span className={tableClasses.statLabel}>
             {label}
             {labelExtra}
         </span>
         <span
-            className={classes.statValue}
+            className={tableClasses.statValue}
             data-tone={tone}
             title={title ?? (detail ? `${value} (${detail})` : value)}
         >
             {value}
-            {detail && <span className={classes.statDetail}> ({detail})</span>}
+            {detail && (
+                <span className={tableClasses.statDetail}> ({detail})</span>
+            )}
         </span>
     </Box>
 );
@@ -270,7 +273,7 @@ export const LiveSourceSummary: FC<{
     const allFields = fields?.explores.flatMap((explore) => explore.fields);
     const inUse = allFields?.filter((field) => field.inUse).length;
     return (
-        <Box className={classes.summary} aria-label="Live data source">
+        <Box className={tableClasses.summary} aria-label="Live data source">
             <Stat label="Integration" value={row.integration} />
             {exploreLabels.length > 1 ? (
                 <Stat label="Explores" value={exploreLabels.join(', ')} />

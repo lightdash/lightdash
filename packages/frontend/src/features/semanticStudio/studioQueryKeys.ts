@@ -1,4 +1,8 @@
 import { type QueryClient } from '@tanstack/react-query';
+import {
+    PULL_REQUEST_CI_CHECKS_KEY,
+    PULL_REQUEST_DIFF_KEY,
+} from '../writeback/writebackQueryKeys';
 
 export const DRAFT_KEY = 'semantic-layer-draft';
 export const DRAFT_STATE_KEY = 'semantic-layer-draft-state';
@@ -7,9 +11,6 @@ export const CHECKOUT_KEY = 'semantic-studio-checkout';
 export const WORKSPACES_KEY = 'semantic-studio-workspaces';
 export const SOURCES_KEY = 'semantic-studio-sources';
 export const MODEL_VERSION_KEY = 'semantic-studio-model-version';
-export const PULL_REQUEST_DIFF_KEY = 'pullRequestDiff';
-export const PULL_REQUEST_CI_CHECKS_KEY = 'pullRequestCiChecks';
-export const WRITEBACK_RUN_STATUS_KEY = 'aiWritebackRunStatus';
 
 /** What a Studio write moved; the workspace list is always read again. */
 type StudioInvalidation = {

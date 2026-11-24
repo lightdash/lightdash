@@ -21,6 +21,7 @@ import { user } from '../../../services/ProjectService/ProjectService.mock';
 import { type BranchCompile } from '../../models/SemanticStudioWorkspaceModel';
 import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
 import { type ApiCheckout } from '../AiWritebackService/providers/GithubProvider';
+import { saveDbtTryOut } from './dbtTryOut';
 import {
     SemanticStudioCheckoutService,
     type SemanticStudioCheckoutServiceArguments,
@@ -109,7 +110,12 @@ const setup = ({
             if (!status.enabled) throw new ForbiddenError('Studio is off');
             return status;
         },
-        recordPullRequestState: vi.fn(async () => undefined),
+        mergePullRequest: vi.fn(async () => ({
+            merged: true,
+            sha: 'merge-sha',
+            compileJobUuid: 'job-1',
+        })),
+        findDraftExplores: vi.fn(async () => new Map([['drafted', null]])),
     };
     const files = new Map<string, Buffer>();
     const branchCompiles = new Map<string, CompileRow>();
@@ -128,11 +134,6 @@ const setup = ({
         timings: { gitRefreshMs: 40, depsMs: 30, dbtCompileMs: 20 },
     }));
     const findPullRequestBranch = vi.fn(async () => 'studio-branch');
-    const mergePullRequest = vi.fn(async () => ({
-        merged: true,
-        sha: 'merge-sha',
-        compileJobUuid: 'job-1',
-    }));
     let activeWorkspace: { threadUuid: string; prUrl: string | null } | null =
         null;
     const unused = async (): Promise<never> => {
@@ -256,7 +257,6 @@ const setup = ({
             },
             saveWithScript: unused,
             findPullRequestBranch,
-            mergePullRequest,
         };
     const fileStorageClient = {
         isEnabled: () => true,
@@ -317,13 +317,14 @@ const setup = ({
         service,
         studio,
         aiWritebackService,
+        fileStorageClient,
         workspaceModel,
         setActiveWorkspace: (next: typeof activeWorkspace) => {
             activeWorkspace = next;
         },
         compileExploresFromBranch,
         findPullRequestBranch,
-        mergePullRequest,
+        mergePullRequest: studio.mergePullRequest,
         queueBranchCompile,
         branchCompiles,
         threadPrompts,
@@ -404,11 +405,99 @@ describe('SemanticStudioCheckoutService', () => {
         const dbt = (overrides: Parameters<typeof setup>[0] = {}) =>
             setup({ dbtConnection: DBT_IN_GITHUB, ...overrides });
 
+        it('shows the person who made the change what it compiles to, and no one who cannot write', async () => {
+            const context = dbt();
+            expect(
+                await context.service.findDevelopmentExplores(
+                    repoWriter,
+                    PROJECT_UUID,
+                ),
+            ).toBeNull();
+            await saveDbtTryOut(
+                context.fileStorageClient,
+                { projectUuid: PROJECT_UUID, userUuid: repoWriter.userUuid },
+                null,
+                project,
+            );
+            expect(
+                (
+                    await context.service.findDevelopmentExplores(
+                        repoWriter,
+                        PROJECT_UUID,
+                    )
+                )?.get('try_out'),
+            ).toEqual(TRY_OUT_EXPLORE);
+            expect(
+                await context.service.findDevelopmentExplores(
+                    deployer,
+                    PROJECT_UUID,
+                ),
+            ).toBeNull();
+            expect(context.studio.findDraftExplores).not.toHaveBeenCalled();
+        });
+
+        it("reads the active workspace's own change, not an older one for another pull request", async () => {
+            const context = dbt();
+            await saveDbtTryOut(
+                context.fileStorageClient,
+                { projectUuid: PROJECT_UUID, userUuid: repoWriter.userUuid },
+                null,
+                project,
+            );
+            context.setActiveWorkspace({
+                threadUuid: 'thread-2',
+                prUrl: 'https://github.com/acme/shop/pull/2',
+            });
+            expect(
+                await context.service.findDevelopmentExplores(
+                    repoWriter,
+                    PROJECT_UUID,
+                ),
+            ).toBeNull();
+            await saveDbtTryOut(
+                context.fileStorageClient,
+                { projectUuid: PROJECT_UUID, userUuid: repoWriter.userUuid },
+                'thread-2',
+                project,
+            );
+            expect(
+                (
+                    await context.service.findDevelopmentExplores(
+                        repoWriter,
+                        PROJECT_UUID,
+                    )
+                )?.get('try_out'),
+            ).toEqual(TRY_OUT_EXPLORE);
+            context.setActiveWorkspace({
+                threadUuid: 'thread-1',
+                prUrl: project.prUrl,
+            });
+            expect(
+                (
+                    await context.service.findDevelopmentExplores(
+                        repoWriter,
+                        PROJECT_UUID,
+                    )
+                )?.get('try_out'),
+            ).toEqual(TRY_OUT_EXPLORE);
+        });
+
+        it('reads the draft of a project that keeps one', async () => {
+            expect(
+                (
+                    await setup().service.findDevelopmentExplores(
+                        deployer,
+                        PROJECT_UUID,
+                    )
+                )?.has('drafted'),
+            ).toBe(true);
+        });
+
         it('stands in for a preview that has not compiled yet', async () => {
             const context = dbt({ previewExplores: {} });
-            await context.service.saveDbtScriptTryOut(
-                repoWriter,
-                PROJECT_UUID,
+            await saveDbtTryOut(
+                context.fileStorageClient,
+                { projectUuid: PROJECT_UUID, userUuid: repoWriter.userUuid },
                 null,
                 project,
             );
@@ -440,9 +529,12 @@ describe('SemanticStudioCheckoutService', () => {
                     },
                     previewCompile,
                 });
-                await context.service.saveDbtScriptTryOut(
-                    repoWriter,
-                    PROJECT_UUID,
+                await saveDbtTryOut(
+                    context.fileStorageClient,
+                    {
+                        projectUuid: PROJECT_UUID,
+                        userUuid: repoWriter.userUuid,
+                    },
                     null,
                     project,
                 );
@@ -1114,17 +1206,11 @@ describe('SemanticStudioCheckoutService', () => {
             ).rejects.toBeInstanceOf(ForbiddenError);
             expect(context.mergePullRequest).not.toHaveBeenCalled();
             expect(await publish()).toMatchObject({ merged: true });
-            expect(context.mergePullRequest).toHaveBeenCalledWith({
-                user: repoWriter,
-                projectUuid: PROJECT_UUID,
-                prUrl: OWN_PULL_REQUEST,
-                incrementalCompile: true,
-            });
-            expect(context.studio.recordPullRequestState).toHaveBeenCalledWith(
+            expect(context.mergePullRequest).toHaveBeenCalledWith(
                 repoWriter,
                 PROJECT_UUID,
                 OWN_PULL_REQUEST,
-                'merged',
+                { sha: undefined, incrementalCompile: true },
             );
         });
 

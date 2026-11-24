@@ -130,8 +130,10 @@ describe('getProposeSemanticLayerChange', () => {
             'check: run orders_total once with runMetricQuery',
         );
         expect(asked.metadata).toMatchObject({ needsFollowUp: true });
+        expect(asked.result).not.toContain('write nothing more');
         const notAsked = await propose(proposeMetric, 'metrics: {}');
         expect(notAsked.result).not.toContain('runMetricQuery');
+        expect(notAsked.result).toContain('write nothing more');
         expect(notAsked.metadata).toMatchObject({ needsFollowUp: false });
     });
 

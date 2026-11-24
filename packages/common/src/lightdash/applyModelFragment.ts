@@ -66,6 +66,24 @@ export type ModelFragmentRefusal = {
     reason: ModelFragmentRefusalReason;
 };
 
+/** Why a part was refused, as a clause whose subject is the part. */
+export const MODEL_FRAGMENT_REFUSAL_TEXT: Record<
+    ModelFragmentRefusalReason,
+    string
+> = {
+    access: 'changes who can see it, which cannot be changed here',
+    name_taken: 'uses a name another field of this model already has',
+    incomplete: 'is missing what it needs, such as its type or sql',
+    invalid_filter: 'has a filter that is not a single field: value pair',
+    not_found: 'is not in the model',
+};
+
+export const describeModelFragmentRefusal = ({
+    path,
+    reason,
+}: ModelFragmentRefusal): string =>
+    `${path} ${MODEL_FRAGMENT_REFUSAL_TEXT[reason]}.`;
+
 export type ApplyModelFragmentResult = {
     contents: string;
     changes: ModelFragmentChange[];

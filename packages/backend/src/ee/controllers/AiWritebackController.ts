@@ -1,6 +1,7 @@
 import {
     assertRegisteredAccount,
     ParameterError,
+    pullRequestStateOf,
     type AiWritebackRequestBody,
     type ApiAiWritebackResponse,
     type ApiAiWritebackRunStatusResponse,
@@ -40,10 +41,7 @@ import {
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import { AiWritebackService } from '../services/AiWritebackService/AiWritebackService';
-import {
-    pullRequestStateOf,
-    type SemanticStudioService,
-} from '../services/SemanticStudioService/SemanticStudioService';
+import { type SemanticStudioService } from '../services/SemanticStudioService/SemanticStudioService';
 
 // The target repo (owner/repo) and dbt sub-folder are resolved server-side from
 // the chosen dbt source. `dbtSourceUuid` selects it when the project has more
@@ -171,6 +169,7 @@ export class AiWritebackController extends BaseController {
                     projectUuid,
                     prUrl,
                     pullRequestStateOf(results),
+                    false,
                 );
         }
         return {
@@ -274,24 +273,15 @@ export class AiWritebackController extends BaseController {
             );
         }
         this.setStatus(200);
-        const results = await this.getAiWritebackService().mergePullRequest({
-            user: toSessionUser(req.account),
-            projectUuid,
-            prUrl: parsed.data.prUrl,
-            sha: parsed.data.sha,
-            incrementalCompile: false,
-        });
         // Recorded now, so the change reads merged from the moment it was, not from whenever its checks next load.
-        if (results.merged) {
-            await this.services
-                .getSemanticStudioService<SemanticStudioService>()
-                .recordPullRequestState(
-                    toSessionUser(req.account),
-                    projectUuid,
-                    parsed.data.prUrl,
-                    'merged',
-                );
-        }
+        const results = await this.services
+            .getSemanticStudioService<SemanticStudioService>()
+            .mergePullRequest(
+                toSessionUser(req.account),
+                projectUuid,
+                parsed.data.prUrl,
+                { sha: parsed.data.sha, incrementalCompile: false },
+            );
         return {
             status: 'ok',
             results,

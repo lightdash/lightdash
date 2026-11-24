@@ -1,6 +1,6 @@
 import { FeatureFlags } from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import {
     useStoredStudioThread,
@@ -10,9 +10,9 @@ import {
     useCanEditSemanticLayer,
     useClaimCompileFollowUp,
     useDraftCheckout,
-    useKeepsSemanticLayerDraft,
 } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import {
+    findThreadWorkspace,
     useActiveStudioWorkspace,
     useStudioWorkspaceAction,
     useStudioWorkspaces,
@@ -28,30 +28,6 @@ import { useDefaultAiAgent } from '../Launcher/useDefaultAiAgent';
 /** Asks for the project's agents with the page, so the chat loads alongside the explores and not after them. */
 export const usePrefetchStudioAgent = (projectUuid: string | undefined) => {
     useDefaultAiAgent(projectUuid);
-};
-
-/** Whether the chat is open on the change you are on; closing it is remembered per change. */
-export const useChatOpen = (projectUuid: string) => {
-    const [stored] = useStoredStudioThread(projectUuid);
-    const [closed, setClosed] = useLocalStorage<string[]>({
-        key: 'semantic-studio-chat-closed',
-        defaultValue: [],
-        getInitialValueInEffect: false,
-    });
-    const newChat = `new-${projectUuid}`;
-    const change = stored?.threadUuid ?? newChat;
-    const setIsOpen = useCallback(
-        (isOpen: boolean) =>
-            setClosed((current) => {
-                // Opening also reopens a blank new change, which starting one asks for before it has a thread.
-                const others = current.filter(
-                    (key) => key !== change && !(isOpen && key === newChat),
-                );
-                return isOpen ? others : [...others, change].slice(-50);
-            }),
-        [change, newChat, setClosed],
-    );
-    return [!closed.includes(change), setIsOpen] as const;
 };
 
 /** A Studio chat's thread; one that no longer exists is forgotten instead of failing on every load. */
@@ -94,9 +70,9 @@ export const useFinishDiscardedWork = (projectUuid: string) => {
     };
 };
 
+/** The agent and thread of the chat this browser has open. */
 export const useStudioAgent = (projectUuid: string) => {
     const flag = useServerFeatureFlag(FeatureFlags.SemanticStudioEditing);
-    const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
     const canEdit = useCanEditSemanticLayer(projectUuid);
     const isEnabled = flag.data?.enabled === true && canEdit;
     const {
@@ -105,28 +81,6 @@ export const useStudioAgent = (projectUuid: string) => {
         isLoadingAgents,
     } = useDefaultAiAgent(projectUuid);
     const [stored, setStored] = useStoredStudioThread(projectUuid);
-    // One chat back, not a history; the workspaces list holds the rest.
-    const [previous, setPrevious] = useLocalStorage<StoredThread | null>({
-        key: `semantic-studio-agent-previous-thread-${projectUuid}`,
-        defaultValue: null,
-        getInitialValueInEffect: false,
-    });
-    const { data: workspaces } = useStudioWorkspaces(projectUuid);
-    const workspaceAction = useStudioWorkspaceAction(projectUuid);
-    // Switching chats switches workspaces: the one you talk in is the one your changes go to.
-    const follow = (next: StoredThread | null) => {
-        if (keepsDraft) return;
-        const workspace = next
-            ? workspaces?.mine.find(
-                  ({ threadUuid }) => threadUuid === next.threadUuid,
-              )
-            : undefined;
-        workspaceAction.mutate(
-            workspace
-                ? { kind: 'activate', workspaceUuid: workspace.workspaceUuid }
-                : { kind: 'leave' },
-        );
-    };
     const storedAgent = agents.find(({ uuid }) => uuid === stored?.agentUuid);
     return {
         isLoadingAgents,
@@ -138,6 +92,38 @@ export const useStudioAgent = (projectUuid: string) => {
                 ? { agent: storedAgent, threadUuid: stored.threadUuid }
                 : null,
         setStored,
+    };
+};
+
+/** Starts a new chat or goes back to the previous one; with `chatFollowsWorkspace`, the active workspace moves with it. */
+export const useStudioThreadSwitch = (
+    projectUuid: string,
+    { chatFollowsWorkspace }: { chatFollowsWorkspace: boolean },
+) => {
+    const { agents } = useDefaultAiAgent(projectUuid);
+    const [stored, setStored] = useStoredStudioThread(projectUuid);
+    // One chat back, not a history; the workspaces list holds the rest.
+    const [previous, setPrevious] = useLocalStorage<StoredThread | null>({
+        key: `semantic-studio-agent-previous-thread-${projectUuid}`,
+        defaultValue: null,
+        getInitialValueInEffect: false,
+    });
+    const { data: workspaces } = useStudioWorkspaces(projectUuid);
+    const workspaceAction = useStudioWorkspaceAction(projectUuid);
+    // Switching chats switches workspaces: the one you talk in is the one your changes go to.
+    const follow = (next: StoredThread | null) => {
+        if (!chatFollowsWorkspace) return;
+        const workspace = findThreadWorkspace(
+            workspaces?.mine ?? [],
+            next?.threadUuid ?? null,
+        );
+        workspaceAction.mutate(
+            workspace
+                ? { kind: 'activate', workspaceUuid: workspace.workspaceUuid }
+                : { kind: 'leave' },
+        );
+    };
+    return {
         startNewThread: () => {
             if (stored) setPrevious(stored);
             setStored(null);

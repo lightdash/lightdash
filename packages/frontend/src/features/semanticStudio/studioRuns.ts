@@ -5,9 +5,11 @@ import {
     type CiChecks,
     type SemanticStudioWorkspace,
 } from '@lightdash/common';
-import { isMergeable } from './pullRequestActions';
+import { isMergeable } from '../writeback/pullRequestActions';
+import { WRITEBACK_STEPS } from '../writeback/writebackProgress';
 import { pullRequestNumberOf } from './urls';
-import { WRITEBACK_STEPS } from './writebackProgress';
+
+export const HAS_CONFLICTS = 'Has conflicts';
 
 /** Where one of your workspaces stands right now. */
 export type StudioRun =
@@ -33,7 +35,7 @@ export const toStudioRun = (
     const pullRequestNumber = pullRequestNumberOf(workspace.pullRequest.url);
     if (isMergeable(ciChecks)) return { kind: 'ready', pullRequestNumber };
     if (ciChecks?.mergeState === CiMergeState.CONFLICTS) {
-        return { kind: 'failing', pullRequestNumber, reason: 'Has conflicts' };
+        return { kind: 'failing', pullRequestNumber, reason: HAS_CONFLICTS };
     }
     if (ciChecks?.overall === CiCheckState.FAILURE) {
         return { kind: 'failing', pullRequestNumber, reason: 'Checks failed' };

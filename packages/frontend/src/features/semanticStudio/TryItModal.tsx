@@ -30,6 +30,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../explorer/store';
+import { CHANGE_KIND_STYLE } from './modelCode';
 import classes from './TryItModal.module.css';
 import { pullRequestNumberOf } from './urls';
 import {
@@ -41,12 +42,6 @@ import { useSemanticLayerFieldUsage } from './useSemanticLayerModel';
 
 /** How many field chips show before the rest go in a menu. */
 const SHOWN = 6;
-
-const KINDS: Record<ChangedField['kind'], { label: string; color: string }> = {
-    new: { label: 'New', color: 'green' },
-    changed: { label: 'Changed', color: 'orange' },
-    removed: { label: 'Removed', color: 'red' },
-};
 
 const buildState = (model: string, fields: ChangedField[]) => {
     const state = buildInitialExplorerState({ isEditMode: true });
@@ -125,9 +120,9 @@ const FieldChip: FC<{ field: ChangedField; charts: number }> = ({
                     <Badge
                         component="span"
                         size="xs"
-                        color={KINDS[field.kind].color}
+                        color={CHANGE_KIND_STYLE[field.kind].color}
                     >
-                        {KINDS[field.kind].label}
+                        {CHANGE_KIND_STYLE[field.kind].label}
                     </Badge>
                 }
                 rightSection={

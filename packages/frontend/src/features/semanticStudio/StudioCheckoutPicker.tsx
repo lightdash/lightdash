@@ -19,9 +19,9 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useStoredStudioThread } from './studioChange';
+import classes from './StudioCheckoutPicker.module.css';
 import { useCheckOut, useStudioCheckout } from './useStudioCheckout';
 import { useStudioWorkspaces } from './useStudioWorkspaces';
-import classes from './WorkbenchView.module.css';
 
 dayjs.extend(relativeTime);
 

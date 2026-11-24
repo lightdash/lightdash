@@ -2,7 +2,7 @@ import { type ApiError } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { type LightdashApi } from '../../api';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
-import { PULL_REQUEST_DIFF_KEY } from './studioQueryKeys';
+import { PULL_REQUEST_DIFF_KEY } from './writebackQueryKeys';
 
 type PullRequestDiff = { diff: string } | null;
 
