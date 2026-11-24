@@ -646,6 +646,63 @@ describe('SemanticStudioCheckoutService', () => {
             );
         });
 
+        it('saves into the empty draft New draft made instead of leaving it behind', async () => {
+            const context = setup();
+            vi.spyOn(context.aiWritebackService, 'saveWithScript')
+                .mockResolvedValueOnce({ status: 'checked', diffs: [] })
+                .mockResolvedValueOnce({
+                    status: 'saved',
+                    changedModels: [],
+                    explores: null,
+                    checked: true,
+                    result: {
+                        output: '',
+                        exitCode: 0,
+                        prUrl: 'https://github.com/acme/shop/pull/8',
+                        prAction: 'opened',
+                        commitSha: 'abc',
+                        additions: 1,
+                        deletions: 0,
+                        projectName: 'Shop',
+                        repository: 'acme/shop',
+                        steps: [],
+                        dbtSourceUuid: null,
+                    },
+                });
+            vi.spyOn(context.workspaceModel, 'findActive').mockResolvedValue({
+                workspaceUuid: 'workspace-untitled',
+                projectUuid: PROJECT_UUID,
+                name: 'Untitled',
+                threadUuid: null,
+                agentUuid: null,
+                owner: { userUuid: deployer.userUuid, name: 'Someone' },
+                isMine: true,
+                isActive: true,
+                pullRequest: null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                finishedAt: null,
+                publishedLive: false,
+            });
+            const create = vi.spyOn(context.workspaceModel, 'create');
+            const attach = vi.spyOn(
+                context.workspaceModel,
+                'attachPullRequest',
+            );
+            await context.service.saveSource(
+                deployer,
+                PROJECT_UUID,
+                edit(null),
+            );
+            expect(create).not.toHaveBeenCalled();
+            expect(attach).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    workspaceUuid: 'workspace-untitled',
+                }),
+                'https://github.com/acme/shop/pull/8',
+            );
+        });
+
         it('refuses to continue a thread owned by someone else', async () => {
             const context = setup();
             vi.spyOn(

@@ -11,6 +11,7 @@ import {
     type StudioPullRequest,
 } from '../../../../../features/semanticStudio/studioChange';
 import {
+    findActiveWorkspace,
     findThreadWorkspace,
     useStudioWorkspaces,
 } from '../../../../../features/semanticStudio/useStudioWorkspaces';
@@ -57,10 +58,13 @@ export const useStudioPullRequest = (
     const { data: workspaces } = useStudioWorkspaces(projectUuid);
     const workspace =
         shown ??
-        findThreadWorkspace(
-            [...(workspaces?.mine ?? []), ...(workspaces?.recent ?? [])],
-            thread?.threadUuid ?? null,
-        );
+        (thread
+            ? findThreadWorkspace(
+                  [...(workspaces?.mine ?? []), ...(workspaces?.recent ?? [])],
+                  thread.threadUuid,
+              )
+            : // With no chat, a hand save's draft is the one checked out.
+              findActiveWorkspace(workspaces));
     const isChatOfChange =
         !workspace || workspace.threadUuid === thread?.threadUuid;
     const results = getDbtSaves(

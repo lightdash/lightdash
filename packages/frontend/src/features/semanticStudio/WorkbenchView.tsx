@@ -69,6 +69,7 @@ import {
     useStudioPullRequest,
 } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
 import { useSyncStudioWorkspace } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSyncStudioWorkspace';
+import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useProject } from '../../hooks/useProject';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
@@ -291,6 +292,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         isLoadingAgents,
         hasAgents,
     } = useStudioAgent(view.project.id);
+    const isCopilotEnabled =
+        useAiOrganizationSettings().data?.isCopilotEnabled === true;
     const [isChatOpen, setIsChatOpen] = useChatOpen(view.project.id);
     const [askedPrompt, setAskedPrompt] = useState<string | null>(null);
     const agentAvailable = hasChat && !!studioAgent;
@@ -1014,8 +1017,9 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                           ? {
                                 icon: null,
                                 title: 'Nothing in this draft yet',
-                                description:
-                                    'Ask for a change in the chat, or open a file from the list and edit it.',
+                                description: studioAgent
+                                    ? 'Ask for a change in the chat, or open a file from the list and edit it.'
+                                    : 'Open a file from the list and edit it.',
                             }
                           : {
                                 icon: null,
@@ -1252,7 +1256,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                     </Button>
                                                 ) : null}
                                                 {!studioAgent &&
-                                                !isLoadingAgents ? (
+                                                !isLoadingAgents &&
+                                                isCopilotEnabled ? (
                                                     <Button
                                                         size="xs"
                                                         variant="subtle"

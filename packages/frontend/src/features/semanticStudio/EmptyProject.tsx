@@ -7,6 +7,7 @@ import {
     getWarehouseLabel,
 } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
 import { WarehouseLogoStack } from '../../components/ProjectConnection/ProjectConnectFlow/WarehouseLogoStack';
+import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useProject } from '../../hooks/useProject';
 import { useTables } from '../sqlRunner/hooks/useTables';
 import classes from './EmptyProject.module.css';
@@ -194,6 +195,8 @@ export const EmptyProject: FC<{ view: ViewModel; hasAgents: boolean }> = ({
     const { options, pathOf } = useAddSource(view);
     const { data: project } = useProject(view.project.id);
     const canEdit = useCanEditSemanticLayer(view.project.id);
+    const isCopilotEnabled =
+        useAiOrganizationSettings().data?.isCopilotEnabled === true;
     if (!project) return null;
 
     const hasWarehouse = !!project.warehouseConnection;
@@ -215,7 +218,7 @@ export const EmptyProject: FC<{ view: ViewModel; hasAgents: boolean }> = ({
                     'Your tables and metrics come from the connected project. They show up here after it refreshes.',
             };
         }
-        if (canEdit && !hasAgent) {
+        if (canEdit && !hasAgent && isCopilotEnabled) {
             return {
                 title: 'Build your semantic layer',
                 description:
@@ -247,7 +250,8 @@ export const EmptyProject: FC<{ view: ViewModel; hasAgents: boolean }> = ({
                 {hasWarehouse &&
                 !hasConnectedProject &&
                 !hasAgent &&
-                canEdit ? (
+                canEdit &&
+                isCopilotEnabled ? (
                     <Button
                         component={Link}
                         to={getNewAgentUrl(view.project.id)}
