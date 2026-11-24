@@ -88,6 +88,18 @@ describe('checkMetricViewImport', () => {
                 sorts: [
                     { fieldId: 'orders_order_date_month', descending: true },
                 ],
+                filters: {
+                    dimensions: {
+                        id: 'check-window',
+                        and: [
+                            expect.objectContaining({
+                                target: { fieldId: 'orders_order_date' },
+                                operator: 'greaterThanOrEqual',
+                                values: ['2026-08-01'],
+                            }),
+                        ],
+                    },
+                },
             }),
         );
         expect(warehouse.runSqlJob.mock.calls[0][0].sql).toBe(
@@ -96,6 +108,7 @@ describe('checkMetricViewImport', () => {
                 '  MEASURE(`Revenue`) AS m0,',
                 '  MEASURE(`Active Accounts End`) AS m1',
                 'FROM catalog.analytics.order_metrics',
+                "WHERE `Order Date` >= DATE'2026-08-01'",
                 'GROUP BY 1 ORDER BY 1 DESC LIMIT 4',
             ].join('\n'),
         );

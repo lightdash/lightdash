@@ -163,6 +163,17 @@ it('takes only a path that names a part of a model to remove', () => {
     });
 });
 
+const DATED_MODEL = [
+    'type: model',
+    'name: orders',
+    'sql_from: analytics.orders',
+    'dimensions:',
+    '  - name: order_date',
+    '    type: date',
+    '    sql: ${TABLE}.order_date',
+    '',
+].join('\n');
+
 describe('getProposeSemanticLayerChange', () => {
     describe('importing a metric view', () => {
         const table = { table: 'order_metrics', schema: null, database: null };
@@ -414,7 +425,7 @@ dimensions:
                 {
                     model: 'orders',
                     contentBefore: 'before',
-                    contentAfter: 'after',
+                    contentAfter: DATED_MODEL,
                 },
             ],
             draftChangeUuid: 'draft-1',
@@ -422,7 +433,7 @@ dimensions:
         });
         const asked = await propose(proposeMetric, 'metrics: {}', true);
         expect(asked.result).toContain(
-            'check: run orders_total once with runMetricQuery',
+            'check: run orders_total once with runMetricQuery, which reads the draft, filtered to the last 3 full months of orders_order_date.',
         );
         expect(asked.metadata).toMatchObject({ needsFollowUp: true });
         expect(asked.result).not.toContain('write nothing more');
@@ -430,6 +441,47 @@ dimensions:
         expect(notAsked.result).not.toContain('runMetricQuery');
         expect(notAsked.result).toContain('write nothing more');
         expect(notAsked.metadata).toMatchObject({ needsFollowUp: false });
+    });
+
+    it('never asks for a check that would read every row of a model with no date', async () => {
+        const output = await propose(
+            async () => ({
+                results: [
+                    {
+                        model: 'events',
+                        status: 'ready',
+                        changes: [
+                            {
+                                path: 'metrics.active_accounts',
+                                action: 'added',
+                            },
+                        ],
+                        refusals: [],
+                        error: null,
+                        rejection: null,
+                        notes: [],
+                    },
+                ],
+                diffs: [
+                    {
+                        model: 'events',
+                        contentBefore: 'before',
+                        contentAfter: DATED_MODEL.replace(
+                            'name: orders',
+                            'name: events',
+                        ).replace('type: date', 'type: string'),
+                    },
+                ],
+                draftChangeUuid: 'draft-1',
+                startedChange: null,
+            }),
+            'metrics: {}',
+            true,
+        );
+        expect(output.result).toContain(
+            'check: events has no date to bound a query, so do not run events_active_accounts',
+        );
+        expect(output.result).not.toContain('runMetricQuery');
     });
 
     it('keeps the turn going after a clean change while the request has steps left', async () => {

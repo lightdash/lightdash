@@ -1,8 +1,10 @@
 import {
     DimensionType,
+    FilterOperator,
     getErrorMessage,
     getItemId,
     parseModelDocument,
+    type LightdashModel,
 } from '@lightdash/common';
 import { toModelPath } from '../../SemanticStudioService/draftFold';
 import type {
@@ -11,8 +13,46 @@ import type {
 } from '../types/aiAgentDependencies';
 
 const MAX_MEASURES = 3;
-const PERIODS = 3;
+/** Full months a check reads; no check reads all of a model's rows. */
+export const CHECK_PERIODS = 3;
 const TABLE_PREFIX = '${TABLE}.';
+
+/** The date a check bounds its window by: the model's first date or timestamp dimension on a column. */
+export const findMainDate = (
+    dimensions: LightdashModel['dimensions'],
+): LightdashModel['dimensions'][number] | null =>
+    dimensions.find(
+        ({ type, sql }) =>
+            (type === DimensionType.DATE || type === DimensionType.TIMESTAMP) &&
+            sql.startsWith(TABLE_PREFIX),
+    ) ?? null;
+
+/** The field id a model's check filters its window by; null when the model has no date to bound it. */
+export const findCheckDateId = (
+    model: string,
+    modelYaml: string,
+): string | null => {
+    try {
+        const date = findMainDate(
+            parseModelDocument(modelYaml, toModelPath(model)).dimensions,
+        );
+        return date ? getItemId({ table: model, name: date.name }) : null;
+    } catch {
+        return null;
+    }
+};
+
+/** The first day of the month CHECK_PERIODS months before today's, so the window holds every full month shown and the current one. */
+const getWindowStart = (today: Date): string =>
+    new Date(
+        Date.UTC(
+            today.getUTCFullYear(),
+            today.getUTCMonth() - CHECK_PERIODS,
+            1,
+        ),
+    )
+        .toISOString()
+        .slice(0, 10);
 
 export type MetricViewCheckDependencies = {
     runDraftQuery: RunAsyncQueryFn;
@@ -56,11 +96,7 @@ export const checkMetricViewImport = async (
     }: { model: string; modelYaml: string; today: Date },
 ): Promise<MetricViewCheck | null> => {
     const parsed = parseModelDocument(modelYaml, toModelPath(model));
-    const date = parsed.dimensions.find(
-        ({ type, sql }) =>
-            (type === DimensionType.DATE || type === DimensionType.TIMESTAMP) &&
-            sql.startsWith(TABLE_PREFIX),
-    );
+    const date = findMainDate(parsed.dimensions);
     const measures = Object.entries(parsed.metrics ?? {})
         .flatMap(([name, { sql }]) =>
             sql?.startsWith('MEASURE(') ? [{ name, sql }] : [],
@@ -68,16 +104,20 @@ export const checkMetricViewImport = async (
         .slice(0, MAX_MEASURES);
     if (!date || measures.length === 0) return null;
 
+    const dateId = getItemId({ table: model, name: date.name });
     const monthId = getItemId({ table: model, name: `${date.name}_month` });
+    const windowStart = getWindowStart(today);
     const metricIds = measures.map(({ name }) =>
         getItemId({ table: model, name }),
     );
     // One more month than shown, in case the latest one is still running.
-    const limit = PERIODS + 1;
+    const limit = CHECK_PERIODS + 1;
+    const dateSql = date.sql.slice(TABLE_PREFIX.length);
     const viewSql = [
-        `SELECT DATE_TRUNC('MONTH', ${date.sql.slice(TABLE_PREFIX.length)}) AS period,`,
+        `SELECT DATE_TRUNC('MONTH', ${dateSql}) AS period,`,
         measures.map(({ sql }, i) => `  ${sql} AS m${i}`).join(',\n'),
         `FROM ${parsed.sql_from}`,
+        `WHERE ${dateSql} >= DATE'${windowStart}'`,
         `GROUP BY 1 ORDER BY 1 DESC LIMIT ${limit}`,
     ].join('\n');
 
@@ -89,7 +129,19 @@ export const checkMetricViewImport = async (
                 metrics: metricIds,
                 sorts: [{ fieldId: monthId, descending: true }],
                 limit,
-                filters: {},
+                filters: {
+                    dimensions: {
+                        id: 'check-window',
+                        and: [
+                            {
+                                id: 'check-window-start',
+                                target: { fieldId: dateId },
+                                operator: FilterOperator.GREATER_THAN_OR_EQUAL,
+                                values: [windowStart],
+                            },
+                        ],
+                    },
+                },
                 tableCalculations: [],
                 customDimensions: [],
                 additionalMetrics: [],
@@ -109,7 +161,7 @@ export const checkMetricViewImport = async (
         if (months.length === 0) return null;
         const shown = months
             .filter((month) => month !== currentMonth)
-            .slice(0, PERIODS);
+            .slice(0, CHECK_PERIODS);
 
         let mismatched = false;
         const rows = shown.map((month) => {

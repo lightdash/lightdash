@@ -32,7 +32,9 @@ import type {
 } from '../types/aiAgentDependencies';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 import {
+    CHECK_PERIODS,
     checkMetricViewImport,
+    findCheckDateId,
     type MetricViewCheck,
     type MetricViewCheckDependencies,
 } from './metricViewCheck';
@@ -48,6 +50,7 @@ const renderProposedModel = (
     }: SemanticLayerProposalItemResult,
     advice: string[],
     metricsToRun: string[],
+    checkDateId: string | null,
     metricViewCheck: MetricViewCheck | null,
 ): string =>
     [
@@ -67,7 +70,9 @@ const renderProposedModel = (
         ...advice.map((line) => `  advice: ${line}`),
         ...(metricsToRun.length > 0
             ? [
-                  `  check: run ${metricsToRun.join(', ')} once with runMetricQuery, which reads the draft. A null, a zero or a total the table cannot produce means the definition is wrong: propose the fix. Otherwise go on with what the person asked, or end the turn when nothing is left.`,
+                  checkDateId
+                      ? `  check: run ${metricsToRun.join(', ')} once with runMetricQuery, which reads the draft, filtered to the last ${CHECK_PERIODS} full months of ${checkDateId}. A null, a zero or a total the table cannot produce means the definition is wrong: propose the fix. Otherwise go on with what the person asked, or end the turn when nothing is left.`
+                      : `  check: ${model} has no date to bound a query, so do not run ${metricsToRun.join(', ')}: it would read every row. Say in one sentence that their numbers were not checked.`,
               ]
             : []),
         ...(metricViewCheck?.lines ?? []),
@@ -184,6 +189,9 @@ export const getProposeSemanticLayerChange = ({
                         return {
                             result,
                             viewCheck,
+                            checkDateId: after
+                                ? findCheckDateId(result.model, after)
+                                : null,
                             advice:
                                 isReady && created?.contentAfter
                                     ? findNewModelAdvice(
@@ -229,11 +237,18 @@ export const getProposeSemanticLayerChange = ({
                 const output: ToolProposeSemanticLayerChangeOutput = {
                     result: [
                         ...advised.map(
-                            ({ result, advice, metricsToRun, viewCheck }) =>
+                            ({
+                                result,
+                                advice,
+                                metricsToRun,
+                                checkDateId,
+                                viewCheck,
+                            }) =>
                                 renderProposedModel(
                                     result,
                                     advice,
                                     metricsToRun,
+                                    checkDateId,
                                     viewCheck,
                                 ),
                         ),
