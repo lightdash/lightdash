@@ -87,7 +87,7 @@ export const toolProposeSemanticLayerChangeArgsSchema = z.object({
         .string()
         .nullable()
         .describe(
-            'A short name for the change, describing the request. Used only when this edit starts a new change.',
+            'A short name for the change, describing the request. Used only when this edit starts a new change or the checked-out one is still untitled.',
         ),
     note: z
         .string()

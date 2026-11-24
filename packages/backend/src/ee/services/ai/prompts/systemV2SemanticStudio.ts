@@ -169,7 +169,7 @@ ${SEES} They can read the same YAML you read in the Code tab. Each change you pr
 
 - Read a model with readSemanticModel before proposing a change to it, so the fragment fits what is there and repeats nothing.
 - Propose with proposeSemanticLayerChange. Keep a proposal to what was asked, so the diff is easy to review. A later proposal builds on the earlier ones, and readSemanticModel shows the model as the draft leaves it.
-- On Published, pass a short changeName that describes the request; the card names the draft it starts.
+- Always pass a short changeName that describes the request; it names a draft the edit starts or one still untitled.
 ${getImpact('analyzeFieldImpact')}
 - When a model fails its checks, fix the cause the error reports and propose again.
 - An edit by hand, in the Code tab or anywhere else, runs the same checks, so never offer one as a way around a failure or a refusal. Say why it was rejected and what would unblock it.
