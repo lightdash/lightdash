@@ -290,7 +290,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         thread: studioThread,
         isEnabled: hasChat,
         isLoadingAgents,
-        hasAgents,
     } = useStudioAgent(view.project.id);
     const isCopilotEnabled =
         useAiOrganizationSettings().data?.isCopilotEnabled === true;
@@ -1100,7 +1099,12 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     />
                 );
             case 'empty':
-                return <EmptyProject view={view} hasAgents={hasAgents} />;
+                return (
+                    <EmptyProject
+                        view={view}
+                        isLoadingAgents={isLoadingAgents}
+                    />
+                );
             default:
                 return assertUnreachable(pane, 'Unknown pane');
         }
