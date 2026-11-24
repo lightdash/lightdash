@@ -8,7 +8,6 @@ import {
     type MixpanelRegion,
 } from '@lightdash/common';
 import {
-    Button,
     PasswordInput,
     SegmentedControl,
     Stack,
@@ -20,12 +19,9 @@ import { useCreateExternalConnection } from '../hooks/useCreateExternalConnectio
 import { useNewSourceId } from '../hooks/useNewSourceId';
 import { useTestConnectionConfig } from '../hooks/useTestConnectionConfig';
 import { LiveSourceTitle } from './LiveSourceIcon';
-import {
-    SettingsCard,
-    SettingsRow,
-    TestOutcome,
-} from './LiveSourceSettingsRows';
+import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
 import { LiveSourceSetupCard } from './LiveSourceSetupCard';
+import { LiveSourceTestRow } from './LiveSourceTestRow';
 import {
     getMixpanelTestRequest,
     toMixpanelCreatePayload,
@@ -52,7 +48,7 @@ export const MixpanelConnectionModal: FC<Props> = ({
 }) => {
     const form = useMixpanelConnectionForm();
     const createMutation = useCreateExternalConnection();
-    const testMutation = useTestConnectionConfig();
+    const testMutation = useTestConnectionConfig({ showErrorToast: false });
     const sourceId = useNewSourceId({
         projectUuid,
         connector: CONNECTOR,
@@ -147,13 +143,7 @@ export const MixpanelConnectionModal: FC<Props> = ({
                     </SettingsRow>
                     <SettingsRow
                         label="Secret"
-                        hint={
-                            testMutation.data ? (
-                                <TestOutcome response={testMutation.data} />
-                            ) : (
-                                'Shown once, when Mixpanel creates the service account'
-                            )
-                        }
+                        hint="Shown once, when Mixpanel creates the service account"
                     >
                         <PasswordInput
                             w={FIELD_WIDTH}
@@ -161,15 +151,18 @@ export const MixpanelConnectionModal: FC<Props> = ({
                             aria-label="Service account secret"
                             {...form.getInputProps('secret')}
                         />
-                        <Button
-                            size="xs"
-                            variant="default"
-                            onClick={handleTest}
-                            loading={testMutation.isLoading}
-                        >
-                            Test
-                        </Button>
                     </SettingsRow>
+                    <LiveSourceTestRow
+                        hint="Checks the details above, without saving"
+                        test={testMutation}
+                        onTest={handleTest}
+                        inputs={[
+                            form.values.region,
+                            form.values.projectId,
+                            form.values.username,
+                            form.values.secret,
+                        ]}
+                    />
                 </SettingsCard>
 
                 <NewLiveSourceDetails
