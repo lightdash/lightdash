@@ -5,7 +5,7 @@ const AiPromptArtifactReferencesTableName = 'ai_prompt_artifact_references';
 
 export const classification = {
     kind: 'breaking',
-    reason: 'Drops the verified answers columns of ai_artifact_versions (verified_by_user_uuid, verified_at, verified_question, embedding_vector with its HNSW index, embedding_model_provider, embedding_model) and the ai_prompt_artifact_references table. Releases that contain the verified answers removal neither read nor write them; older releases still read them when loading artifacts and threads. Raw SQL sets a lock timeout and drops the columns.',
+    reason: 'Drops the verified answers columns of ai_artifact_versions (verified_by_user_uuid, verified_at, verified_question, embedding_vector with its HNSW index, embedding_model_provider, embedding_model) and the ai_prompt_artifact_references table. Releases that contain the verified answers removal neither read nor write them; older releases still read them when loading artifacts and threads. It also deletes queued graphile jobs for the retired embedArtifactVersion and generateArtifactQuestion tasks, which no worker handles. Raw SQL sets a lock timeout and drops the columns.',
 };
 
 export async function up(knex: Knex): Promise<void> {
@@ -15,6 +15,12 @@ export async function up(knex: Knex): Promise<void> {
     await knex.raw(
         `ALTER TABLE ${AiArtifactVersionsTableName} DROP COLUMN IF EXISTS verified_by_user_uuid, DROP COLUMN IF EXISTS verified_at, DROP COLUMN IF EXISTS verified_question, DROP COLUMN IF EXISTS embedding_vector, DROP COLUMN IF EXISTS embedding_model_provider, DROP COLUMN IF EXISTS embedding_model`,
     );
+    // No worker runs these retired tasks, so queued jobs would stay pending forever.
+    if (await knex.schema.withSchema('graphile_worker').hasTable('jobs')) {
+        await knex.raw(
+            `DELETE FROM graphile_worker.jobs WHERE task_identifier IN ('embedArtifactVersion', 'generateArtifactQuestion')`,
+        );
+    }
 }
 
 export async function down(): Promise<void> {
