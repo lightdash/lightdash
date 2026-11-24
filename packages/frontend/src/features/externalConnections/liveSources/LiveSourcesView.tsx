@@ -1,13 +1,7 @@
-/**
- * Live data sources on the Semantic Layer page, for the admins who manage
- * them: the list with each source's usage, and above a source's fields what
- * it reads, how it is used and its controls.
- */
 import {
     ActionIcon,
     Box,
     Button,
-    Code,
     Group,
     Paper,
     Stack,
@@ -22,7 +16,6 @@ import {
     type MouseEvent,
     type ReactNode,
 } from 'react';
-import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import tableClasses from '../../../components/common/sourceTable.module.css';
 import { useResultsCacheStatus } from '../../../hooks/useProjectResultsCacheSettings';
@@ -32,6 +25,11 @@ import { useExternalConnections } from '../hooks/useExternalConnections';
 import { useLiveSourceFields } from '../hooks/useLiveSourceFields';
 import { useLiveSourceActions } from './liveSourceActions';
 import { formatChartCount } from './liveSourceCatalog';
+/**
+ * Live data sources on the Semantic Layer page, for the admins who manage
+ * them: the list with each source's usage, and above a source's fields what
+ * it reads, how it is used and its controls.
+ */
 import { LiveSourceIcon } from './LiveSourceIcon';
 import {
     formatFreshness,
@@ -41,7 +39,6 @@ import {
     type LiveSourceConnection,
 } from './liveSourceRows';
 import classes from './LiveSources.module.css';
-import rowClasses from './LiveSourceSettingsRows.module.css';
 import { getRateLimitStat } from './rateLimitFormat';
 
 const stopPropagation = (event: MouseEvent) => event.stopPropagation();
@@ -228,37 +225,22 @@ const Stat: FC<{
     labelExtra?: ReactNode;
     /** Colours the value: red for a full rate limit, orange for a warning. */
     tone?: 'danger' | 'warning';
-    /** Shows the value as code people copy, such as an explore prefix. */
-    copyLabel?: string;
-}> = ({ label, value, detail, title, labelExtra, tone, copyLabel }) => (
+}> = ({ label, value, detail, title, labelExtra, tone }) => (
     <Box className={tableClasses.stat}>
         <span className={tableClasses.statLabel}>
             {label}
             {labelExtra}
         </span>
-        {copyLabel ? (
-            <Group gap={4} wrap="nowrap">
-                <Code className={rowClasses.settingsCode}>{value}</Code>
-                <CopyActionIcon
-                    value={value}
-                    copyLabel={copyLabel}
-                    variant="subtle"
-                    color="gray"
-                    size="sm"
-                />
-            </Group>
-        ) : (
-            <span
-                className={tableClasses.statValue}
-                data-tone={tone}
-                title={title ?? (detail ? `${value} (${detail})` : value)}
-            >
-                {value}
-                {detail && (
-                    <span className={tableClasses.statDetail}> ({detail})</span>
-                )}
-            </span>
-        )}
+        <span
+            className={tableClasses.statValue}
+            data-tone={tone}
+            title={title ?? (detail ? `${value} (${detail})` : value)}
+        >
+            {value}
+            {detail && (
+                <span className={tableClasses.statDetail}> ({detail})</span>
+            )}
+        </span>
     </Box>
 );
 
@@ -280,26 +262,25 @@ export const LiveSourceSummary: FC<{
     const rateLimit = getRateLimitStat(rateLimits);
     const isProjectCacheOff = projectCache?.enabled === false;
     const row = toLiveSourceRow(connection, usage);
+    // Every explore whose fields can be curated, not only the first
+    const allFields = fields?.explores.flatMap((explore) => explore.fields);
+    const inUse = allFields?.filter((field) => field.inUse).length;
     const freshness = getLiveSourceFreshness(connection);
     const cachingTitle =
         freshness === 0
             ? 'Every query calls the integration'
             : `A result answers the same query for everyone for ${formatFreshness(freshness)}`;
-    // Every explore whose fields can be curated, not only the first
-    const allFields = fields?.explores.flatMap((explore) => explore.fields);
-    const inUse = allFields?.filter((field) => field.inUse).length;
     return (
-        <Box className={tableClasses.summary} aria-label="Live data source">
+        <Box
+            className={tableClasses.summary}
+            aria-label="Live data source"
+            data-status
+        >
             <Stat label="Integration" value={row.integration} />
-            {connection.liveSourceName ? (
-                <Stat
-                    label="Explore prefix"
-                    value={connection.liveSourceName}
-                    copyLabel="Copy explore prefix"
-                />
-            ) : (
-                <Stat label="Explore prefix" value="—" />
-            )}
+            <Stat
+                label="Explore prefix"
+                value={connection.liveSourceName ?? '—'}
+            />
             <Stat
                 label="Fields in use"
                 value={
@@ -333,7 +314,7 @@ export const LiveSourceSummary: FC<{
                 }
             />
             <Stat
-                label="Cache"
+                label="Caching"
                 value={
                     isProjectCacheOff ? 'Disabled' : formatFreshness(freshness)
                 }

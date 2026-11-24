@@ -204,14 +204,3 @@
     font-size: 13px;
     color: var(--mantine-color-dimmed);
 }
-
-.showHidden {
-    flex: none;
-    --checkbox-size: 14px;
-}
-
-.showHidden label {
-    padding-left: 6px;
-    font-size: 12px;
-    color: var(--mantine-color-dimmed);
-}

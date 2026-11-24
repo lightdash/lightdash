@@ -9,12 +9,14 @@ import classes from './LiveSourceSettingsRows.module.css';
 
 /** A label and a short hint on the left, its control on the right. */
 export const SettingsRow: FC<{
-    label: string;
+    label: ReactNode;
     hint?: ReactNode;
     children: ReactNode;
-}> = ({ label, hint, children }) => (
+    /** Dims the label and hint, such as for an explore that is switched off. */
+    dimmed?: boolean;
+}> = ({ label, hint, children, dimmed }) => (
     <Box className={classes.settingsRow}>
-        <Box miw={0}>
+        <Box miw={0} opacity={dimmed ? 0.5 : undefined}>
             <span className={classes.settingsLabel}>{label}</span>
             {hint ? <Box className={classes.settingsHint}>{hint}</Box> : null}
         </Box>

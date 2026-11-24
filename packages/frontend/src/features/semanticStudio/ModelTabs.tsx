@@ -703,7 +703,8 @@ export const ModelTabs: FC<{
  * fields), then its settings. A settings link scrolls to them.
  */
 export const LiveSourceFlow: FC<{
-    title: string;
+    /** Omitted where the page title already says what the main part is. */
+    title?: string;
     main: ReactNode;
     settings: ReactNode;
 }> = ({ title, main, settings }) => {
@@ -721,7 +722,11 @@ export const LiveSourceFlow: FC<{
     return (
         <Box className={classes.root} data-fit-content>
             <Stack gap="lg">
-                <SettingsSection title={title}>{main}</SettingsSection>
+                {title ? (
+                    <SettingsSection title={title}>{main}</SettingsSection>
+                ) : (
+                    main
+                )}
                 <Box ref={settingsRef}>{settings}</Box>
             </Stack>
         </Box>

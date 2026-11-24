@@ -42,7 +42,7 @@ export const LiveSourceRefreshAction: FC<{
                 loading={refresh.isLoading}
                 onClick={() => refresh.mutate()}
             >
-                Refresh fields
+                Refresh
             </Button>
         </Group>
     );
