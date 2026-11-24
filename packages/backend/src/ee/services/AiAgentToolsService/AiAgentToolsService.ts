@@ -6252,18 +6252,23 @@ export class AiAgentToolsService extends BaseService {
                     );
                 }
 
-                const { fields, nativeTypes, partitioning, warehouseType } =
-                    await this.projectService.describeWarehouseTable(
-                        context.user,
-                        context.projectUuid,
-                        context.defaultQueryExecutionContext,
-                        {
-                            tableName: table,
-                            schemaName: resolvedSchema ?? undefined,
-                            databaseName: resolvedDatabase ?? undefined,
-                        },
-                        context.querySurface,
-                    );
+                const {
+                    fields,
+                    nativeTypes,
+                    partitioning,
+                    metadata,
+                    warehouseType,
+                } = await this.projectService.describeWarehouseTable(
+                    context.user,
+                    context.projectUuid,
+                    context.defaultQueryExecutionContext,
+                    {
+                        tableName: table,
+                        schemaName: resolvedSchema ?? undefined,
+                        databaseName: resolvedDatabase ?? undefined,
+                    },
+                    context.querySurface,
+                );
                 return {
                     columns: Object.entries(fields).map(([name, type]) => ({
                         name,
@@ -6273,6 +6278,7 @@ export class AiAgentToolsService extends BaseService {
                     resolvedSchema,
                     resolvedDatabase,
                     partitioning,
+                    metadata,
                     warehouseType,
                 };
             },

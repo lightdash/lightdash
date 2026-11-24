@@ -8,6 +8,7 @@ import StatusError from '@databricks/sql/dist/errors/StatusError';
 import { TTypeId as DatabricksDataTypes } from '@databricks/sql/thrift/TCLIService_types';
 import {
     AnyType,
+    assertUnreachable,
     CreateDatabricksCredentials,
     DatabricksAuthenticationType,
     DimensionType,
@@ -15,6 +16,7 @@ import {
     getErrorMessage,
     getWarehouseTableType,
     Metric,
+    METRIC_VIEW_TABLE_TYPE,
     MetricType,
     ParseError,
     setCatalogNestedColumnShape,
@@ -22,6 +24,7 @@ import {
     setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
+    truncateTableDefinition,
     UnexpectedServerError,
     UnnestSql,
     UnnestSqlArgs,
@@ -34,6 +37,7 @@ import {
     type TableListingFailure,
     type TimestampDomain,
     type WarehouseNestedColumnShape,
+    type WarehouseTableMetadata,
 } from '@lightdash/common';
 import fetch, { type RequestInit } from 'node-fetch';
 import { WarehouseCatalog } from '../types';
@@ -433,6 +437,44 @@ const flattenDescribedFields = (
     });
 };
 
+type JsonTableDescription =
+    | { kind: 'described'; description: Record<string, unknown> }
+    | { kind: 'not_found' }
+    | { kind: 'unsupported'; message: string };
+
+const nonEmptyString = (value: unknown): string | null =>
+    typeof value === 'string' && value.trim() !== '' ? value : null;
+
+// Picks named fields of a JSON table description; never spread it, it carries owner, location and properties.
+const getDescribedTableMetadata = (
+    description: Record<string, unknown>,
+): WarehouseTableMetadata => {
+    const definition = nonEmptyString(description.view_text);
+    return {
+        tableType:
+            description.type === 'METRIC_VIEW'
+                ? METRIC_VIEW_TABLE_TYPE
+                : getWarehouseTableType(description.type),
+        comment: nonEmptyString(description.comment),
+        columns: (Array.isArray(description.columns)
+            ? description.columns
+            : []
+        ).flatMap((column: unknown) =>
+            isRecord(column) && typeof column.name === 'string'
+                ? [
+                      {
+                          name: column.name,
+                          comment: nonEmptyString(column.comment),
+                          isMeasure: column.is_measure === true,
+                      },
+                  ]
+                : [],
+        ),
+        definition:
+            definition === null ? null : truncateTableDefinition(definition),
+    };
+};
+
 const getDatabricksErrorMessage = (error: unknown) =>
     error instanceof StatusError && error.message
         ? error.message
@@ -797,16 +839,12 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         }
     }
 
-    // DESCRIBE ... AS JSON gives the nested tree; older all-purpose clusters
-    // reject the JSON form, so those tables keep the flat column list and
-    // carry the reason for the compiler to surface.
-    // DESCRIBE ... AS JSON gives the nested tree. A runtime that does not know
-    // the JSON form rejects the statement itself; only that case falls back
-    // to the flat column list, any other failure fails the fetch as before.
-    private static async getTableColumns(
+    // A runtime that does not know the JSON form rejects the statement itself;
+    // only that case is `unsupported`, any other failure throws.
+    private static async describeAsJson(
         session: IDBSQLSession,
         request: { database: string; schema: string; table: string },
-    ): Promise<TableColumns> {
+    ): Promise<JsonTableDescription> {
         const q = '`';
         const tableRef = `${q}${request.database}${q}.${q}${request.schema}${q}.${q}${request.table}${q}`;
         let rows: Record<string, AnyType>[];
@@ -820,7 +858,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         } catch (e: unknown) {
             const condition = getDatabricksErrorCondition(e);
             if (condition === DatabricksErrorCondition.TableOrViewNotFound) {
-                return { discovery: 'described', columns: [] };
+                return { kind: 'not_found' };
             }
             if (
                 isDatabricksWarehouseStartingError(e) ||
@@ -828,23 +866,9 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             ) {
                 throw e;
             }
-            const message = getDatabricksErrorMessage(e);
-            const flatColumns = (await DatabricksWarehouseClient.fetchAllRows(
-                session.getColumns({
-                    catalogName: request.database,
-                    schemaName: request.schema,
-                    tableName: request.table,
-                }),
-                'getCatalog',
-            )) as SchemaResult[];
             return {
-                discovery: 'unsupported',
-                columns: flatColumns.map((column) => ({
-                    path: column.COLUMN_NAME,
-                    typeName: column.TYPE_NAME,
-                    shape: undefined,
-                })),
-                reason: `Databricks did not describe ${request.table} as JSON (${message}); nested columns need a SQL warehouse or Databricks Runtime 16.2 or newer.`,
+                kind: 'unsupported',
+                message: getDatabricksErrorMessage(e),
             };
         }
         const json = rows[0] ? Object.values(rows[0])[0] : undefined;
@@ -854,14 +878,81 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             if (!isRecord(description) || !Array.isArray(description.columns)) {
                 throw new Error('no columns in the JSON description');
             }
-            return {
-                discovery: 'described',
-                columns: flattenDescribedFields(description.columns),
-            };
+            return { kind: 'described', description };
         } catch (e: unknown) {
             throw new WarehouseQueryError(
                 `Could not read the description of ${tableRef}: ${getErrorMessage(e)}`,
             );
+        }
+    }
+
+    // DESCRIBE ... AS JSON gives the nested tree; older all-purpose clusters
+    // reject the JSON form, so those tables keep the flat column list and
+    // carry the reason for the compiler to surface.
+    private static async getTableColumns(
+        session: IDBSQLSession,
+        request: { database: string; schema: string; table: string },
+    ): Promise<TableColumns> {
+        const described = await DatabricksWarehouseClient.describeAsJson(
+            session,
+            request,
+        );
+        switch (described.kind) {
+            case 'described':
+                return {
+                    discovery: 'described',
+                    columns: flattenDescribedFields(
+                        described.description.columns,
+                    ),
+                };
+            case 'not_found':
+                return { discovery: 'described', columns: [] };
+            case 'unsupported': {
+                const flatColumns =
+                    (await DatabricksWarehouseClient.fetchAllRows(
+                        session.getColumns({
+                            catalogName: request.database,
+                            schemaName: request.schema,
+                            tableName: request.table,
+                        }),
+                        'getCatalog',
+                    )) as SchemaResult[];
+                return {
+                    discovery: 'unsupported',
+                    columns: flatColumns.map((column) => ({
+                        path: column.COLUMN_NAME,
+                        typeName: column.TYPE_NAME,
+                        shape: undefined,
+                    })),
+                    reason: `Databricks did not describe ${request.table} as JSON (${described.message}); nested columns need a SQL warehouse or Databricks Runtime 16.2 or newer.`,
+                };
+            }
+            default:
+                return assertUnreachable(
+                    described,
+                    'Unknown Databricks table description',
+                );
+        }
+    }
+
+    async getTableMetadata(
+        tableName: string,
+        schema: string,
+        database: string,
+    ): Promise<WarehouseTableMetadata | null> {
+        const { session, close } = await this.openSession(
+            new DatabricksWarehouseStartupRetry(),
+        );
+        try {
+            const described = await DatabricksWarehouseClient.describeAsJson(
+                session,
+                { database, schema, table: tableName },
+            );
+            return described.kind === 'described'
+                ? getDescribedTableMetadata(described.description)
+                : null;
+        } finally {
+            await closeQuietly(close, 'getTableMetadata');
         }
     }
 

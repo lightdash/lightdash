@@ -1,3 +1,12 @@
+# [3.389.0](https://github.com/lightdash/lightdash/compare/3.388.0...3.389.0) (2026-11-24)
+
+
+### Features
+
+* **semantic-studio:** a starting screen that says what you can do, and why not when you can't ([#33343](https://github.com/lightdash/lightdash/issues/33343)) ([4fe1c34](https://github.com/lightdash/lightdash/commit/4fe1c3420dafc425f380ef85a119444e17a649a2))
+* **semantic-studio:** say why the warehouse can't list its tables ([#33349](https://github.com/lightdash/lightdash/issues/33349)) ([e9cfaa5](https://github.com/lightdash/lightdash/commit/e9cfaa54b1b780347201f0d7098f4a61beef0917))
+* **semantic-studio:** warehouse status line at the top of the source panel ([#33347](https://github.com/lightdash/lightdash/issues/33347)) ([cd81508](https://github.com/lightdash/lightdash/commit/cd81508c0894488352fead893177486e055dd3f2))
+
 # [3.388.0](https://github.com/lightdash/lightdash/compare/3.387.0...3.388.0) (2026-11-24)
 
 

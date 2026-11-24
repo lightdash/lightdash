@@ -3,7 +3,7 @@
 exports[`AI agent tool contracts > matches the current agent tool contract snapshot 1`] = `
 [
   {
-    "description": "Return the column names and types of one raw, staging or seed table that no explore exposes. It reads cached metadata, so it is fast and needs no approval, and returns schema only, not data.
+    "description": "Return the column names and types of one raw, staging or seed table that no explore exposes. Where the warehouse reports them, it also returns the table type (table, view, metric view), the table and column comments, and a view's or metric view's definition. It reads metadata only, so it is fast and needs no approval, and returns schema only, not data.
 
 For explore-backed tables use grepFields and getMetadata; to find a table's name use listWarehouseTables.",
     "inputSchema": {
@@ -102,6 +102,98 @@ For explore-backed tables use grepFields and getMetadata; to find a table's name
                   },
                   "type": "array",
                 },
+                "metadata": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "columns": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "comment": {
+                                "type": [
+                                  "string",
+                                  "null",
+                                ],
+                              },
+                              "isMeasure": {
+                                "type": "boolean",
+                              },
+                              "name": {
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "name",
+                              "comment",
+                              "isMeasure",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "comment": {
+                          "type": [
+                            "string",
+                            "null",
+                          ],
+                        },
+                        "definition": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "text": {
+                                  "type": "string",
+                                },
+                                "truncated": {
+                                  "type": "boolean",
+                                },
+                              },
+                              "required": [
+                                "text",
+                                "truncated",
+                              ],
+                              "type": "object",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "tableType": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "table",
+                                "view",
+                                "materialized_view",
+                                "external",
+                              ],
+                              "type": "string",
+                            },
+                            {
+                              "const": "metric_view",
+                              "type": "string",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "tableType",
+                        "comment",
+                        "columns",
+                        "definition",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Table type, table and column comments, and the view or metric-view definition (truncated with a marker past a size cap); null where the warehouse does not describe tables this way.",
+                },
                 "partitioning": {
                   "anyOf": [
                     {
@@ -170,6 +262,7 @@ For explore-backed tables use grepFields and getMetadata; to find a table's name
                 "columnCount",
                 "columns",
                 "partitioning",
+                "metadata",
               ],
               "type": "object",
             },

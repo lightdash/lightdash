@@ -60,6 +60,7 @@ import {
     UpdateSlackResponse,
     UpdateWebAppResponse,
     WarehouseExecutionStats,
+    WarehouseTableMetadata,
     WarehouseTablesCatalog,
     WarehouseTypes,
     type ProjectContextWritebackEntry,
@@ -922,6 +923,7 @@ export type DescribeWarehouseTableFn = (args: {
     resolvedSchema: string | null;
     resolvedDatabase: string | null;
     partitioning: TablePartitioning | null;
+    metadata: WarehouseTableMetadata | null;
     warehouseType: WarehouseTypes;
 }>;
 
