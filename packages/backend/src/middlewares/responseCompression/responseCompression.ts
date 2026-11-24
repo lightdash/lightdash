@@ -14,12 +14,16 @@ const toPromise = (
         run((error, result) => (error ? reject(error) : resolve(result)));
     });
 
+const chunkSizeFor = (body: Buffer) =>
+    Math.max(zlib.constants.Z_DEFAULT_CHUNK, Math.ceil(body.length / 4));
+
 const encoders: Record<ResponseEncoding, (body: Buffer) => Promise<Buffer>> = {
     br: (body) =>
         toPromise((callback) =>
             zlib.brotliCompress(
                 body,
                 {
+                    chunkSize: chunkSizeFor(body),
                     params: {
                         [zlib.constants.BROTLI_PARAM_QUALITY]: 1,
                         [zlib.constants.BROTLI_PARAM_SIZE_HINT]: body.length,
@@ -29,7 +33,13 @@ const encoders: Record<ResponseEncoding, (body: Buffer) => Promise<Buffer>> = {
             ),
         ),
     gzip: (body) =>
-        toPromise((callback) => zlib.gzip(body, { level: 1 }, callback)),
+        toPromise((callback) =>
+            zlib.gzip(
+                body,
+                { level: 1, chunkSize: chunkSizeFor(body) },
+                callback,
+            ),
+        ),
 };
 
 const jsonContentTypePattern = /^application\/(?:[\w.-]+\+)?json\s*(?:;|$)/i;

@@ -139,6 +139,20 @@ describe('createResponseCompression', () => {
         expect(response.body.toString()).toBe('id,name\n'.repeat(1000));
     });
 
+    it('compresses in one zlib job rather than in 16KB steps', async () => {
+        const spy = vi.spyOn(zlib, 'brotliCompress');
+        try {
+            await request('/large', browserAcceptEncoding);
+            const [body, options] = spy.mock.calls[0] as unknown as [
+                Buffer,
+                zlib.BrotliOptions,
+            ];
+            expect(options.chunkSize).toBeGreaterThanOrEqual(body.length / 4);
+        } finally {
+            spy.mockRestore();
+        }
+    });
+
     it('sends the body uncompressed when compression fails', async () => {
         const spy = vi
             .spyOn(zlib, 'brotliCompress')
