@@ -40,7 +40,6 @@ import {
     useRef,
     useState,
     type FC,
-    type ReactNode,
 } from 'react';
 import {
     createSearchParams,
@@ -104,6 +103,7 @@ import {
 } from './modelCode';
 import { ModelCodeView } from './ModelTabs';
 import { DraftReview } from './SemanticLayerDraft';
+import { describeBlocker } from './studioBlocker';
 import { useChatOpen, useStoredStudioThread } from './studioChange';
 import {
     AddToStudioChatContext,
@@ -160,36 +160,7 @@ const SourcesRail = lazy(() =>
 
 /** Why the models cannot be changed here, for someone who would otherwise expect to. */
 const BlockedNotice: FC<{ blocker: SemanticLayerBlocker }> = ({ blocker }) => {
-    const text = ((): ReactNode => {
-        switch (blocker) {
-            // Someone without the right to deploy has nothing to be told.
-            case 'no_access':
-                return null;
-            case 'unsupported_connection':
-                return "Read-only. This dbt connection can't be written to.";
-            case 'no_repository_access':
-                return 'Read-only. You need write access to the repository.';
-            case 'github_app_missing':
-                return (
-                    <>
-                        Read-only until the GitHub App is installed.{' '}
-                        <Anchor
-                            component={Link}
-                            to="/generalSettings/integrations"
-                            inherit
-                        >
-                            Install it
-                        </Anchor>
-                    </>
-                );
-            case 'models_from_outside':
-                return 'Read-only. These models were deployed from outside this app.';
-            case 'preview_project':
-                return 'Read-only. This is a preview of a pull request.';
-            default:
-                return assertUnreachable(blocker, 'Unknown blocker');
-        }
-    })();
+    const text = describeBlocker(blocker);
     return text ? (
         <Group className={classes.toolbar} px="sm" role="note">
             <Text fz="xs" c="dimmed">
@@ -1167,7 +1138,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                             )}
                             <Box className={classes.workspace}>
                                 {!hasChat ? (
-                                    status?.blocker ? (
+                                    // The empty pane says why itself.
+                                    status?.blocker && pane !== 'empty' ? (
                                         <BlockedNotice
                                             blocker={status.blocker}
                                         />

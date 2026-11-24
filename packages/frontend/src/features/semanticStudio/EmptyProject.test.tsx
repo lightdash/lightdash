@@ -245,6 +245,39 @@ describe('EmptyProject', () => {
         expect(startFromButtons()).toEqual(['External source']);
     });
 
+    it('says why models deployed from outside are read-only, and points to the CLI', async () => {
+        renderEmpty({
+            status: {
+                enabled: false,
+                blocker: 'models_from_outside',
+                appliesAs: 'live',
+            },
+        });
+        expect(
+            await screen.findByText(
+                'Read-only. These models were deployed from outside this app.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            await screen.findByText('db.schema_a · 2 tables'),
+        ).toBeInTheDocument();
+        expect(screen.getByText(/Prefer code\?/)).toBeInTheDocument();
+        expect(
+            screen.queryByText(/Developer or Admin/),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('link', { name: /Create an agent/ }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /Model table_a/ }),
+        ).not.toBeInTheDocument();
+        expect(startFromButtons()).toEqual([
+            'External source',
+            'Live data source',
+            'Virtual view',
+        ]);
+    });
+
     it('says editing is off for the organization, with no role or CLI advice', async () => {
         flag.current = { data: { enabled: false }, isInitialLoading: false };
         renderEmpty({});
