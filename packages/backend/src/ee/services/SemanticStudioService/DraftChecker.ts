@@ -806,6 +806,35 @@ GROUP BY ${aliases.join(', ')}
         return errored.filter(({ name }) => !brokenAlready.has(name));
     }
 
+    /** Which of these models the warehouse already refuses as published, so an edit is only held to a check the model passed before. */
+    private async findUnusableAlready(
+        user: SessionUser,
+        projectUuid: string,
+        live: Map<string, string>,
+        names: string[],
+    ): Promise<Set<string>> {
+        const published = names.filter((name) => live.has(name));
+        if (published.length === 0) return new Set();
+        const compiled = await this.compile(projectUuid, live);
+        const failing = await Promise.all(
+            compiled.explores
+                .filter(isCompiled)
+                .filter((explore) => published.includes(explore.name))
+                .map(async (explore) =>
+                    (await this.findModelError(
+                        user,
+                        projectUuid,
+                        explore,
+                        compiled.quote,
+                        new Set(),
+                    )) === null
+                        ? []
+                        : [explore.name],
+                ),
+        );
+        return new Set(failing.flat());
+    }
+
     /** Drops every write that fails a check, and whatever depended on it, until what is left works together. */
     async check(
         user: SessionUser,
@@ -914,24 +943,57 @@ GROUP BY ${aliases.join(', ')}
             afterCompile.explores
                 .filter(isCompiled)
                 .filter((explore) => usesAnyModel(explore, writes))
-                .map(async (explore) => ({
-                    name: explore.name,
-                    error: await this.findModelError(
+                .map(async (explore) => {
+                    const queryError = await this.findQueryError(
                         user,
                         projectUuid,
                         explore,
-                        afterCompile.quote,
-                        // A model the catalog already vouched for needs no second opinion on its types.
-                        inCatalog.has(explore.name)
-                            ? new Set()
-                            : (changed.get(explore.name)?.dimensions ??
-                                  new Set()),
-                    ),
-                })),
+                    );
+                    if (queryError) {
+                        return {
+                            name: explore.name,
+                            error: `This model does not work in a query: ${queryError}`,
+                            fromWarehouse: false,
+                        };
+                    }
+                    return {
+                        name: explore.name,
+                        error: await this.findWarehouseError(
+                            user,
+                            projectUuid,
+                            explore,
+                            afterCompile.quote,
+                            // A model the catalog already vouched for needs no second opinion on its types.
+                            inCatalog.has(explore.name)
+                                ? new Set()
+                                : (changed.get(explore.name)?.dimensions ??
+                                      new Set()),
+                        ),
+                        fromWarehouse: true,
+                    };
+                }),
         );
-        const unusable = usable.flatMap(({ name, error }) =>
-            error === null ? [] : [{ name, error }],
+        const failing = usable.flatMap(({ name, error, fromWarehouse }) =>
+            error === null ? [] : [{ name, error, fromWarehouse }],
         );
+        const brokenAlready = await this.findUnusableAlready(
+            user,
+            projectUuid,
+            live,
+            failing
+                .filter(({ fromWarehouse }) => fromWarehouse)
+                .map(({ name }) => name),
+        );
+        const unusable = failing.filter(({ name, error }) => {
+            if (!brokenAlready.has(name)) return true;
+            if (writes.has(name)) {
+                notes.set(name, [
+                    ...(notes.get(name) ?? []),
+                    `The published ${name} already fails this check, so the edit was kept: ${error}`,
+                ]);
+            }
+            return false;
+        });
         unusable.forEach(({ name, error }) => {
             if (writes.has(name)) reject(name, error);
             else rejectAll(`This would break ${name}: ${error}`);

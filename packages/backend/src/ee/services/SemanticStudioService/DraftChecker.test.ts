@@ -51,6 +51,8 @@ const warehouse: {
     /** What the catalog says every table it knows holds. */
     columns: Record<string, DimensionType>;
     partitioning: TablePartitioning | null;
+    /** A table the warehouse refuses to plan a model over. */
+    unplannable: string | null;
 } = {
     queries: [],
     keyRow: {},
@@ -59,6 +61,7 @@ const warehouse: {
     catalog: {},
     columns: { id: DimensionType.NUMBER },
     partitioning: null,
+    unplannable: null,
 };
 
 const checker = () =>
@@ -78,6 +81,13 @@ const checker = () =>
                         ? [{ row_count: warehouse.rowCount }]
                         : [],
                 };
+            }
+            if (
+                warehouse.unplannable &&
+                sql.includes('no_rows') &&
+                sql.includes(warehouse.unplannable)
+            ) {
+                throw new Error(`cannot plan over ${warehouse.unplannable}`);
             }
             if (warehouse.keyError && sql.includes('duplicate_keys')) {
                 throw new Error(warehouse.keyError);
@@ -108,6 +118,7 @@ describe('DraftChecker.compile', () => {
         warehouse.catalog = {};
         warehouse.columns = { id: DimensionType.NUMBER };
         warehouse.partitioning = null;
+        warehouse.unplannable = null;
     });
 
     test('the same documents compile once, and each caller gets its own copy', async () => {
@@ -165,6 +176,62 @@ pre_aggregates:
         expect(check.rejected.size).toBe(0);
         expect(check.explores?.map(({ name }) => name)).toEqual(['orders']);
         expect(compiles.count).toBe(1);
+    });
+
+    describe('a model the warehouse refuses to plan', () => {
+        const described = (description: string) =>
+            `${model('orders')}description: ${description}\n`;
+
+        test('an edit to one already refused when published is kept, with a note', async () => {
+            warehouse.unplannable = 'public.orders';
+            const check = await checker().check(
+                user,
+                'project',
+                new Map([['orders', model('orders')]]),
+                new Map([['orders', described('Every order')]]),
+            );
+            expect(check.rejected.size).toBe(0);
+            expect(check.writes.has('orders')).toBe(true);
+            expect(check.notes.get('orders')).toEqual([
+                expect.stringContaining(
+                    'The published orders already fails this check',
+                ),
+            ]);
+        });
+
+        test('an edit that makes a working model refused is rejected', async () => {
+            warehouse.unplannable = 'public.broken';
+            const check = await checker().check(
+                user,
+                'project',
+                new Map([['orders', model('orders')]]),
+                new Map([
+                    [
+                        'orders',
+                        model('orders').replace(
+                            'public.orders',
+                            'public.broken',
+                        ),
+                    ],
+                ]),
+            );
+            expect(check.rejected.get('orders')).toContain(
+                'cannot plan over public.broken',
+            );
+        });
+
+        test('a new model the warehouse refuses is rejected', async () => {
+            warehouse.unplannable = 'public.orders';
+            const check = await checker().check(
+                user,
+                'project',
+                new Map(),
+                new Map([['orders', model('orders')]]),
+            );
+            expect(check.rejected.get('orders')).toContain(
+                'cannot plan over public.orders',
+            );
+        });
     });
 
     test('an explore uses a model it joins under an alias', async () => {

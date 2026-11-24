@@ -1008,7 +1008,8 @@ describe('SemanticStudioService', () => {
         });
 
         it('keeps a model the warehouse rejects out of the draft', async () => {
-            const context = setup({ rejectSql: 'orders' });
+            // Only the metric the edit adds is refused; the published model plans fine.
+            const context = setup({ rejectSql: 'SUM(' });
             const { results, diffs, draftChangeUuid } =
                 await context.service.proposeDraftChange(
                     deployer,
@@ -1215,7 +1216,8 @@ dimensions:
         });
 
         it('keeps an edit the warehouse rejects out of the draft', async () => {
-            const context = setup({ rejectSql: 'orders' });
+            // Only the metric the edit adds is refused; the published model plans fine.
+            const context = setup({ rejectSql: 'SUM(' });
             const saved = await save(context, ordersWithRevenue);
             expect(saved.status).toBe('failed');
             expect(context.drafts).toEqual([]);
