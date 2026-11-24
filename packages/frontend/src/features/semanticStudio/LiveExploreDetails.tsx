@@ -78,7 +78,9 @@ const useExploreSave = (params: LiveSourceParams) => {
             onClose={() => setPending(null)}
         />
     ) : null;
-    return { save, isSaving: update.isLoading, confirmModal };
+    // The change being saved, so a switch shows where it's going at once.
+    const saving = update.isLoading ? update.variables?.[0] : undefined;
+    return { save, saving, isSaving: update.isLoading, confirmModal };
 };
 
 /** Every explore of a live data source, on or off, each with its switch. */
@@ -91,18 +93,28 @@ export const LiveExploreRows: FC<
 > = ({ projectUuid, connectionUuid, isOpenable, onOpen }) => {
     const params = { projectUuid, connectionUuid };
     const { data: fields } = useLiveSourceFields(params);
-    const { save, isSaving, confirmModal } = useExploreSave(params);
+    const { save, saving, confirmModal } = useExploreSave(params);
     if (!fields) return null;
+    // Same order as the sidebar
+    const explores = [...fields.explores].sort((a, b) =>
+        a.label.localeCompare(b.label),
+    );
     return (
         <>
             <SettingsCard>
-                {fields.explores.map((explore) => {
+                {explores.map((explore) => {
+                    const isSaving =
+                        saving?.exploreName === explore.exploreName &&
+                        saving.inUse !== undefined;
+                    const inUse = isSaving
+                        ? saving.inUse === true
+                        : explore.inUse;
                     const openable =
                         explore.inUse && isOpenable(explore.exploreName);
                     return (
                         <SettingsRow
                             key={explore.exploreName}
-                            dimmed={!explore.inUse}
+                            dimmed={!inUse}
                             label={
                                 openable ? (
                                     <Anchor
@@ -122,30 +134,29 @@ export const LiveExploreRows: FC<
                                 )
                             }
                             hint={
-                                explore.inUse
-                                    ? summaryOf(explore.description) && (
-                                          <Text
-                                              inherit
-                                              truncate="end"
-                                              title={explore.description}
-                                          >
-                                              {summaryOf(explore.description)}
-                                          </Text>
-                                      )
-                                    : 'Not in use'
+                                summaryOf(explore.description) && (
+                                    <Text
+                                        inherit
+                                        truncate="end"
+                                        title={explore.description}
+                                    >
+                                        {summaryOf(explore.description)}
+                                    </Text>
+                                )
                             }
                         >
                             <Switch
                                 size="xs"
                                 aria-label={`${explore.label} in use`}
-                                checked={explore.inUse}
-                                disabled={isSaving}
-                                onChange={(event) =>
+                                checked={inUse}
+                                onChange={(event) => {
+                                    // One save at a time; the next click waits for it
+                                    if (saving) return;
                                     save(explore, {
                                         exploreName: explore.exploreName,
                                         inUse: event.currentTarget.checked,
-                                    })
-                                }
+                                    });
+                                }}
                             />
                         </SettingsRow>
                     );
