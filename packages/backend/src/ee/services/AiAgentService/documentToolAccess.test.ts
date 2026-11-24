@@ -25,7 +25,6 @@ type PrivateService = {
         conversation: {
             messageHistory: [];
             compactionSummary: null;
-            resolveMessageHistory: () => Promise<[]>;
         },
         options: {
             prompt: unknown;
@@ -249,7 +248,6 @@ describe('Document runtime access', () => {
                     {
                         messageHistory: [],
                         compactionSummary: null,
-                        resolveMessageHistory: async () => [],
                     },
                     {
                         prompt,

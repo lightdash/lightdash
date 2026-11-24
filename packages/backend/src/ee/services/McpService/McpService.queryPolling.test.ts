@@ -421,9 +421,6 @@ const makeMcpService = ({
                 ...agent,
             };
         }),
-        getRelevantVerifiedAnswerContextForAgent: vi.fn().mockResolvedValue({
-            relevantVerifiedAnswers: [],
-        }),
         getVerifiedSavedArtifactContent: vi
             .fn()
             .mockResolvedValue(artifactVerifiedContent),

@@ -7,12 +7,10 @@ import {
     type ParametersValuesMap,
     type SavedChart,
 } from '@lightdash/common';
-import { ActionIcon, Button, Menu, Tooltip } from '@mantine/core';
+import { ActionIcon, Menu } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconChartBar,
-    IconCircleCheck,
-    IconCircleCheckFilled,
     IconDeviceFloppy,
     IconDots,
     IconExternalLink,
@@ -56,8 +54,6 @@ import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { getEmbedExploreSearch } from '../../../embed/embedNavigation';
 import { useAddChartToDashboard } from '../../hooks/useAddChartToDashboard';
-import { useSetArtifactVersionVerified } from '../../hooks/useAiAgentArtifacts';
-import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
 import { useChatBackUrl } from '../../hooks/useChatBackUrl';
 import { useSavePromptQuery } from '../../hooks/useProjectAiAgents';
 import {
@@ -142,10 +138,6 @@ export const AiChartQuickOptions = ({
     const [opened, { open, close }] = useDisclosure(false);
     const [scheduleOpened, { open: openSchedule, close: closeSchedule }] =
         useDisclosure(false);
-    const [
-        verifyModalOpened,
-        { open: openVerifyModal, close: closeVerifyModal },
-    ] = useDisclosure(false);
     const [sqlModalOpened, { open: openSqlModal, close: closeSqlModal }] =
         useDisclosure(false);
     const [
@@ -213,18 +205,8 @@ export const AiChartQuickOptions = ({
         message.threadUuid,
         message.uuid,
     );
-    const { mutate: setVerified } = useSetArtifactVersionVerified(
-        projectUuid,
-        agentUuid!,
-    );
-    const canManageAgent = useAiAgentPermission({
-        action: 'manage',
-        projectUuid,
-    });
     const metricQuery = resultsData?.metricQuery;
     const type = chartConfig.type;
-
-    const isVerified = artifactData?.verifiedByUserUuid !== null;
 
     const isDisabled = !metricQuery || !type || !visualizationConfig;
     const canExportImage =
@@ -488,38 +470,8 @@ export const AiChartQuickOptions = ({
         message.uuid,
     ]);
 
-    const handleVerifyToggle = () => {
-        if (!artifactData) return;
-
-        if (isVerified) {
-            openVerifyModal();
-        } else {
-            setVerified({
-                artifactUuid: artifactData.artifactUuid,
-                versionUuid: artifactData.versionUuid,
-                verified: true,
-            });
-        }
-    };
-
-    const handleConfirmUnverify = () => {
-        if (!artifactData) return;
-        setVerified({
-            artifactUuid: artifactData.artifactUuid,
-            versionUuid: artifactData.versionUuid,
-            verified: false,
-        });
-        closeVerifyModal();
-    };
-
     if (!metricQuery) return null;
 
-    const canVerify = !!artifactData && canManageAgent;
-    const verifyLabel = getUiString(
-        isVerified
-            ? 'aiAgent.verifiedAnswer.remove'
-            : 'aiAgent.verifiedAnswer.add',
-    );
     const { savedQueryUuid } = message;
     const hasSavedChartAction = !!savedQueryUuid;
     const hasSaveActions =
@@ -543,25 +495,6 @@ export const AiChartQuickOptions = ({
 
     return (
         <Fragment>
-            {canVerify && (
-                <Tooltip label={verifyLabel} position="bottom">
-                    <ActionIcon
-                        aria-label={verifyLabel}
-                        size="sm"
-                        color={isVerified ? 'green' : 'ldGray.6'}
-                        onClick={handleVerifyToggle}
-                    >
-                        <MantineIcon
-                            icon={
-                                isVerified
-                                    ? IconCircleCheckFilled
-                                    : IconCircleCheck
-                            }
-                            size="lg"
-                        />
-                    </ActionIcon>
-                </Tooltip>
-            )}
             {hasQuickActions && (
                 <Menu withArrow position="bottom-end">
                     <Menu.Target>
@@ -794,20 +727,6 @@ export const AiChartQuickOptions = ({
                     isFormatted={merge !== null}
                 />
             )}
-            <MantineModal
-                opened={verifyModalOpened}
-                onClose={closeVerifyModal}
-                role="alertdialog"
-                title="Remove from verified answers"
-                icon={IconCircleCheck}
-                size="sm"
-                description="Are you sure you want to remove this answer from verified answers? It will no longer be used as an example in future Agent responses."
-                actions={
-                    <Button color="red" onClick={handleConfirmUnverify}>
-                        Confirm
-                    </Button>
-                }
-            />
             {scheduleOpened && message.savedQueryUuid && (
                 <AiScheduleDeliveryModal
                     chartUuid={message.savedQueryUuid}

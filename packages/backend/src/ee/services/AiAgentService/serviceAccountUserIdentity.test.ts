@@ -37,7 +37,6 @@ type PrivateService = {
         conversation: {
             messageHistory: [];
             compactionSummary: null;
-            resolveMessageHistory: () => Promise<[]>;
         },
         options: {
             prompt: unknown;
@@ -166,7 +165,6 @@ const buildService = () => {
 const conversation = {
     messageHistory: [] as [],
     compactionSummary: null,
-    resolveMessageHistory: async () => [] as [],
 };
 
 describe('agent user identity by actor', () => {

@@ -5,10 +5,7 @@ import {
     structuredToolOutputSchema,
 } from '../outputMetadata';
 import { toolNameFor } from './discoveryToolNames';
-import {
-    findExploresRelevantVerifiedAnswerSchema,
-    findExploresRequiredFilterSchema,
-} from './toolFindExploresArgs';
+import { findExploresRequiredFilterSchema } from './toolFindExploresArgs';
 
 export const GREP_FIELDS_DESCRIPTION = ({
     runtime,
@@ -161,9 +158,6 @@ export const toolGrepFieldsStructuredContentSchema = z.object({
         .describe(
             'Catalog-search near matches not already surfaced by the grep.',
         ),
-    relevantVerifiedAnswers: z
-        .array(findExploresRelevantVerifiedAnswerSchema)
-        .optional(),
 });
 
 export const grepFieldsResultSchema = toolGrepFieldsStructuredContentSchema;

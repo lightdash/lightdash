@@ -182,7 +182,6 @@ import { isUniqueConstraintViolation } from '../../database/errors';
 import KnexPaginate from '../../database/pagination';
 import Logger from '../../logging/logger';
 import { AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE } from '../../models/ContentAsCodeSnapshotModel';
-import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     AI_PROMPT_TURN_DECISION_OPERATIONS,
@@ -268,7 +267,6 @@ import {
     AiArtifactsTableName,
     AiArtifactVersionsTable,
     AiArtifactVersionsTableName,
-    AiPromptArtifactReferencesTable,
     AiPromptArtifactReferencesTableName,
     DbAiArtifact,
     DbAiArtifactVersion,
@@ -5392,273 +5390,6 @@ export class AiAgentModel {
         return referencedArtifactsMap;
     }
 
-    async searchArtifactsBySimilarity({
-        organizationUuid,
-        projectUuid,
-        agentUuid,
-        queryEmbedding,
-        embeddingModelProvider,
-        embeddingModel,
-        limit = 3,
-        semanticCandidates = false,
-    }: {
-        organizationUuid: string;
-        projectUuid: string;
-        agentUuid: string;
-        queryEmbedding: number[];
-        embeddingModelProvider: string;
-        embeddingModel: string;
-        limit?: number;
-        semanticCandidates?: boolean;
-    }): Promise<
-        {
-            artifactVersionUuid: string;
-            chartConfig: Record<string, unknown>;
-            artifactType: 'chart' | 'dashboard';
-            verifiedQuestion: string | null;
-            title: string | null;
-            description: string | null;
-            similarity: number;
-        }[]
-    > {
-        return wrapSentryTransaction(
-            'searchArtifactsBySimilarity',
-            { organizationUuid, projectUuid, limit },
-            async () => {
-                if (!queryEmbedding || queryEmbedding.length === 0) {
-                    return [];
-                }
-
-                const embeddingJson = JSON.stringify(queryEmbedding);
-                const similarityThreshold =
-                    this.lightdashConfig.ai.copilot
-                        .verifiedAnswerSimilarityThreshold;
-
-                const query = this.database(AiArtifactVersionsTableName)
-                    .select(
-                        `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
-                        `${AiArtifactVersionsTableName}.chart_config`,
-                        `${AiArtifactVersionsTableName}.verified_question`,
-                        `${AiArtifactVersionsTableName}.title`,
-                        `${AiArtifactVersionsTableName}.description`,
-                        `${AiArtifactsTableName}.artifact_type`,
-                        this.database.raw(
-                            `1 - (${AiArtifactVersionsTableName}.embedding_vector <=> ?::vector) AS similarity`,
-                            [embeddingJson],
-                        ),
-                    )
-                    .join(
-                        AiArtifactsTableName,
-                        `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
-                        `${AiArtifactsTableName}.ai_artifact_uuid`,
-                    )
-                    .join(
-                        AiThreadTableName,
-                        `${AiArtifactsTableName}.ai_thread_uuid`,
-                        `${AiThreadTableName}.ai_thread_uuid`,
-                    )
-                    .whereNotNull(
-                        `${AiArtifactVersionsTableName}.verified_by_user_uuid`,
-                    )
-                    .whereNotNull(`${AiArtifactVersionsTableName}.chart_config`)
-                    .whereNotNull(
-                        `${AiArtifactVersionsTableName}.embedding_vector`,
-                    )
-                    .where(
-                        `${AiThreadTableName}.organization_uuid`,
-                        organizationUuid,
-                    )
-                    .where(`${AiThreadTableName}.agent_uuid`, agentUuid)
-                    .where(`${AiThreadTableName}.project_uuid`, projectUuid)
-                    .where(
-                        `${AiArtifactVersionsTableName}.embedding_model_provider`,
-                        embeddingModelProvider,
-                    )
-                    .where(
-                        `${AiArtifactVersionsTableName}.embedding_model`,
-                        embeddingModel,
-                    )
-                    .orderByRaw(
-                        `${AiArtifactVersionsTableName}.embedding_vector <=> ?::vector`,
-                        [embeddingJson],
-                    )
-                    .limit(limit);
-
-                if (!semanticCandidates)
-                    query.whereRaw(
-                        `1 - (${AiArtifactVersionsTableName}.embedding_vector <=> ?::vector) > ?`,
-                        [embeddingJson, similarityThreshold],
-                    );
-                const results = await query;
-                return results.map((row) => ({
-                    artifactVersionUuid: row.ai_artifact_version_uuid,
-                    chartConfig: row.chart_config,
-                    artifactType: row.artifact_type,
-                    verifiedQuestion: row.verified_question,
-                    title: row.title,
-                    description: row.description,
-                    similarity: row.similarity,
-                }));
-            },
-        );
-    }
-
-    async recordArtifactReferences({
-        promptUuid,
-        projectUuid,
-        artifactReferences,
-    }: {
-        promptUuid: string;
-        projectUuid: string;
-        artifactReferences: Array<{
-            artifactVersionUuid: string;
-            similarityScore?: number;
-        }>;
-    }): Promise<void> {
-        if (artifactReferences.length === 0) {
-            return;
-        }
-
-        await Promise.all(
-            artifactReferences.map((ref) =>
-                this.database<AiPromptArtifactReferencesTable>(
-                    AiPromptArtifactReferencesTableName,
-                ).insert({
-                    ai_prompt_uuid: promptUuid,
-                    ai_artifact_version_uuid: ref.artifactVersionUuid,
-                    project_uuid: projectUuid,
-                    similarity_score: ref.similarityScore ?? null,
-                }),
-            ),
-        );
-    }
-
-    async getVerifiedArtifactsForAgent({
-        organizationUuid,
-        projectUuid,
-        agentUuid,
-        paginateArgs,
-    }: {
-        organizationUuid: string;
-        projectUuid: string;
-        agentUuid: string;
-        paginateArgs?: KnexPaginateArgs;
-    }): Promise<
-        KnexPaginatedData<
-            Array<{
-                artifactUuid: string;
-                versionUuid: string;
-                artifactType: 'chart' | 'dashboard';
-                title: string | null;
-                description: string | null;
-                verifiedAt: Date;
-                verifiedByUserUuid: string;
-                referenceCount: number;
-                threadUuid: string;
-                promptUuid: string | null;
-            }>
-        >
-    > {
-        return wrapSentryTransaction(
-            'getVerifiedArtifactsForAgent',
-            { organizationUuid, projectUuid, agentUuid },
-            async () => {
-                const query = this.database(AiArtifactVersionsTableName)
-                    .select(
-                        `${AiArtifactsTableName}.ai_artifact_uuid as artifactUuid`,
-                        `${AiArtifactVersionsTableName}.ai_artifact_version_uuid as versionUuid`,
-                        `${AiArtifactsTableName}.artifact_type as artifactType`,
-                        `${AiArtifactVersionsTableName}.title`,
-                        `${AiArtifactVersionsTableName}.description`,
-                        `${AiArtifactVersionsTableName}.verified_at as verifiedAt`,
-                        `${AiArtifactVersionsTableName}.verified_by_user_uuid as verifiedByUserUuid`,
-                        `${AiArtifactsTableName}.ai_thread_uuid as threadUuid`,
-                        `${AiArtifactVersionsTableName}.ai_prompt_uuid as promptUuid`,
-                    )
-                    .countDistinct(
-                        `${AiPromptArtifactReferencesTableName}.ai_prompt_uuid as referenceCount`,
-                    )
-                    .join(
-                        AiArtifactsTableName,
-                        `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
-                        `${AiArtifactsTableName}.ai_artifact_uuid`,
-                    )
-                    .join(
-                        AiThreadTableName,
-                        `${AiArtifactsTableName}.ai_thread_uuid`,
-                        `${AiThreadTableName}.ai_thread_uuid`,
-                    )
-                    .leftJoin(
-                        AiPromptArtifactReferencesTableName,
-                        `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
-                        `${AiPromptArtifactReferencesTableName}.ai_artifact_version_uuid`,
-                    )
-                    .whereNotNull(
-                        `${AiArtifactVersionsTableName}.verified_by_user_uuid`,
-                    )
-                    .where(
-                        `${AiThreadTableName}.organization_uuid`,
-                        organizationUuid,
-                    )
-                    .where(`${AiThreadTableName}.agent_uuid`, agentUuid)
-                    .where(`${AiThreadTableName}.project_uuid`, projectUuid)
-                    .groupBy(
-                        `${AiArtifactsTableName}.ai_artifact_uuid`,
-                        `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
-                        `${AiArtifactsTableName}.artifact_type`,
-                        `${AiArtifactVersionsTableName}.title`,
-                        `${AiArtifactVersionsTableName}.description`,
-                        `${AiArtifactVersionsTableName}.verified_at`,
-                        `${AiArtifactVersionsTableName}.verified_by_user_uuid`,
-                        `${AiArtifactsTableName}.ai_thread_uuid`,
-                        `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
-                    )
-                    .orderByRaw(
-                        `COUNT(DISTINCT ${AiPromptArtifactReferencesTableName}.ai_prompt_uuid) DESC`,
-                    );
-
-                const { pagination, data } = await KnexPaginate.paginate(
-                    query,
-                    paginateArgs,
-                );
-
-                return {
-                    pagination,
-                    data: (data as Array<Record<string, unknown>>).map(
-                        (row) => ({
-                            artifactUuid: row.artifactUuid as string,
-                            versionUuid: row.versionUuid as string,
-                            artifactType: row.artifactType as
-                                | 'chart'
-                                | 'dashboard',
-                            title: (row.title as string | null) ?? null,
-                            description:
-                                (row.description as string | null) ?? null,
-                            verifiedAt: row.verifiedAt as Date,
-                            verifiedByUserUuid:
-                                row.verifiedByUserUuid as string,
-                            referenceCount: Number(row.referenceCount),
-                            threadUuid: row.threadUuid as string,
-                            promptUuid:
-                                (row.promptUuid as string | null) ?? null,
-                        }),
-                    ),
-                };
-            },
-        );
-    }
-
-    async findArtifactReferencesByPromptUuid(
-        promptUuid: string,
-    ): Promise<string[]> {
-        const refs = await this.database(AiPromptArtifactReferencesTableName)
-            .select('ai_artifact_version_uuid')
-            .where('ai_prompt_uuid', promptUuid)
-            .orderBy('created_at', 'asc');
-
-        return refs.map((r) => r.ai_artifact_version_uuid);
-    }
-
     async getArtifactVersionsByUuids(artifactVersionUuids: string[]): Promise<
         {
             artifactVersionUuid: string;
@@ -6841,14 +6572,6 @@ export class AiAgentModel {
             });
     }
 
-    async findPromptSavedQueryUuid(promptUuid: string): Promise<string | null> {
-        const row = await this.database(AiPromptTableName)
-            .select('saved_query_uuid')
-            .where({ ai_prompt_uuid: promptUuid })
-            .first<{ saved_query_uuid: string | null }>();
-        return row?.saved_query_uuid ?? null;
-    }
-
     async updateMessageSavedQuery(data: {
         messageUuid: string;
         savedQueryUuid: string | null;
@@ -6944,23 +6667,6 @@ export class AiAgentModel {
             .whereNull('deleted_at')
             .first();
         return row !== undefined;
-    }
-
-    async setArtifactVersionVerified(
-        artifactVersionUuid: string,
-        verified: boolean,
-        userUuid: string,
-    ): Promise<void> {
-        await this.database(AiArtifactVersionsTableName)
-            .update({
-                verified_by_user_uuid: verified ? userUuid : null,
-                verified_at: verified
-                    ? (this.database.fn.now() as unknown as Date)
-                    : null,
-            } satisfies Partial<DbAiArtifactVersion>)
-            .where({
-                ai_artifact_version_uuid: artifactVersionUuid,
-            });
     }
 
     async getVerifiedSavedArtifactContent(

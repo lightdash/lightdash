@@ -234,10 +234,7 @@ import { getCreateScheduledDelivery } from '../ai/tools/createScheduledDelivery'
 import { getEditContent } from '../ai/tools/editContent';
 import { getFindContent } from '../ai/tools/findContent';
 import { executeGetMetadata } from '../ai/tools/getMetadata';
-import {
-    executeGrepFields,
-    grepPatternsToSearchQuery,
-} from '../ai/tools/grepFields';
+import { executeGrepFields } from '../ai/tools/grepFields';
 import { getListContent } from '../ai/tools/listContent';
 import { getMcpListExplores } from '../ai/tools/mcpListExplores';
 import { getReadContent } from '../ai/tools/readContent';
@@ -3959,7 +3956,6 @@ export class McpService extends BaseService {
                 },
                 async (args, extra) => {
                     const ctx = getMcpContext(extra);
-                    const { user } = McpService.getAccount(ctx);
                     const projectUuid = await this.resolveToolProjectUuid(
                         ctx,
                         args.projectUuid,
@@ -3972,59 +3968,24 @@ export class McpService extends BaseService {
                             projectUuid,
                             args.agentUuid,
                         );
-                        const [
+                        const [availableExplores, verifiedFieldUsage] =
+                            await Promise.all([
+                                toolsRuntime.listExplores(),
+                                toolsRuntime
+                                    .getVerifiedFieldUsage()
+                                    .catch(() => new Map<string, number>()),
+                            ]);
+                        const result = await executeGrepFields(args, {
                             availableExplores,
                             verifiedFieldUsage,
-                            effectiveScope,
-                        ] = await Promise.all([
-                            toolsRuntime.listExplores(),
-                            toolsRuntime
-                                .getVerifiedFieldUsage()
-                                .catch(() => new Map<string, number>()),
-                            this.getEffectiveScope(
-                                ctx,
-                                projectUuid,
-                                args.agentUuid,
-                            ),
-                        ]);
-                        const [result, verifiedAnswerContext] =
-                            await Promise.all([
-                                executeGrepFields(args, {
-                                    availableExplores,
-                                    verifiedFieldUsage,
-                                    findExplores: async (findExploresArgs) =>
-                                        unwrapMcpRuntimeResult(
-                                            await toolsRuntime.findExplores(
-                                                findExploresArgs,
-                                            ),
-                                        ),
-                                }),
-                                effectiveScope.agentUuid
-                                    ? this.aiAgentService.getRelevantVerifiedAnswerContextForAgent(
-                                          user,
-                                          {
-                                              projectUuid,
-                                              agentUuid:
-                                                  effectiveScope.agentUuid,
-                                              searchQuery:
-                                                  grepPatternsToSearchQuery(
-                                                      args.patterns,
-                                                  ),
-                                          },
-                                      )
-                                    : { relevantVerifiedAnswers: [] },
-                            ]);
-
-                        const structuredContent = {
-                            ...result.structuredContent,
-                            ...(verifiedAnswerContext.relevantVerifiedAnswers
-                                .length > 0
-                                ? {
-                                      relevantVerifiedAnswers:
-                                          verifiedAnswerContext.relevantVerifiedAnswers,
-                                  }
-                                : {}),
-                        };
+                            findExplores: async (findExploresArgs) =>
+                                unwrapMcpRuntimeResult(
+                                    await toolsRuntime.findExplores(
+                                        findExploresArgs,
+                                    ),
+                                ),
+                        });
+                        const { structuredContent } = result;
 
                         return await this.buildScopedResponse(
                             ctx,
