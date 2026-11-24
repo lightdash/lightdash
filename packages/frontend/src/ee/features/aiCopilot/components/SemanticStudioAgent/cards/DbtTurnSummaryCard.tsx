@@ -306,6 +306,7 @@ export const DbtTurnSummaryCard: FC<{
                               getModelsOfFiles([file]).length > 0;
                           return {
                               id: file.key,
+                              kind: 'file',
                               change,
                               action: FILE_ACTIONS[change],
                               icon: (
@@ -336,6 +337,7 @@ export const DbtTurnSummaryCard: FC<{
                   rows: [
                       {
                           id: model,
+                          kind: 'model',
                           change: 'changed',
                           action: 'Changed the model',
                           icon: (
