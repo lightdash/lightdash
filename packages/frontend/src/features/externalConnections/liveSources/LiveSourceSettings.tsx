@@ -42,7 +42,22 @@ import {
     LIVE_SOURCE_UPDATE_MESSAGES,
     useUpdateExternalConnection,
 } from '../hooks/useUpdateExternalConnection';
+import {
+    getAccountField,
+    getLiveSourceAccess,
+    getTokenLabel,
+    toLiveSourceAccessUpdate,
+    toLiveSourceAccessValues,
+    type LiveSourceAccessValues,
+} from './liveSourceAccess';
 import { getApiSourceTarget } from './liveSourceCatalog';
+import { LiveSourceRateLimitsCard } from './LiveSourceRateLimits';
+import {
+    formatFreshness,
+    getLiveSourceFreshness,
+    type LiveSourceConnection,
+} from './liveSourceRows';
+import classes from './LiveSources.module.css';
 import {
     SettingsCard,
     SettingsRow,
@@ -55,21 +70,6 @@ import {
     toTokenLiveSourceUpdatePayload,
     type TokenLiveSourceForm,
 } from './tokenLiveSource';
-import {
-    getAccountField,
-    getLiveSourceAccess,
-    getTokenLabel,
-    toLiveSourceAccessUpdate,
-    toLiveSourceAccessValues,
-    type LiveSourceAccessValues,
-} from './liveSourceAccess';
-import { LiveSourceRateLimitsCard } from './LiveSourceRateLimits';
-import {
-    formatFreshness,
-    getLiveSourceFreshness,
-    type LiveSourceConnection,
-} from './liveSourceRows';
-import classes from './LiveSources.module.css';
 
 const WINDOW_SECONDS = [
     0,

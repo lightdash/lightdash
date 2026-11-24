@@ -10,38 +10,29 @@ import { useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import MantineModal from '../../../components/common/MantineModal';
 import useHealth from '../../../hooks/health/useHealth';
+import { getSemanticStudioSourceUrl } from '../../semanticStudio/urls';
 import { useDeleteExternalConnection } from '../hooks/useDeleteExternalConnection';
 import { useLiveSourceFields } from '../hooks/useLiveSourceFields';
 import { AddLiveSourceModal } from './AddLiveSourceModal';
 import { AmplitudeConnectionModal } from './AmplitudeConnectionModal';
-import {
-    getGoogleSignInUrl,
-    isGoogleConnector,
-} from './googleConnection';
+import { getGoogleSignInUrl, isGoogleConnector } from './googleConnection';
 import { GoogleConnectionModal } from './GoogleConnectionModal';
 import { GoogleSourcePickerModal } from './GoogleSourcePickerModal';
 import { getLinkedInAdsSignInUrl } from './linkedInAdsConnection';
 import { LinkedInAdsConnectionModal } from './LinkedInAdsConnectionModal';
 import {
-    formatChartCount,
-    getLiveSource,
-} from './liveSourceCatalog';
-import {
-    getPostHogSignInUrl,
-    toPostHogFormValues,
-} from './postHogConnection';
+    LiveSourceActionsContext,
+    type LiveSourceActions,
+} from './liveSourceActions';
+import { formatChartCount, getLiveSource } from './liveSourceCatalog';
+import { type LiveSourceConnection } from './liveSourceRows';
+import { getPostHogSignInUrl, toPostHogFormValues } from './postHogConnection';
 import { PostHogConnectionModal } from './PostHogConnectionModal';
 import { ReattachLiveSourceModal } from './ReattachLiveSourceModal';
 import { getSalesforceSignInUrl } from './salesforceConnection';
 import { SalesforceConnectionModal } from './SalesforceConnectionModal';
 import { TokenLiveSourceModal } from './TokenLiveSourceModal';
 import { useLiveSourceSignInResult } from './useLiveSourceSignInResult';
-import { getSemanticStudioSourceUrl } from '../../semanticStudio/urls';
-import {
-    LiveSourceActionsContext,
-    type LiveSourceActions,
-} from './liveSourceActions';
-import { type LiveSourceConnection } from './liveSourceRows';
 
 type Dialog =
     | { kind: 'closed' }

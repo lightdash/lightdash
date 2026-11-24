@@ -6,11 +6,8 @@
 import { Progress, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { useExternalConnectionRateLimitUsage } from '../hooks/useExternalConnectionRateLimitUsage';
-import {
-    SettingsCard,
-    SettingsRow,
-} from './LiveSourceSettingsRows';
 import classes from './LiveSources.module.css';
+import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
 import {
     capitalize,
     formatUntil,

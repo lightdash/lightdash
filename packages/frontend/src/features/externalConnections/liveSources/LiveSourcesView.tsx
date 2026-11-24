@@ -27,9 +27,9 @@ import { useExternalConnectionApiUsage } from '../hooks/useExternalConnectionApi
 import { useExternalConnectionRateLimitUsage } from '../hooks/useExternalConnectionRateLimitUsage';
 import { useExternalConnections } from '../hooks/useExternalConnections';
 import { useLiveSourceFields } from '../hooks/useLiveSourceFields';
+import { useLiveSourceActions } from './liveSourceActions';
 import { formatChartCount } from './liveSourceCatalog';
 import { LiveSourceIcon } from './LiveSourceIcon';
-import { useLiveSourceActions } from './liveSourceActions';
 import {
     formatFreshness,
     getLiveSourceFreshness,
@@ -312,9 +312,7 @@ export const LiveSourceSummary: FC<{
             <Stat
                 label="Cache"
                 value={
-                    isProjectCacheOff
-                        ? 'Disabled'
-                        : formatFreshness(freshness)
+                    isProjectCacheOff ? 'Disabled' : formatFreshness(freshness)
                 }
                 detail={isProjectCacheOff ? null : row.usage.cacheHitsLabel}
                 title={
