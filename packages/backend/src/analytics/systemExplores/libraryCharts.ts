@@ -103,6 +103,10 @@ export const libraryChartOptions: Record<
         yTitle: '0.5.0',
         legendTitle: '0.5.0',
         legendFormat: '0.5.0',
+        // Caps the colour range at a percentile of the cells, so one extreme cell does not leave
+        // every other cell the same pale tint
+        colorClampPercentile: '0.5.1',
+        colorScale: '0.5.1',
     },
     'vega-trellis': {
         ...sinceFirstBinding(
@@ -145,6 +149,8 @@ export const libraryChartOptions: Record<
         y2IntegerTicks: '0.18.6',
         // Shades each group's series by a ranked list of words in their names, darkest first
         splitShadeRank: '0.18.7',
+        // 'groups' lists one legend entry for each colour group instead of one for each series
+        legendMode: '0.18.7',
     },
     'big-number-with-sparkline-trend': {
         ...sinceFirstBinding(
