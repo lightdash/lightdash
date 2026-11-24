@@ -51,6 +51,7 @@ import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
 import {
     useCreateAgentThreadMessageMutation,
     useCreateAgentThreadMutation,
+    useGenerateAgentThreadTitleMutation,
 } from '../../hooks/useProjectAiAgents';
 import { store } from '../../store';
 import { AiAgentThreadStreamAbortControllerContextProvider } from '../../streaming/AiAgentThreadStreamAbortControllerContextProvider';
@@ -353,11 +354,18 @@ const ExistingThread: FC<
             agent.uuid,
             threadUuid,
         );
+    const { mutate: generateTitle } =
+        useGenerateAgentThreadTitleMutation(projectUuid);
     const send = (submitted: Submitted) => {
+        // A chat started without a message, as by a Sources save, gets its title from its first one.
+        const needsTitle = !!thread && !thread.title;
         void sendMessage({
             enableSqlMode: sqlMode,
             autoApproveSql: true,
             ...withOpenModel({ modelName, fieldName }, attached, submitted),
+        }).then(() => {
+            if (needsTitle)
+                generateTitle({ agentUuid: agent.uuid, threadUuid });
         });
         onAttachedSent();
     };

@@ -1,3 +1,4 @@
+import { UNTITLED_WORKSPACE_NAME } from '@lightdash/common';
 import {
     up as addWorkspace,
     down as dropWorkspace,
@@ -672,6 +673,61 @@ describe('Project model documents on PostgreSQL', () => {
                 },
                 { name: 'Second', isCheckedOut: true, models: [] },
             ]),
+        );
+    });
+
+    test('an untitled draft takes the name of its first change and a given name stays', async () => {
+        const workspaces = new SemanticStudioWorkspaceModel({
+            database: migrated.database,
+        });
+        const owner = { projectUuid, userUuid };
+        const change = (workspaceUuid: string, changeName: string) =>
+            model.createCheckedOutDraftChange(
+                {
+                    ...owner,
+                    workspaceUuid,
+                    baseVersions: null,
+                    projectContextEntries: null,
+                    promptUuid: null,
+                    changeName,
+                    models: [
+                        {
+                            name: 'orders',
+                            yaml: 'label: Orders',
+                            remove: [],
+                            removeModel: false,
+                        },
+                    ],
+                },
+                organization.organization_uuid,
+            );
+        const untitled = await workspaces.create(
+            owner,
+            organization.organization_uuid,
+            UNTITLED_WORKSPACE_NAME,
+        );
+        await change(untitled, UNTITLED_WORKSPACE_NAME);
+        expect((await workspaces.find(untitled, userUuid))?.name).toBe(
+            UNTITLED_WORKSPACE_NAME,
+        );
+        const first = await change(untitled, 'Add revenue to orders');
+        expect(first.startedChange).toBeNull();
+        expect((await workspaces.find(untitled, userUuid))?.name).toBe(
+            'Add revenue to orders',
+        );
+        await change(untitled, 'Something else');
+        expect((await workspaces.find(untitled, userUuid))?.name).toBe(
+            'Add revenue to orders',
+        );
+
+        const named = await workspaces.create(
+            owner,
+            organization.organization_uuid,
+            'Orders cleanup',
+        );
+        await change(named, 'Add revenue to orders');
+        expect((await workspaces.find(named, userUuid))?.name).toBe(
+            'Orders cleanup',
         );
     });
 

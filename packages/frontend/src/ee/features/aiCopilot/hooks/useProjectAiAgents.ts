@@ -1246,7 +1246,7 @@ const generateAgentThreadTitle = async (
         body: JSON.stringify({}),
     });
 
-const useGenerateAgentThreadTitleMutation = (projectUuid: string) => {
+export const useGenerateAgentThreadTitleMutation = (projectUuid: string) => {
     const lightdashApi = useLightdashApi();
 
     const queryClient = useQueryClient();

@@ -1,6 +1,7 @@
 import {
     NotFoundError,
     STUDIO_EDITED_IN,
+    UNTITLED_WORKSPACE_NAME,
     type SemanticStudioBranchCompile,
     type SemanticStudioWorkspace,
     type SemanticStudioWorkspacePullRequestState,
@@ -253,7 +254,7 @@ export class SemanticStudioWorkspaceModel {
 
     /**
      * Inside a draft write: locks the person's workspaces and returns the active one, starting one named
-     * `name` when none is; null when the active one is no longer `expectedWorkspaceUuid`.
+     * `name` when none is or naming an untitled one; null when the active one is no longer `expectedWorkspaceUuid`.
      */
     static async checkOutForDraft(
         trx: Knex.Transaction,
@@ -308,6 +309,15 @@ export class SemanticStudioWorkspaceModel {
                     .returning(['semantic_studio_workspace_uuid', 'name'])
             )[0];
         const workspaceUuid = workspace.semantic_studio_workspace_uuid;
+        // A draft still untitled takes the name of its first change; a name someone gave it stays.
+        if (
+            workspace.name === UNTITLED_WORKSPACE_NAME &&
+            name !== UNTITLED_WORKSPACE_NAME
+        ) {
+            await trx(SemanticStudioWorkspacesTableName)
+                .where('semantic_studio_workspace_uuid', workspaceUuid)
+                .update({ name });
+        }
         if (promptUuid && !active?.ai_thread_uuid) {
             await SemanticStudioWorkspaceModel.attachPromptThread(
                 trx,
