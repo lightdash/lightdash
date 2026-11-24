@@ -77,7 +77,8 @@ export const card = ({
     },
 });
 
-// One number as a card, with a line of plain words saying what it counts. For a number with no daily
+// One number as a card, with a line of plain words saying what it counts (`label`; left to the hover
+// text on a card that draws a bar). For a number with no daily
 // series behind it, so no sparkline. A number that is part of a whole also draws a bar of its share:
 // `whole` is the field holding the whole, and `wholeLabel` ends the line under the bar ("65% of all
 // content"). A share that is already a percentage draws the bar alone.
@@ -111,9 +112,11 @@ export const numberCard = (
         sizeMode: 'preset',
         bigNumberSize: 6,
         reserveComparisonSpace: false,
-        showLabel: true,
-        label,
-        labelTransform: 'none',
+        // A card with a bar has no room for a line of words as well: the chart shrinks the number to
+        // fit everything in, so the meaning is in the tile's hover text and the title names the number
+        ...(whole
+            ? { showLabel: false }
+            : { showLabel: true, label, labelTransform: 'none' }),
         showCardBorder: false,
         showCardShadow: false,
         ...(whole
