@@ -13,6 +13,8 @@ export type LibraryChartBinding = {
     minVersion: string; // registry semver the mapping was written against
     fieldMapping: DataAppVizFieldMapping;
     optionValues: DataAppVizOptionValues;
+    // What the library rendering shows, when that differs from the plain chart on the same query
+    description?: string;
     // Query the library chart runs in place of the fallback's; null when it shares the fallback query.
     query: {
         dimensions: string[];
@@ -171,6 +173,14 @@ export const libraryChartOptions: Record<
     },
 };
 
+// The lowest version a binding may ask for, whatever options it sets, where an earlier version draws
+// the chart wrongly. The sync upgrades an installed type only when it is below a binding's version, so
+// a fix reaches an instance only if the bindings ask for the version that has it.
+export const libraryChartFloors: Record<string, string> = {
+    // 0.8.3 stops the sparkline being clipped at the bottom of the card
+    'big-number-with-sparkline-trend': '0.8.3',
+};
+
 // Swaps a chart to its library type only when the installed version meets its binding and the binding is valid.
 export const withLibraryCharts = (
     charts: ChartAsCode[],
@@ -227,6 +237,7 @@ export const withLibraryCharts = (
         }
         return {
             ...chart,
+            ...(binding.description && { description: binding.description }),
             ...(query && {
                 description: query.description,
                 metricQuery: {

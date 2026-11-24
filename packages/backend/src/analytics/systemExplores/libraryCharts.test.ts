@@ -656,7 +656,7 @@ describe('legacyLibraryChartBindings', () => {
             ),
         ).toEqual({
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.7.1',
+            minVersion: '0.8.3',
             fieldMapping: {
                 value: 'ai_usage_unique_users',
                 sparklineMetric: 'ai_usage_unique_users',
@@ -690,7 +690,7 @@ describe('legacyLibraryChartBindings', () => {
             analyticsLibraryChartBindings.get(`${prefix}${key}`);
         expect(queryBinding('queries')).toMatchObject({
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.7.1',
+            minVersion: '0.8.3',
             optionValues: {
                 valueAggregation: 'sum',
                 showComparison: false,
@@ -705,7 +705,7 @@ describe('legacyLibraryChartBindings', () => {
             (key) => {
                 expect(queryBinding(key)).toMatchObject({
                     slug: 'big-number-with-sparkline-trend',
-                    minVersion: '0.7.1',
+                    minVersion: '0.8.3',
                     optionValues: {
                         valueAggregation: 'latest',
                         showComparison: false,

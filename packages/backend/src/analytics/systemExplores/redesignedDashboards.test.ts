@@ -19,6 +19,7 @@ import { MetricQueryBuilder } from '../../utils/QueryBuilder/MetricQueryBuilder'
 import { compactedStreamSchemas } from '../eventStream/registry';
 import {
     libraryChartFields,
+    libraryChartFloors,
     libraryChartOptions,
     withLibraryCharts,
     type UsableLibraryChartType,
@@ -1388,8 +1389,13 @@ describe('library chart options', () => {
 
     it('asks for a version that has every option it sets, and no newer', () => {
         entries.forEach(([slug, binding]) => {
-            const needed = Object.keys(binding.optionValues)
-                .map((name) => libraryChartOptions[binding.slug][name])
+            // The newest option it sets, or the version with a fix every binding of the type needs
+            const needed = [
+                ...Object.keys(binding.optionValues).map(
+                    (name) => libraryChartOptions[binding.slug][name],
+                ),
+                libraryChartFloors[binding.slug] ?? null,
+            ]
                 .filter((version): version is string => version !== null)
                 .sort(compareSemverVersions)
                 .at(-1);
@@ -2225,15 +2231,25 @@ describe('legends and colour ranges that hold up with real volumes', () => {
         const charts = analyticsContentAsCode.flatMap(
             (bundle) => bundle.charts,
         );
-        heatmaps.forEach(([slug, { minVersion, optionValues, query }]) => {
+        heatmaps.forEach(([slug, { minVersion, optionValues }]) => {
             expect(minVersion).toBe('0.5.1');
             expect(optionValues.colorClampPercentile).toBe(95);
-            const shown =
-                query?.description ??
-                charts.find((chart) => chart.slug === slug)!.description;
-            expect(shown).toContain(
+            // Said by the heatmap only: the plain table it replaces has no colour scale
+            const plain = charts.find((chart) => chart.slug === slug)!;
+            expect(plain.description).not.toContain('95th percentile');
+            const [drawn] = withLibraryCharts(
+                [plain],
+                analyticsLibraryChartBindings,
+                installedTypes(),
+            ).charts;
+            expect(drawn.description).toContain(
                 'The colour scale stops at the 95th percentile.',
             );
+            expect(
+                drawn
+                    .description!.split(/[.?!](?:\s+|$)/)
+                    .filter((sentence) => sentence.trim()),
+            ).toHaveLength(2);
         });
     });
 
@@ -2251,5 +2267,17 @@ describe('legends and colour ranges that hold up with real volumes', () => {
             expect(optionValues.legendMode).toBe('groups');
             expect(minVersion).toBe('0.18.7');
         });
+    });
+});
+
+describe('a fix that every card needs', () => {
+    it('asks for the big number version whose sparkline is not clipped, on every card', () => {
+        const cards = [...analyticsLibraryChartBindings.values()].filter(
+            ({ slug }) => slug === 'big-number-with-sparkline-trend',
+        );
+        expect(cards.length).toBeGreaterThan(30);
+        expect(new Set(cards.map(({ minVersion }) => minVersion))).toEqual(
+            new Set(['0.8.3']),
+        );
     });
 });
