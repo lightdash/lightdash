@@ -83,10 +83,16 @@ const ICONS: Record<string, string> = {
 };
 
 /** One-colour marks, such as GitHub's, drawn dark and lightened in dark mode. */
-const MONO_ICONS = new Set([githubIcon]);
+const MONO_ICONS = new Set([githubIcon, attioIcon]);
 
-export const getLiveSourceIconClass = (icon: string) =>
-    MONO_ICONS.has(icon) ? iconClasses.mono : undefined;
+/** Coloured marks too dark for a dark background, drawn white there, as the vendor does. */
+const WHITE_ON_DARK_ICONS = new Set([pylonIcon]);
+
+export const getLiveSourceIconClass = (icon: string) => {
+    if (MONO_ICONS.has(icon)) return iconClasses.mono;
+    if (WHITE_ON_DARK_ICONS.has(icon)) return iconClasses.whiteOnDark;
+    return undefined;
+};
 
 /** The order sources are offered in; every connector appears once. */
 const DISPLAY_ORDER = [

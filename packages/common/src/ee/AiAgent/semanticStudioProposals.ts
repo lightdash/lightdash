@@ -61,6 +61,7 @@ export const describeSemanticLayerProposals = (
     );
     if (ready.length === 0) return 'Nothing changed in the draft.';
     const names = [...new Set(ready.map(({ model }) => model))];
+    // Only results stored before a model joined whole or not at all.
     const leftOut = ready.some(({ refusals }) => refusals.length > 0)
         ? ' Some parts were left out.'
         : '';

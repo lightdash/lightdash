@@ -8,6 +8,7 @@ import {
     type ApplyModelFragmentResult,
     type SemanticLayerDraftItemResult,
     type SemanticLayerDraftModelInput,
+    type SemanticLayerProposalItemResult,
 } from '@lightdash/common';
 import { isDerivedSqlFrom, toDerivedSqlFrom } from './derivedModel';
 
@@ -158,6 +159,73 @@ export const foldDraft = (
         }
     };
     return { results: changes.map((models) => models.map(fold)), writes };
+};
+
+/**
+ * Folds a proposal on top of a draft, whole model by whole model: when any part
+ * of a model's change is refused or fails, none of that model's change is kept.
+ * Results keep the order of `models`.
+ */
+export const foldProposal = (
+    documents: Map<string, string>,
+    drafted: SemanticLayerDraftModelInput[][],
+    models: SemanticLayerDraftModelInput[],
+): {
+    writes: Map<string, string | null>;
+    results: SemanticLayerProposalItemResult[];
+} => {
+    const attempt = foldDraft(documents, [...drafted, models]);
+    const attempted = attempt.results[drafted.length];
+    const leftOut = new Set(
+        attempted
+            .filter(
+                ({ status, refusals }) =>
+                    status === 'failed' || refusals.length > 0,
+            )
+            .map(({ model }) => model),
+    );
+    const kept = models.filter(({ name }) => !leftOut.has(name));
+    // Folded again without what is left out, so a check sees only what can join the draft.
+    const { writes, results } =
+        leftOut.size === 0 ? attempt : foldDraft(documents, [...drafted, kept]);
+    const keptResults = results[drafted.length];
+    let nextKept = 0;
+    return {
+        writes,
+        results: attempted.map((result) => {
+            if (leftOut.has(result.model)) {
+                return {
+                    model: result.model,
+                    status: 'failed',
+                    changes: [],
+                    refusals: result.refusals,
+                    error:
+                        result.error ??
+                        `None of this change to ${result.model} was added, because part of it could not be applied.`,
+                    notes: [],
+                };
+            }
+            const { model, changes } = keptResults[nextKept];
+            nextKept += 1;
+            return changes.length > 0
+                ? {
+                      model,
+                      status: 'ready',
+                      changes,
+                      refusals: [],
+                      error: null,
+                      notes: [],
+                  }
+                : {
+                      model,
+                      status: 'unchanged',
+                      changes: [],
+                      refusals: [],
+                      error: null,
+                      notes: [],
+                  };
+        }),
+    };
 };
 
 /** The documents with writes and removals on top. */

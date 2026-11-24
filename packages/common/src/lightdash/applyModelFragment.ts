@@ -10,7 +10,7 @@ import {
     type LightdashModelMetric,
     type LightdashModelWithSource,
 } from '../types/lightdashModel';
-import { parseModelPartPath } from './diffModelDocuments';
+import { parseRemovablePartPath } from './diffModelDocuments';
 import { stringifyKeepingFormat } from './keepYamlFormat';
 import { validateModelDocument } from './LightdashModelEditor';
 
@@ -310,8 +310,8 @@ export const setModelJoinRelationships = ({
 };
 
 const findPartPath = (model: LightdashModel, path: string): YamlPath | null => {
-    const part = parseModelPartPath(path);
-    if (part?.part !== 'entry' || part.key !== null) return null;
+    const part = parseRemovablePartPath(path);
+    if (part === null) return null;
     const { group, name, dimension } = part;
     if (dimension !== null) {
         const index = model.dimensions.findIndex(
