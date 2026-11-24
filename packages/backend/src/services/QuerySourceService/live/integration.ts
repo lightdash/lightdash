@@ -109,12 +109,19 @@ export type LiveConnectionSettings<
     type: ExternalConnectionAuthType;
     origin: string;
     oauthTokenUrl?: string | null;
+    oauthScopes?: string[] | null;
 };
 
 /** Throws a ParameterError naming what the admin has to change. */
 export const validateLiveConnection = <C extends ApiConnectorType>(
     integration: LiveIntegration<C>,
-    { apiSource, type, origin, oauthTokenUrl }: LiveConnectionSettings<C>,
+    {
+        apiSource,
+        type,
+        origin,
+        oauthTokenUrl,
+        oauthScopes,
+    }: LiveConnectionSettings<C>,
 ) => {
     integration.validate(apiSource);
     const { origins, acceptsOrigin, label } = integration;
@@ -127,5 +134,5 @@ export const validateLiveConnection = <C extends ApiConnectorType>(
             `${label} connections must use ${origins.join(' or ')}`,
         );
     }
-    integration.checkAuth({ type, origin, oauthTokenUrl });
+    integration.checkAuth({ type, origin, oauthTokenUrl, oauthScopes });
 };

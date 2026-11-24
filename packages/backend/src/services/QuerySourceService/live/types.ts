@@ -198,6 +198,8 @@ export type LiveConnectionCheck = {
     type: ExternalConnectionAuthType;
     origin: string;
     oauthTokenUrl?: string | null;
+    /** The scopes a service account's or OAuth client's token is minted with. */
+    oauthScopes?: string[] | null;
 };
 
 /** What an integration reports about its own fields; absent when not scanned. */
