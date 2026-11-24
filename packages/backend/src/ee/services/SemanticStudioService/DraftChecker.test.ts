@@ -51,6 +51,8 @@ const warehouse: {
     /** What the catalog says every table it knows holds. */
     columns: Record<string, DimensionType>;
     partitioning: TablePartitioning | null;
+    /** Why the warehouse refuses to plan a query, or null when it plans it. */
+    planError: (sql: string) => string | null;
 } = {
     queries: [],
     keyRow: {},
@@ -59,18 +61,21 @@ const warehouse: {
     catalog: {},
     columns: { id: DimensionType.NUMBER },
     partitioning: null,
+    planError: () => null,
 };
 
-const checker = () =>
+const checker = (type: WarehouseTypes = WarehouseTypes.POSTGRES) =>
     new DraftChecker({
         getWarehouseSqlBuilderSettings: async () => ({
-            type: WarehouseTypes.POSTGRES,
+            type,
             startOfWeek: null,
             columnTimezone: 'UTC',
             dataTimezone: null,
         }),
         runSqlQuery: async (_user, _projectUuid, sql) => {
             warehouse.queries.push(sql);
+            const planError = warehouse.planError(sql);
+            if (planError) throw new Error(planError);
             if (sql.includes('row_count')) {
                 return {
                     fields: {},
@@ -108,6 +113,7 @@ describe('DraftChecker.compile', () => {
         warehouse.catalog = {};
         warehouse.columns = { id: DimensionType.NUMBER };
         warehouse.partitioning = null;
+        warehouse.planError = () => null;
     });
 
     test('the same documents compile once, and each caller gets its own copy', async () => {
@@ -371,6 +377,236 @@ pre_aggregates:
             await drafts.check(user, 'project', new Map(), proposed());
             await drafts.check(user, 'project', new Map(), proposed());
             expect(keyChecks()).toHaveLength(2);
+        });
+    });
+
+    describe('a model that already fails on the warehouse', () => {
+        // A date dimension over a text column: the warehouse refuses to truncate it.
+        const broken = `${model('orders')}  - name: born
+    type: date
+    sql: \${TABLE}.born
+`;
+        const withMetric = (sql: string) =>
+            `${broken}metrics:\n  total:\n    type: sum\n    sql: ${sql}\n`;
+        const check = (
+            live: string | null,
+            contents: string,
+            truncateError = 'cannot truncate text',
+        ) => {
+            warehouse.planError = (sql) => {
+                if (/date_trunc/i.test(sql)) return truncateError;
+                return sql.includes('NO_SUCH_FN') ? 'no such function' : null;
+            };
+            return checker().check(
+                user,
+                'project',
+                new Map(live === null ? [] : [['orders', live]]),
+                new Map([['orders', contents]]),
+            );
+        };
+        const inCatalog = () => {
+            warehouse.catalog = {
+                shop: {
+                    public: { orders: { tableType: WarehouseTableType.TABLE } },
+                },
+            };
+            warehouse.columns = {
+                id: DimensionType.NUMBER,
+                born: DimensionType.STRING,
+            };
+        };
+
+        test('a change that leaves the failing field alone joins the draft, with a note about it', async () => {
+            const { rejected, notes } = await check(
+                broken,
+                withMetric('${TABLE}.id'),
+            );
+            expect(rejected.size).toBe(0);
+            expect(notes.get('orders')?.[0]).toBe(
+                'orders already had a problem before this change, which leaves it as it was. The warehouse rejected this model: cannot truncate text',
+            );
+        });
+
+        test('the note names the field when the catalog shows its column is typed differently and the warehouse points at it', async () => {
+            inCatalog();
+            const { rejected, notes } = await check(
+                broken,
+                withMetric('${TABLE}.id'),
+                'cannot truncate text column born',
+            );
+            expect(rejected.size).toBe(0);
+            expect(notes.get('orders')?.[0]).toBe(
+                'orders already had a problem before this change, which leaves it as it was. born reads a string column but is typed date.',
+            );
+        });
+
+        test('the note keeps the warehouse error when it does not point at the mistyped field', async () => {
+            inCatalog();
+            const { notes } = await check(broken, withMetric('${TABLE}.id'));
+            expect(notes.get('orders')?.[0]).toBe(
+                'orders already had a problem before this change, which leaves it as it was. The warehouse rejected this model: cannot truncate text',
+            );
+        });
+
+        test('a change to the table plans every field, so one it breaks is rejected', async () => {
+            warehouse.planError = (sql) => {
+                if (sql.includes('orders_v2') && sql.includes('.id')) {
+                    return 'orders_v2 has no id';
+                }
+                return /date_trunc/i.test(sql) ? 'cannot truncate text' : null;
+            };
+            const { rejected } = await checker().check(
+                user,
+                'project',
+                new Map([['orders', broken]]),
+                new Map([
+                    [
+                        'orders',
+                        broken.replace('public.orders', 'public.orders_v2'),
+                    ],
+                ]),
+            );
+            expect(rejected.get('orders')).toBe(
+                'The warehouse rejected this model: orders_v2 has no id',
+            );
+        });
+
+        test('a change to a join plans the fields that read the joined model', async () => {
+            const customers = `${model('customers')}  - name: name
+    type: string
+    sql: \${TABLE}.name
+`;
+            const joined = (on: string) => `${broken}  - name: buyer
+    type: string
+    sql: \${customers.name}
+joins:
+  - join: customers
+    sql_on: ${on}
+`;
+            warehouse.planError = (sql) => {
+                if (sql.includes('JOIN_FN') && sql.includes('.name')) {
+                    return 'the join cannot read name';
+                }
+                return /date_trunc/i.test(sql) ? 'cannot truncate text' : null;
+            };
+            const { rejected } = await checker().check(
+                user,
+                'project',
+                new Map([
+                    ['orders', joined('${orders.id} = ${customers.id}')],
+                    ['customers', customers],
+                ]),
+                new Map([
+                    [
+                        'orders',
+                        joined('${orders.id} = JOIN_FN(${customers.id})'),
+                    ],
+                ]),
+            );
+            expect(rejected.get('orders')).toBe(
+                'The warehouse rejected this model: the join cannot read name',
+            );
+        });
+
+        test('a change to a dimension type alone is checked, though its sql is the same', async () => {
+            columnTypes.fields = {
+                c0: { type: DimensionType.STRING },
+                c1: { type: DimensionType.STRING },
+            };
+            warehouse.planError = (sql) =>
+                sql.includes('NO_SUCH_FN') ? 'no such function' : null;
+            const labelled = (
+                type: string,
+            ) => `${model('orders')}  - name: label
+    type: ${type}
+    sql: \${TABLE}.label
+metrics:
+  total:
+    type: sum
+    sql: NO_SUCH_FN(\${TABLE}.id)
+`;
+            const { rejected } = await checker().check(
+                user,
+                'project',
+                new Map([['orders', labelled('string')]]),
+                new Map([['orders', labelled('number')]]),
+            );
+            expect(rejected.get('orders')).toBe(
+                "label reads a string column, but is typed differently. Use the column's type, or cast in sql to change it.",
+            );
+        });
+
+        test('a join that already fails does not block a change that does not read it', async () => {
+            const joined = (metrics: string) => `${model('orders')}joins:
+  - join: customers
+    sql_on: \${orders.id} = BAD_JOIN(\${customers.id})
+${metrics}`;
+            warehouse.planError = (sql) =>
+                sql.includes('BAD_JOIN')
+                    ? 'column missing does not exist'
+                    : null;
+            const { rejected, notes } = await checker().check(
+                user,
+                'project',
+                new Map([
+                    ['orders', joined('')],
+                    ['customers', model('customers')],
+                ]),
+                new Map([
+                    [
+                        'orders',
+                        joined(
+                            'metrics:\n  total:\n    type: count\n    sql: ${TABLE}.id\n',
+                        ),
+                    ],
+                ]),
+            );
+            expect(rejected.size).toBe(0);
+            expect(notes.get('orders')?.[0]).toBe(
+                'orders already had a problem before this change, which leaves it as it was. The warehouse rejected this model: column missing does not exist',
+            );
+        });
+
+        test('a change that adds its own failure behind the old one is still rejected', async () => {
+            const { rejected } = await check(
+                broken,
+                withMetric('NO_SUCH_FN(${TABLE}.id)'),
+            );
+            expect(rejected.get('orders')).toBe(
+                'The warehouse rejected this model: no such function',
+            );
+        });
+
+        test.each(Object.values(WarehouseTypes))(
+            'on %s, only a change that touches the failing field is rejected',
+            async (type) => {
+                // Whatever the dialect writes around it, any SQL that reads the column fails.
+                warehouse.planError = (sql) =>
+                    /\bborn\b/.test(sql) ? 'cannot read born' : null;
+                const run = (sql: string) =>
+                    checker(type).check(
+                        user,
+                        'project',
+                        new Map([['orders', broken]]),
+                        new Map([['orders', withMetric(sql)]]),
+                    );
+                const untouched = await run('${TABLE}.id');
+                expect(untouched.rejected.size).toBe(0);
+                expect(untouched.notes.get('orders')?.[0]).toContain(
+                    'already had a problem before this change',
+                );
+                expect(
+                    (await run('${TABLE}.born')).rejected.get('orders'),
+                ).toBe('The warehouse rejected this model: cannot read born');
+            },
+        );
+
+        test('a change that brings the failure is rejected for it', async () => {
+            const { rejected } = await check(model('orders'), broken);
+            expect(rejected.get('orders')).toBe(
+                'The warehouse rejected this model: cannot truncate text',
+            );
+            expect((await check(null, broken)).rejected.size).toBe(1);
         });
     });
 

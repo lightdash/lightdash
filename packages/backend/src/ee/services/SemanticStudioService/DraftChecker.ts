@@ -27,7 +27,12 @@ import { fromSession } from '../../../auth/account';
 import { type ProjectService } from '../../../services/ProjectService/ProjectService';
 import { type WarehouseSqlBuilderSettings } from '../../../services/ProjectService/warehouseSqlBuilderSettings';
 import { toModelPath, withWrites } from './draftFold';
-import { findChangedFields, findColumnError, PLAIN_COLUMN } from './draftLint';
+import {
+    findChangedFields,
+    findColumnError,
+    findMistypedDimensions,
+    PLAIN_COLUMN,
+} from './draftLint';
 import {
     findCatalogTable,
     getRowCountSql,
@@ -151,6 +156,58 @@ const compileDocuments = async (
         postProcessors: [preAggregatePostProcessor],
     });
     return { explores, quote: warehouseSqlBuilder.getFieldQuoteChar() };
+};
+
+type Touched = { fields: Set<string>; joins: Set<string> };
+
+/** What of a model a change can break: fields with new SQL or type, every field on a new table, and the joins it changes with the fields reading them; null when nothing. */
+const findTouched = (
+    explore: Explore,
+    before: Explore,
+    changedDimensions: Set<string>,
+): Touched | null => {
+    const base = explore.tables[explore.baseTable];
+    const was = before.tables[before.baseTable];
+    const fields = [
+        ...Object.values(base.dimensions).map((field) => ({
+            ...field,
+            wasSql: was.dimensions[field.name]?.compiledSql,
+        })),
+        ...Object.values(base.metrics).map((field) => ({
+            ...field,
+            wasSql: was.metrics[field.name]?.compiledSql,
+        })),
+    ];
+    if (base.sqlTable !== was.sqlTable) {
+        return {
+            fields: new Set(fields.map(({ name }) => name)),
+            joins: new Set(explore.joinedTables.map(({ table }) => table)),
+        };
+    }
+    const joinOf = ({ tables, joinedTables }: Explore, table: string) => {
+        const join = joinedTables.find((joined) => joined.table === table);
+        return join && [tables[table].sqlTable, join.compiledSqlOn];
+    };
+    const changedJoins = new Set(
+        explore.joinedTables
+            .map(({ table }) => table)
+            .filter(
+                (table) =>
+                    !isEqual(joinOf(explore, table), joinOf(before, table)),
+            ),
+    );
+    const touched = fields.filter(
+        ({ name, compiledSql, wasSql, tablesReferences }) =>
+            wasSql !== compiledSql ||
+            changedDimensions.has(name) ||
+            (tablesReferences ?? []).some((table) => changedJoins.has(table)),
+    );
+    return touched.length === 0 && changedJoins.size === 0
+        ? null
+        : {
+              fields: new Set(touched.map(({ name }) => name)),
+              joins: changedJoins,
+          };
 };
 
 /** Checks drafted models against the compiler, the query builder and the warehouse before they may go live. */
@@ -323,12 +380,46 @@ export class DraftChecker {
         explore: Explore,
         quote: string,
         changedDimensions: Set<string>,
+        /** The fields and joins to plan, with the joins those fields read; null plans them all. */
+        only: Touched | null = null,
     ): Promise<string | null> {
         const base = explore.tables[explore.baseTable];
         const alias = (name: string) => `${quote}${name}${quote}`;
+        const planned = ({ name }: { name: string }) =>
+            only === null || only.fields.has(name);
+        const allJoins = explore.joinedTables.map(({ table }) => table);
+        const needed = new Set(
+            only === null
+                ? allJoins
+                : [
+                      ...only.joins,
+                      ...[
+                          ...Object.values(base.dimensions),
+                          ...Object.values(base.metrics),
+                      ]
+                          .filter(planned)
+                          .flatMap(
+                              ({ tablesReferences }) =>
+                                  tablesReferences ?? allJoins,
+                          ),
+                  ],
+        );
+        // A join can read an earlier one, so walk them back to front.
+        [...explore.joinedTables]
+            .reverse()
+            .forEach(({ table, tablesReferences }) => {
+                if (needed.has(table)) {
+                    (tablesReferences ?? allJoins).forEach((t) =>
+                        needed.add(t),
+                    );
+                }
+            });
+        const joins = explore.joinedTables.filter(({ table }) =>
+            needed.has(table),
+        );
         const tables = [
             base,
-            ...explore.joinedTables.map(({ table }) => explore.tables[table]),
+            ...joins.map(({ table }) => explore.tables[table]),
         ];
         // A table that requires a partition filter refuses a query without a predicate on its partition column, even one that reads nothing.
         const partitionFilters = new Map(
@@ -356,7 +447,7 @@ export class DraftChecker {
             `(SELECT * FROM ${sqlTable} AS no_rows WHERE 1 = 0${partitionFilters.get(sqlTable) ?? ''})`;
         const from = [
             `${noRows(base.sqlTable)} AS ${alias(base.name)}`,
-            ...explore.joinedTables.map(
+            ...joins.map(
                 (join) =>
                     `LEFT JOIN ${noRows(explore.tables[join.table].sqlTable)} AS ${alias(join.table)} ON ${join.compiledSqlOn}`,
             ),
@@ -365,12 +456,25 @@ export class DraftChecker {
             `SELECT ${expressions.map((sql, index) => `${sql} AS c${index}`).join(',\n')}\nFROM ${from}`;
         const resolved = ({ compiledSql }: { compiledSql: string }) =>
             !compiledSql.includes('${');
-        const dimensions = Object.values(base.dimensions).filter(resolved);
+        const dimensions = Object.values(base.dimensions)
+            .filter(resolved)
+            .filter(planned);
         const metrics = Object.values(base.metrics)
             .filter(resolved)
+            .filter(planned)
             .filter(({ type }) => !POST_CALCULATION_METRICS.has(type))
             .map(({ compiledSql }) => compiledSql);
         try {
+            // With no field to plan, the tables and joins still are.
+            if (dimensions.length === 0 && metrics.length === 0) {
+                await this.projectService.runSqlQuery(
+                    user,
+                    projectUuid,
+                    select(['1']),
+                    { kind: 'original' },
+                );
+                return null;
+            }
             if (dimensions.length > 0) {
                 const { fields } = await this.projectService.runSqlQuery(
                     user,
@@ -410,6 +514,63 @@ export class DraftChecker {
         } catch (error) {
             return `The warehouse rejected this model: ${getErrorMessage(error)}`;
         }
+    }
+
+    /**
+     * Why a change leaves a model unusable. A warehouse failure the model already
+     * had on what is live is not the change's, unless what the change touches
+     * fails too; `already` carries it so a person can be told.
+     */
+    private async findNewModelError(
+        user: SessionUser,
+        projectUuid: string,
+        explore: Explore,
+        findBefore: () => Promise<Explore | null>,
+        quote: string,
+        changedDimensions: Set<string>,
+    ): Promise<{ error: string | null; already: string | null }> {
+        const queryError = await this.findQueryError(
+            user,
+            projectUuid,
+            explore,
+        );
+        if (queryError) {
+            return {
+                error: `This model does not work in a query: ${queryError}`,
+                already: null,
+            };
+        }
+        const error = await this.findWarehouseError(
+            user,
+            projectUuid,
+            explore,
+            quote,
+            changedDimensions,
+        );
+        if (error === null) return { error, already: null };
+        const before = await findBefore();
+        if (before === null) return { error, already: null };
+        const already = await this.findWarehouseError(
+            user,
+            projectUuid,
+            before,
+            quote,
+            new Set(),
+        );
+        if (already === null) return { error, already: null };
+        const touched = findTouched(explore, before, changedDimensions);
+        if (touched === null) return { error: null, already };
+        return {
+            error: await this.findWarehouseError(
+                user,
+                projectUuid,
+                explore,
+                quote,
+                changedDimensions,
+                touched,
+            ),
+            already,
+        };
     }
 
     /** Whether these dimensions identify one row of a table, read from at most a capped number of rows and kept for a while so a retry or an apply does not read them again. */
@@ -873,6 +1034,11 @@ GROUP BY ${aliases.join(', ')}
         });
         // The catalog knows a table's columns, so a wrong name or type is caught before any query, in the same words on every warehouse.
         const inCatalog = new Set<string>();
+        // Dimensions the change leaves alone that do not fit their column, which is the usual cause of a model that already fails.
+        const mistypedAlready = new Map<
+            string,
+            ReturnType<typeof findMistypedDimensions>
+        >();
         await Promise.all(
             [...writes].map(async ([name, contents]) => {
                 if (contents === null) return;
@@ -883,6 +1049,14 @@ GROUP BY ${aliases.join(', ')}
                 );
                 if (!facts) return;
                 inCatalog.add(name);
+                const untouched = findMistypedDimensions(
+                    parseModelDocument(contents, toModelPath(name)).dimensions,
+                    facts.columns,
+                ).filter(
+                    (dimension) =>
+                        !changed.get(name)?.dimensions.has(dimension.name),
+                );
+                mistypedAlready.set(name, untouched);
                 const error = findColumnError(
                     name,
                     contents,
@@ -909,6 +1083,11 @@ GROUP BY ${aliases.join(', ')}
             return { rejected, writes, explores: null, notes };
         }
 
+        // Compiled only once a check fails, to tell what the change broke from what already was.
+        const findLiveExplore = async (name: string) =>
+            (await this.compile(projectUuid, live)).explores
+                .filter(isCompiled)
+                .find((explore) => explore.name === name) ?? null;
         // Redefining a model can break those that join it.
         const usable = await Promise.all(
             afterCompile.explores
@@ -916,18 +1095,24 @@ GROUP BY ${aliases.join(', ')}
                 .filter((explore) => usesAnyModel(explore, writes))
                 .map(async (explore) => ({
                     name: explore.name,
-                    error: await this.findModelError(
+                    ...(await this.findNewModelError(
                         user,
                         projectUuid,
                         explore,
+                        () => findLiveExplore(explore.name),
                         afterCompile.quote,
                         // A model the catalog already vouched for needs no second opinion on its types.
                         inCatalog.has(explore.name)
                             ? new Set()
                             : (changed.get(explore.name)?.dimensions ??
                                   new Set()),
-                    ),
+                    )),
                 })),
+        );
+        const alreadyFailing = new Map(
+            usable.flatMap(({ name, error, already }) =>
+                error === null && already !== null ? [[name, already]] : [],
+            ),
         );
         const unusable = usable.flatMap(({ name, error }) =>
             error === null ? [] : [{ name, error }],
@@ -965,7 +1150,25 @@ GROUP BY ${aliases.join(', ')}
                 reject(name, measure.error);
                 return;
             }
-            if (measure.notes.length > 0) notes.set(name, measure.notes);
+            const already = alreadyFailing.get(name);
+            // Name a mistyped field only when the warehouse's error points at it.
+            const mentioned = new Set(
+                already?.toLowerCase().split(/\W+/) ?? [],
+            );
+            const cause = (mistypedAlready.get(name) ?? []).filter(
+                ({ name: dimension, column }) =>
+                    mentioned.has(dimension.toLowerCase()) ||
+                    mentioned.has(column.toLowerCase()),
+            );
+            const modelNotes = [
+                ...(already === undefined
+                    ? []
+                    : [
+                          `${name} already had a problem before this change, which leaves it as it was. ${cause.length > 0 ? `${cause.map((dimension) => `${dimension.name} reads a ${dimension.columnType} column but is typed ${dimension.type}`).join(', ')}.` : already}`,
+                      ]),
+                ...measure.notes,
+            ];
+            if (modelNotes.length > 0) notes.set(name, modelNotes);
             if (measure.relationships.size > 0) {
                 writes.set(
                     name,
