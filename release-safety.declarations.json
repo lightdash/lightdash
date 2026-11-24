@@ -365,6 +365,11 @@
                     "mcp": []
                 }
             }
+        },
+        "ai-agent-verified-answers-columns-dropped": {
+            "reason": "Drops the AI agent verified answers data: the verified_by_user_uuid, verified_at, verified_question, embedding_vector (with its HNSW index), embedding_model_provider and embedding_model columns of ai_artifact_versions, and the ai_prompt_artifact_references table. Ships one release after the verified answers removal, whose releases neither read nor write them, so a rolling upgrade from that release is unaffected. During a rolling upgrade from an older release, old pods still read these columns and that table when loading agent threads and artifacts, so those requests fail until the rollout finishes; use the Recreate strategy to avoid the window.",
+            "requiredStop": false,
+            "migration": "packages/backend/src/ee/database/migrations/20261124120000_drop_ai_artifact_verified_answers.ts"
         }
     }
 }
