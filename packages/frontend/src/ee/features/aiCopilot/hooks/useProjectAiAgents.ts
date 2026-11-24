@@ -1204,7 +1204,6 @@ const createOptimisticMessages = (
             reasoning: [],
             savedQueryUuid: null,
             artifacts: null,
-            referencedArtifacts: null,
             modelConfig,
             tokenUsage: null,
             responseTiming: null,

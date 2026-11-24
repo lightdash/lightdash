@@ -100,7 +100,7 @@ const buildService = () => {
             findClaimableByUser: vi.fn().mockResolvedValue([]),
         },
         lightdashConfig: {
-            ai: { copilot: { embeddingEnabled: false } },
+            ai: { copilot: {} },
         },
         aiOrganizationSettingsService: {
             isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),

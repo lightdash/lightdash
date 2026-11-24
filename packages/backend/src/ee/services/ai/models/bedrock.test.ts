@@ -34,7 +34,6 @@ describe('getBedrockProvider', () => {
     const baseConfig = {
         region: 'us-east-1',
         modelName: 'model',
-        embeddingModelName: 'embedding-model',
         customHeaders: {},
         inferenceProfilePrefix: undefined,
         supportsStreaming: true,
@@ -95,7 +94,6 @@ describe('getBedrockModel output budget', () => {
         apiKey: 'test',
         region: 'us-east-1',
         modelName: preset.name,
-        embeddingModelName: 'amazon.titan-embed-text-v2:0',
         customHeaders: {},
         supportsStreaming: true,
     };

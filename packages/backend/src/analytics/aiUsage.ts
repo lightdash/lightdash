@@ -5,7 +5,7 @@ import {
     type AiThreadCreatedFrom,
 } from '@lightdash/common';
 import { Track as AnalyticsTrack } from '@rudderstack/rudder-sdk-node';
-import type { EmbeddingModelUsage, LanguageModelUsage } from 'ai';
+import type { LanguageModelUsage } from 'ai';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import type { AiCreditUsageModel } from '../ee/models/AiCreditUsageModel';
@@ -35,13 +35,11 @@ export const AI_CALL_FEATURES = [
     'thread-title',
     'release-highlights',
     'tooltip',
-    'artifact-question',
     'agent-suggestions',
     'table-calc',
     'custom-dimension',
     'formula-table-calc',
     'compaction',
-    'embedding',
     'agent-selector',
     'review-classifier',
     'prompt-input-classifier',
@@ -156,23 +154,6 @@ export const languageModelUsageToTokens = (
     reasoningTokens: usage?.outputTokenDetails?.reasoningTokens ?? null,
     totalTokens: usage?.totalTokens ?? null,
 });
-
-export const embeddingModelUsageToTokens = (
-    usage: EmbeddingModelUsage,
-): AiUsageTokens => {
-    // The AI SDK substitutes `{ tokens: NaN }` when the provider omits usage,
-    // and NaN is not nullish — coerce non-finite (or absent) values to null so
-    // "the provider did not report" stays honest.
-    const tokens = Number.isFinite(usage?.tokens) ? usage.tokens : null;
-    return {
-        inputTokens: tokens,
-        outputTokens: null,
-        cacheReadTokens: null,
-        cacheWriteTokens: null,
-        reasoningTokens: null,
-        totalTokens: tokens,
-    };
-};
 
 /**
  * Whether the work the call belonged to finished. Failed data app generations

@@ -267,7 +267,6 @@ import {
     AiArtifactsTableName,
     AiArtifactVersionsTable,
     AiArtifactVersionsTableName,
-    AiPromptArtifactReferencesTableName,
     DbAiArtifact,
     DbAiArtifactVersion,
 } from '../database/entities/aiArtifacts';
@@ -5099,9 +5098,6 @@ export class AiAgentModel {
         const promptUuids = promptRows.map((row) => row.ai_prompt_uuid);
 
         const artifactsMap = await this.findThreadArtifacts({ promptUuids });
-        const referencedArtifactsMap = await this.findThreadReferencedArtifacts(
-            { promptUuids },
-        );
         const contextMap = await this.getContextForPromptUuids(promptUuids);
         const steersMap = await this.findPromptSteers(promptUuids);
         const decisionsMap = await this.findPromptDecisions(promptUuids);
@@ -5143,9 +5139,6 @@ export class AiAgentModel {
             );
 
             const artifacts = artifactsMap.get(row.ai_prompt_uuid);
-            const referencedArtifacts = referencedArtifactsMap.get(
-                row.ai_prompt_uuid,
-            );
 
             if (
                 !AiAgentModel.hasAssistantMessage({
@@ -5177,7 +5170,6 @@ export class AiAgentModel {
                 humanScore: row.human_score,
                 humanFeedback: row.human_feedback,
                 artifacts: artifacts ?? null,
-                referencedArtifacts: referencedArtifacts ?? null,
                 modelConfig: row.model_config,
                 tokenUsage: row.token_usage,
                 responseTiming: row.response_timing,
@@ -5323,71 +5315,6 @@ export class AiAgentModel {
         }
 
         return artifactsMap;
-    }
-
-    async findThreadReferencedArtifacts({
-        promptUuids,
-    }: {
-        promptUuids: string[];
-    }): Promise<Map<string, AiAgentMessageAssistantArtifact[]>> {
-        const referencedArtifactsMap = new Map<
-            string,
-            AiAgentMessageAssistantArtifact[]
-        >();
-
-        if (promptUuids.length === 0) {
-            return referencedArtifactsMap;
-        }
-
-        const referencedArtifactRows = await this.database(
-            AiPromptArtifactReferencesTableName,
-        )
-            .join(
-                AiArtifactVersionsTableName,
-                `${AiPromptArtifactReferencesTableName}.ai_artifact_version_uuid`,
-                `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
-            )
-            .join(
-                AiArtifactsTableName,
-                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
-                `${AiArtifactsTableName}.ai_artifact_uuid`,
-            )
-            .select(
-                `${AiPromptArtifactReferencesTableName}.ai_prompt_uuid`,
-                `${AiArtifactsTableName}.ai_artifact_uuid`,
-                `${AiArtifactVersionsTableName}.version_number`,
-                `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
-                `${AiArtifactVersionsTableName}.title`,
-                `${AiArtifactVersionsTableName}.description`,
-                `${AiArtifactsTableName}.artifact_type`,
-            )
-            .whereIn(
-                `${AiPromptArtifactReferencesTableName}.ai_prompt_uuid`,
-                promptUuids,
-            )
-            .orderBy(
-                `${AiPromptArtifactReferencesTableName}.created_at`,
-                'desc',
-            );
-
-        for (const artifactRow of referencedArtifactRows) {
-            const promptUuid = artifactRow.ai_prompt_uuid;
-            if (!referencedArtifactsMap.has(promptUuid)) {
-                referencedArtifactsMap.set(promptUuid, []);
-            }
-            referencedArtifactsMap.get(promptUuid)!.push({
-                artifactUuid: artifactRow.ai_artifact_uuid,
-                versionNumber: artifactRow.version_number ?? 1,
-                versionUuid: artifactRow.ai_artifact_version_uuid,
-                title: artifactRow.title,
-                description: artifactRow.description,
-                artifactType: artifactRow.artifact_type as
-                    | 'chart'
-                    | 'dashboard',
-            });
-        }
-
-        return referencedArtifactsMap;
     }
 
     async getArtifactVersionsByUuids(artifactVersionUuids: string[]): Promise<
@@ -5663,13 +5590,6 @@ export class AiAgentModel {
             artifactType: artifactRow.artifact_type as 'chart' | 'dashboard',
         }));
 
-        const referencedArtifactsMap = await this.findThreadReferencedArtifacts(
-            {
-                promptUuids: [row.ai_prompt_uuid],
-            },
-        );
-        const referencedArtifacts =
-            referencedArtifactsMap.get(row.ai_prompt_uuid) ?? null;
         const steers =
             (await this.findPromptSteers([row.ai_prompt_uuid])).get(
                 row.ai_prompt_uuid,
@@ -5723,7 +5643,6 @@ export class AiAgentModel {
                     humanScore: row.human_score,
                     humanFeedback: row.human_feedback,
                     artifacts: artifacts.length > 0 ? artifacts : null,
-                    referencedArtifacts,
                     modelConfig: row.model_config,
                     tokenUsage: row.token_usage,
                     responseTiming: row.response_timing,

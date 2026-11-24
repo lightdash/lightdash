@@ -16,8 +16,6 @@ import {
     DataAppInstructionInvestigateJobPayload,
     DataAppInvestigateJobPayload,
     EE_SCHEDULER_TASKS,
-    EmbedArtifactVersionJobPayload,
-    GenerateArtifactQuestionJobPayload,
     IngestExternalSourceJobPayload,
     JobPriority,
     MOBILE_PUSH_LIVE_ACTIVITY_START_MAX_ATTEMPTS,
@@ -361,36 +359,6 @@ export class CommercialSchedulerClient extends SchedulerClient {
                 runAt: new Date(),
                 maxAttempts: 1,
                 jobKey: `semantic-studio-branch-compile:${payload.workspaceUuid}`,
-            },
-        );
-        return { jobId };
-    }
-
-    async embedArtifactVersion(payload: EmbedArtifactVersionJobPayload) {
-        const graphileClient = await this.graphileUtils;
-        const now = new Date();
-        const { id: jobId } = await graphileClient.addJob(
-            EE_SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION,
-            payload,
-            {
-                runAt: now,
-                maxAttempts: 3,
-            },
-        );
-        return { jobId };
-    }
-
-    async generateArtifactQuestion(
-        payload: GenerateArtifactQuestionJobPayload,
-    ) {
-        const graphileClient = await this.graphileUtils;
-        const now = new Date();
-        const { id: jobId } = await graphileClient.addJob(
-            EE_SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION,
-            payload,
-            {
-                runAt: now,
-                maxAttempts: 3,
             },
         );
         return { jobId };

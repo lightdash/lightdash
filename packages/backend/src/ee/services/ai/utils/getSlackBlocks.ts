@@ -3,7 +3,6 @@ import {
     AiAccessRefusalAction,
     AiAccessRefusalReason,
     AiAgent,
-    AiAgentMessageAssistantArtifact,
     AiAgentToolResult,
     AiArtifact,
     ChartType,
@@ -499,52 +498,6 @@ export function getThinkingBlocks(
                     text: `_${text}_`,
                 },
             ],
-        },
-    ];
-}
-
-export function getReferencedArtifactsBlocks(
-    agentUuid: string,
-    projectUuid: string,
-    siteUrl: string,
-    referencedArtifacts: AiAgentMessageAssistantArtifact[],
-    threadUuid: string,
-    promptUuid: string,
-): (Block | KnownBlock)[] {
-    if (!referencedArtifacts || referencedArtifacts.length === 0) {
-        return [];
-    }
-
-    return [
-        {
-            type: 'divider',
-        },
-        {
-            type: 'context',
-            elements: [
-                {
-                    type: 'plain_text',
-                    text: '✨ Referenced answers:',
-                },
-            ],
-        },
-        {
-            type: 'actions',
-            elements: referencedArtifacts.map((artifact) => {
-                const title = artifact.title || artifact.artifactType;
-                // TODO :: threadUuid and promptUuid should not be required
-                const url = `${siteUrl}/projects/${projectUuid}/ai-agents/${agentUuid}/edit/verified-artifacts/${artifact.artifactUuid}?versionUuid=${artifact.versionUuid}&threadUuid=${threadUuid}&promptUuid=${promptUuid}`;
-                return {
-                    type: 'button',
-                    url,
-                    text: {
-                        type: 'plain_text',
-                        text: `📊 ${title}`,
-                        emoji: true,
-                    },
-                    action_id: `view_artifact_${artifact.artifactUuid}`,
-                };
-            }),
         },
     ];
 }
