@@ -115,6 +115,7 @@ import {
     type ToolComposerChartFromNode,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
+import { isEqual } from 'es-toolkit/compat';
 import * as JsonPatch from 'fast-json-patch';
 import NodeCache from 'node-cache';
 import { fromSession } from '../../../auth/account';
@@ -4230,7 +4231,18 @@ export class AiAgentToolsService extends BaseService {
             availableTags: null,
             exploreName: chart.metricQuery.exploreName ?? chart.tableName,
             userAttributeOverrides: context.userAttributeOverrides,
-        }).catch(() => null);
+        }).catch((error: unknown) => {
+            // A missing explore fails the save, as the old test query did, unless the query is unchanged.
+            if (
+                error instanceof NotFoundError &&
+                !(before && isEqual(before.metricQuery, chart.metricQuery))
+            ) {
+                throw new ParameterError(
+                    `Chart "${chart.slug}" was not saved: ${error.message}`,
+                );
+            }
+            return null;
+        });
         if (!explore) return;
         const existing = new Set(
             before ? getChartFieldErrors(before, explore) : [],

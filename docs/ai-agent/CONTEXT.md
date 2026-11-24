@@ -171,9 +171,10 @@ unless the thread has approved SQL once and for all.
 _Avoid_: SQL Runner chart, saved SQL, raw SQL chart
 
 **Chart check**:
-The agent's `createContent` and `editContent` check every field id a chart
-references against its explore and refuse unknown or misplaced ones, naming
-the closest ids, so the agent saves without a test query. MCP clients check a
+The agent's `createContent` and `editContent` check the field ids in a
+chart's query, cartesian layout and pivot against its explore and refuse
+unknown or misplaced ones, naming the closest ids, or a missing explore, so the
+agent saves without a test query. MCP clients check a
 chart with `run_metric_query` before saving it.
 _Avoid_: verify, validate, test run
 

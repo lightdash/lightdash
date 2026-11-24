@@ -45,8 +45,7 @@ export const readContentText = (
     const href = toAbsoluteHref(siteUrl, read.href);
     const asYaml =
         format === 'yaml' &&
-        read.type !== 'document' &&
-        read.type !== 'data_app';
+        (read.type === 'chart' || read.type === 'dashboard');
     return [
         ...(note ? [note] : []),
         asYaml

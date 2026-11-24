@@ -14084,6 +14084,52 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         ];
     }
 
+    /** Replayed tool results get the status and queryUuid a rebuilt turn has, under a key no provider sends. */
+    private static withToolResultStatus(
+        transcript: ModelMessage[],
+        toolCallsAndResults: Awaited<
+            ReturnType<
+                typeof AiAgentModel.prototype.getToolCallsAndResultsForPrompt
+            >
+        >,
+    ): ModelMessage[] {
+        const metadataById = new Map(
+            toolCallsAndResults.flatMap(({ toolResult }) =>
+                toolResult?.metadata
+                    ? [[toolResult.toolCallId, toolResult.metadata] as const]
+                    : [],
+            ),
+        );
+        return transcript.map((message) =>
+            message.role !== 'tool'
+                ? message
+                : {
+                      ...message,
+                      content: message.content.map((part) => {
+                          if (part.type !== 'tool-result') return part;
+                          const metadata = metadataById.get(part.toolCallId);
+                          if (!metadata) return part;
+                          return {
+                              ...part,
+                              providerOptions: {
+                                  ...part.providerOptions,
+                                  lightdash: {
+                                      status:
+                                          typeof metadata.status === 'string'
+                                              ? metadata.status
+                                              : null,
+                                      ...('queryUuid' in metadata &&
+                                      typeof metadata.queryUuid === 'string'
+                                          ? { queryUuid: metadata.queryUuid }
+                                          : {}),
+                                  },
+                              },
+                          };
+                      }),
+                  },
+        );
+    }
+
     async getChatHistoryFromThreadMessages(
         // TODO: move getThreadMessages to AiAgentModel and improve types
         // also, it should be called through a service method...
@@ -14165,7 +14211,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 );
                 if (transcript) {
                     return [
-                        ...transcript,
+                        ...AiAgentService.withToolResultStatus(
+                            transcript,
+                            await this.aiAgentModel.getToolCallsAndResultsForPrompt(
+                                message.ai_prompt_uuid,
+                            ),
+                        ),
                         ...AiAgentService.createFeedbackMessages(message),
                     ];
                 }

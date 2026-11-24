@@ -35,6 +35,39 @@ describe('withOrderedContentWrites', () => {
         expect(started).toEqual(['d', 'c1', 'c2']);
     });
 
+    it('saves no chart for a dashboard whose create failed in the turn', async () => {
+        const saved: string[] = [];
+        const tools = withOrderedContentWrites({
+            createContent: {
+                execute: async (input: {
+                    type: string;
+                    content: { slug: string };
+                }) => {
+                    if (input.type === 'dashboard')
+                        return { metadata: { status: 'error' } };
+                    saved.push(input.content.slug);
+                    return { metadata: { status: 'success' } };
+                },
+            },
+        } as unknown as ToolSet);
+        const execute = tools.createContent.execute as Execute;
+
+        const [, chart, other] = await Promise.all([
+            execute({ type: 'dashboard', content: { slug: 'd' } }, {}),
+            execute(
+                { type: 'chart', content: { slug: 'c1', dashboardSlug: 'd' } },
+                {},
+            ),
+            execute(
+                { type: 'chart', content: { slug: 'c2', dashboardSlug: 'x' } },
+                {},
+            ),
+        ]);
+        expect(saved).toEqual(['c2']);
+        expect(chart).toMatchObject({ metadata: { status: 'error' } });
+        expect(other).toMatchObject({ metadata: { status: 'success' } });
+    });
+
     it('keeps going after a failed write', async () => {
         const tools = withOrderedContentWrites({
             editContent: {

@@ -2336,13 +2336,13 @@ A custom chart type is chosen the same way: by its own description first, then a
     },
   },
   {
-    "description": "Edit a dashboard, chart, SQL chart or composer chart by exact text replacement on the content as readContent returned it (the text after the --- line). Each edit replaces "old", which must match exactly once, with "new"; edits apply in order and are saved together as one version, or not at all. Keep "old" short but unique, and put every change to one item in one call. No re-read is needed between edits: the content changes only by your edits. The result is the link and any warnings. The content's space must show canEdit true in findContent or listContent results. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; an edit that changes its sql waits for user approval of the new SQL. A composer chart is saved in place on its dashboard as a new version; new warehouse SQL in its nodes waits for approval the same way.",
+    "description": "Edit a dashboard or chart by exact text replacement on the content as readContent returned it (the text after the --- line). Each edit replaces "old", which must match exactly once, with "new"; edits apply in order and are saved together as one version, or not at all. Keep "old" short but unique, and put every change to one item in one call. No re-read is needed between edits: the content changes only by your edits. The result is the link and any warnings. Edit a SQL chart or composer chart with patch instead of edits: RFC6902 operations against its JSON as readContent returned it. The content's space must show canEdit true in findContent or listContent results. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL. A composer chart is saved in place on its dashboard as a new version; new warehouse SQL in its nodes waits for approval the same way.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "edits": {
-          "description": "Text replacements, applied in order",
+          "description": "Dashboards and charts: text replacements, applied in order",
           "items": {
             "additionalProperties": false,
             "properties": {
@@ -2363,7 +2363,18 @@ A custom chart type is chosen the same way: by its own description first, then a
             "type": "object",
           },
           "minItems": 1,
-          "type": "array",
+          "type": [
+            "array",
+            "null",
+          ],
+        },
+        "patch": {
+          "description": "SQL and composer charts: RFC6902 operations applied to the current JSON",
+          "items": {},
+          "type": [
+            "array",
+            "null",
+          ],
         },
         "slug": {
           "description": "Exact slug of the content to edit",
@@ -2384,7 +2395,6 @@ A custom chart type is chosen the same way: by its own description first, then a
       "required": [
         "slug",
         "type",
-        "edits",
       ],
       "type": "object",
     },
@@ -25020,7 +25030,7 @@ Chart (createContent type chart):
 - stacked bar split by a second dimension: add it to metricQuery.dimensions and to "pivotConfig":{"columns":[...]}, set layout "stack":"stack" and one series {"type":"bar","stack":"stack",...}; a series per value is drawn from the results.
 - pie: {"type":"pie","config":{"groupFieldIds":["orders_status"],"metricId":"orders_count"}}
 - table: {"type":"table","config":{}} with "tableConfig":{"columnOrder":[dimensions, then metrics]}
-Every metricQuery dimension must be the x field, a pivot column, or a table column.
+Every metricQuery dimension must be the x field, a pivot column, a pie group field, or a table column.
 
 Dashboard (createContent type dashboard): {"slug","name","description","spaceSlug","version":1,"contentType":"dashboard","verified":false,"tiles":[],"tabs":[],"filters":{"dimensions":[],"metrics":[],"tableCalculations":[]}}
 Dashboard filter (an item of filters.dimensions): {"slug":"status","label":"Status","operator":"equals","values":[],"target":{"fieldId":"orders_status","tableName":"orders"}}; empty values show the filter without filtering.

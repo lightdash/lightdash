@@ -37,7 +37,7 @@ Chart (createContent type chart):
 - stacked bar split by a second dimension: add it to metricQuery.dimensions and to "pivotConfig":{"columns":[...]}, set layout "stack":"stack" and one series {"type":"bar","stack":"stack",...}; a series per value is drawn from the results.
 - pie: {"type":"pie","config":{"groupFieldIds":["orders_status"],"metricId":"orders_count"}}
 - table: {"type":"table","config":{}} with "tableConfig":{"columnOrder":[dimensions, then metrics]}
-Every metricQuery dimension must be the x field, a pivot column, or a table column.
+Every metricQuery dimension must be the x field, a pivot column, a pie group field, or a table column.
 
 Dashboard (createContent type dashboard): {"slug","name","description","spaceSlug","version":1,"contentType":"dashboard","verified":false,"tiles":[],"tabs":[],"filters":{"dimensions":[],"metrics":[],"tableCalculations":[]}}
 Dashboard filter (an item of filters.dimensions): {"slug":"status","label":"Status","operator":"equals","values":[],"target":{"fieldId":"orders_status","tableName":"orders"}}; empty values show the filter without filtering.

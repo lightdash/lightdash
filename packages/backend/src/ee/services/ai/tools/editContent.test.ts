@@ -1,4 +1,6 @@
 import {
+    agentEditContentArgsSchema,
+    getSqlApprovalSql,
     ParameterError,
     toolCreateContentOutputSchema,
     toolEditContentOutputSchema,
@@ -154,13 +156,45 @@ describe('agent content writes', () => {
         expect(editContent).toHaveBeenCalledWith({
             slug: 'orders',
             type: 'dashboard',
-            patch: [{ op: 'replace', path: '/name', value: 'Sales' }],
+            patch: [
+                { op: 'test', path: '/name', value: 'Orders' },
+                { op: 'replace', path: '/name', value: 'Sales' },
+            ],
         });
         expect(output.result).toBe(
             '<dashboard href="https://example.com/dashboards/uuid" slug="orders" />\nSaved.',
         );
         expect(toolEditContentOutputSchema.safeParse(output).success).toBe(
             true,
+        );
+    });
+
+    it('saves a SQL chart patch as sent, so approval finds its SQL in the call', async () => {
+        const readContent = vi.fn<ReadContentFn>();
+        const editContent = vi.fn<EditContentFn>().mockResolvedValue({
+            ...dashboard,
+            type: 'sql_chart',
+            content: { ...content, sql: 'select 2' },
+        } as unknown as EditedContent);
+        const args = agentEditContentArgsSchema.parse({
+            slug: 'orders',
+            type: 'sql_chart',
+            patch: [{ op: 'replace', path: '/sql', value: 'select 2' }],
+        });
+        expect(getSqlApprovalSql(args)).toBe('select 2');
+
+        const output = (await getAgentEditContent({
+            editContent,
+            readContent,
+            prepareComposerChartEdit: vi.fn(),
+            siteUrl,
+            sqlChartSaving: { mode: 'client_approved' },
+        }).execute!(args, options)) as WriteOutput;
+
+        expect(output.metadata.status).toBe('success');
+        expect(readContent).not.toHaveBeenCalled();
+        expect(editContent).toHaveBeenCalledWith(
+            expect.objectContaining({ type: 'sql_chart', patch: args.patch }),
         );
     });
 

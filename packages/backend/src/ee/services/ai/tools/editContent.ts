@@ -315,7 +315,7 @@ export const getAgentEditContent = ({
         artifacts,
     };
 
-    // The SQL gate and the service work on the patch the text edits make.
+    // SQL and composer charts keep the model's patch, which approval handlers read from the call.
     const toPatchArgs = async (
         args: AgentEditContentArgs,
     ): Promise<PatchEditContentArgs> => {
@@ -323,10 +323,16 @@ export const getAgentEditContent = ({
         if (type === 'document') {
             return { slug, type, documentEdit: args.documentEdit ?? null };
         }
+        if (type === 'sql_chart' || type === 'composer_chart') {
+            if (!args.patch) {
+                throw new ParameterError(
+                    'SQL and composer charts require patch instead of edits.',
+                );
+            }
+            return { slug, type, patch: args.patch };
+        }
         if (!args.edits || args.edits.length === 0) {
-            throw new ParameterError(
-                'Charts and dashboards require edits instead of documentEdit.',
-            );
+            throw new ParameterError('Charts and dashboards require edits.');
         }
         const current = await readContent({ slug, type });
         return {
@@ -354,15 +360,7 @@ export const getAgentEditContent = ({
     return tool({
         ...definition,
         inputSchema,
-        needsApproval: async (args, options) => {
-            if (args.type !== 'sql_chart' && args.type !== 'composer_chart')
-                return sqlChartGate.needsApproval(args, options);
-            // A refused edit asks nothing; running it reports the refusal.
-            const patchArgs = await toPatchArgs(args).catch(() => null);
-            return patchArgs !== null
-                ? sqlChartGate.needsApproval(patchArgs, options)
-                : false;
-        },
+        needsApproval: sqlChartGate.needsApproval,
         execute: async (args, { toolCallId }) => {
             let patchArgs: PatchEditContentArgs;
             try {

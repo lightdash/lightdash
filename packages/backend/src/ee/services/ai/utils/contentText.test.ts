@@ -1,3 +1,4 @@
+import * as JsonPatch from 'fast-json-patch';
 import { describe, expect, it } from 'vitest';
 import {
     applyTextEdits,
@@ -27,28 +28,35 @@ describe('contentText', () => {
         expect(text).toContain('name: Monthly revenue\n');
     });
 
-    it('turns edits into a patch, adding keys that did not exist', () => {
+    it('turns edits into a patch that refuses a value changed since the read', () => {
         const layout = '    layout:\n';
-        expect(
-            textEditsToPatch(chart, [
-                {
-                    old: 'name: Monthly revenue\n',
-                    new: 'name: Monthly revenue by status\n',
-                },
-                { old: layout, new: `${layout}      stack: true\n` },
-            ]),
-        ).toEqual([
+        const patch = textEditsToPatch(chart, [
+            {
+                old: 'name: Monthly revenue\n',
+                new: 'name: Monthly revenue by status\n',
+            },
+            { old: layout, new: `${layout}      stack: true\n` },
+        ]);
+        expect(patch).toEqual([
             {
                 op: 'add',
                 path: '/chartConfig/config/layout/stack',
                 value: true,
             },
+            { op: 'test', path: '/name', value: 'Monthly revenue' },
             {
                 op: 'replace',
                 path: '/name',
                 value: 'Monthly revenue by status',
             },
         ]);
+        expect(() =>
+            JsonPatch.applyPatch(
+                structuredClone({ ...chart, name: 'Renamed meanwhile' }),
+                patch,
+                true,
+            ),
+        ).toThrow(/Test operation failed/);
     });
 
     it('applies nothing when any edit misses, and points at the closest lines', () => {

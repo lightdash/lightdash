@@ -1,4 +1,5 @@
 import type { ModelMessage } from 'ai';
+import { getPreviousQueryUuid } from '../ai/agents/previousQuery';
 import { AiAgentService } from './AiAgentService';
 
 vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
@@ -51,18 +52,22 @@ const secondTurn: ModelMessage[] = [
 const buildHistory = (
     transcriptModel: typeof sonnet,
     currentModel: typeof sonnet,
+    turn: ModelMessage[] = secondTurn,
+    toolCallsAndResults: unknown[] = [],
 ) => {
     const findPromptTranscripts = vi.fn().mockResolvedValue([
         {
             ai_prompt_uuid: 'second',
-            messages: secondTurn,
+            messages: turn,
             model_config: transcriptModel,
         },
     ]);
     const service = new AiAgentService({
         aiAgentModel: {
             getContextForPromptUuids: vi.fn().mockResolvedValue(new Map()),
-            getToolCallsAndResultsForPrompt: vi.fn().mockResolvedValue([]),
+            getToolCallsAndResultsForPrompt: vi
+                .fn()
+                .mockResolvedValue(toolCallsAndResults),
             findPromptTranscripts,
         },
         lightdashConfig: {},
@@ -107,6 +112,46 @@ describe('AiAgentService turn transcript replay', () => {
         ]);
         expect(findPromptTranscripts).toHaveBeenCalledWith(['first', 'second']);
         expect(transcriptReplay.currentPromptStart).toBe(6);
+    });
+
+    it('keeps the queryUuid of a replayed query for the next turn', async () => {
+        const queryTurn: ModelMessage[] = [
+            { role: 'user', content: 'Orders by status' },
+            {
+                role: 'assistant',
+                content: [
+                    {
+                        type: 'tool-call',
+                        toolCallId: 'q1',
+                        toolName: 'runQuery',
+                        input: {},
+                    },
+                ],
+            },
+            {
+                role: 'tool',
+                content: [
+                    {
+                        type: 'tool-result',
+                        toolCallId: 'q1',
+                        toolName: 'runQuery',
+                        output: { type: 'text', value: 'rows' },
+                    },
+                ],
+            },
+            { role: 'assistant', content: 'Here they are.' },
+        ];
+        const { history } = buildHistory(sonnet, sonnet, queryTurn, [
+            {
+                toolCall: { toolCallId: 'q1' },
+                toolResult: {
+                    toolCallId: 'q1',
+                    metadata: { status: 'success', queryUuid: 'query-1' },
+                },
+            },
+        ]);
+
+        expect(getPreviousQueryUuid(await history)).toBe('query-1');
     });
 
     it('rebuilds a turn that ran on another model', async () => {

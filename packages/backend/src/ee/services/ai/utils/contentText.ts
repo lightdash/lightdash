@@ -139,7 +139,8 @@ export const textEditsToPatch = (
     );
     if (edited === null || typeof edited !== 'object' || Array.isArray(edited))
         throw new ParameterError('The edited content must be an object.');
-    const patch = JsonPatch.compare(view, edited);
+    // Test ops refuse the save if an edited value changed after this read.
+    const patch = JsonPatch.compare(view, edited, true);
     if (patch.length === 0)
         throw new ParameterError('The edits leave the content unchanged.');
     return patch;

@@ -3356,6 +3356,7 @@ describe('AiAgentToolsService', () => {
                 charts: [{ data: { uuid: 'chart-uuid', slug: stored.slug } }],
             });
             const service = makeService({
+                explores: { orders: makeExplore({ name: 'orders' }) },
                 savedChartService: {
                     get: vi.fn().mockResolvedValue({ uuid: 'chart-uuid' }),
                 },
@@ -10037,6 +10038,24 @@ describe('AiAgentToolsService in a thread bound to a dashboard', () => {
                 } as never);
 
             expect(upsertChart).toHaveBeenCalled();
+        });
+
+        it('saves no chart whose explore cannot be found', async () => {
+            const upsertChart = vi.fn();
+            const service = makeService({
+                coderService: { upsertChart },
+                aiAgentContentValidation: contentValidation(),
+            });
+
+            await expect(
+                service.createRuntime(makeRuntimeContext()).createContent({
+                    type: 'chart',
+                    content: makeChart(undefined),
+                } as never),
+            ).rejects.toThrow(
+                /was not saved: Explore "orders" is not available/,
+            );
+            expect(upsertChart).not.toHaveBeenCalled();
         });
 
         it('rejects a new SQL chart', async () => {

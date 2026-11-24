@@ -278,12 +278,11 @@ export const mcpEditContentArgsSchema = toolEditContentArgsSchema.extend({
 export const AGENT_DOCUMENTS_EDIT_CONTENT_DESCRIPTION = (
     context: ToolDescriptionContext,
 ): string =>
-    `${AGENT_EDIT_CONTENT_DESCRIPTION(context)} For a Document, pass documentEdit instead of edits.`;
+    `${AGENT_EDIT_CONTENT_DESCRIPTION(context)} For a Document, pass documentEdit instead.`;
 
 export const agentDocumentsEditContentArgsSchema =
     agentEditContentArgsSchema.extend({
         type: mcpEditContentArgsSchema.shape.type,
-        edits: agentEditContentArgsSchema.shape.edits.nullish(),
         documentEdit: mcpEditContentArgsSchema.shape.documentEdit,
     });
 
