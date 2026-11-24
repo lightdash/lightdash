@@ -1,3 +1,10 @@
+## [3.379.1](https://github.com/lightdash/lightdash/compare/3.379.0...3.379.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* **ai:** wait for MCP attach to save before fetching its tools ([#33297](https://github.com/lightdash/lightdash/issues/33297)) ([5dcac5e](https://github.com/lightdash/lightdash/commit/5dcac5e589b6d2a155cbd29ee5fd33a820fd49a6))
+
 # [3.379.0](https://github.com/lightdash/lightdash/compare/3.378.1...3.379.0) (2026-11-24)
 
 
