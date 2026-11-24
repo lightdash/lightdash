@@ -32,7 +32,6 @@ import {
     usePurgeLiveSourceCache,
     useUpdateLiveSourceCache,
 } from '../hooks/useLiveSourceCache';
-import { useLiveSourceFields } from '../hooks/useLiveSourceFields';
 import { useTestConnection } from '../hooks/useTestConnection';
 import {
     LIVE_SOURCE_UPDATE_MESSAGES,
@@ -122,7 +121,6 @@ export const LiveSourceSettings: FC<{
         ...(isPostHogKey ? (['region'] as const) : []),
         ...(tokenLabel ? (['token'] as const) : []),
     ];
-    const { data: fields } = useLiveSourceFields(params);
     const purge = usePurgeLiveSourceCache(params);
     const updateCache = useUpdateLiveSourceCache(params);
     const updateSource = useUpdateExternalConnection(
@@ -151,10 +149,6 @@ export const LiveSourceSettings: FC<{
     const ttlOptions = WINDOW_SECONDS.includes(savedTtl)
         ? WINDOW_SECONDS
         : [...WINDOW_SECONDS, savedTtl].sort((a, b) => a - b);
-
-    const fieldsHint = fields?.scannedAt
-        ? `Last refreshed ${formatDate(fields.scannedAt)}`
-        : 'Never refreshed';
 
     /** Saves the given settings over the saved ones, if they changed and are valid. */
     const saveSource = async (keys: (keyof LiveSourceAccessValues)[]) => {
@@ -429,10 +423,6 @@ export const LiveSourceSettings: FC<{
                 </SettingsCard>
 
                 <SettingsCard title="Data">
-                    {/* Refreshing is the page header's main action */}
-                    <SettingsRow label="Fields" hint={fieldsHint}>
-                        {null}
-                    </SettingsRow>
                     <SettingsRow
                         label="Caching"
                         hint={
