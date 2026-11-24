@@ -202,7 +202,7 @@ describe('getProposeSemanticLayerChange', () => {
                     '  order_count:',
                     '    type: number',
                     '    sql: MEASURE(`Order Count`)',
-                    '    label: Order Count',
+                    '    label: Order count',
                     '    description: Orders placed.',
                     '',
                 ].join('\n'),

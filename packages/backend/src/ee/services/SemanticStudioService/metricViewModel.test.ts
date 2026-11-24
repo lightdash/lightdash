@@ -1,10 +1,16 @@
 import {
+    applyModelFragment,
     DimensionType,
     METRIC_VIEW_TABLE_TYPE,
+    parseModelFragment,
     type WarehouseTableMetadata,
 } from '@lightdash/common';
 import { parse } from 'yaml';
-import { buildMetricViewModelYaml, quoteIdentifier } from './metricViewModel';
+import {
+    buildMetricViewModelYaml,
+    quoteIdentifier,
+    toSentenceCase,
+} from './metricViewModel';
 
 type Column = WarehouseTableMetadata['columns'][number];
 
@@ -131,7 +137,7 @@ describe('buildMetricViewModelYaml', () => {
                     name: 'record_month',
                     type: 'date',
                     sql: '${TABLE}.record_month',
-                    label: 'Month',
+                    label: 'Record month',
                     ai_hint: ['period'],
                     description: 'First day of the month.',
                 },
@@ -139,7 +145,7 @@ describe('buildMetricViewModelYaml', () => {
                     name: 'plan_tier',
                     type: 'string',
                     sql: '${TABLE}.`Plan Tier`',
-                    label: 'Plan Tier',
+                    label: 'Plan tier',
                     description: 'Commercial tier of the plan.',
                 },
             ],
@@ -219,8 +225,185 @@ describe('buildMetricViewModelYaml', () => {
         expect(model.metrics.opening_base).toEqual({
             type: 'number',
             sql: 'MEASURE(`Opening Base`)',
-            label: 'Opening Base',
+            label: 'Opening base',
         });
+    });
+
+    describe('labels and date parts', () => {
+        const field = (
+            name: string,
+            type: DimensionType,
+            label: string | null,
+            isMeasure = false,
+        ) => ({
+            column: { name, type, comment: null, isMeasure },
+            defined: { name, expr: name, label, comment: null, synonyms: [] },
+        });
+        const fields = [
+            field('order_date', DimensionType.DATE, 'Month'),
+            field('month', DimensionType.NUMBER, 'Month'),
+            field('year', DimensionType.NUMBER, null),
+            field('region', DimensionType.STRING, 'Region'),
+            field(
+                'Total Revenue USD',
+                DimensionType.NUMBER,
+                'Total Revenue USD',
+                true,
+            ),
+            field('api_calls_7d', DimensionType.NUMBER, 'API Calls 7D', true),
+            field('region_count', DimensionType.NUMBER, 'Region', true),
+        ];
+        const orders = (
+            picked: typeof fields = fields,
+        ): WarehouseTableMetadata => ({
+            ...metadata,
+            comment: null,
+            columns: picked.map(({ column }) => column),
+            metricView: {
+                source: 'catalog.schema.fct_orders',
+                filter: null,
+                parameterized: false,
+                joins: [],
+                dimensions: picked
+                    .filter(({ column }) => !column.isMeasure)
+                    .map(({ defined }) => defined),
+                measures: picked
+                    .filter(({ column }) => column.isMeasure)
+                    .map(({ defined }) => ({ ...defined, window: [] })),
+            },
+        });
+        const labelsOf = (model: {
+            dimensions: { label?: string }[];
+            metrics: Record<string, { label?: string }>;
+        }) => [
+            ...model.dimensions.map(({ label }) => label),
+            ...Object.values(model.metrics).map(({ label }) => label),
+        ];
+
+        it('hides date-part columns a date dimension covers', () => {
+            const model = build(null, orders());
+
+            expect(
+                model.dimensions.map(
+                    ({ name, hidden }: { name: string; hidden?: boolean }) => [
+                        name,
+                        hidden ?? false,
+                    ],
+                ),
+            ).toEqual([
+                ['order_date', false],
+                ['month', true],
+                ['year', true],
+                ['region', false],
+            ]);
+        });
+
+        it('keeps date-part columns visible when there is no date dimension', () => {
+            const model = build(null, orders(fields.slice(1)));
+
+            expect(model.dimensions[0]).not.toHaveProperty('hidden');
+            expect(model.dimensions[0].label).toBe('Month');
+        });
+
+        it('gives every field a distinct label in sentence case, acronyms kept', () => {
+            expect(labelsOf(build(null, orders()))).toEqual([
+                'Order date',
+                'Month number',
+                'Year number',
+                'Region',
+                'Total revenue USD',
+                'API calls 7D',
+                'Region 2',
+            ]);
+        });
+
+        it('never labels a date dimension with a timeframe word', () => {
+            const model = build(
+                null,
+                orders([field('month', DimensionType.TIMESTAMP, 'Month')]),
+            );
+
+            expect(model.dimensions[0].label).toBe('Date');
+        });
+
+        it('re-imports in place, keeping names and every field', () => {
+            const existing = `type: model
+name: subscriptions
+sql_from: catalog.schema.orders
+dimensions:
+  - name: ordered_on
+    type: date
+    sql: \${TABLE}.order_date
+    label: Month
+  - name: month_num
+    type: number
+    sql: \${TABLE}.month
+    label: Month
+  - name: sales_region
+    type: string
+    sql: \${TABLE}.legacy_region
+    label: Region
+metrics:
+  revenue:
+    type: number
+    sql: MEASURE(\`Total Revenue USD\`)
+`;
+            const yaml = buildMetricViewModelYaml({
+                modelName: 'subscriptions',
+                sqlFrom: 'catalog.schema.orders',
+                metadata: orders(),
+                existingModelYaml: existing,
+            });
+            const model = parse(yaml);
+
+            expect(
+                model.dimensions.map(({ name }: { name: string }) => name),
+            ).toEqual(['ordered_on', 'month_num', 'year', 'region']);
+            expect(Object.keys(model.metrics)).toEqual([
+                'revenue',
+                'api_calls_7d',
+                'region_count',
+            ]);
+            expect(labelsOf(model)).toEqual([
+                'Order date',
+                'Month number',
+                'Year number',
+                'Region 2',
+                'Total revenue USD',
+                'API calls 7D',
+                'Region 3',
+            ]);
+            expect(model.dimensions[1].hidden).toBe(true);
+
+            const merged = parse(
+                applyModelFragment({
+                    contents: existing,
+                    filename: 'models/subscriptions.yml',
+                    fragment: parseModelFragment('subscriptions', yaml),
+                }).contents,
+            );
+            expect(
+                merged.dimensions.map(({ name }: { name: string }) => name),
+            ).toEqual([
+                'ordered_on',
+                'month_num',
+                'sales_region',
+                'year',
+                'region',
+            ]);
+            expect(merged.dimensions[2].label).toBe('Region');
+        });
+    });
+});
+
+describe('toSentenceCase', () => {
+    it.each([
+        ['Total Revenue USD', 'Total revenue USD'],
+        ['API Calls 7D', 'API calls 7D'],
+        ['order date', 'Order date'],
+        ['Region', 'Region'],
+    ])('writes %s as %s', (label, expected) => {
+        expect(toSentenceCase(label)).toBe(expected);
     });
 });
 
