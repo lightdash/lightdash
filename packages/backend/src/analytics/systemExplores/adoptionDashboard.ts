@@ -110,7 +110,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         key: 'adoption-activity-by-person-and-day',
         name: 'Recorded activity by person and day, last 30 days',
         description:
-            'The 15 people with the most recorded activity in the last 30 complete days, leaving out activity with no person recorded; recent activity does not mean a recent login. The colour scale stops at the 95th percentile.',
+            'The 15 people with the most recorded activity in the last 30 complete days, leaving out activity with no person recorded. Recent activity does not mean a recent login.',
         explore: 'user_activity',
         day: activityDay,
         metric: 'user_activity_total_events',

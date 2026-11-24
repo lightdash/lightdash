@@ -42,7 +42,7 @@ export const card = ({
     visualization: 'number',
     libraryChart: {
         slug: 'big-number-with-sparkline-trend',
-        minVersion: '0.8.2',
+        minVersion: '0.8.3',
         fieldMapping: { value: metric, sparklineMetric: metric, time: day },
         optionValues: {
             ...(latestDay
@@ -85,7 +85,7 @@ export const numberCard = (
     percent = false,
 ): LibraryChartBinding => ({
     slug: 'big-number-with-sparkline-trend',
-    minVersion: '0.8.2',
+    minVersion: '0.8.3',
     fieldMapping: { value },
     optionValues: {
         valueAggregation: 'latest',
@@ -196,6 +196,10 @@ export const heatmapColorClamp = { colorClampPercentile: 95 };
 export const heatmapColorClampNote =
     'The colour scale stops at the 95th percentile.';
 
+// Hover text holds two sentences at most, so the heatmap keeps the first and adds its own second
+const firstSentence = (text: string) =>
+    text.match(/^.*?[.?!](?=\s|$)/)?.[0] ?? text;
+
 export const heatmapByDay = ({
     day,
     metric,
@@ -232,6 +236,8 @@ export const heatmapByDay = ({
             legendFormat: 'compact',
             ...heatmapColorClamp,
         },
+        // The plain table has no colours, so only the heatmap says where its scale stops
+        description: `${firstSentence(spec.description)} ${heatmapColorClampNote}`,
         query: null,
     },
 });

@@ -850,7 +850,7 @@ export const aiTokenLibraryChartBindings = (
                     item.slug,
                     {
                         slug: 'big-number-with-sparkline-trend',
-                        minVersion: '0.7.1',
+                        minVersion: '0.8.3',
                         fieldMapping: {
                             value: metric,
                             sparklineMetric: metric,

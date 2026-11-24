@@ -292,7 +292,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         visualization: 'number',
         libraryChart: {
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.7.1',
+            minVersion: '0.8.3',
             fieldMapping: {
                 value: 'agent_requests_total_requests',
                 sparklineMetric: 'agent_requests_total_requests',
@@ -342,7 +342,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         visualization: 'number',
         libraryChart: {
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.7.1',
+            minVersion: '0.8.3',
             fieldMapping: {
                 value: 'agent_requests_distinct_requesters',
                 sparklineMetric: 'agent_requests_distinct_requesters',
@@ -375,7 +375,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
     {
         key: 'agent-requests-by-agent-and-day',
         name: 'Requests by agent and day',
-        description: `Requests by agent and day. ${heatmapColorClampNote}`,
+        description: '',
         explore: 'agent_requests',
         dimensions: [
             'agent_requests_agent_name',
@@ -402,6 +402,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 legendFormat: 'compact',
                 ...heatmapColorClamp,
             },
+            // The plain table has no colours, so only the heatmap says where its scale stops
+            description: `Requests by agent and day. ${heatmapColorClampNote}`,
             query: null,
         },
     },
@@ -888,7 +890,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         visualization: 'number',
         libraryChart: {
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.8.2',
+            minVersion: '0.8.3',
             fieldMapping: {
                 value: failedTokens,
                 sparklineMetric: failedTokens,
