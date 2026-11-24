@@ -21,10 +21,12 @@ import { useNavBarState } from '../NavBar/useNavBarState';
 import { AppSidebar } from './AppSidebar';
 import classes from './AppSidebar.module.css';
 import { APP_SIDEBAR_ID } from './appSidebarNavigation';
+import { DashboardChartGutter } from './DashboardChartGutter';
 import { ImpersonationNotch } from './ImpersonationNotch';
 import { NoticeGutter } from './NoticeGutter';
 import { PreviewGutter } from './PreviewGutter';
 import { useAppSidebarCollapse } from './useAppSidebarCollapse';
+import { useDashboardChartNotice } from './useDashboardChartNotice';
 import { useIsLeftNavigationShown } from './useIsLeftNavigationShown';
 
 const APP_SIDEBAR_WIDTH_STORAGE_KEY = 'app-sidebar:width';
@@ -65,13 +67,20 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
     // The strip above the page holds whichever of these applies; the rules
     // that decide them never let two apply at once. Impersonation is the
     // exception and marks the page itself.
+    // Editing or creating a chart for a dashboard is a task with a way out,
+    // which outranks what kind of project this is. Only viewing one is not.
+    const showsDashboardChartNotice = useDashboardChartNotice();
     const hasGutter =
+        showsDashboardChartNotice ||
         previewNotice !== null ||
         trialNotice !== null ||
         hasSampleDataNotice ||
         isImpersonating;
+    const showsProjectNotice =
+        !showsDashboardChartNotice && previewNotice === null;
+    const showsTrialNotice = showsProjectNotice && trialNotice !== null;
     const showsSampleDataNotice =
-        previewNotice === null && trialNotice === null && hasSampleDataNotice;
+        showsProjectNotice && trialNotice === null && hasSampleDataNotice;
     // Impersonation and sample data change what the whole page means, so the
     // page itself is outlined; impersonation's mark wins when both apply.
     const pageOutline = isImpersonating
@@ -135,14 +144,18 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
             resize={resize}
         >
             <AppShell.Header withBorder={false} className={classes.gutter}>
-                {previewNotice && (
+                {showsDashboardChartNotice && (
+                    <DashboardChartGutter projectUuid={activeProjectUuid} />
+                )}
+                {!showsDashboardChartNotice && previewNotice && (
                     <PreviewGutter
                         {...previewNotice}
                         isSidebarCollapsed={isCollapsed}
                     />
                 )}
-                {!previewNotice && trialNotice && (
+                {showsTrialNotice && trialNotice && (
                     <NoticeGutter
+                        hint={null}
                         tone="warning"
                         icon={IconClock}
                         title="Trial ended"
@@ -152,22 +165,23 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
                                 : 'Contact sales to keep your workspace'
                         }
                         action={{
+                            type: 'external',
                             label: 'Contact sales',
-                            to: 'mailto:sales@lightdash.com',
-                            isExternal: true,
+                            href: 'mailto:sales@lightdash.com',
                         }}
                     />
                 )}
                 {showsSampleDataNotice && (
                     <NoticeGutter
+                        hint={null}
                         tone="info"
                         icon={IconTestPipe}
                         title="Sample data"
                         detail="A demo project to look around in while you get set up"
                         action={{
+                            type: 'link',
                             label: 'Connect your data',
                             to: '/onboarding/data-source',
-                            isExternal: false,
                         }}
                     />
                 )}

@@ -39,6 +39,7 @@ import {
 import { useSchedulerDeepLink } from '../../../features/scheduler/hooks/useSchedulerDeepLink';
 import { isLeavingTrainingCopy } from '../../../features/scopeTours/trainingCopy';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
+import { isDroppingDashboardChanges } from '../../../hooks/dashboard/dashboardChartPlace';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { useFavoriteToggle } from '../../../hooks/favorites/useFavoriteToggle';
 import { useChartPermissions } from '../../../hooks/useChartPermissions';
@@ -58,6 +59,7 @@ import { ExplorerSection } from '../../../providers/Explorer/types';
 import useNativeFullscreenToggle from '../../../providers/Fullscreen/useNativeFullscreenToggle';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
+import { useIsLeftNavigationShown } from '../../AppSidebar/useIsLeftNavigationShown';
 import ConnectionBadge from '../../common/ConnectionBadge';
 import { FavoriteActionIcon } from '../../common/FavoriteActionIcon';
 import MantineIcon from '../../common/MantineIcon';
@@ -211,7 +213,12 @@ const SavedChartsHeader: FC = () => {
         handleToggleFullscreen,
     } = useNativeFullscreenToggle();
 
-    const { clearDashboardStorage } = useDashboardStorage();
+    const {
+        clearDashboardStorage,
+        getIsEditingDashboardChart,
+        getHasDashboardChanges,
+    } = useDashboardStorage();
+    const isLeftNavigationShown = useIsLeftNavigationShown();
     const [isRenamingChart, setIsRenamingChart] = useState(false);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const contentReview = useContentReviewEligibility({
@@ -247,20 +254,41 @@ const SavedChartsHeader: FC = () => {
     }, [hasUnsavedChanges, isEditMode]);
 
     // Block navigating away if there are unsaved changes
-    const blocker = useBlocker(({ currentLocation, nextLocation }) =>
-        shouldBlockSavedChartNavigation({
-            currentPathname: currentLocation.pathname,
-            nextPathname: nextLocation.pathname,
-            hasUnsavedChanges,
-            isEditMode,
-            isSaveModalOpen,
-            isLeavingTrainingCopyRoute: isLeavingTrainingCopy(nextLocation),
-            projectUrlIdentifier,
-            savedChartSlug: savedChart?.slug,
-            savedChartUuid: savedChart?.uuid,
-            dashboardUuid,
-            dashboardIdentifier,
-        }),
+    const blocker = useBlocker(
+        ({ currentLocation, nextLocation }) =>
+            shouldBlockSavedChartNavigation({
+                currentPathname: currentLocation.pathname,
+                nextPathname: nextLocation.pathname,
+                hasUnsavedChanges,
+                isEditMode,
+                isSaveModalOpen,
+                isLeavingTrainingCopyRoute: isLeavingTrainingCopy(nextLocation),
+                projectUrlIdentifier,
+                savedChartSlug: savedChart?.slug,
+                savedChartUuid: savedChart?.uuid,
+                dashboardUuid,
+                dashboardIdentifier,
+            }) ||
+            // The sidebar stays up here, so the chart is no longer the only way out
+            (isLeftNavigationShown &&
+                !isSaveModalOpen &&
+                isDroppingDashboardChanges({
+                    currentPathname: currentLocation.pathname,
+                    nextPathname: nextLocation.pathname,
+                    isEditingDashboardChart: getIsEditingDashboardChart(),
+                    hasDashboardChanges: getHasDashboardChanges(),
+                    isNextTheSameSavedChart:
+                        isChartPath(
+                            nextLocation.pathname,
+                            projectUrlIdentifier,
+                            savedChart?.slug,
+                        ) ||
+                        isChartPath(
+                            nextLocation.pathname,
+                            projectUrlIdentifier,
+                            savedChart?.uuid,
+                        ),
+                })),
     );
 
     const {
@@ -375,8 +403,11 @@ const SavedChartsHeader: FC = () => {
                     }
                 >
                     <Text fw={500}>
-                        You have unsaved changes to your chart! Are you sure you
-                        want to leave without saving?
+                        You have unsaved changes to your{' '}
+                        {hasUnsavedChanges && isEditMode
+                            ? 'chart'
+                            : 'dashboard'}
+                        ! Are you sure you want to leave without saving?
                     </Text>
                 </MantineModal>
             )}
