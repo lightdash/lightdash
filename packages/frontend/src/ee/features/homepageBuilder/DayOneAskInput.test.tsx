@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen } from '@testing-library/react';
@@ -99,22 +98,6 @@ const { suggestionsState } = vi.hoisted(() => ({
             isLoading: boolean;
         },
     },
-}));
-
-const { onboardingState } = vi.hoisted(() => ({
-    onboardingState: {
-        current: { isNewOnboarding: false },
-    },
-}));
-
-vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: (flag: string) => ({
-        data: {
-            enabled:
-                flag === FeatureFlags.NewOnboarding &&
-                onboardingState.current.isNewOnboarding,
-        },
-    }),
 }));
 
 vi.mock('../aiCopilot/hooks/useAgentSuggestions', () => ({
@@ -226,7 +209,6 @@ const renderWithSuggestions = (labels: string[]) => {
 describe('DayOneAskInput suggestion chips', () => {
     afterEach(() => {
         suggestionsState.current = { data: undefined, isLoading: false };
-        onboardingState.current = { isNewOnboarding: false };
     });
 
     it('shows at most two chips on the homepage, however many are generated', () => {

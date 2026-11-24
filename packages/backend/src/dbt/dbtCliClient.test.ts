@@ -431,7 +431,10 @@ describe('independent source partial parsing', () => {
             const client = new DbtCliClient({
                 ...cliArgsWithoutVersion,
                 dbtVersion: SupportedDbtVersions.V1_9,
-                partialParseBaselinePath: baseline,
+                partialParseBaseline:
+                    baseline === null
+                        ? null
+                        : { path: baseline, access: 'read-write' },
             });
             await client.getDbtManifest({});
             expect(

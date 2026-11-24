@@ -2073,6 +2073,7 @@ export class AiWritebackService extends BaseService {
             dbtSourceUuid: args.dbtSourceUuid,
             prUrl: args.prUrl,
             startNewPullRequest: args.startNewPullRequest,
+            continuesThreadPullRequest: args.continuesThreadPullRequest,
         });
         const fallBack = (
             reason: 'not_runnable' | 'not_github' | 'agent_pull_request',
@@ -3068,6 +3069,7 @@ export class AiWritebackService extends BaseService {
                 dbtSourceUuid,
                 prUrl,
                 startNewPullRequest,
+                continuesThreadPullRequest: args.continuesThreadPullRequest,
             });
         } catch (error) {
             await persistRunFailed(error);
@@ -3616,6 +3618,7 @@ export class AiWritebackService extends BaseService {
         dbtSourceUuid,
         prUrl,
         startNewPullRequest,
+        continuesThreadPullRequest,
     }: {
         user: SessionUser;
         projectUuid: string;
@@ -3624,6 +3627,7 @@ export class AiWritebackService extends BaseService {
         dbtSourceUuid: string | undefined;
         prUrl: string | null | undefined;
         startNewPullRequest: boolean | undefined;
+        continuesThreadPullRequest?: boolean;
     }): Promise<PreparedTurn> {
         if (!isUserWithOrg(user)) {
             throw new WritebackAccessError(
@@ -3746,7 +3750,14 @@ export class AiWritebackService extends BaseService {
                 installation,
             });
             if (!editState.editable && editState.reason) {
-                throw new WritebackThreadPrClosedError(editState.reason);
+                // Studio's draft is the thread's open pull request, so once it settles the next save starts a new one.
+                if (!continuesThreadPullRequest) {
+                    throw new WritebackThreadPrClosedError(editState.reason);
+                }
+                this.logger.info(
+                    `AiWriteback: workstream ${existingRow.ai_writeback_thread_uuid} pull request is ${editState.reason}; starting a fresh pull request.`,
+                );
+                existingRow = null;
             }
         }
 

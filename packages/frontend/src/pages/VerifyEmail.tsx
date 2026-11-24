@@ -1,62 +1,17 @@
-import { FeatureFlags } from '@lightdash/common';
-import { Anchor, Button, Card, Stack, Text } from '@mantine/core';
-import {
-    IconCircleCheckFilled,
-    IconConfetti,
-    IconMail,
-} from '@tabler/icons-react';
-import { useCallback, useEffect, type FC } from 'react';
+import { Anchor, Text } from '@mantine/core';
+import { IconMail } from '@tabler/icons-react';
+import { useEffect, type FC } from 'react';
 import { Navigate, useSearchParams } from 'react-router';
 import { useIntercom } from 'react-use-intercom';
 import AuthLayout from '../components/common/AuthLayout';
-import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
-import MantineIcon from '../components/common/MantineIcon';
 import MantineModal from '../components/common/MantineModal';
 import { useTrackOnboardingScreen } from '../components/common/useTrackOnboardingScreen';
-import { useOnboardingNavigate } from '../components/common/viewTransition';
 import PageSpinner from '../components/PageSpinner';
 import VerifyEmailForm from '../components/RegisterForms/VerifyEmailForm';
 import { useEmailStatus } from '../hooks/useEmailVerification';
 import useLogoutMutation from '../hooks/user/useUserLogoutMutation';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import { sanitizeRedirectUrl } from '../utils/redirectUrl';
-import classes from './VerifyEmail.module.css';
-
-const VerificationSuccess: FC<{
-    isOpen: boolean;
-    onClose: () => void;
-    onContinue: () => void;
-}> = ({ isOpen, onClose, onContinue }) => {
-    return (
-        <MantineModal
-            size="sm"
-            opened={isOpen}
-            onClose={onClose}
-            title="You are all set!"
-            icon={IconConfetti}
-            cancelLabel={false}
-            actions={<Button onClick={onContinue}>Continue</Button>}
-        >
-            <Stack align="center">
-                <MantineIcon
-                    className={classes.successIcon}
-                    icon={IconCircleCheckFilled}
-                    size={42}
-                    color="green.6"
-                />
-                <Stack gap="two">
-                    <Text ta="center" fz="md" fw={500}>
-                        Your email has been verified successfully.
-                    </Text>
-                    <Text ta="center" fz="sm" c="dimmed">
-                        You can now start exploring your data.
-                    </Text>
-                </Stack>
-            </Stack>
-        </MantineModal>
-    );
-};
 
 const VerifyEmailPage: FC = () => {
     const { health } = useApp();
@@ -64,49 +19,29 @@ const VerifyEmailPage: FC = () => {
         !!health.data?.isAuthenticated,
     );
     const { show: showIntercom } = useIntercom();
-    const { isNewLayout } = useAuthLayoutVariant();
     const { mutate: logout, isLoading: isLoggingOut } = useLogoutMutation({
         onSuccess: () => {
             window.location.href = '/register';
         },
     });
-    const onboardingNavigate = useOnboardingNavigate();
     const [searchParams] = useSearchParams();
     const redirectParam = searchParams.get('redirect');
     const redirectTo =
         redirectParam === null ? null : sanitizeRedirectUrl(redirectParam);
-    const emailOnlySignupFlag = useServerFeatureFlag(
-        FeatureFlags.NewOnboarding,
-    );
-    const isEmailOnlySignup = emailOnlySignupFlag.data?.enabled ?? false;
-    const isVerifiedEmailOnlySignup = isEmailOnlySignup && !!data?.isVerified;
+    const isVerified = !!data?.isVerified;
     useTrackOnboardingScreen(
-        isEmailOnlySignup &&
-            !!health.data?.isAuthenticated &&
-            data?.isVerified === false
+        !!health.data?.isAuthenticated && data?.isVerified === false
             ? 'verify_email'
             : null,
     );
 
-    const continueAfterVerification = useCallback(() => {
-        if (redirectTo === null) {
-            onboardingNavigate('/');
-            return;
-        }
-        window.location.href = redirectTo;
-    }, [onboardingNavigate, redirectTo]);
-
     useEffect(() => {
-        if (isVerifiedEmailOnlySignup && redirectTo !== null) {
+        if (isVerified && redirectTo !== null) {
             window.location.href = redirectTo;
         }
-    }, [isVerifiedEmailOnlySignup, redirectTo]);
+    }, [isVerified, redirectTo]);
 
-    if (
-        health.isInitialLoading ||
-        statusLoading ||
-        emailOnlySignupFlag.isInitialLoading
-    ) {
+    if (health.isInitialLoading || statusLoading) {
         return <PageSpinner />;
     }
 
@@ -114,7 +49,7 @@ const VerifyEmailPage: FC = () => {
         return <Navigate to="/login" replace />;
     }
 
-    if (isVerifiedEmailOnlySignup) {
+    if (isVerified) {
         return redirectTo === null ? <Navigate to="/" /> : <PageSpinner />;
     }
 
@@ -136,53 +71,26 @@ const VerifyEmailPage: FC = () => {
                     </Anchor>
                 </>
             }
-            withLegacyCard={false}
             withCustomerLogos
             footer={
-                isNewLayout ? (
-                    <Text c="dimmed" ta="center" fz="xs">
-                        Need a hand?{' '}
-                        <Anchor
-                            component="button"
-                            type="button"
-                            inherit
-                            onClick={() => showIntercom()}
-                        >
-                            Chat to support
-                        </Anchor>
-                    </Text>
-                ) : (
-                    <Text c="dimmed" ta="center" px="xs" fz="sm" fw={500}>
-                        You need to verify your email to get access to
-                        Lightdash. If you need help, you can{' '}
-                        <Anchor onClick={() => showIntercom()} fz="sm" fw={500}>
-                            chat to support here.
-                        </Anchor>
-                    </Text>
-                )
+                <Text c="dimmed" ta="center" fz="xs">
+                    Need a hand?{' '}
+                    <Anchor
+                        component="button"
+                        type="button"
+                        inherit
+                        onClick={() => showIntercom()}
+                    >
+                        Chat to support
+                    </Anchor>
+                </Text>
             }
         >
-            {isNewLayout ? (
-                <VerifyEmailForm
-                    emailStatusData={data}
-                    statusLoading={statusLoading}
-                    align="left"
-                />
-            ) : (
-                <Card p="xl">
-                    <VerifyEmailForm
-                        emailStatusData={data}
-                        statusLoading={statusLoading}
-                    />
-                </Card>
-            )}
-            {!isEmailOnlySignup && data && (
-                <VerificationSuccess
-                    isOpen={data.isVerified}
-                    onClose={continueAfterVerification}
-                    onContinue={continueAfterVerification}
-                />
-            )}
+            <VerifyEmailForm
+                emailStatusData={data}
+                statusLoading={statusLoading}
+                align="left"
+            />
         </AuthLayout>
     );
 };

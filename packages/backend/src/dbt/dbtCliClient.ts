@@ -27,8 +27,12 @@ import { DbtClient, DbtManifestFetchOptions } from '../types';
 import { awaitDetachedProcess } from '../utils/detachedProcess';
 import { DbtAbortError } from './DbtAbortError';
 import {
+    getDbtPartialParseBaselineLimits,
+    getDbtPartialParseBaselineSize,
     saveDbtPartialParse,
     seedDbtPartialParse,
+    type DbtPartialParseBaseline,
+    type DbtPartialParseSaveOutcome,
 } from './dbtPartialParseBaseline';
 import {
     getDbtProcessEnvironment,
@@ -48,7 +52,7 @@ type DbtCliArgs = {
     selector?: string;
     gitConfigGlobalPath?: string;
     dbtDepsErrorHint?: string;
-    partialParseBaselinePath: string | null;
+    partialParseBaseline: DbtPartialParseBaseline | null;
 };
 
 enum DbtCommands {
@@ -88,7 +92,7 @@ export class DbtCliClient implements DbtClient {
 
     dbtDepsErrorHint?: string;
 
-    partialParseBaselinePath: string | null;
+    private readonly partialParseBaseline: DbtPartialParseBaseline | null;
 
     partialParseSeeded: boolean;
 
@@ -104,7 +108,7 @@ export class DbtCliClient implements DbtClient {
         selector,
         gitConfigGlobalPath,
         dbtDepsErrorHint,
-        partialParseBaselinePath,
+        partialParseBaseline,
     }: DbtCliArgs) {
         // Resolved up front because dbt runs with the project directory as its cwd
         this.dbtProjectDirectory = path.resolve(dbtProjectDirectory);
@@ -119,7 +123,7 @@ export class DbtCliClient implements DbtClient {
         this.selector = selector;
         this.gitConfigGlobalPath = gitConfigGlobalPath;
         this.dbtDepsErrorHint = dbtDepsErrorHint;
-        this.partialParseBaselinePath = partialParseBaselinePath;
+        this.partialParseBaseline = partialParseBaseline;
         this.partialParseSeeded = false;
     }
 
@@ -137,9 +141,9 @@ export class DbtCliClient implements DbtClient {
             this.targetDirectory = await fs.mkdtemp(
                 path.join(os.tmpdir(), 'dbt_target_'),
             );
-            if (this.partialParseBaselinePath !== null) {
+            if (this.partialParseBaseline !== null) {
                 this.partialParseSeeded = await seedDbtPartialParse(
-                    this.partialParseBaselinePath,
+                    this.partialParseBaseline.path,
                     this.targetDirectory,
                 );
             }
@@ -162,7 +166,7 @@ export class DbtCliClient implements DbtClient {
         logs: DbtLog[],
     ): Promise<void> {
         if (
-            this.partialParseBaselinePath === null ||
+            this.partialParseBaseline === null ||
             this.targetDirectory === undefined
         ) {
             return;
@@ -180,12 +184,25 @@ export class DbtCliClient implements DbtClient {
                     ),
             ),
         ];
-        const saved = await saveDbtPartialParse(
-            this.partialParseBaselinePath,
-            this.targetDirectory,
-        );
+        const readOnly = this.partialParseBaseline.access === 'read-only';
+        const saved: DbtPartialParseSaveOutcome = readOnly
+            ? {
+                  status: 'skipped',
+                  baselineBytes: null,
+                  cacheBytes: getDbtPartialParseBaselineSize(
+                      path.dirname(this.partialParseBaseline.path),
+                  ),
+                  prunedFiles: 0,
+                  prunedBytes: 0,
+                  prunedOwnBaseline: false,
+                  capBytes: getDbtPartialParseBaselineLimits().maxBytes,
+              }
+            : await saveDbtPartialParse(
+                  this.partialParseBaseline.path,
+                  this.targetDirectory,
+              );
         Logger.info(
-            `dbt.partialParse command=${command} seeded=${this.partialParseSeeded} reused=${reused}${
+            `dbt.partialParse command=${command} seeded=${this.partialParseSeeded} reused=${reused}${readOnly ? ' baselineAccess=read-only' : ''}${
                 unableReason ? ` reason="${unableReason}"` : ''
             } status=${saved.status} baselineBytes=${saved.baselineBytes} cacheBytes=${saved.cacheBytes} capBytes=${saved.capBytes} prunedFiles=${saved.prunedFiles} prunedBytes=${saved.prunedBytes} prunedOwnBaseline=${saved.prunedOwnBaseline} dbtParseEvents=${dbtParseEvents.join(',') || 'none'}`,
             {
@@ -196,6 +213,7 @@ export class DbtCliClient implements DbtClient {
                 unableReason,
                 ...saved,
                 dbtParseEvents,
+                baselineAccess: this.partialParseBaseline.access,
             },
         );
     }
@@ -299,7 +317,7 @@ export class DbtCliClient implements DbtClient {
                             this.environmentVariableAllowlist,
                         projectEnvironment: this.environment,
                         targetPath,
-                        partialParse: this.partialParseBaselinePath !== null,
+                        partialParse: this.partialParseBaseline !== null,
                         gitConfigGlobalPath: this.gitConfigGlobalPath,
                     }),
                     TMPDIR: temporaryPath,

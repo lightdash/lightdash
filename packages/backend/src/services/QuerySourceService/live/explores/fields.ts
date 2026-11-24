@@ -104,6 +104,7 @@ const fieldDefinitionSchema = z.object({
     description: z.string().optional(),
     filterOperators: z.array(z.nativeEnum(FilterOperator)),
     sql: z.string().optional(),
+    valueLabels: z.record(z.string(), z.string()).optional(),
 });
 
 const scannedFieldSchema = z.discriminatedUnion('kind', [

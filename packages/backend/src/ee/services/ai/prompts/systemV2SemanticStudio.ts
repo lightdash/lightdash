@@ -4,7 +4,6 @@ import {
     readLibraryPath,
     type ReadLibraryToolName,
 } from '../tools/readLibraries';
-import { getAiWritebackSection } from './systemV2AiWriteback';
 import { getRepoFsSection } from './systemV2RepoFs';
 
 /** How the prompt names a lookup: its own tool, or, for the builder that saves, its function inside read. */
@@ -45,8 +44,8 @@ export type SemanticStudioTurn =
           kind: 'draft';
           /** Whether the thread can run a metric query, which reads the person's draft. */
           canQueryDraft: boolean;
-          /** False only for a project with no repository, which has nowhere to keep project context. */
-          hasRepository: boolean;
+          /** Whether the thread can add project context to the draft, which only a project with no repository keeps here. */
+          canDraftContext: boolean;
       }
     | {
           /** A dbt project, which keeps no draft and is changed in its repository. */
@@ -66,20 +65,19 @@ export const getSemanticStudioTurn = (
     loadout: Pick<Loadout, 'toolNames' | 'promptSections'>,
     args: {
         drafts: boolean;
-        hasRepository: boolean;
         projectMap: string | null;
-        siteUrl: string;
         repoFsRoot: string | null;
         repoFsSupportsCodeSearch: boolean;
     },
 ): SemanticStudioTurn => {
     const { promptSections } = loadout;
-    const { builder, canRunMetrics } = getStudioAbilities(loadout);
+    const { builder, canRunMetrics, canDraftContext } =
+        getStudioAbilities(loadout);
     if (args.drafts) {
         return {
             kind: 'draft',
             canQueryDraft: canRunMetrics,
-            hasRepository: args.hasRepository,
+            canDraftContext,
         };
     }
     return {
@@ -87,16 +85,6 @@ export const getSemanticStudioTurn = (
         mode: builder ? 'build' : 'propose',
         projectMap: args.projectMap,
         sections: [
-            ...(promptSections.has('aiWriteback')
-                ? [
-                      getAiWritebackSection({
-                          // The pull request card offers linking, so the reply stays short.
-                          attribution: null,
-                          siteUrl: args.siteUrl,
-                          canEditContent: false,
-                      }),
-                  ]
-                : []),
             ...(promptSections.has('repoFs')
                 ? [
                       getRepoFsSection({
@@ -131,7 +119,6 @@ const getDbtSave = (mapped: boolean) => `${getDbtRead(mapped)}
 - Pass a null script only when the change needs dbt itself to run, such as checking new SQL against the warehouse; the slower sandbox makes that change instead.
 - A change to YAML alone is checked when it is saved, but only dbt checks one that adds a model or changes SQL: after saving it, call verify before you end the turn. If it fails, fix it with write and check again; tell the person only if it still fails.
 - When the person asks for a change, read what it touches, then save it in the same turn. Keep it to what was asked. Questions and ideas are not requests: answer them, and when you suggest a change, describe it in a sentence and save it once they say yes.
-- Leave prUrl and startNewPullRequest null, so the change joins this draft's branch while it is open and starts one otherwise. requestedBy is user_asked for a change they asked for and offer_accepted for one you suggested and they accepted.
 ${getImpact(lookup(true, 'analyzeFieldImpact'))} When saved charts use it, ask before you save.
 ${IN_DRAFT} Once saved, the draft compiles and the bar above this chat lets them try it and publish it.
 ${getCardIsReply('After saving,', "save's note")}`;
@@ -167,12 +154,12 @@ const DRAFT_QUERY = `
 - runMetricQuery reads the draft, so it runs a metric as your proposals leave it, with no approval. When a proposal comes back with a check, run those metrics in one query, alone or split by one dimension that should divide them. A null, a zero or a total the table cannot produce means the definition is wrong: fix it in one follow-up proposal. A number that looks right needs no comment.
 - To say what a metric returns, run it; do not work it out from its sql.`;
 
-const NO_REPOSITORY = `
-- You change models only. This project has no repository, so project context (lightdash.project_context.yml) cannot be kept here yet; never send the person to a file or repository. When they ask for project context, say that in one sentence, ask what they want agents to know if they have not said, and offer to put it in the description of the model or field it is about, which agents read.`;
+const DRAFT_CONTEXT = `
+- When the person asks to add or change project context, or states a durable fact about their data that is not a model change, such as what a term means or which model answers a kind of question, add it with draftProjectContext. It joins the draft as lightdash.project_context.yml and agents read it once the draft is published. To change an entry, pass its id as loadProjectContext shows it.`;
 
 const getDraftSections = (
     canQueryDraft: boolean,
-    hasRepository: boolean,
+    canDraftContext: boolean,
 ): string =>
     `## What the person sees
 
@@ -186,7 +173,7 @@ ${SEES} They can read the same YAML you read in the Code tab. Each change you pr
 ${getImpact('analyzeFieldImpact')}
 - When a model fails its checks, fix the cause the error reports and propose again.
 - A new model can come back ready with advice. Act on it once, in one follow-up proposal, before you reply.${canQueryDraft ? DRAFT_QUERY : ''}
-${IN_DRAFT}${hasRepository ? '' : NO_REPOSITORY}
+${IN_DRAFT}${canDraftContext ? DRAFT_CONTEXT : ''}
 ${getCardIsReply('After a proposal', "proposal's note")} The card already shows the change and its code, so never repeat them or list its fields.
 - Use listChanges to see the person's open drafts and which one is checked out. Each model says where its edits were made: by_hand means the person edited it in the Code tab, this_chat means you did, another_chat means another conversation did; say so plainly rather than guessing. Native model edits go to the checked-out draft. On Published, the first successful edit starts a draft.
 ${REPLY_STYLE}
@@ -252,7 +239,7 @@ export const getSemanticStudioSystemPrompt = ({
                 return [
                     getDraftSections(
                         studio.canQueryDraft,
-                        studio.hasRepository,
+                        studio.canDraftContext,
                     ),
                     getDraftWarehouseSection(warehouse),
                 ];
