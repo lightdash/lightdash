@@ -24,6 +24,7 @@ import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/use
 import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { useProject } from '../../hooks/useProject';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import { TableListingFailureNotice } from '../sqlRunner/components/TableListingFailureNotice';
 import classes from './EmptyProject.module.css';
 import sharedClasses from './shared.module.css';
 import { StudioDraftIllustration } from './StudioDraftIllustration';
@@ -151,13 +152,18 @@ const WarehouseCard: FC<{
     projectUuid: string;
     onModel: ((prompt: string) => void) | null;
 }> = ({ projectUuid, onModel }) => {
-    const { type, summary } = useWarehouseSummary(projectUuid);
+    const { type, summary, listingFailure } = useWarehouseSummary(projectUuid);
     if (!type) return null;
     const tables = summary?.tables.slice(0, CARD_TABLES) ?? [];
     const showsSchema = summary?.location?.includes('.') !== true;
     return (
         <Paper p="md" w="100%" ta="left" aria-label="Warehouse">
             <WarehouseHeading type={type} summary={summary} />
+            {listingFailure ? (
+                <Box mt="xs">
+                    <TableListingFailureNotice failure={listingFailure} />
+                </Box>
+            ) : null}
             {tables.length > 0 ? (
                 <Stack gap={0} mt="xs">
                     {tables.map((table) => (

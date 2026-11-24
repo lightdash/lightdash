@@ -6,6 +6,7 @@ import {
     getWarehouseIcon,
     getWarehouseLabel,
 } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
+import { TableListingFailureNotice } from '../sqlRunner/components/TableListingFailureNotice';
 import classes from './WarehouseStatusLine.module.css';
 import { useWarehouseSummary, type WarehouseSummary } from './warehouseSummary';
 
@@ -42,11 +43,14 @@ export const WarehouseStatusLine: FC<{
     projectUuid: string;
     settingsPath: string | null;
 }> = ({ projectUuid, settingsPath }) => {
-    const { type, summary } = useWarehouseSummary(projectUuid);
+    const { type, summary, listingFailure } = useWarehouseSummary(projectUuid);
     if (!type) return null;
     return (
         <Box className={classes.status} aria-label="Warehouse">
             <WarehouseHeading type={type} summary={summary} />
+            {listingFailure ? (
+                <TableListingFailureNotice failure={listingFailure} />
+            ) : null}
             {settingsPath ? (
                 <Anchor component={Link} to={settingsPath} fz="xs">
                     Edit connection

@@ -28,8 +28,10 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
+    WarehouseTableListingError,
     WarehouseTypes,
     type ResultNumericKind,
+    type TableListingFailure,
     type TimestampDomain,
     type WarehouseNestedColumnShape,
 } from '@lightdash/common';
@@ -460,6 +462,75 @@ export const getDatabricksErrorCondition = (
     return Object.values(DatabricksErrorCondition).find(
         (known) => known === condition,
     );
+};
+
+const splitSecurable = (name: string) =>
+    name.replaceAll('`', '').split('.').filter(Boolean);
+
+/** Reads why `information_schema.tables` could not be listed; `other` when the message names no known reason. */
+export const getDatabricksTableListingFailure = (
+    error: unknown,
+    configuredCatalog: string | null,
+): TableListingFailure => {
+    const message = getDatabricksErrorMessage(error);
+    const quoted = /['`]([^'`\s]+)['`]/.exec(message)?.[1];
+
+    if (
+        /\b(NO_SUCH_CATALOG_EXCEPTION|CATALOG_NOT_FOUND)\b/.test(message) ||
+        /Catalog '[^']+' was not found/.test(message)
+    ) {
+        return {
+            kind: 'catalog_not_found',
+            catalog: quoted ? splitSecurable(quoted)[0] : configuredCatalog,
+            message,
+        };
+    }
+
+    if (
+        /\b(TABLE_OR_VIEW_NOT_FOUND|SCHEMA_NOT_FOUND)\b/.test(message) &&
+        /information_schema/i.test(message)
+    ) {
+        return {
+            kind: 'no_information_schema',
+            catalog: configuredCatalog,
+            message,
+        };
+    }
+
+    const missingGrant =
+        /does not have (?:permission )?([A-Z][A-Z_ ]*?) on (?:(Catalog|Schema|Table|View) )?['`]?([\w.`-]+?)['`]?\.?(?:\s|$)/.exec(
+            message,
+        );
+    if (
+        missingGrant ||
+        /\b(INSUFFICIENT_PERMISSIONS\w*|PERMISSION_DENIED)\b/.test(message)
+    ) {
+        const securable = missingGrant?.[3] ?? quoted;
+        const parts = securable ? splitSecurable(securable) : [];
+        const type = missingGrant?.[2];
+        const depths: Record<string, number> = {
+            Catalog: 1,
+            Schema: 2,
+            Table: 3,
+            View: 3,
+        };
+        const depth = type ? depths[type] : null;
+        // Right-align a partly qualified name to catalog.schema.table
+        const padding = Array.from(
+            { length: depth === null ? 0 : depth - parts.length },
+            () => null,
+        );
+        const aligned: (string | null)[] = [...padding, ...parts];
+        return {
+            kind: 'missing_privilege',
+            privilege: missingGrant?.[1] ?? null,
+            catalog: aligned[0] ?? null,
+            schema: depth === 1 ? null : (aligned[1] ?? null),
+            message,
+        };
+    }
+
+    return { kind: 'other', message };
 };
 
 // Don't let close errors override the original error
@@ -932,7 +1003,17 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             WHERE table_schema <> 'information_schema'
             ORDER BY 1,2,3
         `;
-        const { rows } = await this.runQuery(query, {}, undefined, undefined);
+        let rows: Record<string, AnyType>[];
+        try {
+            ({ rows } = await this.runQuery(query, {}, undefined, undefined));
+        } catch (e: unknown) {
+            const failure = getDatabricksTableListingFailure(
+                e,
+                this.catalog ?? null,
+            );
+            if (failure.kind === 'other') throw e;
+            throw new WarehouseTableListingError(failure);
+        }
         return rows.map((row) => ({
             database: row.table_catalog,
             schema: row.table_schema,
