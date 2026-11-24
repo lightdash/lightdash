@@ -818,7 +818,7 @@ export class OrganizationController extends BaseController {
 
     /**
      * Return the organization's existing project or provision its sample-data
-     * playground when the new onboarding flow is available.
+     * playground on a licensed instance.
      * @summary Ensure playground project
      */
     @Middlewares([

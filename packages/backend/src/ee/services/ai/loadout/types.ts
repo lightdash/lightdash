@@ -67,6 +67,7 @@ export const AGENT_TOOL_NAMES = [
     'proposeSemanticLayerChange',
     'listChanges',
     'readSemanticModel',
+    'draftProjectContext',
     'verify',
     'read',
     'runMetricQuery',
@@ -151,6 +152,7 @@ export type LoadoutInput = Pick<
     | 'enableEditProjectContext'
     | 'isSemanticStudioThread'
     | 'semanticStudioDrafts'
+    | 'semanticStudioKeepsContext'
     | 'enableReadAttachments'
     | 'enableReadPinnedThread'
     | 'enableAskUser'

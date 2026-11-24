@@ -9,6 +9,7 @@ import {
     DbtProjectType,
     isOpenWorkspace,
     isPullRequestOpen,
+    SEMANTIC_STUDIO_PROJECT_CONTEXT_FILE,
     type SemanticLayerBlocker,
 } from '@lightdash/common';
 import {
@@ -24,6 +25,7 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
+import { WorkerPoolContextProvider } from '@pierre/diffs/react';
 import {
     IconArrowLeft,
     IconArrowUpRight,
@@ -40,7 +42,6 @@ import {
     useRef,
     useState,
     type FC,
-    type ReactNode,
 } from 'react';
 import {
     createSearchParams,
@@ -75,6 +76,10 @@ import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { LiveSourceManager } from '../externalConnections/liveSources/LiveSourceManager';
 import { ExternalSourceManager } from '../externalSources/components/ExternalSourceManager';
+import {
+    PIERRE_HIGHLIGHTER_OPTIONS,
+    PIERRE_POOL_OPTIONS,
+} from '../writeback/pierreDiffConfig';
 import { useDevelopmentView } from './developmentView';
 import {
     DraftMarksContext,
@@ -103,7 +108,8 @@ import {
     type StudioView,
 } from './modelCode';
 import { ModelCodeView } from './ModelTabs';
-import { DraftReview } from './SemanticLayerDraft';
+import { DraftReview, ProjectContextDraftFile } from './SemanticLayerDraft';
+import { describeBlocker } from './studioBlocker';
 import { useChatOpen, useStoredStudioThread } from './studioChange';
 import {
     AddToStudioChatContext,
@@ -160,36 +166,7 @@ const SourcesRail = lazy(() =>
 
 /** Why the models cannot be changed here, for someone who would otherwise expect to. */
 const BlockedNotice: FC<{ blocker: SemanticLayerBlocker }> = ({ blocker }) => {
-    const text = ((): ReactNode => {
-        switch (blocker) {
-            // Someone without the right to deploy has nothing to be told.
-            case 'no_access':
-                return null;
-            case 'unsupported_connection':
-                return "Read-only. This dbt connection can't be written to.";
-            case 'no_repository_access':
-                return 'Read-only. You need write access to the repository.';
-            case 'github_app_missing':
-                return (
-                    <>
-                        Read-only until the GitHub App is installed.{' '}
-                        <Anchor
-                            component={Link}
-                            to="/generalSettings/integrations"
-                            inherit
-                        >
-                            Install it
-                        </Anchor>
-                    </>
-                );
-            case 'models_from_outside':
-                return 'Read-only. These models were deployed from outside this app.';
-            case 'preview_project':
-                return 'Read-only. This is a preview of a pull request.';
-            default:
-                return assertUnreachable(blocker, 'Unknown blocker');
-        }
-    })();
+    const text = describeBlocker(blocker);
     return text ? (
         <Group className={classes.toolbar} px="sm" role="note">
             <Text fz="xs" c="dimmed">
@@ -366,15 +343,33 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 .map(({ id }) => id),
         [view.project],
     );
+    // The project context file sits among the model files, under a name no model can take.
+    const draftedFiles = useMemo(
+        () => [
+            ...(checkedOutDraft?.models ?? []).map((entry) => ({
+                name: entry.model,
+                change: entry,
+            })),
+            ...(checkedOutDraft?.projectContext
+                ? [
+                      {
+                          name: SEMANTIC_STUDIO_PROJECT_CONTEXT_FILE,
+                          change: checkedOutDraft.projectContext,
+                      },
+                  ]
+                : []),
+        ],
+        [checkedOutDraft],
+    );
     const lineCounts = useMemo(
         () =>
             new Map(
-                (checkedOutDraft?.models ?? []).map((entry) => [
-                    entry.model,
-                    countChangedLines(entry),
+                draftedFiles.map(({ name, change }) => [
+                    name,
+                    countChangedLines(change),
                 ]),
             ),
-        [checkedOutDraft],
+        [draftedFiles],
     );
     const [storedThread, setStoredThread] = useStoredStudioThread(
         view.project.id,
@@ -619,13 +614,11 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 .filter(({ contentAfter }) => contentAfter === null)
                 .map(({ model }) => model),
         );
-        const drafted = (checkedOutDraft?.models ?? []).map(
-            ({ model }) => model,
-        );
+        const drafted = draftedFiles.map(({ name }) => name);
         return [...new Set([...drafted, ...(stored?.models ?? [])])]
             .filter((name) => !removed.has(name))
             .sort();
-    }, [checkedOutDraft, stored]);
+    }, [checkedOutDraft, draftedFiles, stored]);
     const requestedFile = searchParams.get(FILE_PARAM);
     const file =
         files.find((name) => name === requestedFile) ??
@@ -958,7 +951,18 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     />
                 ) : null;
             case 'code':
-                return file ? (
+                return file === SEMANTIC_STUDIO_PROJECT_CONTEXT_FILE &&
+                    checkedOutDraft?.projectContext ? (
+                    <WorkerPoolContextProvider
+                        poolOptions={PIERRE_POOL_OPTIONS}
+                        highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
+                    >
+                        <ProjectContextDraftFile
+                            change={checkedOutDraft.projectContext}
+                            variant="whole"
+                        />
+                    </WorkerPoolContextProvider>
+                ) : file ? (
                     <ModelCodeView
                         key={file}
                         projectUuid={view.project.id}
@@ -1167,7 +1171,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                             )}
                             <Box className={classes.workspace}>
                                 {!hasChat ? (
-                                    status?.blocker ? (
+                                    // The empty pane says why itself.
+                                    status?.blocker && pane !== 'empty' ? (
                                         <BlockedNotice
                                             blocker={status.blocker}
                                         />

@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     InviteLinkPurpose,
     type ActivateUserWithInviteCode,
     type ApiError,
@@ -10,7 +9,6 @@ import {
     Anchor,
     Box,
     Button,
-    Card,
     Divider,
     Stack,
     Text,
@@ -21,7 +19,6 @@ import { useEffect, useState, type FC } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router';
 import { type LightdashApi } from '../api';
 import AuthLayout from '../components/common/AuthLayout';
-import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
 import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
 import PageSpinner from '../components/PageSpinner';
 import CreateUserForm from '../components/RegisterForms/CreateUserForm';
@@ -32,7 +29,6 @@ import {
     useActivateInviteLinkMutation,
     useInviteLink,
 } from '../hooks/useInviteLink';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useTracking from '../providers/Tracking/useTracking';
@@ -46,12 +42,11 @@ interface WelcomeCardProps {
 
 const InviteExpirationText: FC<{
     expiresAt: Date;
-    textAlign: 'left' | 'center';
-}> = ({ expiresAt, textAlign }) => {
+}> = ({ expiresAt }) => {
     const expirationDate = new Date(expiresAt);
 
     return (
-        <Text c="dimmed" ta={textAlign} fz="sm">
+        <Text c="dimmed" ta="left" fz="sm">
             This invite link expires on{' '}
             <time dateTime={expirationDate.toISOString()}>
                 {expirationDate.toLocaleString(undefined, {
@@ -70,42 +65,34 @@ const WelcomeCard: FC<WelcomeCardProps> = ({
     setReadyToJoin,
 }) => {
     const { data: org } = useOrganization();
-    const { isNewLayout } = useAuthLayoutVariant();
-    const textAlign = isNewLayout ? 'left' : 'center';
 
     const content = (
-        <Stack gap="md" align={isNewLayout ? 'stretch' : 'center'}>
+        <Stack gap="md" align="stretch">
             <Title order={3}>You’ve been invited!</Title>
             {email && (
                 <Text fw="600" size="md">
                     {email}
                 </Text>
             )}
-            <Text c="dimmed" ta={textAlign}>
+            <Text c="dimmed" ta="left">
                 {`Your teammates ${
                     org?.name ? `at ${org.name}` : ''
                 } are using Lightdash to discover
                     and share data insights. Join your team to start exploring
                     your data!`}
             </Text>
-            <InviteExpirationText expiresAt={expiresAt} textAlign={textAlign} />
+            <InviteExpirationText expiresAt={expiresAt} />
             <Button onClick={() => setReadyToJoin(true)}>Join your team</Button>
         </Stack>
     );
 
     return (
         <>
-            {isNewLayout ? (
-                <Box data-cy="welcome-user">{content}</Box>
-            ) : (
-                <Card p="xl" data-cy="welcome-user">
-                    {content}
-                </Card>
-            )}
-            <Text c="dimmed" ta={textAlign} fz="sm" fw={500}>
+            <Box data-cy="welcome-user">{content}</Box>
+            <Text c="dimmed" ta="left" fz="sm" fw={500}>
                 {`Not ${email ? email : 'for you'}?`}
                 <br />
-                <Text c="dimmed" ta={textAlign} fz="xs" fw={500}>
+                <Text c="dimmed" ta="left" fz="xs" fw={500}>
                     Ignore this invite link and contact your workspace admin.
                 </Text>
             </Text>
@@ -114,25 +101,17 @@ const WelcomeCard: FC<WelcomeCardProps> = ({
 };
 
 const ErrorCard: FC<{ title: string }> = ({ title }) => {
-    const { isNewLayout } = useAuthLayoutVariant();
-
     const content = (
-        <Stack gap="md" align={isNewLayout ? 'stretch' : 'center'}>
+        <Stack gap="md" align="stretch">
             <Title order={3}>{title}</Title>
-            <Text c="dimmed" ta={isNewLayout ? 'left' : 'center'}>
+            <Text c="dimmed" ta="left">
                 Please check with the person who shared it with you to see if
                 there’s a new link available.
             </Text>
         </Stack>
     );
 
-    return isNewLayout ? (
-        <Box data-cy="welcome-user">{content}</Box>
-    ) : (
-        <Card p="xl" data-cy="welcome-user">
-            {content}
-        </Card>
-    );
+    return <Box data-cy="welcome-user">{content}</Box>;
 };
 
 const PrivacyTermsFootnote: FC = () => (
@@ -175,22 +154,19 @@ const OneClickCard: FC<OneClickCardProps> = ({
     isLoading,
     onActivate,
 }) => {
-    const { isNewLayout } = useAuthLayoutVariant();
-    const textAlign = isNewLayout ? 'left' : 'center';
-
     const content = (
-        <Stack gap="md" align={isNewLayout ? 'stretch' : 'center'}>
-            <Title order={3} ta={textAlign}>
+        <Stack gap="md" align="stretch">
+            <Title order={3} ta="left">
                 {isSetupInvite
                     ? 'You’ve been asked to help with setup'
                     : 'You’ve been invited to Lightdash'}
             </Title>
-            <Text c="dimmed" ta={textAlign}>
+            <Text c="dimmed" ta="left">
                 {isSetupInvite
                     ? 'One click and we’ll take you straight to connecting the data warehouse.'
                     : 'One click to join your team.'}
             </Text>
-            <InviteExpirationText expiresAt={expiresAt} textAlign={textAlign} />
+            <InviteExpirationText expiresAt={expiresAt} />
             <Button
                 fullWidth
                 loading={isLoading}
@@ -202,13 +178,7 @@ const OneClickCard: FC<OneClickCardProps> = ({
         </Stack>
     );
 
-    return isNewLayout ? (
-        <Box data-cy="one-click-invite">{content}</Box>
-    ) : (
-        <Card p="xl" data-cy="one-click-invite">
-            {content}
-        </Card>
-    );
+    return <Box data-cy="one-click-invite">{content}</Box>;
 };
 
 const createUserQuery = async (
@@ -226,7 +196,6 @@ const Invite: FC = () => {
     const lightdashApi = useLightdashApi();
     const { inviteCode } = useParams<{ inviteCode: string }>();
     const { health } = useApp();
-    const { isNewLayout } = useAuthLayoutVariant();
     const { showToastError, showToastApiError } = useToaster();
     const flashMessages = useFlashMessages();
 
@@ -247,9 +216,6 @@ const Invite: FC = () => {
         inviteLinkQuery.data?.purpose === InviteLinkPurpose.Setup;
     const redirectUrl = isSetupInvite ? '/onboarding/data-source' : '/';
 
-    const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding, {
-        retry: 3,
-    });
     const activateInvite = useActivateInviteLinkMutation(
         inviteCode,
         redirectUrl,
@@ -277,9 +243,7 @@ const Invite: FC = () => {
         },
     );
 
-    const isNewOnboarding = newOnboardingFlag.data?.enabled ?? false;
     const showOneClick =
-        isNewOnboarding &&
         inviteLinkQuery.data?.authentication.allowOneClickActivation &&
         Boolean(inviteCode);
 
@@ -291,11 +255,7 @@ const Invite: FC = () => {
         }
     }, [search]);
 
-    if (
-        health.isInitialLoading ||
-        inviteLinkQuery.isInitialLoading ||
-        newOnboardingFlag.isInitialLoading
-    ) {
+    if (health.isInitialLoading || inviteLinkQuery.isInitialLoading) {
         return <PageSpinner />;
     }
 
@@ -359,13 +319,13 @@ const Invite: FC = () => {
     );
     const signupContent = (
         <>
-            <Title order={3} ta={isNewLayout ? 'left' : 'center'} mb="md">
+            <Title order={3} ta="left" mb="md">
                 {isSetupInvite
                     ? 'You’ve been asked to help with setup'
                     : 'Sign up'}
             </Title>
             {isSetupInvite && (
-                <Text c="dimmed" ta={isNewLayout ? 'left' : 'center'} mb="md">
+                <Text c="dimmed" ta="left" mb="md">
                     Create your account and we’ll take you straight to warehouse
                     setup.
                 </Text>
@@ -373,7 +333,6 @@ const Invite: FC = () => {
             {inviteLinkQuery.data ? (
                 <InviteExpirationText
                     expiresAt={inviteLinkQuery.data.expiresAt}
-                    textAlign={isNewLayout ? 'left' : 'center'}
                 />
             ) : null}
             {logins}
@@ -381,7 +340,7 @@ const Invite: FC = () => {
     );
 
     return (
-        <AuthLayout pageTitle="Register" withLegacyCard={false}>
+        <AuthLayout pageTitle="Register">
             {inviteLinkQuery.error ? (
                 <ErrorCard
                     title={
@@ -419,11 +378,7 @@ const Invite: FC = () => {
                 </>
             ) : isLinkFromEmail || isSetupInvite ? (
                 <>
-                    {isNewLayout ? (
-                        signupContent
-                    ) : (
-                        <Card p="xl">{signupContent}</Card>
-                    )}
+                    {signupContent}
                     <PrivacyTermsFootnote />
                 </>
             ) : inviteLinkQuery.data ? (

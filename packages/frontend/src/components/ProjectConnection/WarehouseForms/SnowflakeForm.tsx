@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     SnowflakeAuthenticationType,
     WarehouseTypes,
     type DepositSnowflakeCredentials,
@@ -27,7 +26,6 @@ import {
     type ReactNode,
 } from 'react';
 import { useToggle } from 'react-use';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
     useIsSnowflakeAuthenticated,
     useSnowflakeDatasets,
@@ -53,7 +51,6 @@ import {
     useSnowflakeCliSsoMode,
 } from './SnowflakeCliSsoModeContext';
 import SnowflakeCliSsoPanel from './SnowflakeCliSsoPanel';
-import { useFieldHint } from './useFieldHint';
 import {
     CLI_SSO_LABEL,
     EXTERNAL_BROWSER_LABEL,
@@ -70,7 +67,6 @@ export const SnowflakeSchemaInput: FC<{
     disabled: boolean;
     description?: ReactNode;
 }> = ({ disabled, description }) => {
-    const fieldHint = useFieldHint();
     const form = useFormContext();
     const isCliSsoMode = useSnowflakeCliSsoMode();
     if (isCliSsoMode) {
@@ -80,7 +76,7 @@ export const SnowflakeSchemaInput: FC<{
         <TextInput
             name="warehouse.schema"
             label="Schema"
-            description={description ?? fieldHint('This is the schema name.')}
+            description={description}
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
@@ -143,7 +139,6 @@ const RequireUserCredentialsField: FC<{ disabled: boolean }> = ({
 const SnowflakeForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
-    const fieldHint = useFieldHint();
     const [isOpen, toggleOpen] = useToggle(false);
     const {
         savedProject,
@@ -184,13 +179,7 @@ const SnowflakeForm: FC<{
     const showSaveCredentials = !!health.data?.isSaveCredentialsFormEnabled;
     const isEditMode = !!savedProject;
 
-    const warehouseConnectFlag = useServerFeatureFlag(
-        FeatureFlags.NewOnboarding,
-    );
-    const isCliSsoEnabled =
-        !savedProject &&
-        !isProjectExtraConnection &&
-        (warehouseConnectFlag.data?.enabled ?? false);
+    const isCliSsoEnabled = !savedProject && !isProjectExtraConnection;
     const isCliSsoMode = useSnowflakeCliSsoMode();
     const setIsCliSsoMode = useSetSnowflakeCliSsoMode();
     const userSelectedAuthType = useRef(false);
@@ -440,9 +429,6 @@ const SnowflakeForm: FC<{
                                     <TextInput
                                         name="warehouse.user"
                                         label="User"
-                                        description={fieldHint(
-                                            'This is the database user name.',
-                                        )}
                                         required={requireSecrets}
                                         {...form.getInputProps(
                                             'warehouse.user',
@@ -585,9 +571,6 @@ const SnowflakeForm: FC<{
                                 <PasswordInput
                                     name="warehouse.password"
                                     label="Password"
-                                    description={fieldHint(
-                                        'This is the database user password.',
-                                    )}
                                     required={requireSecrets}
                                     placeholder={
                                         disabled || !requireSecrets
@@ -605,9 +588,6 @@ const SnowflakeForm: FC<{
                         <TextInput
                             name="warehouse.database"
                             label="Database"
-                            description={fieldHint(
-                                'This is the database name.',
-                            )}
                             required
                             {...form.getInputProps('warehouse.database')}
                             disabled={disabled}
@@ -615,9 +595,6 @@ const SnowflakeForm: FC<{
                         <TextInput
                             name="warehouse.warehouse"
                             label="Warehouse"
-                            description={fieldHint(
-                                'This is the warehouse name.',
-                            )}
                             required
                             {...form.getInputProps('warehouse.warehouse')}
                             disabled={disabled}
