@@ -244,8 +244,8 @@ export const getAiCallTelemetry = ({
     // telemetry providers unless it is named here. Deriving this from
     // `Object.keys(metadata)` would defeat the mechanism, because `extra` is
     // caller-controlled (a `Record<string, string>` passed straight through)
-    // and anything a caller ever adds
-    // would silently reach the provider. Adding a span dimension is a deliberate
+    // and anything a caller ever adds would silently reach the provider.
+    // Adding a span dimension is a deliberate
     // edit here. `emitAiUsage` is not bound by this list — it reads
     // `runtimeContext` directly, so our own `ai.usage` analytics also gets the
     // dimensions kept off spans (`runUuid`, `deepResearch*`).
