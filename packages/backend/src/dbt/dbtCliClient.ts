@@ -171,21 +171,32 @@ export class DbtCliClient implements DbtClient {
             logs.find((log) => log.info.name === 'UnableToPartialParse')?.info
                 .msg ?? null;
         const reused = this.partialParseSeeded && unableReason === null;
+        const dbtParseEvents = [
+            ...new Set(
+                logs
+                    .map((log) => log.info.name)
+                    .filter((name) =>
+                        /PartialPars|ParsedFileLoadFailed/.test(name),
+                    ),
+            ),
+        ];
+        const saved = await saveDbtPartialParse(
+            this.partialParseBaselinePath,
+            this.targetDirectory,
+        );
         Logger.info(
             `dbt.partialParse command=${command} seeded=${this.partialParseSeeded} reused=${reused}${
                 unableReason ? ` reason="${unableReason}"` : ''
-            }`,
+            } status=${saved.status} baselineBytes=${saved.baselineBytes} cacheBytes=${saved.cacheBytes} capBytes=${saved.capBytes} prunedFiles=${saved.prunedFiles} prunedBytes=${saved.prunedBytes} prunedOwnBaseline=${saved.prunedOwnBaseline} dbtParseEvents=${dbtParseEvents.join(',') || 'none'}`,
             {
                 event: 'dbt.partialParse',
                 command,
                 seeded: this.partialParseSeeded,
                 reused,
                 unableReason,
+                ...saved,
+                dbtParseEvents,
             },
-        );
-        await saveDbtPartialParse(
-            this.partialParseBaselinePath,
-            this.targetDirectory,
         );
     }
 
@@ -484,6 +495,11 @@ export class DbtCliClient implements DbtClient {
                     DbtCliClient.parseModelIdsFromStdout(stdout);
                 Logger.info(
                     `dbt ls completed in ${elapsed}ms, found ${selectedModelIds.length} model(s)`,
+                    {
+                        event: 'dbt.ls',
+                        durationMs: elapsed,
+                        modelCount: selectedModelIds.length,
+                    },
                 );
                 const rawManifest = {
                     manifest: await this.loadDbtTargetArtifact('manifest.json'),
