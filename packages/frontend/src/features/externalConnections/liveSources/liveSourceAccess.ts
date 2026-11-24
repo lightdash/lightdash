@@ -10,6 +10,7 @@ import {
     type UpdateExternalConnection,
 } from '@lightdash/common';
 import { AMPLITUDE_TEST_REQUEST } from './amplitudeConnection';
+import { getAppStoreConnectTestRequest } from './appStoreConnectConnection';
 import { getLiveSource } from './liveSourceCatalog';
 import { type LiveSourceConnection } from './liveSourceRows';
 import {
@@ -183,6 +184,8 @@ export const getLiveSourceTestRequest = (
             };
         case ApiConnectorType.AMPLITUDE:
             return AMPLITUDE_TEST_REQUEST;
+        case ApiConnectorType.APP_STORE_CONNECT:
+            return getAppStoreConnectTestRequest(apiSource.appId);
         default:
             return null;
     }
