@@ -125,6 +125,13 @@ export const APP_STORE_CONNECT_VERSIONS_EXPLORE = explore({
             'The earliest time a scheduled version is released.',
         ),
         dimension(
+            'phased_release_started_at',
+            'appStoreVersionPhasedRelease.startDate',
+            'Phased release started',
+            DimensionType.TIMESTAMP,
+            'When the phased release of the version started. Empty for a version released to everyone at once.',
+        ),
+        dimension(
             'downloadable',
             'downloadable',
             'Downloadable',
@@ -270,7 +277,7 @@ export const APP_STORE_CONNECT_REVIEW_SUBMISSIONS_EXPLORE = explore({
     name: 'review_submissions',
     label: 'Review submissions',
     description:
-        "The app's submissions to App Review and their state, read live from App Store Connect. Count is the total for the filters.",
+        "The app's submissions to App Review with their current state, read live from App Store Connect. Count is the total for the filters. App Store Connect reports no time for a change of state, so how long a review took can't be read here.",
     dimensions: [
         dimension(
             'submission_id',
@@ -301,6 +308,13 @@ export const APP_STORE_CONNECT_REVIEW_SUBMISSIONS_EXPLORE = explore({
             'Submitted',
             DimensionType.TIMESTAMP,
             'When the submission was sent to App Review.',
+        ),
+        dimension(
+            'version',
+            'appStoreVersionForReview.versionString',
+            'Version',
+            DimensionType.STRING,
+            'The version number of the App Store version the submission carries, such as 1.0.7. Empty when the submission carries no app version.',
         ),
     ],
 });

@@ -244,6 +244,159 @@ describe('appStoreConnectIntegration lists', () => {
         ]);
     });
 
+    it('reads the version a review submission carries from the included record', async () => {
+        const { source, send } = connect(
+            response({
+                data: [
+                    {
+                        type: 'reviewSubmissions',
+                        id: 'submission-1',
+                        attributes: {
+                            state: 'WAITING_FOR_REVIEW',
+                            submittedDate: '2026-11-20T09:00:00Z',
+                        },
+                        relationships: {
+                            appStoreVersionForReview: {
+                                data: {
+                                    type: 'appStoreVersions',
+                                    id: 'version-7',
+                                },
+                            },
+                        },
+                    },
+                    {
+                        type: 'reviewSubmissions',
+                        id: 'submission-2',
+                        attributes: {
+                            state: 'COMPLETE',
+                            submittedDate: '2026-11-12T09:00:00Z',
+                        },
+                        relationships: {
+                            appStoreVersionForReview: { data: null },
+                        },
+                    },
+                ],
+                included: [version(7)],
+                meta: { paging: { total: 2, limit: 200 } },
+            }),
+        );
+
+        const result = await run(source, {
+            resource: 'reviewSubmissions',
+            fields: [
+                'id',
+                'state',
+                'submittedDate',
+                'appStoreVersionForReview.versionString',
+            ],
+        });
+
+        expect(send.mock.calls[0][0]).toMatchObject({
+            path: `/v1/apps/${APP_ID}/reviewSubmissions`,
+            query: {
+                'fields[reviewSubmissions]':
+                    'state,submittedDate,appStoreVersionForReview',
+                include: 'appStoreVersionForReview',
+                'fields[appStoreVersions]': 'versionString',
+            },
+        });
+        expect(result.columns).toEqual([
+            { name: 'id', type: 'string' },
+            { name: 'state', type: 'string' },
+            { name: 'submittedDate', type: 'timestamp' },
+            {
+                name: 'appStoreVersionForReview.versionString',
+                type: 'string',
+            },
+        ]);
+        expect(result.rows).toEqual([
+            {
+                id: 'submission-1',
+                state: 'WAITING_FOR_REVIEW',
+                submittedDate: '2026-11-20T09:00:00.000Z',
+                'appStoreVersionForReview.versionString': '1.0.7',
+            },
+            {
+                id: 'submission-2',
+                state: 'COMPLETE',
+                submittedDate: '2026-11-12T09:00:00.000Z',
+                'appStoreVersionForReview.versionString': null,
+            },
+        ]);
+    });
+
+    it('reads when the phased release of a version started', async () => {
+        const { source, send } = connect(
+            response({
+                data: [
+                    {
+                        ...version(7),
+                        relationships: {
+                            appStoreVersionPhasedRelease: {
+                                data: {
+                                    type: 'appStoreVersionPhasedReleases',
+                                    id: 'phased-7',
+                                },
+                            },
+                        },
+                    },
+                    {
+                        ...version(6),
+                        relationships: {
+                            appStoreVersionPhasedRelease: { data: null },
+                        },
+                    },
+                ],
+                included: [
+                    {
+                        type: 'appStoreVersionPhasedReleases',
+                        id: 'phased-7',
+                        attributes: {
+                            startDate: '2026-11-23T08:00:00-08:00',
+                        },
+                    },
+                ],
+                meta: { paging: { total: 2, limit: 200 } },
+            }),
+        );
+
+        const result = await run(source, {
+            resource: 'appStoreVersions',
+            fields: ['versionString', 'appStoreVersionPhasedRelease.startDate'],
+        });
+
+        expect(send.mock.calls[0][0].query).toMatchObject({
+            'fields[appStoreVersions]':
+                'versionString,appStoreVersionPhasedRelease',
+            include: 'appStoreVersionPhasedRelease',
+            'fields[appStoreVersionPhasedReleases]': 'startDate',
+        });
+        expect(result.rows).toEqual([
+            {
+                versionString: '1.0.7',
+                'appStoreVersionPhasedRelease.startDate':
+                    '2026-11-23T16:00:00.000Z',
+            },
+            {
+                versionString: '1.0.6',
+                'appStoreVersionPhasedRelease.startDate': null,
+            },
+        ]);
+    });
+
+    it('sends no include when no included field is selected', async () => {
+        const { source, send } = connect(
+            list('appStoreVersions', [version(7)], { total: 1 }),
+        );
+
+        await run(source, {
+            resource: 'appStoreVersions',
+            fields: ['versionString'],
+        });
+
+        expect(send.mock.calls[0][0].query).not.toHaveProperty('include');
+    });
+
     it('asks for one cheap attribute when only the ID is selected', async () => {
         const { source, send } = connect(
             list('appStoreVersions', [version(1)], { total: 1 }),

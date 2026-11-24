@@ -27,8 +27,18 @@ export const APP_STORE_CONNECT_MAX_QUERY_ROWS = PAGE_SIZE * MAX_PAGES - 1;
 
 export const APP_STORE_CONNECT_CALLS_PER_QUERY = MAX_PAGES;
 
+/** An attribute of a record the list includes, such as a version's phased release. */
+type RelatedField = {
+    relationship: string;
+    type: string;
+    attribute: string;
+    fieldType: DimensionType;
+};
+
 type ResourceSpec = {
     fields: Partial<Record<string, DimensionType>>;
+    /** Fields read from included records, by `<relationship>.<attribute>`. */
+    related: Partial<Record<string, RelatedField>>;
     filters: readonly string[];
     sorts: readonly string[];
     /** Sent when only the record ID is wanted, since an empty fieldset isn't documented. */
@@ -47,6 +57,14 @@ export const APP_STORE_CONNECT_RESOURCES = {
             earliestReleaseDate: DimensionType.TIMESTAMP,
             downloadable: DimensionType.BOOLEAN,
         },
+        related: {
+            'appStoreVersionPhasedRelease.startDate': {
+                relationship: 'appStoreVersionPhasedRelease',
+                type: 'appStoreVersionPhasedReleases',
+                attribute: 'startDate',
+                fieldType: DimensionType.TIMESTAMP,
+            },
+        },
         filters: ['versionString', 'platform', 'appVersionState'],
         sorts: [],
         cheapField: 'versionString',
@@ -62,6 +80,7 @@ export const APP_STORE_CONNECT_RESOURCES = {
             buildAudienceType: DimensionType.STRING,
             usesNonExemptEncryption: DimensionType.BOOLEAN,
         },
+        related: {},
         filters: [],
         sorts: [],
         cheapField: 'version',
@@ -75,6 +94,7 @@ export const APP_STORE_CONNECT_RESOURCES = {
             territory: DimensionType.STRING,
             createdDate: DimensionType.TIMESTAMP,
         },
+        related: {},
         filters: ['rating', 'territory'],
         sorts: ['rating', '-rating', 'createdDate', '-createdDate'],
         cheapField: 'rating',
@@ -84,6 +104,14 @@ export const APP_STORE_CONNECT_RESOURCES = {
             platform: DimensionType.STRING,
             state: DimensionType.STRING,
             submittedDate: DimensionType.TIMESTAMP,
+        },
+        related: {
+            'appStoreVersionForReview.versionString': {
+                relationship: 'appStoreVersionForReview',
+                type: 'appStoreVersions',
+                attribute: 'versionString',
+                fieldType: DimensionType.STRING,
+            },
         },
         filters: ['platform', 'state'],
         sorts: [],
@@ -120,7 +148,11 @@ export const appStoreConnectRequestSchema = z
         const fail = (message: string) =>
             context.addIssue({ code: z.ZodIssueCode.custom, message });
         request.fields.forEach((field) => {
-            if (field !== ID_COLUMN && !Object.hasOwn(spec.fields, field)) {
+            if (
+                field !== ID_COLUMN &&
+                !Object.hasOwn(spec.fields, field) &&
+                !Object.hasOwn(spec.related, field)
+            ) {
                 fail(`${request.resource} has no field "${field}"`);
             }
         });
@@ -159,8 +191,23 @@ const listResponseSchema = z.object({
         z.object({
             id: z.string(),
             attributes: z.record(z.string(), z.unknown()).optional(),
+            relationships: z
+                .record(
+                    z.string(),
+                    z.object({ data: z.unknown().optional() }).passthrough(),
+                )
+                .optional(),
         }),
     ),
+    included: z
+        .array(
+            z.object({
+                type: z.string(),
+                id: z.string(),
+                attributes: z.record(z.string(), z.unknown()).optional(),
+            }),
+        )
+        .optional(),
     meta: z.object({
         paging: z.object({
             total: z.number(),
@@ -168,24 +215,56 @@ const listResponseSchema = z.object({
         }),
     }),
 });
-type ListRecord = z.infer<typeof listResponseSchema>['data'][number];
+type ListResponse = z.infer<typeof listResponseSchema>;
+type ListRecord = ListResponse['data'][number];
+type IncludedRecord = NonNullable<ListResponse['included']>[number];
+
+const relatedIdSchema = z.object({ type: z.string(), id: z.string() });
 
 const toQuery = (
     request: AppStoreConnectRequest,
-    attributes: string[],
-): Record<string, string> => ({
-    [`fields[${request.resource}]`]: (attributes.length > 0
-        ? attributes
-        : [getResource(request.resource).cheapField]
-    ).join(','),
-    ...Object.fromEntries(
-        Object.entries(request.filters ?? {}).map(([filter, values]) => [
-            `filter[${filter}]`,
-            values.join(','),
-        ]),
-    ),
-    ...(request.sort ? { sort: request.sort } : {}),
-});
+    fields: string[],
+): Record<string, string> => {
+    const spec = getResource(request.resource);
+    const related = fields.flatMap((field) => spec.related[field] ?? []);
+    // A relationship is only returned when the fieldset names it
+    const own = [
+        ...fields.filter((field) => Object.hasOwn(spec.fields, field)),
+        ...new Set(related.map(({ relationship }) => relationship)),
+    ];
+    const relatedTypes = [...new Set(related.map(({ type }) => type))];
+    return {
+        [`fields[${request.resource}]`]: (own.length > 0
+            ? own
+            : [spec.cheapField]
+        ).join(','),
+        ...(related.length > 0
+            ? {
+                  include: [
+                      ...new Set(
+                          related.map(({ relationship }) => relationship),
+                      ),
+                  ].join(','),
+              }
+            : {}),
+        ...Object.fromEntries(
+            relatedTypes.map((type) => [
+                `fields[${type}]`,
+                related
+                    .filter((field) => field.type === type)
+                    .map(({ attribute }) => attribute)
+                    .join(','),
+            ]),
+        ),
+        ...Object.fromEntries(
+            Object.entries(request.filters ?? {}).map(([filter, values]) => [
+                `filter[${filter}]`,
+                values.join(','),
+            ]),
+        ),
+        ...(request.sort ? { sort: request.sort } : {}),
+    };
+};
 
 const toValue = (raw: unknown, type: DimensionType | undefined): unknown => {
     if (raw === null || raw === undefined) {
@@ -198,18 +277,39 @@ const toValue = (raw: unknown, type: DimensionType | undefined): unknown => {
     return raw;
 };
 
+const readRelated = (
+    record: ListRecord,
+    included: IncludedRecord[],
+    { relationship, type, attribute, fieldType }: RelatedField,
+): unknown => {
+    const target = relatedIdSchema.safeParse(
+        record.relationships?.[relationship]?.data,
+    );
+    if (!target.success) return null;
+    const match = included.find(
+        (candidate) =>
+            candidate.type === type && candidate.id === target.data.id,
+    );
+    return toValue(match?.attributes?.[attribute], fieldType);
+};
+
 const readRow = (
     record: ListRecord,
+    included: IncludedRecord[],
     fields: string[],
     spec: ResourceSpec,
 ): Record<string, unknown> =>
     Object.fromEntries(
-        fields.map((field) => [
-            field,
-            field === ID_COLUMN
-                ? record.id
-                : toValue(record.attributes?.[field], spec.fields[field]),
-        ]),
+        fields.map((field) => {
+            if (field === ID_COLUMN) return [field, record.id];
+            const related = spec.related[field];
+            return [
+                field,
+                related
+                    ? readRelated(record, included, related)
+                    : toValue(record.attributes?.[field], spec.fields[field]),
+            ];
+        }),
     );
 
 /** How many records match, from the list's total: one call. */
@@ -263,7 +363,7 @@ export const runAppStoreConnectQuery = async ({
         pageSize: PAGE_SIZE,
         maxPages: MAX_PAGES,
         fetchPage: async ({ limit: pageLimit, cursor }) => {
-            const { data, meta } = await calls.fetch(
+            const { data, included, meta } = await calls.fetch(
                 {
                     method: 'GET',
                     path,
@@ -277,7 +377,9 @@ export const runAppStoreConnectQuery = async ({
                 listResponseSchema,
             );
             return {
-                rows: data.map((record) => readRow(record, fields, spec)),
+                rows: data.map((record) =>
+                    readRow(record, included ?? [], fields, spec),
+                ),
                 nextCursor: meta.paging.nextCursor || undefined,
             };
         },
@@ -286,7 +388,10 @@ export const runAppStoreConnectQuery = async ({
         columns: fields.map(
             (name): LiveColumn => ({
                 name,
-                type: spec.fields[name] ?? DimensionType.STRING,
+                type:
+                    spec.fields[name] ??
+                    spec.related[name]?.fieldType ??
+                    DimensionType.STRING,
             }),
         ),
         rows,
