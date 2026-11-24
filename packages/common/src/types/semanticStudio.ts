@@ -141,7 +141,7 @@ export type SemanticLayerDraftModelSave =
 export type ApiSemanticLayerDraftModelSaveResponse =
     ApiSuccess<SemanticLayerDraftModelSave>;
 
-/** How one model's part of a change fared when it was checked on top of a draft. */
+/** How one model's part of a stored change fares when it is replayed on what is live, where a part that no longer fits is refused and the rest still applies. */
 export type SemanticLayerDraftItemResult = {
     model: string;
     /** `ready` passed its checks, `unchanged` changes nothing, `failed` carries the error. */
@@ -152,6 +152,33 @@ export type SemanticLayerDraftItemResult = {
     /** What a person should confirm about a model that passed, such as a relationship measured on part of a table. */
     notes: string[];
 };
+
+/** How one model's part of a proposal fared: it joins the draft whole or not at all, so only a failed part carries refusals. */
+export type SemanticLayerProposalItemResult =
+    | {
+          model: string;
+          status: 'ready';
+          changes: ModelFragmentChange[];
+          refusals: [];
+          error: null;
+          notes: string[];
+      }
+    | {
+          model: string;
+          status: 'unchanged';
+          changes: [];
+          refusals: [];
+          error: null;
+          notes: [];
+      }
+    | {
+          model: string;
+          status: 'failed';
+          changes: [];
+          refusals: ModelFragmentRefusal[];
+          error: string;
+          notes: [];
+      };
 
 /** What one drafted change does to one model, as the agent asked for it. */
 export type SemanticLayerDraftModelInput = {

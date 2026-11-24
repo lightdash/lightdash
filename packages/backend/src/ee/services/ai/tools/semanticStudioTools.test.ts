@@ -1,5 +1,6 @@
 import {
     describeSemanticLayerProposals,
+    toolProposeSemanticLayerChangeArgsSchema,
     toolProposeSemanticLayerChangeOutputSchema,
     toolReadSemanticModelOutputSchema,
     type StudioChangeSummary,
@@ -61,6 +62,42 @@ it('lists changes with their checkout and touched models', async () => {
     const list = getListChanges(async () => changes);
     expect(await list.execute?.({}, callOptions)).toMatchObject({
         structuredContent: { changes },
+    });
+});
+
+it('takes only a path that names a part of a model to remove', () => {
+    const parse = (path: string) =>
+        toolProposeSemanticLayerChangeArgsSchema.safeParse({
+            models: [
+                {
+                    name: 'orders',
+                    yaml: null,
+                    remove: [path],
+                    removeModel: false,
+                },
+            ],
+            changeName: null,
+            note: null,
+            options: [],
+        });
+    [
+        'dimensions.amount',
+        'dimensions.amount.metrics.revenue',
+        'dimensions.amount.additional_dimensions.amount_usd',
+        'metrics.average_amount',
+        'joins.buyer',
+    ].forEach((path) => expect(parse(path).success).toBe(true));
+    [
+        'revenue',
+        'orders.amount',
+        'dimensions.amount.revenue',
+        'metrics',
+    ].forEach((path) => {
+        const parsed = parse(path);
+        expect(parsed.success).toBe(false);
+        expect(parsed.error?.issues[0].message).toContain(
+            'dimensions.<name>.metrics.<name>',
+        );
     });
 });
 
@@ -164,34 +201,56 @@ describe('getProposeSemanticLayerChange', () => {
         });
     });
 
-    it('keeps the turn open when a part of a ready model was refused', async () => {
+    it('says parts were left out for a result stored before a model joined whole or not at all', () => {
+        expect(
+            describeSemanticLayerProposals([
+                {
+                    models: [
+                        {
+                            model: 'orders',
+                            status: 'ready',
+                            changes: [
+                                { path: 'metrics.total', action: 'removed' },
+                            ],
+                            refusals: [
+                                {
+                                    path: 'dimensions.status',
+                                    reason: 'name_taken',
+                                },
+                            ],
+                            error: null,
+                        },
+                    ],
+                },
+            ]),
+        ).toBe('Changed orders in the draft. Some parts were left out.');
+    });
+
+    it('tells the agent why a part was refused in a sentence it can act on', async () => {
         const output = await propose(
             async () => ({
                 results: [
                     {
                         model: 'orders',
-                        status: 'ready',
-                        changes: [{ path: 'metrics.total', action: 'removed' }],
+                        status: 'failed',
+                        changes: [],
                         refusals: [
                             { path: 'dimensions.status', reason: 'name_taken' },
                         ],
-                        error: null,
+                        error: 'None of this change to orders was added.',
                         notes: [],
                     },
                 ],
                 diffs: [],
-                draftChangeUuid: 'draft-1',
+                draftChangeUuid: null,
                 startedChange: null,
             }),
             'label: Orders',
         );
-        expect(output.result).not.toContain('write nothing more');
-        expect(output.metadata).toMatchObject({ needsFollowUp: true });
-        expect(
-            output.metadata.status === 'success'
-                ? describeSemanticLayerProposals([output.metadata])
-                : null,
-        ).toBe('Changed orders in the draft. Some parts were left out.');
+        expect(output.result).toContain(
+            'refusals: dimensions.status uses a name another field of this model already has.',
+        );
+        expect(output.result).toContain('Nothing joined the draft.');
     });
 
     it('says nothing joined the draft when no model passed', async () => {
