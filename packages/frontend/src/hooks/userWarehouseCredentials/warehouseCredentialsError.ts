@@ -7,6 +7,8 @@ export const WAREHOUSE_CREDENTIALS_ERROR = 'warehouse-credentials-error';
 export type WarehouseCredentialsErrorDetail = {
     projectUuid: string;
     error: { name?: string; data?: Record<string, unknown> };
+    // The user asked for the prompt, as opposed to a request failing
+    requested?: boolean;
 };
 
 const CREDENTIAL_ERROR_NAMES = new Set([
@@ -31,6 +33,21 @@ export const reportWarehouseCredentialsError = (
                 detail: {
                     projectUuid,
                     error: error as WarehouseCredentialsErrorDetail['error'],
+                },
+            },
+        ),
+    );
+};
+
+export const requestWarehouseCredentialsPrompt = (projectUuid: string) => {
+    window.dispatchEvent(
+        new CustomEvent<WarehouseCredentialsErrorDetail>(
+            WAREHOUSE_CREDENTIALS_ERROR,
+            {
+                detail: {
+                    projectUuid,
+                    error: { name: 'MissingWarehouseCredentialsError' },
+                    requested: true,
                 },
             },
         ),
