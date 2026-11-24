@@ -48,12 +48,10 @@ import {
     isDashboardComposerChartTile,
     isDashboardSqlChartTile,
     isDimension,
-    isExploreAvailableToAgentLiveSources,
     isExploreError,
     isExploreIncludedInTableSelection,
     isFilterAutocompleteManualOnly,
     isGitProjectType,
-    isLiveSourceAvailableToAgent,
     isSameApprovalSql,
     JobStatusType,
     mcpDocumentEditSchema,
@@ -79,7 +77,6 @@ import {
     UserAttributeValueMap,
     UUID,
     WarehouseQueryError,
-    type AgentLiveSourceUuids,
     type AgentSqlScope,
     type AgentToolName,
     type AiAgentDocumentSummary,
@@ -341,8 +338,6 @@ export type AiAgentToolsRuntimeContext = {
     defaultQueryExecutionContext: QueryExecutionContext;
     querySurface: QuerySurface;
     tags: string[] | null;
-    /** Integrations the agent can use: null for all, [] for none. */
-    liveSourceUuids: AgentLiveSourceUuids;
     spaceAccess: string[] | null;
     /** Spaces in spaceAccess the agent may read but never create or update content in. */
     readOnlySpaceUuids: string[];
@@ -855,14 +850,12 @@ export class AiAgentToolsService extends BaseService {
         user,
         projectUuid,
         availableTags,
-        liveSourceUuids,
         userAttributeOverrides,
         exploreNames,
     }: {
         user: SessionUser;
         projectUuid: string;
         availableTags: string[] | null;
-        liveSourceUuids: AgentLiveSourceUuids;
         userAttributeOverrides?: UserAttributeValueMap;
         exploreNames?: string[];
     }) {
@@ -933,12 +926,6 @@ export class AiAgentToolsService extends BaseService {
                         ),
                     )
                     .filter((explore) =>
-                        isExploreAvailableToAgentLiveSources(
-                            explore,
-                            liveSourceUuids,
-                        ),
-                    )
-                    .filter((explore) =>
                         doesExploreMatchRequiredAttributes(
                             explore.tables[explore.baseTable]
                                 .requiredAttributes,
@@ -964,14 +951,12 @@ export class AiAgentToolsService extends BaseService {
         user,
         projectUuid,
         availableTags,
-        liveSourceUuids,
         exploreName,
         userAttributeOverrides,
     }: {
         user: SessionUser;
         projectUuid: string;
         availableTags: string[] | null;
-        liveSourceUuids: AgentLiveSourceUuids;
         exploreName: string;
         userAttributeOverrides?: UserAttributeValueMap;
     }) {
@@ -979,13 +964,12 @@ export class AiAgentToolsService extends BaseService {
             user,
             projectUuid,
             availableTags,
-            liveSourceUuids,
             userAttributeOverrides,
             exploreNames: [exploreName],
         });
         if (!explore) {
             throw new NotFoundError(
-                `Explore "${exploreName}" is not available. It may not exist, or the project's Tables configuration, user attributes, agent tags or the agent's integrations may hide it. Do not retry this explore: choose one from the available explores.`,
+                `Explore "${exploreName}" is not available. It may not exist, or the project's Tables configuration, user attributes or agent tags may hide it. Do not retry this explore: choose one from the available explores.`,
             );
         }
         return explore;
@@ -1337,7 +1321,6 @@ export class AiAgentToolsService extends BaseService {
                 user: context.user,
                 projectUuid: context.projectUuid,
                 availableTags: context.tags,
-                liveSourceUuids: context.liveSourceUuids,
                 userAttributeOverrides: context.userAttributeOverrides,
             }),
         );
@@ -1370,7 +1353,6 @@ export class AiAgentToolsService extends BaseService {
             user: context.user,
             projectUuid: context.projectUuid,
             availableTags: context.tags,
-            liveSourceUuids: context.liveSourceUuids,
             exploreName: table,
             userAttributeOverrides: context.userAttributeOverrides,
         });
@@ -5185,13 +5167,12 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    /** A scoped agent may only run a saved chart whose explore and fields its tags and integrations expose. */
+    /** A tag-scoped agent may only run a saved chart whose explore and fields its tags expose. */
     private async assertSavedChartFieldsInScope(
         context: AiAgentToolsRuntimeContext,
         chartUuid: string,
     ) {
-        const hasTags = !!context.tags && context.tags.length > 0;
-        if (!hasTags && context.liveSourceUuids === null) return;
+        if (!context.tags || context.tags.length === 0) return;
 
         const { metricQuery } = await this.savedChartService.get(
             chartUuid,
@@ -5480,13 +5461,12 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    /** A scoped agent may only open a composer chart whose explores and fields its tags and integrations expose. */
+    /** A tag-scoped agent may only open a composer chart whose explores and fields its tags expose. */
     private async assertComposerChartExploresInScope(
         context: AiAgentToolsRuntimeContext,
         pipeline: ComposerChartPipeline,
     ) {
-        const hasTags = !!context.tags && context.tags.length > 0;
-        if (!hasTags && context.liveSourceUuids === null) return;
+        if (!context.tags || context.tags.length === 0) return;
         await Promise.all(
             pipeline.nodes.map(async (node) => {
                 if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER) return;
@@ -5676,6 +5656,44 @@ export class AiAgentToolsService extends BaseService {
         }
     }
 
+    /**
+     * Api nodes name their integration directly, so no explore list hides it:
+     * an agent limited to tags may only use an integration whose explores its
+     * tags expose.
+     */
+    private async assertComposerApiNodesInScope(
+        context: AiAgentToolsRuntimeContext,
+        queries: Parameters<RunComposerQueriesFn>[0]['queries'],
+    ) {
+        if (!context.tags || context.tags.length === 0) return;
+        const apiConnectionUuids = queries.flatMap((query) =>
+            query.sourceType === QuerySourceType.API
+                ? [query.connectionUuid]
+                : [],
+        );
+        if (apiConnectionUuids.length === 0) return;
+        const availableConnectionUuids = new Set(
+            (
+                await this.getAvailableExplores({
+                    user: context.user,
+                    projectUuid: context.projectUuid,
+                    availableTags: context.tags,
+                    userAttributeOverrides: context.userAttributeOverrides,
+                })
+            ).flatMap((explore) =>
+                explore.apiSource ? [explore.apiSource.connectionUuid] : [],
+            ),
+        );
+        const excluded = apiConnectionUuids.find(
+            (connectionUuid) => !availableConnectionUuids.has(connectionUuid),
+        );
+        if (excluded !== undefined) {
+            throw new NotFoundError(
+                `Integration "${excluded}" is not available to this agent. Do not retry it: answer from the available explores.`,
+            );
+        }
+    }
+
     private runComposerQueries(
         context: AiAgentToolsRuntimeContext,
         {
@@ -5698,20 +5716,7 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.runComposerQueries`,
             { projectUuid: context.projectUuid, queryCount: queries.length },
             async () => {
-                // Api nodes name their integration directly, so no explore list hides it
-                const excludedApiNode = queries.find(
-                    (query) =>
-                        query.sourceType === QuerySourceType.API &&
-                        !isLiveSourceAvailableToAgent(
-                            context.liveSourceUuids,
-                            query.connectionUuid,
-                        ),
-                );
-                if (excludedApiNode?.sourceType === QuerySourceType.API) {
-                    throw new NotFoundError(
-                        `Integration "${excludedApiNode.connectionUuid}" is not available to this agent. Do not retry it: answer from the available explores.`,
-                    );
-                }
+                await this.assertComposerApiNodesInScope(context, queries);
                 await context.onWarehouseQuery?.();
 
                 // Per-node status emission is best-effort UI telemetry: only

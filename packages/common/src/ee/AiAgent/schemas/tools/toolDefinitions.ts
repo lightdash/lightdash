@@ -497,7 +497,6 @@ const routeAgentStructuredOutputSchema = z.object({
     agentSpaceAccess: z.array(z.string()),
     agentProjectUuid: z.string(),
     explores: z.array(z.string()),
-    verifiedQuestions: z.array(z.string()),
     instruction: z.string().nullable(),
     confidence: z.enum(['high', 'medium', 'low']),
     reasoning: z.string(),
@@ -1908,7 +1907,7 @@ export const listAgentsToolDefinition = defineTool({
     name: 'listAgents',
     title: 'List agents',
     description:
-        'List accessible AI agents for the required projectUuid. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection.',
+        'List accessible AI agents for the required projectUuid. Each agent is pre-configured with specific explores, tags, and instructions that define its domain expertise. Prefer route_agent for automatic selection.',
     availability: ['mcp'],
     inputSchema: z.object({
         projectUuid: z.string().optional(),

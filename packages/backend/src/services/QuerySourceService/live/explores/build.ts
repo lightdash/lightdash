@@ -186,6 +186,7 @@ const buildDefinitionExplore = (
         | 'connectionUuid'
         | 'definitionHash'
         | 'aiHint'
+        | 'tags'
     >,
 ) => {
     const { baseVersion, capabilities } = getLiveBaseLayer(connector);
@@ -331,6 +332,7 @@ export const buildLiveExplores = ({
     edits,
     aiHint,
     accessRule = null,
+    tags,
 }: {
     connectionUuid: string;
     sourceName: string;
@@ -342,6 +344,8 @@ export const buildLiveExplores = ({
     aiHint?: string[];
     /** Who can query the source; copied onto each explore's base table. */
     accessRule?: LiveSourceAccessRule | null;
+    /** The source's tags, carried by each of its explores. */
+    tags?: string[];
 }): Explore[] => {
     const { definitions } = getLiveBaseLayer(apiSource.connector);
     const scannedModels = getLiveScannedModels(apiSource.connector);
@@ -357,6 +361,7 @@ export const buildLiveExplores = ({
             connectionUuid,
             definitionHash: definitionHashes[definition.name],
             aiHint,
+            tags,
         });
     return definitions.map((definition) => {
         const scanned = scannedModels.find(

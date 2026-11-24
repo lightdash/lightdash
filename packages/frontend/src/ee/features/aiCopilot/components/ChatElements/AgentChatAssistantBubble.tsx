@@ -578,25 +578,10 @@ const AssistantBubbleContent: FC<{
         ? `The agent finished without a response.${canRetry ? ' You can try again.' : ''}`
         : displayErrorMessage;
 
-    const baseMessageContent =
+    const messageContent =
         isStreaming && streamingState
             ? streamingState.content
             : message.message || streamedContent;
-
-    const referencedArtifactsMarkdown =
-        !isStreaming &&
-        !isPending &&
-        message.referencedArtifacts &&
-        message.referencedArtifacts.length > 0
-            ? `\n\nReferenced answers: ${message.referencedArtifacts
-                  .map(
-                      (artifact) =>
-                          `[${artifact.title}](#artifact-link#artifact-uuid-${artifact.artifactUuid}#version-uuid-${artifact.versionUuid}#artifact-type-${artifact.artifactType})`,
-                  )
-                  .join(', ')}`
-            : '';
-
-    const messageContent = baseMessageContent + referencedArtifactsMarkdown;
     const resolvedNodes = useAiAgentThreadComposerNodes({
         projectUuid,
         agentUuid,

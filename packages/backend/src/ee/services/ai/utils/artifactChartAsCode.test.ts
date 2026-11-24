@@ -40,8 +40,6 @@ const artifact: AiArtifact = {
     versionNumber: 1,
     title: 'Stored title',
     description: 'Stored description',
-    verifiedAt: null,
-    verifiedByUserUuid: null,
     chartConfig: { source: 'semantic', config },
     dashboardConfig: null,
 };

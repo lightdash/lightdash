@@ -7,7 +7,6 @@ import {
     AiAgentDocumentContent,
     AiAgentDocumentListItem,
     AiAgentDocumentSummary,
-    ALL_AGENT_EXPLORES,
     ApiCreateAgentDocument,
     ApiCreateAiAgentDocument,
     ApiUpdateAgentDocument,
@@ -214,7 +213,7 @@ export class AiAgentDocumentService extends BaseService {
     /**
      * Build the explore context used to ground the summary generator. Mirrors
      * what the agent itself sees at conversation time: filtered by the
-     * agent's tags and integrations AND the user's attributes via
+     * agent's tags AND the user's attributes via
      * AiAgentService.getAvailableExplores.
      */
     private async getAgentExploresForSummarization(
@@ -225,7 +224,7 @@ export class AiAgentDocumentService extends BaseService {
             return await this.aiAgentService.getAvailableExplores(
                 user,
                 agent.projectUuid,
-                agent,
+                agent.tags,
             );
         } catch (e) {
             this.logger.warn(
@@ -790,7 +789,7 @@ export class AiAgentDocumentService extends BaseService {
             return await this.aiAgentService.getAvailableExplores(
                 user,
                 body.projectUuid,
-                ALL_AGENT_EXPLORES,
+                null,
             );
         } catch (e) {
             this.logger.warn(

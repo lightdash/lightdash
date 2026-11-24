@@ -4195,7 +4195,6 @@ export type ContentVerificationEvent = BaseTrack & {
         projectId: string;
         contentType: ContentType;
         contentId: string;
-        source?: 'ai_artifact';
     };
 };
 
@@ -4306,31 +4305,6 @@ export type AiAgentArtifactVizQueryEvent = BaseTrack & {
     };
 };
 
-export type AiAgentArtifactVersionVerifiedEvent = BaseTrack & {
-    event: 'ai_agent.artifact_version_verified';
-    userId: string;
-    properties: {
-        organizationId: string;
-        projectId: string;
-        agentId: string;
-        artifactId: string;
-        versionId: string;
-        verified: boolean;
-    };
-};
-
-export type AiAgentArtifactsRetrievedEvent = BaseTrack & {
-    event: 'ai_agent.artifacts_retrieved';
-    properties: {
-        organizationId: string;
-        projectId: string;
-        agentId: string;
-        promptId: string;
-        artifactCount: number;
-        averageSimilarity: number;
-    };
-};
-
 export type AiAgentFindContentCoverage = {
     searchQuery: string;
     totalResultCount: number;
@@ -4361,7 +4335,6 @@ export type AiAgentSuggestionsGeneratedEvent = BaseTrack & {
         agentId: string;
         chipCount: number;
         exploreCount: number;
-        verifiedQuestionsCount: number;
         latencyMs: number;
         modelId: string;
         usingFallback: boolean;
@@ -5342,8 +5315,6 @@ type TypedEvent =
     | AiAgentToolCallFailedEvent
     | AiAgentStepCompletedEvent
     | AiAgentArtifactVizQueryEvent
-    | AiAgentArtifactVersionVerifiedEvent
-    | AiAgentArtifactsRetrievedEvent
     | AiAgentFindContentCoverageEvent
     | AiAgentSuggestionsGeneratedEvent
     | AiAgentSuggestionImpressionEvent
