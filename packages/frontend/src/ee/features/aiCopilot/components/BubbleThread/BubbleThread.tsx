@@ -4,16 +4,8 @@ import {
     type AiPromptContext,
     type AiPromptContextInput,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Center,
-    Group,
-    Loader,
-    Text,
-    Tooltip,
-} from '@mantine/core';
-import { IconMicrophone, IconPencil, IconX } from '@tabler/icons-react';
+import { ActionIcon, Box, Center, Group, Loader, Text } from '@mantine/core';
+import { IconX } from '@tabler/icons-react';
 import {
     useCallback,
     useEffect,
@@ -30,7 +22,6 @@ import { pillState } from '../../../capture/bubblePill';
 import { BUBBLE_DRAG_ATTRIBUTE } from '../../../capture/bubblePointer';
 import { readDesignPrompt } from '../../../capture/buildDesignPrompt';
 import BubblePill from '../../../capture/components/BubblePill';
-import { type BubbleInput } from '../../../capture/designSession';
 import { AgentContainerWidthContext } from '../../hooks/useAgentMaxWidth';
 import { useDashboardPageContextCuration } from '../../hooks/useDashboardPageContextCuration';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
@@ -76,36 +67,16 @@ export type BubbleThreadPill = {
     onExpand: () => void;
 };
 
-// Marking is a held key: its button only makes this bubble the target.
-const REPLY_TOOLS: {
-    label: string;
-    hint: string;
-    icon: typeof IconPencil;
-    input: BubbleInput;
-}[] = [
-    {
-        label: 'Mark',
-        hint: 'Mark: hold ⌥, click to pick or drag to draw',
-        icon: IconPencil,
-        input: 'text',
-    },
-    {
-        label: 'Mic',
-        hint: 'Mic: hold ⌥, talk and mark, release to send',
-        icon: IconMicrophone,
-        input: 'mic',
-    },
-];
-
 type Props = {
     projectUuid: string;
     agentUuid: string;
     threadId: string;
     /** This bubble is the one marks and the mic add to. */
     armed: boolean;
-    onArm: (input: BubbleInput) => void;
-    /** Marks or speech are being collected: here when armed, somewhere else when not. */
+    /** Marks are being collected: here when armed, somewhere else when not. */
     replyCollecting: boolean;
+    /** A reply with no marks was posted straight to the thread. */
+    onReplied: () => void;
     /** Sends a reply together with what this bubble collected. */
     onSendReply: (
         prompt: string,
@@ -127,8 +98,8 @@ export const BubbleThread: FC<Props> = ({
     agentUuid,
     threadId,
     armed,
-    onArm,
     replyCollecting,
+    onReplied,
     onSendReply,
     onClose,
     color,
@@ -181,7 +152,6 @@ export const BubbleThread: FC<Props> = ({
     const isInputDisabled =
         thread?.createdFrom === 'slack' || !isThreadFromCurrentUser;
     const hasMarks = armed && replyCollecting;
-    const otherTargetActive = !armed && replyCollecting;
 
     const postToThread = ({
         message,
@@ -209,7 +179,7 @@ export const BubbleThread: FC<Props> = ({
     const handleSubmit = (args: Parameters<typeof postToThread>[0]) =>
         hasMarks
             ? onSendReply(args.message, args.context ?? [])
-            : postToThread(args);
+            : postToThread(args).then(onReplied);
 
     const handleDashboardLinkClick = useCallback(
         (dashboardUrl: string) => {
@@ -329,38 +299,6 @@ export const BubbleThread: FC<Props> = ({
                                     loading={isBusy}
                                     onSubmit={handleSubmit}
                                     placeholder={`Reply to ${agentName}`}
-                                    toolbarStart={
-                                        <Group gap={2} wrap="nowrap">
-                                            {REPLY_TOOLS.map((tool) => (
-                                                <Tooltip
-                                                    key={tool.label}
-                                                    label={tool.hint}
-                                                    withinPortal={false}
-                                                >
-                                                    <ActionIcon
-                                                        size="sm"
-                                                        aria-label={tool.label}
-                                                        variant={
-                                                            armed
-                                                                ? 'light'
-                                                                : 'subtle'
-                                                        }
-                                                        disabled={
-                                                            otherTargetActive ||
-                                                            isInputDisabled
-                                                        }
-                                                        onClick={() =>
-                                                            onArm(tool.input)
-                                                        }
-                                                    >
-                                                        <MantineIcon
-                                                            icon={tool.icon}
-                                                        />
-                                                    </ActionIcon>
-                                                </Tooltip>
-                                            ))}
-                                        </Group>
-                                    }
                                     messageCount={thread.messages.length}
                                     projectUuid={projectUuid}
                                     agentUuid={agentUuid}

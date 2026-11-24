@@ -20,6 +20,16 @@
     overflow: hidden;
 }
 
+/* The bubble the next hold marks into. */
+.bubble[data-selected='true'] {
+    outline: 2px solid var(--bubble-color);
+    outline-offset: 2px;
+}
+
+.replyHint {
+    color: var(--bubble-color);
+}
+
 /* The row a bubble is moved by. */
 .bubble [data-bubble-drag-handle] {
     cursor: grab;

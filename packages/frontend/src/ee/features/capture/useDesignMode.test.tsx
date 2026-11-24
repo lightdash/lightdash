@@ -192,6 +192,12 @@ const sendFirst = async () => {
     return id;
 };
 
+// Clicking a sent bubble selects it; the toolbar's mic decides how it is replied to.
+const select = (id: string, input: 'mic' | 'text') => {
+    api.setMicOn(input === 'mic');
+    api.arm(id);
+};
+
 const turnOn = async (mic = false) => {
     renderWithProviders(<Harness />);
     await act(async () => {
@@ -428,7 +434,7 @@ describe('useDesignMode', () => {
 
         // A reply by mic with no marks: the hold records and sends nothing.
         await act(async () => {
-            api.arm(id, 'mic');
+            select(id, 'mic');
         });
         expect(startVoice).not.toHaveBeenCalled();
         await keyDown({ key: 'Alt', altKey: true });
@@ -440,11 +446,11 @@ describe('useDesignMode', () => {
         expect(transcribe).not.toHaveBeenCalled();
     });
 
-    it('while a spoken reply is on its way out, its Mic button does nothing and the key marks a new bubble', async () => {
+    it('while a spoken reply is on its way out, it cannot be selected and the key marks a new bubble', async () => {
         await turnOn();
         const id = await sendFirst();
         await act(async () => {
-            api.arm(id, 'mic');
+            select(id, 'mic');
         });
         let stopped: (audio: null) => void = () => {};
         stopVoice.mockImplementationOnce(
@@ -458,7 +464,7 @@ describe('useDesignMode', () => {
         await waitFor(() => expect(stopVoice).toHaveBeenCalledTimes(1));
         // Still being stopped and transcribed.
         await act(async () => {
-            api.arm(id, 'mic');
+            select(id, 'mic');
         });
         expect(api.session.active).toEqual({ kind: 'page' });
         await keyDown({ key: 'Alt', altKey: true });
@@ -468,8 +474,9 @@ describe('useDesignMode', () => {
             stopped(null);
         });
         await act(async () => {});
-        expect(startVoice).toHaveBeenCalledTimes(1);
-        expect(stopVoice).toHaveBeenCalledTimes(1);
+        // The second hold recorded for the page and, with no mark, was dropped.
+        expect(startVoice).toHaveBeenCalledTimes(2);
+        expect(api.session.bubbles).toHaveLength(1);
     });
 
     it('marks on two tabs go out as two images, each with its own marks', async () => {
@@ -549,7 +556,7 @@ describe('useDesignMode', () => {
             expect(bubble()).toBeNull();
             await changeTab('a', 0);
             await act(async () => {
-                api.arm(id, 'mic');
+                select(id, 'mic');
             });
             expect(startVoice).not.toHaveBeenCalled();
 
@@ -557,7 +564,9 @@ describe('useDesignMode', () => {
             await changeTab('b', 900);
             expect(bubble()).not.toBeNull();
             expect(
-                screen.getByText('Hold ⌥, mark and talk. Release to send.'),
+                screen.getByText(
+                    'Replying here. Hold ⌥, mark and talk, release to send.',
+                ),
             ).toBeVisible();
             const top =
                 parseFloat(
@@ -632,19 +641,18 @@ describe('useDesignMode', () => {
         expect(bubble()?.style.getPropertyValue('--bubble-top')).toBe(before);
         expect(shifts()).toEqual(['translate(0px, -12px)']);
 
-        // Replying to it turns Design Mode back on.
-        await act(async () => {
-            api.arm(id, 'text');
-        });
-        expect(api.on).toBe(true);
-        expect(api.session.active).toEqual({ kind: 'bubble', bubbleId: id });
+        // With Design Mode off, a click on it selects nothing.
+        fireEvent.click(bubble() as HTMLElement);
+        expect(api.on).toBe(false);
+        expect(api.session.active).toEqual({ kind: 'page' });
+        expect(bubble()?.getAttribute('data-selected')).toBe('false');
     });
 
     it('leaving Design Mode throws away an unsent reply but keeps its thread', async () => {
         await turnOn();
         const id = await sendFirst();
         await act(async () => {
-            api.arm(id, 'mic');
+            select(id, 'mic');
         });
         await drawMark();
         await waitFor(() => expect(collected()).toHaveLength(1));
@@ -1260,7 +1268,7 @@ describe('useDesignMode', () => {
         await waitFor(() => expect(api.session.bubbles).toHaveLength(1));
         const { id } = api.session.bubbles[0];
         await act(async () => {
-            api.arm(id, 'mic');
+            select(id, 'mic');
         });
         expect(startVoice).not.toHaveBeenCalled();
         expect(api.session.bubbles[0].input).toBe('text');
@@ -1281,7 +1289,7 @@ describe('useDesignMode', () => {
         ]);
 
         await act(async () => {
-            api.arm(id, 'mic');
+            select(id, 'mic');
         });
         expect(startVoice).not.toHaveBeenCalled();
 
@@ -1297,6 +1305,167 @@ describe('useDesignMode', () => {
         expect(reply.summary).toContain('make this blue');
         expect(reply.marks).toHaveLength(1);
         expect(stopVoice).toHaveBeenCalledTimes(1);
+    });
+
+    describe('the bubble clicked last takes the next hold', () => {
+        const bubbleEl = (id: string) =>
+            document.querySelector<HTMLElement>(
+                `[data-bubble-id="${id}"]`,
+            ) as HTMLElement;
+        const selected = (id: string) =>
+            bubbleEl(id).getAttribute('data-selected');
+        const spoken = () => {
+            stopVoice.mockResolvedValue({
+                audio: new Blob(['audio'], { type: 'audio/webm' }),
+                startedAtMs: performance.now(),
+            });
+            transcribe.mockResolvedValue([
+                { startMs: 0, endMs: 300, text: 'greener' },
+            ]);
+        };
+
+        it('a click on a sent bubble selects it and says so', async () => {
+            await turnOn();
+            const id = await sendFirst();
+            expect(selected(id)).toBe('false');
+            fireEvent.click(bubbleEl(id));
+            expect(api.session.active).toEqual({
+                kind: 'bubble',
+                bubbleId: id,
+            });
+            expect(selected(id)).toBe('true');
+            expect(
+                screen.getByText('Replying here. Hold ⌥ to mark, then type.'),
+            ).toBeVisible();
+            // The hint follows the toolbar's mic.
+            await act(async () => {
+                api.setMicOn(true);
+            });
+            expect(
+                screen.getByText(
+                    'Replying here. Hold ⌥, mark and talk, release to send.',
+                ),
+            ).toBeVisible();
+            expect(startVoice).not.toHaveBeenCalled();
+        });
+
+        it('with the mic off, the hold adds marks numbered after the sent ones and nothing is sent', async () => {
+            await turnOn();
+            const id = await sendFirst();
+            fireEvent.click(bubbleEl(id));
+            await drawMark();
+            await waitFor(() => expect(collected()).toHaveLength(1));
+            expect(collected()[0].number).toBe(2);
+            await act(async () => {});
+            expect(startVoice).not.toHaveBeenCalled();
+            expect(onSend).toHaveBeenCalledTimes(1);
+            expect(api.session.active).toEqual({
+                kind: 'bubble',
+                bubbleId: id,
+            });
+            // Typed and sent, the page takes the next hold again.
+            await act(async () => {
+                api.send(id, 'this one too');
+            });
+            await waitFor(() => expect(onSend).toHaveBeenCalledTimes(2));
+            expect(onSend.mock.calls[1][0].bubbleId).toBe(id);
+            expect(api.session.active).toEqual({ kind: 'page' });
+        });
+
+        it('the toolbar mic at the hold, not at the click, decides that it records; release sends the reply', async () => {
+            spoken();
+            await turnOn();
+            const id = await sendFirst();
+            fireEvent.click(bubbleEl(id));
+            await act(async () => {
+                api.setMicOn(true);
+            });
+            await keyDown({ key: 'Alt', altKey: true });
+            expect(startVoice).toHaveBeenCalledTimes(1);
+            fireEvent.mouseDown(holdLayer(), { clientX: 10, clientY: 10 });
+            fireEvent.mouseMove(holdLayer(), { clientX: 40, clientY: 40 });
+            fireEvent.mouseUp(holdLayer(), { clientX: 40, clientY: 40 });
+            await keyUp({ key: 'Alt' });
+            await waitFor(() => expect(onSend).toHaveBeenCalledTimes(2));
+            const [reply] = onSend.mock.calls[1];
+            expect(reply.bubbleId).toBe(id);
+            expect(reply.summary).toContain('greener');
+            expect(
+                reply.marks.map((m: { number: number }) => m.number),
+            ).toEqual([2]);
+            expect(api.session.active).toEqual({ kind: 'page' });
+        });
+
+        it('a press on the page hands the page back, and the page still gets the press', async () => {
+            await turnOn();
+            const id = await sendFirst();
+            fireEvent.click(bubbleEl(id));
+            expect(selected(id)).toBe('true');
+            // A press in the bubble keeps it selected.
+            fireEvent.mouseDown(bubbleEl(id));
+            expect(selected(id)).toBe('true');
+            const pressed = vi.fn();
+            document.body.addEventListener('mousedown', pressed);
+            const notPrevented = fireEvent.mouseDown(document.body);
+            document.body.removeEventListener('mousedown', pressed);
+            expect(pressed).toHaveBeenCalledTimes(1);
+            expect(notPrevented).toBe(true);
+            expect(api.session.active).toEqual({ kind: 'page' });
+            expect(selected(id)).toBe('false');
+            // The next hold opens a new bubble.
+            await drawMark();
+            await waitFor(() => expect(api.session.bubbles).toHaveLength(2));
+        });
+
+        it('a press on the page keeps a reply that has marks', async () => {
+            await turnOn();
+            const id = await sendFirst();
+            fireEvent.click(bubbleEl(id));
+            await drawMark();
+            await waitFor(() => expect(collected()).toHaveLength(1));
+            fireEvent.mouseDown(document.body);
+            expect(api.session.active).toEqual({
+                kind: 'bubble',
+                bubbleId: id,
+            });
+            expect(collected()).toHaveLength(1);
+        });
+
+        it('one Esc deselects and stays in Design Mode', async () => {
+            await turnOn();
+            const id = await sendFirst();
+            fireEvent.click(bubbleEl(id));
+            await keyDown({ key: 'Escape' });
+            await keyUp({ key: 'Escape' });
+            expect(api.on).toBe(true);
+            expect(api.session.active).toEqual({ kind: 'page' });
+            expect(api.session.bubbles.map((b) => b.id)).toEqual([id]);
+            expect(selected(id)).toBe('false');
+        });
+
+        it('another bubble cannot be selected while one has unsent marks', async () => {
+            await turnOn();
+            const first = await sendFirst();
+            await drawMark();
+            await waitFor(() => expect(api.session.bubbles).toHaveLength(2));
+            const second = api.session.bubbles[1].id;
+            await act(async () => {
+                api.send(second, '');
+            });
+            await waitFor(() =>
+                expect(api.session.bubbles[1].status).toBe('thread'),
+            );
+            fireEvent.click(bubbleEl(first));
+            await drawMark();
+            await waitFor(() => expect(collected()).toHaveLength(1));
+            fireEvent.click(bubbleEl(second));
+            expect(api.session.active).toEqual({
+                kind: 'bubble',
+                bubbleId: first,
+            });
+            expect(selected(second)).toBe('false');
+            expect(collected()).toHaveLength(1);
+        });
     });
 
     it('Esc while a bubble is being sent keeps the bubble and Design Mode', async () => {
@@ -1458,7 +1627,7 @@ describe('useDesignMode', () => {
 
         onSend.mockResolvedValueOnce('cancelled');
         await act(async () => {
-            api.arm(id, 'text');
+            select(id, 'text');
         });
         await act(async () => {
             api.send(id, 'one more thing');
@@ -2205,7 +2374,7 @@ describe('useDesignMode', () => {
         );
 
         await act(async () => {
-            api.arm(id, 'text');
+            select(id, 'text');
         });
         expect(screen.getByText('the target')).toBeInTheDocument();
     });

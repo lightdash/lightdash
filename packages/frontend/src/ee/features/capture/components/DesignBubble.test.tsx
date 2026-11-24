@@ -53,9 +53,15 @@ const bubbleWith = (input: BubbleInput, ...more: DesignAction[]): Bubble => {
 
 const setup = (
     bubble: Bubble,
-    opts: { passthrough?: boolean; listening?: boolean } = {},
+    opts: {
+        passthrough?: boolean;
+        listening?: boolean;
+        selected?: boolean;
+        micOn?: boolean;
+    } = {},
 ) => {
     const handlers = {
+        onSelect: vi.fn(),
         onSend: vi.fn(),
         onDiscard: vi.fn(),
         onClose: vi.fn(),
@@ -72,6 +78,8 @@ const setup = (
             stack={2}
             passthrough={opts.passthrough ?? false}
             listening={opts.listening ?? false}
+            selected={opts.selected ?? false}
+            micOn={opts.micOn ?? false}
             {...handlers}
         >
             <span>thread area</span>
@@ -270,6 +278,9 @@ describe('DesignBubble', () => {
                 stack={0}
                 passthrough={passthrough}
                 listening={false}
+                selected={false}
+                micOn={false}
+                onSelect={noop}
                 onRaise={noop}
                 onMove={noop}
                 onSend={noop}
@@ -374,6 +385,41 @@ describe('DesignBubble', () => {
             },
         );
 
+        it('a click on a sent bubble selects it, but not a click on its own buttons', () => {
+            const sent = bubbleWith('text', sendStarted(false), threadReady);
+            const { onSelect, onMinimise } = setup(sent);
+            fireEvent.click(screen.getByRole('button', { name: 'Minimise' }));
+            expect(onMinimise).toHaveBeenCalledTimes(1);
+            expect(onSelect).not.toHaveBeenCalled();
+            fireEvent.click(screen.getByText('thread area'));
+            expect(onSelect).toHaveBeenCalledTimes(1);
+        });
+
+        it('a click on an unsent bubble selects nothing', () => {
+            const { onSelect } = setup(bubbleWith('text'));
+            fireEvent.click(screen.getByRole('textbox', { name: 'Message' }));
+            expect(onSelect).not.toHaveBeenCalled();
+        });
+
+        it('a selected bubble is outlined and says how to reply, by the toolbar mic', () => {
+            const armed = bubbleWith('text', sendStarted(false), threadReady, {
+                type: 'arm',
+                bubbleId: 'a',
+                input: 'text',
+            });
+            setup(armed, { selected: true, micOn: true });
+            expect(
+                document
+                    .querySelector('[data-bubble-id]')
+                    ?.getAttribute('data-selected'),
+            ).toBe('true');
+            expect(
+                screen.getByText(
+                    'Replying here. Hold ⌥, mark and talk, release to send.',
+                ),
+            ).toBeInTheDocument();
+        });
+
         it('a bubble collecting a reply has no Minimise', () => {
             setup(
                 bubbleWith(
@@ -446,6 +492,9 @@ describe('DesignBubble', () => {
                 stack: 0,
                 passthrough: false,
                 listening: false,
+                selected: false,
+                micOn: false,
+                onSelect: vi.fn(),
                 onRaise: vi.fn(),
                 onMove: vi.fn(),
                 onSend: vi.fn(),

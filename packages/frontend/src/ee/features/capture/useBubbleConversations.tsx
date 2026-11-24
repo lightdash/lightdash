@@ -11,7 +11,6 @@ import {
     activeCollection,
     isInProgress,
     type Bubble,
-    type BubbleInput,
     type DesignSession,
 } from './designSession';
 import { type DesignPayload, type DesignSendResult } from './types';
@@ -29,7 +28,7 @@ export type BubbleMessage = {
 
 type Design = {
     session: DesignSession;
-    arm: (bubbleId: string, input: BubbleInput) => void;
+    deselect: () => void;
     send: (bubbleId: string, typed: string) => void;
     expand: (bubbleId: string) => void;
 };
@@ -138,9 +137,7 @@ export const useBubbleConversations = (
         const armed =
             session.active.kind === 'bubble' &&
             session.active.bubbleId === bubble.id;
-        const collecting =
-            active !== null &&
-            (active.bubble.input === 'mic' || isInProgress(active.collection));
+        const collecting = active !== null && isInProgress(active.collection);
 
         return (
             <>
@@ -150,7 +147,9 @@ export const useBubbleConversations = (
                     agentUuid={agentUuid}
                     threadId={threadId}
                     armed={armed}
-                    onArm={(input) => designRef.current?.arm(bubble.id, input)}
+                    onReplied={() => {
+                        if (armed) designRef.current?.deselect();
+                    }}
                     replyCollecting={collecting}
                     onSendReply={(prompt, context) => {
                         replyContextRef.current.set(bubble.id, context);

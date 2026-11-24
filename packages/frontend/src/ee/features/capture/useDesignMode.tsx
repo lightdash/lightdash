@@ -27,6 +27,7 @@ import { composeImage } from './composeImage';
 import {
     activeCollection,
     canStartHold,
+    isInProgress,
     designSessionReducer,
     keepSent,
     nextMarkNumber,
@@ -211,7 +212,10 @@ export const useDesignMode = (
     micOn: boolean;
     setMicOn: (on: boolean) => void;
     session: DesignSession;
-    arm: (bubbleId: string, input: BubbleInput) => void;
+    /** Makes a sent bubble the one the next hold marks into. */
+    arm: (bubbleId: string) => void;
+    /** Hands the page back from a selected bubble that has collected nothing. */
+    deselect: () => void;
     send: (bubbleId: string, typed: string) => void;
     discard: (bubbleId: string) => void;
     close: (bubbleId: string) => void;
@@ -868,8 +872,20 @@ export const useDesignMode = (
         if (!current || !onRef.current || holdRef.current) return;
         if (!canStartHold(sessionRef.current)) return;
         if (releasingRef.current > 0) return;
-        const active = activeCollection(sessionRef.current)?.bubble ?? null;
+        let active = activeCollection(sessionRef.current)?.bubble ?? null;
         if (active && finishingRef.current.has(active.id)) return;
+        // A selected bubble with nothing collected takes the toolbar's mic.
+        if (active?.status === 'thread' && !isInProgress(active.collection)) {
+            const input: BubbleInput = micOnRef.current ? 'mic' : 'text';
+            if (active.input !== input) {
+                const next = dispatch({
+                    type: 'arm',
+                    bubbleId: active.id,
+                    input,
+                });
+                active = activeCollection(next)?.bubble ?? null;
+            }
+        }
         const region = current.getRegion();
         postponeGrab();
         forgetHover();
@@ -1447,22 +1463,36 @@ export const useDesignMode = (
     );
 
     const arm = useCallback(
-        (bubbleId: string, input: BubbleInput) => {
+        (bubbleId: string) => {
+            // Marks are only made with Design Mode on.
+            if (!onRef.current) return;
             // Its last reply is still being stopped, transcribed or sent.
             if (finishingRef.current.has(bubbleId)) return;
             const sessionBefore = sessionRef.current;
+            const selected = activeCollection(sessionBefore)?.bubble ?? null;
+            if (selected?.id === bubbleId) return;
             const before = sessionBefore.bubbles.find((b) => b.id === bubbleId);
-            const next = dispatch({ type: 'arm', bubbleId, input });
+            const next = dispatch({
+                type: 'arm',
+                bubbleId,
+                input: micOnRef.current ? 'mic' : 'text',
+            });
             // The reducer only arms a thread bubble; anything else is ignored.
             if (next === sessionBefore) return;
-            // A reply to a bubble left on the page brings Design Mode back.
-            setOn(true);
             if (!before?.collection) {
                 clocksRef.current.set(bubbleId, performance.now());
             }
         },
-        [dispatch, setOn],
+        [dispatch],
     );
+
+    const deselect = useCallback(() => {
+        const selected = activeCollection(sessionRef.current);
+        if (!selected || selected.bubble.status !== 'thread') return;
+        if (isInProgress(selected.collection)) return;
+        if (finishingRef.current.has(selected.bubble.id)) return;
+        discard(selected.bubble.id);
+    }, [discard]);
 
     const toggle = useCallback(() => setOn(!onRef.current), [setOn]);
     // No surface, no hotkey: the page keeps the key combination.
@@ -1538,7 +1568,20 @@ export const useDesignMode = (
                 toolbarRef.current?.focus({ preventScroll: true });
             }, 0);
         };
+        // A press on the page, not on a bubble or the toolbar, hands the page
+        // back from a selected bubble. The page still gets the press.
+        const onPagePress = (event: MouseEvent) => {
+            if (holdRef.current || !(event.target instanceof Element)) return;
+            if (
+                event.target.closest('[data-bubble-id], [data-portal]') ||
+                toolbarRef.current?.contains(event.target)
+            ) {
+                return;
+            }
+            deselect();
+        };
         const heldTypes = ['click', 'auxclick', 'dragstart'] as const;
+        window.addEventListener('mousedown', onPagePress, true);
         window.addEventListener('keydown', onKeyDown, true);
         window.addEventListener('keyup', onKeyUp, true);
         heldTypes.forEach((type) =>
@@ -1546,6 +1589,7 @@ export const useDesignMode = (
         );
         window.addEventListener('blur', onBlur);
         return () => {
+            window.removeEventListener('mousedown', onPagePress, true);
             window.removeEventListener('keydown', onKeyDown, true);
             window.removeEventListener('keyup', onKeyUp, true);
             heldTypes.forEach((type) =>
@@ -1553,7 +1597,7 @@ export const useDesignMode = (
             );
             window.removeEventListener('blur', onBlur);
         };
-    }, [beginHold, cancelHold, endHold, on, onEscape]);
+    }, [beginHold, cancelHold, deselect, endHold, on, onEscape]);
 
     // Marks and bubbles follow the page for as long as any are on it, also
     // after Design Mode is left.
@@ -1796,6 +1840,14 @@ export const useDesignMode = (
             passthrough={passthrough}
             onRaise={() => raise(bubble.id)}
             onMove={(at) => moveByUser(bubble.id, at)}
+            selected={
+                on &&
+                bubble.status === 'thread' &&
+                bubble.collection !== null &&
+                activeCollection(session)?.bubble.id === bubble.id
+            }
+            micOn={micOn}
+            onSelect={() => arm(bubble.id)}
             listening={
                 talking &&
                 bubble.input === 'mic' &&
@@ -1899,6 +1951,7 @@ export const useDesignMode = (
         setMicOn,
         session,
         arm,
+        deselect,
         send,
         discard,
         close,

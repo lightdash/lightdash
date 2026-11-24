@@ -50,6 +50,12 @@ type Props = {
     passthrough: boolean;
     /** The hold key is down and the mic is recording into this bubble. */
     listening: boolean;
+    /** A sent bubble that the next hold marks into. */
+    selected: boolean;
+    /** The toolbar's mic: a hold on a selected bubble records. */
+    micOn: boolean;
+    /** Clicked: a sent bubble becomes the one the next hold marks into. */
+    onSelect: () => void;
     /** Pressed or focused: it comes to the front. */
     onRaise: () => void;
     /** Dragged by its header to this top left, in viewport pixels. */
@@ -73,6 +79,9 @@ const DesignBubble: FC<Props> = ({
     stack,
     passthrough,
     listening,
+    selected,
+    micOn,
+    onSelect,
     onRaise,
     onMove,
     onSend,
@@ -205,11 +214,20 @@ const DesignBubble: FC<Props> = ({
     );
     // The mic's turn: recording while the key is down, sent once it is up.
     const micRow = listening ? listeningRow : sendingRow;
-    const micHint = (
-        <Text size="xs" c="dimmed">
-            Hold ⌥, mark and talk. Release to send.
+    const replyHint = (
+        <Text size="xs" fw={500} className={classes.replyHint}>
+            {micOn
+                ? 'Replying here. Hold ⌥, mark and talk, release to send.'
+                : 'Replying here. Hold ⌥ to mark, then type.'}
         </Text>
     );
+    // A spoken reply: heard while the key is down, sent once it is up.
+    const spokenReply = listening || (byMic && collected.length > 0);
+    const replyRow = (): ReactNode => {
+        if (minimised || bubble.collection === null) return null;
+        if (spokenReply) return micRow;
+        return selected ? replyHint : null;
+    };
 
     const body = (): ReactNode => {
         switch (bubble.status) {
@@ -269,12 +287,7 @@ const DesignBubble: FC<Props> = ({
                 return (
                     <>
                         {children}
-                        {!minimised &&
-                            byMic &&
-                            bubble.collection !== null &&
-                            (listening || collected.length > 0
-                                ? micRow
-                                : micHint)}
+                        {replyRow()}
                     </>
                 );
             default:
@@ -295,6 +308,7 @@ const DesignBubble: FC<Props> = ({
         <Group
             gap={2}
             wrap="nowrap"
+            data-bubble-controls=""
             className={
                 bare
                     ? `${classes.controls} ${classes.cornerControls}`
@@ -342,6 +356,14 @@ const DesignBubble: FC<Props> = ({
         event.stopPropagation();
     };
 
+    // A click anywhere in a sent bubble, but its own buttons, selects it.
+    const selectOnClick = (event: ReactMouseEvent) => {
+        if (bubble.status !== 'thread') return;
+        if (!(event.target instanceof Element)) return;
+        if (event.target.closest('[data-bubble-controls]')) return;
+        onSelect();
+    };
+
     return (
         <Paper
             ref={rootRef}
@@ -351,6 +373,7 @@ const DesignBubble: FC<Props> = ({
             radius={minimised ? 'xl' : undefined}
             data-bubble-id={bubble.id}
             data-minimised={minimised}
+            data-selected={selected}
             data-passthrough={passthrough}
             data-dragging={dragging}
             {...{ [CAPTURE_IGNORE_ATTRIBUTE]: '' }}
@@ -361,6 +384,7 @@ const DesignBubble: FC<Props> = ({
                 [BUBBLE_COLOR_VAR]: color,
             }}
             onClickCapture={dropClick}
+            onClick={selectOnClick}
             onMouseDownCapture={onRaise}
             onFocusCapture={onRaise}
             onMouseDown={startDrag}

@@ -160,7 +160,7 @@ const baseProps = (overrides: Partial<Props> = {}): Props => ({
     agentUuid: 'agent-1',
     threadId: 'thread-1',
     armed: false,
-    onArm: vi.fn(),
+    onReplied: vi.fn(),
     replyCollecting: false,
     onSendReply: vi.fn().mockResolvedValue(undefined),
     onClose: null,
@@ -264,6 +264,8 @@ describe('BubbleThread', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Send reply' }));
         await waitFor(() => expect(state.createMessage).toHaveBeenCalled());
         expect(props.onSendReply).not.toHaveBeenCalled();
+        // Posted without marks: the host hands the page back.
+        await waitFor(() => expect(props.onReplied).toHaveBeenCalledTimes(1));
     });
 
     it('a reply with marks goes out with the marks', async () => {
@@ -276,36 +278,14 @@ describe('BubbleThread', () => {
             ),
         );
         expect(state.createMessage).not.toHaveBeenCalled();
+        expect(props.onReplied).not.toHaveBeenCalled();
     });
 
-    it("the reply bar's Mark and Mic arm this bubble", async () => {
-        const props = renderThread();
-        await enabledTool('Mark');
-        expect(screen.queryByRole('button', { name: 'Cursor' })).toBeNull();
-        fireEvent.click(screen.getByRole('button', { name: 'Mark' }));
-        expect(props.onArm).toHaveBeenLastCalledWith('text');
-        fireEvent.click(screen.getByRole('button', { name: 'Mic' }));
-        expect(props.onArm).toHaveBeenLastCalledWith('mic');
-        expect(props.onArm).toHaveBeenCalledTimes(2);
-    });
-
-    it('the reply bar tools are disabled while another target is active', async () => {
-        const props = baseProps();
-        const { rerender } = renderWithProviders(ui(props));
-        await enabledTool('Mark');
-        rerender(ui({ ...props, replyCollecting: true }));
+    it('the reply bar has no Mark or Mic button: a click on the bubble selects it', async () => {
+        renderThread({ armed: true });
+        await screen.findByRole('button', { name: 'Send reply' });
         for (const name of ['Mark', 'Mic']) {
-            const button = screen.getByRole('button', { name });
-            expect(button).toBeDisabled();
-            fireEvent.click(button);
-        }
-        expect(props.onArm).not.toHaveBeenCalled();
-    });
-
-    it('the reply bar tools stay enabled on the armed bubble', async () => {
-        renderThread({ armed: true, replyCollecting: true });
-        for (const name of ['Mark', 'Mic']) {
-            await enabledTool(name);
+            expect(screen.queryByRole('button', { name })).toBeNull();
         }
     });
 
@@ -395,7 +375,7 @@ describe('BubbleThread', () => {
             ),
         );
         // Lets the failed query settle and run its error handler.
-        await enabledTool('Mark');
+        await enabledTool('Send reply');
         await new Promise((resolve) => setTimeout(resolve, 0));
         expect(state.navigate).not.toHaveBeenCalled();
         expect(
