@@ -15,7 +15,8 @@ export type LiveSourceSetupKind =
     | 'token'
     | 'linkedin_ads'
     | 'salesforce'
-    | 'amplitude';
+    | 'amplitude'
+    | 'app_store_connect';
 
 type LiveIntegrationCatalogFields<C extends ApiConnectorType> = {
     /** Stable id, sent with analytics events. */
@@ -233,6 +234,21 @@ export const LIVE_INTEGRATION_CATALOG: {
             connector: z.literal(ApiConnectorType.AMPLITUDE),
         }),
         getTarget: () => 'Amplitude project',
+    },
+    [ApiConnectorType.APP_STORE_CONNECT]: {
+        id: 'app_store_connect',
+        label: 'App Store Connect',
+        defaultName: 'App Store Connect',
+        messageLabel: 'App Store Connect',
+        agentLabel: 'App Store Connect',
+        description:
+            'App versions, builds, customer reviews and review submissions',
+        setup: 'app_store_connect',
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.APP_STORE_CONNECT),
+            appId: z.string(),
+        }),
+        getTarget: ({ appId }) => `App ${appId}`,
     },
     [ApiConnectorType.HYDRA]: {
         id: 'hydra',

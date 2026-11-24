@@ -119,6 +119,7 @@ import { ContentReviewRequestService } from './services/ContentReviewRequestServ
 import { DataAppAnalysisService } from './services/DataAppAnalysisService/DataAppAnalysisService';
 import { EmbedService } from './services/EmbedService/EmbedService';
 import { ExternalConnectionCoderService } from './services/ExternalConnectionCoderService/ExternalConnectionCoderService';
+import { AppStoreConnectTokenProvider } from './services/ExternalConnectionService/AppStoreConnectTokenProvider';
 import { ExternalConnectionService } from './services/ExternalConnectionService/ExternalConnectionService';
 import { GoogleServiceAccountTokenProvider } from './services/ExternalConnectionService/GoogleServiceAccountTokenProvider';
 import { OAuthAuthorizationCodeTokenClient } from './services/ExternalConnectionService/OAuthAuthorizationCodeTokenClient';
@@ -1284,6 +1285,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getSpacePermissionService(),
                     googleTokenProvider:
                         new GoogleServiceAccountTokenProvider(),
+                    appStoreConnectTokenProvider:
+                        new AppStoreConnectTokenProvider(),
                     oauthClientCredentialsTokenProvider:
                         new OAuthClientCredentialsTokenProvider({
                             allowedPrivateHostCidrs:

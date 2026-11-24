@@ -3,6 +3,7 @@ import {
     ParameterError,
 } from '@lightdash/common';
 import {
+    validateAppStoreConnectKey,
     validateExternalConnectionConfig,
     validateServiceAccountKeyfile,
     type ValidatableExternalConnectionConfig,
@@ -415,6 +416,78 @@ describe('validateExternalConnectionConfig', () => {
                     }),
                 ),
             ).toThrow(ParameterError);
+        });
+    });
+
+    describe('app_store_connect_key', () => {
+        const appStoreConnectKey: ValidatableExternalConnectionConfig = {
+            ...base,
+            type: 'app_store_connect_key',
+        };
+
+        it('accepts a key with a secret', () => {
+            expect(() =>
+                validateExternalConnectionConfig(appStoreConnectKey, true),
+            ).not.toThrow();
+        });
+
+        it('requires a secret', () => {
+            expect(() =>
+                validateExternalConnectionConfig(appStoreConnectKey, false),
+            ).toThrow(/requires a secret/);
+        });
+
+        it('rejects api key and OAuth fields', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    { ...appStoreConnectKey, apiKeyName: 'X-Api-Key' },
+                    true,
+                ),
+            ).toThrow(/must not set an api key name or location/);
+            expect(() =>
+                validateExternalConnectionConfig(
+                    { ...appStoreConnectKey, oauthScopes: ['read'] },
+                    true,
+                ),
+            ).toThrow(/only valid for OAuth authentication types/);
+            expect(() =>
+                validateExternalConnectionConfig(
+                    { ...appStoreConnectKey, oauthClientId: 'client-1' },
+                    true,
+                ),
+            ).toThrow(/only valid for OAuth authentication types/);
+        });
+    });
+
+    describe('validateAppStoreConnectKey', () => {
+        const key = {
+            keyId: 'ABCDE12345',
+            issuerId: '00000000-1111-2222-3333-444444444444',
+            privateKey:
+                '-----BEGIN PRIVATE KEY-----\nk\n-----END PRIVATE KEY-----',
+        };
+
+        it('accepts a key ID, issuer ID and private key', () => {
+            expect(() =>
+                validateAppStoreConnectKey(JSON.stringify(key)),
+            ).not.toThrow();
+        });
+
+        it.each([
+            ['not JSON', 'not json'],
+            ['a short key ID', JSON.stringify({ ...key, keyId: 'ABC123' })],
+            [
+                'an issuer ID that is not a UUID',
+                JSON.stringify({ ...key, issuerId: 'team' }),
+            ],
+            [
+                'a private key that is not PEM',
+                JSON.stringify({ ...key, privateKey: 'abc' }),
+            ],
+        ])('rejects %s, naming what to fix', (_name, secret) => {
+            expect(() => validateAppStoreConnectKey(secret)).toThrow(
+                'The App Store Connect key needs a 10-character key ID, the issuer ID and the .p8 private key',
+            );
         });
     });
 

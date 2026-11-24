@@ -46,6 +46,11 @@ export const validateApiSourceConnection = ({
                 'Only live data sources can sign in with OAuth',
             );
         }
+        if (type === 'app_store_connect_key') {
+            throw new ParameterError(
+                'Only live data sources can use an App Store Connect key',
+            );
+        }
         return;
     }
     validateLiveConnection(getLiveIntegration(apiSource.connector), {

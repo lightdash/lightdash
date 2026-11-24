@@ -2,8 +2,10 @@ import {
     ForbiddenError,
     ParameterError,
     ProjectType,
+    toAppStoreConnectSecret,
     type ExternalConnection,
 } from '@lightdash/common';
+import { decodeProtectedHeader, exportPKCS8, generateKeyPair } from 'jose';
 import {
     fromJwt,
     fromServiceAccount,
@@ -18,6 +20,7 @@ import {
     type AllowedPrivateHostCidrs,
 } from '../../../utils/secureFetch/secureFetch';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
+import { AppStoreConnectTokenProvider } from './AppStoreConnectTokenProvider';
 import { ExternalConnectionService } from './ExternalConnectionService';
 
 // Keep SecureFetchError real: auto-mocking the class would stub its
@@ -177,6 +180,7 @@ function buildService(opts: {
         spacePermissionService,
         analytics,
         googleTokenProvider,
+        appStoreConnectTokenProvider: new AppStoreConnectTokenProvider(),
         oauthClientCredentialsTokenProvider,
     } as never);
 
@@ -863,6 +867,98 @@ describe('ExternalConnectionService.proxyFetch', () => {
             }),
         ).rejects.toBeInstanceOf(ParameterError);
         expect(mockSecureFetch).not.toHaveBeenCalled();
+    });
+
+    describe('App Store Connect key', () => {
+        const APP_STORE_CONNECT_CONNECTION = baseConnection({
+            type: 'app_store_connect_key',
+            origin: 'https://api.appstoreconnect.apple.com',
+            allowedPathPrefixes: ['/v1/apps/1234567890/'],
+            allowedMethods: ['GET'],
+        });
+        let appStoreConnectSecret: string;
+
+        beforeAll(async () => {
+            const { privateKey } = await generateKeyPair('ES256', {
+                extractable: true,
+            });
+            appStoreConnectSecret = toAppStoreConnectSecret({
+                keyId: 'ABCDE12345',
+                issuerId: '00000000-1111-2222-3333-444444444444',
+                privateKey: await exportPKCS8(privateKey),
+            });
+        });
+
+        const fetchVersions = (service: ExternalConnectionService) =>
+            service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'app-store',
+                path: '/v1/apps/1234567890/appStoreVersions',
+            });
+
+        it('signs a token from the key and sends it as a bearer token', async () => {
+            const { service } = buildService({
+                connection: APP_STORE_CONNECT_CONNECTION,
+                secret: appStoreConnectSecret,
+            });
+
+            await fetchVersions(service);
+
+            const authorization =
+                mockSecureFetch.mock.calls[0][1].headers!.Authorization;
+            expect(authorization).toMatch(/^Bearer [^.\s]+\.[^.\s]+\.[^.\s]+$/);
+            expect(
+                decodeProtectedHeader(authorization.replace('Bearer ', '')),
+            ).toMatchObject({ alg: 'ES256', kid: 'ABCDE12345' });
+        });
+
+        it('fails closed without a stored key', async () => {
+            const { service } = buildService({
+                connection: APP_STORE_CONNECT_CONNECTION,
+                secret: null,
+            });
+
+            await expect(fetchVersions(service)).rejects.toBeInstanceOf(
+                ParameterError,
+            );
+            expect(mockSecureFetch).not.toHaveBeenCalled();
+        });
+
+        it('fails closed with no detail when the key cannot sign', async () => {
+            const { service } = buildService({
+                connection: APP_STORE_CONNECT_CONNECTION,
+                secret: 'not a key',
+            });
+
+            await expect(fetchVersions(service)).rejects.toThrow(
+                new ParameterError(
+                    'Failed to sign the App Store Connect token',
+                ),
+            );
+            expect(mockSecureFetch).not.toHaveBeenCalled();
+        });
+
+        it('redacts the signed token when the API echoes it', async () => {
+            mockSecureFetch.mockImplementation(async (_url, options) => ({
+                status: 200,
+                contentType: 'application/json',
+                headers: {},
+                bodyText: JSON.stringify({
+                    echoed: options.headers?.Authorization?.replace(
+                        'Bearer ',
+                        '',
+                    ),
+                }),
+                truncated: false,
+            }));
+            const { service } = buildService({
+                connection: APP_STORE_CONNECT_CONNECTION,
+                secret: appStoreConnectSecret,
+            });
+
+            await expect(fetchVersions(service)).resolves.toMatchObject({
+                body: { echoed: '[REDACTED]' },
+            });
+        });
     });
 
     const OAUTH_CONNECTION = baseConnection({

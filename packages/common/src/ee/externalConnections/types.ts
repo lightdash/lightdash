@@ -7,6 +7,8 @@ export type ExternalConnectionAuthType =
     | 'bearer_token'
     | 'google_service_account'
     | 'oauth_client_credentials'
+    /** An App Store Connect team API key, signed into a short-lived token per call; live data sources only. */
+    | 'app_store_connect_key'
     /** Signed in through the source's OAuth flow; never set through the API. */
     | 'oauth_authorization_code';
 
@@ -140,6 +142,13 @@ export type AmplitudeApiSource = {
     connector: ApiConnectorType.AMPLITUDE;
 };
 
+/** One app in App Store Connect; the API key decides which apps it can read. */
+export type AppStoreConnectApiSource = {
+    connector: ApiConnectorType.APP_STORE_CONNECT;
+    /** The app's Apple ID, the number in its App Store URL. */
+    appId: string;
+};
+
 /**
  * Hydra, the test integration: its rows are seeded from the sign-in token,
  * and these settings make its fake API slow, fail, page or rate limit.
@@ -224,6 +233,7 @@ export type ExternalConnectionApiSource =
     | HubspotApiSource
     | SalesforceApiSource
     | AmplitudeApiSource
+    | AppStoreConnectApiSource
     | HydraApiSource;
 
 /** The settings of one integration's sources. */
@@ -314,6 +324,63 @@ export const AMPLITUDE_PATHS = {
 
 /** Amplitude signs Dashboard REST API calls in with HTTP Basic: the API key, then the secret key. */
 export const AMPLITUDE_AUTH_HEADER = 'Authorization';
+
+export const APP_STORE_CONNECT_ORIGIN = 'https://api.appstoreconnect.apple.com';
+
+/** Every call a source makes stays under its own app. */
+export const getAppStoreConnectAppPath = (appId: string) =>
+    `/v1/apps/${appId}/`;
+
+/** The three parts of an App Store Connect team API key. */
+export type AppStoreConnectKey = {
+    /** The 10-character key ID, such as 2X9R4HXF34. */
+    keyId: string;
+    /** The issuer ID of the team, a UUID. */
+    issuerId: string;
+    /** The contents of the .p8 file, in PEM format. */
+    privateKey: string;
+};
+
+const APP_STORE_CONNECT_KEY_ID = /^[A-Z0-9]{10}$/;
+const APP_STORE_CONNECT_ISSUER_ID =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The key's three parts as the one secret a source stores. */
+export const toAppStoreConnectSecret = ({
+    keyId,
+    issuerId,
+    privateKey,
+}: AppStoreConnectKey): string =>
+    JSON.stringify({
+        keyId: keyId.trim(),
+        issuerId: issuerId.trim(),
+        privateKey: privateKey.trim(),
+    });
+
+/** Null unless the secret holds a key ID, an issuer ID and a PEM private key. */
+export const parseAppStoreConnectSecret = (
+    secret: string,
+): AppStoreConnectKey | null => {
+    let value: unknown;
+    try {
+        value = JSON.parse(secret);
+    } catch {
+        return null;
+    }
+    if (typeof value !== 'object' || value === null) return null;
+    const { keyId, issuerId, privateKey } = value as Record<string, unknown>;
+    if (
+        typeof keyId !== 'string' ||
+        typeof issuerId !== 'string' ||
+        typeof privateKey !== 'string' ||
+        !APP_STORE_CONNECT_KEY_ID.test(keyId) ||
+        !APP_STORE_CONNECT_ISSUER_ID.test(issuerId) ||
+        !privateKey.includes('-----BEGIN PRIVATE KEY-----')
+    ) {
+        return null;
+    }
+    return { keyId, issuerId, privateKey };
+};
 
 export const HUBSPOT_ORIGIN = 'https://api.hubapi.com';
 
