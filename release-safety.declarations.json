@@ -82,11 +82,11 @@
             "migration": "packages/backend/src/ee/database/migrations/20261009100000_drop_ai_credit_entitlements.ts"
         },
         "ai-agent-verified-questions-endpoint-removed": {
-            "reason": "Removes AI agent verified questions: GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-questions is deleted. Only the Lightdash web app and its embedded agent UI called it, to show suggested-question chips on a new thread; the chips are removed in the same change. During a rolling update an old tab's request fails and the chips do not show until refresh; asking questions still works.",
+            "reason": "Removes AI agent verified questions: GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-questions is deleted. Only the Lightdash web app and its embedded agent UI called it, to show suggested-question chips on a new thread; the chips are removed in the same change. During a rolling update an old tab's request fails and the chips do not show until refresh. Hosts embedding the agent with an already-published SDK in native render mode keep calling it and get a non-fatal 404 in their onError on each new thread until they upgrade the SDK; iframe embeds are unaffected. Asking questions still works everywhere.",
             "requiredStop": false,
             "impact": {
                 "kind": "no-external-callers",
-                "firstPartyOnly": "The Lightdash new-thread page, in the app and in embedded agents, is the only caller. Old tabs just show no suggested questions until refresh.",
+                "firstPartyOnly": "The Lightdash new-thread page, in the app and in embedded agents, is the only caller. Old tabs show no suggested questions until refresh; native-mode SDK hosts on an older SDK version see a non-fatal 404 in onError until they upgrade.",
                 "covers": {
                     "rest": [
                         "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-questions"
