@@ -499,7 +499,7 @@ describe('Content inventory charts', () => {
             // card on Content
             'lightdash-analytics-content-content-created-in-period',
             'lightdash-analytics-content-content-creation-by-month',
-            'lightdash-analytics-adoption-adoption-apps-created-by-day',
+            'lightdash-analytics-apps-apps-running-total-by-week',
             card.slug,
         ]);
     });
@@ -511,9 +511,7 @@ describe('Content inventory charts', () => {
         );
         const chart = analyticsContentAsCode
             .flatMap((bundle) => bundle.charts)
-            .find(({ slug }) =>
-                slug.endsWith('-adoption-apps-created-by-day'),
-            )!;
+            .find(({ slug }) => slug.endsWith('-apps-running-total-by-week'))!;
         const rows = (
             await db.runAndReadAll(
                 compile({

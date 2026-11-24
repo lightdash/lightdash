@@ -94,11 +94,11 @@ describe('usage dashboard filters', () => {
         }
     });
 
-    it('keeps the filters Adoption sets by hand', () => {
+    it('keeps the filters Data apps sets by hand and adds Date and Project after them', () => {
         expect(
             bundleOf(
-                'lightdash-analytics-adoption',
+                'lightdash-analytics-apps',
             ).dashboard.filters?.dimensions?.map(({ label }) => label),
-        ).toEqual(['Date', 'Data app', 'Surface']);
+        ).toEqual(['Data app', 'Surface', 'Date', 'Project']);
     });
 });

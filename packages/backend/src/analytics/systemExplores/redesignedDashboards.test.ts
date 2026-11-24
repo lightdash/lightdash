@@ -314,7 +314,16 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'vega-trellis',
                 'table',
             ],
-            ['top-apps', 0, 20, 36, 6, 'sortable-pivot-table', 'table'],
+            ['top-apps', 0, 20, 24, 6, 'sortable-pivot-table', 'table'],
+            [
+                'apps-loads-by-surface',
+                24,
+                20,
+                12,
+                6,
+                'sortable-pivot-table',
+                'table',
+            ],
         ],
         people: [
             ['top-people', 0, 1, 18, 9, 'sortable-pivot-table', 'table'],
@@ -358,6 +367,27 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'sortable-pivot-table',
                 'table',
             ],
+            [
+                'apps-running-total-by-week',
+                0,
+                31,
+                36,
+                6,
+                'customizable-cartesian-chart',
+                'cartesian',
+            ],
+        ],
+        reliability: [
+            [
+                'apps-errors-by-day',
+                0,
+                1,
+                36,
+                7,
+                'customizable-cartesian-chart',
+                'cartesian',
+            ],
+            ['apps-outcomes-by-app-and-surface', 0, 8, 36, 7, null, 'table'],
         ],
     },
     'lightdash-analytics-tools': {
@@ -535,7 +565,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
         ],
     },
     'lightdash-analytics-adoption': {
-        'people-content': [
+        'active-people': [
             [
                 'adoption-active-people-latest-day',
                 0,
@@ -590,30 +620,12 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'heatmap',
                 'table',
             ],
-            [
-                'adoption-dashboard-audience',
-                0,
-                20,
-                18,
-                8,
-                'sortable-pivot-table',
-                'table',
-            ],
-            [
-                'adoption-app-audience',
-                18,
-                20,
-                18,
-                8,
-                'sortable-pivot-table',
-                'table',
-            ],
         ],
         inactive: [
             [
                 'people-without-observed-activity',
                 0,
-                1,
+                2,
                 36,
                 4,
                 'big-number-with-sparkline-trend',
@@ -622,119 +634,13 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'people-without-observed-activity-detail',
                 0,
-                6,
+                7,
                 36,
                 7,
                 null,
                 'table',
             ],
-            ['people-without-activity-30d-detail', 0, 13, 36, 7, null, 'table'],
-        ],
-        'data-apps': [
-            [
-                'adoption-apps-created-by-day',
-                0,
-                1,
-                18,
-                6,
-                'customizable-cartesian-chart',
-                'cartesian',
-            ],
-            [
-                'adoption-app-creators',
-                18,
-                1,
-                18,
-                6,
-                'sortable-pivot-table',
-                'table',
-            ],
-            [
-                'adoption-app-reader-trend',
-                0,
-                8,
-                36,
-                8,
-                'vega-trellis',
-                'cartesian',
-            ],
-            [
-                'adoption-app-reader-detail',
-                0,
-                16,
-                18,
-                8,
-                'sortable-pivot-table',
-                'table',
-            ],
-            [
-                'adoption-app-first-audience',
-                18,
-                16,
-                18,
-                8,
-                'sortable-pivot-table',
-                'table',
-            ],
-        ],
-        'app-outcomes': [
-            [
-                'adoption-app-outcome-trend',
-                0,
-                1,
-                36,
-                7,
-                'customizable-cartesian-chart',
-                'cartesian',
-            ],
-            ['adoption-app-outcome-detail', 0, 8, 36, 7, null, 'table'],
-        ],
-        'ask-ai': [
-            [
-                'adoption-ask-ai-questions',
-                0,
-                1,
-                36,
-                5,
-                'vega-trellis',
-                'cartesian',
-            ],
-            [
-                'adoption-ask-ai-people',
-                0,
-                6,
-                18,
-                5,
-                'vega-trellis',
-                'cartesian',
-            ],
-            [
-                'adoption-ask-ai-frequency',
-                18,
-                6,
-                18,
-                5,
-                'vega-trellis',
-                'cartesian',
-            ],
-            [
-                'adoption-ask-ai-users',
-                0,
-                12,
-                18,
-                8,
-                'sortable-pivot-table',
-                'table',
-            ],
-            [
-                'adoption-ask-ai-agents',
-                18,
-                12,
-                18,
-                8,
-                'sortable-pivot-table',
-                'table',
-            ],
+            ['people-without-activity-30d-detail', 0, 14, 36, 7, null, 'table'],
         ],
     },
     'lightdash-analytics-embed': {
@@ -1955,14 +1861,12 @@ describe('totals of a table grouped by two names', () => {
             installedTypes(),
         );
         const chart = drawn.find(
-            ({ slug }) =>
-                slug ===
-                'lightdash-analytics-adoption-adoption-app-reader-detail',
+            ({ slug }) => slug === 'lightdash-analytics-apps-user-app-detail',
         )!;
         expect(chart.metricQuery.sorts.map(({ fieldId }) => fieldId)).toEqual([
             'group_total',
-            'data_app_reach_app_name',
-            'data_app_reach_total_loads',
+            'data_app_events_user_name',
+            'data_app_events_total_views',
         ]);
         const instance = await DuckDBInstance.create(':memory:', {
             threads: '1',
@@ -1983,15 +1887,15 @@ describe('totals of a table grouped by two names', () => {
             await db.run(
                 `CREATE TABLE lightdash_content (${contentInventoryColumns.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
             );
-            // Small has one busy person; Big has four people with fewer loads each but more in all
+            // Zed loads one data app a lot; Ann loads four a little each, and more in all
             const loads: [string, string, number][] = [
-                ['small', 'zed', 5],
-                ['big', 'ann', 4],
-                ['big', 'bob', 3],
-                ['big', 'cat', 2],
-                ['big', 'dan', 1],
+                ['only', 'zed', 5],
+                ['one', 'ann', 4],
+                ['two', 'ann', 3],
+                ['three', 'ann', 2],
+                ['four', 'ann', 1],
             ];
-            for (const [, person] of loads)
+            for (const person of new Set(loads.map(([, name]) => name)))
                 await db.run(
                     `INSERT INTO lightdash_users (org_id,user_id,name) VALUES ('org','${person}','${person}')`,
                 );
@@ -2001,7 +1905,7 @@ describe('totals of a table grouped by two names', () => {
                         `INSERT INTO data_app_events (org_id,project_id,app_id,user_id,event_name,view_context,event_ts)
                          VALUES ('org','project','${app}','${person}','data_app.view','standalone',CURRENT_TIMESTAMP)`,
                     );
-            // Four rows fit: by loads alone that would be Small and three of Big's four people
+            // Four rows fit: by loads alone that would be Zed and three of Ann's four data apps
             const rows = (
                 await db.runAndReadAll(
                     sqlOf({
@@ -2012,14 +1916,14 @@ describe('totals of a table grouped by two names', () => {
             ).getRowObjectsJS();
             expect(
                 rows.map((row) => [
-                    row.data_app_reach_app_name,
-                    Number(row.data_app_reach_total_loads),
+                    row.data_app_events_user_name,
+                    Number(row.data_app_events_total_views),
                 ]),
             ).toEqual([
-                ['big', 4],
-                ['big', 3],
-                ['big', 2],
-                ['big', 1],
+                ['ann', 4],
+                ['ann', 3],
+                ['ann', 2],
+                ['ann', 1],
             ]);
         } finally {
             db.closeSync();

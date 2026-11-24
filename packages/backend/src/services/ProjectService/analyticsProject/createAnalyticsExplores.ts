@@ -864,6 +864,19 @@ export const createAnalyticsExplores = (): Explore[] => {
             };
         // A data app the organization made: in the inventory as a data app, not a custom chart type,
         // and not in the Analytics project
+        // One definition of a data app load on every tile: a person opening it on a standalone page or a
+        // dashboard. A builder preview, a delivery, an embed and a custom chart tile also record a load;
+        // they appear only in the one breakdown by surface.
+        if (name === 'data_app_events')
+            table.dimensions.counts_as_use = {
+                ...table.dimensions.event_name,
+                name: 'counts_as_use',
+                label: 'Counts as use',
+                type: DimensionType.BOOLEAN,
+                description:
+                    'No for a load that is not a person opening the data app on a standalone page or a dashboard: a builder preview, a delivery, an embed or a custom chart tile. Yes for every other event.',
+                sql: `(${table.dimensions.event_name.sql} <> 'data_app.view' OR ${table.dimensions.view_context.sql} IN ('standalone', 'dashboard'))`,
+            };
         if (name === 'data_app_events')
             table.dimensions.is_organization_data_app = {
                 ...table.dimensions.app_id,

@@ -125,7 +125,7 @@ export const peopleNoActivitySections = [
     {
         title: 'People who have not used Lightdash',
         description:
-            'Members with an active account and finished setup, with no views, queries or agent requests made by hand. Scheduled and automated runs do not count.',
+            'These tiles do not follow the Date filter. They count members with an active account and finished setup who have made no view, query or agent request by hand; scheduled and automated runs do not count.',
         charts: ['people-without-observed-activity'],
     },
     {
