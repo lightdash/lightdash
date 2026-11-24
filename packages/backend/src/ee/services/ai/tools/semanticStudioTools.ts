@@ -131,6 +131,11 @@ export const getProposeSemanticLayerChange = ({
         ...proposeSemanticLayerChangeToolDefinition.for('agent'),
         execute: async ({ models, changeName, note, options }) => {
             try {
+                const metricViewModels = new Set(
+                    models.flatMap(({ name, fromMetricView }) =>
+                        fromMetricView === null ? [] : [name],
+                    ),
+                );
                 const { results, diffs, draftChangeUuid, startedChange } =
                     await proposeSemanticLayerChange(
                         await Promise.all(
@@ -157,6 +162,7 @@ export const getProposeSemanticLayerChange = ({
                                 ? findNewModelAdvice(
                                       result.model,
                                       created.contentAfter,
+                                      metricViewModels.has(result.model),
                                   )
                                 : [],
                         metricsToRun:

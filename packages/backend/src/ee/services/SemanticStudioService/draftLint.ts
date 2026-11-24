@@ -109,13 +109,15 @@ export const findChangedFields = (
 export const findNewModelAdvice = (
     name: string,
     contents: string,
+    /** A metric view has no row grain of its own, so no key identifies one row. */
+    isMetricView: boolean,
 ): string[] => {
     const model = parseModelDocument(contents, toModelPath(name));
     const undescribed = metricsOf(model).flatMap(([metric, { description }]) =>
         description ? [] : [metric],
     );
     return [
-        ...(model.primary_key
+        ...(model.primary_key || isMetricView
             ? []
             : [
                   'no primary_key: set it to the columns that identify one row; it is checked on the warehouse',
