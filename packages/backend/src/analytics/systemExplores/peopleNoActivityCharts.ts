@@ -40,7 +40,7 @@ export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
             'Members with no activity of their own',
             {
                 whole: 'people_adoption_eligible_people',
-                wholeLabel: 'of members with a finished account',
+                wholeLabel: 'of {target} members',
                 color: caution,
             },
         ),

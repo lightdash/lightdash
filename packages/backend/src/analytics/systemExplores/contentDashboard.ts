@@ -323,7 +323,7 @@ export const contentChartSpecs: UsageChartSpec[] = [
             yFields: [metric],
             libraryChart: numberCard(metric, meaning, {
                 whole: 'content_health_total_content',
-                wholeLabel: 'of all content',
+                wholeLabel: 'of {target} items',
                 color,
                 // The items with nothing known to use them are the ones an admin acts on
                 strong: color === caution,
@@ -655,8 +655,8 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                     note: false,
                     charts: ['content-owners-needing-review'],
                     layout: 'row',
-                    // About eight rows, more by scrolling
-                    rowHeight: 7,
+                    // About eight rows with no blank band under them, more by scrolling
+                    rowHeight: 6,
                 },
             ],
         },

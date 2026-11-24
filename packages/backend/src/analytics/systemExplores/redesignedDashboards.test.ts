@@ -266,7 +266,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'customizable-cartesian-chart',
                 'pie',
             ],
-            ['content-owners-needing-review', 0, 5, 36, 7, null, 'table'],
+            ['content-owners-needing-review', 0, 5, 36, 6, null, 'table'],
         ],
     },
     'lightdash-analytics-apps': {
@@ -2248,7 +2248,7 @@ describe('legends and colour ranges that hold up with real volumes', () => {
         ]);
         stacked.forEach(([, { optionValues, minVersion }]) => {
             expect(optionValues.legendMode).toBe('groups');
-            expect(minVersion).toBe('0.18.7');
+            expect(minVersion).toBe('0.18.8');
         });
     });
 });
@@ -2260,7 +2260,7 @@ describe('a fix that every card needs', () => {
         );
         expect(cards.length).toBeGreaterThan(30);
         expect(new Set(cards.map(({ minVersion }) => minVersion))).toEqual(
-            new Set(['0.8.3']),
+            new Set(['0.8.4']),
         );
     });
 });

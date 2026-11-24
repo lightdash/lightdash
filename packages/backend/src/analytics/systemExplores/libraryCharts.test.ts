@@ -518,7 +518,7 @@ describe('model colours', () => {
         ]);
         byModel.forEach(([, modelBinding]) =>
             expect(modelBinding).toMatchObject({
-                minVersion: '0.18.7',
+                minVersion: '0.18.8',
                 optionValues: {
                     splitColorGroups: modelProviderColors,
                     // Darker for the more powerful model
@@ -628,7 +628,7 @@ describe('legacyLibraryChartBindings', () => {
                 analyticsLibraryChartBindings.get(`${prefix}${key}`),
             ).toMatchObject({
                 slug: 'customizable-cartesian-chart',
-                minVersion: '0.18.7',
+                minVersion: '0.18.8',
                 fieldMapping: { x: 'ai_usage_model_name' },
                 optionValues: {
                     seriesType: 'bar',
@@ -656,7 +656,7 @@ describe('legacyLibraryChartBindings', () => {
             ),
         ).toEqual({
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.8.3',
+            minVersion: '0.8.4',
             fieldMapping: {
                 value: 'ai_usage_unique_users',
                 sparklineMetric: 'ai_usage_unique_users',
@@ -690,7 +690,7 @@ describe('legacyLibraryChartBindings', () => {
             analyticsLibraryChartBindings.get(`${prefix}${key}`);
         expect(queryBinding('queries')).toMatchObject({
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.8.3',
+            minVersion: '0.8.4',
             optionValues: {
                 valueAggregation: 'sum',
                 showComparison: false,
@@ -705,7 +705,7 @@ describe('legacyLibraryChartBindings', () => {
             (key) => {
                 expect(queryBinding(key)).toMatchObject({
                     slug: 'big-number-with-sparkline-trend',
-                    minVersion: '0.8.3',
+                    minVersion: '0.8.4',
                     optionValues: {
                         valueAggregation: 'latest',
                         showComparison: false,
