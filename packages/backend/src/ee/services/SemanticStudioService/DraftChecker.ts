@@ -1094,6 +1094,25 @@ GROUP BY ${aliases.join(', ')}
         const redefined = new Map(
             [...writes].filter(([name]) => !isMetadataOnly(name)),
         );
+        // A relabelled model still has to work in a query.
+        const relabelled = await Promise.all(
+            afterCompile.explores
+                .filter(isCompiled)
+                .filter(
+                    (explore) =>
+                        usesAnyModel(explore, writes) &&
+                        !usesAnyModel(explore, redefined),
+                )
+                .map(async (explore) => ({
+                    name: explore.name,
+                    error: await this.findExploreError(
+                        user,
+                        projectUuid,
+                        explore,
+                        { warehouse: false },
+                    ),
+                })),
+        );
         const usable = await Promise.all(
             afterCompile.explores
                 .filter(isCompiled)
@@ -1119,7 +1138,7 @@ GROUP BY ${aliases.join(', ')}
                 error === null && already !== null ? [[name, already]] : [],
             ),
         );
-        const unusable = usable.flatMap(({ name, error }) =>
+        const unusable = [...usable, ...relabelled].flatMap(({ name, error }) =>
             error === null ? [] : [{ name, error }],
         );
         unusable.forEach(({ name, error }) => {

@@ -39,6 +39,9 @@ const columnTypes: { fields: Record<string, { type: DimensionType }> } = {
     fields: {},
 };
 
+/** What the query builder reports for every query it compiles. */
+const queryBuilder: { errors: string[] } = { errors: [] };
+
 /** What the warehouse was asked, and what a key check comes back with. */
 const warehouse: {
     queries: string[];
@@ -99,7 +102,10 @@ const checker = (type: WarehouseTypes = WarehouseTypes.POSTGRES) =>
             partitioning: warehouse.partitioning,
             warehouseType: WarehouseTypes.POSTGRES,
         }),
-        compileQuery: async () => ({ query: '', compilationErrors: [] }),
+        compileQuery: async () => ({
+            query: '',
+            compilationErrors: queryBuilder.errors,
+        }),
     });
 
 describe('DraftChecker.compile', () => {
@@ -114,6 +120,7 @@ describe('DraftChecker.compile', () => {
         warehouse.columns = { id: DimensionType.NUMBER };
         warehouse.partitioning = null;
         warehouse.planError = () => null;
+        queryBuilder.errors = [];
     });
 
     test('the same documents compile once, and each caller gets its own copy', async () => {
@@ -611,6 +618,12 @@ ${metrics}`;
     });
 
     describe('an edit that only changes metadata', () => {
+        const withCount = `${model('orders')}metrics:
+  order_count:
+    type: count
+    sql: \${TABLE}.id
+`;
+
         beforeEach(() => {
             warehouse.planError = (sql) =>
                 sql.includes('public.orders') ? 'cannot plan orders' : null;
@@ -623,6 +636,13 @@ ${metrics}`;
                 model('orders').replace(
                     '    sql: ${TABLE}.id\n',
                     '    sql: ${TABLE}.id\n    ai_hint: The order number\n',
+                ),
+            ],
+            [
+                'a format',
+                model('orders').replace(
+                    '    sql: ${TABLE}.id\n',
+                    "    sql: ${TABLE}.id\n    format: '#,##0'\n",
                 ),
             ],
         ])(
@@ -639,6 +659,37 @@ ${metrics}`;
                 expect(warehouse.queries).toEqual([]);
             },
         );
+
+        test('is still refused when the compiler refuses it, with no warehouse query', async () => {
+            const { rejected } = await checker().check(
+                user,
+                'project',
+                new Map([['orders', model('orders')]]),
+                new Map([
+                    [
+                        'orders',
+                        model('orders').replace(
+                            '    sql: ${TABLE}.id\n',
+                            "    sql: ${TABLE}.id\n    format: '${lightdash.parameters.missing}'\n",
+                        ),
+                    ],
+                ]),
+            );
+            expect(rejected.get('orders')).toContain('missing');
+            expect(warehouse.queries).toEqual([]);
+        });
+
+        test('is still refused when it does not work in a query, with no warehouse query', async () => {
+            queryBuilder.errors = ['cannot group by id'];
+            const { rejected } = await checker().check(
+                user,
+                'project',
+                new Map([['orders', withCount]]),
+                new Map([['orders', `${withCount}description: Every order\n`]]),
+            );
+            expect(rejected.get('orders')).toContain('cannot group by id');
+            expect(warehouse.queries).toEqual([]);
+        });
 
         test('still plans a model that joins one the draft redefines', async () => {
             const joined = `${model('customers')}joins:

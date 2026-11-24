@@ -20,13 +20,19 @@ const metricsOf = (model: LightdashModel): [string, LightdashModelMetric][] => [
     ...Object.entries(model.metrics ?? {}),
 ];
 
-// Text that never reaches SQL; any key not listed here counts as a change the warehouse must check.
+// Text and display settings that never reach SQL; any key not listed here counts as a change the warehouse must check.
 const METADATA_KEYS = [
     'label',
     'description',
     'ai_hint',
     'group_label',
     'groups',
+    'format',
+    'round',
+    'compact',
+    'separator',
+    'colors',
+    'urls',
 ] as const;
 
 const withoutMetadata = <T extends object>(field: T) =>
@@ -50,7 +56,7 @@ export type ChangedFields = {
     dimensions: Set<string>;
     /** Why a metric the write adds or defines differently is not well formed, or null. */
     metricError: string | null;
-    /** True when the write only changes labels, descriptions, AI hints or groups of a published model. */
+    /** True when the write only changes text or display settings of a published model, nothing that reaches SQL. */
     isMetadataOnly: boolean;
 };
 
