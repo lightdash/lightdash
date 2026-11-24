@@ -51,6 +51,17 @@ const SOURCES = [
     },
     {
         apiSource: {
+            connector: ApiConnectorType.GOOGLE_PLAY,
+            packageName: 'com.example.app',
+        },
+        fields: {
+            dimension: 'country_code',
+            other: 'device_type',
+            metric: 'crash_rate_28d',
+        },
+    },
+    {
+        apiSource: {
             connector: ApiConnectorType.LINKEDIN_ADS,
             adAccountId: '507404993',
         },

@@ -53,6 +53,12 @@ export type YoutubeAnalyticsApiSource = {
     channelId: string;
 };
 
+export type GooglePlayApiSource = {
+    connector: ApiConnectorType.GOOGLE_PLAY;
+    /** The Android app's package name, such as com.example.app. */
+    packageName: string;
+};
+
 export type LinkedInAdsApiSource = {
     connector: ApiConnectorType.LINKEDIN_ADS;
     /** The numeric LinkedIn ad account id, as shown in Campaign Manager. */
@@ -217,6 +223,7 @@ export type ExternalConnectionApiSource =
     | MetaAdsApiSource
     | GoogleAdsApiSource
     | YoutubeAnalyticsApiSource
+    | GooglePlayApiSource
     | LinkedInAdsApiSource
     | GithubApiSource
     | PylonApiSource
@@ -255,6 +262,23 @@ export const POSTHOG_REGION_ORIGINS = {
 /** The setup test's HogQL: one cheap read whose answer is worth showing. */
 export const POSTHOG_TEST_QUERY =
     'SELECT count(DISTINCT event) FROM events WHERE timestamp > now() - INTERVAL 7 DAY';
+
+/** The Play Developer Reporting API, which serves Android vitals. */
+export const GOOGLE_PLAY_ORIGIN =
+    'https://playdeveloperreporting.googleapis.com';
+/** The one scope a service account's token needs to read vitals. */
+export const GOOGLE_PLAY_SCOPE =
+    'https://www.googleapis.com/auth/playdeveloperreporting';
+
+/** Every call a source makes stays under its own app. */
+export const getGooglePlayAppPath = (packageName: string) =>
+    `/v1beta1/apps/${packageName}/`;
+
+/** One metric set of an app; a GET returns how fresh its data is. */
+export const getGooglePlayMetricSetPath = (
+    packageName: string,
+    metricSet: string,
+) => `${getGooglePlayAppPath(packageName)}${metricSet}`;
 
 export const META_ADS_ORIGIN = 'https://graph.facebook.com';
 export const META_ADS_API_VERSION = 'v25.0';

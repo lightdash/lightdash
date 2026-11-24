@@ -11,6 +11,7 @@ import { HYDRA_SETTINGS_SCHEMA } from './hydraLiveSource';
 /** How an admin connects a source, which decides the dialog it opens. */
 export type LiveSourceSetupKind =
     | 'google'
+    | 'google_play'
     | 'posthog'
     | 'token'
     | 'linkedin_ads'
@@ -136,6 +137,20 @@ export const LIVE_INTEGRATION_CATALOG: {
             channelId: z.string(),
         }),
         getTarget: ({ channelId }) => `Channel ${channelId}`,
+    },
+    [ApiConnectorType.GOOGLE_PLAY]: {
+        id: 'google_play',
+        label: 'Google Play',
+        defaultName: 'Google Play',
+        messageLabel: 'Google Play',
+        agentLabel: 'Google Play',
+        description: 'Android vitals: crash, ANR and slow start rates',
+        setup: 'google_play',
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.GOOGLE_PLAY),
+            packageName: z.string(),
+        }),
+        getTarget: ({ packageName }) => packageName,
     },
     [ApiConnectorType.LINKEDIN_ADS]: {
         id: 'linkedin_ads',

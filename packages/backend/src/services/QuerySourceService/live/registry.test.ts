@@ -38,6 +38,10 @@ const SAMPLE_SETTINGS: {
         connector: ApiConnectorType.YOUTUBE_ANALYTICS,
         channelId: 'UCaaaaaaaaaaaaaaaaaaaaaa',
     },
+    [ApiConnectorType.GOOGLE_PLAY]: {
+        connector: ApiConnectorType.GOOGLE_PLAY,
+        packageName: 'com.example.app',
+    },
     [ApiConnectorType.LINKEDIN_ADS]: {
         connector: ApiConnectorType.LINKEDIN_ADS,
         adAccountId: '507404993',

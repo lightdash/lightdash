@@ -77,6 +77,10 @@ describe('live integration specs', () => {
               "rating": "hard",
               "score": 1,
             },
+            "google_play": {
+              "rating": "medium",
+              "score": 4,
+            },
             "hubspot": {
               "rating": "easy",
               "score": 6,

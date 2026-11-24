@@ -132,6 +132,29 @@ exports[`connector capability declarations > the summable tags 1`] = `
       "aggregation": "additive",
     },
   },
+  "google_play": {
+    "crash_rate": {
+      "aggregation": "non_additive",
+    },
+    "crash_rate_28d": {
+      "aggregation": "non_additive",
+    },
+    "crash_rate_7d": {
+      "aggregation": "non_additive",
+    },
+    "distinct_users": {
+      "aggregation": "non_additive",
+    },
+    "user_perceived_crash_rate": {
+      "aggregation": "non_additive",
+    },
+    "user_perceived_crash_rate_28d": {
+      "aggregation": "non_additive",
+    },
+    "user_perceived_crash_rate_7d": {
+      "aggregation": "non_additive",
+    },
+  },
   "hubspot": {
     "count": {
       "aggregation": "additive",
