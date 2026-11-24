@@ -23,6 +23,7 @@ import { Link, useNavigate } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useLiveSourceActions } from '../externalConnections/liveSources/liveSourceActions';
 import { LiveSourceBetaBadge } from '../externalConnections/liveSources/LiveSourceBetaBadge';
+import { LiveSourceRefreshAction } from '../externalConnections/liveSources/LiveSourceRefreshAction';
 import { LiveSourceSettings } from '../externalConnections/liveSources/LiveSourceSettings';
 import {
     LiveSourceSummary,
@@ -543,6 +544,14 @@ export const MainPane: FC<{
                             {isLiveSourcesPage ? <LiveSourceBetaBadge /> : null}
                         </Group>
                         <Group gap={4} wrap="nowrap" flex="none">
+                            {liveConnection ? (
+                                <LiveSourceRefreshAction
+                                    projectUuid={view.project.id}
+                                    connectionUuid={
+                                        liveConnection.externalConnectionUuid
+                                    }
+                                />
+                            ) : null}
                             {externalSource ? (
                                 <ExternalSourceHeaderActions
                                     projectUuid={view.project.id}

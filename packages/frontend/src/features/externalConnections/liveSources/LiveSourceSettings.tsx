@@ -32,10 +32,7 @@ import {
     usePurgeLiveSourceCache,
     useUpdateLiveSourceCache,
 } from '../hooks/useLiveSourceCache';
-import {
-    useLiveSourceFields,
-    useRefreshLiveSourceFields,
-} from '../hooks/useLiveSourceFields';
+import { useLiveSourceFields } from '../hooks/useLiveSourceFields';
 import { useTestConnection } from '../hooks/useTestConnection';
 import {
     LIVE_SOURCE_UPDATE_MESSAGES,
@@ -126,7 +123,6 @@ export const LiveSourceSettings: FC<{
         ...(tokenLabel ? (['token'] as const) : []),
     ];
     const { data: fields } = useLiveSourceFields(params);
-    const refreshFields = useRefreshLiveSourceFields(params);
     const purge = usePurgeLiveSourceCache(params);
     const updateCache = useUpdateLiveSourceCache(params);
     const updateSource = useUpdateExternalConnection(
@@ -433,15 +429,9 @@ export const LiveSourceSettings: FC<{
                 </SettingsCard>
 
                 <SettingsCard title="Data">
+                    {/* Refreshing is the page header's main action */}
                     <SettingsRow label="Fields" hint={fieldsHint}>
-                        <Button
-                            size="xs"
-                            variant="default"
-                            loading={refreshFields.isLoading}
-                            onClick={() => refreshFields.mutate()}
-                        >
-                            Refresh
-                        </Button>
+                        {null}
                     </SettingsRow>
                     <SettingsRow
                         label="Caching"
