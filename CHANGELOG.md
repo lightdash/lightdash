@@ -1,3 +1,10 @@
+## [3.385.4](https://github.com/lightdash/lightdash/compare/3.385.3...3.385.4) (2026-11-24)
+
+
+### Performance Improvements
+
+* **semantic-studio:** reuse dbt partial parsing in Studio branch compiles ([#33327](https://github.com/lightdash/lightdash/issues/33327)) ([feca1a3](https://github.com/lightdash/lightdash/commit/feca1a3d102d79f18ad06ca4749e6c0cece59e7b))
+
 ## [3.385.3](https://github.com/lightdash/lightdash/compare/3.385.2...3.385.3) (2026-11-24)
 
 
