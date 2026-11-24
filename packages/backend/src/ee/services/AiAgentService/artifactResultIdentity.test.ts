@@ -194,6 +194,7 @@ const setup = ({ personReadAccess = false } = {}) => {
             userModel,
             warehouseClientFactory: factory,
             aiAccessService: access,
+            featureFlagModel: { get: async () => ({ enabled: false }) },
             resultsStorageClient: { isEnabled: true, getDownloadStream },
             analytics: { trackAccount: vi.fn() },
             getUserAttributes: vi.fn(async () => controls),

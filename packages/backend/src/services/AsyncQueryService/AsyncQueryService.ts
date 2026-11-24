@@ -1485,9 +1485,8 @@ export class AsyncQueryService extends ProjectService {
         account: Account,
         projectUuid: string,
     ): Promise<string[]> {
-        const tags = await this.projectModel.getAiExcludedTags(projectUuid);
-        if (tags.length === 0) return [];
-        return (await this.isAiExcludedTagsEnabled(account)) ? tags : [];
+        if (!(await this.isAiExcludedTagsEnabled(account))) return [];
+        return this.projectModel.getAiExcludedTags(projectUuid);
     }
 
     private async projectHasExcludedData(

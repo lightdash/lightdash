@@ -985,11 +985,10 @@ export class AiAgentToolsService extends BaseService {
         projectUuid: string,
         agentExcludedTags: string[] | null,
     ): Promise<string[]> {
+        if (!(await this.isAiExcludedTagsEnabled(user))) return [];
         const projectTags =
             await this.projectModel.getAiExcludedTags(projectUuid);
-        const tags = mergeExcludedTags(projectTags, agentExcludedTags);
-        if (tags.length === 0) return [];
-        return (await this.isAiExcludedTagsEnabled(user)) ? tags : [];
+        return mergeExcludedTags(projectTags, agentExcludedTags);
     }
 
     private getContextExcludedTags(context: AiAgentToolsRuntimeContext) {
@@ -5879,7 +5878,9 @@ export class AiAgentToolsService extends BaseService {
             { projectUuid: context.projectUuid, queryCount: queries.length },
             async () => {
                 await this.assertComposerApiNodesInScope(context, queries);
+                // Project tags are enforced where the SQL node runs; only the agent's own tags are checked here.
                 if (
+                    context.excludedTags?.length &&
                     queries.some(
                         (query) => query.sourceType === QuerySourceType.SQL,
                     )

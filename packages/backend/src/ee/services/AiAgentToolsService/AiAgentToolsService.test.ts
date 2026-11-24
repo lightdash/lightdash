@@ -3125,6 +3125,39 @@ describe('AiAgentToolsService', () => {
             expect(executeAsyncSqlQuery).not.toHaveBeenCalled();
         });
 
+        it('refuses a composer SQL node when the agent excludes tags that match data', async () => {
+            const executeSourceQueries = vi.fn();
+            const service = makeService({
+                explores: makeExplores(),
+                featureFlagService: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: featureFlagId === FeatureFlags.AiExcludedTags,
+                    })),
+                },
+                querySourceService: { executeSourceQueries },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ excludedTags: ['pii'] }),
+            );
+
+            await expect(
+                runtime.runComposerQueries({
+                    queries: [
+                        {
+                            sourceType: QuerySourceType.SQL,
+                            nodeId: 'raw',
+                            sql: 'select email from customers',
+                        },
+                    ] as SourceQuery[],
+                    terminalNodeId: 'raw',
+                    otherUnreadNodeIds: [],
+                    sampleNodeIds: [],
+                }),
+            ).rejects.toMatchObject(refusal);
+            expect(executeSourceQueries).not.toHaveBeenCalled();
+        });
+
         it('lets deny win over allow for a field with both tags', async () => {
             const { service } = setup({ enabled: true, projectTags: [] });
 
