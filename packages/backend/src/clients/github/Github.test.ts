@@ -2,7 +2,6 @@ import { NotFoundError, UnexpectedGitError } from '@lightdash/common';
 import { Octokit } from '@octokit/rest';
 import {
     createFile,
-    getCachedInstallationToken,
     getFileContent,
     getFilesChangedSince,
     getLastCommit,
@@ -13,9 +12,6 @@ import {
     searchRepoCode,
 } from './Github';
 
-vi.hoisted(() => {
-    process.env.GITHUB_APP_ID = '1';
-});
 vi.mock('@octokit/rest');
 
 const mockGetTree = vi.fn();
@@ -25,7 +21,6 @@ const mockCreateOrUpdateFileContents = vi.fn();
 const mockGetContent = vi.fn();
 const mockMerge = vi.fn();
 const mockCompare = vi.fn();
-const mockCreateInstallationAccessToken = vi.fn();
 (Octokit as unknown as import('vitest').Mock).mockImplementation(
     // eslint-disable-next-line prefer-arrow-callback
     function MockOctokit() {
@@ -40,10 +35,6 @@ const mockCreateInstallationAccessToken = vi.fn();
                 },
                 search: { code: mockSearchCode },
                 pulls: { merge: mockMerge },
-                apps: {
-                    createInstallationAccessToken:
-                        mockCreateInstallationAccessToken,
-                },
             },
             hook: { after: vi.fn(), error: vi.fn() },
         };
@@ -409,71 +400,5 @@ describe('getFilesChangedSince', () => {
                 ),
             );
         await expect(changed()).resolves.toBeNull();
-    });
-});
-
-describe('getCachedInstallationToken', () => {
-    const tokenExpiringIn = (token: string, ms: number) => ({
-        data: { token, expires_at: new Date(Date.now() + ms).toISOString() },
-    });
-
-    beforeEach(() => mockCreateInstallationAccessToken.mockReset());
-
-    it('reuses a token until 5 minutes before it expires', async () => {
-        mockCreateInstallationAccessToken
-            .mockResolvedValueOnce(tokenExpiringIn('long', 60 * 60 * 1000))
-            .mockResolvedValueOnce(tokenExpiringIn('short', 4 * 60 * 1000))
-            .mockResolvedValueOnce(tokenExpiringIn('next', 60 * 60 * 1000));
-
-        await expect(getCachedInstallationToken('11')).resolves.toBe('long');
-        await expect(getCachedInstallationToken('11')).resolves.toBe('long');
-        await expect(getCachedInstallationToken('12')).resolves.toBe('short');
-        await expect(getCachedInstallationToken('12')).resolves.toBe('next');
-        expect(mockCreateInstallationAccessToken).toHaveBeenCalledTimes(3);
-    });
-
-    it('shares one fetch between concurrent callers', async () => {
-        mockCreateInstallationAccessToken
-            .mockResolvedValueOnce(tokenExpiringIn('short', 4 * 60 * 1000))
-            .mockResolvedValueOnce(tokenExpiringIn('next', 60 * 60 * 1000));
-        await getCachedInstallationToken('14');
-
-        await expect(
-            Promise.all([
-                getCachedInstallationToken('14'),
-                getCachedInstallationToken('14'),
-            ]),
-        ).resolves.toEqual(['next', 'next']);
-        expect(mockCreateInstallationAccessToken).toHaveBeenCalledTimes(2);
-    });
-
-    it('fails every caller sharing a failed fetch, once', async () => {
-        mockCreateInstallationAccessToken.mockRejectedValueOnce(
-            octokitError(500, {}, 'Server Error'),
-        );
-
-        const results = await Promise.allSettled([
-            getCachedInstallationToken('15'),
-            getCachedInstallationToken('15'),
-            getCachedInstallationToken('15'),
-        ]);
-
-        expect(results.map((r) => r.status)).toEqual([
-            'rejected',
-            'rejected',
-            'rejected',
-        ]);
-        expect(mockCreateInstallationAccessToken).toHaveBeenCalledOnce();
-    });
-
-    it('fetches again after a failed fetch', async () => {
-        mockCreateInstallationAccessToken
-            .mockRejectedValueOnce(octokitError(404, {}, 'Not Found'))
-            .mockResolvedValueOnce(tokenExpiringIn('ok', 60 * 60 * 1000));
-
-        await expect(getCachedInstallationToken('13')).rejects.toThrow(
-            UnexpectedGitError,
-        );
-        await expect(getCachedInstallationToken('13')).resolves.toBe('ok');
     });
 });

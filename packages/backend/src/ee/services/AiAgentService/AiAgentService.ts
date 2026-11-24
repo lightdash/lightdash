@@ -321,7 +321,6 @@ import {
 } from '../../../auth/account';
 import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import {
-    getCachedInstallationToken,
     getInstallationToken,
     getPullRequest,
     searchRepoCode,
@@ -8065,7 +8064,7 @@ export class AiAgentService extends BaseService {
                 ? {
                       ...server,
                       bearerTokenProvider: () =>
-                          getCachedInstallationToken(installationId),
+                          getInstallationToken(installationId),
                   }
                 : server,
         );

@@ -987,42 +987,6 @@ export const getInstallationToken = async (
     installationId: string,
 ): Promise<string> => (await getInstallationAccessToken(installationId)).token;
 
-// Installation tokens last about an hour
-const INSTALLATION_TOKEN_REUSE_MARGIN_MS = 5 * 60 * 1000;
-const installationTokens = new Map<
-    string,
-    Promise<{ token: string; expiresAt: string }>
->();
-
-export const getCachedInstallationToken = async (
-    installationId: string,
-): Promise<string> => {
-    const pending = installationTokens.get(installationId);
-    if (pending) {
-        // Failed fetches leave the map, so a rejection here is a shared in-flight fetch
-        const cached = await pending;
-        if (
-            Date.parse(cached.expiresAt) - Date.now() >
-            INSTALLATION_TOKEN_REUSE_MARGIN_MS
-        ) {
-            return cached.token;
-        }
-        if (installationTokens.get(installationId) !== pending) {
-            return getCachedInstallationToken(installationId);
-        }
-    }
-    const minting = getInstallationAccessToken(installationId);
-    installationTokens.set(installationId, minting);
-    try {
-        return (await minting).token;
-    } catch (error) {
-        if (installationTokens.get(installationId) === minting) {
-            installationTokens.delete(installationId);
-        }
-        throw error;
-    }
-};
-
 export const updateFile = async ({
     owner,
     repo,
