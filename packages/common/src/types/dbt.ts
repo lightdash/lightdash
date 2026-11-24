@@ -17,6 +17,8 @@ import {
     FieldType,
     friendlyName,
     getMinMaxBaseDimensionMetadata,
+    parseAiAccess,
+    type AiAccess,
     type CompactOrAlias,
     type Dimension,
     type DimensionType,
@@ -232,6 +234,7 @@ export type DbtModelLightdashConfig = ExploreConfig &
          */
         hidden?: boolean;
         ai_hint?: string | string[];
+        ai_access?: string;
         parameters?: LightdashProjectConfig['parameters'];
         primary_key?: string | string[];
         owner?: string; // model owner email
@@ -265,6 +268,7 @@ export const RESERVED_MODEL_META_KEYS = [
     'explores',
     'hidden',
     'ai_hint',
+    'ai_access',
     'parameters',
     'primary_key',
     'owner',
@@ -293,6 +297,7 @@ export type DbtModelJoin = {
 };
 export type DbtColumnMetadata = DbtColumnLightdashConfig & {};
 type DbtColumnLightdashConfig = {
+    ai_access?: string;
     dimension?: DbtColumnLightdashDimension;
     additional_dimensions?: {
         [subDimensionName: string]: DbtColumnLightdashAdditionalDimension;
@@ -339,6 +344,7 @@ export type DbtColumnLightdashDimension = {
     required_attributes?: Record<string, string | string[]>;
     any_attributes?: Record<string, string | string[]>;
     ai_hint?: string | string[];
+    ai_access?: string;
     case_sensitive?: boolean; // When false, string filters on this dimension will be case insensitive. Default is true
     filter_autocomplete?: DbtFilterAutocompleteConfig;
     image?: {
@@ -397,6 +403,7 @@ export type DbtColumnLightdashMetric = {
     };
     drivers?: string[]; // metrics that drive this metric (same-table: 'name', cross-table: 'table.name')
     ai_hint?: string | string[];
+    ai_access?: string;
     richText?: string;
 } & DbtLightdashFieldTags;
 
@@ -723,6 +730,7 @@ type ConvertModelMetricArgs = {
     defaultShowUnderlyingValues?: string[];
     baseDimensionType?: DimensionType;
     baseDimensionTimeInterval?: TimeFrames;
+    aiAccess?: AiAccess;
 };
 export const convertModelMetric = ({
     modelName,
@@ -739,6 +747,7 @@ export const convertModelMetric = ({
     defaultShowUnderlyingValues,
     baseDimensionType,
     baseDimensionTimeInterval,
+    aiAccess,
 }: ConvertModelMetricArgs): Metric => {
     const groups = convertToGroups(metric.groups, metric.group_label);
     const spotlightVisibility =
@@ -832,6 +841,9 @@ export const convertModelMetric = ({
         }),
         ...(metric.drivers ? { drivers: metric.drivers } : {}),
         ...(metric.ai_hint ? { aiHint: convertToAiHints(metric.ai_hint) } : {}),
+        ...((parseAiAccess(metric.ai_access) ?? aiAccess)
+            ? { aiAccess: parseAiAccess(metric.ai_access) ?? aiAccess }
+            : {}),
         ...(metric.richText ? { richText: metric.richText } : {}),
     };
 };
@@ -869,6 +881,7 @@ export const convertColumnMetric = ({
     modelCategories = [],
     modelOwner,
     defaultShowUnderlyingValues,
+    aiAccess,
 }: ConvertColumnMetricArgs): Metric => {
     // The column's type is only a reliable base when the metric actually
     // aggregates it: no `sql`, or a `sql` equal to dimensionSql. A `sql` pointing
@@ -911,6 +924,7 @@ export const convertColumnMetric = ({
         modelCategories,
         modelOwner,
         defaultShowUnderlyingValues,
+        aiAccess,
     });
 };
 

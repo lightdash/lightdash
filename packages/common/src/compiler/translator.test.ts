@@ -5918,3 +5918,125 @@ describe('model-level additional dimensions', () => {
         expect(result[0].tables?.orders.dimensions.order_label).toBeDefined();
     });
 });
+
+describe('ai_access', () => {
+    const MODEL_WITH_AI_ACCESS: DbtModelNode & { relation_name: string } = {
+        unique_id: 'model.test.customers',
+        resource_type: 'model',
+        name: 'customers',
+        database: 'testDatabase',
+        schema: 'testSchema',
+        alias: 'customers',
+        description: 'Customers',
+        relation_name: 'testDatabase.testSchema.customers',
+        columns: {
+            customer_id: {
+                name: 'customer_id',
+                data_type: DimensionType.STRING,
+                meta: {},
+            },
+            email: {
+                name: 'email',
+                data_type: DimensionType.STRING,
+                meta: {
+                    ai_access: 'never',
+                    additional_dimensions: {
+                        email_domain: {
+                            type: DimensionType.STRING,
+                            sql: "split_part(${TABLE}.email, '@', 2)",
+                        },
+                    },
+                    metrics: {
+                        email_count: { type: MetricType.COUNT_DISTINCT },
+                    },
+                },
+            },
+            phone: {
+                name: 'phone',
+                data_type: DimensionType.STRING,
+                meta: { dimension: { ai_access: 'never' } },
+            },
+            amount: {
+                name: 'amount',
+                data_type: DimensionType.NUMBER,
+                meta: {
+                    metrics: {
+                        total_amount: { type: MetricType.SUM },
+                        max_amount: {
+                            type: MetricType.MAX,
+                            ai_access: 'never',
+                        },
+                    },
+                },
+            },
+        },
+        meta: {},
+        config: { materialized: 'table' },
+        tags: [],
+        path: 'models/customers.sql',
+        patch_path: 'test://models/customers.yml',
+        depends_on: { nodes: [], macros: [] },
+        refs: [],
+        sources: [],
+        compiled: true,
+        compiled_code: 'SELECT * FROM customers',
+        fqn: ['test', 'customers'],
+        raw_code: 'SELECT * FROM customers',
+        language: 'sql',
+        package_name: 'test',
+        original_file_path: 'models/customers.sql',
+        checksum: { name: 'sha256', checksum: '' },
+    };
+
+    const compile = async (models: DbtModelNode[]) => {
+        const [explore] = await convertExplores(
+            models,
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        );
+        if (isExploreError(explore)) throw new Error('explore has errors');
+        return explore;
+    };
+
+    it('marks columns, additional dimensions and metrics', async () => {
+        const table = (await compile([MODEL_WITH_AI_ACCESS])).tables.customers;
+
+        expect(table.aiAccess).toBeUndefined();
+        expect(table.dimensions.customer_id.aiAccess).toBeUndefined();
+        expect(table.dimensions.email.aiAccess).toBe('never');
+        expect(table.dimensions.email_domain.aiAccess).toBe('never');
+        expect(table.metrics.email_count.aiAccess).toBe('never');
+        expect(table.dimensions.phone.aiAccess).toBe('never');
+        expect(table.dimensions.amount.aiAccess).toBeUndefined();
+        expect(table.metrics.total_amount.aiAccess).toBeUndefined();
+        expect(table.metrics.max_amount.aiAccess).toBe('never');
+    });
+
+    it('marks the model from meta or from folder-level config', async () => {
+        const fromMeta = await compile([
+            { ...MODEL_WITH_AI_ACCESS, meta: { ai_access: 'never' } },
+        ]);
+        const fromConfig = await compile([
+            {
+                ...MODEL_WITH_AI_ACCESS,
+                config: {
+                    materialized: 'table',
+                    meta: { ai_access: 'never' },
+                },
+            },
+        ]);
+
+        expect(fromMeta.tables.customers.aiAccess).toBe('never');
+        expect(fromConfig.tables.customers.aiAccess).toBe('never');
+    });
+
+    it('ignores values other than never', async () => {
+        const explore = await compile([
+            { ...MODEL_WITH_AI_ACCESS, meta: { ai_access: 'always' } },
+        ]);
+
+        expect(explore.tables.customers.aiAccess).toBeUndefined();
+    });
+});

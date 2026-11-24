@@ -658,7 +658,18 @@ export interface Field {
     index?: number;
     tags?: string[];
     parameterReferences?: string[];
+    /** `never` keeps this field away from AI. */
+    aiAccess?: AiAccess;
 }
+
+export type AiAccess = 'never';
+
+export const AI_ACCESS_NEVER: AiAccess = 'never';
+
+export const parseAiAccess = (value: unknown): AiAccess | undefined =>
+    typeof value === 'string' && value.trim().toLowerCase() === AI_ACCESS_NEVER
+        ? AI_ACCESS_NEVER
+        : undefined;
 
 export const isField = (field: AnyType): field is Field =>
     field ? !!field.fieldType : false;
