@@ -128,13 +128,15 @@ test('the edit shortcut searches only fields the agent may see', async () => {
         user,
         projectUuid: 'project',
         prompt: 'by email',
-        availableTags: ['ai'],
+        tagScope: { tags: ['ai'], excludedTags: ['pii'] },
     });
 
     expect(getAvailableExplores).toHaveBeenCalledWith({
         user,
         projectUuid: 'project',
         availableTags: ['ai'],
+        excludedTags: ['pii'],
+        exploreNames: undefined,
     });
     expect(searchCatalog).toHaveBeenCalledWith(
         expect.objectContaining({ filteredExplores: visibleExplores }),

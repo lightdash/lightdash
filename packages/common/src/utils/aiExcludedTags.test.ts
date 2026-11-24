@@ -10,12 +10,15 @@ import {
 import { FilterOperator } from '../types/filter';
 import { type MetricQuery } from '../types/metricQuery';
 import {
-    exploreHasAiAccessRules,
-    filterExploreForAi,
-    getAiAccessRules,
-    getProjectAiAccessRules,
-    metricQueryUsesAiHiddenData,
-} from './aiAccess';
+    exploreHasExcludedTags,
+    filterExploreByExcludedTags,
+    getExcludedTagRules,
+    getProjectExcludedTagRules,
+    mergeExcludedTags,
+    metricQueryUsesExcludedData,
+} from './aiExcludedTags';
+
+const EXCLUDED = ['pii'];
 
 const dimension = (
     table: string,
@@ -54,11 +57,11 @@ const metric = (
 });
 
 const buildExplore = ({
-    customersAiAccess,
-    ordersAiAccess,
+    customersTags,
+    ordersTags,
 }: {
-    customersAiAccess?: 'never';
-    ordersAiAccess?: 'never';
+    customersTags?: string[];
+    ordersTags?: string[];
 } = {}): Explore =>
     ({
         name: 'customers',
@@ -80,11 +83,11 @@ const buildExplore = ({
                 database: 'db',
                 schema: 'public',
                 sqlTable: 'customers',
-                aiAccess: customersAiAccess,
+                tags: customersTags,
                 dimensions: {
                     customer_id: dimension('customers', 'customer_id'),
                     email: dimension('customers', 'email', {
-                        aiAccess: 'never',
+                        tags: ['pii', 'contact'],
                     }),
                     email_upper: dimension('customers', 'email_upper', {
                         sql: 'UPPER(${email})',
@@ -109,7 +112,7 @@ const buildExplore = ({
                 database: 'db',
                 schema: 'public',
                 sqlTable: 'orders',
-                aiAccess: ordersAiAccess,
+                tags: ordersTags,
                 dimensions: {
                     order_id: dimension('orders', 'order_id'),
                 },
@@ -132,9 +135,12 @@ const query = (overrides: Partial<MetricQuery> = {}): MetricQuery => ({
     ...overrides,
 });
 
-describe('getAiAccessRules', () => {
+describe('getExcludedTagRules', () => {
     it('hides marked fields and fields built from them', () => {
-        const { hiddenFieldIds } = getAiAccessRules(buildExplore());
+        const { hiddenFieldIds } = getExcludedTagRules(
+            buildExplore(),
+            EXCLUDED,
+        );
 
         expect([...hiddenFieldIds].sort()).toEqual([
             'customers_email',
@@ -145,13 +151,16 @@ describe('getAiAccessRules', () => {
     });
 
     it('hides every field of a marked model and fields referencing it', () => {
-        const explore = buildExplore({ ordersAiAccess: 'never' });
+        const explore = buildExplore({ ordersTags: ['pii'] });
         explore.tables.customers.metrics.order_total = metric(
             'customers',
             'order_total',
             { sql: 'SUM(${orders.total})', tablesReferences: ['orders'] },
         );
-        const { hiddenFieldIds, hiddenTables } = getAiAccessRules(explore);
+        const { hiddenFieldIds, hiddenTables } = getExcludedTagRules(
+            explore,
+            EXCLUDED,
+        );
 
         expect([...hiddenTables]).toEqual(['orders']);
         expect(hiddenFieldIds.has('orders_order_id')).toBe(true);
@@ -161,18 +170,17 @@ describe('getAiAccessRules', () => {
     });
 });
 
-describe('filterExploreForAi', () => {
+describe('filterExploreByExcludedTags', () => {
     it('returns the explore unchanged when nothing is marked', () => {
         const explore = buildExplore();
-        explore.tables.customers.dimensions.email.aiAccess = undefined;
-        explore.tables.customers.dimensions.email_upper.sql = '${name}';
 
-        expect(exploreHasAiAccessRules(explore)).toBe(false);
-        expect(filterExploreForAi(explore)).toBe(explore);
+        expect(exploreHasExcludedTags(explore, [])).toBe(false);
+        expect(exploreHasExcludedTags(explore, ['finance'])).toBe(false);
+        expect(filterExploreByExcludedTags(explore, ['finance'])).toBe(explore);
     });
 
     it('removes hidden fields and keeps the rest', () => {
-        const filtered = filterExploreForAi(buildExplore());
+        const filtered = filterExploreByExcludedTags(buildExplore(), EXCLUDED);
 
         expect(Object.keys(filtered!.tables.customers.dimensions)).toEqual([
             'customer_id',
@@ -185,8 +193,9 @@ describe('filterExploreForAi', () => {
     });
 
     it('removes a hidden joined model', () => {
-        const filtered = filterExploreForAi(
-            buildExplore({ ordersAiAccess: 'never' }),
+        const filtered = filterExploreByExcludedTags(
+            buildExplore({ ordersTags: ['pii'] }),
+            EXCLUDED,
         );
 
         expect(filtered!.tables.orders).toBeUndefined();
@@ -199,23 +208,37 @@ describe('filterExploreForAi', () => {
             unfilteredTables: buildExplore().tables,
         };
 
-        expect(filterExploreForAi(explore)).not.toHaveProperty(
-            'unfilteredTables',
-        );
+        expect(
+            filterExploreByExcludedTags(explore, EXCLUDED),
+        ).not.toHaveProperty('unfilteredTables');
     });
 
     it('hides the whole explore when its base model is hidden', () => {
         expect(
-            filterExploreForAi(buildExplore({ customersAiAccess: 'never' })),
+            filterExploreByExcludedTags(
+                buildExplore({ customersTags: ['pii'] }),
+                EXCLUDED,
+            ),
+        ).toBeUndefined();
+    });
+
+    it('hides the whole explore when the explore itself has an excluded tag', () => {
+        expect(
+            filterExploreByExcludedTags(
+                { ...buildExplore(), tags: ['pii'] },
+                EXCLUDED,
+            ),
         ).toBeUndefined();
     });
 });
 
-describe('metricQueryUsesAiHiddenData', () => {
+describe('metricQueryUsesExcludedData', () => {
     const explore = buildExplore();
 
     it('allows a query on visible fields', () => {
-        expect(metricQueryUsesAiHiddenData(explore, query())).toBe(false);
+        expect(metricQueryUsesExcludedData(explore, query(), EXCLUDED)).toBe(
+            false,
+        );
     });
 
     it.each<[string, Partial<MetricQuery>]>([
@@ -302,14 +325,14 @@ describe('metricQueryUsesAiHiddenData', () => {
             },
         ],
     ])('refuses a query that %s', (_, overrides) => {
-        expect(metricQueryUsesAiHiddenData(explore, query(overrides))).toBe(
-            true,
-        );
+        expect(
+            metricQueryUsesExcludedData(explore, query(overrides), EXCLUDED),
+        ).toBe(true);
     });
 
     it('allows a custom metric on a visible dimension', () => {
         expect(
-            metricQueryUsesAiHiddenData(
+            metricQueryUsesExcludedData(
                 explore,
                 query({
                     additionalMetrics: [
@@ -322,26 +345,25 @@ describe('metricQueryUsesAiHiddenData', () => {
                         },
                     ],
                 }),
+                EXCLUDED,
             ),
         ).toBe(false);
     });
 
     it('refuses any query on an explore whose base model is hidden', () => {
         expect(
-            metricQueryUsesAiHiddenData(
-                buildExplore({ customersAiAccess: 'never' }),
+            metricQueryUsesExcludedData(
+                buildExplore({ customersTags: ['pii'] }),
                 query(),
+                EXCLUDED,
             ),
         ).toBe(true);
     });
 
-    it('allows custom SQL dimensions on an explore with no rules', () => {
-        const unmarked = buildExplore();
-        unmarked.tables.customers.dimensions.email.aiAccess = undefined;
-
+    it('allows custom SQL dimensions on an explore with no excluded data', () => {
         expect(
-            metricQueryUsesAiHiddenData(
-                unmarked,
+            metricQueryUsesExcludedData(
+                buildExplore(),
                 query({
                     customDimensions: [
                         {
@@ -354,19 +376,45 @@ describe('metricQueryUsesAiHiddenData', () => {
                         },
                     ],
                 }),
+                ['finance'],
             ),
         ).toBe(false);
     });
 });
 
-describe('getProjectAiAccessRules', () => {
+describe('getProjectExcludedTagRules', () => {
     it('combines the rules of every explore', () => {
-        const rules = getProjectAiAccessRules([
-            buildExplore({ ordersAiAccess: 'never' }),
-        ]);
+        const rules = getProjectExcludedTagRules(
+            [buildExplore({ ordersTags: ['pii'] })],
+            EXCLUDED,
+        );
 
         expect(rules.hiddenTables.has('orders')).toBe(true);
         expect(rules.hiddenFieldIds.has('customers_email')).toBe(true);
         expect(rules.hiddenFieldIds.has('customers_name')).toBe(false);
+    });
+});
+
+describe('mergeExcludedTags', () => {
+    it('joins lists, trims and drops blanks and duplicates', () => {
+        expect(mergeExcludedTags(['pii', ' pii '], null, ['', 'hr'])).toEqual([
+            'pii',
+            'hr',
+        ]);
+    });
+});
+
+describe('deny tags on fields', () => {
+    it('ignores tags that are not excluded', () => {
+        const explore = buildExplore();
+
+        expect(
+            getExcludedTagRules(explore, ['contact']).hiddenFieldIds.has(
+                'customers_email',
+            ),
+        ).toBe(true);
+        expect(
+            getExcludedTagRules(explore, ['finance']).hiddenFieldIds.size,
+        ).toBe(0);
     });
 });

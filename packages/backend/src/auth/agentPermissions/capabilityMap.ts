@@ -1668,6 +1668,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'ProjectController.createTag': [AgentCapability.ContentWrite],
     'ProjectController.deleteTag': [AgentCapability.Delete],
     'ProjectController.getAgentSqlScope': [AgentCapability.ReadDiscover],
+    'ProjectController.getAiExcludedTags': [AgentCapability.ReadDiscover],
     'ProjectController.getChartSummariesInProject': [
         AgentCapability.ReadDiscover,
     ],
@@ -1732,6 +1733,7 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Administration,
     ],
     'ProjectController.updateAgentSqlScope': [AgentCapability.Administration],
+    'ProjectController.updateAiExcludedTags': [AgentCapability.Administration],
     'ProjectController.updateDashboards': [AgentCapability.ContentWrite],
     'ProjectController.updateDefaultUserSpaces': [
         AgentCapability.Administration,

@@ -101,11 +101,11 @@ export enum FeatureFlags {
     AiAccessSkipResultsCache = 'ai-access-skip-results-cache',
 
     /**
-     * Fields and models with `ai_access: never` are absent from every AI
-     * feature, and AI queries that use them are refused. Off by default;
-     * organization scope.
+     * Project "Tags never sent to AI" and agent "Excluded tags": tagged models
+     * and fields are absent from AI, and AI queries that use them are refused.
+     * Off by default; organization scope.
      */
-    AiAccessNever = 'ai-access-never',
+    AiExcludedTags = 'ai-excluded-tags',
 
     /**
      * Per-user / per-organization gate for the data app state store

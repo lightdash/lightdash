@@ -1603,3 +1603,8 @@ export type AgentSqlScope = {
 export type UpdateAgentSqlScope = {
     agentSqlScope: AgentSqlScope | null;
 };
+
+/** Models and fields with one of these tags are never sent to AI. */
+export type UpdateAiExcludedTags = {
+    aiExcludedTags: string[];
+};

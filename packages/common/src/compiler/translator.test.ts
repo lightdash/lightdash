@@ -5919,8 +5919,8 @@ describe('model-level additional dimensions', () => {
     });
 });
 
-describe('ai_access', () => {
-    const MODEL_WITH_AI_ACCESS: DbtModelNode & { relation_name: string } = {
+describe('tags for AI access', () => {
+    const MODEL: DbtModelNode & { relation_name: string } = {
         unique_id: 'model.test.customers',
         resource_type: 'model',
         name: 'customers',
@@ -5938,33 +5938,34 @@ describe('ai_access', () => {
             email: {
                 name: 'email',
                 data_type: DimensionType.STRING,
+                tags: ['pii'],
                 meta: {
-                    ai_access: 'never',
                     additional_dimensions: {
                         email_domain: {
                             type: DimensionType.STRING,
                             sql: "split_part(${TABLE}.email, '@', 2)",
                         },
                     },
-                    metrics: {
-                        email_count: { type: MetricType.COUNT_DISTINCT },
-                    },
                 },
             },
             phone: {
                 name: 'phone',
                 data_type: DimensionType.STRING,
-                meta: { dimension: { ai_access: 'never' } },
+                config: { tags: 'contact' },
+            },
+            last_name: {
+                name: 'last_name',
+                data_type: DimensionType.STRING,
+                config: { meta: { dimension: { tags: ['pii'] } } },
             },
             amount: {
                 name: 'amount',
                 data_type: DimensionType.NUMBER,
                 meta: {
                     metrics: {
-                        total_amount: { type: MetricType.SUM },
-                        max_amount: {
-                            type: MetricType.MAX,
-                            ai_access: 'never',
+                        total_amount: {
+                            type: MetricType.SUM,
+                            tags: ['finance'],
                         },
                     },
                 },
@@ -5972,7 +5973,7 @@ describe('ai_access', () => {
         },
         meta: {},
         config: { materialized: 'table' },
-        tags: [],
+        tags: ['crm'],
         path: 'models/customers.sql',
         patch_path: 'test://models/customers.yml',
         depends_on: { nodes: [], macros: [] },
@@ -5988,9 +5989,9 @@ describe('ai_access', () => {
         checksum: { name: 'sha256', checksum: '' },
     };
 
-    const compile = async (models: DbtModelNode[]) => {
+    const compile = async (node: DbtModelNode) => {
         const [explore] = await convertExplores(
-            models,
+            [node],
             false,
             SupportedDbtAdapter.POSTGRES,
             warehouseClientMock,
@@ -6000,43 +6001,30 @@ describe('ai_access', () => {
         return explore;
     };
 
-    it('marks columns, additional dimensions and metrics', async () => {
-        const table = (await compile([MODEL_WITH_AI_ACCESS])).tables.customers;
+    it('keeps the model tags on the table', async () => {
+        const explore = await compile(MODEL);
 
-        expect(table.aiAccess).toBeUndefined();
-        expect(table.dimensions.customer_id.aiAccess).toBeUndefined();
-        expect(table.dimensions.email.aiAccess).toBe('never');
-        expect(table.dimensions.email_domain.aiAccess).toBe('never');
-        expect(table.metrics.email_count.aiAccess).toBe('never');
-        expect(table.dimensions.phone.aiAccess).toBe('never');
-        expect(table.dimensions.amount.aiAccess).toBeUndefined();
-        expect(table.metrics.total_amount.aiAccess).toBeUndefined();
-        expect(table.metrics.max_amount.aiAccess).toBe('never');
+        expect(explore.tags).toEqual(['crm']);
+        expect(explore.tables.customers.tags).toEqual(['crm']);
     });
 
-    it('marks the model from meta or from folder-level config', async () => {
-        const fromMeta = await compile([
-            { ...MODEL_WITH_AI_ACCESS, meta: { ai_access: 'never' } },
-        ]);
-        const fromConfig = await compile([
-            {
-                ...MODEL_WITH_AI_ACCESS,
-                config: {
-                    materialized: 'table',
-                    meta: { ai_access: 'never' },
-                },
-            },
-        ]);
+    it('prefers config.tags, which carries folder-level +tags', async () => {
+        const explore = await compile({
+            ...MODEL,
+            config: { materialized: 'table', tags: ['restricted'] },
+        });
 
-        expect(fromMeta.tables.customers.aiAccess).toBe('never');
-        expect(fromConfig.tables.customers.aiAccess).toBe('never');
+        expect(explore.tables.customers.tags).toEqual(['restricted']);
     });
 
-    it('ignores values other than never', async () => {
-        const explore = await compile([
-            { ...MODEL_WITH_AI_ACCESS, meta: { ai_access: 'always' } },
-        ]);
+    it('reads field tags from column tags, column config and dimension meta', async () => {
+        const { dimensions, metrics } = (await compile(MODEL)).tables.customers;
 
-        expect(explore.tables.customers.aiAccess).toBeUndefined();
+        expect(dimensions.customer_id.tags).toBeUndefined();
+        expect(dimensions.email.tags).toEqual(['pii']);
+        expect(dimensions.email_domain.tags).toEqual(['pii']);
+        expect(dimensions.phone.tags).toEqual(['contact']);
+        expect(dimensions.last_name.tags).toEqual(['pii']);
+        expect(metrics.total_amount.tags).toEqual(['finance']);
     });
 });

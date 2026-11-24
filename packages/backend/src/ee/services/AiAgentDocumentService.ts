@@ -224,7 +224,7 @@ export class AiAgentDocumentService extends BaseService {
             return await this.aiAgentService.getAvailableExplores(
                 user,
                 agent.projectUuid,
-                agent.tags,
+                agent,
             );
         } catch (e) {
             this.logger.warn(

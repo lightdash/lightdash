@@ -101,6 +101,7 @@ import {
     type SharedSignInStatus,
     type Tag,
     type UpdateAgentSqlScope,
+    type UpdateAiExcludedTags,
     type UpdateMultipleDashboards,
     type UpdatePreviewExpirationProjectSettings,
     type UpdatePreviewExpiresAt,
@@ -1876,6 +1877,59 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                 throw e;
             }
         }
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Get the tags whose models and fields are never sent to AI
+     * @summary Get tags never sent to AI
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/aiExcludedTags')
+    @OperationId('getAiExcludedTags')
+    async getAiExcludedTags(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: string[] }> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .getAiExcludedTags(req.account, projectUuid),
+        };
+    }
+
+    /**
+     * Set the tags whose models and fields are never sent to AI
+     * @summary Update tags never sent to AI
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Patch('{projectUuid}/aiExcludedTags')
+    @OperationId('updateAiExcludedTags')
+    async updateAiExcludedTags(
+        @Path() projectUuid: UUID,
+        @Body() body: UpdateAiExcludedTags,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        await this.services
+            .getProjectService()
+            .updateAiExcludedTags(req.account, projectUuid, body);
 
         return {
             status: 'ok',

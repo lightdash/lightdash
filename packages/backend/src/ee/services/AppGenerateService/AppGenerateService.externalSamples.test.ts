@@ -334,10 +334,12 @@ describe('AppGenerateService pipeline external connection samples', () => {
             projectModel: {
                 getAllExploresFromCache: import('vitest').Mock;
                 getTablesConfiguration: import('vitest').Mock;
+                getAiExcludedTags: import('vitest').Mock;
             };
             projectParametersModel: { find: import('vitest').Mock };
         };
         privateService.projectModel = {
+            getAiExcludedTags: vi.fn().mockResolvedValue([]),
             getAllExploresFromCache: vi.fn().mockResolvedValue({}),
             getTablesConfiguration: vi.fn().mockResolvedValue({
                 tableSelection: { type: TableSelectionType.ALL, value: null },
@@ -379,10 +381,12 @@ describe('AppGenerateService pipeline external connection samples', () => {
             projectModel: {
                 getAllExploresFromCache: import('vitest').Mock;
                 getTablesConfiguration: import('vitest').Mock;
+                getAiExcludedTags: import('vitest').Mock;
             };
             projectParametersModel: { find: import('vitest').Mock };
         };
         privateService.projectModel = {
+            getAiExcludedTags: vi.fn().mockResolvedValue([]),
             getAllExploresFromCache: vi.fn().mockResolvedValue({}),
             getTablesConfiguration: vi.fn().mockResolvedValue({
                 tableSelection: { type: TableSelectionType.ALL, value: null },
@@ -453,12 +457,14 @@ describe('AppGenerateService pipeline external connection samples', () => {
             projectModel: {
                 getAllExploresFromCache: import('vitest').Mock;
                 getTablesConfiguration: import('vitest').Mock;
+                getAiExcludedTags: import('vitest').Mock;
             };
             projectParametersModel: { find: import('vitest').Mock };
         };
         privateService.projectModel = {
             getAllExploresFromCache,
             getTablesConfiguration: vi.fn(),
+            getAiExcludedTags: vi.fn().mockResolvedValue([]),
         };
         privateService.projectParametersModel = { find };
 
@@ -519,10 +525,12 @@ describe('AppGenerateService pipeline external connection samples', () => {
             projectModel: {
                 getAllExploresFromCache: import('vitest').Mock;
                 getTablesConfiguration: import('vitest').Mock;
+                getAiExcludedTags: import('vitest').Mock;
             };
             projectParametersModel: { find: import('vitest').Mock };
         };
         privateService.projectModel = {
+            getAiExcludedTags: vi.fn().mockResolvedValue([]),
             getAllExploresFromCache: vi.fn().mockResolvedValue({
                 'uuid-1': explore('orders', ['app']),
                 'uuid-2': explore('restricted', []),
@@ -677,7 +685,7 @@ describe('AppGenerateService external connection linking', () => {
     });
 });
 
-describe('AppGenerateService catalog with ai_access: never', () => {
+describe('AppGenerateService catalog with excluded tags', () => {
     const field = (table: string, name: string, extra = {}) => ({
         fieldType: 'dimension',
         type: 'string',
@@ -707,7 +715,7 @@ describe('AppGenerateService catalog with ai_access: never', () => {
                 sqlTable: 'customers',
                 dimensions: {
                     name: field('customers', 'name'),
-                    email: field('customers', 'email', { aiAccess: 'never' }),
+                    email: field('customers', 'email', { tags: ['pii'] }),
                 },
                 metrics: {},
                 lineageGraph: {},
@@ -726,7 +734,7 @@ describe('AppGenerateService catalog with ai_access: never', () => {
             featureFlagModel.get.mockImplementation(
                 async ({ featureFlagId }: { featureFlagId: string }) => ({
                     enabled:
-                        featureFlagId === FeatureFlags.AiAccessNever
+                        featureFlagId === FeatureFlags.AiExcludedTags
                             ? enabled
                             : true,
                 }),
@@ -753,6 +761,7 @@ describe('AppGenerateService catalog with ai_access: never', () => {
                 getSummary: vi
                     .fn()
                     .mockResolvedValue({ organizationUuid: 'org-1' }),
+                getAiExcludedTags: vi.fn().mockResolvedValue(['pii']),
             };
             privateService.projectParametersModel = {
                 find: vi.fn().mockResolvedValue([]),

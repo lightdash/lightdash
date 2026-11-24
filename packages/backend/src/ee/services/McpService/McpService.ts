@@ -648,6 +648,7 @@ export type ExtraContext = {
 
 type McpEffectiveScope = {
     tags: string[] | null;
+    excludedTags: string[] | null;
     spaceAccess: string[] | null;
     agentUuid: string | null;
     agentName: string | null;
@@ -1303,6 +1304,7 @@ export class McpService extends BaseService {
             catalogSearchContext: CatalogSearchContext.MCP,
             defaultQueryExecutionContext,
             tags: effectiveScope.tags,
+            excludedTags: effectiveScope.excludedTags,
             spaceAccess: effectiveScope.spaceAccess,
             readOnlySpaceUuids: [],
             threadBinding: null,
@@ -5612,6 +5614,7 @@ export class McpService extends BaseService {
         if (!user || !agentUuid) {
             return {
                 tags: null,
+                excludedTags: null,
                 spaceAccess: null,
                 agentUuid: null,
                 agentName: null,
@@ -5627,6 +5630,7 @@ export class McpService extends BaseService {
         );
         return {
             tags: agent.tags,
+            excludedTags: agent.excludedTags,
             spaceAccess: agent.spaceAccess,
             agentUuid: agent.uuid,
             agentName: agent.name,

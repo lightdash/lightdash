@@ -54,6 +54,7 @@ export type DbProject = {
     results_cache_clear_next_run_at: Date | null;
     provisioning_source: string | null;
     agent_sql_scope: AgentSqlScope | null;
+    ai_excluded_tags: string[] | null;
     playground_bundle_version: string | null;
 };
 
@@ -110,6 +111,7 @@ type UpdateDbProject = Partial<
         | 'results_cache_clear_next_run_at'
         | 'provisioning_source'
         | 'agent_sql_scope'
+        | 'ai_excluded_tags'
         | 'playground_bundle_version'
     >
 >;

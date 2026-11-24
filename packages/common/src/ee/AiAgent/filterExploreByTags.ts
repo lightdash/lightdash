@@ -48,14 +48,6 @@ function hasFieldMatchingTags<T extends FilterableTable>(
     );
 }
 
-function hasTableAnyFieldTags<T extends FilterableTable>(table: T) {
-    const allFields = concat(
-        Object.values(table.metrics),
-        Object.values(table.dimensions),
-    );
-    return allFields.some((field) => field.tags !== undefined);
-}
-
 function hasMatchingTags<
     E extends FilterableExplore,
     T extends FilterableTable,
@@ -83,11 +75,12 @@ function hasMatchingTags<
  * ## Per-Table Filtering Modes
  * Each table in the explore is filtered independently:
  *
- * **Field-Level Mode** (if table has ANY field with tags defined):
+ * **Field-Level Mode** (if any field in the table has a tag from availableTags):
  * - Expose only fields where field.tags matches availableTags
- * - Empty tags arrays (tags: []) activate this mode but match nothing
  *
- * **Explore-Level Mode** (if table has NO fields with tags defined):
+ * **Explore-Level Mode** (if no field in the table has a tag from availableTags):
+ * - Field tags that are not in availableTags (unrelated or excluded tags, or
+ *   an empty tags array) do not switch the table to field-level mode
  * - If explore.tags matches → expose ALL fields in this table
  * - If explore.tags doesn't match → expose NO fields (empty dimensions/metrics)
  *
@@ -98,6 +91,7 @@ function hasMatchingTags<
  * | No tags configured (availableTags = null/[])    | Everything is visible                     |
  * | Explore tagged, no field tags                   | All tables/fields visible (explore-level) |
  * | Explore tagged, some fields tagged              | Per-table: field-level or explore-level   |
+ * | Explore tagged, fields carry only other tags    | All fields visible (explore-level)        |
  * | No explore tag, base table fields tagged        | Only matching fields visible              |
  * | No explore tag, only joined table fields tagged | Explore hidden (base table requirement)   |
  * | No matching tags anywhere                       | Explore hidden                            |
@@ -129,7 +123,7 @@ export function filterExploreByTags<E extends FilterableExplore>({
     const filteredExplore: E = {
         ...explore,
         tables: mapValues(explore.tables, (table) => {
-            if (hasTableAnyFieldTags(table)) {
+            if (hasFieldMatchingTags(table, availableTags)) {
                 // Field-level tagging mode: expose only fields with matching tags
                 return {
                     ...table,

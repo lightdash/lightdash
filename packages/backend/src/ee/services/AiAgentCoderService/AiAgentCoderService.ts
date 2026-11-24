@@ -161,6 +161,9 @@ const toAgentAsCode = (
     imageUrl: agent.imageUrl,
     instruction: agent.instruction || null,
     tags: agent.tags ? [...agent.tags].sort() : null,
+    ...(agent.excludedTags?.length
+        ? { excludedTags: [...agent.excludedTags].sort() }
+        : {}),
     enableDataAccess: agent.enableDataAccess,
     enableSelfImprovement: agent.enableSelfImprovement,
     enableContentTools: agent.enableContentTools,
@@ -186,7 +189,15 @@ const toAgentAsCode = (
 const getComparableAgent = (
     agent: AgentAsCode,
     includeThreadRetention: boolean,
+    includeExcludedTags: boolean,
 ) => ({
+    ...(includeExcludedTags
+        ? {
+              excludedTags: agent.excludedTags?.length
+                  ? [...agent.excludedTags].sort()
+                  : null,
+          }
+        : {}),
     agentVersion: agent.agentVersion,
     slug: agent.slug,
     name: agent.name,
@@ -879,14 +890,20 @@ export class AiAgentCoderService extends BaseService {
                 const retentionDeclared =
                     retentionEnabled &&
                     agent.threadRetentionHours !== undefined;
+                const excludedTagsDeclared = agent.excludedTags !== undefined;
                 const isUnchanged =
                     !force &&
                     isEqual(
                         getComparableAgent(
                             toAgentAsCode(existing, [], null, null),
                             retentionDeclared,
+                            excludedTagsDeclared,
                         ),
-                        getComparableAgent(agent, retentionDeclared),
+                        getComparableAgent(
+                            agent,
+                            retentionDeclared,
+                            excludedTagsDeclared,
+                        ),
                     );
 
                 if (!isUnchanged) {
@@ -937,6 +954,9 @@ export class AiAgentCoderService extends BaseService {
                             : {}),
                         instruction: agent.instruction,
                         tags: agent.tags,
+                        ...(agent.excludedTags !== undefined
+                            ? { excludedTags: agent.excludedTags }
+                            : {}),
                         enableDataAccess: agent.enableDataAccess,
                         enableSelfImprovement: agent.enableSelfImprovement,
                         enableContentTools: agent.enableContentTools,
@@ -967,6 +987,7 @@ export class AiAgentCoderService extends BaseService {
                     imageUrl: agent.imageUrl,
                     instruction: agent.instruction,
                     tags: agent.tags,
+                    excludedTags: agent.excludedTags ?? null,
                     enableDataAccess: agent.enableDataAccess,
                     enableSelfImprovement: agent.enableSelfImprovement,
                     enableContentTools: agent.enableContentTools,

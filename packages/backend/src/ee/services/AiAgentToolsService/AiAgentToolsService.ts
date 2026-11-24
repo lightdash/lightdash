@@ -25,15 +25,13 @@ import {
     documentAsCodeSchema,
     doesPatchTouchSqlChartSql,
     Explore,
-    exploreHasAiAccessRules,
     ExploreType,
     FeatureFlags,
+    filterExploreByExcludedTags,
     filterExploreByTags,
-    filterExploreForAi,
     filterStaticFilterAutocompleteValues,
     findFieldByIdInExplore,
     ForbiddenError,
-    getAiAccessRules,
     getAppDisplayName,
     getComposerChartPatchSql,
     getComposerChartSaveDraft,
@@ -46,6 +44,7 @@ import {
     getErrorMessage,
     getItemMap,
     getLtreePathFromContentAsCodePath,
+    getProjectExcludedTagRules,
     getSqlApprovalSql,
     getTileControl,
     getValidAiQueryLimit,
@@ -60,7 +59,8 @@ import {
     isSameApprovalSql,
     JobStatusType,
     mcpDocumentEditSchema,
-    metricQueryUsesAiHiddenData,
+    mergeExcludedTags,
+    metricQueryUsesExcludedData,
     normalizeDateZoomConfig,
     NotFoundError,
     ParameterError,
@@ -345,6 +345,8 @@ export type AiAgentToolsRuntimeContext = {
     defaultQueryExecutionContext: QueryExecutionContext;
     querySurface: QuerySurface;
     tags: string[] | null;
+    /** The agent's excluded tags; deny wins over tags. Null for no agent or none set. */
+    excludedTags: string[] | null;
     spaceAccess: string[] | null;
     /** Spaces in spaceAccess the agent may read but never create or update content in. */
     readOnlySpaceUuids: string[];
@@ -857,12 +859,14 @@ export class AiAgentToolsService extends BaseService {
         user,
         projectUuid,
         availableTags,
+        excludedTags = null,
         userAttributeOverrides,
         exploreNames,
     }: {
         user: SessionUser;
         projectUuid: string;
         availableTags: string[] | null;
+        excludedTags?: string[] | null;
         userAttributeOverrides?: UserAttributeValueMap;
         exploreNames?: string[];
     }) {
@@ -880,7 +884,7 @@ export class AiAgentToolsService extends BaseService {
                     { tableSelection },
                     liveExplores,
                     inDevelopment,
-                    aiAccessNeverEnabled,
+                    activeExcludedTags,
                 ] = await Promise.all([
                     this.userAttributesModel.getAttributeValuesForOrgMember({
                         organizationUuid,
@@ -895,7 +899,7 @@ export class AiAgentToolsService extends BaseService {
                     developmentView
                         .getStore()
                         ?.findExplores(fromSession(user), projectUuid) ?? null,
-                    this.isAiAccessNeverEnabled(user),
+                    this.getActiveExcludedTags(user, projectUuid, excludedTags),
                 ]);
                 const userAttributes = mergeUserAttributes(
                     dbAttributes,
@@ -945,23 +949,25 @@ export class AiAgentToolsService extends BaseService {
                     .map((explore) =>
                         getFilteredExplore(explore, userAttributes),
                     )
-                    .flatMap((explore) => {
-                        if (!aiAccessNeverEnabled) return [explore];
-                        const visible = filterExploreForAi(explore);
-                        return visible ? [visible] : [];
-                    })
                     .map((explore) =>
                         filterExploreByTags({
                             explore,
                             availableTags,
                         }),
                     )
-                    .filter((explore): explore is Explore => !!explore);
+                    .filter((explore): explore is Explore => !!explore)
+                    .flatMap((explore) => {
+                        const visible = filterExploreByExcludedTags(
+                            explore,
+                            activeExcludedTags,
+                        );
+                        return visible ? [visible] : [];
+                    });
             },
         );
     }
 
-    private async isAiAccessNeverEnabled(
+    private async isAiExcludedTagsEnabled(
         user: Pick<SessionUser, 'organizationUuid' | 'userUuid'>,
     ): Promise<boolean> {
         const { enabled } = await this.featureFlagService.get({
@@ -969,16 +975,38 @@ export class AiAgentToolsService extends BaseService {
                 organizationUuid: user.organizationUuid,
                 userUuid: user.userUuid,
             },
-            featureFlagId: FeatureFlags.AiAccessNever,
+            featureFlagId: FeatureFlags.AiExcludedTags,
         });
         return enabled;
     }
 
+    /** Project and agent excluded tags, or none when the feature is off. */
+    private async getActiveExcludedTags(
+        user: Pick<SessionUser, 'organizationUuid' | 'userUuid'>,
+        projectUuid: string,
+        agentExcludedTags: string[] | null,
+    ): Promise<string[]> {
+        const projectTags =
+            await this.projectModel.getAiExcludedTags(projectUuid);
+        const tags = mergeExcludedTags(projectTags, agentExcludedTags);
+        if (tags.length === 0) return [];
+        return (await this.isAiExcludedTagsEnabled(user)) ? tags : [];
+    }
+
+    private getContextExcludedTags(context: AiAgentToolsRuntimeContext) {
+        return this.getActiveExcludedTags(
+            context.user,
+            context.projectUuid,
+            context.excludedTags,
+        );
+    }
+
     private async assertAiMayUseMetricQuery(
         context: AiAgentToolsRuntimeContext,
-        metricQuery: Parameters<typeof metricQueryUsesAiHiddenData>[1],
+        metricQuery: Parameters<typeof metricQueryUsesExcludedData>[1],
     ): Promise<void> {
-        if (!(await this.isAiAccessNeverEnabled(context.user))) return;
+        const excludedTags = await this.getContextExcludedTags(context);
+        if (excludedTags.length === 0) return;
         const explores = await this.projectModel.findExploresFromCache(
             context.projectUuid,
             'name',
@@ -988,31 +1016,30 @@ export class AiAgentToolsService extends BaseService {
         if (
             explore &&
             !isExploreError(explore) &&
-            metricQueryUsesAiHiddenData(explore, metricQuery)
+            metricQueryUsesExcludedData(explore, metricQuery, excludedTags)
         ) {
             throw new AiAccessRefusedError(
-                AiAccessRefusalReason.AI_ACCESS_NEVER,
+                AiAccessRefusalReason.AI_EXCLUDED_DATA,
                 { projectUuid: context.projectUuid },
             );
         }
     }
 
-    private async getProjectAiHiddenFieldIds(
+    private async getProjectExcludedFieldIds(
         context: AiAgentToolsRuntimeContext,
-    ): Promise<ReadonlySet<string> | null> {
-        if (!(await this.isAiAccessNeverEnabled(context.user))) return null;
+    ): Promise<ReadonlySet<string>> {
+        const excludedTags = await this.getContextExcludedTags(context);
+        if (excludedTags.length === 0) return new Set();
         const explores = await this.projectModel.findExploresFromCache(
             context.projectUuid,
             'name',
         );
-        const hidden = new Set<string>();
-        Object.values(explores).forEach((explore) => {
-            if (isExploreError(explore) || !exploreHasAiAccessRules(explore))
-                return;
-            const { hiddenFieldIds } = getAiAccessRules(explore);
-            hiddenFieldIds.forEach((fieldId) => hidden.add(fieldId));
-        });
-        return hidden;
+        return getProjectExcludedTagRules(
+            Object.values(explores).filter(
+                (explore): explore is Explore => !isExploreError(explore),
+            ),
+            excludedTags,
+        ).hiddenFieldIds;
     }
 
     private async assertAiMayReadDashboard(
@@ -1027,10 +1054,10 @@ export class AiAgentToolsService extends BaseService {
               ]
             : [];
         if (rules.length === 0) return;
-        const hidden = await this.getProjectAiHiddenFieldIds(context);
-        if (rules.some((rule) => hidden?.has(rule.target.fieldId))) {
+        const hidden = await this.getProjectExcludedFieldIds(context);
+        if (rules.some((rule) => hidden.has(rule.target.fieldId))) {
             throw new AiAccessRefusedError(
-                AiAccessRefusalReason.AI_ACCESS_NEVER,
+                AiAccessRefusalReason.AI_EXCLUDED_DATA,
                 { projectUuid: context.projectUuid },
             );
         }
@@ -1039,10 +1066,10 @@ export class AiAgentToolsService extends BaseService {
     private async assertAiMayReadRawSql(
         context: AiAgentToolsRuntimeContext,
     ): Promise<void> {
-        const hidden = await this.getProjectAiHiddenFieldIds(context);
-        if (hidden !== null && hidden.size > 0) {
+        const hidden = await this.getProjectExcludedFieldIds(context);
+        if (hidden.size > 0) {
             throw new AiAccessRefusedError(
-                AiAccessRefusalReason.AI_ACCESS_NEVER,
+                AiAccessRefusalReason.AI_EXCLUDED_DATA,
                 { projectUuid: context.projectUuid },
             );
         }
@@ -1052,12 +1079,14 @@ export class AiAgentToolsService extends BaseService {
         user,
         projectUuid,
         availableTags,
+        excludedTags = null,
         exploreName,
         userAttributeOverrides,
     }: {
         user: SessionUser;
         projectUuid: string;
         availableTags: string[] | null;
+        excludedTags?: string[] | null;
         exploreName: string;
         userAttributeOverrides?: UserAttributeValueMap;
     }) {
@@ -1065,6 +1094,7 @@ export class AiAgentToolsService extends BaseService {
             user,
             projectUuid,
             availableTags,
+            excludedTags,
             userAttributeOverrides,
             exploreNames: [exploreName],
         });
@@ -1422,6 +1452,7 @@ export class AiAgentToolsService extends BaseService {
                 user: context.user,
                 projectUuid: context.projectUuid,
                 availableTags: context.tags,
+                excludedTags: context.excludedTags,
                 userAttributeOverrides: context.userAttributeOverrides,
             }),
         );
@@ -1454,6 +1485,7 @@ export class AiAgentToolsService extends BaseService {
             user: context.user,
             projectUuid: context.projectUuid,
             availableTags: context.tags,
+            excludedTags: context.excludedTags,
             exploreName: table,
             userAttributeOverrides: context.userAttributeOverrides,
         });
@@ -5283,11 +5315,9 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         chartUuid: string,
     ) {
-        const aiAccessNeverEnabled = await this.isAiAccessNeverEnabled(
-            context.user,
-        );
+        const excludedTags = await this.getContextExcludedTags(context);
         if (
-            !aiAccessNeverEnabled &&
+            excludedTags.length === 0 &&
             (!context.tags || context.tags.length === 0)
         )
             return;
@@ -5297,9 +5327,7 @@ export class AiAgentToolsService extends BaseService {
             context.account,
             { projectUuid: context.projectUuid },
         );
-        if (aiAccessNeverEnabled) {
-            await this.assertAiMayUseMetricQuery(context, metricQuery);
-        }
+        await this.assertAiMayUseMetricQuery(context, metricQuery);
         if (!context.tags || context.tags.length === 0) return;
         const explore = await this.getExploreForRuntime(context, {
             table: metricQuery.exploreName,
@@ -5387,6 +5415,7 @@ export class AiAgentToolsService extends BaseService {
                 // is what actually guarantees the query never reaches the
                 // warehouse, whatever the tool layer does.
                 await this.assertSqlInAgentScope(context, sql);
+                await this.assertAiMayReadRawSql(context);
 
                 await context.onWarehouseQuery?.();
                 const { queryUuid } =
@@ -5444,6 +5473,7 @@ export class AiAgentToolsService extends BaseService {
                 );
                 // Saved SQL is not the agent's own, but it still reads only what the agent may read.
                 await this.assertSqlInAgentScope(context, sqlChart.sql);
+                await this.assertAiMayReadRawSql(context);
 
                 const effectiveLimit = getValidAiQueryLimit(
                     sqlChart.limit,
@@ -5839,6 +5869,13 @@ export class AiAgentToolsService extends BaseService {
             { projectUuid: context.projectUuid, queryCount: queries.length },
             async () => {
                 await this.assertComposerApiNodesInScope(context, queries);
+                if (
+                    queries.some(
+                        (query) => query.sourceType === QuerySourceType.SQL,
+                    )
+                ) {
+                    await this.assertAiMayReadRawSql(context);
+                }
                 await context.onWarehouseQuery?.();
 
                 // Per-node status emission is best-effort UI telemetry: only

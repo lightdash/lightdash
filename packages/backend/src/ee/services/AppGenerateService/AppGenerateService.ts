@@ -37,11 +37,10 @@ import {
     DEFAULT_DATA_APP_CODEX_MODEL,
     DEFAULT_DATA_APP_VIZ_LIST_SORT,
     DirectAccessResourceType,
-    exploreHasAiAccessRules,
     extractDataAppDataReferences,
     extractLockfilePackages,
     FeatureFlags,
-    filterExploreForAi,
+    filterExploreByExcludedTags,
     FilterOperator,
     ForbiddenError,
     formatPromptWithClarifications,
@@ -53,7 +52,7 @@ import {
     getEffectiveFieldAiHints,
     getErrorMessage,
     getItemId,
-    getProjectAiAccessRules,
+    getProjectExcludedTagRules,
     getSdkFeaturesForTarget,
     getSdkFeatureTargetForTemplate,
     getVisibleDataAppClaudeModels,
@@ -1909,10 +1908,13 @@ export class AppGenerateService extends BaseService {
             : [];
     }
 
-    private async isAiAccessNeverEnabledForProject(
+    /** The project's tags never sent to AI, or none when the feature is off. */
+    private async getActiveAiExcludedTags(
         projectUuid: string,
         builder?: { userUuid: string; organizationUuid: string },
-    ): Promise<boolean> {
+    ): Promise<string[]> {
+        const tags = await this.projectModel.getAiExcludedTags(projectUuid);
+        if (tags.length === 0) return [];
         const organizationUuid =
             builder?.organizationUuid ??
             (await this.projectModel.getSummary(projectUuid)).organizationUuid;
@@ -1921,9 +1923,9 @@ export class AppGenerateService extends BaseService {
                 organizationUuid,
                 ...(builder ? { userUuid: builder.userUuid } : {}),
             },
-            featureFlagId: FeatureFlags.AiAccessNever,
+            featureFlagId: FeatureFlags.AiExcludedTags,
         });
-        return enabled;
+        return enabled ? tags : [];
     }
 
     async dataAppsEnabledFor(user: SessionUser): Promise<boolean> {
@@ -4058,18 +4060,17 @@ export class AppGenerateService extends BaseService {
                 .filter((explore) =>
                     isExploreIncludedInTableSelection(explore, tableSelection),
                 );
-            const hideFromAi =
-                selectedExplores.some(exploreHasAiAccessRules) &&
-                (await this.isAiAccessNeverEnabledForProject(
-                    projectUuid,
-                    builder,
-                ));
-            const explores = hideFromAi
-                ? selectedExplores.flatMap((explore) => {
-                      const visible = filterExploreForAi(explore);
-                      return visible ? [visible] : [];
-                  })
-                : selectedExplores;
+            const excludedTags = await this.getActiveAiExcludedTags(
+                projectUuid,
+                builder,
+            );
+            const explores = selectedExplores.flatMap((explore) => {
+                const visible = filterExploreByExcludedTags(
+                    explore,
+                    excludedTags,
+                );
+                return visible ? [visible] : [];
+            });
             const catalog = AppGenerateService.exploresToModelFiles(
                 explores,
                 chartUsageByTable,
@@ -7838,13 +7839,13 @@ export class AppGenerateService extends BaseService {
     private async buildCatalogSummaryForClarifier(
         projectUuid: string,
     ): Promise<string> {
-        const [allItems, aiAccessNeverEnabled] = await Promise.all([
+        const [allItems, excludedTags] = await Promise.all([
             this.catalogModel.getCatalogItemsSummary(projectUuid),
-            this.isAiAccessNeverEnabledForProject(projectUuid),
+            this.getActiveAiExcludedTags(projectUuid),
         ]);
         let items = allItems;
-        if (aiAccessNeverEnabled) {
-            const { hiddenTables, hiddenFieldIds } = getProjectAiAccessRules(
+        if (excludedTags.length > 0) {
+            const { hiddenTables, hiddenFieldIds } = getProjectExcludedTagRules(
                 Object.values(
                     await this.projectModel.getAllExploresFromCache(
                         projectUuid,
@@ -7852,6 +7853,7 @@ export class AppGenerateService extends BaseService {
                 ).filter(
                     (explore): explore is Explore => !isExploreError(explore),
                 ),
+                excludedTags,
             );
             items = allItems.filter(
                 (item) =>

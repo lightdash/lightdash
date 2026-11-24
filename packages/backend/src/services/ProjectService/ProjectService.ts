@@ -273,6 +273,7 @@ import {
     TooManyRequestsError,
     UnexpectedServerError,
     UpdateAgentSqlScope,
+    UpdateAiExcludedTags,
     UpdateDefaultUserSpaces,
     UpdateMetadata,
     UpdateProject,
@@ -19340,6 +19341,44 @@ export class ProjectService
         }
 
         return updatedProject;
+    }
+
+    async getAiExcludedTags(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ): Promise<string[]> {
+        const project = await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(account);
+        if (auditedAbility.cannot('update', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+
+        return this.projectModel.getAiExcludedTags(projectUuid);
+    }
+
+    async updateAiExcludedTags(
+        account: RegisteredAccount,
+        projectUuid: string,
+        { aiExcludedTags }: UpdateAiExcludedTags,
+    ): Promise<void> {
+        const project = await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(account);
+        if (auditedAbility.cannot('update', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+        if (
+            !Array.isArray(aiExcludedTags) ||
+            aiExcludedTags.some((tag) => typeof tag !== 'string')
+        ) {
+            throw new ParameterError('Tags must be a list of strings');
+        }
+
+        await this.projectModel.updateAiExcludedTags(
+            projectUuid,
+            aiExcludedTags,
+        );
     }
 
     async getAgentSqlScope(

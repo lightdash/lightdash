@@ -361,11 +361,6 @@
                     ],
                     "description": "Hints for AI-powered query generation"
                 },
-                "ai_access": {
-                    "type": "string",
-                    "enum": ["never"],
-                    "description": "Set to never to keep this out of every AI feature. People can still use it."
-                },
                 "parameters": {
                     "type": "object",
                     "description": "Dynamic parameters for the model"
@@ -524,11 +519,6 @@
                         }
                     ],
                     "description": "Hints for AI-powered query generation"
-                },
-                "ai_access": {
-                    "type": "string",
-                    "enum": ["never"],
-                    "description": "Set to never to keep this out of every AI feature. People can still use it."
                 },
                 "tags": {
                     "oneOf": [
@@ -791,11 +781,6 @@
                         }
                     ],
                     "description": "Hints for AI-powered query generation"
-                },
-                "ai_access": {
-                    "type": "string",
-                    "enum": ["never"],
-                    "description": "Set to never to keep this out of every AI feature. People can still use it."
                 },
                 "tags": {
                     "oneOf": [

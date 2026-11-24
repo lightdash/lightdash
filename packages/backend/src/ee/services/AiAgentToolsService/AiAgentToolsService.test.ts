@@ -253,6 +253,7 @@ const makeService = ({
             getTablesConfiguration: vi.fn().mockResolvedValue({
                 tableSelection: { type: TableSelectionType.ALL, value: null },
             }),
+            getAiExcludedTags: vi.fn().mockResolvedValue([]),
             ...projectModel,
         },
         projectService: {
@@ -322,6 +323,7 @@ function makeRuntimeContext(
         catalogSearchContext: CatalogSearchContext.AI_AGENT,
         defaultQueryExecutionContext: QueryExecutionContext.AI,
         tags: null,
+        excludedTags: null,
         spaceAccess: null,
         readOnlySpaceUuids: [],
         threadBinding: null,
@@ -2934,7 +2936,7 @@ describe('AiAgentToolsService', () => {
         });
     });
 
-    describe('ai_access: never', () => {
+    describe('excluded tags', () => {
         const field = (
             fieldType: FieldType,
             table: string,
@@ -2960,7 +2962,7 @@ describe('AiAgentToolsService', () => {
                 dimensions: {
                     name: field(FieldType.DIMENSION, 'customers', 'name'),
                     email: field(FieldType.DIMENSION, 'customers', 'email', {
-                        aiAccess: 'never',
+                        tags: ['ai', 'pii'],
                     }),
                 },
                 metrics: {
@@ -2972,7 +2974,7 @@ describe('AiAgentToolsService', () => {
                 tables: {
                     payments: {
                         ...makeExplore({ name: 'payments' }).tables.payments,
-                        aiAccess: 'never',
+                        tags: ['pii'],
                     },
                 },
             } as Explore,
@@ -2980,9 +2982,13 @@ describe('AiAgentToolsService', () => {
         const setup = ({
             enabled,
             savedChart,
+            projectTags = ['pii'],
+            agentExcludedTags = null,
         }: {
             enabled: boolean;
             savedChart?: Record<string, unknown>;
+            projectTags?: string[];
+            agentExcludedTags?: string[] | null;
         }) => {
             const executeMetricQueryAndGetResults = vi
                 .fn()
@@ -2992,12 +2998,15 @@ describe('AiAgentToolsService', () => {
                 .mockResolvedValue({ rows: [] });
             const service = makeService({
                 explores: makeExplores(),
+                projectModel: {
+                    getAiExcludedTags: vi.fn().mockResolvedValue(projectTags),
+                },
                 featureFlagService: {
                     get: vi.fn(async ({ featureFlagId }) => ({
                         id: featureFlagId,
                         enabled:
                             enabled &&
-                            featureFlagId === FeatureFlags.AiAccessNever,
+                            featureFlagId === FeatureFlags.AiExcludedTags,
                     })),
                 },
                 savedChartService: {
@@ -3010,7 +3019,9 @@ describe('AiAgentToolsService', () => {
             });
             return {
                 service,
-                runtime: service.createRuntime(makeRuntimeContext()),
+                runtime: service.createRuntime(
+                    makeRuntimeContext({ excludedTags: agentExcludedTags }),
+                ),
                 executeMetricQueryAndGetResults,
                 executeSavedChartQueryAndGetResults,
             };
@@ -3033,7 +3044,7 @@ describe('AiAgentToolsService', () => {
         });
         const refusal = {
             refusal: expect.objectContaining({
-                reason: AiAccessRefusalReason.AI_ACCESS_NEVER,
+                reason: AiAccessRefusalReason.AI_EXCLUDED_DATA,
                 message:
                     "I can't use some of this data with AI in this project. Ask your admin.",
             }),
@@ -3054,6 +3065,78 @@ describe('AiAgentToolsService', () => {
             expect(
                 Object.keys(explores[0].tables.customers.dimensions),
             ).toEqual(['name']);
+        });
+
+        it('hides data tagged with an agent excluded tag', async () => {
+            const { service, runtime, executeMetricQueryAndGetResults } = setup(
+                {
+                    enabled: true,
+                    projectTags: [],
+                    agentExcludedTags: ['pii'],
+                },
+            );
+
+            const explores = await service.getAvailableExplores({
+                user,
+                projectUuid,
+                availableTags: null,
+                excludedTags: ['pii'],
+            });
+            await expect(
+                runtime.runAsyncQuery(
+                    metricQuery({ dimensions: ['customers_email'] }),
+                ),
+            ).rejects.toMatchObject(refusal);
+
+            expect(explores.map((explore) => explore.name)).toEqual([
+                'customers',
+            ]);
+            expect(
+                Object.keys(explores[0].tables.customers.dimensions),
+            ).toEqual(['name']);
+            expect(executeMetricQueryAndGetResults).not.toHaveBeenCalled();
+        });
+
+        it('refuses agent raw SQL when the agent excludes tags that match data', async () => {
+            const executeAsyncSqlQuery = vi.fn();
+            const service = makeService({
+                explores: makeExplores(),
+                projectModel: {
+                    getAiExcludedTags: vi.fn().mockResolvedValue([]),
+                },
+                featureFlagService: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: featureFlagId === FeatureFlags.AiExcludedTags,
+                    })),
+                },
+                asyncQueryService: { executeAsyncSqlQuery },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ excludedTags: ['pii'] }),
+            );
+
+            await expect(
+                runtime.runSqlJob({
+                    sql: 'select email from customers',
+                    limit: 10,
+                }),
+            ).rejects.toMatchObject(refusal);
+            expect(executeAsyncSqlQuery).not.toHaveBeenCalled();
+        });
+
+        it('lets deny win over allow for a field with both tags', async () => {
+            const { service } = setup({ enabled: true, projectTags: [] });
+
+            const explores = await service.getAvailableExplores({
+                user,
+                projectUuid,
+                availableTags: ['ai'],
+                excludedTags: ['pii'],
+            });
+
+            expect(explores).toHaveLength(1);
+            expect(explores[0].tables.customers.dimensions).toEqual({});
         });
 
         it('keeps every field when the flag is off', async () => {
@@ -3130,12 +3213,15 @@ describe('AiAgentToolsService', () => {
             const readService = (enabled: boolean) =>
                 makeService({
                     explores: makeExplores(),
+                    projectModel: {
+                        getAiExcludedTags: vi.fn().mockResolvedValue(['pii']),
+                    },
                     featureFlagService: {
                         get: vi.fn(async ({ featureFlagId }) => ({
                             id: featureFlagId,
                             enabled:
                                 enabled &&
-                                featureFlagId === FeatureFlags.AiAccessNever,
+                                featureFlagId === FeatureFlags.AiExcludedTags,
                         })),
                     },
                     savedChartService: {

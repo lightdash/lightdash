@@ -187,7 +187,7 @@ test('MCP project policy refusal stays terse and has no remedy or URL', () => {
 
 test('ai_access never refusal names no field and links no settings page', () => {
     const error = new AiAccessRefusedError(
-        AiAccessRefusalReason.AI_ACCESS_NEVER,
+        AiAccessRefusalReason.AI_EXCLUDED_DATA,
     );
     expect(error.refusal).toMatchObject({
         message:

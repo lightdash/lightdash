@@ -1323,6 +1323,8 @@ const catalogFieldKind = (basicType: string | undefined): FieldKind | null => {
     }
 };
 
+type AgentTagScope = Pick<AiAgent, 'tags' | 'excludedTags'>;
+
 export class AiAgentService extends BaseService {
     private readonly suggestionFallbackCache = new SuggestionFallbackCache();
     private readonly agentActionLogModel: AiAgentServiceDependencies['agentActionLogModel'];
@@ -2566,7 +2568,7 @@ export class AiAgentService extends BaseService {
                         this.getExplore(
                             user,
                             prompt.projectUuid,
-                            agent.tags,
+                            agent,
                             exploreName,
                         ),
                     ),
@@ -3966,16 +3968,18 @@ export class AiAgentService extends BaseService {
         return this.forEmbedViewer(agent);
     }
 
+    /** Explores an agent with these tags may see; null for no agent. */
     async getAvailableExplores(
         user: SessionUser,
         projectUuid: string,
-        availableTags: string[] | null,
+        tagScope: AgentTagScope | null,
         exploreNames?: string[],
     ) {
         return this.aiAgentToolsService.getAvailableExplores({
             user,
             projectUuid,
-            availableTags,
+            availableTags: tagScope?.tags ?? null,
+            excludedTags: tagScope?.excludedTags ?? null,
             exploreNames,
         });
     }
@@ -3983,13 +3987,14 @@ export class AiAgentService extends BaseService {
     private async getExplore(
         user: SessionUser,
         projectUuid: string,
-        availableTags: string[] | null,
+        tagScope: AgentTagScope | null,
         exploreName: string,
     ) {
         return this.aiAgentToolsService.getExplore({
             user,
             projectUuid,
-            availableTags,
+            availableTags: tagScope?.tags ?? null,
+            excludedTags: tagScope?.excludedTags ?? null,
             exploreName,
         });
     }
@@ -3997,7 +4002,7 @@ export class AiAgentService extends BaseService {
     public async getAgentExploreAccessSummary(
         user: SessionUser,
         projectUuid: string,
-        tags: string[] | null,
+        tagScope: AgentTagScope,
     ) {
         const { organizationUuid } = user;
 
@@ -4008,7 +4013,7 @@ export class AiAgentService extends BaseService {
         const availableExplores = await this.getAvailableExplores(
             user,
             projectUuid,
-            tags,
+            tagScope,
         );
 
         const exploreAccessSummary = availableExplores.map((explore) => ({
@@ -4196,7 +4201,7 @@ export class AiAgentService extends BaseService {
             availableExplores = await this.getAvailableExplores(
                 user,
                 projectUuid,
-                agent.tags,
+                agent,
             );
 
             explores = availableExplores.slice(0, 12).map((explore) => {
@@ -6619,6 +6624,7 @@ export class AiAgentService extends BaseService {
             projectUuid: body.projectUuid,
             organizationUuid,
             tags: body.tags,
+            excludedTags: body.excludedTags,
             integrations: body.integrations,
             instruction: body.instruction,
             imageUrl: body.imageUrl,
@@ -8370,6 +8376,7 @@ export class AiAgentService extends BaseService {
             projectUuid: body.projectUuid,
             organizationUuid,
             tags: body.tags,
+            excludedTags: body.excludedTags,
             integrations: body.integrations,
             instruction: body.instruction,
             imageUrl: body.imageUrl,
@@ -10446,7 +10453,7 @@ export class AiAgentService extends BaseService {
         const explores = await this.getAvailableExplores(
             user,
             agent.projectUuid,
-            agent.tags,
+            agent,
         );
 
         const copilotConfig =
@@ -12098,7 +12105,7 @@ export class AiAgentService extends BaseService {
         const availableExplores = await this.getAvailableExplores(
             user,
             agent.projectUuid,
-            agent.tags,
+            agent,
         );
         const exploreNames = availableExplores.map(
             (explore) => explore.label || explore.name,
@@ -14550,6 +14557,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             defaultQueryExecutionContext: QueryExecutionContext.AI,
             querySurface: querySurfaceFromPrompt(prompt),
             tags: runtimeAgentSettings.tags,
+            excludedTags: runtimeAgentSettings.excludedTags,
             spaceAccess:
                 options?.runtimeOptions?.spaceAccess ??
                 runtimeAgentSettings.spaceAccess,
@@ -15405,12 +15413,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         user,
         projectUuid,
         prompt,
-        availableTags,
+        tagScope,
     }: {
         user: SessionUser;
         projectUuid: string;
         prompt: string;
-        availableTags: string[] | null;
+        tagScope: AgentTagScope;
     }): Promise<Array<{ candidate: FieldCandidate; tableName: string }>> {
         if (!user.organizationUuid) return [];
         const [userAttributes, filteredExplores] = await Promise.all([
@@ -15418,11 +15426,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 organizationUuid: user.organizationUuid,
                 userUuid: user.userUuid,
             }),
-            this.aiAgentToolsService.getAvailableExplores({
-                user,
-                projectUuid,
-                availableTags,
-            }),
+            this.getAvailableExplores(user, projectUuid, tagScope),
         ]);
         const { data } = await this.catalogService.searchCatalog({
             projectUuid,
@@ -15500,14 +15504,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             this.getExplore(
                 user,
                 prompt.projectUuid,
-                agent.tags,
+                agent,
                 chartConfig.config.queryConfig.exploreName,
             ).catch(() => null),
             this.searchAddableCatalogFields({
                 user,
                 projectUuid: prompt.projectUuid,
                 prompt: prompt.prompt,
-                availableTags: agent.tags,
+                tagScope: agent,
             }).catch(() => []),
             this.contentVerificationModel
                 .getVerifiedFieldUsage(prompt.projectUuid)
@@ -15628,14 +15632,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
     private async findExploreForAddedField({
         user,
         projectUuid,
-        availableTags,
+        tagScope,
         artifact,
         currentExplore,
         tableName,
     }: {
         user: SessionUser;
         projectUuid: string;
-        availableTags: string[] | null;
+        tagScope: AgentTagScope;
         artifact: AiSemanticChartArtifactConfig;
         currentExplore: Explore;
         tableName: string;
@@ -15688,7 +15692,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         const available = await this.getAvailableExplores(
             user,
             projectUuid,
-            availableTags,
+            tagScope,
             exploreNames,
         );
         const compatible = available.filter((candidate) => {
@@ -15805,7 +15809,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 ? await this.findExploreForAddedField({
                       user,
                       projectUuid: prompt.projectUuid,
-                      availableTags: agent.tags,
+                      tagScope: agent,
                       artifact,
                       currentExplore: explore,
                       tableName,
@@ -16569,6 +16573,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             defaultQueryExecutionContext: QueryExecutionContext.AI,
             querySurface: querySurfaceFromPrompt(prompt),
             tags: agent.tags,
+            excludedTags: agent.excludedTags,
             spaceAccess: agent.spaceAccess,
             readOnlySpaceUuids: [],
             // Read-only runtime; the binding only limits writes.
@@ -19209,7 +19214,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     this.getExplore(
                         user,
                         slackPrompt.projectUuid,
-                        agent?.tags ?? null,
+                        agent ?? null,
                         exploreName,
                     ),
                 ),

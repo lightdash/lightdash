@@ -165,6 +165,7 @@ const setup = (
         defaultQueryExecutionContext:
             QueryExecutionContext.MCP_RUN_METRIC_QUERY,
         tags: null,
+        excludedTags: null,
         spaceAccess,
         readOnlySpaceUuids,
         threadBinding: null,

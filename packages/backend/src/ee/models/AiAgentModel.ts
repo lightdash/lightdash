@@ -844,6 +844,7 @@ export class AiAgentModel {
                 kind: `${AiAgentTableName}.agent_kind`,
                 description: `${AiAgentTableName}.description`,
                 tags: `${AiAgentTableName}.tags`,
+                excludedTags: `${AiAgentTableName}.excluded_tags`,
                 integrations: this.database.raw(`
                     COALESCE(
                         (SELECT json_agg(
@@ -1011,6 +1012,7 @@ export class AiAgentModel {
                 kind: `${AiAgentTableName}.agent_kind`,
                 description: `${AiAgentTableName}.description`,
                 tags: `${AiAgentTableName}.tags`,
+                excludedTags: `${AiAgentTableName}.excluded_tags`,
                 integrations: this.database.raw(`
                     COALESCE(
                         (SELECT json_agg(
@@ -1138,6 +1140,7 @@ export class AiAgentModel {
                 | 'imageUrl'
                 | 'instruction'
                 | 'tags'
+                | 'excludedTags'
                 | 'enableDataAccess'
                 | 'enableSelfImprovement'
                 | 'enableContentTools'
@@ -1172,6 +1175,7 @@ export class AiAgentModel {
                 description: `${AiAgentTableName}.description`,
                 imageUrl: `${AiAgentTableName}.image_url`,
                 tags: `${AiAgentTableName}.tags`,
+                excludedTags: `${AiAgentTableName}.excluded_tags`,
                 enableDataAccess: `${AiAgentTableName}.enable_data_access`,
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
@@ -2477,6 +2481,7 @@ export class AiAgentModel {
             | 'description'
             | 'projectUuid'
             | 'tags'
+            | 'excludedTags'
             | 'integrations'
             | 'instruction'
             | 'groupAccess'
@@ -2523,6 +2528,7 @@ export class AiAgentModel {
                     project_uuid: args.projectUuid,
                     organization_uuid: args.organizationUuid,
                     tags: args.tags,
+                    excluded_tags: args.excludedTags ?? null,
                     description: args.description ?? null,
                     image_url: args.imageUrl ?? null,
                     image_url_source: args.imageUrl ? 'url' : null,
@@ -2638,6 +2644,7 @@ export class AiAgentModel {
                 projectUuid: agent.project_uuid,
                 organizationUuid: agent.organization_uuid,
                 tags: agent.tags,
+                excludedTags: agent.excluded_tags,
                 integrations,
                 createdAt: agent.created_at,
                 updatedAt: agent.updated_at,
@@ -2752,6 +2759,9 @@ export class AiAgentModel {
                 .update({
                     updated_at: trx.fn.now(),
                     ...(args.tags !== undefined ? { tags: args.tags } : {}),
+                    ...(args.excludedTags !== undefined
+                        ? { excluded_tags: args.excludedTags }
+                        : {}),
                     ...(args.name !== undefined ? { name: args.name } : {}),
                     ...(args.description !== undefined
                         ? { description: args.description }
@@ -3013,6 +3023,7 @@ export class AiAgentModel {
                 projectUuid: agent.project_uuid,
                 organizationUuid: agent.organization_uuid,
                 tags: agent.tags,
+                excludedTags: agent.excluded_tags,
                 integrations,
                 createdAt: agent.created_at,
                 updatedAt: agent.updated_at,

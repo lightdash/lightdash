@@ -2082,6 +2082,7 @@ export class ManagedAgentService extends BaseService {
             catalogSearchContext: CatalogSearchContext.AI_AGENT,
             defaultQueryExecutionContext: QueryExecutionContext.AI,
             tags: null,
+            excludedTags: null,
             spaceAccess: allowedSpaceUuids,
             readOnlySpaceUuids: [],
             threadBinding: null,

@@ -39,7 +39,7 @@ import {
     Explore,
     ExploreCompiler,
     ExploreError,
-    exploreHasAiAccessRules,
+    exploreHasExcludedTags,
     ExploreType,
     ExternalSourceScope,
     ExternalSourceStatus,
@@ -109,7 +109,7 @@ import {
     MAX_RESULTS_CACHE_TTL_SECONDS,
     MergeQuery,
     MetricQuery,
-    metricQueryUsesAiHiddenData,
+    metricQueryUsesExcludedData,
     MissingConfigError,
     normalizeIndexColumns,
     NotFoundError,
@@ -1467,7 +1467,7 @@ export class AsyncQueryService extends ProjectService {
         return enabled;
     }
 
-    private async isAiAccessNeverEnabled(account: Account): Promise<boolean> {
+    private async isAiExcludedTagsEnabled(account: Account): Promise<boolean> {
         assertIsAccountWithOrg(account);
         const { enabled } = await this.featureFlagModel.get({
             user: {
@@ -1476,19 +1476,33 @@ export class AsyncQueryService extends ProjectService {
                     ? { userUuid: account.user.id }
                     : {}),
             },
-            featureFlagId: FeatureFlags.AiAccessNever,
+            featureFlagId: FeatureFlags.AiExcludedTags,
         });
         return enabled;
     }
 
-    private async projectHasAiAccessRules(projectUuid: string) {
+    private async getActiveAiExcludedTags(
+        account: Account,
+        projectUuid: string,
+    ): Promise<string[]> {
+        const tags = await this.projectModel.getAiExcludedTags(projectUuid);
+        if (tags.length === 0) return [];
+        return (await this.isAiExcludedTagsEnabled(account)) ? tags : [];
+    }
+
+    private async projectHasExcludedData(
+        projectUuid: string,
+        excludedTags: string[],
+    ): Promise<boolean> {
+        if (excludedTags.length === 0) return false;
         const explores = await this.projectModel.findExploresFromCache(
             projectUuid,
             'name',
         );
         return Object.values(explores).some(
             (explore) =>
-                !isExploreError(explore) && exploreHasAiAccessRules(explore),
+                !isExploreError(explore) &&
+                exploreHasExcludedTags(explore, excludedTags),
         );
     }
 
@@ -1505,14 +1519,14 @@ export class AsyncQueryService extends ProjectService {
         explore: Explore;
         metricQuery: MetricQuery;
     }): Promise<void> {
-        if (
-            context !== undefined &&
-            isAiAccessQueryContext(context) &&
-            metricQueryUsesAiHiddenData(explore, metricQuery) &&
-            (await this.isAiAccessNeverEnabled(account))
-        ) {
+        if (context === undefined || !isAiAccessQueryContext(context)) return;
+        const excludedTags = await this.getActiveAiExcludedTags(
+            account,
+            projectUuid,
+        );
+        if (metricQueryUsesExcludedData(explore, metricQuery, excludedTags)) {
             throw new AiAccessRefusedError(
-                AiAccessRefusalReason.AI_ACCESS_NEVER,
+                AiAccessRefusalReason.AI_EXCLUDED_DATA,
                 { projectUuid },
             );
         }
@@ -1533,24 +1547,31 @@ export class AsyncQueryService extends ProjectService {
     }): Promise<void> {
         if (!aiRead) return;
         const nodeKind = getQueryResultNodeKind(node.requestParameters);
+        if (nodeKind !== 'semantic' && nodeKind !== 'sql') return;
+        const excludedTags = await this.getActiveAiExcludedTags(
+            account,
+            projectUuid,
+        );
+        if (excludedTags.length === 0) return;
         if (nodeKind === 'semantic') {
             const exploreName = node.metricQuery?.exploreName;
             if (!exploreName) return;
             const explore = await getExplore(exploreName);
             if (
                 isExploreError(explore) ||
-                !metricQueryUsesAiHiddenData(explore, node.metricQuery) ||
-                !(await this.isAiAccessNeverEnabled(account))
+                !metricQueryUsesExcludedData(
+                    explore,
+                    node.metricQuery,
+                    excludedTags,
+                )
             )
                 return;
         } else if (
-            nodeKind !== 'sql' ||
-            !(await this.isAiAccessNeverEnabled(account)) ||
-            !(await this.projectHasAiAccessRules(projectUuid))
+            !(await this.projectHasExcludedData(projectUuid, excludedTags))
         ) {
             return;
         }
-        throw new AiAccessRefusedError(AiAccessRefusalReason.AI_ACCESS_NEVER, {
+        throw new AiAccessRefusedError(AiAccessRefusalReason.AI_EXCLUDED_DATA, {
             projectUuid,
         });
     }
@@ -1564,13 +1585,14 @@ export class AsyncQueryService extends ProjectService {
         projectUuid: string;
         context: QueryExecutionContext;
     }): Promise<void> {
-        if (
-            isAiAccessQueryContext(context) &&
-            (await this.isAiAccessNeverEnabled(account)) &&
-            (await this.projectHasAiAccessRules(projectUuid))
-        ) {
+        if (!isAiAccessQueryContext(context)) return;
+        const excludedTags = await this.getActiveAiExcludedTags(
+            account,
+            projectUuid,
+        );
+        if (await this.projectHasExcludedData(projectUuid, excludedTags)) {
             throw new AiAccessRefusedError(
-                AiAccessRefusalReason.AI_ACCESS_NEVER,
+                AiAccessRefusalReason.AI_EXCLUDED_DATA,
                 { projectUuid },
             );
         }

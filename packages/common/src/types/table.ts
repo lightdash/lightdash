@@ -1,5 +1,4 @@
 import { type InlineError } from './explore';
-import { type AiAccess } from './field';
 import { type ModelRequiredFilterRule } from './filter';
 import type { DefaultTimeDimension } from './timeFrames';
 
@@ -65,8 +64,8 @@ export type TableBase = {
     defaultTimeDimension?: DefaultTimeDimension;
     defaultShowUnderlyingValues?: string[];
     aiHint?: string | string[];
-    /** `never` keeps this model and all its fields away from AI. */
-    aiAccess?: AiAccess;
+    /** The model's dbt tags, so a joined model keeps its own tags. */
+    tags?: string[];
     warnings?: InlineError[];
     dbtPackageName?: string;
     dbtSourceUuid?: string;

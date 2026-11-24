@@ -9209,6 +9209,32 @@ export class ProjectModel {
         };
     }
 
+    async getAiExcludedTags(projectUuid: string): Promise<string[]> {
+        const [project] = await this.database(ProjectTableName)
+            .select('ai_excluded_tags')
+            .where('project_uuid', projectUuid);
+
+        if (!project) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+
+        return project.ai_excluded_tags ?? [];
+    }
+
+    async updateAiExcludedTags(
+        projectUuid: string,
+        aiExcludedTags: string[],
+    ): Promise<void> {
+        const tags = Array.from(
+            new Set(aiExcludedTags.map((tag) => tag.trim()).filter(Boolean)),
+        );
+        await this.database(ProjectTableName)
+            .update({ ai_excluded_tags: tags.length > 0 ? tags : null })
+            .where('project_uuid', projectUuid);
+    }
+
     async getAgentSqlScope(projectUuid: string): Promise<AgentSqlScope | null> {
         const [project] = await this.database(ProjectTableName)
             .select('agent_sql_scope')

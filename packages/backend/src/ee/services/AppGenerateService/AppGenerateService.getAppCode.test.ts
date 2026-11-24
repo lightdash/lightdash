@@ -189,6 +189,7 @@ function buildService(overrides: {
     };
 
     const fullProjectModel = {
+        getAiExcludedTags: vi.fn().mockResolvedValue([]),
         getAllExploresFromCache: vi.fn().mockResolvedValue({}),
         getTablesConfiguration: vi.fn().mockResolvedValue({
             tableSelection: { type: TableSelectionType.ALL, value: null },
@@ -683,6 +684,7 @@ describe('AppGenerateService.getAppCode', () => {
             appModel,
             s3ClientOverride: fakeS3,
             projectModel: {
+                getAiExcludedTags: vi.fn().mockResolvedValue([]),
                 getAllExploresFromCache: vi
                     .fn()
                     .mockRejectedValue(new Error('cache miss')),
@@ -791,6 +793,7 @@ describe('AppGenerateService.getAppCode', () => {
             appModel,
             s3ClientOverride: fakeS3,
             projectModel: {
+                getAiExcludedTags: vi.fn().mockResolvedValue([]),
                 getAllExploresFromCache: vi.fn().mockResolvedValue({}),
             },
             projectParametersModel: {
@@ -903,6 +906,7 @@ describe('AppGenerateService.getDataAppAuthoringContext', () => {
         const svc = buildService({
             appModel: { getAppWithVersions, hasAppSlug },
             projectModel: {
+                getAiExcludedTags: vi.fn().mockResolvedValue([]),
                 getAllExploresFromCache: vi.fn().mockResolvedValue({
                     'explore-uuid': {
                         name: 'orders',

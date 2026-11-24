@@ -258,7 +258,7 @@ describe('AiService', () => {
         ).toStrictEqual(explore);
     });
 
-    test('should use per-table field-level filtering when tables have field tags', async () => {
+    test('keeps a table in explore-level mode when its field tags are not agent tags', async () => {
         const explore = {
             baseTable: 'customers',
             tags: ['ai-enabled'],
@@ -281,6 +281,7 @@ describe('AiService', () => {
                         user_email: {
                             tags: ['marketing', 'ai-enabled'],
                         },
+                        user_phone: {},
                     },
                     metrics: {
                         sales_total: {
@@ -291,6 +292,8 @@ describe('AiService', () => {
             },
         };
 
+        // Before: any field tag (even [] or an unrelated tag) switched the
+        // customers table to field-level mode and hid all its fields.
         expect(
             filterExploreByTags({
                 availableTags: ['marketing', 'ai-enabled'],
@@ -300,10 +303,7 @@ describe('AiService', () => {
             baseTable: 'customers',
             tags: ['ai-enabled'],
             tables: {
-                customers: {
-                    dimensions: {},
-                    metrics: {},
-                },
+                customers: explore.tables.customers,
                 sales: {
                     dimensions: {
                         user_email: {
@@ -318,6 +318,26 @@ describe('AiService', () => {
                 },
             },
         });
+    });
+
+    test('keeps a table in explore-level mode when its only field tags are excluded tags', async () => {
+        const explore = {
+            baseTable: 'customers',
+            tags: ['ai-enabled'],
+            tables: {
+                customers: {
+                    dimensions: {
+                        email: { tags: ['pii'] },
+                        name: {},
+                    },
+                    metrics: { count: {} },
+                },
+            },
+        };
+
+        expect(
+            filterExploreByTags({ availableTags: ['ai-enabled'], explore }),
+        ).toStrictEqual(explore);
     });
 
     test('should filter fields when explore lacks tags but base table fields have matching tags', async () => {
@@ -539,7 +559,7 @@ describe('AiService', () => {
         });
     });
 
-    test('should activate field-level mode when field has empty tags array', async () => {
+    test('does not activate field-level mode for an empty tags array', async () => {
         const explore = {
             baseTable: 'orders',
             tags: ['ai-enabled'],
@@ -554,21 +574,14 @@ describe('AiService', () => {
             },
         };
 
+        // Before: tags: [] switched the table to field-level mode and hid
+        // every field.
         expect(
             filterExploreByTags({
                 availableTags: ['ai-enabled'],
                 explore,
             }),
-        ).toStrictEqual({
-            baseTable: 'orders',
-            tags: ['ai-enabled'],
-            tables: {
-                orders: {
-                    dimensions: {},
-                    metrics: {},
-                },
-            },
-        });
+        ).toStrictEqual(explore);
     });
 
     test('should handle duplicate tags in available tags list', async () => {

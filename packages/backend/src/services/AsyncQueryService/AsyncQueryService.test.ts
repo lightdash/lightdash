@@ -468,6 +468,7 @@ const createQueryComposerMock = ({
     }) as unknown as QueryComposer;
 
 const projectModel = {
+    getAiExcludedTags: vi.fn(async () => []),
     getWithSensitiveFields: vi.fn(async () => projectWithSensitiveFields),
     get: vi.fn(async () => projectWithSensitiveFields),
     getSummary: vi.fn(async () => projectSummary),
@@ -33980,7 +33981,7 @@ describe('bound composer chart runs', () => {
     });
 });
 
-describe('ai_access: never', () => {
+describe('excluded tags', () => {
     const hiddenExplore: Explore = {
         ...validExplore,
         tables: {
@@ -33992,7 +33993,7 @@ describe('ai_access: never', () => {
                     secret: {
                         ...validExplore.tables.a.dimensions.dim1,
                         name: 'secret',
-                        aiAccess: 'never',
+                        tags: ['pii'],
                     },
                 },
             },
@@ -34004,7 +34005,7 @@ describe('ai_access: never', () => {
     };
     const refusal = {
         refusal: expect.objectContaining({
-            reason: AiAccessRefusalReason.AI_ACCESS_NEVER,
+            reason: AiAccessRefusalReason.AI_EXCLUDED_DATA,
             message:
                 "I can't use some of this data with AI in this project. Ask your admin.",
         }),
@@ -34012,13 +34013,14 @@ describe('ai_access: never', () => {
     const makeService = (
         enabled: boolean,
         explore: Explore = hiddenExplore,
+        excludedTags: string[] = ['pii'],
     ) => {
         const service = getMockedAsyncQueryService(lightdashConfigMock);
         vi.mocked(service.featureFlagModel.get).mockImplementation(
             async ({ featureFlagId }) => ({
                 id: featureFlagId,
                 enabled:
-                    enabled && featureFlagId === FeatureFlags.AiAccessNever,
+                    enabled && featureFlagId === FeatureFlags.AiExcludedTags,
             }),
         );
         Object.assign((service as AnyType).projectModel, {
@@ -34026,6 +34028,7 @@ describe('ai_access: never', () => {
                 [explore.name]: explore,
             })),
             getExploreFromCache: vi.fn(async () => explore),
+            getAiExcludedTags: vi.fn(async () => excludedTags),
         });
         return service;
     };
@@ -34162,9 +34165,12 @@ describe('ai_access: never', () => {
             },
         );
 
-        it('allows AI SQL when no field is hidden', async () => {
+        it.each([
+            ['no field has an excluded tag', validExplore, ['pii']],
+            ['the project excludes no tags', hiddenExplore, []],
+        ])('allows AI SQL when %s', async (_case, explore, tags) => {
             await expect(
-                makeService(true, validExplore)['assertAiMayRunRawSql']({
+                makeService(true, explore, tags)['assertAiMayRunRawSql']({
                     account: sessionAccount,
                     projectUuid,
                     context: QueryExecutionContext.AI,

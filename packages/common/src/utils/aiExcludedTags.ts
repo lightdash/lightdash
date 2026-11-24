@@ -1,40 +1,53 @@
 import { type Explore } from '../types/explore';
-import {
-    AI_ACCESS_NEVER,
-    CustomDimensionType,
-    isSqlTableCalculation,
-    type AiAccess,
-} from '../types/field';
+import { CustomDimensionType, isSqlTableCalculation } from '../types/field';
 import { getFilterRules } from '../types/filter';
 import { type AdditionalMetric, type MetricQuery } from '../types/metricQuery';
 import { getItemId } from './item';
 
-type AiAccessField = {
+type TaggedField = {
     name: string;
     table: string;
     sql: string;
-    aiAccess?: AiAccess;
+    tags?: string[];
     dimensionReference?: string;
     tablesReferences?: string[];
 };
 
-type AiAccessTable = {
+type TaggedTable = {
     name: string;
-    aiAccess?: AiAccess;
-    dimensions: Record<string, AiAccessField | undefined>;
-    metrics: Record<string, AiAccessField | undefined>;
+    tags?: string[];
+    dimensions: Record<string, TaggedField | undefined>;
+    metrics: Record<string, TaggedField | undefined>;
 };
 
-type AiAccessExplore = {
+type TaggedExplore = {
     baseTable: string;
-    tables: Record<string, AiAccessTable | undefined>;
+    tags?: string[];
+    tables: Record<string, TaggedTable | undefined>;
 };
 
-export type AiAccessRules = {
+export type AiExcludedTagRules = {
     hiddenTables: ReadonlySet<string>;
     hiddenFieldIds: ReadonlySet<string>;
     hiddenColumnNames: ReadonlySet<string>;
 };
+
+/** Every non-empty tag from the given lists, without duplicates. */
+export const mergeExcludedTags = (
+    ...lists: ReadonlyArray<readonly string[] | null | undefined>
+): string[] =>
+    Array.from(
+        new Set(
+            lists.flatMap((list) =>
+                (list ?? []).map((tag) => tag.trim()).filter(Boolean),
+            ),
+        ),
+    );
+
+const hasExcludedTag = (
+    tags: readonly string[] | undefined,
+    excluded: ReadonlySet<string>,
+): boolean => (tags ?? []).some((tag) => excluded.has(tag));
 
 const referencePattern = /\$\{((?!(lightdash|ld)\.)[a-zA-Z0-9_.-]+)\}/g;
 const tableColumnPattern = /\$\{TABLE\}\.(\w+)/g;
@@ -60,14 +73,19 @@ const getTableColumns = (sql: string): string[] =>
         match[1] === undefined ? [] : [match[1].toLowerCase()],
     );
 
-const getFields = (table: AiAccessTable): AiAccessField[] =>
+const getFields = (table: TaggedTable): TaggedField[] =>
     [
         ...Object.values(table.dimensions),
         ...Object.values(table.metrics),
-    ].filter((field): field is AiAccessField => field !== undefined);
+    ].filter((field): field is TaggedField => field !== undefined);
+
+const getTables = (explore: TaggedExplore): TaggedTable[] =>
+    Object.values(explore.tables).filter(
+        (table): table is TaggedTable => table !== undefined,
+    );
 
 const usesHiddenData = (
-    field: AiAccessField,
+    field: TaggedField,
     hiddenTables: ReadonlySet<string>,
     hiddenFieldIds: ReadonlySet<string>,
     hiddenColumnsByTable: ReadonlyMap<string, ReadonlySet<string>>,
@@ -78,15 +96,16 @@ const usesHiddenData = (
     ) {
         return true;
     }
+    const sql = field.sql ?? '';
     if (
-        [...getReferencedTables(field.sql), ...(field.tablesReferences ?? [])]
+        [...getReferencedTables(sql), ...(field.tablesReferences ?? [])]
             .filter((table) => table !== field.table)
             .some((table) => hiddenTables.has(table))
     ) {
         return true;
     }
     if (
-        getReferencedFieldIds(field.sql, field.table).some((id) =>
+        getReferencedFieldIds(sql, field.table).some((id) =>
             hiddenFieldIds.has(id),
         )
     ) {
@@ -95,30 +114,57 @@ const usesHiddenData = (
     const hiddenColumns = hiddenColumnsByTable.get(field.table);
     return (
         hiddenColumns !== undefined &&
-        getTableColumns(field.sql).some((column) => hiddenColumns.has(column))
+        getTableColumns(sql).some((column) => hiddenColumns.has(column))
+    );
+};
+
+export const exploreHasExcludedTags = (
+    explore: TaggedExplore,
+    excludedTags: readonly string[],
+): boolean => {
+    if (excludedTags.length === 0) return false;
+    const excluded = new Set(excludedTags);
+    return (
+        hasExcludedTag(explore.tags, excluded) ||
+        getTables(explore).some(
+            (table) =>
+                hasExcludedTag(table.tags, excluded) ||
+                getFields(table).some((field) =>
+                    hasExcludedTag(field.tags, excluded),
+                ),
+        )
     );
 };
 
 /**
- * Fields marked `ai_access: never`, every field of a model marked so, and every
- * field whose SQL is built from one of those.
+ * Models and fields with an excluded tag, and every field whose SQL is built
+ * from one of those. The explore's own tags count for its base model.
  */
-export const getAiAccessRules = (explore: AiAccessExplore): AiAccessRules => {
-    const tables = Object.values(explore.tables).filter(
-        (table): table is AiAccessTable => table !== undefined,
-    );
+export const getExcludedTagRules = (
+    explore: TaggedExplore,
+    excludedTags: readonly string[],
+): AiExcludedTagRules => {
+    const excluded = new Set(excludedTags);
+    const tables = getTables(explore);
     const hiddenTables = new Set(
         tables
-            .filter((table) => table.aiAccess === AI_ACCESS_NEVER)
+            .filter(
+                (table) =>
+                    hasExcludedTag(table.tags, excluded) ||
+                    (table.name === explore.baseTable &&
+                        hasExcludedTag(explore.tags, excluded)),
+            )
             .map((table) => table.name),
     );
     const hiddenFieldIds = new Set<string>();
     const hiddenColumnsByTable = new Map<string, Set<string>>();
 
-    const hide = (field: AiAccessField) => {
+    const hide = (field: TaggedField) => {
         hiddenFieldIds.add(getItemId(field));
         const columns = hiddenColumnsByTable.get(field.table) ?? new Set();
-        getTableColumns(field.sql).forEach((column) => columns.add(column));
+        getTableColumns(field.sql ?? '').forEach((column) =>
+            columns.add(column),
+        );
         hiddenColumnsByTable.set(field.table, columns);
     };
 
@@ -126,7 +172,7 @@ export const getAiAccessRules = (explore: AiAccessExplore): AiAccessRules => {
         getFields(table).forEach((field) => {
             if (
                 hiddenTables.has(table.name) ||
-                field.aiAccess === AI_ACCESS_NEVER
+                hasExcludedTag(field.tags, excluded)
             ) {
                 hide(field);
             }
@@ -163,31 +209,22 @@ export const getAiAccessRules = (explore: AiAccessExplore): AiAccessRules => {
     return { hiddenTables, hiddenFieldIds, hiddenColumnNames };
 };
 
-export const hasAiAccessRules = (rules: AiAccessRules): boolean =>
-    rules.hiddenTables.size > 0 || rules.hiddenFieldIds.size > 0;
-
-export const exploreHasAiAccessRules = (explore: AiAccessExplore): boolean =>
-    Object.values(explore.tables).some(
-        (table) =>
-            table !== undefined &&
-            (table.aiAccess === AI_ACCESS_NEVER ||
-                getFields(table).some(
-                    (field) => field.aiAccess === AI_ACCESS_NEVER,
-                )),
-    );
-
 /**
- * The explore as AI may see it: hidden models and fields are absent. Returns
- * undefined when the explore's base model is hidden.
+ * The explore as AI may see it: models and fields with an excluded tag are
+ * absent. Returns undefined when the explore's base model is excluded.
  */
-export const filterExploreForAi = <E extends Explore>(
+export const filterExploreByExcludedTags = <E extends Explore>(
     explore: E,
+    excludedTags: readonly string[],
 ): E | undefined => {
-    if (!exploreHasAiAccessRules(explore)) return explore;
-    const { hiddenTables, hiddenFieldIds } = getAiAccessRules(explore);
+    if (!exploreHasExcludedTags(explore, excludedTags)) return explore;
+    const { hiddenTables, hiddenFieldIds } = getExcludedTagRules(
+        explore,
+        excludedTags,
+    );
     if (hiddenTables.has(explore.baseTable)) return undefined;
 
-    const isVisible = (field: AiAccessField) =>
+    const isVisible = (field: TaggedField) =>
         !hiddenFieldIds.has(getItemId(field));
 
     const tables = Object.fromEntries(
@@ -228,11 +265,11 @@ const containsWord = (sql: string, words: ReadonlySet<string>): boolean => {
 
 /**
  * True when an AI query on this explore selects, filters, sorts or computes
- * from a field AI may not use. Custom SQL dimensions are refused outright on
- * an explore with rules, because raw SQL can read any column of a model.
+ * from excluded data. Custom SQL dimensions are refused outright on an explore
+ * with excluded data, because raw SQL can read any column of a model.
  */
-export const metricQueryUsesAiHiddenData = (
-    explore: AiAccessExplore,
+export const metricQueryUsesExcludedData = (
+    explore: TaggedExplore,
     metricQuery: Pick<
         MetricQuery,
         | 'exploreName'
@@ -249,9 +286,10 @@ export const metricQueryUsesAiHiddenData = (
             }
         >;
     },
+    excludedTags: readonly string[],
 ): boolean => {
-    if (!exploreHasAiAccessRules(explore)) return false;
-    const rules = getAiAccessRules(explore);
+    if (!exploreHasExcludedTags(explore, excludedTags)) return false;
+    const rules = getExcludedTagRules(explore, excludedTags);
     if (rules.hiddenTables.has(explore.baseTable)) return true;
     const isHiddenId = (fieldId: string) => rules.hiddenFieldIds.has(fieldId);
 
@@ -314,15 +352,20 @@ export const metricQueryUsesAiHiddenData = (
     ].some(isHiddenId);
 };
 
-export const getProjectAiAccessRules = (
-    explores: AiAccessExplore[],
-): Pick<AiAccessRules, 'hiddenTables' | 'hiddenFieldIds'> => {
+export const getProjectExcludedTagRules = (
+    explores: TaggedExplore[],
+    excludedTags: readonly string[],
+): Pick<AiExcludedTagRules, 'hiddenTables' | 'hiddenFieldIds'> => {
     const hiddenTables = new Set<string>();
     const hiddenFieldIds = new Set<string>();
-    explores.filter(exploreHasAiAccessRules).forEach((explore) => {
-        const rules = getAiAccessRules(explore);
-        rules.hiddenTables.forEach((table) => hiddenTables.add(table));
-        rules.hiddenFieldIds.forEach((fieldId) => hiddenFieldIds.add(fieldId));
-    });
+    explores
+        .filter((explore) => exploreHasExcludedTags(explore, excludedTags))
+        .forEach((explore) => {
+            const rules = getExcludedTagRules(explore, excludedTags);
+            rules.hiddenTables.forEach((table) => hiddenTables.add(table));
+            rules.hiddenFieldIds.forEach((fieldId) =>
+                hiddenFieldIds.add(fieldId),
+            );
+        });
     return { hiddenTables, hiddenFieldIds };
 };

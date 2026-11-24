@@ -13,6 +13,7 @@ export type DbAiAgent = {
     image_url: string | null;
     image_url_source: 'upload' | 'url' | null;
     tags: string[] | null;
+    excluded_tags: string[] | null;
     enable_data_access: boolean;
     enable_self_improvement: boolean;
     enable_content_tools: boolean;
@@ -48,9 +49,13 @@ export type AiAgentTable = Knex.CompositeTableType<
     // insert
     Omit<
         DbAiAgent,
-        'ai_agent_uuid' | 'created_at' | 'updated_at' | 'agent_kind'
+        | 'ai_agent_uuid'
+        | 'created_at'
+        | 'updated_at'
+        | 'agent_kind'
+        | 'excluded_tags'
     > &
-        Partial<Pick<DbAiAgent, 'agent_kind'>>,
+        Partial<Pick<DbAiAgent, 'agent_kind' | 'excluded_tags'>>,
     // update
     Partial<Omit<DbAiAgent, 'ai_agent_uuid' | 'created_at' | 'updated_at'>> & {
         updated_at: Knex.Raw;

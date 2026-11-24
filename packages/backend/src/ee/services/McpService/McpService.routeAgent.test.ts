@@ -114,6 +114,7 @@ const selectedAgent: AiAgentWithContext = {
     imageUrl: null,
     imageUrlSource: null,
     tags: ['finance'],
+    excludedTags: null,
     integrations: [],
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),

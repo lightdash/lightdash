@@ -63,7 +63,7 @@ import {
     emptySectionAccumulator,
     excludeSectionByAiAccess,
     getAiAccessExcludedNote,
-    isAiAccessNeverRefusal,
+    isAiExcludedTagsRefusal,
     MAX_ROWS_PER_CHART,
     omitSection,
     serializeSections,
@@ -634,7 +634,7 @@ export class SchedulerAiAugmentationService
                     truncated,
                 );
             } catch (error) {
-                if (isAiAccessNeverRefusal(error)) {
+                if (isAiExcludedTagsRefusal(error)) {
                     return excludeSectionByAiAccess(acc);
                 }
                 throw error;
@@ -672,7 +672,7 @@ export class SchedulerAiAugmentationService
                 this.schedulerPollingOptions,
             )
             .catch((error: unknown) => {
-                if (isAiAccessNeverRefusal(error)) return null;
+                if (isAiExcludedTagsRefusal(error)) return null;
                 throw error;
             });
         if (results === null) {
@@ -732,7 +732,7 @@ export class SchedulerAiAugmentationService
                         this.schedulerPollingOptions,
                     )
                     .catch((error: unknown) => {
-                        if (isAiAccessNeverRefusal(error)) return null;
+                        if (isAiExcludedTagsRefusal(error)) return null;
                         throw error;
                     });
                 if (results === null) return excludeSectionByAiAccess(acc);

@@ -122,6 +122,7 @@ const setup = ({ personReadAccess = false } = {}) => {
     } as unknown as QueryHistory;
     const flags = { enabled: true };
     const projectModel = {
+        getAiExcludedTags: vi.fn(async () => []),
         getSummary: vi.fn(async () => project),
         getWarehouseCredentialsForBinding: vi.fn(async () => credentials),
     };
@@ -193,7 +194,6 @@ const setup = ({ personReadAccess = false } = {}) => {
             userModel,
             warehouseClientFactory: factory,
             aiAccessService: access,
-            featureFlagModel: { get: async () => ({ enabled: false }) },
             resultsStorageClient: { isEnabled: true, getDownloadStream },
             analytics: { trackAccount: vi.fn() },
             getUserAttributes: vi.fn(async () => controls),

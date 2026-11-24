@@ -51,7 +51,6 @@ import {
     FieldType,
     friendlyName,
     isTimestampDomain,
-    parseAiAccess,
     type Dimension,
     type Metric,
     type Source,
@@ -231,6 +230,14 @@ const convertFilterAutocomplete = (
     };
 };
 
+const toTagList = (value: unknown): string[] => {
+    if (typeof value === 'string') return value ? [value] : [];
+    if (!Array.isArray(value)) return [];
+    return value.filter(
+        (tag): tag is string => typeof tag === 'string' && tag.length > 0,
+    );
+};
+
 const convertDimension = (
     index: number,
     targetWarehouse: SupportedDbtAdapter,
@@ -247,6 +254,13 @@ const convertDimension = (
 ): Dimension => {
     // Config block takes priority, then meta block
     const meta = merge({}, column.meta, column.config?.meta);
+    const fieldTags = Array.from(
+        new Set([
+            ...toTagList(meta.dimension?.tags),
+            ...toTagList(column.tags),
+            ...toTagList(column.config?.tags),
+        ]),
+    );
     let type = meta.dimension?.type || column.data_type || DimensionType.STRING;
     if (!Object.values(DimensionType).includes(type)) {
         throw new MissingCatalogEntryError(
@@ -374,23 +388,9 @@ const convertDimension = (
         ...(timestampDomain ? { timestampDomain } : {}),
         groups,
         isIntervalBase,
-        ...(meta.dimension && meta.dimension.tags
-            ? {
-                  tags: Array.isArray(meta.dimension.tags)
-                      ? meta.dimension.tags
-                      : [meta.dimension.tags],
-              }
-            : {}),
+        ...(fieldTags.length > 0 ? { tags: fieldTags } : {}),
         ...(meta.dimension?.ai_hint
             ? { aiHint: convertToAiHints(meta.dimension.ai_hint) }
-            : {}),
-        ...((parseAiAccess(meta.dimension?.ai_access) ??
-        parseAiAccess(meta.ai_access))
-            ? {
-                  aiAccess:
-                      parseAiAccess(meta.dimension?.ai_access) ??
-                      parseAiAccess(meta.ai_access),
-              }
             : {}),
         ...(meta.dimension?.case_sensitive !== undefined
             ? { caseSensitive: meta.dimension.case_sensitive }
@@ -754,6 +754,9 @@ export const convertTable = (
     const meta = merge({}, model.meta, model.config?.meta);
     const tableLabel = meta.label || friendlyName(model.name);
     const tableWarnings: InlineError[] = [];
+    const configTags = toTagList(model.config?.tags);
+    const modelTags =
+        configTags.length > 0 ? configTags : toTagList(model.tags);
 
     const processIntervalDimension = (
         dim: Dimension,
@@ -922,9 +925,6 @@ export const convertTable = (
         ([prevDimensions, prevMetrics], column, index) => {
             // Config block takes priority, then meta block
             const columnMeta = merge({}, column.meta, column.config?.meta);
-            const columnAiAccess =
-                parseAiAccess(columnMeta.dimension?.ai_access) ??
-                parseAiAccess(columnMeta.ai_access);
             const routedByUnnest = !columnMeta.dimension?.sql;
             // Leaves under an array belong to the unnested table, unless
             // custom SQL made the column scalar on purpose.
@@ -982,12 +982,10 @@ export const convertTable = (
                         name: subDimensionName,
                         meta: {
                             dimension: subDimension,
-                            ai_access: columnAiAccess,
                         },
                         config: {
                             meta: {
                                 dimension: subDimension,
-                                ai_access: columnAiAccess,
                             },
                         },
                     },
@@ -1038,7 +1036,6 @@ export const convertTable = (
                             tableLabel,
                             requiredAttributes: dimension?.requiredAttributes,
                             anyAttributes: dimension?.anyAttributes,
-                            aiAccess: columnAiAccess,
                             spotlightConfig: {
                                 ...spotlightConfig,
                                 default_visibility:
@@ -1312,9 +1309,7 @@ export const convertTable = (
             : {}),
         ...(defaultShowUnderlyingValues ? { defaultShowUnderlyingValues } : {}),
         ...(meta.ai_hint ? { aiHint: convertToAiHints(meta.ai_hint) } : {}),
-        ...(parseAiAccess(meta.ai_access)
-            ? { aiAccess: parseAiAccess(meta.ai_access) }
-            : {}),
+        ...(modelTags.length > 0 ? { tags: modelTags } : {}),
         ...(meta.parameters ? { parameters: meta.parameters } : {}),
         ...(meta.sets ? { sets: meta.sets } : {}),
         ...(tableWarnings.length > 0 ? { warnings: tableWarnings } : {}),

@@ -21,9 +21,9 @@ export type SectionAccumulator = {
     aiAccessExcludedCount: number;
 };
 
-export const isAiAccessNeverRefusal = (error: unknown): boolean =>
+export const isAiExcludedTagsRefusal = (error: unknown): boolean =>
     error instanceof AiAccessRefusedError &&
-    error.refusal.reason === AiAccessRefusalReason.AI_ACCESS_NEVER;
+    error.refusal.reason === AiAccessRefusalReason.AI_EXCLUDED_DATA;
 
 export const getAiAccessExcludedNote = (count: number): string | null =>
     count > 0

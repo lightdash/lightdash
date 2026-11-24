@@ -100,6 +100,7 @@ function buildService(
                 .fn()
                 .mockResolvedValue({ organizationUuid: 'org-1' }),
             getAllExploresFromCache: vi.fn().mockResolvedValue({}),
+            getAiExcludedTags: vi.fn().mockResolvedValue([]),
         } as never,
         projectParametersModel: {} as never,
         spaceModel: {} as never,

@@ -48,6 +48,7 @@ export const HUMAN_ONLY_IN_MANAGED: ReadonlySet<string> = new Set<
     'ProjectController.grantProjectAccessToUser',
     'ProjectController.revokeProjectAccessForUser',
     'ProjectController.updateAgentSqlScope',
+    'ProjectController.updateAiExcludedTags',
     'ProjectController.updateProjectAccessForUser',
     'ProjectRolesController.deleteProjectGroupRoleAssignment',
     'ProjectRolesController.deleteProjectUserRoleAssignment',

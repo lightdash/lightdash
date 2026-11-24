@@ -173,6 +173,7 @@ export const baseAgentSchema = z.object({
     imageUrlSource: z.enum(['upload', 'url']).nullable(),
 
     tags: z.array(z.string()).nullable(),
+    excludedTags: z.array(z.string()).nullable(),
 
     integrations: z.array(
         z.object({
@@ -234,6 +235,7 @@ export type AiAgent = Pick<
     | 'organizationUuid'
     | 'integrations'
     | 'tags'
+    | 'excludedTags'
     | 'name'
     | 'kind'
     | 'description'
@@ -268,6 +270,7 @@ export type AiAgentSummary = Pick<
     | 'description'
     | 'integrations'
     | 'tags'
+    | 'excludedTags'
     | 'projectUuid'
     | 'organizationUuid'
     | 'createdAt'
@@ -720,6 +723,7 @@ export type ApiCreateAiAgent = Pick<
     modelConfig?: AiAgentModelConfig | null;
     providerCredentialUuid?: string | null;
     threadRetentionHours?: number | null;
+    excludedTags?: string[] | null;
 };
 
 /** The agent a project gets when none exists yet, so people can start without configuring one. */
@@ -771,6 +775,7 @@ export type ApiUpdateAiAgent = Partial<
     // Omitted keeps the current pin; null clears it.
     providerCredentialUuid?: string | null;
     threadRetentionHours?: number | null;
+    excludedTags?: string[] | null;
 };
 
 export type ApiCreateAiAgentResponse = {

@@ -13,7 +13,7 @@ export const testCases: TestCase[] = [
                 await services.aiAgentService.getAvailableExplores(
                     testContext.testUser,
                     testContext.testProjectUuid,
-                    ['core'],
+                    { tags: ['core'], excludedTags: null },
                 );
             const { data: tables } =
                 await services.catalogService.searchCatalog({

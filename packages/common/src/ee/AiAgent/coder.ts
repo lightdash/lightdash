@@ -32,6 +32,8 @@ export type AgentAsCode = {
     imageUrl: string | null;
     instruction: string | null;
     tags: string[] | null;
+    // Omitted = leave unchanged; null = clear.
+    excludedTags?: string[] | null;
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
     enableContentTools: boolean;

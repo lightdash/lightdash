@@ -17,6 +17,7 @@ const visibleAgent: AiAgent = {
     organizationUuid: defaultSessionUser.organizationUuid!,
     integrations: [],
     tags: null,
+    excludedTags: null,
     name: 'Agent',
     kind: 'user',
     description: null,
