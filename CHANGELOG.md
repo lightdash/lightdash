@@ -1,3 +1,10 @@
+## [3.381.3](https://github.com/lightdash/lightdash/compare/3.381.2...3.381.3) (2026-11-24)
+
+
+### Bug Fixes
+
+* **semantic-studio:** close remaining links and fix merge, PR and publish edge cases ([#33276](https://github.com/lightdash/lightdash/issues/33276)) ([a1fa729](https://github.com/lightdash/lightdash/commit/a1fa729f04f04728c2aff8947db48a59b9772097))
+
 ## [3.381.2](https://github.com/lightdash/lightdash/compare/3.381.1...3.381.2) (2026-11-24)
 
 
