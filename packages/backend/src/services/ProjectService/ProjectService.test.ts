@@ -4028,7 +4028,6 @@ describe('ProjectService', () => {
                 projectUuid,
                 user,
                 RequestMethod.WEB_APP,
-                'new',
             ),
         ).toMatchObject({ onboardingFlow: 'new' });
     });
@@ -4059,7 +4058,6 @@ describe('ProjectService', () => {
                     projectUuid,
                     user,
                     RequestMethod.WEB_APP,
-                    'new',
                 ),
             ).toMatchObject({
                 authenticationType: expectedAuthenticationType,
@@ -5763,17 +5761,9 @@ describe('ProjectService', () => {
             organizationCreatedAt: new Date(),
         };
 
-        const createProject = async (newOnboardingEnabled: boolean) => {
+        const createProject = async () => {
             const warmService = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,
-            );
-            vi.mocked(warmService.featureFlagModel.get).mockImplementation(
-                async ({ featureFlagId }) => ({
-                    id: featureFlagId,
-                    enabled:
-                        featureFlagId === FeatureFlags.NewOnboarding &&
-                        newOnboardingEnabled,
-                }),
             );
             projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
                 'warm-project-uuid',
@@ -5790,9 +5780,9 @@ describe('ProjectService', () => {
             );
         };
 
-        test('schedules the warm-up under the new onboarding flow', async () => {
+        test('schedules the table cache warm-up after project creation', async () => {
             schedulerClient.warmWarehouseTablesCache.mockClear();
-            await createProject(true);
+            await createProject();
             expect(
                 schedulerClient.warmWarehouseTablesCache,
             ).toHaveBeenCalledWith({
@@ -5800,14 +5790,6 @@ describe('ProjectService', () => {
                 projectUuid: 'warm-project-uuid',
                 userUuid: creationUser.userUuid,
             });
-        });
-
-        test('does not schedule the warm-up under the legacy flow', async () => {
-            schedulerClient.warmWarehouseTablesCache.mockClear();
-            await createProject(false);
-            expect(
-                schedulerClient.warmWarehouseTablesCache,
-            ).not.toHaveBeenCalled();
         });
     });
 
@@ -5951,7 +5933,6 @@ describe('ProjectService', () => {
         const saveAndTrack = async ({
             savedProject = warehouselessProject,
             organizationProjects = [],
-            newOnboardingEnabled = true,
         }: {
             savedProject?:
                 | typeof projectWithSensitiveFields
@@ -5959,18 +5940,9 @@ describe('ProjectService', () => {
             organizationProjects?: Awaited<
                 ReturnType<ProjectModel['getAllByOrganizationUuid']>
             >;
-            newOnboardingEnabled?: boolean;
         }) => {
             const trackingService = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,
-            );
-            vi.mocked(trackingService.featureFlagModel.get).mockImplementation(
-                async ({ featureFlagId }) => ({
-                    id: featureFlagId,
-                    enabled:
-                        featureFlagId === FeatureFlags.NewOnboarding &&
-                        newOnboardingEnabled,
-                }),
             );
             projectModel.getWithSensitiveFields.mockResolvedValueOnce(
                 savedProject,
@@ -6038,12 +6010,6 @@ describe('ProjectService', () => {
             const trackingService = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,
             );
-            vi.mocked(trackingService.featureFlagModel.get).mockImplementation(
-                async ({ featureFlagId }) => ({
-                    id: featureFlagId,
-                    enabled: featureFlagId === FeatureFlags.NewOnboarding,
-                }),
-            );
             projectModel.getWithSensitiveFields.mockResolvedValueOnce(
                 warehouselessProject,
             );
@@ -6086,8 +6052,8 @@ describe('ProjectService', () => {
             const trackingService = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,
             );
-            vi.mocked(trackingService.featureFlagModel.get).mockRejectedValue(
-                new Error('flag lookup failed'),
+            projectModel.getAllByOrganizationUuid.mockRejectedValueOnce(
+                new Error('project lookup failed'),
             );
             projectModel.getWithSensitiveFields.mockResolvedValueOnce(
                 warehouselessProject,
@@ -6099,12 +6065,6 @@ describe('ProjectService', () => {
                     { warehouseConnection: warehouseClientMock.credentials },
                 ),
             ).resolves.toBeUndefined();
-        });
-
-        test('stays quiet in the legacy flow', async () => {
-            expect(await saveAndTrack({ newOnboardingEnabled: false })).toEqual(
-                [],
-            );
         });
     });
 
@@ -6124,18 +6084,9 @@ describe('ProjectService', () => {
             organizationProjects: Awaited<
                 ReturnType<ProjectModel['getAllByOrganizationUuid']>
             >,
-            newOnboardingEnabled = true,
         ) => {
             const trackingService = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,
-            );
-            vi.mocked(trackingService.featureFlagModel.get).mockImplementation(
-                async ({ featureFlagId }) => ({
-                    id: featureFlagId,
-                    enabled:
-                        featureFlagId === FeatureFlags.NewOnboarding &&
-                        newOnboardingEnabled,
-                }),
             );
             projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
                 createdProjectUuid,
@@ -6194,18 +6145,6 @@ describe('ProjectService', () => {
                     }),
                 }),
             ]);
-        });
-
-        test('leaves the warehouse step to the connection test in the legacy flow', async () => {
-            const events = await createAndTrack(
-                [{ ...defaultProject, projectUuid: createdProjectUuid }],
-                false,
-            );
-            expect(
-                events.some(
-                    (payload) => payload.event === 'onboarding.step_completed',
-                ),
-            ).toBe(false);
         });
 
         test('does not repeat the warehouse step for a later project', async () => {
@@ -24465,50 +24404,34 @@ describe('compile adapter connection credentials', () => {
         }
     });
 
-    it.each([
-        ['legacy', false, 1],
-        ['new', true, 0],
-    ])(
-        'testProjectAdapter on project_create in the %s flow tracks the warehouse step %i time(s)',
-        async (_flow, newOnboardingEnabled, expectedCount) => {
-            const flaggedService = getMockedProjectService(
-                lightdashConfigWithGoogleOAuthMock,
-            );
-            vi.mocked(flaggedService.featureFlagModel.get).mockImplementation(
-                async ({ featureFlagId }) => ({
-                    id: featureFlagId,
-                    enabled:
-                        featureFlagId === FeatureFlags.NewOnboarding &&
-                        newOnboardingEnabled,
-                }),
-            );
-            const service = flaggedService as unknown as CompileInternals;
-            const track = vi.spyOn(analyticsMock, 'track');
-            track.mockClear();
-            const tested = await service.testProjectAdapter(
-                {
-                    ...projectWithSensitiveFields,
-                    warehouseConnection: {
-                        kind: 'submitted_resolved',
-                        credentials: ducklakeCredentials,
-                    },
-                    dbtConnection: { type: DbtProjectType.NONE },
+    it('does not complete the warehouse step when testing a project connection', async () => {
+        const service = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+        ) as unknown as CompileInternals;
+        const track = vi.spyOn(analyticsMock, 'track');
+        track.mockClear();
+        const tested = await service.testProjectAdapter(
+            {
+                ...projectWithSensitiveFields,
+                warehouseConnection: {
+                    kind: 'submitted_resolved',
+                    credentials: ducklakeCredentials,
                 },
-                caller,
-                'project_create',
-                RequestMethod.WEB_APP,
-                null,
-                null,
-            );
-            await tested.lease.release();
-            expect(
-                track.mock.calls.filter(
-                    ([payload]) =>
-                        payload.event === 'onboarding.step_completed',
-                ),
-            ).toHaveLength(expectedCount);
-        },
-    );
+                dbtConnection: { type: DbtProjectType.NONE },
+            },
+            caller,
+            'project_create',
+            RequestMethod.WEB_APP,
+            null,
+            null,
+        );
+        await tested.lease.release();
+        expect(
+            track.mock.calls.filter(
+                ([payload]) => payload.event === 'onboarding.step_completed',
+            ),
+        ).toHaveLength(0);
+    });
 
     it('buildSourceAdapter derives from original DuckLake credentials with the source location', async () => {
         const service = getMockedProjectService(

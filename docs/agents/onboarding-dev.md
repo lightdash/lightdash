@@ -31,6 +31,5 @@ Configuration comes from `.env.development.local`, with `.env.development` and
 `.env` as defaults. Both app and database must be on loopback; production mode
 is rejected. Reset only targets the fixture's fixed user and organization UUIDs.
 
-The normal first-project rules still apply: `new-onboarding` must be enabled.
 The command does not override rollout flags or fabricate a completed setup step.
 Browser state lives under `.humanlayer/onboarding-browser/` (ignored by Git).

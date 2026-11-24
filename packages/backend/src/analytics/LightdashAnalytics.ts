@@ -1581,7 +1581,6 @@ type PlaygroundProjectProvisionedEvent = BaseTrack & {
 };
 
 export type PlaygroundProjectSkippedReason =
-    | 'new_onboarding_flag_disabled'
     | 'playground_already_exists'
     | 'organization_has_project'
     | 'no_project_access'

@@ -1,4 +1,4 @@
-import { Box, Card, Stack, Text, Title } from '@mantine/core';
+import { Box, Stack, Text, Title } from '@mantine/core';
 import {
     useCallback,
     useMemo,
@@ -10,7 +10,6 @@ import {
     type ReactNode,
 } from 'react';
 import { useWhiteLabelBrand } from '../../../hooks/organization/useWhiteLabelBrand';
-import LightdashLogo from '../../LightdashLogo/LightdashLogo';
 import PageSpinner from '../../PageSpinner';
 import { DocumentTitle } from '../DocumentTitle';
 import AuthBrandLogo from './AuthBrandLogo';
@@ -19,7 +18,6 @@ import { AuthPanelContext } from './AuthPanelContext';
 import CustomerLogos from './CustomerLogos';
 import LightdashWordmark from './LightdashWordmark';
 import ListeningBlocks from './ListeningBlocks';
-import { useAuthLayoutVariant } from './useAuthLayoutVariant';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -44,12 +42,8 @@ type Props = {
     /** Split-layout heading. Omitted when the page renders its own heading. */
     title?: string;
     subtitle?: ReactNode;
-    /** Centred heading inside the legacy card. */
-    legacyTitle?: string;
-    /** Bounds the form in both layouts, for `SCREENSHOT_SELECTORS.LOGIN_PAGE`. */
+    /** Bounds the form, for `SCREENSHOT_SELECTORS.LOGIN_PAGE`. */
     cardId?: string;
-    /** Pages that bring their own cards (Invite) opt out of the legacy card. */
-    withLegacyCard?: boolean;
     /** Shows customer logos on the brand panel in the split layout. */
     withCustomerLogos?: boolean;
     footer?: ReactNode;
@@ -59,14 +53,11 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     pageTitle,
     title,
     subtitle,
-    legacyTitle,
     cardId,
-    withLegacyCard = true,
     withCustomerLogos = false,
     footer,
     children,
 }) => {
-    const { isNewLayout, isInitialLoading } = useAuthLayoutVariant();
     const whiteLabelBrand = useWhiteLabelBrand();
     const isBranded = !!(whiteLabelBrand.logoUrl || whiteLabelBrand.name);
     const brandPanelRef = useRef<HTMLDivElement>(null);
@@ -130,37 +121,8 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
         if (panel) panel.dataset.stage = 'submitting';
     };
 
-    if (isInitialLoading || !whiteLabelBrand.isInstanceBrandResolved) {
+    if (!whiteLabelBrand.isInstanceBrandResolved) {
         return <PageSpinner />;
-    }
-
-    if (!isNewLayout) {
-        return (
-            <>
-                <DocumentTitle title={pageTitle} />
-
-                <Box className={classes.legacyRoot}>
-                    <Stack className={classes.legacyContent}>
-                        <Box mx="auto" my="lg">
-                            <AuthBrandLogo fallback={<LightdashLogo />} />
-                        </Box>
-                        {withLegacyCard ? (
-                            <Card id={cardId} p="xl" radius="md">
-                                {legacyTitle && (
-                                    <Title order={3} ta="center" mb="md">
-                                        {legacyTitle}
-                                    </Title>
-                                )}
-                                {children}
-                            </Card>
-                        ) : (
-                            children
-                        )}
-                        {footer}
-                    </Stack>
-                </Box>
-            </>
-        );
     }
 
     return (

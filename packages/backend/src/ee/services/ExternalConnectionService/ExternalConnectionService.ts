@@ -401,18 +401,6 @@ export class ExternalConnectionService extends BaseService {
         this.savedChartModel = args.savedChartModel;
     }
 
-    private async isNewOnboardingEnabled(
-        account: RegisteredAccount,
-    ): Promise<boolean> {
-        const { enabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.NewOnboarding,
-        });
-        return enabled;
-    }
 
     private static assertNotSignInType(type: ExternalConnectionAuthType) {
         if (type === 'oauth_authorization_code') {
@@ -2348,10 +2336,7 @@ export class ExternalConnectionService extends BaseService {
         account: RegisteredAccount,
         connection: ExternalConnection,
     ): Promise<void> {
-        if (
-            connection.apiSource?.connector !== ApiConnectorType.POSTHOG ||
-            !(await this.isNewOnboardingEnabled(account))
-        ) {
+        if (connection.apiSource?.connector !== ApiConnectorType.POSTHOG) {
             return;
         }
         try {
@@ -2477,7 +2462,6 @@ export class ExternalConnectionService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
     ): Promise<QuerySourceSchemaTable[]> {
-        if (!(await this.isNewOnboardingEnabled(account))) return [];
         const sources = await this.listApiSourceConnectionsWithSchema(
             account,
             projectUuid,

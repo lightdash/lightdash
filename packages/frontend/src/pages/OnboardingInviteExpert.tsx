@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    FeatureFlags,
     getEmailSchema,
     getUserNameSchema,
     InviteLinkPurpose,
@@ -52,7 +51,6 @@ import { useOrganization } from '../hooks/organization/useOrganization';
 import { useEnsurePlaygroundProject } from '../hooks/useEnsurePlaygroundProject';
 import { useCreateInviteLinkMutation } from '../hooks/useInviteLink';
 import { useUserUpdateMutation } from '../hooks/user/useUserUpdateMutation';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
@@ -210,8 +208,6 @@ const OnboardingInviteExpert: FC = () => {
             ? rawReturnTo
             : undefined;
 
-    const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
-    const isNewOnboarding = newOnboardingFlag.data?.enabled ?? false;
     const { data: organization } = useOrganization();
     const [playgroundFailure, setPlaygroundFailure] =
         useState<PlaygroundSetupFailure | null>(null);
@@ -220,10 +216,7 @@ const OnboardingInviteExpert: FC = () => {
         isLoading: isPreparingPlayground,
     } = useEnsurePlaygroundProject();
 
-    // The flag says the flow exists, not that a playground can be provisioned:
-    // the instance must support it and the org must not already have a project
     const canOfferPlayground =
-        isNewOnboarding &&
         health.data?.hasPlaygroundProjects === true &&
         organization?.needsProject === true;
 
@@ -239,16 +232,13 @@ const OnboardingInviteExpert: FC = () => {
         ) {
             void navigate(-1);
         } else {
-            void navigate(
-                isNewOnboarding ? '/onboarding/data-source' : '/createProject',
-                { replace: true },
-            );
+            void navigate('/onboarding/data-source', { replace: true });
         }
-    }, [returnTo, isNewOnboarding, navigate]);
+    }, [returnTo, navigate]);
 
     // Route-change focus management (the modal used to trap focus): move
     // focus to the page heading once it renders, and keep Escape-to-leave.
-    const isBooting = user.isInitialLoading || newOnboardingFlag.isLoading;
+    const isBooting = user.isInitialLoading;
 
     useEffect(() => {
         if (isBooting || hasFocusedTitleRef.current) return;
@@ -353,9 +343,7 @@ const OnboardingInviteExpert: FC = () => {
             }),
         ) ?? false;
 
-    const fallbackTarget = isNewOnboarding
-        ? '/onboarding/data-source'
-        : '/createProject';
+    const fallbackTarget = '/onboarding/data-source';
     const backLabel = (returnTo ?? fallbackTarget).startsWith('/createProject')
         ? 'Back to project setup'
         : 'Back to data sources';

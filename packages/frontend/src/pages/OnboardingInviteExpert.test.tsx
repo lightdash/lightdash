@@ -82,13 +82,6 @@ vi.mock('../hooks/useEnsurePlaygroundProject', () => ({
     }),
 }));
 
-vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: { enabled: true },
-        isLoading: false,
-    }),
-}));
-
 vi.mock('../components/AboutFooter', () => ({ default: () => null }));
 
 let currentPath = '/onboarding/invite-expert';
