@@ -13,11 +13,36 @@
 // Whole dashboards. Their charts go with them.
 export const retiredAnalyticsDashboards: readonly string[] = [
     'lightdash-analytics-people',
+    // Evaluations are a tab of the Agents dashboard
+    'lightdash-analytics-agent-evaluations',
 ];
 
 // Charts, each with the slug of the dashboard it belonged to. A chart is only removed while it still
 // belongs to that dashboard.
 export const retiredAnalyticsCharts: Readonly<Record<string, string>> = {
+    // Agents & AI became Agents: its token tiles moved to AI token usage under new slugs, and the
+    // second drawing of requests by agent and day was removed
+    'lightdash-analytics-overview-ai-calls': 'lightdash-analytics-overview',
+    'lightdash-analytics-overview-tokens': 'lightdash-analytics-overview',
+    'lightdash-analytics-overview-ai-users': 'lightdash-analytics-overview',
+    'lightdash-analytics-overview-output-tokens':
+        'lightdash-analytics-overview',
+    'lightdash-analytics-overview-tokens-by-feature':
+        'lightdash-analytics-overview',
+    'lightdash-analytics-overview-ai-calls-by-day':
+        'lightdash-analytics-overview',
+    'lightdash-analytics-overview-tokens-by-day':
+        'lightdash-analytics-overview',
+    'lightdash-analytics-overview-tokens-by-model':
+        'lightdash-analytics-overview',
+    'lightdash-analytics-overview-calls-by-model':
+        'lightdash-analytics-overview',
+    'lightdash-analytics-overview-ai-consumption-by-person-feature-and-model':
+        'lightdash-analytics-overview',
+    'lightdash-analytics-overview-ai-tokens-by-feature-and-model':
+        'lightdash-analytics-overview',
+    'lightdash-analytics-overview-agent-daily-requests-per-agent':
+        'lightdash-analytics-overview',
     // Adoption became People: its restatements of other dashboards were removed, and the data app
     // tiles moved to Data apps under new slugs
     'lightdash-analytics-adoption-adoption-dashboard-audience':
