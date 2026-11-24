@@ -57,6 +57,35 @@ describe('reading proposals', () => {
         ).toEqual([metadata]);
     });
 
+    it("reads a rejection's kind, and a result saved before rejections had one", () => {
+        const failed = (rejection: unknown) => ({
+            toolType: 'built-in',
+            toolName: 'proposeSemanticLayerChange',
+            metadata: {
+                ...proposal(null),
+                models: [
+                    {
+                        model: 'orders',
+                        status: 'failed',
+                        changes: [],
+                        refusals: [],
+                        error: 'The warehouse rejected this model: no access',
+                        ...(rejection === undefined ? {} : { rejection }),
+                    },
+                ],
+            },
+        });
+        const read = getSavedProposals([
+            failed(undefined),
+            failed({ kind: 'already_failing', detail: 'no access' }),
+            failed({ kind: 'not_a_kind', detail: 'no access' }),
+        ]);
+        expect(read.map(({ models }) => models[0].rejection ?? null)).toEqual([
+            null,
+            { kind: 'already_failing', detail: 'no access' },
+        ]);
+    });
+
     it('reads run outputs, skipping errors and anything without metadata', () => {
         const metadata = proposal('d1');
         expect(

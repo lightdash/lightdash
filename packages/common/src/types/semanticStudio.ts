@@ -2,6 +2,7 @@ import {
     type ModelFragmentChange,
     type ModelFragmentRefusal,
 } from '../lightdash/applyModelFragment';
+import assertUnreachable from '../utils/assertUnreachable';
 import { type ApiSuccess } from './api/success';
 import { type UUID } from './api/uuid';
 import { type CiChecks } from './ci';
@@ -153,6 +154,61 @@ export type SemanticLayerDraftItemResult = {
     notes: string[];
 };
 
+/** Why a draft check left a model out; `detail` is the check's or the warehouse's own words. */
+export type SemanticStudioRejection =
+    | { kind: 'query_builder'; detail: string }
+    | { kind: 'warehouse_refused'; detail: string }
+    | { kind: 'breaks_joining_model'; models: string[]; detail: string }
+    | { kind: 'access_change'; fields: string[]; detail: null }
+    | { kind: 'already_failing'; detail: string };
+
+/** One plain sentence on why a model was left out. */
+export const summarizeSemanticStudioRejection = (
+    model: string,
+    rejection: SemanticStudioRejection,
+): string => {
+    switch (rejection.kind) {
+        case 'query_builder':
+            return `${model} can't be used in a query as written.`;
+        case 'warehouse_refused':
+            return `The warehouse refused ${model} when it was checked.`;
+        case 'breaks_joining_model':
+            return `This change would break ${rejection.models.join(', ')}, so ${model} was not added.`;
+        case 'access_change':
+            return `This would change who can see ${rejection.fields.join(', ')} in ${model}, which can't be changed here.`;
+        case 'already_failing':
+            return `${model} was already failing the warehouse check before this change, and the parts it changes fail too.`;
+        default:
+            return assertUnreachable(rejection, 'Unknown rejection kind');
+    }
+};
+
+/** The sentence and the detail behind it, as the agent and a publish failure read it. */
+export const formatSemanticStudioRejection = (
+    model: string,
+    rejection: SemanticStudioRejection,
+): string =>
+    [summarizeSemanticStudioRejection(model, rejection), rejection.detail]
+        .filter(Boolean)
+        .join(' ');
+
+/** Whether asking the agent can fix a rejection; it cannot change access rules or a model that already fails. */
+export const canAgentFixRejection = (
+    kind: SemanticStudioRejection['kind'],
+): boolean => {
+    switch (kind) {
+        case 'query_builder':
+        case 'warehouse_refused':
+        case 'breaks_joining_model':
+            return true;
+        case 'access_change':
+        case 'already_failing':
+            return false;
+        default:
+            return assertUnreachable(kind, 'Unknown rejection kind');
+    }
+};
+
 /** How one model's part of a proposal fared: it joins the draft whole or not at all, so only a failed part carries refusals. */
 export type SemanticLayerProposalItemResult =
     | {
@@ -161,6 +217,7 @@ export type SemanticLayerProposalItemResult =
           changes: ModelFragmentChange[];
           refusals: [];
           error: null;
+          rejection: null;
           notes: string[];
       }
     | {
@@ -169,6 +226,7 @@ export type SemanticLayerProposalItemResult =
           changes: [];
           refusals: [];
           error: null;
+          rejection: null;
           notes: [];
       }
     | {
@@ -177,6 +235,8 @@ export type SemanticLayerProposalItemResult =
           changes: [];
           refusals: ModelFragmentRefusal[];
           error: string;
+          /** Null when the change could not be applied to the model, before any check ran. */
+          rejection: SemanticStudioRejection | null;
           notes: [];
       };
 

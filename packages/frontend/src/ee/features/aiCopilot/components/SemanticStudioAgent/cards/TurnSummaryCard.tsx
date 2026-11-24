@@ -50,7 +50,7 @@ import {
     useStudioAgentWorking,
 } from '../useSemanticStudioChat';
 import { listTurnIssues } from './proposalIssues';
-import { draftActions, fixAction } from './turnActions';
+import { draftActions, fixFailureAction } from './turnActions';
 import { TurnCard, type Safety } from './TurnCard';
 import { useRefreshUnknownDraftChanges } from './useRefreshUnknownDraftChanges';
 
@@ -336,13 +336,7 @@ export const TurnSummaryCard: FC<{
         !issues.some(({ kind }) => kind === 'failed');
     const publishLabel = isSent ? 'Update pull request' : 'Open pull request';
     // A model the agent could not add, and did not go on to fix, is one more thing to hand back to it.
-    const failure = issues.find(({ kind }) => kind === 'failed');
-    const fixFailure = failure
-        ? fixAction(
-              `${failure.model} was not added: ${failure.detail}. Fix it.`,
-              onAsk,
-          )
-        : null;
+    const fixFailure = fixFailureAction(issues, onAsk);
     const actions = (() => {
         switch (phase.kind) {
             case 'draft':
