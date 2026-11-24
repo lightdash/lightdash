@@ -3,6 +3,7 @@ import {
     FilterOperator,
     TableCalculationType,
 } from '@lightdash/common';
+import { caution, positive, waiting } from './analyticsChartPresentation';
 import { card, numberCard, ranking, stackedByDay } from './chartBuilders';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
 
@@ -11,6 +12,24 @@ const allHistory = 'Uses all recorded history; the date filter does not apply.';
 
 const week = 'content_health_created_at_week';
 const runningTotal = 'content_running_total';
+// Text columns of the two lists an admin acts on
+export const reviewStatus = 'review_status';
+export const nothingUsesIt = 'Nothing uses it: check first';
+export const stillInUse = 'Still on a dashboard or schedule';
+const whereItLives = {
+    name: 'where_it_lives',
+    displayName: 'Where',
+    type: TableCalculationType.STRING,
+    // The project, and the space when the inventory has it: two items can share a name
+    sql: `concat_ws(' / ', \${content_health.project_name}, \${content_health.space_name})`,
+};
+const createdOn = {
+    name: 'created_on',
+    displayName: 'Created',
+    type: TableCalculationType.STRING,
+    sql: `COALESCE(strftime(\${content_health.created_at_day}, '%b %-d, %Y'), 'Not recorded')`,
+};
+
 const cameBack = 'came_back_later';
 const cameBackShare = 'came_back_share';
 
@@ -269,62 +288,70 @@ export const contentChartSpecs: UsageChartSpec[] = [
             [
                 'content-with-activity',
                 'Has recorded activity',
-                'Activity observed',
+                'content_health_content_with_activity',
                 'Charts, dashboards and data apps with at least one recorded view, query or load.',
                 'Viewed, queried or loaded at least once',
+                positive,
             ],
             [
                 'content-without-activity-in-use',
                 'No recorded activity, still in use',
-                'No activity observed; known dependency',
+                'content_health_content_in_use_without_activity',
                 'Content with no recorded activity that a dashboard tile or a switched-on schedule still uses.',
                 'On a dashboard or a schedule that is switched on',
+                waiting,
             ],
             [
                 'content-without-activity',
                 'No recorded activity',
-                'No activity observed; coverage incomplete',
+                'content_health_content_without_activity',
                 'Content with no recorded activity and nothing known to use it, which is not proof it is safe to delete.',
                 'Nothing known uses it',
+                caution,
             ],
         ] as const
     ).map(
-        ([key, name, status, description, meaning]): UsageChartSpec => ({
+        ([key, name, metric, description, meaning, color]): UsageChartSpec => ({
             key,
             name,
             description: `${description} ${allHistory}`,
             explore: 'content_health',
             dimensions: [],
-            metrics: ['content_health_total_content'],
-            filters: [
-                { field: 'content_health_activity_status', values: [status] },
-            ],
+            // The count for this status, then all content: the whole the card's bar measures against
+            metrics: [metric, 'content_health_total_content'],
             limit: 1,
             sorts: [],
             visualization: 'number',
-            libraryChart: numberCard('content_health_total_content', meaning),
+            yFields: [metric],
+            libraryChart: numberCard(metric, meaning, {
+                whole: 'content_health_total_content',
+                wholeLabel: 'of all content',
+                color,
+                // The items with nothing known to use them are the ones an admin acts on
+                strong: color === caution,
+            }),
         }),
     ),
-    ranking({
+    {
+        // A list to act on: one row for each item, the ones nothing uses first and the oldest of those
+        // at the top. Text columns, so it is a plain table in both versions.
         key: 'review-candidates-activity-and-known-dependencies',
-        name: 'Content to review, by activity status',
-        description: `Content with no recorded activity, with the schedules and dashboards that still use it. ${allHistory}`,
+        name: 'What could be cleaned up?',
+        description: `Up to 200 items nobody has viewed, queried or loaded, the ones nothing else uses first and the oldest at the top. ${allHistory}`,
         explore: 'content_health',
-        by: 'content_health_activity_status_name',
-        then: 'content_health_content_name',
         dimensions: [
-            'content_health_activity_status_name',
             'content_health_content_name',
             'content_health_content_type_name',
-            'content_health_is_deleted_name',
+            'content_health_project_name',
+            'content_health_space_name',
+            'content_health_created_at_day',
+            'content_health_activity_status',
             'content_health_content_id',
             'content_health_project_id',
         ],
-        // Dashboards using it comes first, so the items most in use head each status
         metrics: [
             'content_health_total_dashboard_references',
             'content_health_total_enabled_schedules',
-            'content_health_total_content',
         ],
         filters: [
             {
@@ -335,17 +362,66 @@ export const contentChartSpecs: UsageChartSpec[] = [
                 ],
             },
         ],
+        tableCalculations: [
+            {
+                name: reviewStatus,
+                displayName: 'What to do',
+                type: TableCalculationType.STRING,
+                sql: `CASE WHEN \${content_health.activity_status} = 'No activity observed; coverage incomplete' THEN '${nothingUsesIt}' ELSE '${stillInUse}' END`,
+            },
+            whereItLives,
+            createdOn,
+            {
+                name: 'used_by',
+                displayName: 'Used by',
+                type: TableCalculationType.STRING,
+                sql: `CASE WHEN \${content_health.total_dashboard_references} = 0 AND \${content_health.total_enabled_schedules} = 0 THEN 'Nothing' ELSE concat_ws(', ', CASE WHEN \${content_health.total_dashboard_references} = 1 THEN '1 dashboard' WHEN \${content_health.total_dashboard_references} > 1 THEN CAST(\${content_health.total_dashboard_references} AS VARCHAR) || ' dashboards' END, CASE WHEN \${content_health.total_enabled_schedules} = 1 THEN '1 schedule' WHEN \${content_health.total_enabled_schedules} > 1 THEN CAST(\${content_health.total_enabled_schedules} AS VARCHAR) || ' schedules' END) END`,
+            },
+            {
+                // Items nothing uses first
+                name: 'review_order',
+                displayName: 'Order',
+                type: TableCalculationType.NUMBER,
+                sql: `CASE WHEN \${content_health.activity_status} = 'No activity observed; coverage incomplete' THEN 0 ELSE 1 END`,
+            },
+        ],
+        hiddenColumns: [
+            'content_health_project_name',
+            'content_health_space_name',
+            'content_health_created_at_day',
+            'content_health_activity_status',
+            'content_health_total_dashboard_references',
+            'content_health_total_enabled_schedules',
+            'review_order',
+        ],
+        columnOrder: [
+            'content_health_content_name',
+            'content_health_content_type_name',
+            whereItLives.name,
+            createdOn.name,
+            'used_by',
+            reviewStatus,
+            'content_health_project_name',
+            'content_health_space_name',
+            'content_health_created_at_day',
+            'content_health_activity_status',
+            'content_health_content_id',
+            'content_health_project_id',
+            'content_health_total_dashboard_references',
+            'content_health_total_enabled_schedules',
+            'review_order',
+        ],
         limit: 200,
+        sorts: [
+            { fieldId: 'review_order', descending: false },
+            { fieldId: 'content_health_created_at_day', descending: false },
+            { fieldId: 'content_health_content_name', descending: false },
+        ],
         fieldLabels: {
-            // Two charts in different places can share a name, and they share a row
-            content_health_total_content: 'Items with this name',
-            content_health_total_enabled_schedules: 'Schedules switched on',
-            content_health_total_dashboard_references: 'Dashboards using it',
+            content_health_content_name: 'Content',
+            content_health_content_type_name: 'Type',
         },
-        libraryDescription: `Up to 5,000 items with no recorded activity, by status, with the dashboards and schedules that still use each, most dashboards first. ${allHistory}`,
-        // The items are the point of the tile, so the statuses start open
-        expanded: true,
-    }),
+    },
     {
         ...ranking({
             key: 'content-ownership-current-snapshot',
@@ -388,26 +464,23 @@ export const contentChartSpecs: UsageChartSpec[] = [
             query: null,
         },
     },
-    ranking({
+    {
+        // One row for each dashboard to fix, most-viewed first: a plain table in both versions
         key: 'content-owners-needing-review',
-        name: 'Dashboards with a missing or inactive owner',
-        description: `Dashboards whose owner is deactivated, not a member, unknown or not set, most-viewed first. ${allHistory}`,
+        name: 'Which dashboards need a new owner?',
+        description: `Up to 200 dashboards whose owner is deactivated, not a member, unknown or not set, most-viewed first. ${allHistory}`,
         explore: 'content_health',
-        by: 'content_health_owner_status_name',
-        then: 'content_health_content_name',
         dimensions: [
-            'content_health_owner_status_name',
             'content_health_content_name',
-            'content_health_content_type_name',
+            'content_health_project_name',
+            'content_health_space_name',
             'content_health_owner_name',
+            'content_health_owner_status',
             'content_health_last_viewed_at_day',
             'content_health_content_id',
             'content_health_project_id',
         ],
-        metrics: [
-            'content_health_total_observed_views',
-            'content_health_total_content',
-        ],
+        metrics: ['content_health_total_observed_views'],
         filters: [
             {
                 field: 'content_health_owner_status',
@@ -416,16 +489,55 @@ export const contentChartSpecs: UsageChartSpec[] = [
                 operator: FilterOperator.NOT_EQUALS,
             },
         ],
+        tableCalculations: [
+            whereItLives,
+            {
+                name: 'owner_shown',
+                displayName: 'Owner',
+                type: TableCalculationType.STRING,
+                sql: `CASE \${content_health.owner_status} WHEN 'Unassigned' THEN 'No owner' WHEN 'Deactivated' THEN COALESCE(\${content_health.owner_name}, 'Unknown person') || ' (deactivated)' WHEN 'Not an organization member' THEN COALESCE(\${content_health.owner_name}, 'Unknown person') || ' (not a member)' ELSE 'Unknown owner' END`,
+            },
+            {
+                name: 'last_viewed',
+                displayName: 'Last viewed',
+                type: TableCalculationType.STRING,
+                sql: `COALESCE(strftime(\${content_health.last_viewed_at_day}, '%b %-d, %Y'), 'Never')`,
+            },
+        ],
+        hiddenColumns: [
+            'content_health_project_name',
+            'content_health_space_name',
+            'content_health_owner_name',
+            'content_health_owner_status',
+            'content_health_last_viewed_at_day',
+        ],
+        columnOrder: [
+            'content_health_content_name',
+            whereItLives.name,
+            'owner_shown',
+            'last_viewed',
+            'content_health_total_observed_views',
+            'content_health_project_name',
+            'content_health_space_name',
+            'content_health_owner_name',
+            'content_health_owner_status',
+            'content_health_last_viewed_at_day',
+            'content_health_content_id',
+            'content_health_project_id',
+        ],
         limit: 200,
+        sorts: [
+            {
+                fieldId: 'content_health_total_observed_views',
+                descending: true,
+            },
+            { fieldId: 'content_health_content_name', descending: false },
+        ],
         fieldLabels: {
+            content_health_content_name: 'Dashboard',
             content_health_total_observed_views: 'Views',
-            content_health_total_content: 'Items',
-            content_health_owner_name: 'Owner',
-            content_health_last_viewed_at_day: 'Last viewed',
         },
-        libraryDescription: `Dashboards whose owner is deactivated, not a member, unknown or not set, by owner status, most-viewed first. ${allHistory}`,
-        expanded: true,
-    }),
+    },
     ranking({
         key: 'high-compute-dashboards-audience-versus-warehouse-time',
         name: 'Dashboards by warehouse time (top 25)',
@@ -533,18 +645,19 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                     ],
                     // One compact row of cards
                     layout: 'row',
-                    rowHeight: 4,
+                    rowHeight: 3,
                 },
                 {
-                    title: 'Review candidates',
-                    description: '',
-                    note: false,
+                    title: 'What could be cleaned up?',
+                    caption: true,
+                    description:
+                        'Content nobody has viewed, queried or loaded since recording began. Check the items nothing else uses first.',
                     charts: [
                         'review-candidates-activity-and-known-dependencies',
                     ],
                     layout: 'row',
-                    // The statuses start open: room for about ten items, more by scrolling
-                    rowHeight: 7,
+                    // About ten rows, more by scrolling
+                    rowHeight: 8,
                 },
             ],
         },
@@ -567,8 +680,8 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                     note: false,
                     charts: ['content-owners-needing-review'],
                     layout: 'row',
-                    // About eight rows
-                    rowHeight: 6,
+                    // About eight rows, more by scrolling
+                    rowHeight: 7,
                 },
                 {
                     title: 'Warehouse time by dashboard',

@@ -78,15 +78,31 @@ export const card = ({
 });
 
 // One number as a card, with a line of plain words saying what it counts. For a number with no daily
-// series behind it, so no sparkline.
+// series behind it, so no sparkline. A number that is part of a whole also draws a bar of its share:
+// `whole` is the field holding the whole, and `wholeLabel` ends the line under the bar ("65% of all
+// content"). A share that is already a percentage draws the bar alone.
 export const numberCard = (
     value: string,
     label: string,
-    percent = false,
+    {
+        percent = false,
+        whole,
+        wholeLabel,
+        color,
+        strong = false,
+    }: {
+        percent?: boolean;
+        whole?: string;
+        wholeLabel?: string;
+        // Colour of the bar
+        color?: string;
+        // The card a reader acts on: its number takes the bar's colour and a heavier weight
+        strong?: boolean;
+    } = {},
 ): LibraryChartBinding => ({
     slug: 'big-number-with-sparkline-trend',
     minVersion: '0.8.3',
-    fieldMapping: { value },
+    fieldMapping: { value, ...(whole ? { target: whole } : {}) },
     optionValues: {
         valueAggregation: 'latest',
         showComparison: false,
@@ -100,9 +116,28 @@ export const numberCard = (
         labelTransform: 'none',
         showCardBorder: false,
         showCardShadow: false,
+        ...(whole
+            ? {
+                  // The number already is the percentage, so the line under the bar would repeat it
+                  targetDisplay: percent ? 'bar' : 'both',
+                  ...(wholeLabel ? { targetLabel: wholeLabel } : {}),
+                  ...(color ? { progressColor: color } : {}),
+              }
+            : {}),
+        ...(strong && color
+            ? { valueColor: color, valueFontWeight: '700' }
+            : {}),
     },
     query: null,
 });
+
+// A table calculation holding 1, the whole a share is a part of, for the bar of a percentage card
+export const wholeShare = {
+    name: 'whole_share',
+    displayName: 'Whole',
+    type: TableCalculationType.NUMBER,
+    sql: '1',
+};
 
 // Smooth filled lines in full-width rows over a shared date axis, each row on its own scale.
 export const trendRows = (
