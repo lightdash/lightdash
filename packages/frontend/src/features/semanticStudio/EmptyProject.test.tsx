@@ -1,4 +1,5 @@
 import {
+    getDefaultAiAgent,
     DbtProjectType,
     WarehouseTypes,
     type SemanticLayerStatus,
@@ -205,12 +206,27 @@ describe('EmptyProject', () => {
         expect(await screen.findByLabelText('Loading')).toBeInTheDocument();
     });
 
+    it('creates the default agent from Get started, with no form to fill in', async () => {
+        const user = userEvent.setup();
+        renderEmpty({});
+
+        await user.click(
+            await screen.findByRole('button', { name: 'Get started' }),
+        );
+
+        const created = api.mock.calls
+            .map(([call]) => call)
+            .find(({ method }) => method === 'POST');
+        expect(created).toMatchObject({
+            url: '/projects/project/aiAgents',
+            body: JSON.stringify(getDefaultAiAgent('project')),
+        });
+    });
+
     it('offers an agent, the warehouse and the CLI to someone who can edit without one', async () => {
         renderEmpty({});
         expect(
-            await screen.findByRole('link', {
-                name: 'Create an agent to draft models for you',
-            }),
+            await screen.findByRole('button', { name: 'Get started' }),
         ).toBeInTheDocument();
         expect(
             await screen.findByText('db.schema_a · 2 tables'),

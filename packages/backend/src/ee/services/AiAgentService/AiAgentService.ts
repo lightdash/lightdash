@@ -121,6 +121,7 @@ import {
     getComposerSlackEchartsConfig,
     getComposerSlackRunQueryChart,
     getDataAppVizChartFromArtifact,
+    getDefaultAiAgent,
     getEmbedThreadOwnerIdentifier,
     getEmbedWriteSpaceUuids,
     getErrorMessage,
@@ -6658,27 +6659,9 @@ export class AiAgentService extends BaseService {
                 return;
             }
 
-            await this.createAgent(
-                user,
-                {
-                    name: 'Analytics agent',
-                    projectUuid,
-                    description: null,
-                    integrations: [],
-                    tags: null,
-                    instruction: `You are this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.`,
-                    imageUrl: null,
-                    groupAccess: [],
-                    userAccess: [],
-                    spaceAccess: [],
-                    enableDataAccess: true,
-                    enableSelfImprovement: false,
-                    enableContentTools: true,
-                    enableUserContext: true,
-                    version: 2,
-                },
-                { autoProvisioned: true },
-            );
+            await this.createAgent(user, getDefaultAiAgent(projectUuid), {
+                autoProvisioned: true,
+            });
         } catch (error) {
             if (
                 error instanceof ForbiddenError ||

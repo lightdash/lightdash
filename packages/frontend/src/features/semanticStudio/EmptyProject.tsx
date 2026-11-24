@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     DbtProjectType,
     FeatureFlags,
+    getDefaultAiAgent,
     type Project,
     type SemanticLayerStatus,
 } from '@lightdash/common';
@@ -21,6 +22,7 @@ import { type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { WarehouseLogoStack } from '../../components/ProjectConnection/ProjectConnectFlow/WarehouseLogoStack';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
+import { useProjectCreateAiAgentMutation } from '../../ee/features/aiCopilot/hooks/useProjectAiAgents';
 import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { useProject } from '../../hooks/useProject';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -29,7 +31,6 @@ import classes from './EmptyProject.module.css';
 import sharedClasses from './shared.module.css';
 import { describeBlocker, deploysWithCli } from './studioBlocker';
 import { StudioDraftIllustration } from './StudioDraftIllustration';
-import { getNewAgentUrl } from './urls';
 import { useAddSource, WAREHOUSE_OPTION } from './useAddSource';
 import { useSemanticLayerStatus } from './useSemanticLayerModel';
 import { type ViewModel } from './useSemanticStudio';
@@ -308,6 +309,11 @@ export const EmptyProject: FC<{
     const status = useSemanticLayerStatus(view.project.id);
     const isCopilotEnabled =
         useAiOrganizationSettings().data?.isCopilotEnabled === true;
+    // The agent list refetches once it is created, which swaps this screen for the chat
+    const createAgent = useProjectCreateAiAgentMutation(view.project.id, {
+        skipNavigation: true,
+        skipSuccessToast: true,
+    });
     const state = getEmptyState({
         project,
         isFlagLoading: flag.isInitialLoading,
@@ -388,10 +394,14 @@ export const EmptyProject: FC<{
                         />
                         {state === 'noAgent' && isCopilotEnabled ? (
                             <Button
-                                component={Link}
-                                to={getNewAgentUrl(view.project.id)}
+                                loading={createAgent.isLoading}
+                                onClick={() =>
+                                    createAgent.mutate(
+                                        getDefaultAiAgent(view.project.id),
+                                    )
+                                }
                             >
-                                Create an agent to draft models for you
+                                Get started
                             </Button>
                         ) : null}
                         <StartFromSources view={view} />
