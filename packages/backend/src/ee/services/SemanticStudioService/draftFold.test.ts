@@ -142,6 +142,7 @@ const EDITS = SHAPES.flatMap((from) =>
 );
 
 describe('foldProposal', () => {
+    // About 1s alone; a busy parallel run can pass the default 5s.
     it('turns any shape of a model into any other, whatever moves or goes', () => {
         const wrong = EDITS.filter(({ from, to }) => {
             const { writes, results } = foldProposal(
@@ -155,7 +156,7 @@ describe('foldProposal', () => {
             );
         });
         expect(wrong).toEqual([]);
-    });
+    }, 30_000);
 
     it('keeps none of a model whose change has a refused part, and all of the others', () => {
         const refused = {
@@ -191,7 +192,7 @@ describe('foldProposal', () => {
             );
         });
         expect(partly).toEqual([]);
-    });
+    }, 30_000);
 
     it('says why on the refused part and leaves what is already drafted alone', () => {
         const drafted = [
