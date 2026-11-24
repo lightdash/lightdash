@@ -807,9 +807,15 @@ type McpServerConnectionArgs = {
     resolvedCredential: AiAgentMcpServer['resolvedCredential'];
     resolvedCredentialScope: AiAgentMcpServer['resolvedCredentialScope'];
     oauthProvider?: AiAgentMcpServer['oauthProvider'];
+    bearerTokenProvider?: AiAgentMcpServer['bearerTokenProvider'];
 };
 
-const getBearerToken = (mcpServer: McpServerConnectionArgs) => {
+const getBearerToken = async (
+    mcpServer: McpServerConnectionArgs,
+): Promise<string | undefined> => {
+    if (mcpServer.authType === 'bearer' && mcpServer.bearerTokenProvider) {
+        return mcpServer.bearerTokenProvider();
+    }
     if (
         mcpServer.authType === 'bearer' &&
         (!mcpServer.resolvedCredential ||
@@ -875,6 +881,7 @@ const getUnavailableMcpStatus = (
 ): AiMcpServerConnectionStatus => {
     if (
         mcpServer.authType === 'bearer' &&
+        !mcpServer.bearerTokenProvider &&
         (!mcpServer.resolvedCredential ||
             mcpServer.resolvedCredential.type !== 'bearer' ||
             !mcpServer.resolvedCredential.bearerToken)
@@ -1064,13 +1071,13 @@ export const createHttpMcpClient = async (
     onUncaughtError?: (error: unknown) => void,
     allowPrivateAddresses = false,
 ): Promise<MCPClient> => {
-    const bearerToken = getBearerToken(mcpServer);
     const timeoutFetch = createMcpTimeoutFetch(
         timeoutMs,
         allowPrivateAddresses,
     );
 
     try {
+        const bearerToken = await getBearerToken(mcpServer);
         return await createMCPClient({
             transport:
                 mcpServer.authType === 'oauth'
@@ -1282,8 +1289,9 @@ const hasRuntimeCredential = (mcpServer: AiAgentMcpServer): boolean => {
             return true;
         case 'bearer':
             return (
-                mcpServer.resolvedCredential?.type === 'bearer' &&
-                !!mcpServer.resolvedCredential.bearerToken
+                !!mcpServer.bearerTokenProvider ||
+                (mcpServer.resolvedCredential?.type === 'bearer' &&
+                    !!mcpServer.resolvedCredential.bearerToken)
             );
         case 'oauth': {
             const tokens =
@@ -1590,7 +1598,10 @@ export class AiAgentMcpRuntimeClient {
     attachRuntimeProviders(args: {
         projectUuid: string;
         userUuid: string;
-        mcpServers: AiMcpServerWithSensitiveData[];
+        mcpServers: Array<
+            AiMcpServerWithSensitiveData &
+                Pick<AiAgentMcpServer, 'bearerTokenProvider'>
+        >;
     }) {
         return args.mcpServers.map((mcpServer) => ({
             ...mcpServer,

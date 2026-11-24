@@ -987,6 +987,38 @@ export const getInstallationToken = async (
     installationId: string,
 ): Promise<string> => (await getInstallationAccessToken(installationId)).token;
 
+// Installation tokens last about an hour; reuse one until 5 minutes before it expires.
+const INSTALLATION_TOKEN_REUSE_MARGIN_MS = 5 * 60 * 1000;
+const installationTokens = new Map<
+    string,
+    Promise<{ token: string; expiresAt: string }>
+>();
+
+export const getCachedInstallationToken = async (
+    installationId: string,
+): Promise<string> => {
+    const cached = await installationTokens
+        .get(installationId)
+        ?.catch(() => undefined);
+    if (
+        cached &&
+        Date.parse(cached.expiresAt) - Date.now() >
+            INSTALLATION_TOKEN_REUSE_MARGIN_MS
+    ) {
+        return cached.token;
+    }
+    const minting = getInstallationAccessToken(installationId);
+    installationTokens.set(installationId, minting);
+    try {
+        return (await minting).token;
+    } catch (error) {
+        if (installationTokens.get(installationId) === minting) {
+            installationTokens.delete(installationId);
+        }
+        throw error;
+    }
+};
+
 export const updateFile = async ({
     owner,
     repo,

@@ -321,6 +321,7 @@ import {
 } from '../../../auth/account';
 import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import {
+    getCachedInstallationToken,
     getInstallationToken,
     getPullRequest,
     searchRepoCode,
@@ -8032,12 +8033,17 @@ export class AiAgentService extends BaseService {
         return server;
     }
 
-    // App installation tokens expire after ~1h, so mint a fresh one per run.
+    // App installation tokens are fetched when GitHub is first reached, so a failed fetch fails that call, not the turn.
     // Without the App, stored PATs are only used while ai-mcp-github-pat is on.
     private async refreshGithubMcpCredentials(
         user: SessionUser,
         servers: AiMcpServerWithSensitiveData[],
-    ): Promise<AiMcpServerWithSensitiveData[]> {
+    ): Promise<
+        Array<
+            AiMcpServerWithSensitiveData &
+                Pick<AiAgentMcpServer, 'bearerTokenProvider'>
+        >
+    > {
         const { organizationUuid } = user;
         if (!servers.some(isGithubMcpBearerServer) || !organizationUuid) {
             return servers;
@@ -8054,13 +8060,12 @@ export class AiAgentService extends BaseService {
             return servers.filter((server) => !isGithubMcpBearerServer(server));
         }
 
-        const bearerToken = await getInstallationToken(installationId);
-
         return servers.map((server) =>
             isGithubMcpBearerServer(server)
                 ? {
                       ...server,
-                      resolvedCredential: { type: 'bearer', bearerToken },
+                      bearerTokenProvider: () =>
+                          getCachedInstallationToken(installationId),
                   }
                 : server,
         );
