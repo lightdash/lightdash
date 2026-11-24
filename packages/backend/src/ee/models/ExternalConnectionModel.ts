@@ -1288,22 +1288,28 @@ export class ExternalConnectionModel {
 
     /**
      * Runs a rebuild alone for this source, so a rebuild that read older
-     * field edits can't overwrite one that read newer edits.
+     * field edits can't overwrite one that read newer edits. The rebuild gets
+     * the transaction holding the lock; pass `trx` to join an outer one.
      */
     async withLiveSourceBuildLock<T>(
         uuid: string,
-        rebuild: () => Promise<T>,
+        rebuild: (trx: Knex.Transaction) => Promise<T>,
+        trx?: Knex.Transaction,
     ): Promise<T> {
-        return this.database.transaction(async (trx) => {
-            await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
+        const run = async (lockTrx: Knex.Transaction) => {
+            await lockTrx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
                 `live_source_build:${uuid}`,
             ]);
-            return rebuild();
-        });
+            return rebuild(lockTrx);
+        };
+        return trx ? run(trx) : this.database.transaction(run);
     }
 
-    async getLiveSourceFieldState(uuid: string): Promise<LiveSourceFieldState> {
-        const row = await this.database(ExternalConnectionsTableName)
+    async getLiveSourceFieldState(
+        uuid: string,
+        trx: Knex = this.database,
+    ): Promise<LiveSourceFieldState> {
+        const row = await trx(ExternalConnectionsTableName)
             .select('api_source')
             .where('external_connection_uuid', uuid)
             .first();
@@ -1344,13 +1350,15 @@ export class ExternalConnectionModel {
 
     /**
      * Applies field edits under a row lock, so two editors never lose each
-     * other's changes. Returns the edits as saved.
+     * other's changes. Returns the edits as saved. Pass `trx` to save them
+     * with other writes, such as the rebuild they cause.
      */
     async updateLiveSourceFieldEdits(
         uuid: string,
         update: (current: LiveSourceFieldEdits) => LiveSourceFieldEdits,
+        outerTrx?: Knex.Transaction,
     ): Promise<LiveSourceFieldEdits> {
-        return this.database.transaction(async (trx) => {
+        const run = async (trx: Knex.Transaction) => {
             const row = await trx(ExternalConnectionsTableName)
                 .select('api_source')
                 .where('external_connection_uuid', uuid)
@@ -1372,7 +1380,8 @@ export class ExternalConnectionModel {
                     ) as unknown as string,
                 });
             return next;
-        });
+        };
+        return outerTrx ? run(outerTrx) : this.database.transaction(run);
     }
 
     /** Deleted live sources of a project, most recently deleted first. */

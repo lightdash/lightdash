@@ -186,7 +186,11 @@ const buildService = ({
         restoreLiveSourceDetails: vi.fn().mockResolvedValue(undefined),
         saveLiveSourceTargetLabel: vi.fn().mockResolvedValue(undefined),
         withLiveSourceBuildLock: vi.fn(
-            async (_uuid: string, rebuild: () => Promise<unknown>) => rebuild(),
+            async (
+                _uuid: string,
+                rebuild: (trx: unknown) => Promise<unknown>,
+                trx?: unknown,
+            ) => rebuild(trx ?? { id: 'build-trx' }),
         ),
         listLiveSourceRefs: vi.fn().mockResolvedValue([]),
         getLiveSourceFieldState: vi
@@ -1423,6 +1427,35 @@ describe('ExternalConnectionService live source explores', () => {
                 lastSavedFields(projectModel)
                     .product_analytics_events_property_plan,
             ).toBeDefined();
+        });
+
+        it('saves field edits and rebuilds the explores in one transaction', async () => {
+            const { service, projectModel, externalConnectionModel } =
+                await createScanned();
+            projectModel.replaceApiSourceExplores.mockClear();
+            await service.updateLiveSourceFields(account, 'proj-1', 'conn-1', [
+                { name: 'property_plan', inUse: true },
+            ]);
+
+            const editTrx =
+                externalConnectionModel.updateLiveSourceFieldEdits.mock
+                    .calls[0][2];
+            expect(editTrx).toBeDefined();
+            expect(projectModel.replaceApiSourceExplores.mock.calls[0][3]).toBe(
+                editTrx,
+            );
+        });
+
+        it('fails the edit when the rebuild fails, so nothing is saved', async () => {
+            const { service, projectModel } = await createScanned();
+            projectModel.replaceApiSourceExplores.mockRejectedValueOnce(
+                new Error('rebuild failed'),
+            );
+            await expect(
+                service.updateLiveSourceFields(account, 'proj-1', 'conn-1', [
+                    { name: 'property_plan', inUse: true },
+                ]),
+            ).rejects.toThrow('rebuild failed');
         });
 
         it('stops using a field so charts and agents no longer see it', async () => {
