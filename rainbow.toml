@@ -379,6 +379,11 @@ port = 443
 host = "www.googleapis.com"
 port = 443
 
+# Google Play live data sources: Android vitals. The token endpoint is above.
+[[egress.allow]]
+host = "playdeveloperreporting.googleapis.com"
+port = 443
+
 # Certificate revocation checks the Snowflake driver makes (fail-open when
 # refused, but each refusal waits out a timeout first).
 [[egress.allow]]
