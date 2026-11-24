@@ -1742,6 +1742,112 @@ export class SavedChartModel {
         );
     }
 
+    /**
+     * Non-deleted saved charts on this explore, or only those using one of
+     * its fields, with the dashboards that show or hold them.
+     */
+    async getContentOnExplore(
+        projectUuid: string,
+        exploreName: string,
+        fieldId: string | null,
+    ): Promise<{
+        charts: { uuid: string; name: string; spaceUuid: string }[];
+        dashboards: { uuid: string; name: string; spaceUuid: string }[];
+    }> {
+        const chartsQuery = this.database
+            .from(this.getLatestChartVersions(projectUuid))
+            .innerJoin(
+                `${SavedChartVersionsTableName} as v`,
+                'v.saved_queries_version_id',
+                'latest_versions.max',
+            )
+            .innerJoin(
+                `${SavedChartsTableName} as sq`,
+                'sq.saved_query_id',
+                'latest_versions.saved_query_id',
+            )
+            // A chart saved in a dashboard takes the dashboard's space
+            .leftJoin(
+                `${DashboardsTableName} as cd`,
+                'cd.dashboard_uuid',
+                'sq.dashboard_uuid',
+            )
+            .innerJoin(
+                `${SpaceTableName} as s`,
+                's.space_id',
+                this.database.raw('COALESCE(sq.space_id, cd.space_id)'),
+            )
+            .where('v.explore_name', exploreName)
+            .distinct<
+                { id: number; uuid: string; name: string; spaceUuid: string }[]
+            >({
+                id: 'sq.saved_query_id',
+                uuid: 'sq.saved_query_uuid',
+                name: 'sq.name',
+                spaceUuid: 's.space_uuid',
+            })
+            .orderBy('sq.name');
+        if (fieldId !== null) {
+            void chartsQuery.whereExists(
+                this.database
+                    .from(`${SavedChartVersionFieldsTableName} as f`)
+                    .whereRaw(
+                        'f.saved_queries_version_id = v.saved_queries_version_id',
+                    )
+                    .where('f.name', fieldId),
+            );
+        }
+        const charts = await chartsQuery;
+        if (charts.length === 0) {
+            return { charts: [], dashboards: [] };
+        }
+        const chartIds = charts.map(({ id }) => id);
+        const dashboards = await this.database
+            .from(`${DashboardsTableName} as d`)
+            .whereNull('d.deleted_at')
+            .where((where) => {
+                void where
+                    .whereIn(
+                        'd.dashboard_uuid',
+                        this.database
+                            .from(SavedChartsTableName)
+                            .whereIn('saved_query_id', chartIds)
+                            .whereNotNull('dashboard_uuid')
+                            .select('dashboard_uuid'),
+                    )
+                    .orWhereIn(
+                        'd.dashboard_id',
+                        this.database
+                            .from(`${DashboardTileChartTableName} as dtc`)
+                            .innerJoin(
+                                `${DashboardVersionsTableName} as dv`,
+                                'dv.dashboard_version_id',
+                                'dtc.dashboard_version_id',
+                            )
+                            .whereIn('dtc.saved_chart_id', chartIds)
+                            .whereRaw(
+                                `dv.dashboard_version_id = (SELECT MAX(latest.dashboard_version_id) FROM ${DashboardVersionsTableName} latest WHERE latest.dashboard_id = dv.dashboard_id)`,
+                            )
+                            .select('dv.dashboard_id'),
+                    );
+            })
+            .innerJoin(`${SpaceTableName} as s`, 's.space_id', 'd.space_id')
+            .select<{ uuid: string; name: string; spaceUuid: string }[]>({
+                uuid: 'd.dashboard_uuid',
+                name: 'd.name',
+                spaceUuid: 's.space_uuid',
+            })
+            .orderBy('d.name');
+        return {
+            charts: charts.map(({ uuid, name, spaceUuid }) => ({
+                uuid,
+                name,
+                spaceUuid,
+            })),
+            dashboards,
+        };
+    }
+
     /** Non-deleted saved charts on any of these explores, each counted once. */
     async getChartCountForExplores(
         projectUuid: string,
