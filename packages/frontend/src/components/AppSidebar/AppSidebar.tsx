@@ -74,6 +74,39 @@ export const AppSidebar: FC<Props> = ({
         ? `/projects/${projectUrlIdentifier}/home`
         : '/';
 
+    // The rail has no room beside the logo, so search stays a row there.
+    const searchRow = projectUuid ? (
+        <Omnibar
+            projectUuid={projectUuid}
+            renderTarget={(onOpen) => (
+                <Tooltip
+                    label={`Search (${searchShortcut})`}
+                    position="right"
+                    disabled={!isCollapsed}
+                >
+                    <NavLink
+                        component="button"
+                        type="button"
+                        label="Search"
+                        aria-label="Search content and settings"
+                        leftSection={<MantineIcon icon={IconSearch} />}
+                        rightSection={
+                            <Text span className={classes.shortcut}>
+                                {searchShortcut}
+                            </Text>
+                        }
+                        classNames={{
+                            root: classes.item,
+                            label: classes.itemLabel,
+                            section: classes.itemSection,
+                        }}
+                        onClick={onOpen}
+                    />
+                </Tooltip>
+            )}
+        />
+    ) : null;
+
     return (
         <AppShell.Navbar
             id={APP_SIDEBAR_ID}
@@ -104,43 +137,27 @@ export const AppSidebar: FC<Props> = ({
                         <NavBarPortalContext.Provider value="body">
                             <ProjectCredentialsSwitcher />
                         </NavBarPortalContext.Provider>
-                    </Box>
-                    {projectUuid && (
-                        <Omnibar
-                            projectUuid={projectUuid}
-                            renderTarget={(onOpen) => (
-                                <Tooltip
-                                    label={`Search (${searchShortcut})`}
-                                    position="right"
-                                    disabled={!isCollapsed}
-                                >
-                                    <NavLink
-                                        component="button"
-                                        type="button"
-                                        label="Search"
-                                        aria-label="Search content and settings"
-                                        leftSection={
+                        {!isCollapsed && projectUuid && (
+                            <Omnibar
+                                projectUuid={projectUuid}
+                                renderTarget={(onOpen) => (
+                                    <Tooltip
+                                        label={`Search (${searchShortcut})`}
+                                        position="bottom"
+                                    >
+                                        <UnstyledButton
+                                            aria-label="Search content and settings"
+                                            className={classes.searchTrigger}
+                                            onClick={onOpen}
+                                        >
                                             <MantineIcon icon={IconSearch} />
-                                        }
-                                        rightSection={
-                                            <Text
-                                                span
-                                                className={classes.shortcut}
-                                            >
-                                                {searchShortcut}
-                                            </Text>
-                                        }
-                                        classNames={{
-                                            root: classes.item,
-                                            label: classes.itemLabel,
-                                            section: classes.itemSection,
-                                        }}
-                                        onClick={onOpen}
-                                    />
-                                </Tooltip>
-                            )}
-                        />
-                    )}
+                                        </UnstyledButton>
+                                    </Tooltip>
+                                )}
+                            />
+                        )}
+                    </Box>
+                    {isCollapsed && searchRow}
                 </Box>
                 <Box className={classes.scroll}>
                     {sections.map((section) => {
