@@ -31,23 +31,20 @@ test.describe('Settings - Invites', () => {
         const inviteLink = await inviteLinkInput.inputValue();
         await logout(api.raw);
         await page.goto(inviteLink);
-        await expect(page.locator('[data-cy="welcome-user"]')).toBeVisible();
-        await page.getByRole('button', { name: 'Join your team' }).click();
-        await page.getByPlaceholder('Your first name').fill('Mary');
-        await page.getByPlaceholder('Your last name').fill('Green');
-        const emailInput = page.locator('[data-cy="email-address-input"]');
-        await expect(emailInput).toBeDisabled();
-        await expect(emailInput).toHaveValue('demo+marygreen@lightdash.com');
-        const passwordInput = page.getByPlaceholder('Your password');
-        await passwordInput.fill('PasswordMary1');
-        await passwordInput.blur();
-        await page.locator('[data-cy="signup-button"]').click();
-        const pinInputs = page.getByTestId('pin-input').locator('input');
-        await expect(pinInputs.first()).toBeVisible();
-        for (const input of await pinInputs.all()) {
-            await input.fill('0');
-        }
-        await page.getByText('Continue').click();
+        await expect(
+            page.locator('[data-cy="one-click-invite"]'),
+        ).toBeVisible();
+        await page
+            .getByRole('button', {
+                name: 'Continue as demo+marygreen@lightdash.com',
+            })
+            .click();
+        await expect(page).toHaveURL(/\/organization-setup/);
+        await page.getByLabel('First name').fill('Mary');
+        await page.getByLabel('Last name').fill('Green');
+        await page.getByPlaceholder('Select your role').click();
+        await page.getByText('Product', { exact: true }).click();
+        await page.getByRole('button', { name: 'Continue' }).click();
         await expect(page.getByTestId('user-avatar')).toContainText('MG');
     });
 

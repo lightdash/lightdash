@@ -184,17 +184,16 @@ const rateLimitsValue = (r) => `<div class="limits">
   </div>
   ${r.note ? `<div class="limits-note">${dot('amber')}<span>${esc(r.note)}</span></div>` : ''}`;
 
-const LOGO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
-  <path d="M12 21v-6.5"/>
-  <path d="M12 14.5V6.8"/>
-  <path d="M12 15.5c-2.6 0-3.6-1.6-4-3.6-.3-1.6-.6-3-1.6-3.6"/>
-  <path d="M12 15.5c2.6 0 3.6-1.6 4-3.6.3-1.6.6-3 1.6-3.6"/>
-  <path d="M12 17.8c-3.2 0-5.2-.6-6.2-2.2-.5-.9-.7-1.6-1.4-1.9"/>
-  <path d="M12 17.8c3.2 0 5.2-.6 6.2-2.2.5-.9.7-1.6 1.4-1.9"/>
-  <g fill="currentColor" stroke="none">
-    <circle cx="12" cy="4.6" r="2.3"/>
-    <circle cx="6.1" cy="7.1" r="1.75"/><circle cx="17.9" cy="7.1" r="1.75"/>
-    <circle cx="3.6" cy="12.6" r="1.6"/><circle cx="20.4" cy="12.6" r="1.6"/>
+const LOGO = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="15.8 15.8 68.4 68.4" aria-hidden="true">
+  <g fill="none" stroke="#FF636D">
+    <g stroke-width="6.5" stroke-linecap="round">
+    <path transform="rotate(0 50 50)" d="M50 50 C47 44 47 35 51 29 C54 24 57 22 61 22 C66 22 69 26 68 30"/>
+    <path transform="rotate(60 50 50)" d="M50 50 C47 44 47 35 51 29 C54 24 57 22 61 22 C66 22 69 26 68 30"/>
+    <path transform="rotate(120 50 50)" d="M50 50 C47 44 47 35 51 29 C54 24 57 22 61 22 C66 22 69 26 68 30"/>
+    <path transform="rotate(180 50 50)" d="M50 50 C47 44 47 35 51 29 C54 24 57 22 61 22 C66 22 69 26 68 30"/>
+    <path transform="rotate(240 50 50)" d="M50 50 C47 44 47 35 51 29 C54 24 57 22 61 22 C66 22 69 26 68 30"/>
+    <path transform="rotate(300 50 50)" d="M50 50 C47 44 47 35 51 29 C54 24 57 22 61 22 C66 22 69 26 68 30"/>
+    </g>
   </g>
 </svg>`;
 

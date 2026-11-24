@@ -74,7 +74,6 @@ const threadWithAssistantStatus = (status: AiAgentMessageAssistant['status']) =>
                 reasoning: [],
                 savedQueryUuid: null,
                 artifacts: null,
-                referencedArtifacts: null,
                 modelConfig: null,
                 tokenUsage: null,
                 responseTiming: null,

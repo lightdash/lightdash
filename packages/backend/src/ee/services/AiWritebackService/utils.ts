@@ -11,6 +11,7 @@ import {
     type DbtProjectConfig,
     type DbtVersionOption,
 } from '@lightdash/common';
+import { createHash } from 'node:crypto';
 import type { AiWritebackFailureStage } from '../../../analytics/LightdashAnalytics';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import { normalizeCredentialHost } from '../../../utils/credentialDestination';
@@ -703,3 +704,7 @@ export const resolveSandboxAnthropicConfig = (
         'Anthropic API key is not configured (ANTHROPIC_API_KEY)',
     );
 };
+
+/** The version of a source file's content that an edit is made against. */
+export const sourceRevision = (content: string): string =>
+    createHash('sha256').update(content).digest('hex');

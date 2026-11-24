@@ -1,9 +1,6 @@
 /** What a person needs around a draft before publishing it: what happened under it, who else is in it, each change in order, and what it does to the numbers. */
 import {
-    diffModelDocuments,
     getItemId,
-    readModelPart,
-    type Metric,
     type SemanticLayerDraft,
     type SemanticLayerDraftConflict,
     type SemanticLayerDraftModel,
@@ -18,37 +15,33 @@ import {
     Group,
     Paper,
     Stack,
-    Table,
     Text,
     Tooltip,
     VisuallyHidden,
 } from '@mantine/core';
 import {
+    IconChevronRight,
     IconCircleCheck,
     IconCircleDashed,
     IconAlertTriangle,
     IconArrowDown,
     IconArrowUp,
     IconGitMerge,
-    IconArrowsDiff,
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react';
 import { upperFirst } from 'es-toolkit/compat';
-import { useMemo, useState, type FC, type ReactNode } from 'react';
+import { type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
-import {
-    DEVELOPMENT_PREVIEW_HEADER,
-    DEVELOPMENT_VIEW_HEADER,
-} from './developmentView';
 import classes from './DraftInsights.module.css';
 import { describePublisher } from './draftState';
 import { FieldChangeIcon } from './KindTypeIcon';
-import { describeShift, pickComparedMetrics } from './metricComparison';
+import { LineCounts } from './LineCounts';
 import {
+    CHANGE_GLYPHS,
     CHANGE_KIND_LABELS,
     describeModelChange,
     getChangeKind,
@@ -56,15 +49,14 @@ import {
     countChangedLines,
     listPublishedParts,
 } from './modelCode';
-import { LIVE_HEADERS, useTotals } from './useMetricTotals';
 import {
     useDiscardDraftChange,
     useKeepDraftModel,
     useMoveDraftChange,
     useTakeLiveDraftPart,
     useSemanticLayerDraftUsage,
+    usePublishMode,
 } from './useSemanticLayerModel';
-import { LineCounts } from './WorkbenchRail';
 
 const listNames = (names: string[]): string =>
     names.length <= 2
@@ -534,7 +526,8 @@ export const ChangeQueue: FC<{
     projectUuid: string;
     draft: SemanticLayerDraft;
     onAskAgent: (prompt: string) => void;
-}> = ({ projectUuid, draft, onAskAgent }) => {
+    className: string;
+}> = ({ projectUuid, draft, onAskAgent, className }) => {
     const hasFailure = draft.changes.some(({ models }) =>
         models.some(({ error }) => error !== null),
     );
@@ -546,19 +539,26 @@ export const ChangeQueue: FC<{
         ]),
     );
     return (
-        <Paper
+        <Box
             component="details"
-            className={classes.section}
+            className={className}
             open={hasFailure || undefined}
         >
-            <Text
+            <Group
                 component="summary"
-                fz="sm"
-                fw={500}
-                className={classes.sectionTitle}
+                gap="xs"
+                wrap="nowrap"
+                className={classes.queueTitle}
             >
-                {count(draft.changes.length, 'change')}
-            </Text>
+                <MantineIcon
+                    icon={IconChevronRight}
+                    color="dimmed"
+                    className={classes.queueChevron}
+                />
+                <Text fz="sm" fw={500}>
+                    {count(draft.changes.length, 'change')}
+                </Text>
+            </Group>
             {draft.changes.map((change, index) => (
                 <ChangeRow
                     key={change.draftChangeUuid}
@@ -570,7 +570,7 @@ export const ChangeQueue: FC<{
                     onAskAgent={onAskAgent}
                 />
             ))}
-        </Paper>
+        </Box>
     );
 };
 
@@ -633,212 +633,6 @@ export const FieldUsage: FC<{
                 </Box>
             ))}
         </Paper>
-    );
-};
-
-const findComparedMetrics = (
-    draft: SemanticLayerDraft,
-    model: SemanticLayerDraftModel,
-): Metric[] => {
-    if (!model.explore) return [];
-    const changed = new Set(
-        draft.changes
-            .flatMap(({ models }) => models)
-            .filter((entry) => entry.model === model.model)
-            .flatMap(({ changes }) => changes)
-            .flatMap(({ path }) => {
-                const name = /(?:^|\.)metrics\.([^.]+)/.exec(path)?.[1];
-                return name ? [name] : [];
-            }),
-    );
-    return pickComparedMetrics(
-        Object.values(
-            model.explore.tables[model.explore.baseTable]?.metrics ?? {},
-        ),
-        changed,
-        model.contentBefore === null,
-    );
-};
-
-const DRAFT_HEADERS = {
-    [DEVELOPMENT_VIEW_HEADER]: 'true',
-    [DEVELOPMENT_PREVIEW_HEADER]: '',
-};
-
-/** A model's metrics as totals, live against in development, run only when asked for since each side is a warehouse query. */
-const CompareTotals: FC<{
-    projectUuid: string;
-    exploreName: string;
-    metrics: Metric[];
-    /** The metrics that exist live too; asking live for a new one fails the whole query. */
-    liveMetricIds: string[];
-    isNewModel: boolean;
-    developmentHeaders: Record<string, string>;
-    cacheKey: string;
-}> = ({
-    projectUuid,
-    exploreName,
-    metrics,
-    liveMetricIds,
-    isNewModel,
-    developmentHeaders,
-    cacheKey,
-}) => {
-    const [isAsked, setIsAsked] = useState(false);
-    const ids = metrics.map((metric) => getItemId(metric));
-    const development = useTotals(
-        projectUuid,
-        exploreName,
-        ids,
-        developmentHeaders,
-        isAsked && ids.length > 0,
-        cacheKey,
-    );
-    const live = useTotals(
-        projectUuid,
-        exploreName,
-        liveMetricIds,
-        LIVE_HEADERS,
-        isAsked && liveMetricIds.length > 0 && !isNewModel,
-        cacheKey,
-    );
-    if (metrics.length === 0) return null;
-    if (!isAsked) {
-        return (
-            <Group className={classes.compare} gap="xs">
-                <Tooltip
-                    label={`${metrics.length === 1 ? '1 metric' : `${metrics.length} metrics`}, ${isNewModel ? 'one warehouse query' : 'one warehouse query each side'}.`}
-                >
-                    <Button
-                        size="compact-xs"
-                        variant="transparent"
-                        color="gray"
-                        px={0}
-                        className={classes.compareAction}
-                        leftSection={
-                            <MantineIcon icon={IconArrowsDiff} size={14} />
-                        }
-                        onClick={() => setIsAsked(true)}
-                    >
-                        {isNewModel
-                            ? 'Run the totals'
-                            : 'Compare totals with Published'}
-                    </Button>
-                </Tooltip>
-            </Group>
-        );
-    }
-    return (
-        <Box className={classes.compare}>
-            <Table verticalSpacing={4} fz="xs">
-                <Table.Thead>
-                    <Table.Tr>
-                        <Table.Th>Metric</Table.Th>
-                        {isNewModel ? null : (
-                            <Table.Th ta="right">Published</Table.Th>
-                        )}
-                        <Table.Th ta="right">My changes</Table.Th>
-                        {isNewModel ? null : <Table.Th ta="right" />}
-                    </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                    {metrics.map((metric) => {
-                        const id = getItemId(metric);
-                        const after = development.data?.[id];
-                        const before = live.data?.[id];
-                        const shift =
-                            before && after
-                                ? describeShift(before.raw, after.raw)
-                                : null;
-                        return (
-                            <Table.Tr key={id}>
-                                <Table.Td>{metric.label}</Table.Td>
-                                {isNewModel ? null : (
-                                    <Table.Td ta="right" c="dimmed">
-                                        {live.isInitialLoading
-                                            ? '…'
-                                            : (before?.formatted ?? 'new')}
-                                    </Table.Td>
-                                )}
-                                <Table.Td ta="right">
-                                    {development.isInitialLoading
-                                        ? '…'
-                                        : (after?.formatted ?? '∅')}
-                                </Table.Td>
-                                {isNewModel ? null : (
-                                    <Table.Td
-                                        ta="right"
-                                        c={shift ? 'orange' : 'dimmed'}
-                                    >
-                                        {shift ??
-                                            (before && after ? 'same' : '')}
-                                    </Table.Td>
-                                )}
-                            </Table.Tr>
-                        );
-                    })}
-                </Table.Tbody>
-            </Table>
-            {live.isError ? (
-                <Text fz="xs" c="dimmed">
-                    Could not run these live: {live.error.error.message}
-                </Text>
-            ) : null}
-            {development.isError ? (
-                <Text fz="xs" c="dimmed">
-                    Could not run these on the draft:{' '}
-                    {development.error.error.message}
-                </Text>
-            ) : null}
-        </Box>
-    );
-};
-
-/** A drafted model's metrics as totals, live against in development. */
-export const MetricComparison: FC<{
-    projectUuid: string;
-    draft: SemanticLayerDraft;
-    model: SemanticLayerDraftModel;
-}> = ({ projectUuid, draft, model }) => {
-    const metrics = useMemo(
-        () => findComparedMetrics(draft, model),
-        [draft, model],
-    );
-    const liveMetricIds = useMemo(() => {
-        // A metric the draft adds does not exist live.
-        const added = diffModelDocuments(
-            model.contentBefore,
-            model.contentAfter,
-        )
-            .filter(({ kind }) => kind === 'added')
-            .map(({ path }) => path);
-        return metrics
-            .filter(
-                ({ name }) =>
-                    !added.some(
-                        (path) =>
-                            path.endsWith(`metrics.${name}`) ||
-                            readModelPart(
-                                model.contentAfter,
-                                `${path}.metrics.${name}`,
-                            ) !== null,
-                    ),
-            )
-            .map((metric) => getItemId(metric));
-    }, [metrics, model]);
-    return (
-        <CompareTotals
-            projectUuid={projectUuid}
-            exploreName={model.model}
-            metrics={metrics}
-            liveMetricIds={liveMetricIds}
-            isNewModel={model.contentBefore === null}
-            // A draft is read from the draft itself, never from another project's preview.
-            developmentHeaders={DRAFT_HEADERS}
-            cacheKey={draft.changes
-                .map(({ draftChangeUuid }) => draftChangeUuid)
-                .join()}
-        />
     );
 };
 
@@ -967,8 +761,6 @@ export const PublishChecklist: FC<{
     );
 };
 
-const GLYPHS = { new: '+', changed: '~', removed: '−' };
-
 const describeUse = ({
     charts,
     dashboards,
@@ -987,6 +779,8 @@ export const PublishSummary: FC<{
     model: string | null;
 }> = ({ projectUuid, draft, model }) => {
     const { data: usage } = useSemanticLayerDraftUsage(projectUuid);
+    // Line counts mean something only to people who read the files.
+    const showsLines = usePublishMode(projectUuid) !== 'live';
     const models = draft.models.filter(
         (entry) => model === null || entry.model === model,
     );
@@ -1013,7 +807,9 @@ export const PublishSummary: FC<{
                                     </Text>
                                 ) : null}
                             </Text>
-                            <LineCounts counts={countChangedLines(entry)} />
+                            {showsLines ? (
+                                <LineCounts counts={countChangedLines(entry)} />
+                            ) : null}
                         </Group>
                         {parts.map((part) => {
                             const used = usage?.fields.find(
@@ -1039,7 +835,7 @@ export const PublishSummary: FC<{
                                         data-change={part.change}
                                         aria-hidden
                                     >
-                                        {GLYPHS[part.change]}
+                                        {CHANGE_GLYPHS[part.change]}
                                     </Text>
                                     <FieldChangeIcon field={part} />
                                     <Text fz="sm" truncate>

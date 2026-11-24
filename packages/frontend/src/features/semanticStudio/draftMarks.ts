@@ -11,8 +11,11 @@ export type DraftMarks = {
     /** This person's changes to each model that wait in an open pull request. */
     inReview: Map<string, { pullRequestUrl: string; fields: FieldChange[] }>;
     /** What this person published to each model on this visit to Studio. */
-    published: Map<string, FieldChange[]>;
+    published: Map<string, PublishedModel>;
 };
+
+/** What one publish did to a model: created or changed it, and its fields. */
+type PublishedModel = { kind: ChangeKind; fields: FieldChange[] };
 
 // Read once for the page: every row asking the draft itself costs a subscription per row.
 export const DraftMarksContext = createContext<DraftMarks>({
@@ -25,5 +28,5 @@ export const DraftMarksContext = createContext<DraftMarks>({
 
 /** Records what was just published to each model, for the marks above. */
 export const MarkPublishedContext = createContext<
-    (published: Map<string, FieldChange[]>) => void
+    (published: Map<string, PublishedModel>) => void
 >(() => {});

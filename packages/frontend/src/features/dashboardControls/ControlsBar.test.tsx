@@ -311,8 +311,11 @@ describe('ControlsBar', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('renders the sectioned bar in edit mode with no sections yet, so a selection can start the first', () => {
-        renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
+    it('renders the sectioned bar in edit mode with no sections yet, so a selection can start the first', async () => {
+        const onCollapse = vi.fn();
+        renderWithProviders(
+            <ControlsBar {...baseProps} isEditMode onCollapse={onCollapse} />,
+        );
 
         expect(screen.getByTestId('sectioned-filters')).toBeInTheDocument();
         expect(
@@ -328,9 +331,9 @@ describe('ControlsBar', () => {
         // An editor's Default zoom opens its popover, not the shipped menu
         expect(screen.getByTestId('editor-default-zoom')).toBeInTheDocument();
         expect(screen.queryByTestId('default-zoom')).toBeNull();
-        expect(
-            screen.queryByRole('button', { name: 'Hide' }),
-        ).not.toBeInTheDocument();
+        // An editor collapses the bar from the bar itself, as a viewer does
+        await userEvent.click(screen.getByRole('button', { name: 'Hide' }));
+        expect(onCollapse).toHaveBeenCalledTimes(1);
     });
 
     it.each([true, false])(

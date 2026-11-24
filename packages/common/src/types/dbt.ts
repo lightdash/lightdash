@@ -569,6 +569,8 @@ export interface DbtManifest {
 
 export interface DbtRawManifestMetadata {
     project_name?: string;
+    /** md5 of the project name; dbt writes it before 1.6, when project_name is missing. */
+    project_id?: string;
     dbt_schema_version: string;
     dbt_version?: string;
     generated_at: string;

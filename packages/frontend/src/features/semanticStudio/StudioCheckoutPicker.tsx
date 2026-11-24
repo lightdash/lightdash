@@ -1,3 +1,4 @@
+import { isOpenWorkspace } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -17,13 +18,10 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
-import {
-    isOpenWorkspace,
-    useCheckOut,
-    useStudioCheckout,
-} from './useStudioCheckout';
+import { useStoredStudioThread } from './studioChange';
+import classes from './StudioCheckoutPicker.module.css';
+import { useCheckOut, useStudioCheckout } from './useStudioCheckout';
 import { useStudioWorkspaces } from './useStudioWorkspaces';
-import classes from './WorkbenchView.module.css';
 
 dayjs.extend(relativeTime);
 
@@ -64,6 +62,8 @@ export const DraftPickerMenu: FC<{
     status: ReactNode;
     /** How the checked-out draft is doing, above the list. */
     header: ReactNode;
+    /** A merged or closed draft is no longer a draft, so the trigger drops its draft dot. */
+    isEnded?: boolean;
     onPublished: () => void;
     onPick: (id: string) => void;
     onNew: () => void;
@@ -74,6 +74,7 @@ export const DraftPickerMenu: FC<{
     isBusy,
     status,
     header,
+    isEnded = false,
     onPublished,
     onPick,
     onNew,
@@ -106,13 +107,15 @@ export const DraftPickerMenu: FC<{
                             : `Draft: ${currentName}`
                     }
                     leftSection={
-                        <Box
-                            component="span"
-                            className={classes.pickerDot}
-                            data-kind={
-                                currentName === null ? 'published' : 'draft'
-                            }
-                        />
+                        isEnded ? null : (
+                            <Box
+                                component="span"
+                                className={classes.pickerDot}
+                                data-kind={
+                                    currentName === null ? 'published' : 'draft'
+                                }
+                            />
+                        )
                     }
                     rightSection={
                         <Group gap={6} wrap="nowrap">
@@ -125,7 +128,7 @@ export const DraftPickerMenu: FC<{
                         </Group>
                     }
                 >
-                    <Text span inherit truncate>
+                    <Text span inherit truncate lh={1.4}>
                         {currentName ?? 'Published'}
                     </Text>
                 </Button>
@@ -204,6 +207,7 @@ export const StudioCheckoutPicker: FC<{
     const { data: workspaces } = useStudioWorkspaces(projectUuid);
     const { checkOut, createChange, isBusy, isError } =
         useCheckOut(projectUuid);
+    const [, setStoredThread] = useStoredStudioThread(projectUuid);
     const current = shown?.workspace ?? null;
     const mine = (workspaces?.mine ?? []).filter(isOpenWorkspace);
     const announcement = isBusy
@@ -240,7 +244,8 @@ export const StudioCheckoutPicker: FC<{
                     );
                     if (target) checkOut(target);
                 }}
-                onNew={createChange}
+                // A new draft starts its own chat.
+                onNew={() => createChange(() => setStoredThread(null))}
                 onShowAll={onShowChanges}
             />
             <VisuallyHidden role="status" aria-live="polite">

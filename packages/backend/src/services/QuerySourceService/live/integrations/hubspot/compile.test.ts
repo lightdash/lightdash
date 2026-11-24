@@ -130,6 +130,44 @@ describe('HubSpot fields', () => {
         expect(isInternalHubspotField('dealname')).toBe(false);
     });
 
+    it('builds one explore per object, tickets and leads included', () => {
+        expect(
+            HUBSPOT_EXPLORES.map(({ name, label }) => [name, label]),
+        ).toEqual([
+            ['deals', 'Deals'],
+            ['contacts', 'Contacts'],
+            ['companies', 'Companies'],
+            ['tickets', 'Tickets'],
+            ['leads', 'Leads'],
+        ]);
+    });
+
+    it('shows ticket pipeline and stage by default', () => {
+        expect(isInternalHubspotField('hs_pipeline')).toBe(false);
+        expect(isInternalHubspotField('hs_pipeline_stage')).toBe(false);
+        expect(isInternalHubspotField('hs_ticket_priority')).toBe(false);
+    });
+
+    it('lists every pipeline stage with its label, past the usual cap', () => {
+        const options = Array.from({ length: 20 }, (_, index) => ({
+            value: `${index + 1}`,
+            label: `Stage ${index + 1}`,
+        }));
+        const [stage] = withHubspotPropertyFields(HUBSPOT_EXPLORES[3], {
+            results: [
+                {
+                    name: 'hs_pipeline_stage',
+                    label: 'Ticket status',
+                    type: 'enumeration',
+                    options,
+                },
+            ],
+        }).dimensions.slice(-1);
+        expect(stage.description).toContain('1 (Stage 1)');
+        expect(stage.description).toContain('20 (Stage 20)');
+        expect(stage.description).not.toContain('more');
+    });
+
     it('keeps the built-in fields when the list is unreadable', () => {
         expect(withHubspotPropertyFields(DEALS_EXPLORE, {})).toBe(
             DEALS_EXPLORE,

@@ -282,6 +282,13 @@ export default class PrometheusMetrics {
     // Pre-aggregate metrics
     public preAggregateMatchCounter: prometheus.Counter<string> | null = null;
 
+    public liveSourceRateWaitHistogram: prometheus.Histogram<'integration'> | null =
+        null;
+
+    public liveSourceRateRefusalCounter: prometheus.Counter<
+        'integration' | 'code'
+    > | null = null;
+
     public preAggregateMaterializationCounter: prometheus.Counter<string> | null =
         null;
 
@@ -1105,6 +1112,20 @@ export default class PrometheusMetrics {
                     },
                 );
                 this.aiAgentMemoryEligiblePartitionsCounter?.inc(0);
+
+                this.liveSourceRateWaitHistogram = new prometheus.Histogram({
+                    name: 'lightdash_live_source_rate_limit_wait_seconds',
+                    help: 'How long live data source calls waited for their rate-limit turn',
+                    labelNames: ['integration'],
+                    buckets: [0, 0.1, 0.5, 1, 2.5, 5, 10, 30, 60, 120],
+                    ...rest,
+                });
+                this.liveSourceRateRefusalCounter = new prometheus.Counter({
+                    name: 'lightdash_live_source_rate_limit_refusals_total',
+                    help: 'Live data source calls refused by the rate-limit gate',
+                    labelNames: ['integration', 'code'],
+                    ...rest,
+                });
 
                 // Initialize pre-aggregate metrics
                 this.preAggregateMatchCounter = new prometheus.Counter({
@@ -2239,6 +2260,17 @@ export default class PrometheusMetrics {
 
     public incrementAiAgentMemoryEligiblePartitions(count: number) {
         this.aiAgentMemoryEligiblePartitionsCounter?.inc(count);
+    }
+
+    public observeLiveSourceRateWait(integration: string, waitedMs: number) {
+        this.liveSourceRateWaitHistogram?.observe(
+            { integration },
+            waitedMs / 1_000,
+        );
+    }
+
+    public incrementLiveSourceRateRefusal(integration: string, code: string) {
+        this.liveSourceRateRefusalCounter?.inc({ integration, code });
     }
 
     public observeAiWritebackSandboxCreateDuration(durationMs: number) {

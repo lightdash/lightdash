@@ -1,9 +1,12 @@
 import {
+    getItemId,
     MetricType,
     parseModelDocument,
+    parseModelPartPath,
     type DimensionType,
     type LightdashModel,
     type LightdashModelMetric,
+    type ModelFragmentChange,
 } from '@lightdash/common';
 import { isEqual } from 'es-toolkit/compat';
 import { toModelPath } from './draftFold';
@@ -88,36 +91,58 @@ export const findNewModelAdvice = (
     ];
 };
 
-const METRIC_PATH = /(?:^|\.)metrics\.(\w+)(\.|$)/;
 const MAX_METRICS_TO_RUN = 10;
 
 /** The metrics a write adds or defines differently, as field ids: the ones worth running once on real rows. */
 export const findMetricsToRun = (
     name: string,
-    changes: { path: string; action: string }[],
+    changes: Pick<ModelFragmentChange, 'path' | 'action'>[],
     createdContents: string | null,
 ): string[] => {
     const metrics =
         createdContents === null
             ? changes.flatMap(({ path, action }) => {
-                  const [, metric, deeper] = METRIC_PATH.exec(path) ?? [];
+                  const part = parseModelPartPath(path);
+                  if (part?.part !== 'entry' || part.group !== 'metrics') {
+                      return [];
+                  }
                   // A label or description leaves the number alone, and a removed metric has none.
                   const changesTheNumber =
                       action !== 'patched' &&
-                      !(action === 'removed' && deeper === '');
-                  return metric && changesTheNumber ? [metric] : [];
+                      !(action === 'removed' && part.key === null);
+                  return changesTheNumber ? [part.name] : [];
               })
             : metricsOf(
                   parseModelDocument(createdContents, toModelPath(name)),
               ).map(([metric]) => metric);
     return [...new Set(metrics)]
         .slice(0, MAX_METRICS_TO_RUN)
-        .map((metric) => `${name}_${metric}`);
+        .map((metric) => getItemId({ table: name, name: metric }));
 };
 
 const COLUMN_REFERENCE = /\$\{TABLE\}\.(\w+)/g;
-const PLAIN_COLUMN = /^\s*\$\{TABLE\}\.(\w+)\s*$/;
+// A dimension that reads a column as it is, so the column's type is its type.
+export const PLAIN_COLUMN = /^\s*\$\{TABLE\}\.(\w+)\s*$/;
 const MAX_LISTED_COLUMNS = 30;
+
+/** The dimensions that read one column and are typed differently from it. */
+export const findMistypedDimensions = (
+    dimensions: { name: string; type: DimensionType; sql: string }[],
+    columns: Map<string, DimensionType>,
+): {
+    name: string;
+    type: DimensionType;
+    column: string;
+    columnType: DimensionType;
+}[] =>
+    dimensions.flatMap(({ name, type, sql }) => {
+        const column = PLAIN_COLUMN.exec(sql)?.[1];
+        if (column === undefined) return [];
+        const columnType = columns.get(column.toLowerCase());
+        return columnType !== undefined && columnType !== type
+            ? [{ name, type, column, columnType }]
+            : [];
+    });
 
 /** Why a model does not fit its table as the catalog describes it: a column that is not there, or a new dimension typed differently from its column. */
 export const findColumnError = (
@@ -144,18 +169,12 @@ export const findColumnError = (
         const known = [...columns.keys()];
         return `${name} reads ${missing.join(', ')}, which ${missing.length === 1 ? 'is not a column' : 'are not columns'} of its table. Its columns: ${known.slice(0, MAX_LISTED_COLUMNS).join(', ')}${known.length > MAX_LISTED_COLUMNS ? ', and more' : ''}.`;
     }
-    const mistyped = model.dimensions.flatMap((dimension) => {
-        const column = PLAIN_COLUMN.exec(dimension.sql)?.[1];
-        const columnType =
-            column === undefined
-                ? undefined
-                : columns.get(column.toLowerCase());
-        return changedDimensions.has(dimension.name) &&
-            columnType !== undefined &&
-            columnType !== dimension.type
-            ? [`${dimension.name} reads a ${columnType} column`]
-            : [];
-    });
+    const mistyped = findMistypedDimensions(model.dimensions, columns)
+        .filter((dimension) => changedDimensions.has(dimension.name))
+        .map(
+            ({ name: dimension, columnType }) =>
+                `${dimension} reads a ${columnType} column`,
+        );
     return mistyped.length > 0
         ? `${mistyped.join(', ')}, but ${mistyped.length === 1 ? 'is' : 'are'} typed differently. Use the column's type, or cast in sql to change it.`
         : null;

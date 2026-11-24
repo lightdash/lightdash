@@ -3,7 +3,6 @@ import {
     DbtProjectType,
     getSlackFeatureAvailability,
     type SlackSettings,
-    FeatureFlags,
     LightdashMode,
     ProjectType,
     WarehouseTypes,
@@ -55,6 +54,7 @@ export const storyHealth = (
         hasPostHogOAuth: true,
         hasLinkedInAdsOAuth: false,
         hasSalesforceOAuth: false,
+        hasHydraLiveSource: false,
         siteUrl: 'https://acme.example.com',
         externalSources: { ...base.externalSources, engineAvailable: true },
         ...overrides,
@@ -118,11 +118,6 @@ export const storyProject = {
     createdByUserUuid: USER_UUID,
     provisioningSource: null,
 };
-
-const ENABLED_FLAGS: string[] = [
-    FeatureFlags.NewOnboarding,
-    FeatureFlags.ApiQuerySources,
-];
 
 export type StubRequest = {
     method: string;
@@ -203,7 +198,7 @@ const defaultRoutes = (): StubRoutes => ({
     },
     'GET /feature-flag/:flagId': ({ params }: StubRequest) => ({
         id: params.flagId,
-        enabled: ENABLED_FLAGS.includes(params.flagId),
+        enabled: false,
     }),
 });
 

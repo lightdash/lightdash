@@ -1,16 +1,10 @@
-import { FeatureFlags } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
 import Register from './Register';
 
 const emailStatus = vi.hoisted(() => ({ isVerified: true }));
-
-vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: vi.fn(),
-}));
 
 vi.mock('../hooks/useEmailVerification', () => ({
     useEmailStatus: () => ({
@@ -33,10 +27,6 @@ const renderRegister = (hasEmailClient: boolean) =>
 describe('Register', () => {
     beforeEach(() => {
         emailStatus.isVerified = true;
-        vi.mocked(useServerFeatureFlag).mockReturnValue({
-            data: { id: FeatureFlags.NewOnboarding, enabled: true },
-            isLoading: false,
-        } as ReturnType<typeof useServerFeatureFlag>);
     });
 
     it('renders the classic signup form without an email client', async () => {

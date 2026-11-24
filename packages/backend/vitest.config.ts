@@ -54,6 +54,8 @@ const shared = {
         TZ: 'UTC',
         LANG: 'en_US.UTF-8',
         NODE_ENV: 'test',
+        // Hydra, the test integration, is registered in tests as in dev
+        LIVE_SOURCES_HYDRA_ENABLED: 'true',
     },
 };
 

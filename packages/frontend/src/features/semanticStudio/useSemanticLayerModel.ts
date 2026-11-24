@@ -17,7 +17,10 @@ import {
     type SemanticLayerStatus,
     type SemanticLayerStoredModels,
     type SemanticStudioBranchCompile,
+    type SemanticStudioBranchCompileFollowUp,
+    type SemanticStudioBranchCompileFollowUpBody,
     type SemanticStudioCheckout,
+    type WritebackMergeResult,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
@@ -27,10 +30,15 @@ import useApp from '../../providers/App/useApp';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { useCheckedOutView } from './developmentView';
 import { canWriteProjectBranch } from './permissions';
+import {
+    CHECKOUT_KEY,
+    DRAFT_KEY,
+    DRAFT_STATE_KEY,
+    invalidateStudio,
+    MODEL_KEY,
+    WORKSPACES_KEY,
+} from './studioQueryKeys';
 
-export const DRAFT_KEY = 'semantic-layer-draft';
-const DRAFT_STATE_KEY = 'semantic-layer-draft-state';
-const MODEL_KEY = 'semantic-layer-model';
 const PENDING_POLL_MS = 2000;
 const DRAFT_POLL_MS = 60_000;
 
@@ -80,9 +88,6 @@ export const useSemanticLayerStatus = (projectUuid: string) =>
         '/status',
         projectUuid !== '',
     ).data;
-
-export const CHECKOUT_KEY = 'semantic-studio-checkout';
-export const WORKSPACES_KEY = 'semantic-studio-workspaces';
 
 /** The draft this person has checked out, which the whole app shows them; null on what is published. */
 export const useDraftCheckout = (projectUuid: string | undefined) =>
@@ -156,20 +161,67 @@ export const useCompileCheckout = (projectUuid: string) => {
     });
 };
 
+/** Publishes the checked-out dbt draft by merging its pull request, which the project then compiles. */
+export const usePublishCheckout = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+    return useMutation<WritebackMergeResult, ApiError, { prUrl: string }>({
+        mutationFn: ({ prUrl }) =>
+            lightdashApi<WritebackMergeResult>({
+                url: toUrl(projectUuid, '/checkout/publish'),
+                method: 'POST',
+                body: JSON.stringify({ prUrl }),
+            }),
+        onSuccess: (_result, { prUrl }) =>
+            invalidateStudio(queryClient, projectUuid, {
+                draft: false,
+                draftState: false,
+                checkout: true,
+                liveModels: false,
+                sources: false,
+                pullRequestChecks: prUrl,
+            }),
+        onError: ({ error }) =>
+            showToastApiError({ title: 'Could not publish', apiError: error }),
+    });
+};
+
+/** Claims the hidden prompt that sends an agent's failed compile back to it; null when there is none to send. */
+export const useClaimCompileFollowUp = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+    return useMutation<
+        SemanticStudioBranchCompileFollowUp | null,
+        ApiError,
+        SemanticStudioBranchCompileFollowUpBody
+    >({
+        mutationFn: (body) =>
+            lightdashApi<SemanticStudioBranchCompileFollowUp | null>({
+                url: toUrl(projectUuid, '/checkout/compile/follow-up'),
+                method: 'POST',
+                body: JSON.stringify(body),
+            }),
+    });
+};
+
 /** Whether this person can change this project's models here. */
 export const useCanEditSemanticLayer = (projectUuid: string): boolean =>
     useSemanticLayerStatus(projectUuid)?.enabled === true;
 
 /** Whether changes here go through a draft; false on a dbt project, where the agent edits the repository in a pull request. */
+export const keepsSemanticLayerDraft = (
+    status: SemanticLayerStatus | undefined,
+): boolean => status?.appliesAs !== 'dbt_pull_request';
+
 export const useKeepsSemanticLayerDraft = (projectUuid: string): boolean =>
-    useSemanticLayerStatus(projectUuid)?.appliesAs !== 'dbt_pull_request';
+    keepsSemanticLayerDraft(useSemanticLayerStatus(projectUuid));
 
 /** Whether applying a draft opens a pull request on the project's repository instead of going live. */
 export const useAppliesAsPullRequest = (projectUuid: string): boolean =>
     useSemanticLayerStatus(projectUuid)?.appliesAs === 'pull_request';
 
 /** How publishing lands: live here, merged into the repository, or as a pull request for someone who can merge it. */
-export type PublishMode = 'live' | 'merge' | 'pull_request';
+type PublishMode = 'live' | 'merge' | 'pull_request';
 
 export const usePublishMode = (projectUuid: string): PublishMode => {
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
@@ -254,7 +306,7 @@ export const useDraftFreshness = (projectUuid: string) => {
         // The first value is what the draft on screen was already read against.
         if (previous === null || previous === fingerprint) return;
         void queryClient.invalidateQueries({
-            queryKey: ['semantic-studio-workspaces', projectUuid],
+            queryKey: [WORKSPACES_KEY, projectUuid],
         });
         // A read already under way, as after a write here, sees the change.
         if (queryClient.isFetching({ queryKey: [DRAFT_KEY, projectUuid] }))
@@ -324,17 +376,14 @@ export const useRefreshSemanticLayerDraft = (projectUuid: string) => {
     return useCallback(
         () =>
             // The agent's edit can start a draft and check it out, so everything that reads the draft moves with it.
-            Promise.all(
-                [
-                    [DRAFT_KEY, projectUuid],
-                    [DRAFT_STATE_KEY, projectUuid],
-                    [CHECKOUT_KEY, projectUuid],
-                    [WORKSPACES_KEY, projectUuid],
-                    ['tables'],
-                ].map((queryKey) =>
-                    queryClient.invalidateQueries({ queryKey }),
-                ),
-            ),
+            invalidateStudio(queryClient, projectUuid, {
+                draft: true,
+                draftState: true,
+                checkout: true,
+                liveModels: false,
+                sources: false,
+                pullRequestChecks: null,
+            }),
         [queryClient, projectUuid],
     );
 };
@@ -368,26 +417,16 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
                 body,
             });
         },
+        // Sending a draft gives its workspace a pull request, and publishing ends it.
         onSuccess: () =>
-            Promise.all(
-                [
-                    [DRAFT_KEY, projectUuid],
-                    [DRAFT_STATE_KEY, projectUuid],
-                    // Sending a draft gives its workspace a pull request, and publishing ends it.
-                    [WORKSPACES_KEY, projectUuid],
-                    [CHECKOUT_KEY, projectUuid],
-                    // Explore reads the checked-out draft, on this page or any other.
-                    ['tables'],
-                    ...(changesLive
-                        ? [
-                              [MODEL_KEY, projectUuid],
-                              ['preAggregateMaterializations', projectUuid],
-                          ]
-                        : []),
-                ].map((queryKey) =>
-                    queryClient.invalidateQueries({ queryKey }),
-                ),
-            ),
+            invalidateStudio(queryClient, projectUuid, {
+                draft: true,
+                draftState: true,
+                checkout: true,
+                liveModels: changesLive,
+                sources: false,
+                pullRequestChecks: null,
+            }),
         onError: ({ error }) => {
             if (errorTitle !== null) {
                 showToastApiError({ title: errorTitle, apiError: error });

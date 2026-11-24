@@ -1,12 +1,10 @@
 import {
     describeSemanticLayerProposals,
+    toolProposeSemanticLayerChangeArgsSchema,
     toolProposeSemanticLayerChangeOutputSchema,
     toolReadSemanticModelOutputSchema,
+    type StudioChangeSummary,
 } from '@lightdash/common';
-import {
-    findMetricsToRun,
-    findNewModelAdvice,
-} from '../../SemanticStudioService/draftLint';
 import type { ProposeSemanticLayerChangeFn } from '../types/aiAgentDependencies';
 import {
     getListChanges,
@@ -54,12 +52,52 @@ const propose = async (
 };
 
 it('lists changes with their checkout and touched models', async () => {
-    const changes = [
-        { name: 'Revenue', isCheckedOut: true, models: ['orders'] },
+    const changes: StudioChangeSummary[] = [
+        {
+            name: 'Revenue',
+            isCheckedOut: true,
+            models: [{ name: 'orders', editedIn: ['by_hand'] }],
+        },
     ];
     const list = getListChanges(async () => changes);
     expect(await list.execute?.({}, callOptions)).toMatchObject({
         structuredContent: { changes },
+    });
+});
+
+it('takes only a path that names a part of a model to remove', () => {
+    const parse = (path: string) =>
+        toolProposeSemanticLayerChangeArgsSchema.safeParse({
+            models: [
+                {
+                    name: 'orders',
+                    yaml: null,
+                    remove: [path],
+                    removeModel: false,
+                },
+            ],
+            changeName: null,
+            note: null,
+            options: [],
+        });
+    [
+        'dimensions.amount',
+        'dimensions.amount.metrics.revenue',
+        'dimensions.amount.additional_dimensions.amount_usd',
+        'metrics.average_amount',
+        'joins.buyer',
+    ].forEach((path) => expect(parse(path).success).toBe(true));
+    [
+        'revenue',
+        'orders.amount',
+        'dimensions.amount.revenue',
+        'metrics',
+    ].forEach((path) => {
+        const parsed = parse(path);
+        expect(parsed.success).toBe(false);
+        expect(parsed.error?.issues[0].message).toContain(
+            'dimensions.<name>.metrics.<name>',
+        );
     });
 });
 
@@ -90,7 +128,8 @@ describe('getProposeSemanticLayerChange', () => {
             'label: Orders',
         );
         expect(output.result).toContain('orders: ready');
-        expect(output.result).toContain('Nothing is published until');
+        // The agent ends its turn on this line; the card is the reply.
+        expect(output.result).toContain('write nothing more');
         expect(output.metadata).toMatchObject({
             status: 'success',
             models: [{ model: 'orders', status: 'ready' }],
@@ -128,8 +167,10 @@ describe('getProposeSemanticLayerChange', () => {
             'check: run orders_total once with runMetricQuery',
         );
         expect(asked.metadata).toMatchObject({ needsFollowUp: true });
+        expect(asked.result).not.toContain('write nothing more');
         const notAsked = await propose(proposeMetric, 'metrics: {}');
         expect(notAsked.result).not.toContain('runMetricQuery');
+        expect(notAsked.result).toContain('write nothing more');
         expect(notAsked.metadata).toMatchObject({ needsFollowUp: false });
     });
 
@@ -160,35 +201,56 @@ describe('getProposeSemanticLayerChange', () => {
         });
     });
 
-    it('keeps the turn open when a part of a ready model was refused', async () => {
+    it('says parts were left out for a result stored before a model joined whole or not at all', () => {
+        expect(
+            describeSemanticLayerProposals([
+                {
+                    models: [
+                        {
+                            model: 'orders',
+                            status: 'ready',
+                            changes: [
+                                { path: 'metrics.total', action: 'removed' },
+                            ],
+                            refusals: [
+                                {
+                                    path: 'dimensions.status',
+                                    reason: 'name_taken',
+                                },
+                            ],
+                            error: null,
+                        },
+                    ],
+                },
+            ]),
+        ).toBe('Changed orders in the draft. Some parts were left out.');
+    });
+
+    it('tells the agent why a part was refused in a sentence it can act on', async () => {
         const output = await propose(
             async () => ({
                 results: [
                     {
                         model: 'orders',
-                        status: 'ready',
-                        changes: [{ path: 'metrics.total', action: 'removed' }],
+                        status: 'failed',
+                        changes: [],
                         refusals: [
                             { path: 'dimensions.status', reason: 'name_taken' },
                         ],
-                        error: null,
+                        error: 'None of this change to orders was added.',
                         notes: [],
                     },
                 ],
                 diffs: [],
-                draftChangeUuid: 'draft-1',
+                draftChangeUuid: null,
                 startedChange: null,
             }),
             'label: Orders',
         );
-        expect(output.result).toContain('without the refused parts');
-        expect(output.result).not.toContain('write nothing more');
-        expect(output.metadata).toMatchObject({ needsFollowUp: true });
-        expect(
-            output.metadata.status === 'success'
-                ? describeSemanticLayerProposals([output.metadata])
-                : null,
-        ).toBe('Changed orders in the draft. Some parts were left out.');
+        expect(output.result).toContain(
+            'refusals: dimensions.status uses a name another field of this model already has.',
+        );
+        expect(output.result).toContain('Nothing joined the draft.');
     });
 
     it('says nothing joined the draft when no model passed', async () => {
@@ -211,7 +273,7 @@ describe('getProposeSemanticLayerChange', () => {
             '- not a mapping',
         );
         expect(output.result).toContain('orders: failed');
-        expect(output.result).toContain('Nothing joined the draft');
+        expect(output.result).not.toContain('write nothing more');
         // Nothing joined the draft, so there is no card for a note or an offer.
         expect(output.metadata).toMatchObject({ note: null, options: [] });
     });
@@ -251,83 +313,5 @@ describe('getReadSemanticModel', () => {
 
     it('names the models when the name is unknown', async () => {
         expect((await read(null)).result).toContain('orders, customers');
-    });
-});
-
-describe('findMetricsToRun', () => {
-    it('names the metrics a change adds or redefines, and no others', () => {
-        expect(
-            findMetricsToRun(
-                'orders',
-                [
-                    { path: 'metrics.total', action: 'added' },
-                    {
-                        path: 'dimensions.amount.metrics.net.sql',
-                        action: 'redefined',
-                    },
-                    { path: 'metrics.net_rate.filters', action: 'removed' },
-                    { path: 'metrics.total.label', action: 'patched' },
-                    { path: 'metrics.renamed.label', action: 'patched' },
-                    { path: 'metrics.gone', action: 'removed' },
-                    { path: 'dimensions.status', action: 'added' },
-                ],
-                null,
-            ),
-        ).toEqual(['orders_total', 'orders_net', 'orders_net_rate']);
-    });
-
-    it('names every metric of a model that is new', () => {
-        expect(
-            findMetricsToRun(
-                'orders',
-                [{ path: 'orders', action: 'created' }],
-                `type: model
-name: orders
-sql_from: public.orders
-dimensions:
-  - name: id
-    type: number
-    sql: \${TABLE}.id
-    metrics:
-      order_count:
-        type: count_distinct
-metrics:
-  total:
-    type: sum
-    sql: \${TABLE}.id
-`,
-            ),
-        ).toEqual(['orders_order_count', 'orders_total']);
-    });
-});
-
-describe('findNewModelAdvice', () => {
-    const base = `type: model
-name: orders
-sql_from: public.orders
-dimensions:
-  - name: id
-    type: number
-    sql: \${TABLE}.id
-metrics:
-  total:
-    type: sum
-    sql: \${TABLE}.id
-`;
-
-    it('names a missing primary key and metrics without a description', () => {
-        expect(findNewModelAdvice('orders', base)).toEqual([
-            'no primary_key: set it to the columns that identify one row; it is checked on the warehouse',
-            'no description on total: say in one sentence what each measures',
-        ]);
-    });
-
-    it('has nothing to say about a model that has both', () => {
-        expect(
-            findNewModelAdvice(
-                'orders',
-                `${base}    description: Sum of ids\nprimary_key: id\n`,
-            ),
-        ).toEqual([]);
     });
 });

@@ -53,11 +53,7 @@ export const pylonIntegration = defineLiveIntegration({
         ],
         methods: ['GET', 'POST'],
     }),
-    // Each search endpoint allows 120 calls a minute per workspace
     limits: {
-        concurrentCalls: 2,
-        callsPerMinute: 100,
-        callsPerHour: 3_000,
         callsPerQuery: PYLON_CALLS_PER_QUERY,
         timeoutMs: 30_000,
         maxRows: PYLON_MAX_QUERY_ROWS,
@@ -109,6 +105,7 @@ export const pylonIntegration = defineLiveIntegration({
         description:
             'Search returns up to 1,000 records a page, with a cursor.',
     },
+    // Each search endpoint allows 120 calls a minute per workspace
     rateLimits: {
         concurrentCalls: 3,
         callsPerSecond: 2,

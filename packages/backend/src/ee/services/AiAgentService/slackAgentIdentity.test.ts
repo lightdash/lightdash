@@ -173,9 +173,6 @@ test.each(agentActionTestCases)(
             },
             aiAgentModel: {
                 findSlackChannelServiceAccount: vi.fn().mockResolvedValue(null),
-                findThreadReferencedArtifacts: vi
-                    .fn()
-                    .mockResolvedValue(new Map()),
                 findArtifactsByThreadUuid: vi.fn().mockResolvedValue([]),
                 findArtifactVersionsByPromptUuid: vi.fn().mockResolvedValue([]),
                 getToolCallsForPrompt: vi.fn().mockResolvedValue([
@@ -337,7 +334,6 @@ test('Slack table reads carry the loaded agent UUID and installed app id', async
         },
         aiAgentModel: {
             findSlackChannelServiceAccount: vi.fn().mockResolvedValue(null),
-            findThreadReferencedArtifacts: vi.fn().mockResolvedValue(new Map()),
             findArtifactsByThreadUuid: vi.fn().mockResolvedValue([]),
             findArtifactVersionsByPromptUuid: vi.fn().mockResolvedValue([]),
             getToolCallsForPrompt: vi.fn().mockResolvedValue([

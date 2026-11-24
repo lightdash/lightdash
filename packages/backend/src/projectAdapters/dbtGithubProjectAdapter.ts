@@ -7,6 +7,7 @@ import {
 import { WarehouseClient } from '@lightdash/warehouses';
 import * as fs from 'fs/promises';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import type { DbtPartialParseBaseline } from '../dbt/dbtPartialParseBaseline';
 import {
     createGithubGitCredentialFiles,
     GitCredentialFiles,
@@ -33,7 +34,7 @@ type DbtGithubProjectAdapterArgs = {
     dbtVersion: SupportedDbtVersions;
     selector?: string;
     analytics?: LightdashAnalytics;
-    partialParseBaselinePath: string | null;
+    partialParseBaseline: DbtPartialParseBaseline | null;
 };
 
 export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
@@ -56,7 +57,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         dbtVersion,
         selector,
         analytics,
-        partialParseBaselinePath,
+        partialParseBaseline,
     }: DbtGithubProjectAdapterArgs) {
         if (dbtTarget.kind === 'none')
             throw new ParameterError(dbtTarget.reason);
@@ -88,7 +89,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
             dbtVersion,
             selector,
             analytics,
-            partialParseBaselinePath,
+            partialParseBaseline,
             gitConfigGlobalPath: gitCredentialFiles.configPath,
             dbtDepsErrorHint: githubInstallationId
                 ? 'If a dependency is a private GitHub repository, ensure it is included in the same GitHub App installation as this project.'

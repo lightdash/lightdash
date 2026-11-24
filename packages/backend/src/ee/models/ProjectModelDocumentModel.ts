@@ -24,7 +24,7 @@ import {
 import { UserTableName } from '../../database/entities/users';
 import { AiPromptTableName } from '../database/entities/ai';
 import { SemanticStudioWorkspacesTableName } from '../database/entities/semanticStudioWorkspaces';
-import { lockStudioWorkspaceOwner } from './SemanticStudioWorkspaceModel';
+import { SemanticStudioWorkspaceModel } from './SemanticStudioWorkspaceModel';
 
 const MODEL_HISTORY_LIMIT = 50;
 const SETTLED_DRAFT_CHANGES_LIMIT = 100;
@@ -648,47 +648,24 @@ export class ProjectModelDocumentModel {
         organizationUuid: string,
     ) {
         return this.database.transaction(async (trx) => {
-            await lockStudioWorkspaceOwner(trx, input);
-            const active = await trx(SemanticStudioWorkspacesTableName)
-                .where({
-                    project_uuid: input.projectUuid,
-                    created_by_user_uuid: input.userUuid,
-                    is_active: true,
-                })
-                .forUpdate()
-                .first();
-            if (
-                (active?.semantic_studio_workspace_uuid ?? null) !==
-                input.workspaceUuid
-            ) {
-                throw new ModelDocumentsChangedError();
-            }
-            const workspace =
-                active ??
-                (
-                    await trx(SemanticStudioWorkspacesTableName)
-                        .insert({
-                            organization_uuid: organizationUuid,
-                            project_uuid: input.projectUuid,
-                            created_by_user_uuid: input.userUuid,
-                            ai_thread_uuid: null,
-                            name: input.changeName,
-                            is_active: true,
-                        })
-                        .returning(['semantic_studio_workspace_uuid', 'name'])
-                )[0];
-            const workspaceUuid = workspace.semantic_studio_workspace_uuid;
+            const checkedOut =
+                await SemanticStudioWorkspaceModel.checkOutForDraft(
+                    trx,
+                    input,
+                    {
+                        expectedWorkspaceUuid: input.workspaceUuid,
+                        organizationUuid,
+                        name: input.changeName,
+                        promptUuid: input.promptUuid,
+                    },
+                );
+            if (!checkedOut) throw new ModelDocumentsChangedError();
+            const { workspaceUuid, startedChange } = checkedOut;
             const draftChangeUuid = await this.createDraftChange(
                 { ...input, workspaceUuid },
                 trx,
             );
-            return {
-                workspaceUuid,
-                draftChangeUuid,
-                startedChange: active
-                    ? null
-                    : { workspaceUuid, name: workspace.name },
-            };
+            return { workspaceUuid, draftChangeUuid, startedChange };
         });
     }
 

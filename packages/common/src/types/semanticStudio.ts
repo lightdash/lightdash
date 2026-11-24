@@ -4,6 +4,7 @@ import {
 } from '../lightdash/applyModelFragment';
 import { type ApiSuccess } from './api/success';
 import { type UUID } from './api/uuid';
+import { type CiChecks } from './ci';
 import { type Explore } from './explore';
 
 export type SemanticLayerApplyMode =
@@ -140,7 +141,7 @@ export type SemanticLayerDraftModelSave =
 export type ApiSemanticLayerDraftModelSaveResponse =
     ApiSuccess<SemanticLayerDraftModelSave>;
 
-/** How one model's part of a change fared when it was checked on top of a draft. */
+/** How one model's part of a stored change fares when it is replayed on what is live, where a part that no longer fits is refused and the rest still applies. */
 export type SemanticLayerDraftItemResult = {
     model: string;
     /** `ready` passed its checks, `unchanged` changes nothing, `failed` carries the error. */
@@ -151,6 +152,33 @@ export type SemanticLayerDraftItemResult = {
     /** What a person should confirm about a model that passed, such as a relationship measured on part of a table. */
     notes: string[];
 };
+
+/** How one model's part of a proposal fared: it joins the draft whole or not at all, so only a failed part carries refusals. */
+export type SemanticLayerProposalItemResult =
+    | {
+          model: string;
+          status: 'ready';
+          changes: ModelFragmentChange[];
+          refusals: [];
+          error: null;
+          notes: string[];
+      }
+    | {
+          model: string;
+          status: 'unchanged';
+          changes: [];
+          refusals: [];
+          error: null;
+          notes: [];
+      }
+    | {
+          model: string;
+          status: 'failed';
+          changes: [];
+          refusals: ModelFragmentRefusal[];
+          error: string;
+          notes: [];
+      };
 
 /** What one drafted change does to one model, as the agent asked for it. */
 export type SemanticLayerDraftModelInput = {
@@ -392,6 +420,45 @@ export type SemanticStudioWorkspace = {
     publishedLive: boolean;
 };
 
+/** Sent by a client that wants a person's unpublished model changes applied to what it reads. */
+export const DEVELOPMENT_VIEW_HEADER = 'Lightdash-Development-View';
+
+/** Names the preview project to read instead, for a project whose unpublished changes live on a branch. */
+export const DEVELOPMENT_PREVIEW_HEADER = 'Lightdash-Development-Preview';
+
+export const UNTITLED_WORKSPACE_NAME = 'Untitled';
+
+/** A workspace name trimmed to `maxLength`; a blank one is untitled. */
+export const normalizeWorkspaceName = (name: string, maxLength: number) =>
+    name.trim().slice(0, maxLength) || UNTITLED_WORKSPACE_NAME;
+
+/** A pull request not yet merged or closed; one whose state is unknown counts as open. */
+export const isPullRequestOpen = (
+    pullRequest: SemanticStudioWorkspace['pullRequest'],
+): pullRequest is NonNullable<SemanticStudioWorkspace['pullRequest']> =>
+    pullRequest !== null &&
+    pullRequest.state !== 'merged' &&
+    pullRequest.state !== 'closed';
+
+/** A pull request's state as its CI checks report it. */
+export const pullRequestStateOf = ({
+    state,
+    merged,
+}: Pick<
+    CiChecks,
+    'state' | 'merged'
+>): SemanticStudioWorkspacePullRequestState => {
+    if (merged) return 'merged';
+    return state === 'open' ? 'open' : 'closed';
+};
+
+/** A workspace that has not landed or been dropped yet. */
+export const isOpenWorkspace = ({
+    finishedAt,
+    pullRequest,
+}: Pick<SemanticStudioWorkspace, 'finishedAt' | 'pullRequest'>): boolean =>
+    !finishedAt && (pullRequest === null || isPullRequestOpen(pullRequest));
+
 export type SemanticStudioWorkspaces = {
     /** Your unfinished workspaces, the active one first. */
     mine: SemanticStudioWorkspace[];
@@ -423,7 +490,27 @@ export type SemanticStudioBranchCompile = {
     hasExplores: boolean;
     requestedAt: Date;
     compiledAt: Date | null;
+    /** The compile this describes; a newer request replaces it. */
+    compileRequestUuid: string;
+    /** Whether an agent's save asked for it, so a failure can go back to the agent. */
+    requestedByAgent: boolean;
 };
+
+/** A hidden prompt that sends an agent's failed compile back to it. */
+export type SemanticStudioBranchCompileFollowUp = {
+    agentUuid: string;
+    threadUuid: string;
+    prompt: string;
+};
+
+export type SemanticStudioBranchCompileFollowUpBody = {
+    compileRequestUuid: string;
+    /** The Studio chat asking; only the chat of the checked-out change gets the follow-up. */
+    threadUuid: string;
+};
+
+export type ApiSemanticStudioBranchCompileFollowUpResponse =
+    ApiSuccess<SemanticStudioBranchCompileFollowUp | null>;
 
 /** The change a person has checked out in a project, which the whole app shows them. */
 export type SemanticStudioCheckout = {

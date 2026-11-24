@@ -1,8 +1,11 @@
 import {
+    describeModelFragmentRefusal,
+    endsTurnOnCard,
     listChangesToolDefinition,
     proposeSemanticLayerChangeToolDefinition,
     readSemanticModelToolDefinition,
-    type SemanticLayerDraftItemResult,
+    type SemanticLayerProposal,
+    type SemanticLayerProposalItemResult,
     type StudioChangeSummary,
     type ToolProposeSemanticLayerChangeOutput,
 } from '@lightdash/common';
@@ -25,7 +28,7 @@ const renderProposedModel = (
         refusals,
         error,
         notes,
-    }: SemanticLayerDraftItemResult,
+    }: SemanticLayerProposalItemResult,
     advice: string[],
     metricsToRun: string[],
 ): string =>
@@ -38,7 +41,7 @@ const renderProposedModel = (
             : []),
         ...(refusals.length > 0
             ? [
-                  `  refusals: ${refusals.map(({ path, reason }) => `${path} (${reason})`).join(', ')}`,
+                  `  refusals: ${refusals.map(describeModelFragmentRefusal).join(' ')}`,
               ]
             : []),
         ...(error ? [`  error: ${error}`] : []),
@@ -52,8 +55,7 @@ const renderProposedModel = (
     ].join('\n');
 
 /** A model can escape the quotes inside a string it writes; the card shows text, so they are plain again. */
-const unescapeQuotes = (text: string | null): string | null =>
-    text === null ? null : text.replaceAll('\\"', '"');
+const unescapeQuotes = (text: string): string => text.replaceAll('\\"', '"');
 
 export const getProposeSemanticLayerChange = ({
     proposeSemanticLayerChange,
@@ -94,16 +96,25 @@ export const getProposeSemanticLayerChange = ({
                                 : [],
                     };
                 });
-                const hasRefusals = results.some(
-                    ({ status, refusals }) =>
-                        status === 'ready' && refusals.length > 0,
-                );
-                const joinedLine = hasRefusals
-                    ? "This joined the person's draft without the refused parts, which changed nothing. Propose those again in a way that can pass, or tell the person what was left out. Nothing is published until they publish the draft."
-                    : "This joined the person's draft, and its card shows them what changed, your note and your options, so write nothing more. Nothing is published until they publish the draft.";
-                const joinedDraftLine = draftChangeUuid
-                    ? joinedLine
-                    : 'Nothing joined the draft.';
+                const metadata: SemanticLayerProposal = {
+                    status: 'success',
+                    models: results,
+                    diffs,
+                    draftChangeUuid,
+                    startedChange,
+                    needsFollowUp: advised.some(
+                        ({ advice, metricsToRun }) =>
+                            advice.length > 0 || metricsToRun.length > 0,
+                    ),
+                    note:
+                        draftChangeUuid && note !== null
+                            ? unescapeQuotes(note)
+                            : null,
+                    options: draftChangeUuid ? options.map(unescapeQuotes) : [],
+                };
+                const joinedLine = endsTurnOnCard([metadata])
+                    ? "This joined the person's draft, and its card shows them what changed, your note and your options, so write nothing more. Nothing is published until they publish the draft."
+                    : "This joined the person's draft. Nothing is published until they publish the draft.";
                 const output: ToolProposeSemanticLayerChangeOutput = {
                     result: [
                         ...advised.map(({ result, advice, metricsToRun }) =>
@@ -114,28 +125,11 @@ export const getProposeSemanticLayerChange = ({
                                   `Started draft "${startedChange.name}" and checked it out.`,
                               ]
                             : []),
-                        joinedDraftLine,
+                        draftChangeUuid
+                            ? joinedLine
+                            : 'Nothing joined the draft.',
                     ].join('\n'),
-                    metadata: {
-                        status: 'success',
-                        models: results,
-                        diffs,
-                        draftChangeUuid,
-                        startedChange,
-                        needsFollowUp:
-                            hasRefusals ||
-                            advised.some(
-                                ({ advice, metricsToRun }) =>
-                                    advice.length > 0 ||
-                                    metricsToRun.length > 0,
-                            ),
-                        note: draftChangeUuid ? unescapeQuotes(note) : null,
-                        options: draftChangeUuid
-                            ? options.map(
-                                  (option) => unescapeQuotes(option) ?? option,
-                              )
-                            : [],
-                    },
+                    metadata,
                     structuredContent: { models: results },
                 };
                 return output;

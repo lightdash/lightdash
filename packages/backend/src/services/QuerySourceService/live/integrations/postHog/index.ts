@@ -54,12 +54,7 @@ export const postHogIntegration = defineLiveIntegration({
         // GET reads the property definitions the semantic layer scans
         methods: ['POST', 'GET'],
     }),
-    // PostHog's query API limits per PostHog project: 3 at once, 240 a
-    // minute, 2,400 an hour.
     limits: {
-        concurrentCalls: 3,
-        callsPerMinute: 240,
-        callsPerHour: 2_400,
         callsPerQuery: 1,
         // PostHog can queue a query for 30s before running it for up to 10s.
         timeoutMs: 45_000,
@@ -111,6 +106,8 @@ export const postHogIntegration = defineLiveIntegration({
         description:
             '100 rows by default; up to 50,000 rows per query with an explicit LIMIT.',
     },
+    // PostHog's query API limits per PostHog project: 3 at once, 240 a
+    // minute, 2,400 an hour.
     rateLimits: {
         concurrentCalls: 3,
         callsPerSecond: null,

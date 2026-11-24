@@ -217,9 +217,6 @@ function buildService(opts: {
         encryptionUtil: {} as never,
         lightdashConfig: lightdashConfigMock,
         orgAiCopilotConfigResolver: orgAiCopilotConfigResolver as never,
-        featureFlagModel: {
-            get: vi.fn().mockResolvedValue({ enabled: true }),
-        } as never,
         schedulerClient: { scanApiSourceSchema: vi.fn() },
     });
     return { service, model, orgAiCopilotConfigResolver };
@@ -754,7 +751,7 @@ describe('ExternalConnectionService.testConnection', () => {
                 path: '/v1/current',
                 config: { origin: 'https://other.example.com' },
             }),
-        ).rejects.toThrow('type "bearer_token" requires a secret');
+        ).rejects.toThrow('Re-enter the secret to change the origin');
 
         expect(model.getDecryptedSecret).not.toHaveBeenCalled();
         expect(executeExternalFetchSpy).not.toHaveBeenCalled();

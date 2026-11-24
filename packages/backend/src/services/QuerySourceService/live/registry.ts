@@ -1,13 +1,17 @@
 import {
     ApiConnectorType,
     assertUnreachable,
+    HYDRA_ENABLED_ENV,
+    ParameterError,
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
+import { amplitudeIntegration } from './integrations/amplitude';
 import { attioIntegration } from './integrations/attio';
 import { ga4Integration } from './integrations/ga4';
 import { githubIntegration } from './integrations/github';
 import { googleAdsIntegration } from './integrations/googleAds';
 import { hubspotIntegration } from './integrations/hubspot';
+import { hydraIntegration } from './integrations/hydra';
 import { linkedInAdsIntegration } from './integrations/linkedInAds';
 import { metaAdsIntegration } from './integrations/metaAds';
 import { postHogIntegration } from './integrations/postHog';
@@ -33,13 +37,28 @@ const LIVE_INTEGRATIONS: {
     [ApiConnectorType.ATTIO]: attioIntegration,
     [ApiConnectorType.HUBSPOT]: hubspotIntegration,
     [ApiConnectorType.SALESFORCE]: salesforceIntegration,
+    [ApiConnectorType.AMPLITUDE]: amplitudeIntegration,
+    [ApiConnectorType.HYDRA]: hydraIntegration,
 };
+
+/** Hydra, the test integration, exists only on servers that turn it on. */
+export const isHydraEnabled = () => process.env[HYDRA_ENABLED_ENV] === 'true';
+
+/** Whether this server registers the integration; Hydra only when turned on. */
+export const isLiveIntegrationRegistered = (connector: ApiConnectorType) =>
+    Object.hasOwn(LIVE_INTEGRATIONS, connector) &&
+    (connector !== ApiConnectorType.HYDRA || isHydraEnabled());
 
 export const getLiveIntegration = (
     connector: ApiConnectorType,
 ): LiveIntegration => {
     if (!Object.hasOwn(LIVE_INTEGRATIONS, connector)) {
         return assertUnreachable(connector as never, 'Unknown api connector');
+    }
+    if (!isLiveIntegrationRegistered(connector)) {
+        throw new ParameterError(
+            `The ${connector} integration isn't available on this server`,
+        );
     }
     // Reached by the source's own connector, so its settings always match
     return LIVE_INTEGRATIONS[connector] as unknown as LiveIntegration;
@@ -57,7 +76,7 @@ export const parseStoredApiSource = (
         return null;
     }
     const connector = value.connector as ApiConnectorType;
-    if (!Object.hasOwn(LIVE_INTEGRATIONS, connector)) {
+    if (!isLiveIntegrationRegistered(connector)) {
         return null;
     }
     const parsed = getLiveIntegration(connector).settings.safeParse(value);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fieldGroups, type Field } from './model';
-import { filterFields } from './useSemanticStudio';
+import { filterFields } from './useFieldListState';
 
 const field = (name: string, overrides: Partial<Field> = {}): Field => ({
     id: `t_${name}`,

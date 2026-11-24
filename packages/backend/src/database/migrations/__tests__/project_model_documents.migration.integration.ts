@@ -610,16 +610,81 @@ describe('Project model documents on PostgreSQL', () => {
                 organization.organization_uuid,
             ),
         ).rejects.toThrow(ModelDocumentsChangedError);
-        expect(await workspaces.listChanges(owner)).toEqual(
+        expect(await workspaces.listChanges(owner, null)).toEqual(
             expect.arrayContaining([
                 {
                     name: 'Orders revenue',
                     isCheckedOut: false,
-                    models: ['orders'],
+                    models: [{ name: 'orders', editedIn: ['by_hand'] }],
                 },
                 { name: 'Second', isCheckedOut: true, models: [] },
             ]),
         );
+    });
+
+    test('a chat that writes after its draft was published reopens that draft', async () => {
+        const workspaces = new SemanticStudioWorkspaceModel({
+            database: migrated.database,
+        });
+        const owner = { projectUuid, userUuid };
+        const [{ ai_thread_uuid: threadUuid }] = await migrated
+            .database('ai_thread')
+            .insert({
+                organization_uuid: organization.organization_uuid,
+                project_uuid: projectUuid,
+                created_from: 'semantic_studio',
+            } as never)
+            .returning('ai_thread_uuid');
+        const [{ ai_prompt_uuid: promptUuid }] = await migrated
+            .database('ai_prompt')
+            .insert({
+                ai_thread_uuid: threadUuid,
+                prompt: 'Add a model',
+            } as never)
+            .returning('ai_prompt_uuid');
+        const input = {
+            ...owner,
+            workspaceUuid: null,
+            baseVersions: null,
+            promptUuid,
+            changeName: 'A model',
+            models: [
+                {
+                    name: 'orders',
+                    yaml: 'label: Orders',
+                    remove: [],
+                    removeModel: false,
+                },
+            ],
+        };
+        const first = await model.createCheckedOutDraftChange(
+            input,
+            organization.organization_uuid,
+        );
+        await migrated
+            .database('semantic_studio_workspaces')
+            .where('semantic_studio_workspace_uuid', first.workspaceUuid)
+            .update({
+                is_active: false,
+                finished_at: migrated.database.fn.now(),
+            });
+
+        const second = await model.createCheckedOutDraftChange(
+            input,
+            organization.organization_uuid,
+        );
+
+        expect(second.workspaceUuid).toBe(first.workspaceUuid);
+        expect(await workspaces.findActive(owner)).toMatchObject({
+            workspaceUuid: first.workspaceUuid,
+            threadUuid,
+        });
+        expect(
+            await migrated
+                .database('semantic_studio_workspaces')
+                .where('semantic_studio_workspace_uuid', first.workspaceUuid)
+                .first(),
+        ).toMatchObject({ finished_at: null });
     });
 
     test('a draft belongs only to its workspace', async () => {
