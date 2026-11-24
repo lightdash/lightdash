@@ -317,6 +317,7 @@ export const lightdashConfigMock: LightdashConfig = {
     query: {
         underlyingDataMaxDimensions: 50,
         maxPageSize: 2500,
+        resultsPageWorkers: 2,
         maxLimit: 5000,
         defaultLimit: 500,
         csvCellsLimit: 100000,

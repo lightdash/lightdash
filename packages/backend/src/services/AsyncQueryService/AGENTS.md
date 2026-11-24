@@ -141,6 +141,18 @@ When `getAsyncQueryResults` is called, results are always read from the S3 JSONL
 
 **Pagination:**
 Results are paginated (default 500 rows, max 5000). Use `page` and `pageSize` parameters.
+
+**Stored results pages (`stored-results-pages` flag, off by default):**
+The paginated results route calls `getAsyncQueryResultsResponse`, not `getAsyncQueryResults`. Both run one shared flow (`loadAsyncQueryResultsPage`) with the same access checks, status handling, expiry check, pagination checks, analytics events and envelope. Every other caller (AI agent, MCP, scheduler) keeps `getAsyncQueryResults`, which never checks the flag or reads a stored page.
+
+With the flag on for the organisation and user, a READY page comes back as the serialised response body:
+
+- Miss: the main thread reads the page's JSONL lines. A worker from `ResultsPageWorkerPool` (lazy, FIFO, `LIGHTDASH_QUERY_RESULTS_PAGE_WORKERS`, default 2) parses, formats and stringifies them one row at a time. It returns the `rows` bytes and a brotli copy. The request answers at once, and the brotli copy uploads in the background.
+- Hit: one GET of the stored object and one decompress job. No JSONL read, parse, format or stringify.
+- Key: `<resultsFileName>.pages/<appVersion>/<formatHash>/<pageSize>/<page>.json.br`, next to the results file. `formatHash` covers `fields`, `pivotValuesColumns` and the display timezone, the only inputs to `formatRow`. A results-cache hit has a new `queryUuid` on the same results file, so it reuses the stored pages.
+- `StoredResultsPages` keeps one build per key per process until its upload settles. A read error or a corrupt object rebuilds the page. A worker error falls back to the inline path. An upload error still answers.
+- `composeResultsPageBody` writes the body byte for byte as `res.json({ status: 'ok', results })` would. Build every new envelope field in `loadAsyncQueryResultsPage`, never in one path only.
+- The worker entry (`resultsPages/resultsPageWorker.ts`) imports only `@lightdash/common`, so keep backend config, logger and Sentry out of it. It resolves next to the pool's own file: `.js` in `dist`, `.ts` under `tsx`, and `--import tsx` is added when the parent has no tsx loader (vitest).
 </importantToKnow>
 
 <links>

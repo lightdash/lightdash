@@ -289,6 +289,13 @@ export enum FeatureFlags {
      * @lightdash/sdk < 3.245.0 (first with PR #32548): older SDKs crash the whole embed.
      */
     ComposerCharts = 'composer-charts',
+    /**
+     * Results pages are built once in a worker thread and stored next to the
+     * results file, so later requests for the same page skip the JSONL scan,
+     * the parse, the format and the stringify on the API main thread.
+     * Off by default; organization scope; no handler.
+     */
+    StoredResultsPages = 'stored-results-pages',
 }
 
 export type FeatureFlag = {

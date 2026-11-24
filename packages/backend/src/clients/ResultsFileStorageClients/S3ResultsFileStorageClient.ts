@@ -1,4 +1,11 @@
-import { DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import {
+    DeleteObjectCommand,
+    GetObjectCommand,
+    HeadObjectCommand,
+    NoSuchKey,
+    NotFound,
+    PutObjectCommand,
+} from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import {
     getErrorMessage,
@@ -165,6 +172,51 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             new DeleteObjectCommand({
                 Bucket: this.configuration.bucket,
                 Key: key,
+            }),
+        );
+    }
+
+    async getObjectBytesIfExists(
+        key: string,
+    ): Promise<{ body: Buffer; metadata: Record<string, string> } | undefined> {
+        if (!this.configuration || !this.s3) {
+            throw new MissingConfigError('S3 configuration is not set');
+        }
+        try {
+            const response = await this.s3.send(
+                new GetObjectCommand({
+                    Bucket: this.configuration.bucket,
+                    Key: key,
+                }),
+            );
+            if (!response.Body) return undefined;
+            const body = Buffer.from(
+                await response.Body.transformToByteArray(),
+            );
+            return { body, metadata: response.Metadata ?? {} };
+        } catch (error) {
+            if (error instanceof NoSuchKey || error instanceof NotFound) {
+                return undefined;
+            }
+            throw error;
+        }
+    }
+
+    async putObjectBytes(
+        key: string,
+        body: Buffer,
+        metadata: Record<string, string>,
+    ): Promise<void> {
+        if (!this.configuration || !this.s3) {
+            throw new MissingConfigError('S3 configuration is not set');
+        }
+        await this.s3.send(
+            new PutObjectCommand({
+                Bucket: this.configuration.bucket,
+                Key: key,
+                Body: body,
+                ContentType: 'application/octet-stream',
+                Metadata: metadata,
             }),
         );
     }

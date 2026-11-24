@@ -541,6 +541,7 @@ export const lightdashConfigWithNoSMTP: Pick<
     query: {
         underlyingDataMaxDimensions: 50,
         maxPageSize: 500,
+        resultsPageWorkers: 2,
         maxLimit: 100,
         defaultLimit: 500,
         csvCellsLimit: 100,
