@@ -21361,10 +21361,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         app.action('ai_access_settings', async ({ ack }) => {
             await ack();
         });
-        app.action('view_artifact', async ({ ack }) => {
-            await ack();
-            // TODO :: track analytics
-        });
     }
 
     public handleSlackPromptRetryButton(app: App) {
