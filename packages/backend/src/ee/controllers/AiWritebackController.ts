@@ -1,6 +1,7 @@
 import {
     assertRegisteredAccount,
     ParameterError,
+    pullRequestStateOf,
     type AiWritebackRequestBody,
     type ApiAiWritebackResponse,
     type ApiAiWritebackRunStatusResponse,
@@ -161,14 +162,15 @@ export class AiWritebackController extends BaseController {
             .getCiService()
             .getPullRequestChecks({ user, projectUuid, prUrl, commitSha });
         if (results) {
-            const studio =
-                this.services.getSemanticStudioService<SemanticStudioService>();
-            const openOrClosed = results.state === 'open' ? 'open' : 'closed';
-            const state = results.merged ? 'merged' : openOrClosed;
-            await studio.recordPullRequestState(projectUuid, prUrl, state);
-            if (state !== 'open') {
-                await studio.retireDbtTryOut(user, projectUuid, prUrl);
-            }
+            await this.services
+                .getSemanticStudioService<SemanticStudioService>()
+                .recordPullRequestState(
+                    user,
+                    projectUuid,
+                    prUrl,
+                    pullRequestStateOf(results),
+                    false,
+                );
         }
         return {
             status: 'ok',
@@ -271,23 +273,15 @@ export class AiWritebackController extends BaseController {
             );
         }
         this.setStatus(200);
-        const results = await this.getAiWritebackService().mergePullRequest({
-            user: toSessionUser(req.account),
-            projectUuid,
-            prUrl: parsed.data.prUrl,
-            sha: parsed.data.sha,
-            incrementalCompile: false,
-        });
         // Recorded now, so the change reads merged from the moment it was, not from whenever its checks next load.
-        if (results.merged) {
-            await this.services
-                .getSemanticStudioService<SemanticStudioService>()
-                .recordPullRequestState(
-                    projectUuid,
-                    parsed.data.prUrl,
-                    'merged',
-                );
-        }
+        const results = await this.services
+            .getSemanticStudioService<SemanticStudioService>()
+            .mergePullRequest(
+                toSessionUser(req.account),
+                projectUuid,
+                parsed.data.prUrl,
+                { sha: parsed.data.sha, incrementalCompile: false },
+            );
         return {
             status: 'ok',
             results,

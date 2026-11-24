@@ -35,7 +35,7 @@ import {
 } from './contentReferenceUtils';
 import { ThreadImageTileRow } from './ThreadImageCard';
 import { ThreadImageReference } from './ThreadImageReference';
-import { QuietCardsContext } from './ToolCalls/quietCards';
+import { InStudioChatContext } from './ToolCalls/studioChatContext';
 import { isPlainLeftClick } from './useDataAppPreviewLink';
 
 type Props = {
@@ -64,7 +64,7 @@ export const UserBubble: FC<Props> = ({
     agentUuid: agentUuidProp,
 }) => {
     const isEmbed = useIsEmbedded();
-    const isStudio = useContext(QuietCardsContext);
+    const isStudio = useContext(InStudioChatContext);
     const { agentUuid: paramsAgentUuid } = useParams();
     const paramsProjectUuid = useProjectUuid();
     const projectUuid = projectUuidProp ?? paramsProjectUuid;

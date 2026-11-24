@@ -9,7 +9,7 @@ import {
 import { useContext, useState, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { isBitbucketPullRequest } from './pullRequestCardUtils';
-import { QuietCardsContext } from './quietCards';
+import { InStudioChatContext } from './studioChatContext';
 import { WritebackDiffModal } from './WritebackDiffModal';
 
 /**
@@ -25,7 +25,7 @@ export const PullRequestViewMenu: FC<{
     commitSha: string | null;
 }> = ({ projectUuid, prUrl, previewUrl, commitSha }) => {
     const [diffOpened, setDiffOpened] = useState(false);
-    const quiet = useContext(QuietCardsContext);
+    const quiet = useContext(InStudioChatContext);
 
     return (
         <>

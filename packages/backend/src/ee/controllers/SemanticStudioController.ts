@@ -57,6 +57,7 @@ import {
     isAuthenticated,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
+import { type SemanticStudioCheckoutService } from '../services/SemanticStudioService/SemanticStudioCheckoutService';
 import { type SemanticStudioService } from '../services/SemanticStudioService/SemanticStudioService';
 
 @Route('/api/v1/projects/{projectUuid}/semantic-studio')
@@ -65,6 +66,10 @@ import { type SemanticStudioService } from '../services/SemanticStudioService/Se
 export class SemanticStudioController extends BaseController {
     private getService(): SemanticStudioService {
         return this.services.getSemanticStudioService<SemanticStudioService>();
+    }
+
+    private getCheckoutService(): SemanticStudioCheckoutService {
+        return this.services.getSemanticStudioCheckoutService<SemanticStudioCheckoutService>();
     }
 
     /**
@@ -192,7 +197,7 @@ export class SemanticStudioController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.getService().getCheckout(
+            results: await this.getCheckoutService().getCheckout(
                 toSessionUser(req.account),
                 projectUuid,
             ),
@@ -214,7 +219,7 @@ export class SemanticStudioController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.getService().compileCheckout(
+            results: await this.getCheckoutService().compileCheckout(
                 toSessionUser(req.account),
                 projectUuid,
             ),
@@ -237,7 +242,7 @@ export class SemanticStudioController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.getService().claimBranchCompileFollowUp(
+            results: await this.getCheckoutService().claimBranchCompileFollowUp(
                 toSessionUser(req.account),
                 projectUuid,
                 body,
@@ -261,7 +266,7 @@ export class SemanticStudioController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.getService().publishCheckout(
+            results: await this.getCheckoutService().publishCheckout(
                 toSessionUser(req.account),
                 projectUuid,
                 body.prUrl,
@@ -285,7 +290,7 @@ export class SemanticStudioController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.getService().listSources(
+            results: await this.getCheckoutService().listSources(
                 toSessionUser(req.account),
                 projectUuid,
                 prUrl ?? null,
@@ -310,7 +315,7 @@ export class SemanticStudioController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.getService().readSource(
+            results: await this.getCheckoutService().readSource(
                 toSessionUser(req.account),
                 projectUuid,
                 prUrl ?? null,
@@ -335,7 +340,7 @@ export class SemanticStudioController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.getService().saveSource(
+            results: await this.getCheckoutService().saveSource(
                 toSessionUser(req.account),
                 projectUuid,
                 body,

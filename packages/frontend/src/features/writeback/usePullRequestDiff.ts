@@ -1,0 +1,68 @@
+import { type ApiError } from '@lightdash/common';
+import { useQuery } from '@tanstack/react-query';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
+import { PULL_REQUEST_DIFF_KEY } from './writebackQueryKeys';
+
+type PullRequestDiff = { diff: string } | null;
+
+const getPullRequestDiff = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    prUrl: string,
+    commitSha: string | null,
+): Promise<PullRequestDiff> => {
+    const params = new URLSearchParams({ prUrl });
+    // Scope the diff to this card's pinned commit when known, matching the
+    // per-commit add/del stat shown on the card; otherwise the whole PR.
+    if (commitSha) {
+        params.set('commitSha', commitSha);
+    }
+    return lightdashApi<PullRequestDiff>({
+        version: 'v1',
+        url: `/ee/projects/${projectUuid}/ai-writeback/ci-diff?${params.toString()}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+/**
+ * Lazily fetch the raw unified diff of a write-back pull request for the card's
+ * diff viewer. `enabled` defers the fetch until the viewer is actually opened.
+ */
+export const usePullRequestDiff = (
+    projectUuid: string,
+    prUrl: string,
+    commitSha: string | null,
+    enabled: boolean,
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<PullRequestDiff, ApiError>({
+        queryKey: [PULL_REQUEST_DIFF_KEY, projectUuid, prUrl, commitSha],
+        queryFn: () =>
+            getPullRequestDiff(lightdashApi, projectUuid, prUrl, commitSha),
+        enabled: enabled && !!projectUuid && !!prUrl,
+        refetchOnWindowFocus: false,
+        retry: false,
+        staleTime: 60_000,
+    });
+};
+
+/** Everything a pull request changes, read again when its head moves and kept on screen meanwhile. */
+export const useWholePullRequestDiff = (
+    projectUuid: string,
+    prUrl: string,
+    headSha: string | null,
+    enabled = true,
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<PullRequestDiff, ApiError>({
+        queryKey: [PULL_REQUEST_DIFF_KEY, projectUuid, prUrl, 'whole', headSha],
+        queryFn: () =>
+            getPullRequestDiff(lightdashApi, projectUuid, prUrl, null),
+        enabled: enabled && !!projectUuid && !!prUrl,
+        keepPreviousData: true,
+        refetchOnWindowFocus: false,
+        retry: false,
+    });
+};

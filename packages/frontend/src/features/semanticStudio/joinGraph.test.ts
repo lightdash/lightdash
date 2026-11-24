@@ -5,12 +5,7 @@ import {
     type Explore,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import {
-    formatJoinKeys,
-    layoutJoinGraph,
-    pathToBase,
-    toJoinGraph,
-} from './joinGraph';
+import { layoutJoinGraph, pathToBase, toJoinGraph } from './joinGraph';
 
 const table = (name: string, extra: Partial<CompiledTable> = {}) =>
     ({
@@ -231,11 +226,18 @@ describe('pathToBase', () => {
     });
 });
 
-describe('formatJoinKeys', () => {
+describe('join keys', () => {
     it('drops template braces and collapses whitespace', () => {
-        expect(
-            formatJoinKeys('${a.x} = ${b.y}\n   AND ${ a.z } = ${b.z}'),
-        ).toBe('a.x = b.y AND a.z = b.z');
+        const graph = toJoinGraph(
+            explore(
+                'a',
+                [join('b', '${a.x} = ${b.y}\n   AND ${ a.z } = ${b.z}')],
+                [table('a'), table('b')],
+            ),
+        );
+        expect(graph.tables.find(({ id }) => id === 'b')?.keys).toBe(
+            'a.x = b.y AND a.z = b.z',
+        );
     });
 });
 

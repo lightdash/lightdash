@@ -9,6 +9,7 @@ import {
     stringify,
     type Document,
 } from 'yaml';
+import { type SemanticLayerDraftModelInput } from '../types/semanticStudio';
 
 /** One part of a model that differs between two versions of its YAML, addressed the way a fragment's changes are. */
 export type ModelPartChange = {
@@ -27,13 +28,17 @@ const asObject = (value: unknown): YamlObject => (isObject(value) ? value : {});
 const parseModel = (contents: string): YamlObject => asObject(parse(contents));
 
 /** Parts of a model held as a list of named entries, with how each entry is named. */
-const NAMED_LISTS: Record<string, (entry: YamlObject) => unknown> = {
-    dimensions: (entry) => entry.name,
-    joins: (entry) => entry.alias ?? entry.join,
+const NAMED_LISTS = {
+    dimensions: (entry: YamlObject): unknown => entry.name,
+    joins: (entry: YamlObject): unknown => entry.alias ?? entry.join,
 };
 
+type NamedList = keyof typeof NAMED_LISTS;
+
+const isNamedList = (key: string): key is NamedList => key in NAMED_LISTS;
+
 /** Maps of named definitions nested inside an entry. */
-const NESTED_MAPS: Record<string, string[]> = {
+const NESTED_MAPS: Record<NamedList, string[]> = {
     dimensions: ['metrics', 'additional_dimensions'],
     joins: [],
 };
@@ -123,11 +128,11 @@ export const diffModelDocuments = (
     const is = parseModel(after);
     return [
         ...diffKeys('', was, is, [...Object.keys(NAMED_LISTS), 'metrics']),
-        ...Object.entries(NAMED_LISTS).flatMap(([key, nameOf]) =>
+        ...(['dimensions', 'joins'] as const).flatMap((key) =>
             diffNamed(
                 key,
-                toNamed(was[key], nameOf),
-                toNamed(is[key], nameOf),
+                toNamed(was[key], NAMED_LISTS[key]),
+                toNamed(is[key], NAMED_LISTS[key]),
                 NESTED_MAPS[key],
             ),
         ),
@@ -143,12 +148,91 @@ export const doModelPathsOverlap = (a: string, b: string): boolean =>
     a.startsWith(`${b}.`) ||
     b.startsWith(`${a}.`);
 
+/** A part of a model as a change path names it. */
+export type ModelPartPath =
+    | { part: 'model' }
+    /** A key of the model itself, such as `label`. */
+    | { part: 'key'; key: string }
+    | {
+          part: 'entry';
+          group: 'dimensions' | 'metrics' | 'joins';
+          name: string;
+          dimension: null;
+          /** The key changed on the entry; null for the entry as a whole. */
+          key: string | null;
+      }
+    | {
+          part: 'entry';
+          group: 'metrics' | 'additional_dimensions';
+          name: string;
+          /** The dimension the entry is nested in. */
+          dimension: string;
+          key: string | null;
+      };
+
+const NESTED_GROUPS = ['metrics', 'additional_dimensions'] as const;
+
+const isNestedGroup = (
+    segment: string | undefined,
+): segment is (typeof NESTED_GROUPS)[number] =>
+    NESTED_GROUPS.some((group) => group === segment);
+
+/** Reads a path such as `label`, `metrics.revenue.sql` or `dimensions.amount.metrics.revenue`; null when it names no part. */
+export const parseModelPartPath = (path: string): ModelPartPath | null => {
+    if (path === '') return { part: 'model' };
+    const segments = path.split('.');
+    if (segments.some((segment) => segment === '')) return null;
+    const [head, name, ...rest] = segments;
+    if (name === undefined) {
+        return head === 'dimensions' || head === 'metrics' || head === 'joins'
+            ? null
+            : { part: 'key', key: head };
+    }
+    if (head === 'metrics' || head === 'joins') {
+        return rest.length <= 1
+            ? {
+                  part: 'entry',
+                  group: head,
+                  name,
+                  dimension: null,
+                  key: rest[0] ?? null,
+              }
+            : null;
+    }
+    if (head !== 'dimensions') return null;
+    const [nested, nestedName, ...nestedRest] = rest;
+    if (!isNestedGroup(nested)) {
+        return rest.length <= 1
+            ? {
+                  part: 'entry',
+                  group: 'dimensions',
+                  name,
+                  dimension: null,
+                  key: nested ?? null,
+              }
+            : null;
+    }
+    return nestedName !== undefined && nestedRest.length <= 1
+        ? {
+              part: 'entry',
+              group: nested,
+              name: nestedName,
+              dimension: name,
+              key: nestedRest[0] ?? null,
+          }
+        : null;
+};
+
+/** Whether a path names the whole model: a diff reports it as empty, a fragment by the model's name. */
+export const isWholeModelPath = (model: string, path: string): boolean =>
+    path === '' || path === model;
+
 /** The value at a path of a model as parsed YAML; undefined when the part is not there. */
 const readModelPartValue = (contents: string | null, path: string): unknown => {
     if (contents === null) return undefined;
     return path.split('.').reduce<{
         at: unknown;
-        list: string | null;
+        list: NamedList | null;
     }>(
         ({ at, list }, segment) => {
             if (list !== null) {
@@ -161,7 +245,7 @@ const readModelPartValue = (contents: string | null, path: string): unknown => {
             return {
                 at: next,
                 list:
-                    segment in NAMED_LISTS && Array.isArray(next)
+                    isNamedList(segment) && Array.isArray(next)
                         ? segment
                         : null,
             };
@@ -201,7 +285,7 @@ const locate = (doc: Document, path: string): Located => {
         const node: unknown = doc.getIn([...at, segment]);
         const name = segments[index + 1];
         // Named by entry even when the list is not there yet, so an entry is never written as a key of a map.
-        if (segment in NAMED_LISTS && name !== undefined && at.length === 0) {
+        if (isNamedList(segment) && name !== undefined && at.length === 0) {
             const entry = isSeq(node)
                 ? node.items.findIndex(
                       (item) =>
@@ -311,4 +395,118 @@ export const restoreModelParts = ({
         contents: restored.length > 0 ? doc.toString() : contents,
         restored,
     };
+};
+
+const findEntry = (list: unknown, key: NamedList, id: string): YamlObject =>
+    asObject(
+        (Array.isArray(list) ? list : []).find(
+            (entry) => isObject(entry) && NAMED_LISTS[key](entry) === id,
+        ),
+    );
+
+/** A key the edit leaves out is written as null, which a fragment reads as removing it. */
+const withKey = (into: unknown, key: string, value: unknown): YamlObject => ({
+    ...asObject(into),
+    [key]: value === undefined ? null : value,
+});
+
+/**
+ * What turns one model's YAML into an edited version of it, as the fragments and
+ * removals a draft keeps, so it replays on what is live like any other change.
+ * Removals come first, so one edit can give up a name and take it again.
+ */
+export const toDraftEdit = (
+    name: string,
+    current: string,
+    edited: string,
+): SemanticLayerDraftModelInput[] => {
+    const after = asObject(parse(edited));
+    const parts = diffModelDocuments(current, edited);
+    const top: YamlObject = {};
+    const metrics: Record<string, YamlObject> = {};
+    const entries = {
+        dimensions: new Map<string, YamlObject>(),
+        joins: new Map<string, YamlObject>(),
+    };
+    parts
+        .filter(({ kind }) => kind !== 'removed')
+        .forEach(({ path }) => {
+            const [head, id, ...rest] = path.split('.');
+            if (id === undefined) {
+                Object.assign(top, withKey(top, head, after[head]));
+                return;
+            }
+            if (head === 'metrics') {
+                const definition = asObject(asObject(after.metrics)[id]);
+                metrics[id] =
+                    rest.length === 0
+                        ? definition
+                        : withKey(metrics[id], rest[0], definition[rest[0]]);
+                return;
+            }
+            if (!isNamedList(head)) return;
+            const entry = findEntry(after[head], head, id);
+            const identity: YamlObject =
+                head === 'dimensions'
+                    ? { name: id }
+                    : {
+                          join: entry.join,
+                          ...(entry.alias === undefined
+                              ? {}
+                              : { alias: entry.alias }),
+                      };
+            const target = entries[head].get(id) ?? identity;
+            const [key, nested, nestedKey] = rest;
+            if (key === undefined) {
+                entries[head].set(id, { ...target, ...entry });
+            } else if (nested === undefined) {
+                entries[head].set(id, withKey(target, key, entry[key]));
+            } else {
+                const definition = asObject(asObject(entry[key])[nested]);
+                const within = asObject(target[key]);
+                entries[head].set(id, {
+                    ...target,
+                    [key]: {
+                        ...within,
+                        [nested]:
+                            nestedKey === undefined
+                                ? definition
+                                : withKey(
+                                      within[nested],
+                                      nestedKey,
+                                      definition[nestedKey],
+                                  ),
+                    },
+                });
+            }
+        });
+    const fragment: YamlObject = {
+        ...top,
+        ...(Object.keys(metrics).length > 0 ? { metrics } : {}),
+        ...Object.fromEntries(
+            (['dimensions', 'joins'] as const).flatMap((key) =>
+                entries[key].size > 0
+                    ? [[key, [...entries[key].values()]]]
+                    : [],
+            ),
+        ),
+    };
+    const remove = parts
+        .filter(({ kind }) => kind === 'removed')
+        .map(({ path }) => path);
+    return [
+        ...(remove.length > 0
+            ? [{ name, yaml: null, remove, removeModel: false }]
+            : []),
+        ...(Object.keys(fragment).length > 0
+            ? [
+                  {
+                      name,
+                      yaml: stringify(fragment),
+                      remove: [],
+                      removeModel: false,
+                  },
+              ]
+            : []),
+    ];
 };

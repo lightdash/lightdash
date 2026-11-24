@@ -1,3 +1,10 @@
+## [3.381.2](https://github.com/lightdash/lightdash/compare/3.381.1...3.381.2) (2026-11-24)
+
+
+### Bug Fixes
+
+* **frontend:** only show groups tip to users who can manage groups ([#33302](https://github.com/lightdash/lightdash/issues/33302)) ([3a8533f](https://github.com/lightdash/lightdash/commit/3a8533ff0b25970b4906408b4f07c6df79f83447))
+
 ## [3.381.1](https://github.com/lightdash/lightdash/compare/3.381.0...3.381.1) (2026-11-24)
 
 
