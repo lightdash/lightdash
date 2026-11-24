@@ -4,7 +4,7 @@
  * token dialog.
  */
 import { ApiConnectorType, LIVE_INTEGRATION_CATALOG } from '@lightdash/common';
-import { Button, FileInput, Stack, TextInput } from '@mantine/core';
+import { FileInput, Stack, TextInput } from '@mantine/core';
 import { useState, type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import { useCreateExternalConnection } from '../hooks/useCreateExternalConnection';
@@ -17,12 +17,9 @@ import {
     useGooglePlayConnectionForm,
 } from './googlePlayConnection';
 import { LiveSourceTitle } from './LiveSourceIcon';
-import {
-    SettingsCard,
-    SettingsRow,
-    TestOutcome,
-} from './LiveSourceSettingsRows';
+import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
 import { LiveSourceSetupCard } from './LiveSourceSetupCard';
+import { LiveSourceTestRow } from './LiveSourceTestRow';
 import { NewLiveSourceDetails } from './NewLiveSourceDetails';
 
 /** Matches the fields of the Details card below. */
@@ -44,7 +41,7 @@ export const GooglePlayConnectionModal: FC<Props> = ({
 }) => {
     const form = useGooglePlayConnectionForm();
     const createMutation = useCreateExternalConnection();
-    const testMutation = useTestConnectionConfig();
+    const testMutation = useTestConnectionConfig({ showErrorToast: false });
     const [keyFile, setKeyFile] = useState<File | null>(null);
     const sourceId = useNewSourceId({
         projectUuid,
@@ -115,12 +112,8 @@ export const GooglePlayConnectionModal: FC<Props> = ({
                     <SettingsRow
                         label="Service account key"
                         hint={
-                            testMutation.data ? (
-                                <TestOutcome response={testMutation.data} />
-                            ) : (
-                                (serviceAccount?.clientEmail ??
-                                'A JSON key of a service account with read access in Play Console')
-                            )
+                            serviceAccount?.clientEmail ??
+                            'A JSON key of a service account with read access in Play Console'
                         }
                     >
                         <FileInput
@@ -134,15 +127,13 @@ export const GooglePlayConnectionModal: FC<Props> = ({
                             onChange={(file) => void handleKeyFile(file)}
                             error={form.errors.keyFile}
                         />
-                        <Button
-                            size="xs"
-                            variant="default"
-                            onClick={handleTest}
-                            loading={testMutation.isLoading}
-                        >
-                            Test
-                        </Button>
                     </SettingsRow>
+                    <LiveSourceTestRow
+                        hint="Checks the details above, without saving"
+                        test={testMutation}
+                        onTest={handleTest}
+                        inputs={[form.values.packageName, form.values.keyFile]}
+                    />
                 </SettingsCard>
 
                 <NewLiveSourceDetails
