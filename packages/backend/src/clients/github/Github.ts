@@ -998,17 +998,18 @@ export const getCachedInstallationToken = async (
     installationId: string,
 ): Promise<string> => {
     const pending = installationTokens.get(installationId);
-    const cached = await pending?.catch(() => undefined);
-    if (
-        cached &&
-        Date.parse(cached.expiresAt) - Date.now() >
+    if (pending) {
+        // Failed fetches leave the map, so a rejection here is a shared in-flight fetch
+        const cached = await pending;
+        if (
+            Date.parse(cached.expiresAt) - Date.now() >
             INSTALLATION_TOKEN_REUSE_MARGIN_MS
-    ) {
-        return cached.token;
-    }
-    // Another caller started a fetch while this one waited; share it
-    if (installationTokens.get(installationId) !== pending) {
-        return getCachedInstallationToken(installationId);
+        ) {
+            return cached.token;
+        }
+        if (installationTokens.get(installationId) !== pending) {
+            return getCachedInstallationToken(installationId);
+        }
     }
     const minting = getInstallationAccessToken(installationId);
     installationTokens.set(installationId, minting);

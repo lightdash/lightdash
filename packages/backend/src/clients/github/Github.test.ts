@@ -447,6 +447,25 @@ describe('getCachedInstallationToken', () => {
         expect(mockCreateInstallationAccessToken).toHaveBeenCalledTimes(2);
     });
 
+    it('fails every caller sharing a failed fetch, once', async () => {
+        mockCreateInstallationAccessToken.mockRejectedValueOnce(
+            octokitError(500, {}, 'Server Error'),
+        );
+
+        const results = await Promise.allSettled([
+            getCachedInstallationToken('15'),
+            getCachedInstallationToken('15'),
+            getCachedInstallationToken('15'),
+        ]);
+
+        expect(results.map((r) => r.status)).toEqual([
+            'rejected',
+            'rejected',
+            'rejected',
+        ]);
+        expect(mockCreateInstallationAccessToken).toHaveBeenCalledOnce();
+    });
+
     it('fetches again after a failed fetch', async () => {
         mockCreateInstallationAccessToken
             .mockRejectedValueOnce(octokitError(404, {}, 'Not Found'))
