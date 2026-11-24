@@ -180,9 +180,11 @@ export const AppSidebar: FC<Props> = ({
                                         to={item.to}
                                         label={item.label}
                                         leftSection={item.icon}
+                                        rightSection={item.status}
                                         classNames={{
                                             root: classes.item,
                                             label: classes.itemLabel,
+                                            section: classes.itemSection,
                                         }}
                                         active={item.key === activeItem}
                                         aria-current={

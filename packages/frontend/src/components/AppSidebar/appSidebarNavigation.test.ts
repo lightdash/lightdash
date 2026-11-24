@@ -14,6 +14,12 @@ describe('getActiveAppSidebarItem', () => {
         expect(getActiveAppSidebarItem('/projects/jaffle/sql-runner')).toBe(
             'sqlRunner',
         );
+        expect(getActiveAppSidebarItem('/projects/jaffle/chart-studio')).toBe(
+            'chartStudio',
+        );
+        expect(getActiveAppSidebarItem('/projects/jaffle/autopilot')).toBe(
+            'autopilot',
+        );
     });
 
     it('keeps the destination active on the pages below it', () => {
@@ -30,6 +36,14 @@ describe('getActiveAppSidebarItem', () => {
         expect(
             getActiveAppSidebarItem('/projects/jaffle/ai-agents/a1/threads/t1'),
         ).toBe('askAi');
+        expect(
+            getActiveAppSidebarItem('/projects/jaffle/review-requests/r1'),
+        ).toBe('reviews');
+        expect(
+            getActiveAppSidebarItem(
+                '/projects/jaffle/semantic-layer/models/orders',
+            ),
+        ).toBe('semanticLayer');
     });
 
     it('marks nothing on pages that are not a sidebar destination', () => {

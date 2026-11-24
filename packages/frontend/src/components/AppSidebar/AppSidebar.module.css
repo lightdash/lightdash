@@ -145,6 +145,12 @@
     opacity: 1;
 }
 
+.itemStatus {
+    font-size: rem(11px);
+    color: var(--mantine-color-dimmed);
+    white-space: nowrap;
+}
+
 /* A row with nothing on the right would still reserve that slot's margin. */
 .itemSection:empty {
     display: none;

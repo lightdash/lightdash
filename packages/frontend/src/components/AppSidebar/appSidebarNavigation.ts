@@ -12,7 +12,11 @@ export type AppSidebarItemKey =
     | 'dataApps'
     | 'tables'
     | 'sqlRunner'
-    | 'metrics';
+    | 'metrics'
+    | 'semanticLayer'
+    | 'chartStudio'
+    | 'reviews'
+    | 'autopilot';
 
 const ITEM_KEY_BY_ROUTE_SEGMENT = new Map<string, AppSidebarItemKey>([
     ['home', 'home'],
@@ -25,6 +29,10 @@ const ITEM_KEY_BY_ROUTE_SEGMENT = new Map<string, AppSidebarItemKey>([
     ['tables', 'tables'],
     ['sql-runner', 'sqlRunner'],
     ['metrics', 'metrics'],
+    ['semantic-layer', 'semanticLayer'],
+    ['chart-studio', 'chartStudio'],
+    ['review-requests', 'reviews'],
+    ['autopilot', 'autopilot'],
 ]);
 
 const PROJECT_ROUTE_SEGMENT = /^\/projects\/[^/]+\/([^/]+)/;
