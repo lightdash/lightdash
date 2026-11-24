@@ -20,6 +20,11 @@ export const retiredAnalyticsDashboards: readonly string[] = [
 // Charts, each with the slug of the dashboard it belonged to. A chart is only removed while it still
 // belongs to that dashboard.
 export const retiredAnalyticsCharts: Readonly<Record<string, string>> = {
+    // The two word clouds repeated the chart or table beside them
+    'lightdash-analytics-query-activity-most-used-fields-cloud':
+        'lightdash-analytics-query-activity',
+    'lightdash-analytics-tools-tools-mcp-tools-cloud':
+        'lightdash-analytics-tools',
     // Agents & AI became Agents: its token tiles moved to AI token usage under new slugs, and the
     // second drawing of requests by agent and day was removed
     'lightdash-analytics-overview-ai-calls': 'lightdash-analytics-overview',
