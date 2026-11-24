@@ -139,6 +139,29 @@ describe('createResponseCompression', () => {
         expect(response.body.toString()).toBe('id,name\n'.repeat(1000));
     });
 
+    it('sends the body uncompressed when compression fails', async () => {
+        const spy = vi
+            .spyOn(zlib, 'brotliCompress')
+            .mockImplementationOnce(((
+                _body: Buffer,
+                _options: zlib.BrotliOptions,
+                callback: zlib.CompressCallback,
+            ) =>
+                callback(
+                    new Error('compression failed'),
+                    Buffer.alloc(0),
+                )) as typeof zlib.brotliCompress);
+        try {
+            const response = await request('/large', browserAcceptEncoding);
+
+            expect(response.status).toBe(200);
+            expect(response.headers['content-encoding']).toBeUndefined();
+            expect(JSON.parse(response.body.toString())).toEqual(largePayload);
+        } finally {
+            spy.mockRestore();
+        }
+    });
+
     it('does not re-encode a response that is already compressed', async () => {
         const response = await request('/pre-gzipped', browserAcceptEncoding);
 

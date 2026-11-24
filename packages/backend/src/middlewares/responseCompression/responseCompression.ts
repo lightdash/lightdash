@@ -1,20 +1,35 @@
 import type { Request, RequestHandler, Response } from 'express';
 import zlib from 'zlib';
 import { lightdashConfig } from '../../config/lightdashConfig';
+import Logger from '../../logging/logger';
 
 export const RESPONSE_COMPRESSION_THRESHOLD_BYTES = 1024;
 
 type ResponseEncoding = 'br' | 'gzip';
 
-const encoders: Record<ResponseEncoding, (body: Buffer) => Buffer> = {
+const toPromise = (
+    run: (callback: (error: Error | null, result: Buffer) => void) => void,
+) =>
+    new Promise<Buffer>((resolve, reject) => {
+        run((error, result) => (error ? reject(error) : resolve(result)));
+    });
+
+const encoders: Record<ResponseEncoding, (body: Buffer) => Promise<Buffer>> = {
     br: (body) =>
-        zlib.brotliCompressSync(body, {
-            params: {
-                [zlib.constants.BROTLI_PARAM_QUALITY]: 1,
-                [zlib.constants.BROTLI_PARAM_SIZE_HINT]: body.length,
-            },
-        }),
-    gzip: (body) => zlib.gzipSync(body, { level: 1 }),
+        toPromise((callback) =>
+            zlib.brotliCompress(
+                body,
+                {
+                    params: {
+                        [zlib.constants.BROTLI_PARAM_QUALITY]: 1,
+                        [zlib.constants.BROTLI_PARAM_SIZE_HINT]: body.length,
+                    },
+                },
+                callback,
+            ),
+        ),
+    gzip: (body) =>
+        toPromise((callback) => zlib.gzip(body, { level: 1 }, callback)),
 };
 
 const jsonContentTypePattern = /^application\/(?:[\w.-]+\+)?json\s*(?:;|$)/i;
@@ -51,17 +66,25 @@ export const createResponseCompression =
             if (bytes.length < RESPONSE_COMPRESSION_THRESHOLD_BYTES) {
                 return send(body);
             }
-            const encoded = encoders[encoding](bytes);
-            const generateETag = req.app.get('etag fn') as
-                | ((body: Buffer) => string)
-                | undefined;
-            if (generateETag && res.getHeader('ETag') === undefined) {
-                res.setHeader('ETag', generateETag(encoded));
-            }
-            if (!req.fresh) {
-                res.setHeader('Content-Encoding', encoding);
-            }
-            return send(encoded);
+            encoders[encoding](bytes).then(
+                (encoded) => {
+                    const generateETag = req.app.get('etag fn') as
+                        | ((value: Buffer) => string)
+                        | undefined;
+                    if (generateETag && res.getHeader('ETag') === undefined) {
+                        res.setHeader('ETag', generateETag(encoded));
+                    }
+                    if (!req.fresh) {
+                        res.setHeader('Content-Encoding', encoding);
+                    }
+                    send(encoded);
+                },
+                (error: unknown) => {
+                    Logger.warn('Response compression failed', { error });
+                    send(bytes);
+                },
+            );
+            return res;
         };
         next();
     };
