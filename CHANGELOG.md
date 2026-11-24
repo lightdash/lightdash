@@ -1,3 +1,10 @@
+## [3.386.1](https://github.com/lightdash/lightdash/compare/3.386.0...3.386.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* **semantic-studio:** hold Publish while the Studio agent is still working ([#33342](https://github.com/lightdash/lightdash/issues/33342)) ([70d2953](https://github.com/lightdash/lightdash/commit/70d2953941c4342ba118280a6f80c238ede20180))
+
 # [3.386.0](https://github.com/lightdash/lightdash/compare/3.385.4...3.386.0) (2026-11-24)
 
 
