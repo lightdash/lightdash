@@ -31,6 +31,10 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import Callout from '../../components/common/Callout';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
+import {
+    AGENT_WORKING_HINT,
+    useStudioAgentWorking,
+} from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
 import {
@@ -185,6 +189,7 @@ export const ApplyModal: FC<{
 }> = ({ projectUuid, draft, model, onClose }) => {
     const impact = useSemanticLayerDraftImpact(projectUuid, model);
     const apply = useApplySemanticLayerDraft(projectUuid);
+    const isAgentWorking = useStudioAgentWorking(projectUuid);
     const mode = usePublishMode(projectUuid);
     const asPullRequest = mode === 'pull_request';
     const { showToastSuccess, showToastWarning } = useToaster();
@@ -263,9 +268,12 @@ export const ApplyModal: FC<{
             }
             confirmLabel={isRisky ? `${confirmLabel} anyway` : confirmLabel}
             confirmLoading={apply.isLoading}
-            confirmDisabled={scoped.some(
-                (entry) => entry.reconciliation?.state === 'conflict',
-            )}
+            confirmDisabled={
+                isAgentWorking ||
+                scoped.some(
+                    (entry) => entry.reconciliation?.state === 'conflict',
+                )
+            }
             onConfirm={() =>
                 // A promise, since the bar holding this modal leaves with the draft before a callback would run.
                 void apply.mutateAsync({ model, merge: mode === 'merge' }).then(
@@ -369,11 +377,14 @@ const ModelActions: FC<{
     const asPullRequest = usePublishMode(projectUuid) === 'pull_request';
     const [applying, setApplying] = useState(false);
     const [armed, setArmed] = useState(false);
+    const isAgentWorking = useStudioAgentWorking(projectUuid);
     const hasConflict = countConflicts(draft, model) > 0;
-    const blocked = hasConflict || cannotApply(draft, model);
-    const blockedReason = hasConflict
-        ? 'Choose which version to keep first.'
-        : 'Some changes no longer pass their checks.';
+    const blocked = isAgentWorking || hasConflict || cannotApply(draft, model);
+    const blockedReason = isAgentWorking
+        ? AGENT_WORKING_HINT
+        : hasConflict
+          ? 'Choose which version to keep first.'
+          : 'Some changes no longer pass their checks.';
     return (
         <>
             <Menu position="bottom-end" onClose={() => setArmed(false)}>
@@ -487,6 +498,7 @@ export const DraftDevelopmentBar: FC<{
             : 'Open pull request';
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
     const check = useCheckSemanticLayerDraftImpact(projectUuid);
+    const isAgentWorking = useStudioAgentWorking(projectUuid);
     const isEmpty = !draft || draft.changes.length === 0;
     usePublishedUnderNotice(draft);
     // Once nothing is in development there is nothing to preview.
@@ -495,7 +507,7 @@ export const DraftDevelopmentBar: FC<{
     }, [draft, isEmpty, isPreviewing, setIsPreviewing]);
     if (isEmpty) return null;
     const reviewing = searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW;
-    const blocked = cannotApply(draft, null);
+    const blocked = isAgentWorking || cannotApply(draft, null);
     const conflicts = countConflicts(draft, null);
     // A removed model has nothing to open.
     const showsPublish = conflicts === 0 && draft.models.length > 0;
@@ -599,12 +611,18 @@ export const DraftDevelopmentBar: FC<{
                 {showsPublish ? (
                     <Button.Group>
                         <Tooltip
-                            label="Some changes no longer pass their checks."
+                            label={
+                                isAgentWorking
+                                    ? AGENT_WORKING_HINT
+                                    : 'Some changes no longer pass their checks.'
+                            }
                             disabled={!blocked}
+                            events={{ hover: true, focus: true, touch: false }}
                         >
                             <Button
                                 size="xs"
                                 data-disabled={blocked || undefined}
+                                aria-disabled={blocked}
                                 onClick={() => {
                                     if (!blocked) setPublishing(true);
                                 }}

@@ -6,7 +6,7 @@ import {
     type SemanticLayerDraftImpact,
     type SemanticLayerProposal,
 } from '@lightdash/common';
-import { Button } from '@mantine/core';
+import { Button, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconArrowsJoin,
@@ -45,6 +45,10 @@ import {
     useSemanticLayerDraftImpact,
 } from '../../../../../../features/semanticStudio/useSemanticLayerModel';
 import { useDraftPullRequest } from '../../../../../../features/semanticStudio/useStudioCheckout';
+import {
+    AGENT_WORKING_HINT,
+    useStudioAgentWorking,
+} from '../useSemanticStudioChat';
 import { listTurnIssues } from './proposalIssues';
 import { draftActions, fixAction } from './turnActions';
 import { TurnCard, type Safety } from './TurnCard';
@@ -323,6 +327,7 @@ export const TurnSummaryCard: FC<{
               ? modelUrl(groups[0].model)
               : `${studioUrl}?${VIEW_PARAM}=models`;
     const isSent = useDraftPullRequest() !== null;
+    const isAgentWorking = useStudioAgentWorking(projectUuid);
     // A clean draft can go out from where it was made, as the toolbar's button would send it.
     const canPublish =
         safety?.state === 'done' &&
@@ -349,13 +354,23 @@ export const TurnSummaryCard: FC<{
                     }),
                     phase.error ? null : fixFailure,
                     canPublish ? (
-                        <Button
+                        <Tooltip
                             key="publish"
-                            size="compact-xs"
-                            onClick={() => setPublishing(true)}
+                            label={AGENT_WORKING_HINT}
+                            disabled={!isAgentWorking}
+                            events={{ hover: true, focus: true, touch: false }}
                         >
-                            {asPullRequest ? publishLabel : 'Publish'}
-                        </Button>
+                            <Button
+                                size="compact-xs"
+                                data-disabled={isAgentWorking || undefined}
+                                aria-disabled={isAgentWorking}
+                                onClick={() => {
+                                    if (!isAgentWorking) setPublishing(true);
+                                }}
+                            >
+                                {asPullRequest ? publishLabel : 'Publish'}
+                            </Button>
+                        </Tooltip>
                     ) : null,
                 ];
             case 'published':
