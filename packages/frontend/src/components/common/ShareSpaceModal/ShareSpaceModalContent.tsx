@@ -515,7 +515,6 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
 
                                     {directTotalResults >= 5 &&
                                         effectiveGroupsAccess.length === 0 &&
-                                        canManageGroups &&
                                         !isGroupsHintDismissed && (
                                             <Callout
                                                 variant="info"
@@ -530,16 +529,30 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                                 <Text fz="sm">
                                                     This space is shared with
                                                     several individual users.
-                                                    Consider using{' '}
-                                                    <Anchor
-                                                        href="/generalSettings/userManagement"
-                                                        target="_blank"
-                                                        fz="sm"
-                                                    >
-                                                        groups
-                                                    </Anchor>{' '}
-                                                    to manage access more
-                                                    efficiently.
+                                                    {canManageGroups ? (
+                                                        <>
+                                                            {' '}
+                                                            Consider using{' '}
+                                                            <Anchor
+                                                                href="/generalSettings/userManagement"
+                                                                target="_blank"
+                                                                fz="sm"
+                                                            >
+                                                                groups
+                                                            </Anchor>
+                                                            {' '}
+                                                            to manage access
+                                                            more efficiently.
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            {' '}
+                                                            Consider using
+                                                            groups or asking a
+                                                            Lightdash Admin to
+                                                            help set them up.
+                                                        </>
+                                                    )}
                                                 </Text>
                                             </Callout>
                                         )}
