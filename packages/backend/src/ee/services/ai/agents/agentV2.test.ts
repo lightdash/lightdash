@@ -4447,6 +4447,51 @@ describe('withStudioCardReply', () => {
         expect(getTurnFastResponse(false, null, steps, '', false)).toBeNull();
     });
 
+    it('keeps the turn going after a change while the request has steps left', () => {
+        const [step] = proposed('draft-1');
+        const [result] = step.toolResults;
+        const thenQuery = [
+            {
+                ...step,
+                toolResults: [
+                    {
+                        ...result,
+                        output: {
+                            ...result.output,
+                            metadata: {
+                                ...result.output.metadata,
+                                needsFollowUp: true,
+                            },
+                        },
+                    },
+                ],
+            },
+        ];
+        expect(getStudioCardResponse(thenQuery)).toBeNull();
+        const saveThenQuery = [
+            {
+                toolCalls: [
+                    {
+                        toolCallId: 'call-1',
+                        toolName: 'write',
+                        input: { prompt: 'x', script: 'x', moreToDo: true },
+                    },
+                ],
+                toolResults: [
+                    {
+                        toolCallId: 'call-1',
+                        toolName: 'write',
+                        output: {
+                            result: 'Started',
+                            metadata: { status: 'pending' },
+                        },
+                    },
+                ],
+            },
+        ];
+        expect(getStudioCardResponse(saveThenQuery)).toBeNull();
+    });
+
     it('names the changed models when a change ends the turn with nothing written', () => {
         expect(withStudioCardReply(' \n', proposed('draft-1'))).toBe(
             'Changed orders in the draft.',

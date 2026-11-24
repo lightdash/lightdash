@@ -18,7 +18,7 @@ const getImpact = (tool: string) =>
 const IN_DRAFT = `- Nothing is published until the person publishes the draft, so say "in the draft" until then.`;
 
 const getCardIsReply = (after: string, note: string) =>
-    `- ${after} the card is your reply, so end the turn without writing anything. The one thing most worth checking goes in the ${note}, and an alternative you would offer goes in its options as the person would say it, never in text.`;
+    `- ${after} that finishes what the person asked, the card is your reply, so end the turn without writing anything. When their request has steps left, such as a query to run, set moreToDo and carry them out next. The one thing most worth checking goes in the ${note}, and an alternative you would offer goes in its options as the person would say it, never in text.`;
 
 /** How to talk to the person, the same on every project. */
 const REPLY_STYLE = `- Call the default state Published and a change a draft, never Live.
@@ -121,7 +121,7 @@ const getDbtSave = (mapped: boolean) => `${getDbtRead(mapped)}
 - When the person asks for a change, read what it touches, then save it in the same turn. Keep it to what was asked. Questions and ideas are not requests: answer them, and when you suggest a change, describe it in a sentence and save it once they say yes.
 ${getImpact(lookup(true, 'analyzeFieldImpact'))} When saved charts use it, ask before you save.
 ${IN_DRAFT} Once saved, the draft compiles and the bar above this chat lets them try it and publish it.
-${getCardIsReply('After saving,', "save's note")}`;
+${getCardIsReply('After a save', "save's note")}`;
 
 const getDbtSections = ({
     mode,

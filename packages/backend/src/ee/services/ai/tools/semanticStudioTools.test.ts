@@ -74,6 +74,7 @@ const propose = async (
         schema: null;
         database: null;
     } | null = null,
+    moreToDo = false,
 ) => {
     const tool = getProposeSemanticLayerChange({
         proposeSemanticLayerChange,
@@ -100,6 +101,7 @@ const propose = async (
             changeName: null,
             note: 'Counts refunds too.',
             options: ['Leave refunds out'],
+            moreToDo,
         },
         callOptions,
     );
@@ -135,6 +137,7 @@ it('takes only a path that names a part of a model to remove', () => {
             changeName: null,
             note: null,
             options: [],
+            moreToDo: false,
         });
     [
         'dimensions.amount',
@@ -359,6 +362,37 @@ dimensions:
         expect(notAsked.result).not.toContain('runMetricQuery');
         expect(notAsked.result).toContain('write nothing more');
         expect(notAsked.metadata).toMatchObject({ needsFollowUp: false });
+    });
+
+    it('keeps the turn going after a clean change while the request has steps left', async () => {
+        const proposeLabel: ProposeSemanticLayerChangeFn = async () => ({
+            results: [
+                {
+                    model: 'orders',
+                    status: 'ready',
+                    changes: [{ path: 'label', action: 'patched' }],
+                    refusals: [],
+                    error: null,
+                    rejection: null,
+                    notes: [],
+                },
+            ],
+            diffs: [],
+            draftChangeUuid: 'draft-1',
+            startedChange: null,
+        });
+        const thenQuery = await propose(
+            proposeLabel,
+            'label: Orders',
+            true,
+            null,
+            true,
+        );
+        expect(thenQuery.result).not.toContain('write nothing more');
+        expect(thenQuery.metadata).toMatchObject({ needsFollowUp: true });
+        const editOnly = await propose(proposeLabel, 'label: Orders', true);
+        expect(editOnly.result).toContain('write nothing more');
+        expect(editOnly.metadata).toMatchObject({ needsFollowUp: false });
     });
 
     it('says when the edit started a change and checked it out', async () => {

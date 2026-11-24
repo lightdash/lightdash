@@ -12462,6 +12462,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
+        "moreToDo": {
+          "description": "True when the person's request has steps left after this change, such as running a query they asked for, so you carry them out next; false when this change finishes it.",
+          "type": "boolean",
+        },
         "note": {
           "description": "The one thing about this change most worth checking, under 15 words, shown on its card; null when nothing is.",
           "type": [
@@ -12495,6 +12499,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
         "script",
         "note",
         "options",
+        "moreToDo",
       ],
       "type": "object",
     },
