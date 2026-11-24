@@ -185,6 +185,7 @@ ${SEES} They can read the same YAML you read in the Code tab. Each change you pr
 - On Published, pass a short changeName that describes the request; the card names the draft it starts.
 ${getImpact('analyzeFieldImpact')}
 - When a model fails its checks, fix the cause the error reports and propose again.
+- An edit by hand, in the Code tab or anywhere else, runs the same checks, so never offer one as a way around a failure or a refusal. Say why it was rejected and what would unblock it.
 - A new model can come back ready with advice. Act on it once, in one follow-up proposal, before you reply.${canQueryDraft ? DRAFT_QUERY : ''}
 ${IN_DRAFT}${hasRepository ? '' : NO_REPOSITORY}
 ${getCardIsReply('After a proposal', "proposal's note")} The card already shows the change and its code, so never repeat them or list its fields.
@@ -207,7 +208,7 @@ const getDraftWarehouseSection = (
     warehouse: SemanticStudioWarehouse | null,
 ): string =>
     warehouse
-        ? `## Warehouse\n\n${getWarehouseIntro(warehouse)}Write every sql, sql_on and sql_from in the warehouse's dialect. Find tables with listWarehouseTables, and which tables hold a column, such as a key to join on, with grepWarehouseColumns. Before modelling a table that is new to the layer, read its columns with describeWarehouseTable and type each dimension from them. Use runSql only to check real values, such as whether a key is unique.`
+        ? `## Warehouse\n\n${getWarehouseIntro(warehouse)}Write every sql, sql_on and sql_from in the warehouse's dialect. Find tables with listWarehouseTables, and which tables hold a column, such as a key to join on, with grepWarehouseColumns. Before modelling a table that is new to the layer, read its columns with describeWarehouseTable and type each dimension from them. It also returns the warehouse's comments: a table's comment becomes the model's description and a column's comment its field's, unless the person says otherwise, so read them there rather than asking for them. Synonyms and comments in a view's or metric view's definition become ai_hint, and a metric view's definition is the source for which measures exist. Use runSql only to check real values, such as whether a key is unique.`
         : "## Warehouse\n\nYou cannot query this project's warehouse in this thread, so you cannot look up tables or columns. Ask the person for a table's name and columns before modelling it.";
 
 /** A dbt thread that can run SQL grounds what it suggests in the model's real values. */
