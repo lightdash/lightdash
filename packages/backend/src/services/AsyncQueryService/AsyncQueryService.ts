@@ -39,6 +39,7 @@ import {
     Explore,
     ExploreCompiler,
     ExploreError,
+    exploreHasAiAccessRules,
     ExploreType,
     ExternalSourceScope,
     ExternalSourceStatus,
@@ -108,6 +109,7 @@ import {
     MAX_RESULTS_CACHE_TTL_SECONDS,
     MergeQuery,
     MetricQuery,
+    metricQueryUsesAiHiddenData,
     MissingConfigError,
     normalizeIndexColumns,
     NotFoundError,
@@ -1468,6 +1470,115 @@ export class AsyncQueryService extends ProjectService {
         return enabled;
     }
 
+    private async isAiAccessNeverEnabled(account: Account): Promise<boolean> {
+        assertIsAccountWithOrg(account);
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                organizationUuid: account.organization.organizationUuid,
+                ...(account.isRegisteredUser()
+                    ? { userUuid: account.user.id }
+                    : {}),
+            },
+            featureFlagId: FeatureFlags.AiAccessNever,
+        });
+        return enabled;
+    }
+
+    private async projectHasAiAccessRules(projectUuid: string) {
+        const explores = await this.projectModel.findExploresFromCache(
+            projectUuid,
+            'name',
+        );
+        return Object.values(explores).some(
+            (explore) =>
+                !isExploreError(explore) && exploreHasAiAccessRules(explore),
+        );
+    }
+
+    private async assertAiMayUseMetricQuery({
+        account,
+        projectUuid,
+        context,
+        explore,
+        metricQuery,
+    }: {
+        account: Account;
+        projectUuid: string;
+        context: QueryExecutionContext | undefined;
+        explore: Explore;
+        metricQuery: MetricQuery;
+    }): Promise<void> {
+        if (
+            context !== undefined &&
+            isAiAccessQueryContext(context) &&
+            metricQueryUsesAiHiddenData(explore, metricQuery) &&
+            (await this.isAiAccessNeverEnabled(account))
+        ) {
+            throw new AiAccessRefusedError(
+                AiAccessRefusalReason.AI_ACCESS_NEVER,
+                { projectUuid },
+            );
+        }
+    }
+
+    private async assertAiMayReadQueryResult({
+        account,
+        projectUuid,
+        node,
+        aiRead,
+        getExplore,
+    }: {
+        account: Account;
+        projectUuid: string;
+        node: QueryHistory;
+        aiRead: boolean;
+        getExplore: (name: string) => Promise<Explore | ExploreError>;
+    }): Promise<void> {
+        if (!aiRead) return;
+        const nodeKind = getQueryResultNodeKind(node.requestParameters);
+        if (nodeKind === 'semantic') {
+            const exploreName = node.metricQuery?.exploreName;
+            if (!exploreName) return;
+            const explore = await getExplore(exploreName);
+            if (
+                isExploreError(explore) ||
+                !metricQueryUsesAiHiddenData(explore, node.metricQuery) ||
+                !(await this.isAiAccessNeverEnabled(account))
+            )
+                return;
+        } else if (
+            nodeKind !== 'sql' ||
+            !(await this.isAiAccessNeverEnabled(account)) ||
+            !(await this.projectHasAiAccessRules(projectUuid))
+        ) {
+            return;
+        }
+        throw new AiAccessRefusedError(AiAccessRefusalReason.AI_ACCESS_NEVER, {
+            projectUuid,
+        });
+    }
+
+    private async assertAiMayRunRawSql({
+        account,
+        projectUuid,
+        context,
+    }: {
+        account: Account;
+        projectUuid: string;
+        context: QueryExecutionContext;
+    }): Promise<void> {
+        if (
+            isAiAccessQueryContext(context) &&
+            (await this.isAiAccessNeverEnabled(account)) &&
+            (await this.projectHasAiAccessRules(projectUuid))
+        ) {
+            throw new AiAccessRefusedError(
+                AiAccessRefusalReason.AI_ACCESS_NEVER,
+                { projectUuid },
+            );
+        }
+    }
+
     private async getPreAggregationRoutingDecision({
         metricQuery,
         explore,
@@ -2176,7 +2287,17 @@ export class AsyncQueryService extends ProjectService {
             string,
             Promise<ParameterDefinitions>
         >();
+        const aiRead =
+            aiAccessOnly ||
+            queries.some((query) => isAiAccessQueryContext(query.context));
         const authorizeNode = async (node: QueryHistory) => {
+            await this.assertAiMayReadQueryResult({
+                account,
+                projectUuid,
+                node,
+                aiRead,
+                getExplore: getUnfilteredExplore,
+            });
             const [project, fresh] = await Promise.all([
                 getProject(),
                 getCurrentAccount(),
@@ -6907,6 +7028,13 @@ export class AsyncQueryService extends ProjectService {
         context?: QueryExecutionContext;
     }): Promise<QueryComposer> {
         assertIsAccountWithOrg(account);
+        await this.assertAiMayUseMetricQuery({
+            account,
+            projectUuid,
+            context,
+            explore,
+            metricQuery,
+        });
 
         const resolvedUserAccessControls =
             materializationRole ??
@@ -11530,6 +11658,7 @@ export class AsyncQueryService extends ProjectService {
         // scope. Both the AI agent and the MCP run_sql tool land here, so this
         // is the one place a new agent SQL path cannot bypass. The human SQL
         // Runner is deliberately not scoped.
+        await this.assertAiMayRunRawSql({ account, projectUuid, context });
         if (isAgentScopedQueryContext(context)) {
             const sqlScope =
                 await this.projectModel.getAgentSqlScope(projectUuid);

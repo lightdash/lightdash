@@ -6,7 +6,7 @@ import {
     type AiAccess,
 } from '../types/field';
 import { getFilterRules } from '../types/filter';
-import { type MetricQuery } from '../types/metricQuery';
+import { type AdditionalMetric, type MetricQuery } from '../types/metricQuery';
 import { getItemId } from './item';
 
 type AiAccessField = {
@@ -241,9 +241,14 @@ export const metricQueryUsesAiHiddenData = (
         | 'filters'
         | 'sorts'
         | 'tableCalculations'
-        | 'additionalMetrics'
         | 'customDimensions'
-    >,
+    > & {
+        additionalMetrics?: ReadonlyArray<
+            Pick<AdditionalMetric, 'table' | 'baseDimensionName'> & {
+                sql?: string;
+            }
+        >;
+    },
 ): boolean => {
     if (!exploreHasAiAccessRules(explore)) return false;
     const rules = getAiAccessRules(explore);
@@ -277,14 +282,13 @@ export const metricQueryUsesAiHiddenData = (
             ) {
                 return true;
             }
+            const sql = metric.sql ?? '';
             return (
-                getReferencedTables(metric.sql).some((table) =>
+                getReferencedTables(sql).some((table) =>
                     rules.hiddenTables.has(table),
                 ) ||
-                getReferencedFieldIds(metric.sql, metric.table).some(
-                    isHiddenId,
-                ) ||
-                containsWord(metric.sql, rules.hiddenColumnNames)
+                getReferencedFieldIds(sql, metric.table).some(isHiddenId) ||
+                containsWord(sql, rules.hiddenColumnNames)
             );
         })
     ) {
