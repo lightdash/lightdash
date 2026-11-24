@@ -273,6 +273,8 @@ export const withAnalyticsChartPresentation = (
                         clarification: 'Needs clarification',
                         pending: 'Pending',
                         unknown: 'Unknown',
+                        // A group with no value is drawn with this sign; say what it is
+                        '∅': 'Not recorded',
                         ...chart.chartConfig.config?.groupLabelOverrides,
                     },
                     groupColorOverrides: {
@@ -285,6 +287,7 @@ export const withAnalyticsChartPresentation = (
                         'Cache hit': positive,
                         'Cache miss': caution,
                         'Not recorded': '#868E96',
+                        '∅': '#868E96',
                         completed: positive,
                         complete: positive,
                         success: positive,

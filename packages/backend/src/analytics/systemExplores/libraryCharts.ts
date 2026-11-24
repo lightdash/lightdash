@@ -143,6 +143,8 @@ export const libraryChartOptions: Record<
         // Whole-number ticks, for an axis that counts a few things
         yIntegerTicks: '0.18.6',
         y2IntegerTicks: '0.18.6',
+        // Shades each group's series by a ranked list of words in their names, darkest first
+        splitShadeRank: '0.18.7',
     },
     'big-number-with-sparkline-trend': {
         ...sinceFirstBinding(

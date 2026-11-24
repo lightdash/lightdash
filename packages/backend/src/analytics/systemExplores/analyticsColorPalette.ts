@@ -13,7 +13,73 @@ export const modelProviders = modelProviderColors.split(';').map((rule) => {
     const [label, prefixes, color] = rule.split('=');
     return { label, prefixes: prefixes.split('|'), color };
 });
-// A provider's largest model takes its colour; its next models take these lighter tints in turn.
+// Darker means the more powerful model, on every chart. Each provider's tiers, strongest first, one list
+// for each rule above and in the same order. Read by the cartesian chart's splitShadeRank option. A
+// word matches whole segments of the model name, so "mini" does not match "gemini", and the longest
+// matching word wins, so "flash-lite" ranks as itself and not as "flash".
+export const modelTierRanks =
+    'opus,sonnet,haiku;astra,pro,sol,terra,luna,mini,nano,embedding;ultra,pro,flash,flash-lite,lite';
+
+const tierLists = modelTierRanks.split(';').map((list) => list.split(','));
+// Each provider with its tiers; the longest word is tried first
+export const modelTiers = modelProviders.map(({ label }, index) => ({
+    label,
+    tiers: tierLists[index].map((word, rank) => ({ word, rank })),
+    count: tierLists[index].length,
+}));
+const tierPattern = (word: string) => `(^|[^a-z0-9])${word}($|[^a-z0-9])`;
+const longestFirst = <T extends { word: string }>(tiers: T[]) =>
+    [...tiers].sort((a, b) => b.word.length - a.word.length);
+
+// The place of a model in its provider's tiers: 0 for the strongest. A name with no tier word, or
+// from no known provider, comes after every tier.
+export const modelTierRank = (model: string): number => {
+    const name = model.toLowerCase();
+    const provider = modelProviders.find(({ prefixes }) =>
+        prefixes.some((prefix) => name.startsWith(prefix)),
+    );
+    const tiers = modelTiers.find(({ label }) => label === provider?.label);
+    if (!tiers) return 99;
+    const match = longestFirst(tiers.tiers).find(({ word }) =>
+        new RegExp(tierPattern(word)).test(name),
+    );
+    return match ? match.rank : tiers.count;
+};
+
+// The same rank as SQL over a model name and its provider, for ordering in a query
+export const modelTierRankSql = (model: string, provider: string): string =>
+    `CASE ${modelTiers
+        .map(
+            ({ label, tiers, count }) =>
+                `WHEN ${provider} = '${label}' THEN CASE ${longestFirst(tiers)
+                    .map(
+                        ({ word, rank }) =>
+                            `WHEN regexp_matches(lower(${model}), '${tierPattern(word)}') THEN ${rank}`,
+                    )
+                    .join(' ')} ELSE ${count} END`,
+        )
+        .join(' ')} ELSE 99 END`;
+
+// The same rank as a chart expression over a row with a model name and a provider
+export const modelTierRankExpression = (model: string, provider: string) =>
+    `${modelTiers
+        .map(
+            ({ label, tiers, count }) =>
+                `${provider} === '${label}' ? (${longestFirst(tiers)
+                    .map(
+                        ({ word, rank }) =>
+                            `test(/${tierPattern(word)}/, lower(${model})) ? ${rank} : `,
+                    )
+                    .join('')}${count}) : `,
+        )
+        .join('')}99`;
+
+// A model name without the date stamp some providers add ("claude-haiku-4-5-20251001"). The prefix and
+// the tier word stay, so the colour and shade rules read it the same as the recorded name.
+export const modelDisplayNameSql = (model: string) =>
+    `regexp_replace(${model}, '-[0-9]{8}$', '')`;
+
+// A provider's strongest tier takes its colour; weaker tiers take these lighter tints in turn.
 export const modelProviderTints: Record<string, string[]> = {
     Anthropic: ['#6366F1', '#818CF8', '#A5B4FC', '#C7D2FE', '#E0E7FF'],
     OpenAI: ['#34D399', '#6EE7B7', '#A7F3D0', '#D1FAE5', '#ECFDF5'],

@@ -17,6 +17,8 @@ import {
     analyticsColorPalette,
     modelProviders,
     modelProviderTints,
+    modelTierRankExpression,
+    modelTiers,
     unmatchedModelTints,
 } from './analyticsColorPalette';
 import type { LibraryChartBinding } from './libraryCharts';
@@ -130,13 +132,14 @@ const breakdowns: Breakdown[] = [
     {
         key: 'model',
         title: 'Model',
-        dimensions: ['ai_usage_model'],
-        identity: "datum.ai_usage_model || 'Unknown model'",
-        label: "datum.ai_usage_model || 'Unknown model'",
+        // The name without a date stamp, so two dated versions of one model are one group
+        dimensions: ['ai_usage_model_name'],
+        identity: "datum.ai_usage_model_name || 'Unknown model'",
+        label: "datum.ai_usage_model_name || 'Unknown model'",
         billingScope: false,
         descriptions: {
-            daily: 'All recorded tokens per day, for the five largest models plus Other. Models are coloured and grouped by provider.',
-            rank: "Each model's share of all recorded tokens, for the five largest models plus Other. Models are coloured and grouped by provider.",
+            daily: 'All recorded tokens per day, for the five largest models plus Other. Models are coloured by provider, darker for the more powerful.',
+            rank: "Each model's share of all recorded tokens, for the five largest models plus Other. Models are coloured by provider, darker for the more powerful.",
         },
     },
     {
@@ -298,9 +301,9 @@ const noReportedTokens = {
     },
 };
 
-// Groups models by provider, so a provider's models sit together and share its colour: the largest in
-// the provider's own colour and the next in lighter tints. A model that matches no provider is a light
-// grey, and Other keeps its grey. Runs on the grouped rows (the five largest groups and Other).
+// Groups models by provider, so a provider's models sit together and share its colour: the most
+// powerful tier in the provider's own colour and weaker tiers in lighter tints. A model that matches no
+// provider is a light grey, and Other keeps its grey. Runs on the grouped rows (the five largest groups and Other).
 const providerOf = `datum.group === '__other__' ? 'Other' : ${modelProviders
     .map(
         ({ label, prefixes }) =>
@@ -330,20 +333,38 @@ const providerColouring = [
         ],
     },
     {
-        window: [{ op: 'dense_rank', as: 'shade' }],
+        window: [{ op: 'dense_rank', as: 'size_rank' }],
         sort: [
             { field: 'group_tokens', order: 'descending' },
             { field: 'group', order: 'ascending' },
         ],
         groupby: ['provider'],
     },
+    // Darker means the more powerful model: the shade comes from the model's tier, read from its
+    // name by the same ranked words as the cartesian chart's splitShadeRank
     {
+        calculate: modelTierRankExpression('datum.group', 'datum.provider'),
+        as: 'tier',
+    },
+    {
+        // Each provider's tiers are spread over its four strongest shades, and a model with no tier
+        // word takes the palest. A model of no known provider is shaded by its size.
+        calculate: `${modelTiers
+            .map(
+                ({ label, count }) =>
+                    `datum.provider === '${label}' ? min(4, round(datum.tier * 3 / ${Math.max(count - 1, 1)})) : `,
+            )
+            .join('')}min(datum.size_rank, 5) - 1`,
+        as: 'shade',
+    },
+    {
+        // Within a provider the strongest tier is first: at the bottom of a stack
         calculate:
-            "(datum.provider === 'Other' ? 90 : datum.provider_rank) * 10 + datum.shade",
+            "(datum.provider === 'Other' ? 90 : datum.provider_rank) * 10000 + min(datum.tier, 99) * 100 + min(datum.size_rank, 99)",
         as: 'group_order',
     },
     {
-        calculate: `datum.provider === 'Other' ? '#868e96' : (${JSON.stringify(modelProviderTints)}[datum.provider] || ${JSON.stringify(unmatchedModelTints)})[min(datum.shade, 5) - 1]`,
+        calculate: `datum.provider === 'Other' ? '#868e96' : (${JSON.stringify(modelProviderTints)}[datum.provider] || ${JSON.stringify(unmatchedModelTints)})[datum.shade]`,
         as: 'group_color',
     },
     {
@@ -963,7 +984,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                     'ai_usage_agent_id',
                     'ai_usage_feature_name',
                     'ai_usage_channel_name',
-                    'ai_usage_model',
+                    'ai_usage_model_name',
                 ],
                 metrics: [tokens, 'ai_usage_total_ai_calls'],
                 tableCalculations: [
