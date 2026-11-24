@@ -1,4 +1,6 @@
+import { spawnSync } from 'child_process';
 import { EventEmitter } from 'events';
+import path from 'path';
 import zlib from 'zlib';
 import { buildResultsPageRowsJson } from './buildResultsPageRows';
 import { formatCases, resultsPageLines } from './resultsPageFixtures.mock';
@@ -39,7 +41,15 @@ class FakeWorker extends EventEmitter implements ResultsPageWorkerLike {
         });
     }
 
-    unref() {}
+    referenced = false;
+
+    ref() {
+        this.referenced = true;
+    }
+
+    unref() {
+        this.referenced = false;
+    }
 
     async terminate() {
         this.terminated = true;
@@ -151,9 +161,11 @@ describe('ResultsPageWorkerPool', () => {
 
         const build = buildAll(pool, ['{"a":1}', '{"a":2}'], plainFormat);
         await flush();
+        expect(workers[0].referenced).toBe(true);
         workers[0].reply();
         const result = await build;
 
+        expect(workers[0].referenced).toBe(false);
         expect(result.rows.toString()).toBe('[{"a":1},{"a":2}]');
         expect(zlib.brotliDecompressSync(result.compressed)).toEqual(
             result.rows,
@@ -272,5 +284,30 @@ describe('the real results page worker entry', () => {
             buildAll(pool, ['{"a":1}'], plainFormat),
         ).resolves.toMatchObject({ rowCount: 1 });
         expect(pool.workersStarted).toBe(1);
+    }, 30_000);
+});
+
+describe('worker lifetime', () => {
+    test('an idle pool does not keep the process alive', () => {
+        const poolModule = path.join(__dirname, 'ResultsPageWorkerPool.ts');
+        const script = `
+            const { ResultsPageWorkerPool } = require(${JSON.stringify(poolModule)});
+            const pool = new ResultsPageWorkerPool({ size: 1, brotliQuality: 5 });
+            pool.withWorker(async (worker) => {
+                const job = worker.build(['{"a":1}'], { fields: {}, pivotValuesColumns: null, timezone: null });
+                await job.rows;
+                await job.compressed;
+            }).then(() => console.log('built'));
+        `;
+
+        const result = spawnSync(
+            process.execPath,
+            ['--import', 'tsx', '-e', script],
+            { cwd: path.join(__dirname, '../../../..'), timeout: 25_000 },
+        );
+
+        expect(result.stdout.toString()).toContain('built');
+        expect(result.signal).toBeNull();
+        expect(result.status).toBe(0);
     }, 30_000);
 });

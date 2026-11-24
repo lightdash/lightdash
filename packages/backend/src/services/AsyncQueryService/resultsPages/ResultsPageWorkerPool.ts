@@ -31,6 +31,7 @@ export type ResultsPageWorkerLike = {
     ): unknown;
     on(event: 'error', listener: (error: Error) => void): unknown;
     on(event: 'exit', listener: (code: number) => void): unknown;
+    ref(): void;
     unref(): void;
     terminate(): Promise<number>;
 };
@@ -113,7 +114,9 @@ class PooledWorker implements ResultsPageWorkerHandle {
         };
         this.pending = job;
         try {
-            this.ensureWorker().postMessage({
+            const worker = this.ensureWorker();
+            worker.ref();
+            worker.postMessage({
                 id,
                 lines,
                 format,
@@ -129,9 +132,14 @@ class PooledWorker implements ResultsPageWorkerHandle {
         return { rows: job.rows.promise, compressed: job.compressed.promise };
     }
 
+    private settle() {
+        this.pending = undefined;
+        this.worker?.unref();
+    }
+
     private fail(message: string) {
         const { pending } = this;
-        this.pending = undefined;
+        this.settle();
         const error = new ResultsPageWorkerError(message);
         pending?.rows.reject(error);
         pending?.compressed.reject(error);
@@ -151,7 +159,7 @@ class PooledWorker implements ResultsPageWorkerHandle {
             });
             return;
         }
-        this.pending = undefined;
+        this.settle();
         pending.compressed.resolve(toBuffer(response.compressed));
     }
 
@@ -159,7 +167,6 @@ class PooledWorker implements ResultsPageWorkerHandle {
         if (this.worker) return this.worker;
         const worker = this.createWorker();
         this.onWorkerStarted();
-        worker.unref();
         worker.on('message', (response) => this.onMessage(response));
         worker.on('error', (error) => {
             this.discard(
@@ -173,6 +180,7 @@ class PooledWorker implements ResultsPageWorkerHandle {
                 `Results page worker exited with code ${code}`,
             );
         });
+        worker.unref();
         this.worker = worker;
         return worker;
     }
