@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { structuredToolOutputSchema } from '../outputMetadata';
+import { studioMoreToDoSchema } from './toolSemanticStudioArgs';
 
 export const AI_WRITEBACK_PENDING_GRACE_MS = 5 * 60 * 1000;
 
@@ -72,7 +73,14 @@ export const toolWriteArgsSchema = z.object({
         .describe(
             'At most two things the person might ask for next instead, each written as they would say it in under 8 words. Each shows as a button that sends it. Empty for none.',
         ),
+    moreToDo: studioMoreToDoSchema,
 });
+
+/** Whether a Studio save was called with the person's request still going; false on a call made before it said. */
+export const hasMoreToDo = (toolArgs: unknown): boolean => {
+    const parsed = z.object({ moreToDo: z.boolean() }).safeParse(toolArgs);
+    return parsed.success && parsed.data.moreToDo;
+};
 
 /** The line kept as the reply when a Studio save ends its turn on the card with nothing written. */
 export const DBT_SAVE_CARD_REPLY = 'Saved the change to the draft.';

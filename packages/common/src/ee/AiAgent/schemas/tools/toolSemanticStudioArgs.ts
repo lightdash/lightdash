@@ -32,6 +32,13 @@ export const TOOL_PROPOSE_SEMANTIC_LAYER_CHANGE_DESCRIPTION = [
 const isRemovablePath = (path: string): boolean =>
     parseRemovablePartPath(path) !== null;
 
+/** Whether the person's request goes on after a Studio change; false lets the turn end on the change's card. */
+export const studioMoreToDoSchema = z
+    .boolean()
+    .describe(
+        "True when the person's request has steps left after this change, such as running a query they asked for, so you carry them out next; false when this change finishes it.",
+    );
+
 export const toolProposeSemanticLayerChangeArgsSchema = z.object({
     models: z
         .array(
@@ -94,6 +101,7 @@ export const toolProposeSemanticLayerChangeArgsSchema = z.object({
         .describe(
             'At most two things the person might ask for next instead, each written as they would say it in under 8 words. Each shows as a button that sends it. Empty for none.',
         ),
+    moreToDo: studioMoreToDoSchema,
 });
 
 export type ToolProposeSemanticLayerChangeArgs = z.infer<
@@ -168,7 +176,7 @@ const proposalMetadataSchema = z.object({
     // Absent on results stored before a change carried a note and offers.
     note: z.string().nullable().default(null),
     options: z.array(z.string()).default([]),
-    // True when the result came back with advice to act on, or a metric to run, before the turn ends.
+    // True when the result came back with advice to act on, a metric to run, or the person's request has steps left, before the turn ends.
     needsFollowUp: z.boolean().default(false),
 });
 

@@ -98,7 +98,7 @@ export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
 export const getWrite = ({ editDbtProject }: Dependencies) =>
     tool({
         ...writeToolDefinition.for('agent'),
-        execute: async ({ prompt, script }, { toolCallId }) =>
+        execute: async ({ prompt, script, moreToDo }, { toolCallId }) =>
             startChange(
                 editDbtProject,
                 {
@@ -112,7 +112,7 @@ export const getWrite = ({ editDbtProject }: Dependencies) =>
                     `${
                         inSandbox
                             ? 'Started the change. It needs dbt to run, so it is saved in a sandbox and takes a few minutes; the pull request opens in the background. Tell the person it will take a few minutes, briefly.'
-                            : 'Started saving the change to the draft. Its card shows the person the files, your note, your options and when it is saved, so write nothing more.'
+                            : `Started saving the change to the draft. Its card shows the person the files, your note, your options and when it is saved, so ${moreToDo ? 'go on with the rest of what they asked without describing it' : 'write nothing more'}.`
                     } Until it is saved, pr.list in read shows it as a change still being saved.`,
                 'write',
             ),

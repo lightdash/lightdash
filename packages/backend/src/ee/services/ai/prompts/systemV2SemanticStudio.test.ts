@@ -171,6 +171,17 @@ describe('getSemanticStudioSystemPrompt', () => {
         ).toContain('runMetricQuery');
     });
 
+    it('ends the turn on the card only once the request is finished', () => {
+        const prompt = getSemanticStudioSystemPrompt({
+            ...base,
+            studio: draft,
+        });
+        expect(prompt).toContain(
+            'After a proposal that finishes what the person asked, the card is your reply',
+        );
+        expect(prompt).toContain('set moreToDo and carry them out next');
+    });
+
     it('leaves out drafting project context when project context is off', () => {
         const prompt = (projectContextEnabled: boolean) => {
             const loadout = resolveLoadout({

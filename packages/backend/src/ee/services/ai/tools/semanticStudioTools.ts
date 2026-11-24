@@ -61,7 +61,7 @@ const renderProposedModel = (
         ...advice.map((line) => `  advice: ${line}`),
         ...(metricsToRun.length > 0
             ? [
-                  `  check: run ${metricsToRun.join(', ')} once with runMetricQuery, which reads the draft. A null, a zero or a total the table cannot produce means the definition is wrong: propose the fix. Otherwise end the turn.`,
+                  `  check: run ${metricsToRun.join(', ')} once with runMetricQuery, which reads the draft. A null, a zero or a total the table cannot produce means the definition is wrong: propose the fix. Otherwise go on with what the person asked, or end the turn when nothing is left.`,
               ]
             : []),
     ].join('\n');
@@ -129,7 +129,7 @@ export const getProposeSemanticLayerChange = ({
 }) =>
     tool({
         ...proposeSemanticLayerChangeToolDefinition.for('agent'),
-        execute: async ({ models, changeName, note, options }) => {
+        execute: async ({ models, changeName, note, options, moreToDo }) => {
             try {
                 const metricViewModels = new Set(
                     models.flatMap(({ name, fromMetricView }) =>
@@ -181,10 +181,12 @@ export const getProposeSemanticLayerChange = ({
                     diffs,
                     draftChangeUuid,
                     startedChange,
-                    needsFollowUp: advised.some(
-                        ({ advice, metricsToRun }) =>
-                            advice.length > 0 || metricsToRun.length > 0,
-                    ),
+                    needsFollowUp:
+                        moreToDo ||
+                        advised.some(
+                            ({ advice, metricsToRun }) =>
+                                advice.length > 0 || metricsToRun.length > 0,
+                        ),
                     note:
                         draftChangeUuid && note !== null
                             ? unescapeQuotes(note)

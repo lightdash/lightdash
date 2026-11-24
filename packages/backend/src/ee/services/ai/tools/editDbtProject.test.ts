@@ -16,6 +16,7 @@ const executeEditDbtProject = async (
         startNewPullRequest: boolean | null;
         requestedBy: 'user_asked' | 'offer_accepted' | 'agent_initiated';
         script: string | null;
+        moreToDo: boolean;
     }> = {},
 ) => {
     const { execute } = tool;
@@ -29,6 +30,7 @@ const executeEditDbtProject = async (
             script: null,
             note: null,
             options: [],
+            moreToDo: false,
             ...args,
         },
         {
@@ -317,5 +319,24 @@ describe('getEditDbtProject', () => {
 
         expect((await started(true)).result).toContain('a few minutes');
         expect((await started(false)).result).not.toContain('a few minutes');
+    });
+
+    it('ends a script save on its card only when the request has nothing left', async () => {
+        const saved = (moreToDo: boolean) =>
+            executeEditDbtProject(
+                getWrite({
+                    editDbtProject: vi.fn().mockResolvedValue({
+                        status: 'started',
+                        inSandbox: false,
+                        aiWritebackRunUuid: 'run-1',
+                    }),
+                }),
+                { script: 'yaml.set()', moreToDo },
+            );
+
+        expect((await saved(false)).result).toContain('write nothing more');
+        expect((await saved(true)).result).toContain(
+            'go on with the rest of what they asked',
+        );
     });
 });

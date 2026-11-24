@@ -10,6 +10,7 @@ import {
     getErrorMessage,
     getRunProposals,
     getStudioCardReply,
+    hasMoreToDo,
     isDbtWriteToolName,
     isSqlApprovalToolCall,
     type AiDeepResearchBudget,
@@ -1380,7 +1381,10 @@ export const getStudioCardResponse = (
     }
     const studioSaves = new Set(
         last.toolCalls
-            .filter(({ toolName }) => isDbtWriteToolName(toolName))
+            .filter(
+                ({ toolName, input }) =>
+                    isDbtWriteToolName(toolName) && !hasMoreToDo(input),
+            )
             .map(({ toolCallId }) => toolCallId),
     );
     const isSaving = last.toolResults.some(
