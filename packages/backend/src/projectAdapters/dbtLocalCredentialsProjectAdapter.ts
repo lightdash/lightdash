@@ -8,6 +8,7 @@ import fs from 'fs';
 import * as fspromises from 'fs/promises';
 import * as path from 'path';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import type { DbtPartialParseBaseline } from '../dbt/dbtPartialParseBaseline';
 import {
     LIGHTDASH_PROFILE_NAME,
     LIGHTDASH_TARGET_NAME,
@@ -32,7 +33,7 @@ type DbtLocalCredentialsProjectAdapterArgs = {
     analytics?: LightdashAnalytics;
     gitConfigGlobalPath?: string;
     dbtDepsErrorHint?: string;
-    partialParseBaselinePath: string | null;
+    partialParseBaseline: DbtPartialParseBaseline | null;
 };
 
 export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
@@ -52,7 +53,7 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
         analytics,
         gitConfigGlobalPath,
         dbtDepsErrorHint,
-        partialParseBaselinePath,
+        partialParseBaseline,
     }: DbtLocalCredentialsProjectAdapterArgs) {
         const profilesDir = fs.mkdtempSync('/tmp/local_');
         let injectedEnvironment: Record<string, string>;
@@ -100,7 +101,7 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
             analytics,
             gitConfigGlobalPath,
             dbtDepsErrorHint,
-            partialParseBaselinePath,
+            partialParseBaseline,
         });
         this.profilesDir = profilesDir;
     }

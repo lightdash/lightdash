@@ -376,7 +376,10 @@ import { LightdashConfig } from '../../config/parseConfig';
 import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
 import type { DbTagUpdate } from '../../database/entities/tags';
-import { getDbtPartialParseBaselinePath } from '../../dbt/dbtPartialParseBaseline';
+import {
+    getDbtPartialParseBaseline,
+    type DbtPartialParseBaseline,
+} from '../../dbt/dbtPartialParseBaseline';
 import { DbtSourceError } from '../../dbt/DbtSourceError';
 import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preAggregates';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
@@ -7604,7 +7607,7 @@ export class ProjectService
                 dbtVersionOption,
                 this.lightdashConfig.dbt.environmentVariableAllowlist,
                 dbtPartialParse && projectUuid !== null
-                    ? getDbtPartialParseBaselinePath({
+                    ? getDbtPartialParseBaseline({
                           projectUuid,
                           dbtSourceUuid: null,
                       })
@@ -8414,12 +8417,16 @@ export class ProjectService
         branch: string | null = null,
     ): Promise<T> {
         const prepared = await this.prepareCompileAdapter(projectUuid, user);
-        const { project, warehouseCredentials, dbtVersionOption } = prepared;
+        const {
+            project,
+            warehouseCredentials,
+            dbtVersionOption,
+            dbtPartialParse,
+        } = prepared;
         const dbtConnection =
             branch === null
                 ? prepared.dbtConnection
                 : withGitBranch(prepared.dbtConnection, branch);
-        const dbtPartialParse = branch === null && prepared.dbtPartialParse;
         // Columns a branch adds stay out of the live project's warehouse cache.
         const cachedWarehouse: CachedWarehouse =
             branch === null
@@ -8454,9 +8461,11 @@ export class ProjectService
                     dbtVersionOption,
                     this.lightdashConfig.dbt.environmentVariableAllowlist,
                     dbtPartialParse
-                        ? getDbtPartialParseBaselinePath({
+                        ? getDbtPartialParseBaseline({
                               projectUuid,
                               dbtSourceUuid: null,
+                              access:
+                                  branch === null ? 'read-write' : 'read-only',
                           })
                         : null,
                     {
@@ -8642,7 +8651,7 @@ export class ProjectService
             dbtVersionOption: DbtVersionOption;
             connection: ScopedWarehouseConnection;
         },
-        partialParseBaselinePath: string | null,
+        partialParseBaseline: DbtPartialParseBaseline | null,
         dbtTargetPolicy: DbtTargetPolicy,
     ): Promise<ProjectAdapter> {
         const resolvedConnection =
@@ -8660,7 +8669,7 @@ export class ProjectService
             shared.cachedWarehouse,
             shared.dbtVersionOption,
             this.lightdashConfig.dbt.environmentVariableAllowlist,
-            partialParseBaselinePath,
+            partialParseBaseline,
             {
                 resolve: () =>
                     this.warehouseClientFactory.toDbtTarget(
@@ -9117,7 +9126,7 @@ export class ProjectService
                                 organizationUuid,
                                 shared,
                                 primary.dbtPartialParse
-                                    ? getDbtPartialParseBaselinePath({
+                                    ? getDbtPartialParseBaseline({
                                           projectUuid,
                                           dbtSourceUuid:
                                               source.projectDbtSourceUuid,
@@ -9480,7 +9489,7 @@ export class ProjectService
                         dbtVersionOption: primary.dbtVersionOption,
                     },
                     primary.dbtPartialParse
-                        ? getDbtPartialParseBaselinePath({
+                        ? getDbtPartialParseBaseline({
                               projectUuid,
                               dbtSourceUuid: source.projectDbtSourceUuid,
                           })

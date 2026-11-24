@@ -160,7 +160,7 @@ import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { lightdashConfigWithGoogleOAuthMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
-import { getDbtPartialParseBaselinePath } from '../../dbt/dbtPartialParseBaseline';
+import { getDbtPartialParseBaseline } from '../../dbt/dbtPartialParseBaseline';
 import { toDbtTarget } from '../../dbt/targets';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceExploresForPreAggregates';
@@ -17332,13 +17332,16 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
             });
 
             expect(buildSourceAdapter).toHaveBeenCalledOnce();
-            expect(buildSourceAdapter.mock.calls[0][4]).toBe(
+            expect(buildSourceAdapter.mock.calls[0][4]).toEqual(
                 expected === null
                     ? null
-                    : getDbtPartialParseBaselinePath({
-                          projectUuid: 'project-uuid',
-                          dbtSourceUuid: 'source-b-uuid',
-                      }),
+                    : {
+                          path: getDbtPartialParseBaseline({
+                              projectUuid: 'project-uuid',
+                              dbtSourceUuid: 'source-b-uuid',
+                          }).path,
+                          access: 'read-write',
+                      },
             );
         },
     );
@@ -24427,6 +24430,53 @@ describe('compile adapter connection credentials', () => {
                     ?.resolve(),
             ).toEqual(toDbtTarget(expected, { explicitCredentials: false }));
             expect(passedCredentials).toEqual(expected);
+        },
+    );
+
+    it.each([true, false])(
+        'branch compile selects the live primary seed when partial parsing is %s',
+        async (enabled) => {
+            const service = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
+            vi.spyOn(
+                service as unknown as CompileInternals,
+                'prepareCompileAdapter',
+            ).mockResolvedValue({
+                project: { organizationUuid: caller.organizationUuid },
+                dbtConnection: { type: DbtProjectType.GITHUB, branch: 'main' },
+                warehouseCredentials: warehouseClientMock.credentials,
+                cachedWarehouse: {},
+                dbtVersionOption: DbtVersionOptionLatest.LATEST,
+                dbtPartialParse: enabled,
+            });
+            vi.mocked(
+                projectAdapterModule.projectAdapterFromConfig,
+            ).mockResolvedValue({
+                ...adapter,
+                prepareDbtSource: vi.fn().mockResolvedValue({ timings: {} }),
+                compileAllExplores: vi.fn().mockResolvedValue([]),
+            });
+            await service.compileExploresFromBranch(
+                caller,
+                'project-uuid',
+                'draft',
+            );
+            const args = vi
+                .mocked(projectAdapterModule.projectAdapterFromConfig)
+                .mock.calls.at(-1);
+            expect(args?.[0]).toMatchObject({ branch: 'draft' });
+            expect(args?.[5]).toEqual(
+                enabled
+                    ? {
+                          path: getDbtPartialParseBaseline({
+                              projectUuid: 'project-uuid',
+                              dbtSourceUuid: null,
+                          }).path,
+                          access: 'read-only',
+                      }
+                    : null,
+            );
         },
     );
 
