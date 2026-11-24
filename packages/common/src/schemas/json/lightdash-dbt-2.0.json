@@ -439,6 +439,11 @@
                     "$ref": "#/$defs/aiHint",
                     "description": "Hints for AI-powered query generation"
                 },
+                "ai_access": {
+                    "type": "string",
+                    "enum": ["never"],
+                    "description": "Set to never to keep this out of every AI feature. People can still use it."
+                },
                 "sql": {
                     "type": "string",
                     "minLength": 1
@@ -836,6 +841,11 @@
                     "$ref": "#/$defs/aiHint",
                     "description": "Hints for AI-powered query generation"
                 },
+                "ai_access": {
+                    "type": "string",
+                    "enum": ["never"],
+                    "description": "Set to never to keep this out of every AI feature. People can still use it."
+                },
                 "metrics": {
                     "type": "object",
                     "patternProperties": {
@@ -875,6 +885,11 @@
                                 "ai_hint": {
                                     "$ref": "#/$defs/aiHint",
                                     "description": "Hints for AI-powered query generation"
+                                },
+                                "ai_access": {
+                                    "type": "string",
+                                    "enum": ["never"],
+                                    "description": "Set to never to keep this out of every AI feature. People can still use it."
                                 },
                                 "sql": {
                                     "type": "string",
@@ -1607,6 +1622,11 @@
                                     "$ref": "#/$defs/aiHint",
                                     "description": "Hints for AI-powered query generation"
                                 },
+                                "ai_access": {
+                                    "type": "string",
+                                    "enum": ["never"],
+                                    "description": "Set to never to keep this out of every AI feature. People can still use it."
+                                },
                                 "sql": {
                                     "type": "string",
                                     "minLength": 1
@@ -1895,6 +1915,11 @@
                         "ai_hint": {
                             "$ref": "#/$defs/aiHint",
                             "description": "Hints for AI-powered query generation"
+                        },
+                        "ai_access": {
+                            "type": "string",
+                            "enum": ["never"],
+                            "description": "Set to never to keep this out of every AI feature. People can still use it."
                         },
                         "sql": {
                             "type": "string",

@@ -51,6 +51,7 @@ import {
     FieldType,
     friendlyName,
     isTimestampDomain,
+    parseAiAccess,
     type Dimension,
     type Metric,
     type Source,
@@ -382,6 +383,14 @@ const convertDimension = (
             : {}),
         ...(meta.dimension?.ai_hint
             ? { aiHint: convertToAiHints(meta.dimension.ai_hint) }
+            : {}),
+        ...((parseAiAccess(meta.dimension?.ai_access) ??
+        parseAiAccess(meta.ai_access))
+            ? {
+                  aiAccess:
+                      parseAiAccess(meta.dimension?.ai_access) ??
+                      parseAiAccess(meta.ai_access),
+              }
             : {}),
         ...(meta.dimension?.case_sensitive !== undefined
             ? { caseSensitive: meta.dimension.case_sensitive }
@@ -913,6 +922,9 @@ export const convertTable = (
         ([prevDimensions, prevMetrics], column, index) => {
             // Config block takes priority, then meta block
             const columnMeta = merge({}, column.meta, column.config?.meta);
+            const columnAiAccess =
+                parseAiAccess(columnMeta.dimension?.ai_access) ??
+                parseAiAccess(columnMeta.ai_access);
             const routedByUnnest = !columnMeta.dimension?.sql;
             // Leaves under an array belong to the unnested table, unless
             // custom SQL made the column scalar on purpose.
@@ -970,10 +982,12 @@ export const convertTable = (
                         name: subDimensionName,
                         meta: {
                             dimension: subDimension,
+                            ai_access: columnAiAccess,
                         },
                         config: {
                             meta: {
                                 dimension: subDimension,
+                                ai_access: columnAiAccess,
                             },
                         },
                     },
@@ -1024,6 +1038,7 @@ export const convertTable = (
                             tableLabel,
                             requiredAttributes: dimension?.requiredAttributes,
                             anyAttributes: dimension?.anyAttributes,
+                            aiAccess: columnAiAccess,
                             spotlightConfig: {
                                 ...spotlightConfig,
                                 default_visibility:
@@ -1297,6 +1312,9 @@ export const convertTable = (
             : {}),
         ...(defaultShowUnderlyingValues ? { defaultShowUnderlyingValues } : {}),
         ...(meta.ai_hint ? { aiHint: convertToAiHints(meta.ai_hint) } : {}),
+        ...(parseAiAccess(meta.ai_access)
+            ? { aiAccess: parseAiAccess(meta.ai_access) }
+            : {}),
         ...(meta.parameters ? { parameters: meta.parameters } : {}),
         ...(meta.sets ? { sets: meta.sets } : {}),
         ...(tableWarnings.length > 0 ? { warnings: tableWarnings } : {}),
