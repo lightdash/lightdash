@@ -1,3 +1,4 @@
+import type { ChartAsCode } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
 import { describe, expect, it } from 'vitest';
 import {
@@ -5,6 +6,11 @@ import {
     serializeContent,
     textEditsToPatch,
 } from './contentText';
+
+const asChart = (content: object) => ({
+    type: 'chart' as const,
+    content: content as ChartAsCode,
+});
 
 const chart = {
     name: 'Monthly revenue',
@@ -22,7 +28,7 @@ const chart = {
 
 describe('contentText', () => {
     it('hides read-only keys from the text the model edits', () => {
-        const text = serializeContent(chart);
+        const text = serializeContent(asChart(chart));
         expect(text).not.toContain('slug');
         expect(text).not.toContain('updatedAt');
         expect(text).toContain('name: Monthly revenue\n');
@@ -30,7 +36,7 @@ describe('contentText', () => {
 
     it('turns edits into a patch that refuses a value changed since the read', () => {
         const layout = '    layout:\n';
-        const patch = textEditsToPatch(chart, [
+        const patch = textEditsToPatch(asChart(chart), [
             {
                 old: 'name: Monthly revenue\n',
                 new: 'name: Monthly revenue by status\n',
@@ -61,7 +67,10 @@ describe('contentText', () => {
 
     it('adds settings to a table chart saved with a null config', () => {
         const patch = textEditsToPatch(
-            { name: 'Orders', chartConfig: { type: 'table', config: null } },
+            asChart({
+                name: 'Orders',
+                chartConfig: { type: 'table', config: null },
+            }),
             [
                 {
                     old: '  type: table\n',
@@ -81,7 +90,7 @@ describe('contentText', () => {
     });
 
     it('applies nothing when any edit misses, and points at the closest lines', () => {
-        const text = serializeContent(chart);
+        const text = serializeContent(asChart(chart));
         expect(() =>
             applyTextEdits(text, [
                 { old: 'name: Monthly revenue', new: 'name: Renamed' },
@@ -103,10 +112,12 @@ describe('contentText', () => {
 
     it('refuses edits that break the format or change nothing', () => {
         expect(() =>
-            textEditsToPatch(chart, [{ old: 'name: ', new: 'name: [' }]),
+            textEditsToPatch(asChart(chart), [
+                { old: 'name: ', new: 'name: [' },
+            ]),
         ).toThrow(/not valid/);
         expect(() =>
-            textEditsToPatch(chart, [
+            textEditsToPatch(asChart(chart), [
                 { old: 'Monthly revenue', new: 'Monthly revenue' },
             ]),
         ).toThrow(/unchanged/);

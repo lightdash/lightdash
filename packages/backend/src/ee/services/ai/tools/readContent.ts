@@ -43,18 +43,20 @@ export const readContentText = (
     }: { siteUrl: string; note: string | null; format: 'json' | 'yaml' },
 ): string => {
     const href = toAbsoluteHref(siteUrl, read.href);
-    const asYaml =
+    const yamlContent =
         format === 'yaml' &&
-        (read.type === 'chart' || read.type === 'dashboard');
+        (read.type === 'chart' || read.type === 'dashboard')
+            ? read
+            : null;
     return [
         ...(note ? [note] : []),
-        asYaml
+        yamlContent
             ? `<${read.type} href="${href}" slug="${read.content.slug}" />`
             : `<${read.type} href="${href}" />`,
         ...(read.type === 'dashboard' ? [DASHBOARD_READ_HINT[format]] : []),
         '---',
-        asYaml
-            ? serializeContent(read.content)
+        yamlContent
+            ? serializeContent(yamlContent)
             : JSON.stringify(
                   read.type === 'document' ? { ...read, href } : read.content,
                   null,

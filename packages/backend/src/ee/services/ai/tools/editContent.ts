@@ -335,10 +335,15 @@ export const getAgentEditContent = ({
             throw new ParameterError('Charts and dashboards require edits.');
         }
         const current = await readContent({ slug, type });
+        if (current.type !== 'chart' && current.type !== 'dashboard') {
+            throw new ParameterError(
+                `No ${type} "${slug}" could be edited; "${slug}" is a ${current.type}. Edit it with type ${current.type}.`,
+            );
+        }
         return {
             slug,
             type,
-            patch: textEditsToPatch(current.content, args.edits),
+            patch: textEditsToPatch(current, args.edits),
         };
     };
 

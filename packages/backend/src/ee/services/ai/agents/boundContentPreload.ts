@@ -5,6 +5,7 @@ import type { ReadContentFn } from '../types/aiAgentDependencies';
 
 // ~6k tokens of YAML; past it, content is read on demand.
 const MAX_PRELOAD_CHARS = 24_000;
+const CHART_READS_AT_ONCE = 4;
 
 const EDIT_HINT =
     'read at the start of this request. Edit it with editContent without reading it first.';
@@ -53,18 +54,30 @@ export const getBoundContentPreload = async ({
                 ),
             ),
         ];
-        const charts = await Promise.all(
-            chartSlugs.map((slug) =>
-                readContent({ slug, type: 'chart' })
-                    .then(toText)
-                    .catch(() => null),
-            ),
-        );
+        // A few reads at a time, stopping at the first chart that does not fit.
         let size = parts[0].length;
-        for (const chart of charts) {
-            if (chart && size + chart.length + 2 <= MAX_PRELOAD_CHARS) {
-                parts.push(chart);
-                size += chart.length + 2;
+        let full = false;
+        for (
+            let i = 0;
+            i < chartSlugs.length && !full;
+            i += CHART_READS_AT_ONCE
+        ) {
+            // eslint-disable-next-line no-await-in-loop -- bounded batches, stop once full
+            const charts = await Promise.all(
+                chartSlugs.slice(i, i + CHART_READS_AT_ONCE).map((slug) =>
+                    readContent({ slug, type: 'chart' })
+                        .then(toText)
+                        .catch(() => null),
+                ),
+            );
+            for (const chart of charts) {
+                if (chart !== null && !full) {
+                    full = size + chart.length + 2 > MAX_PRELOAD_CHARS;
+                    if (!full) {
+                        parts.push(chart);
+                        size += chart.length + 2;
+                    }
+                }
             }
         }
         const shown = parts.length - 1;

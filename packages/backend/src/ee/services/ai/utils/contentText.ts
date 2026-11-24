@@ -1,7 +1,9 @@
 import {
     getErrorMessage,
     ParameterError,
+    type ChartAsCode,
     type ContentTextEdit,
+    type DashboardAsCode,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
@@ -41,38 +43,35 @@ const toJsonValue = (value: unknown): unknown => {
     return value;
 };
 
+/** Content the model reads and edits as text. */
+export type TextContent =
+    | { type: 'dashboard'; content: DashboardAsCode }
+    | { type: 'chart'; content: ChartAsCode };
+
 // Saves drop a null chartConfig.config (table charts), so the view does too.
-const withoutNullChartConfig = (value: unknown): unknown => {
-    if (value === null || typeof value !== 'object' || !('config' in value))
-        return value;
-    if (value.config !== null) return value;
-    const { config: _config, ...chartConfig } = value;
-    return chartConfig;
+const asSaved = (read: TextContent): object => {
+    if (read.type !== 'chart' || read.content.chartConfig.config != null)
+        return read.content;
+    const { config: _config, ...chartConfig } = read.content.chartConfig;
+    return { ...read.content, chartConfig };
 };
 
 /** The view of content the model reads and edits: content minus read-only keys. */
-export const toContentView = (content: object): Record<string, unknown> =>
+export const toContentView = (read: TextContent): Record<string, unknown> =>
     Object.fromEntries(
-        Object.entries(content)
+        Object.entries(asSaved(read))
             .filter(
                 ([key, value]) => !HIDDEN_KEYS.has(key) && value !== undefined,
             )
-            .map(([key, value]) => [
-                key,
-                toJsonValue(
-                    key === 'chartConfig'
-                        ? withoutNullChartConfig(value)
-                        : value,
-                ),
-            ]),
+            .map(([key, value]) => [key, toJsonValue(value)]),
     );
 
 /** Stable YAML for a content view: the exact text edits match against. */
 export const serializeContentView = (view: Record<string, unknown>): string =>
     stringifyYaml(view, { lineWidth: 0 });
 
-export const serializeContent = (content: object): string =>
-    serializeContentView(toContentView(content));
+export const serializeContent = (read: TextContent): string =>
+    serializeContentView(toContentView(read));
 
 const parseContentText = (text: string): unknown => {
     try {
@@ -146,10 +145,10 @@ export const applyTextEdits = (
 
 /** Turns text edits on the content view into an RFC6902 patch against the stored content. */
 export const textEditsToPatch = (
-    content: object,
+    read: TextContent,
     edits: ContentTextEdit[],
 ): JsonPatch.Operation[] => {
-    const view = toContentView(content);
+    const view = toContentView(read);
     const edited = parseContentText(
         applyTextEdits(serializeContentView(view), edits),
     );
