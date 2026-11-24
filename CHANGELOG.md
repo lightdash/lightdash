@@ -1,3 +1,12 @@
+## [3.391.1](https://github.com/lightdash/lightdash/compare/3.391.0...3.391.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* **semantic-studio:** no primary key advice for a model imported from a metric view ([#33374](https://github.com/lightdash/lightdash/issues/33374)) ([2c9ce40](https://github.com/lightdash/lightdash/commit/2c9ce404192ee91e5640fe8b7a764b67f38aa064))
+* **semantic-studio:** show publish as in progress while the agent works ([#33383](https://github.com/lightdash/lightdash/issues/33383)) ([8ada190](https://github.com/lightdash/lightdash/commit/8ada1908a569f5e21763b3fb80577d931fdc1a67))
+* **semantic-studio:** stop the draft card querying the warehouse on its own ([#33385](https://github.com/lightdash/lightdash/issues/33385)) ([56c93fb](https://github.com/lightdash/lightdash/commit/56c93fb9e750efeac55386bc340d55d057886670))
+
 # [3.391.0](https://github.com/lightdash/lightdash/compare/3.390.1...3.391.0) (2026-11-24)
 
 
