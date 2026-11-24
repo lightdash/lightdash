@@ -1058,7 +1058,6 @@ export class McpService extends BaseService {
             agentSpaceAccess: agent.spaceAccess,
             agentProjectUuid: agent.projectUuid,
             explores: agent.context.explores,
-            verifiedQuestions: agent.context.verifiedQuestions,
             instruction: agent.context.instruction,
         };
     }

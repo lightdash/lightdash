@@ -2424,7 +2424,7 @@ A custom chart type is chosen the same way: by its own description first, then a
         "readOnlyHint": true,
         "title": "List agents",
       },
-      "description": "List accessible AI agents for the required projectUuid. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection.",
+      "description": "List accessible AI agents for the required projectUuid. Each agent is pre-configured with specific explores, tags, and instructions that define its domain expertise. Prefer route_agent for automatic selection.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -2560,12 +2560,6 @@ A custom chart type is chosen the same way: by its own description first, then a
           "reasoning": {
             "type": "string",
           },
-          "verifiedQuestions": {
-            "items": {
-              "type": "string",
-            },
-            "type": "array",
-          },
         },
         "required": [
           "agentUuid",
@@ -2575,7 +2569,6 @@ A custom chart type is chosen the same way: by its own description first, then a
           "agentSpaceAccess",
           "agentProjectUuid",
           "explores",
-          "verifiedQuestions",
           "instruction",
           "confidence",
           "reasoning",

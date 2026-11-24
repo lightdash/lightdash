@@ -44,7 +44,6 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'AiAgentController.getAiAgentMemory',
     'AiAgentController.getDashboardArtifactChartVizQuery',
     'AiAgentController.getUserAgentPreferences',
-    'AiAgentController.getVerifiedQuestions',
     'AiAgentController.listAgentMcpServerTools',
     'AiAgentController.listMcpServerTools',
     'AiAgentController.listMcpServers',

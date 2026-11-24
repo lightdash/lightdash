@@ -4008,7 +4008,6 @@ export class AiAgentService extends BaseService {
                     agentId: input.agentUuid,
                     chipCount: 0,
                     exploreCount: 0,
-                    verifiedQuestionsCount: 0,
                     latencyMs: Date.now() - startedAt,
                     modelId: 'fallback',
                     usingFallback: true,
@@ -4125,7 +4124,6 @@ export class AiAgentService extends BaseService {
         let contextLoaded = false;
         let availableExplores: Explore[] = [];
         let explores: SuggestionPromptContext['explores'] = [];
-        let verifiedQuestions: string[] = [];
         let threadContext: NonNullable<
             SuggestionPromptContext['thread']
         > | null = null;
@@ -4180,12 +4178,6 @@ export class AiAgentService extends BaseService {
                           agent.uuid,
                       )
                     : [];
-
-            const verifiedQuestionsData =
-                await this.aiAgentModel.getVerifiedQuestions(agentUuid);
-            verifiedQuestions = verifiedQuestionsData
-                .slice(0, 6)
-                .map((q) => q.question);
 
             const verifiedContent = await this.fetchSuggestionsVerifiedContent(
                 user,
@@ -4266,7 +4258,6 @@ export class AiAgentService extends BaseService {
                     enabledTools,
                     explores,
                     warehouseTables,
-                    verifiedQuestions,
                     verifiedContentTags: agent.tags ?? [],
                     verifiedContent,
                     pinnedContext,
@@ -4427,7 +4418,6 @@ export class AiAgentService extends BaseService {
                 agentId: agentUuid,
                 chipCount: chips.length,
                 exploreCount: explores.length,
-                verifiedQuestionsCount: verifiedQuestions.length,
                 latencyMs: Date.now() - startedAt,
                 modelId,
                 usingFallback: source !== 'generated',
@@ -9693,19 +9683,6 @@ export class AiAgentService extends BaseService {
         return this.getModelOptions(user, projectUuid, agentUuid);
     }
 
-    async getEmbedVerifiedQuestions(
-        account: AnonymousAccount,
-        projectUuid: string,
-        agentUuid: string,
-    ) {
-        const { user } = await this.getEmbedAgent(
-            account,
-            projectUuid,
-            agentUuid,
-        );
-        return this.getVerifiedQuestions(user, agentUuid);
-    }
-
     async getEmbedArtifact(
         account: AnonymousAccount,
         projectUuid: string,
@@ -12172,50 +12149,6 @@ export class AiAgentService extends BaseService {
         }
     }
 
-    async getVerifiedQuestions(
-        user: SessionUser,
-        agentUuid: string,
-    ): Promise<Array<{ question: string; uuid: string }>> {
-        const { organizationUuid } = user;
-        if (!organizationUuid) {
-            throw new ForbiddenError('Organization not found');
-        }
-
-        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
-        if (!isCopilotEnabled) {
-            throw new ForbiddenError('Copilot is not enabled');
-        }
-
-        const agent = await this.aiAgentModel.getAgent({
-            organizationUuid,
-            agentUuid,
-        });
-
-        if (!agent) {
-            throw new NotFoundError(`Agent not found: ${agentUuid}`);
-        }
-
-        // Check view permissions
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('AiAgent', {
-                    organizationUuid,
-                    projectUuid: agent.projectUuid,
-                    metadata: {
-                        agentUuid,
-                        agentName: agent.name,
-                    },
-                }),
-            )
-        ) {
-            throw new ForbiddenError('Cannot view agent questions');
-        }
-
-        return this.aiAgentModel.getVerifiedQuestions(agentUuid);
-    }
-
     /**
      * Private method to get a summary context for an agent.
      * Assumes all permission checks and validations have been performed by the caller.
@@ -12233,17 +12166,12 @@ export class AiAgentService extends BaseService {
             (explore) => explore.label || explore.name,
         );
 
-        const verifiedQuestionsData =
-            await this.aiAgentModel.getVerifiedQuestions(agent.uuid);
-        const verifiedQuestions = verifiedQuestionsData.map((q) => q.question);
-
         return {
             uuid: agent.uuid,
             projectUuid: agent.projectUuid,
             name: agent.name,
             description: agent.description,
             explores: exploreNames,
-            verifiedQuestions,
             instruction: agent.instruction,
         };
     }
