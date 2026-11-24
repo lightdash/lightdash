@@ -143,6 +143,7 @@ describe('dbt partial parse baselines', () => {
             projectUuid: 'project-a',
             dbtSourceUuid: null,
             root: store,
+            access: 'read-write',
         }).path;
 
         expect(
@@ -150,6 +151,7 @@ describe('dbt partial parse baselines', () => {
                 projectUuid: 'project-a',
                 dbtSourceUuid: null,
                 root: store,
+                access: 'read-write',
             }).path,
         ).toBe(projectConnection);
         expect(
@@ -159,11 +161,13 @@ describe('dbt partial parse baselines', () => {
                     projectUuid: 'project-a',
                     dbtSourceUuid: 'source-1',
                     root: store,
+                    access: 'read-write',
                 }).path,
                 getDbtPartialParseBaseline({
                     projectUuid: 'project-b',
                     dbtSourceUuid: null,
                     root: store,
+                    access: 'read-write',
                 }).path,
             ]).size,
         ).toBe(3);

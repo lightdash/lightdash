@@ -327,6 +327,7 @@ const main = async () => {
         },
         environmentVariableAllowlist: [],
         dbtVersion: SupportedDbtVersions.V1_10,
+        partialParseBaseline: null,
     });
 
     try {

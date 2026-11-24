@@ -17339,6 +17339,7 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
                           path: getDbtPartialParseBaseline({
                               projectUuid: 'project-uuid',
                               dbtSourceUuid: 'source-b-uuid',
+                              access: 'read-write',
                           }).path,
                           access: 'read-write',
                       },
@@ -24472,6 +24473,7 @@ describe('compile adapter connection credentials', () => {
                           path: getDbtPartialParseBaseline({
                               projectUuid: 'project-uuid',
                               dbtSourceUuid: null,
+                              access: 'read-write',
                           }).path,
                           access: 'read-only',
                       }

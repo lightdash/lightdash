@@ -7610,6 +7610,7 @@ export class ProjectService
                     ? getDbtPartialParseBaseline({
                           projectUuid,
                           dbtSourceUuid: null,
+                          access: 'read-write',
                       })
                     : null,
                 {
@@ -9130,6 +9131,7 @@ export class ProjectService
                                           projectUuid,
                                           dbtSourceUuid:
                                               source.projectDbtSourceUuid,
+                                          access: 'read-write',
                                       })
                                     : null,
                                 primary.dbtTargetPolicy,
@@ -9492,6 +9494,7 @@ export class ProjectService
                         ? getDbtPartialParseBaseline({
                               projectUuid,
                               dbtSourceUuid: source.projectDbtSourceUuid,
+                              access: 'read-write',
                           })
                         : null,
                     primary.dbtTargetPolicy,

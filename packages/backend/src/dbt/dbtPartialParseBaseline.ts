@@ -70,12 +70,13 @@ export const getDbtPartialParseBaseline = ({
     projectUuid,
     dbtSourceUuid,
     root = DBT_PARTIAL_PARSE_BASELINE_ROOT,
-    access = 'read-write',
+    access,
 }: {
     projectUuid: string;
     dbtSourceUuid: string | null;
     root?: string;
-    access?: DbtPartialParseBaseline['access'];
+    /** read-only for a compile whose parse state must not replace the live one, such as a branch. */
+    access: DbtPartialParseBaseline['access'];
 }): DbtPartialParseBaseline => ({
     access,
     path: path.join(
