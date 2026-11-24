@@ -21,8 +21,7 @@ export const PublishDraftModal: FC<{
             title="Publish draft"
             description={`This merges ${destination}, then the project updates for everyone.`}
             confirmLabel="Publish"
-            confirmLoading={isLoading}
-            confirmDisabled={isAgentWorking}
+            confirmLoading={isLoading || isAgentWorking}
             onClose={onClose}
             onConfirm={() =>
                 publish(

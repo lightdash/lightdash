@@ -50,6 +50,7 @@ export const StudioDevelopmentBar: FC<{
         mergesHere,
         branch,
         step,
+        isAgentWorking,
     } = useStudioPublish(projectUuid, prUrl, ciChecks);
     const compileAgain = useCompileCheckout(projectUuid);
     const { data: credential } = useGithubUserCredential();
@@ -110,7 +111,8 @@ export const StudioDevelopmentBar: FC<{
                         size="xs"
                         variant={canPublish ? 'filled' : 'default'}
                         leftSection={
-                            compile?.status === 'compiling' ? (
+                            compile?.status === 'compiling' ||
+                            isAgentWorking ? (
                                 <Loader size={12} color="gray" />
                             ) : compile?.status === 'failed' ? (
                                 <MantineIcon
@@ -121,8 +123,12 @@ export const StudioDevelopmentBar: FC<{
                             ) : null
                         }
                         loading={compileAgain.isLoading}
-                        data-disabled={step.action === null || undefined}
+                        data-disabled={
+                            (step.action === null && !isAgentWorking) ||
+                            undefined
+                        }
                         aria-disabled={step.action === null}
+                        aria-busy={isAgentWorking}
                         onClick={() => {
                             if (step.action === 'compile')
                                 compileAgain.mutate();

@@ -6,7 +6,7 @@ import {
     type SemanticLayerDraftImpact,
     type SemanticLayerProposal,
 } from '@lightdash/common';
-import { Button, Tooltip } from '@mantine/core';
+import { Button, Loader, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconArrowsJoin,
@@ -356,8 +356,16 @@ export const TurnSummaryCard: FC<{
                         >
                             <Button
                                 size="compact-xs"
-                                data-disabled={isAgentWorking || undefined}
+                                leftSection={
+                                    isAgentWorking ? (
+                                        <Loader
+                                            size={10}
+                                            color="currentColor"
+                                        />
+                                    ) : null
+                                }
                                 aria-disabled={isAgentWorking}
+                                aria-busy={isAgentWorking}
                                 onClick={() => {
                                     if (!isAgentWorking) setPublishing(true);
                                 }}

@@ -108,9 +108,11 @@ export const useStudioAgentWorking = (projectUuid: string): boolean => {
             threadUuid === null
                 ? undefined
                 : state.aiAgentThreadStream[threadUuid];
+        // A finished turn is ready even if its connection has not closed yet.
         return (
             stream !== undefined &&
-            isAiAgentThreadStreamActive(stream.connection)
+            isAiAgentThreadStreamActive(stream.connection) &&
+            stream.timing.finishedAt === null
         );
     });
 };

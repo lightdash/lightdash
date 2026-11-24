@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { store } from '../../ee/features/aiCopilot/store';
 import {
+    markTurnFinished,
     startStreaming,
     stopStreaming,
 } from '../../ee/features/aiCopilot/store/aiAgentThreadStreamSlice';
@@ -88,11 +89,13 @@ afterEach(() => {
 });
 
 describe('DraftDevelopmentBar while the agent is working', () => {
-    it('holds Publish back with a reason a keyboard reaches', async () => {
+    it('shows Publish as in progress with a reason a keyboard reaches', async () => {
         stream(true);
         renderBar();
 
         expect(publish()).toHaveAttribute('aria-disabled', 'true');
+        expect(publish()).toHaveAttribute('aria-busy', 'true');
+        expect(publish()).not.toHaveAttribute('data-disabled');
         await userEvent.tab();
         expect(publish()).toHaveFocus();
         expect(
@@ -113,6 +116,20 @@ describe('DraftDevelopmentBar while the agent is working', () => {
         stream(false);
 
         expect(publish()).toHaveAttribute('aria-disabled', 'false');
+        expect(publish()).toHaveAttribute('aria-busy', 'false');
         expect(publish()).not.toHaveAttribute('data-disabled');
+    });
+
+    it('offers Publish once the turn finishes, even if the connection stays open', () => {
+        stream(true);
+        renderBar();
+        expect(publish()).toHaveAttribute('aria-busy', 'true');
+
+        act(() => {
+            store.dispatch(markTurnFinished({ threadUuid: THREAD }));
+        });
+
+        expect(publish()).toHaveAttribute('aria-disabled', 'false');
+        expect(publish()).toHaveAttribute('aria-busy', 'false');
     });
 });
