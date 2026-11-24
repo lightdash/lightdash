@@ -207,6 +207,12 @@ describe('describeWarehouseTable metadata', () => {
                 },
             ],
             definition: null,
+            primaryKey: null,
+            foreignKeys: [],
+            tags: [],
+            partitionColumns: [],
+            hasRowFilter: false,
+            hasColumnMasks: false,
             metricView: null,
         };
 
@@ -226,6 +232,69 @@ describe('describeWarehouseTable metadata', () => {
             ].join('\n'),
         );
         expect(output.structuredContent).toMatchObject({ metadata });
+    });
+
+    it('shows declared keys, tags, partitions and access policies', async () => {
+        const metadata: WarehouseTableMetadata = {
+            tableType: WarehouseTableType.TABLE,
+            comment: null,
+            columns: [
+                {
+                    name: 'order_id',
+                    type: DimensionType.STRING,
+                    comment: null,
+                    isMeasure: false,
+                },
+                {
+                    name: 'created_at',
+                    type: DimensionType.TIMESTAMP,
+                    comment: null,
+                    isMeasure: false,
+                },
+            ],
+            definition: null,
+            metricView: null,
+            primaryKey: ['order_id'],
+            foreignKeys: [
+                {
+                    columns: ['order_id'],
+                    referencedTable: 'catalog.schema.orders_header',
+                    referencedColumns: ['id'],
+                },
+            ],
+            tags: [
+                { column: null, name: 'domain', value: 'sales' },
+                { column: null, name: 'certified', value: null },
+                { column: 'order_id', name: 'pii', value: 'none' },
+            ],
+            partitionColumns: ['created_at'],
+            hasRowFilter: true,
+            hasColumnMasks: true,
+        };
+
+        const output = await describeWith(
+            null,
+            WarehouseTypes.DATABRICKS,
+            metadata,
+        );
+
+        expect(output.result).toBe(
+            [
+                'Columns for `example-project.analytics.fact_orders` (2):',
+                'Table type: table',
+                'Primary key: order_id',
+                'Foreign key: (order_id) references catalog.schema.orders_header (id)',
+                'Table tags: domain=sales, certified',
+                'Partition columns: created_at',
+                'A row filter applies, so results depend on who queries.',
+                'Column masks apply, so some values may be masked.',
+                '  - order_id: string. Tags: pii=none',
+                '  - created_at: timestamp',
+            ].join('\n'),
+        );
+        expect(
+            toolDescribeWarehouseTableOutputSchema.safeParse(output).success,
+        ).toBe(true);
     });
 
     it('marks measures and shows a metric view definition', async () => {
@@ -250,6 +319,12 @@ describe('describeWarehouseTable metadata', () => {
                 text: 'version: 1.1\nsource: <catalog>.<schema>.<table>',
                 truncated: false,
             },
+            primaryKey: null,
+            foreignKeys: [],
+            tags: [],
+            partitionColumns: [],
+            hasRowFilter: false,
+            hasColumnMasks: false,
             metricView: null,
         });
 
@@ -285,6 +360,12 @@ describe('describeWarehouseTable metadata', () => {
                 },
             ],
             definition: { text: 'version: 1.1', truncated: false },
+            primaryKey: null,
+            foreignKeys: [],
+            tags: [],
+            partitionColumns: [],
+            hasRowFilter: false,
+            hasColumnMasks: false,
             metricView: {
                 source: '<catalog>.<schema>.<table>',
                 filter: 'is_test = false',

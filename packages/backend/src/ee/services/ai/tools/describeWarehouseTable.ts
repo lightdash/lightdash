@@ -3,6 +3,7 @@ import {
     METRIC_VIEW_TABLE_TYPE,
     type ToolDescribeWarehouseTableStructuredContent,
     type WarehouseMetricViewDefinition,
+    type WarehouseTableMetadata,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { DescribeWarehouseTableFn } from '../types/aiAgentDependencies';
@@ -57,6 +58,36 @@ const formatMetricViewSource = (
           ]
         : []),
 ];
+
+const formatTags = (tags: WarehouseTableMetadata['tags']): string =>
+    tags
+        .map(({ name, value }) => (value === null ? name : `${name}=${value}`))
+        .join(', ');
+
+const formatKeysAndAccess = (metadata: WarehouseTableMetadata): string[] => {
+    const tableTags = metadata.tags.filter(({ column }) => column === null);
+    return [
+        ...(metadata.primaryKey
+            ? [`Primary key: ${metadata.primaryKey.join(', ')}`]
+            : []),
+        ...metadata.foreignKeys.map(
+            (key) =>
+                `Foreign key: (${key.columns.join(', ')}) references ${key.referencedTable} (${key.referencedColumns.join(', ')})`,
+        ),
+        ...(tableTags.length > 0
+            ? [`Table tags: ${formatTags(tableTags)}`]
+            : []),
+        ...(metadata.partitionColumns.length > 0
+            ? [`Partition columns: ${metadata.partitionColumns.join(', ')}`]
+            : []),
+        ...(metadata.hasRowFilter
+            ? ['A row filter applies, so results depend on who queries.']
+            : []),
+        ...(metadata.hasColumnMasks
+            ? ['Column masks apply, so some values may be masked.']
+            : []),
+    ];
+};
 
 const toolDefinition = describeWarehouseTableToolDefinition.for('agent');
 
@@ -141,10 +172,14 @@ export const getDescribeWarehouseTable = ({
                     ...(partitioning
                         ? [formatPartitioning(partitioning, warehouseType)]
                         : []),
+                    ...(metadata ? formatKeysAndAccess(metadata) : []),
                     ...structuredContent.columns.map((c) => {
                         const column = described.get(c.name);
                         const defined = definedFields.get(c.name);
                         const comment = column?.comment ?? defined?.comment;
+                        const columnTags = (metadata?.tags ?? []).filter(
+                            (tag) => tag.column === c.name,
+                        );
                         return [
                             `  - ${c.name}: ${c.type}`,
                             ...(column?.isMeasure ? ['Measure'] : []),
@@ -152,6 +187,9 @@ export const getDescribeWarehouseTable = ({
                                 ? [`Label: ${defined.label}`]
                                 : []),
                             ...(comment ? [`Comment: ${comment}`] : []),
+                            ...(columnTags.length > 0
+                                ? [`Tags: ${formatTags(columnTags)}`]
+                                : []),
                             ...(defined ? formatDefinedField(defined) : []),
                         ].join('. ');
                     }),

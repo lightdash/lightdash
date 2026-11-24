@@ -395,13 +395,30 @@ describe('DatabricksWarehouseClient', () => {
             ],
             ...ownerAndStorage,
         };
-        const describing = (description: Record<string, unknown>) => {
+        const noKeysOrTags = {
+            primaryKey: null,
+            foreignKeys: [],
+            tags: [],
+            partitionColumns: [],
+            hasRowFilter: false,
+            hasColumnMasks: false,
+        };
+        const describing = (
+            description: Record<string, unknown>,
+            keyRows: Record<string, unknown>[] = [],
+            tagRows: Record<string, unknown>[] = [],
+        ) => {
             const session = createSession({
-                executeStatement: vi.fn(async () =>
+                executeStatement: vi.fn(async (sql: string) =>
                     createOperation({
-                        fetchAll: vi.fn(async () => [
-                            { json_metadata: JSON.stringify(description) },
-                        ]),
+                        fetchAll: vi.fn(async () => {
+                            if (sql.includes('table_constraints'))
+                                return keyRows;
+                            if (sql.includes('table_tags')) return tagRows;
+                            return [
+                                { json_metadata: JSON.stringify(description) },
+                            ];
+                        }),
                     }),
                 ),
             });
@@ -437,10 +454,13 @@ describe('DatabricksWarehouseClient', () => {
                 ],
                 definition: null,
                 metricView: null,
+                ...noKeysOrTags,
+                partitionColumns: ['status'],
             });
-            expect(session.executeStatement).toHaveBeenCalledExactlyOnceWith(
+            expect(session.executeStatement).toHaveBeenCalledWith(
                 'DESCRIBE TABLE EXTENDED `catalog`.`schema`.`orders` AS JSON',
             );
+            expect(session.executeStatement).toHaveBeenCalledTimes(3);
         });
 
         it("returns a view's definition", async () => {
@@ -462,6 +482,7 @@ describe('DatabricksWarehouseClient', () => {
                     truncated: false,
                 },
                 metricView: null,
+                ...noKeysOrTags,
             });
         });
 
@@ -511,6 +532,7 @@ describe('DatabricksWarehouseClient', () => {
                     ],
                     joins: [],
                 },
+                ...noKeysOrTags,
             });
         });
 
@@ -570,11 +592,138 @@ describe('DatabricksWarehouseClient', () => {
                     'columns',
                     'comment',
                     'definition',
+                    'foreignKeys',
+                    'hasColumnMasks',
+                    'hasRowFilter',
                     'metricView',
+                    'partitionColumns',
+                    'primaryKey',
                     'tableType',
+                    'tags',
                 ]);
             },
         );
+
+        // Rows shaped as information_schema returns them, with the joined referenced key column
+        const keyRows = [
+            {
+                constraint_type: 'FOREIGN KEY',
+                constraint_name: 'orders_customer_fk',
+                column_name: 'customer_region',
+                referenced_catalog: 'catalog',
+                referenced_schema: 'schema',
+                referenced_table: 'customers',
+                referenced_column: 'region',
+            },
+            {
+                constraint_type: 'FOREIGN KEY',
+                constraint_name: 'orders_customer_fk',
+                column_name: 'customer_id',
+                referenced_catalog: 'catalog',
+                referenced_schema: 'schema',
+                referenced_table: 'customers',
+                referenced_column: 'id',
+            },
+            {
+                constraint_type: 'PRIMARY KEY',
+                constraint_name: 'orders_pk',
+                column_name: 'order_id',
+                referenced_catalog: null,
+                referenced_schema: null,
+                referenced_table: null,
+                referenced_column: null,
+            },
+            {
+                constraint_type: 'FOREIGN KEY',
+                constraint_name: 'orders_unresolved_fk',
+                column_name: 'store_id',
+                referenced_catalog: null,
+                referenced_schema: null,
+                referenced_table: null,
+                referenced_column: null,
+            },
+        ];
+        const tagRows = [
+            { column_name: null, tag_name: 'domain', tag_value: 'sales' },
+            { column_name: null, tag_name: 'certified', tag_value: '' },
+            { column_name: 'status', tag_name: 'pii', tag_value: 'none' },
+        ];
+
+        it('reads declared keys and tags from information_schema', async () => {
+            const session = describing(describedTable, keyRows, tagRows);
+
+            expect(await read()).toMatchObject({
+                primaryKey: ['order_id'],
+                foreignKeys: [
+                    {
+                        columns: ['customer_region', 'customer_id'],
+                        referencedTable: 'catalog.schema.customers',
+                        referencedColumns: ['region', 'id'],
+                    },
+                ],
+                tags: [
+                    { column: null, name: 'domain', value: 'sales' },
+                    { column: null, name: 'certified', value: null },
+                    { column: 'status', name: 'pii', value: 'none' },
+                ],
+            });
+            expect(session.executeStatement).toHaveBeenCalledWith(
+                expect.stringContaining(
+                    '`catalog`.information_schema.table_constraints',
+                ),
+                { ordinalParameters: ['schema', 'orders'] },
+            );
+            expect(session.executeStatement).toHaveBeenCalledWith(
+                expect.stringContaining(
+                    '`catalog`.information_schema.column_tags',
+                ),
+                { ordinalParameters: ['schema', 'orders', 'schema', 'orders'] },
+            );
+        });
+
+        it('still describes the table when keys and tags cannot be read', async () => {
+            const session = createSession({
+                executeStatement: vi.fn((sql: string) =>
+                    sql.includes('information_schema')
+                        ? Promise.reject(
+                              statusError(
+                                  '[INSUFFICIENT_PERMISSIONS] Insufficient privileges. SQLSTATE: 42501',
+                              ),
+                          )
+                        : Promise.resolve(
+                              createOperation({
+                                  fetchAll: vi.fn(async () => [
+                                      {
+                                          json_metadata:
+                                              JSON.stringify(describedTable),
+                                      },
+                                  ]),
+                              }),
+                          ),
+                ),
+            });
+            mocks.openSession.mockResolvedValue(session);
+
+            expect(await read()).toMatchObject({
+                comment: 'One row per order',
+                primaryKey: null,
+                foreignKeys: [],
+                tags: [],
+            });
+        });
+
+        it('flags a row filter and column masks', async () => {
+            describing({
+                ...describedTable,
+                row_filter: { function_name: 'catalog.schema.region_filter' },
+                column_masks: [{ column_name: 'status' }],
+            });
+
+            expect(await read()).toMatchObject({
+                hasRowFilter: true,
+                hasColumnMasks: true,
+            });
+        });
 
         it('truncates a long definition with a marker', async () => {
             const longSql = `SELECT ${'order_id, '.repeat(2_000)}1`;

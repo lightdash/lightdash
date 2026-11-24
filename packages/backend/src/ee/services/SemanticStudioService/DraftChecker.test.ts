@@ -110,6 +110,12 @@ const checker = (type: WarehouseTypes = WarehouseTypes.POSTGRES) =>
                       comment: null,
                       columns: [],
                       definition: null,
+                      primaryKey: null,
+                      foreignKeys: [],
+                      tags: [],
+                      partitionColumns: [],
+                      hasRowFilter: false,
+                      hasColumnMasks: false,
                       metricView: null,
                   }
                 : null,

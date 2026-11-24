@@ -446,9 +446,105 @@ type JsonTableDescription =
 const nonEmptyString = (value: unknown): string | null =>
     typeof value === 'string' && value.trim() !== '' ? value : null;
 
+type DeclaredKeysAndTags = Pick<
+    WarehouseTableMetadata,
+    'primaryKey' | 'foreignKeys' | 'tags'
+>;
+
+const isPresent = (value: unknown): boolean =>
+    value !== null &&
+    value !== undefined &&
+    !(Array.isArray(value) && value.length === 0) &&
+    !(isRecord(value) && Object.keys(value).length === 0);
+
+const stringsOf = (value: unknown): string[] =>
+    Array.isArray(value)
+        ? value.filter((item): item is string => typeof item === 'string')
+        : [];
+
+// Reads key_column_usage rows joined to their constraint and, for a foreign key, the referenced key's column
+const getDeclaredKeys = (
+    rows: Record<string, unknown>[],
+): Pick<WarehouseTableMetadata, 'primaryKey' | 'foreignKeys'> => {
+    const keyColumns = rows.flatMap((row) =>
+        typeof row.constraint_name === 'string' &&
+        typeof row.column_name === 'string'
+            ? [
+                  {
+                      type: row.constraint_type,
+                      constraint: row.constraint_name,
+                      column: row.column_name,
+                      referencedTable: [
+                          row.referenced_catalog,
+                          row.referenced_schema,
+                          row.referenced_table,
+                      ].every((part) => typeof part === 'string')
+                          ? `${row.referenced_catalog}.${row.referenced_schema}.${row.referenced_table}`
+                          : null,
+                      referencedColumn: nonEmptyString(row.referenced_column),
+                  },
+              ]
+            : [],
+    );
+    const primaryKey = keyColumns
+        .filter((key) => key.type === 'PRIMARY KEY')
+        .map((key) => key.column);
+    const foreignKeyColumns = new Map<string, typeof keyColumns>();
+    keyColumns
+        .filter((key) => key.type === 'FOREIGN KEY')
+        .forEach((key) =>
+            foreignKeyColumns.set(key.constraint, [
+                ...(foreignKeyColumns.get(key.constraint) ?? []),
+                key,
+            ]),
+        );
+    return {
+        primaryKey: primaryKey.length > 0 ? primaryKey : null,
+        foreignKeys: [...foreignKeyColumns.values()].flatMap(
+            (keyColumnRows) => {
+                const referencedTable =
+                    keyColumnRows[0]?.referencedTable ?? null;
+                const referencedColumns = keyColumnRows.flatMap((key) =>
+                    key.referencedColumn === null ? [] : [key.referencedColumn],
+                );
+                // A key whose referenced side is not visible here is dropped rather than half-reported
+                return referencedTable !== null &&
+                    referencedColumns.length === keyColumnRows.length
+                    ? [
+                          {
+                              columns: keyColumnRows.map((key) => key.column),
+                              referencedTable,
+                              referencedColumns,
+                          },
+                      ]
+                    : [];
+            },
+        ),
+    };
+};
+
+const getDeclaredTags = (
+    rows: Record<string, unknown>[],
+): WarehouseTableMetadata['tags'] =>
+    rows.flatMap((row) =>
+        typeof row.tag_name === 'string'
+            ? [
+                  {
+                      column:
+                          typeof row.column_name === 'string'
+                              ? row.column_name
+                              : null,
+                      name: row.tag_name,
+                      value: nonEmptyString(row.tag_value),
+                  },
+              ]
+            : [],
+    );
+
 // Picks named fields of a JSON table description; never spread it, it carries owner, location and properties.
 const getDescribedTableMetadata = (
     description: Record<string, unknown>,
+    { primaryKey, foreignKeys, tags }: DeclaredKeysAndTags,
 ): WarehouseTableMetadata => {
     const definition = nonEmptyString(description.view_text);
     return {
@@ -482,6 +578,12 @@ const getDescribedTableMetadata = (
             description.type === 'METRIC_VIEW' && definition !== null
                 ? parseMetricViewDefinition(definition)
                 : null,
+        primaryKey,
+        foreignKeys,
+        tags,
+        partitionColumns: stringsOf(description.partition_columns),
+        hasRowFilter: isPresent(description.row_filter),
+        hasColumnMasks: isPresent(description.column_masks),
     };
 };
 
@@ -953,13 +1055,56 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         const { session, close } = await this.openSession(
             new DatabricksWarehouseStartupRetry(),
         );
+        const q = '`';
+        const informationSchema = `${q}${database}${q}.information_schema`;
+        // Best effort: the constraint views are in preview and filtered by privilege
+        const readQuietly = (sql: string, values: string[]) =>
+            DatabricksWarehouseClient.fetchAllRows(
+                session.executeStatement(sql, { ordinalParameters: values }),
+                'getTableMetadata',
+            ).catch((e: unknown) => {
+                console.debug(
+                    `Could not read keys or tags of ${tableName}: ${getDatabricksErrorMessage(e)}`,
+                );
+                return [];
+            });
         try {
-            const described = await DatabricksWarehouseClient.describeAsJson(
-                session,
-                { database, schema, table: tableName },
-            );
+            const [described, keyRows, tagRows] = await Promise.all([
+                DatabricksWarehouseClient.describeAsJson(session, {
+                    database,
+                    schema,
+                    table: tableName,
+                }),
+                readQuietly(
+                    `SELECT tc.constraint_type, k.constraint_name, k.column_name,
+                            r.table_catalog AS referenced_catalog, r.table_schema AS referenced_schema,
+                            r.table_name AS referenced_table, r.column_name AS referenced_column
+                     FROM ${informationSchema}.table_constraints tc
+                     JOIN ${informationSchema}.key_column_usage k
+                       ON k.constraint_catalog = tc.constraint_catalog AND k.constraint_schema = tc.constraint_schema AND k.constraint_name = tc.constraint_name
+                     LEFT JOIN ${informationSchema}.referential_constraints rc
+                       ON rc.constraint_catalog = tc.constraint_catalog AND rc.constraint_schema = tc.constraint_schema AND rc.constraint_name = tc.constraint_name
+                     LEFT JOIN ${informationSchema}.key_column_usage r
+                       ON r.constraint_catalog = rc.unique_constraint_catalog AND r.constraint_schema = rc.unique_constraint_schema
+                       AND r.constraint_name = rc.unique_constraint_name AND r.ordinal_position = k.position_in_unique_constraint
+                     WHERE tc.table_schema = ? AND tc.table_name = ? AND tc.constraint_type IN ('PRIMARY KEY', 'FOREIGN KEY')
+                     ORDER BY k.constraint_name, k.ordinal_position`,
+                    [schema, tableName],
+                ),
+                readQuietly(
+                    `SELECT NULL AS column_name, tag_name, tag_value
+                     FROM ${informationSchema}.table_tags WHERE schema_name = ? AND table_name = ?
+                     UNION ALL
+                     SELECT column_name, tag_name, tag_value
+                     FROM ${informationSchema}.column_tags WHERE schema_name = ? AND table_name = ?`,
+                    [schema, tableName, schema, tableName],
+                ),
+            ]);
             return described.kind === 'described'
-                ? getDescribedTableMetadata(described.description)
+                ? getDescribedTableMetadata(described.description, {
+                      ...getDeclaredKeys(keyRows),
+                      tags: getDeclaredTags(tagRows),
+                  })
                 : null;
         } finally {
             await closeQuietly(close, 'getTableMetadata');

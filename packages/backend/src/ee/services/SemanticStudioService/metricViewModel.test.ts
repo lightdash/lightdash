@@ -36,6 +36,12 @@ const metadata: WarehouseTableMetadata = {
         measure('net_churn_rate'),
     ],
     definition: null,
+    primaryKey: null,
+    foreignKeys: [],
+    tags: [],
+    partitionColumns: [],
+    hasRowFilter: false,
+    hasColumnMasks: false,
     metricView: {
         source: 'catalog.schema.fct_subscriptions',
         filter: null,

@@ -45,6 +45,12 @@ const metricView = (isMeasure: boolean): WarehouseTableMetadata => ({
         },
     ],
     definition: null,
+    primaryKey: null,
+    foreignKeys: [],
+    tags: [],
+    partitionColumns: [],
+    hasRowFilter: false,
+    hasColumnMasks: false,
     metricView: null,
 });
 

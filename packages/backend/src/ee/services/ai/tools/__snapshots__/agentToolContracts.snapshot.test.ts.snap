@@ -3,7 +3,7 @@
 exports[`AI agent tool contracts > matches the current agent tool contract snapshot 1`] = `
 [
   {
-    "description": "Return the column names and types of one raw, staging or seed table that no explore exposes. Where the warehouse reports them, it also returns the table type (table, view, metric view), the table and column comments, a view's definition, and each metric view measure's expression, synonyms and window. It reads metadata only, so it is fast and needs no approval, and returns schema only, not data.
+    "description": "Return the column names and types of one raw, staging or seed table that no explore exposes. Where the warehouse reports them, it also returns the table type (table, view, metric view), the table and column comments, a view's definition, each metric view measure's expression, synonyms and window, declared primary and foreign keys, and table and column tags. It reads metadata only, so it is fast and needs no approval, and returns schema only, not data.
 
 For explore-backed tables use grepFields and getMetadata; to find a table's name use listWarehouseTables.",
     "inputSchema": {
@@ -172,6 +172,41 @@ For explore-backed tables use grepFields and getMetadata; to find a table's name
                               "type": "null",
                             },
                           ],
+                        },
+                        "foreignKeys": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "columns": {
+                                "items": {
+                                  "type": "string",
+                                },
+                                "type": "array",
+                              },
+                              "referencedColumns": {
+                                "items": {
+                                  "type": "string",
+                                },
+                                "type": "array",
+                              },
+                              "referencedTable": {
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "columns",
+                              "referencedTable",
+                              "referencedColumns",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "hasColumnMasks": {
+                          "type": "boolean",
+                        },
+                        "hasRowFilter": {
+                          "type": "boolean",
                         },
                         "metricView": {
                           "anyOf": [
@@ -364,6 +399,25 @@ For explore-backed tables use grepFields and getMetadata; to find a table's name
                             },
                           ],
                         },
+                        "partitionColumns": {
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        "primaryKey": {
+                          "anyOf": [
+                            {
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
                         "tableType": {
                           "anyOf": [
                             {
@@ -381,6 +435,35 @@ For explore-backed tables use grepFields and getMetadata; to find a table's name
                             },
                           ],
                         },
+                        "tags": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "column": {
+                                "type": [
+                                  "string",
+                                  "null",
+                                ],
+                              },
+                              "name": {
+                                "type": "string",
+                              },
+                              "value": {
+                                "type": [
+                                  "string",
+                                  "null",
+                                ],
+                              },
+                            },
+                            "required": [
+                              "column",
+                              "name",
+                              "value",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
                       },
                       "required": [
                         "tableType",
@@ -388,6 +471,12 @@ For explore-backed tables use grepFields and getMetadata; to find a table's name
                         "columns",
                         "definition",
                         "metricView",
+                        "primaryKey",
+                        "foreignKeys",
+                        "tags",
+                        "partitionColumns",
+                        "hasRowFilter",
+                        "hasColumnMasks",
                       ],
                       "type": "object",
                     },
@@ -395,7 +484,7 @@ For explore-backed tables use grepFields and getMetadata; to find a table's name
                       "type": "null",
                     },
                   ],
-                  "description": "Table type, table and column comments, the view or metric-view definition (truncated with a marker past a size cap), and a metric view's dimensions, measures and joins as data; null where the warehouse does not describe tables this way.",
+                  "description": "Table type, table and column comments, the view or metric-view definition (truncated with a marker past a size cap), a metric view's dimensions, measures and joins as data, declared primary and foreign keys, table and column tags, partition columns, and whether a row filter or column masks apply; null where the warehouse does not describe tables this way.",
                 },
                 "partitioning": {
                   "anyOf": [

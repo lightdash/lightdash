@@ -452,6 +452,19 @@ export type WarehouseTableMetadata = {
     definition: { text: string; truncated: boolean } | null;
     /** A metric view's definition as data, read from its whole source; null when it is not one or does not parse. */
     metricView: WarehouseMetricViewDefinition | null;
+    /** Declared primary key columns in key order; null when none is declared or it could not be read. */
+    primaryKey: string[] | null;
+    /** Declared foreign keys; `referencedTable` is fully qualified and `referencedColumns` pair with `columns` by position. */
+    foreignKeys: {
+        columns: string[];
+        referencedTable: string;
+        referencedColumns: string[];
+    }[];
+    /** Table tags, and column tags with `column` set; a tag without a value has `value` null. */
+    tags: { column: string | null; name: string; value: string | null }[];
+    partitionColumns: string[];
+    hasRowFilter: boolean;
+    hasColumnMasks: boolean;
 };
 
 export type WarehouseMetricViewField = {

@@ -6985,6 +6985,12 @@ describe('ProjectService', () => {
                     },
                 ],
                 definition: null,
+                primaryKey: null,
+                foreignKeys: [],
+                tags: [],
+                partitionColumns: [],
+                hasRowFilter: false,
+                hasColumnMasks: false,
                 metricView: null,
             };
             // A warehouse that refuses to select from a metric view, as Databricks does

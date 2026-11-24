@@ -9,7 +9,7 @@ import {
 import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-export const TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION = `Return the column names and types of one raw, staging or seed table that no explore exposes. Where the warehouse reports them, it also returns the table type (table, view, metric view), the table and column comments, a view's definition, and each metric view measure's expression, synonyms and window. It reads metadata only, so it is fast and needs no approval, and returns schema only, not data.
+export const TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION = `Return the column names and types of one raw, staging or seed table that no explore exposes. Where the warehouse reports them, it also returns the table type (table, view, metric view), the table and column comments, a view's definition, each metric view measure's expression, synonyms and window, declared primary and foreign keys, and table and column tags. It reads metadata only, so it is fast and needs no approval, and returns schema only, not data.
 
 For explore-backed tables use grepFields and getMetadata; to find a table's name use listWarehouseTables.`;
 
@@ -121,10 +121,28 @@ export const toolDescribeWarehouseTableStructuredContentSchema = z.object({
                     ),
                 })
                 .nullable(),
+            primaryKey: z.array(z.string()).nullable(),
+            foreignKeys: z.array(
+                z.object({
+                    columns: z.array(z.string()),
+                    referencedTable: z.string(),
+                    referencedColumns: z.array(z.string()),
+                }),
+            ),
+            tags: z.array(
+                z.object({
+                    column: z.string().nullable(),
+                    name: z.string(),
+                    value: z.string().nullable(),
+                }),
+            ),
+            partitionColumns: z.array(z.string()),
+            hasRowFilter: z.boolean(),
+            hasColumnMasks: z.boolean(),
         })
         .nullable()
         .describe(
-            "Table type, table and column comments, the view or metric-view definition (truncated with a marker past a size cap), and a metric view's dimensions, measures and joins as data; null where the warehouse does not describe tables this way.",
+            "Table type, table and column comments, the view or metric-view definition (truncated with a marker past a size cap), a metric view's dimensions, measures and joins as data, declared primary and foreign keys, table and column tags, partition columns, and whether a row filter or column masks apply; null where the warehouse does not describe tables this way.",
         ),
 });
 
