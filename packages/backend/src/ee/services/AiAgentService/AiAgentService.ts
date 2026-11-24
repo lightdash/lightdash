@@ -103,7 +103,6 @@ import {
     designContextKey,
     DownloadFileType,
     elementReferenceToWireString,
-    EmbedArtifactVersionJobPayload,
     exceedsRetentionCeiling,
     Explore,
     ExternalSourceScope,
@@ -113,7 +112,6 @@ import {
     ForbiddenError,
     formatAiThreadFileSize,
     formatMergeQueryRefusal,
-    GenerateArtifactQuestionJobPayload,
     getAgentConnectionGrantRef,
     getAiAgentSkillListingText,
     getAppDisplayName,
@@ -261,7 +259,6 @@ import {
 import { Block, KnownBlock, WebClient } from '@slack/web-api';
 import { MessageElement } from '@slack/web-api/dist/response/ConversationsHistoryResponse';
 import {
-    APICallError,
     AssistantModelMessage,
     createUIMessageStream,
     ModelMessage,
@@ -456,8 +453,6 @@ import {
 } from '../ai/agents/agentV2';
 import { generateChartMetadata } from '../ai/agents/chartMetadataGenerator';
 import { generateCompactionSummary } from '../ai/agents/compactionGenerator';
-import { generateEmbedding } from '../ai/agents/embeddingGenerator';
-import { generateArtifactQuestion } from '../ai/agents/questionGenerator';
 import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
 import {
     generateDeepResearchReport as generateDeepResearchReportFromEvidence,
@@ -663,7 +658,6 @@ import {
     getMemoryCitationBlocks,
     getModernArtifactCardBlocks,
     getModernPullRequestCardBlocks,
-    getReferencedArtifactsBlocks,
     getSlackAiAccessRefusalMessage,
     getSqlArtifactCardBlocks,
     getTextBlocks,
@@ -12049,106 +12043,6 @@ export class AiAgentService extends BaseService {
         return this.aiAgentModel.getVerifiedSavedArtifactContent(projectUuid);
     }
 
-    async embedArtifactVersion(
-        payload: EmbedArtifactVersionJobPayload,
-    ): Promise<void> {
-        try {
-            const text = [payload.title, payload.description]
-                .filter(Boolean)
-                .join('\n');
-
-            if (!text.trim()) {
-                return;
-            }
-
-            if (
-                await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
-                    payload.organizationUuid,
-                    payload.projectUuid,
-                )
-            ) {
-                return;
-            }
-
-            const embeddingResult = await generateEmbedding(
-                text,
-                this.lightdashConfig,
-                {
-                    organizationUuid: payload.organizationUuid,
-                    projectUuid: payload.projectUuid,
-                    userUuid: payload.userUuid,
-                    extra: { artifactVersionUuid: payload.artifactVersionUuid },
-                },
-            );
-
-            if (!embeddingResult) {
-                return;
-            }
-
-            const { embedding, provider, modelName } = embeddingResult;
-
-            await this.aiAgentModel.updateArtifactEmbedding(
-                payload.artifactVersionUuid,
-                embedding,
-                provider,
-                modelName,
-            );
-        } catch (error) {
-            Logger.error(
-                `Failed to embed artifact version ${payload.artifactVersionUuid}`,
-            );
-            Sentry.captureException(error);
-        }
-    }
-
-    async generateArtifactQuestion(
-        payload: GenerateArtifactQuestionJobPayload,
-    ): Promise<void> {
-        try {
-            if (!payload.title && !payload.description) {
-                return;
-            }
-
-            const copilotConfig =
-                await this.orgAiCopilotConfigResolver.getCopilotConfig({
-                    organizationUuid: payload.organizationUuid,
-                    projectUuid: payload.projectUuid,
-                    // Artifact questions carry no agent context.
-                    credentialUuid: null,
-                });
-            const modelOptions = getModel(copilotConfig, {
-                enableReasoning: false,
-            });
-
-            const question = await generateArtifactQuestion(
-                {
-                    ...modelOptions,
-                    telemetry: {
-                        organizationUuid: payload.organizationUuid,
-                        projectUuid: payload.projectUuid,
-                        userUuid: payload.userUuid,
-                    },
-                },
-                payload.title,
-                payload.description,
-                { artifactVersionUuid: payload.artifactVersionUuid },
-            );
-
-            await this.aiAgentModel.updateArtifactQuestion(
-                payload.artifactVersionUuid,
-                question,
-            );
-        } catch (error) {
-            Logger.error(
-                `Failed to generate question for artifact version ${payload.artifactVersionUuid}`,
-            );
-            // Skip Sentry for AI API timeouts - these are expected transient failures
-            if (!APICallError.isInstance(error)) {
-                Sentry.captureException(error);
-            }
-        }
-    }
-
     /**
      * Private method to get a summary context for an agent.
      * Assumes all permission checks and validations have been performed by the caller.
@@ -19213,13 +19107,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         blocks: (Block | KnownBlock)[];
         chartBlocks: SlackChartBlocks | null;
     }> {
-        const referencedArtifactsMap =
-            await this.aiAgentModel.findThreadReferencedArtifacts({
-                promptUuids: [slackPrompt.promptUuid],
-            });
-        const referencedArtifacts =
-            referencedArtifactsMap.get(slackPrompt.promptUuid) ?? [];
-
         const threadArtifacts =
             await this.aiAgentModel.findArtifactsByThreadUuid(
                 slackPrompt.threadUuid,
@@ -19460,18 +19347,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
               )
             : [];
 
-        const referencedArtifactsBlocks =
-            agent && referencedArtifacts.length > 0
-                ? getReferencedArtifactsBlocks(
-                      agent.uuid,
-                      slackPrompt.projectUuid,
-                      this.lightdashConfig.siteUrl,
-                      referencedArtifacts,
-                      slackPrompt.threadUuid,
-                      slackPrompt.promptUuid,
-                  )
-                : [];
-
         const memoryCitationBlocks = await this.getSlackMemoryCitationBlocks({
             user,
             slackPrompt,
@@ -19488,7 +19363,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 ...(chartBlocks?.native ?? exploreBlocks),
                 ...sqlArtifactBlocks,
                 ...editDbtProjectBlocks,
-                ...referencedArtifactsBlocks,
                 ...getAiAccessRefusalBlocks(
                     accessRefusal,
                     this.lightdashConfig.siteUrl,

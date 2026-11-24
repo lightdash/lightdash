@@ -243,8 +243,8 @@ export const getAiCallTelemetry = ({
     // Allow-list, not a mirror of the data: AI SDK 7 forwards nothing to
     // telemetry providers unless it is named here. Deriving this from
     // `Object.keys(metadata)` would defeat the mechanism, because `extra` is
-    // caller-controlled (see `generateArtifactQuestion`, which passes a
-    // `Record<string, string>` straight through) and anything a caller ever adds
+    // caller-controlled (a `Record<string, string>` passed straight through)
+    // and anything a caller ever adds
     // would silently reach the provider. Adding a span dimension is a deliberate
     // edit here. `emitAiUsage` is not bound by this list — it reads
     // `runtimeContext` directly, so our own `ai.usage` analytics also gets the

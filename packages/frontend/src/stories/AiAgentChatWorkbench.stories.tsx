@@ -1182,7 +1182,6 @@ const makeThread = (scenario: ThreadScenario): AiAgentThread => {
                 })) ?? [],
             savedQueryUuid: null,
             artifacts: null,
-            referencedArtifacts: null,
             modelConfig: {
                 modelName: assistantIndex === 1 ? 'gpt-5' : 'gpt-5-mini',
                 modelProvider: 'openai',
