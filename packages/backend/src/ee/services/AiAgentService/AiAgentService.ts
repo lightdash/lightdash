@@ -130,6 +130,7 @@ import {
     getItemId,
     getItemLabelWithoutTableName,
     getItemMap,
+    getLegacyLiveSourceName,
     getSlackAiEchartsConfig,
     getSlackNativeChart,
     getSlackNativeChartConfigGate,
@@ -156,6 +157,7 @@ import {
     isGitProjectType,
     isJwtUser,
     isMetric,
+    isSemanticStudioThread,
     isSlackMessageTooLongError,
     isSlackPrompt,
     isSqlApprovalToolCall,
@@ -381,7 +383,6 @@ import { developmentView } from '../../../services/ProjectService/developmentVie
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
     describeLiveTarget,
-    getLegacyLiveSourceName,
     getLiveExploreNames,
 } from '../../../services/QuerySourceService/live/explores/build';
 import { type QuerySourceService } from '../../../services/QuerySourceService/QuerySourceService';
@@ -531,6 +532,7 @@ import {
     resolveKeyManagement,
     resolveModelConfigForPrompt,
 } from '../ai/models';
+import { findSemanticStudioPreset } from '../ai/models/modelPreference';
 import {
     OrgAiCopilotConfigResolver,
     type AiConfigScope,
@@ -741,8 +743,11 @@ import { type ExternalConnectionService } from '../ExternalConnectionService/Ext
 import { type MobilePushNotificationService } from '../MobilePushNotificationService/MobilePushNotificationService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import { createReviewRemediationAgentWorkGuard } from '../reviewRemediationAgentWork';
-import { findSemanticStudioPreset } from '../SemanticStudioService/modelPreference';
+import { saveDbtTryOut } from '../SemanticStudioService/dbtTryOut';
+import { type IncrementalDbtCompileService } from '../SemanticStudioService/IncrementalDbtCompileService';
+import { type SemanticStudioCheckoutService } from '../SemanticStudioService/SemanticStudioCheckoutService';
 import { type SemanticStudioService } from '../SemanticStudioService/SemanticStudioService';
+import { worksAsDbtPullRequests } from '../SemanticStudioService/studioProject';
 import {
     parseAgentSelectionValue,
     resolveAgentSelectionPrompt,
@@ -1100,6 +1105,8 @@ type AiAgentServiceDependencies = {
     aiWritebackService: AiWritebackService;
     projectContextService: ProjectContextService;
     semanticStudioService: SemanticStudioService;
+    semanticStudioCheckoutService: SemanticStudioCheckoutService;
+    incrementalDbtCompileService: IncrementalDbtCompileService;
     writebackPreviewService: WritebackPreviewService;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     githubAppService: GithubAppService;
@@ -1486,6 +1493,10 @@ export class AiAgentService extends BaseService {
     private readonly projectContextService: ProjectContextService;
 
     private readonly semanticStudioService: SemanticStudioService;
+
+    private readonly semanticStudioCheckoutService: SemanticStudioCheckoutService;
+
+    private readonly incrementalDbtCompileService: IncrementalDbtCompileService;
 
     private readonly writebackPreviewService: WritebackPreviewService;
 
@@ -2262,6 +2273,10 @@ export class AiAgentService extends BaseService {
         this.aiWritebackService = dependencies.aiWritebackService;
         this.projectContextService = dependencies.projectContextService;
         this.semanticStudioService = dependencies.semanticStudioService;
+        this.semanticStudioCheckoutService =
+            dependencies.semanticStudioCheckoutService;
+        this.incrementalDbtCompileService =
+            dependencies.incrementalDbtCompileService;
         this.writebackPreviewService = dependencies.writebackPreviewService;
         this.githubAppInstallationsModel =
             dependencies.githubAppInstallationsModel;
@@ -5905,7 +5920,7 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        if (body.createdFrom === 'semantic_studio') {
+        if (isSemanticStudioThread(body.createdFrom)) {
             // Only the app starts these; an embed or scheduler keeps its own origin.
             if (createdFrom !== 'web_app') {
                 throw new ParameterError(
@@ -5993,7 +6008,7 @@ export class AiAgentService extends BaseService {
             threadModelConfig: null,
             agentModelConfig: agent.modelConfig,
             requestedModelConfig: body.modelConfig ?? null,
-            prefersStudioModel: body.createdFrom === 'semantic_studio',
+            prefersStudioModel: isSemanticStudioThread(body.createdFrom),
         });
 
         if (body.prompt) {
@@ -6221,7 +6236,7 @@ export class AiAgentService extends BaseService {
                 await this.aiAgentModel.findThreadModelConfig(threadUuid),
             agentModelConfig: agent.modelConfig,
             requestedModelConfig: body.modelConfig ?? null,
-            prefersStudioModel: thread.createdFrom === 'semantic_studio',
+            prefersStudioModel: isSemanticStudioThread(thread.createdFrom),
         });
 
         const messageUuid = await this.aiAgentModel.createWebAppPrompt({
@@ -13603,7 +13618,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             let changedModels: string[] | null = null;
             try {
                 const runArgs = {
-                    ...(prompt.threadCreatedFrom === 'semantic_studio'
+                    ...(isSemanticStudioThread(prompt.threadCreatedFrom)
                         ? { continuesThreadPullRequest: true }
                         : {}),
                     agentPermissionsApply: true,
@@ -13631,7 +13646,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                                         dryRun: false,
                                         assertPublishAllowed,
                                         checkDbt: (change) =>
-                                            this.semanticStudioService.checkDbtScriptChange(
+                                            this.incrementalDbtCompileService.checkDbtScriptChange(
                                                 user,
                                                 projectUuid,
                                                 change,
@@ -13642,21 +13657,22 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                             if (saved?.status === 'saved') {
                                 changedModels = saved.changedModels;
                                 if (saved.explores !== null) {
-                                    await this.semanticStudioService
-                                        .saveDbtScriptTryOut(
-                                            user,
+                                    await saveDbtTryOut(
+                                        this.fileStorageClient,
+                                        {
                                             projectUuid,
-                                            prompt.threadUuid,
-                                            {
-                                                prUrl: saved.result.prUrl,
-                                                explores: saved.explores,
-                                            },
-                                        )
-                                        .catch((error: unknown) => {
-                                            Logger.warn(
-                                                `AiAgent.runEditDbtProjectPipeline: failed to keep the try-out of run ${aiWritebackRunUuid}: ${getErrorMessage(error)}`,
-                                            );
-                                        });
+                                            userUuid: user.userUuid,
+                                        },
+                                        prompt.threadUuid,
+                                        {
+                                            prUrl: saved.result.prUrl,
+                                            explores: saved.explores,
+                                        },
+                                    ).catch((error: unknown) => {
+                                        Logger.warn(
+                                            `AiAgent.runEditDbtProjectPipeline: failed to keep the try-out of run ${aiWritebackRunUuid}: ${getErrorMessage(error)}`,
+                                        );
+                                    });
                                 }
                                 return saved.result;
                             }
@@ -13784,9 +13800,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             if (
                 result.prUrl &&
                 result.commitSha &&
-                prompt.threadCreatedFrom === 'semantic_studio'
+                isSemanticStudioThread(prompt.threadCreatedFrom)
             ) {
-                await this.semanticStudioService
+                await this.semanticStudioCheckoutService
                     .queueBranchCompile(
                         user,
                         projectUuid,
@@ -13847,7 +13863,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     !reviewRemediation
                 ) {
                     // Studio shows the pull request now; building its preview can take a minute.
-                    if (prompt.threadCreatedFrom === 'semantic_studio') {
+                    if (isSemanticStudioThread(prompt.threadCreatedFrom)) {
                         if (assertPublishAllowed) await assertPublishAllowed();
                         await storeResult(null, new Date().toISOString());
                         toolResultWritten = true;
@@ -14787,7 +14803,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                         dryRun: true,
                         assertPublishAllowed: null,
                         checkDbt: (change) =>
-                            this.semanticStudioService.checkDbtScriptChange(
+                            this.incrementalDbtCompileService.checkDbtScriptChange(
                                 user,
                                 projectUuid,
                                 change,
@@ -15180,12 +15196,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         // Studio queries read the person's draft over what is published, the way trying their changes does.
         const inDraft = <T>(run: () => Promise<T>): Promise<T> => {
             let drafted:
-                | ReturnType<SemanticStudioService['findDevelopmentExplores']>
+                | ReturnType<
+                      SemanticStudioCheckoutService['findDevelopmentExplores']
+                  >
                 | undefined;
             // Reading the draft reads the project itself, which must see what is published.
             const findExplores = () => {
                 drafted ??= developmentView.exit(() =>
-                    this.semanticStudioService.findDevelopmentExplores(
+                    this.semanticStudioCheckoutService.findDevelopmentExplores(
                         user,
                         projectUuid,
                     ),
@@ -15220,12 +15238,18 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             );
 
         const verify: VerifyFn = () =>
-            this.semanticStudioService.waitForBranchCompile(user, projectUuid, {
-                threadUuid: prompt.threadUuid,
-                isSaving: () =>
-                    this.aiWritebackService.hasRunInProgress(prompt.threadUuid),
-                timeoutMs: 60_000,
-            });
+            this.semanticStudioCheckoutService.waitForBranchCompile(
+                user,
+                projectUuid,
+                {
+                    threadUuid: prompt.threadUuid,
+                    isSaving: () =>
+                        this.aiWritebackService.hasRunInProgress(
+                            prompt.threadUuid,
+                        ),
+                    timeoutMs: 60_000,
+                },
+            );
 
         // Deterministic project_context.yml writeback (no sandbox). Only wired
         // into review-remediation work threads; the source thread is linked
@@ -16979,14 +17003,15 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 const decisionUsage = decisionClient
                     ? { inputTokens: 0, outputTokens: 0, serviceMs: null }
                     : undefined;
-                const isSemanticStudioThread =
-                    prompt.threadCreatedFrom === 'semantic_studio';
+                const isStudioThread = isSemanticStudioThread(
+                    prompt.threadCreatedFrom,
+                );
                 // Studio never asks, whichever request started the turn.
                 const autoApproveSqlForUser =
-                    (options.autoApproveSql ?? false) || isSemanticStudioThread;
+                    (options.autoApproveSql ?? false) || isStudioThread;
                 // Fast decisions route analytics turns; this thread only edits models.
                 const decisions =
-                    decisionUsage && !isSemanticStudioThread
+                    decisionUsage && !isStudioThread
                         ? decisionClient?.withUsage(decisionUsage)
                         : undefined;
                 const { preModelDecisions, fastExperienceEnabled } =
@@ -17460,7 +17485,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                             agentUuid: agentSettings.uuid,
                             // Studio's loadout takes no MCP tools, so its turns do not wait on those servers.
                             includeAttachedMcpServers:
-                                !isSemanticStudioThread &&
+                                !isStudioThread &&
                                 shouldIncludeAttachedMcpServers(
                                     responseExecution.mode,
                                     responseExecution.mode === 'deep_research'
@@ -17528,7 +17553,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 // Studio's chat offers a change as a choice, so its threads ask without the flag.
                 const enableAskUser =
                     canOfferAskUser(prompt, responseExecution.mode) &&
-                    (isSemanticStudioThread ||
+                    (isStudioThread ||
                         (
                             await this.featureFlagService.get({
                                 user,
@@ -17536,7 +17561,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                             })
                         ).enabled);
                 // A dbt project keeps no draft in Semantic Studio; its thread edits the repository instead.
-                const semanticStudioStatus = isSemanticStudioThread
+                const semanticStudioStatus = isStudioThread
                     ? await this.semanticStudioService.getStatus(
                           user,
                           promptProject.projectUuid,
@@ -17547,20 +17572,18 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     semanticStudioStatus?.appliesAs !== 'live';
                 // Studio saves a dbt change with a script wherever Studio itself is on for the person.
                 const semanticStudioCodeMode =
-                    semanticStudioStatus?.appliesAs === 'dbt_pull_request' &&
-                    semanticStudioStatus.enabled;
+                    semanticStudioStatus !== null &&
+                    worksAsDbtPullRequests(semanticStudioStatus);
                 // A dbt project's layout spares the agent surveying the repository.
-                const semanticStudioProjectMap =
-                    semanticStudioStatus?.appliesAs === 'dbt_pull_request' &&
-                    semanticStudioStatus.enabled
-                        ? await this.semanticStudioService.getDbtProjectMap(
-                              promptProject.projectUuid,
-                          )
-                        : null;
+                const semanticStudioProjectMap = semanticStudioCodeMode
+                    ? await this.incrementalDbtCompileService.getDbtProjectMap(
+                          promptProject.projectUuid,
+                      )
+                    : null;
                 const semanticStudioDrafts =
                     semanticStudioStatus !== null &&
                     semanticStudioStatus.enabled &&
-                    semanticStudioStatus.appliesAs !== 'dbt_pull_request';
+                    !semanticStudioCodeMode;
                 let aiWritebackEnabled = hasTrustedPromptUserIdentity;
                 if (!aiWritebackEnabled) {
                     this.logger.info(
@@ -18083,7 +18106,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     enableGenerateDataApp,
                     enableAiWriteback: aiWritebackEnabled,
                     enableEditProjectContext: isReviewRemediationWorkThread,
-                    isSemanticStudioThread,
+                    isSemanticStudioThread: isStudioThread,
                     semanticStudioDrafts,
                     semanticStudioCodeMode,
                     semanticStudioHasRepository,

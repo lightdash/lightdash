@@ -15,6 +15,7 @@ import {
     getErrorMessage,
     getExplorePrefixError,
     getItemId,
+    getLegacyLiveSourceName,
     getLiveSourceCacheTtlSeconds,
     getLiveSourceErrorOrigin,
     getSalesforceDescribePath,
@@ -97,7 +98,6 @@ import {
 import {
     buildLiveExplores,
     describeLiveTarget,
-    getLegacyLiveSourceName,
     getLiveDefinitionHashes,
     getLiveExploreName,
     getLiveExploreNames,

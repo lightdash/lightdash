@@ -20,7 +20,13 @@ import {
     type KeyboardEvent,
 } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import {
+    getPreAggregateStatus,
+    PRE_AGGREGATE_STATUS,
+} from '../../components/PreAggregateMaterializations/preAggregateStatus';
+import { AddSourceButton } from './AddSourceButton';
 import { DraftMarksContext } from './draftMarks';
+import { LineCounts } from './LineCounts';
 import {
     containerOf,
     flattenTree,
@@ -30,11 +36,12 @@ import {
     type TreeNode,
 } from './model';
 import { CHANGE_KIND_LABELS } from './modelCode';
-import { getPreAggregateStatus } from './preAggregateSummary';
-import { AddSourceButton, NodeIcon, SearchResultsList } from './shared';
+import { SearchResultsList } from './SearchResultsList';
+import { NodeIcon } from './shared';
 import { useAddToStudioChat, startStudioChatRefDrag } from './studioChatRefs';
-import { useProjectSearch, type ViewModel } from './useSemanticStudio';
-import classes from './WorkbenchView.module.css';
+import { useProjectSearch } from './useProjectSearch';
+import { type ViewModel } from './useSemanticStudio';
+import classes from './WorkbenchRail.module.css';
 
 const ROW_HEIGHT = 28;
 
@@ -81,11 +88,11 @@ const ModelLabel: FC<{ model: string; label: string }> = ({ model, label }) =>
 const Tree: FC<{
     view: ViewModel;
     expanded: Set<string>;
-    /** Models this person's draft touches. */
-    drafted: Set<string>;
     onToggle: (key: string) => void;
     onSelect: (node: TreeNode) => void;
-}> = ({ view, expanded, drafted, onToggle, onSelect }) => {
+}> = ({ view, expanded, onToggle, onSelect }) => {
+    // Models this person's draft touches.
+    const drafted = useContext(DraftMarksContext).kinds;
     const canDrag = useAddToStudioChat() !== null;
     const parentRef = useRef<HTMLDivElement>(null);
     const rows = useMemo(
@@ -216,10 +223,9 @@ const Tree: FC<{
 export const Rail: FC<{
     view: ViewModel;
     expanded: Set<string>;
-    drafted: Set<string>;
     onToggle: (key: string) => void;
     onOpen: (ref: NodeRef) => void;
-}> = ({ view, expanded, drafted, onToggle, onOpen }) => {
+}> = ({ view, expanded, onToggle, onOpen }) => {
     const search = useProjectSearch(view.project, view.tree);
     const [activeResult, setActiveResult] = useState(0);
     const { results } = search.results;
@@ -292,7 +298,6 @@ export const Rail: FC<{
                 <Tree
                     view={view}
                     expanded={expanded}
-                    drafted={drafted}
                     onToggle={onToggle}
                     onSelect={(node) => view.select(node.ref)}
                 />
@@ -300,25 +305,6 @@ export const Rail: FC<{
         </Box>
     );
 };
-
-export const LineCounts: FC<{
-    counts: { additions: number; deletions: number } | null;
-}> = ({ counts }) =>
-    counts ? (
-        <Text fz="xs" flex="none">
-            {counts.additions > 0 ? (
-                <Text span inherit c="green.7">
-                    +{counts.additions}
-                </Text>
-            ) : null}
-            {counts.additions > 0 && counts.deletions > 0 ? ' ' : null}
-            {counts.deletions > 0 ? (
-                <Text span inherit c="red.7">
-                    −{counts.deletions}
-                </Text>
-            ) : null}
-        </Text>
-    ) : null;
 
 const sumLineCounts = (
     counts: Map<string, { additions: number; deletions: number }>,
@@ -340,7 +326,6 @@ export const CodeRail: FC<{
     /** The draft's overview, listed first; null with no draft. */
     overview: { isOpen: boolean; onOpen: () => void } | null;
     selected: string | null;
-    drafted: Set<string>;
     /** Lines the draft adds to and removes from each file it changes. */
     lineCounts: Map<string, { additions: number; deletions: number }>;
     /** The pre-aggregate open in the file, so its row reads as selected and not the file's. */
@@ -352,7 +337,6 @@ export const CodeRail: FC<{
     overview,
     selected,
     selectedPart,
-    drafted,
     lineCounts,
     preAggregates,
     onOpen,
@@ -400,14 +384,14 @@ export const CodeRail: FC<{
                         </Text>
                         <LineCounts counts={lineCounts.get(file) ?? null} />
                         {/* The counts already say the file is in your draft. */}
-                        <DraftMarker
-                            model={file}
-                            isMine={drafted.has(file) && !lineCounts.has(file)}
-                        />
+                        <DraftMarker model={file} isMine={false} />
                     </Box>
                     {/* A pre-aggregate lives in its model's file; its row jumps to where it is defined. */}
                     {(preAggregates.get(file) ?? []).map((summary) => {
-                        const status = getPreAggregateStatus(summary);
+                        const status =
+                            PRE_AGGREGATE_STATUS[
+                                getPreAggregateStatus(summary)
+                            ];
                         return (
                             <Tooltip
                                 key={summary.preAggregateDefinitionUuid}

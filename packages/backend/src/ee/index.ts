@@ -145,7 +145,10 @@ import { RoadmapService } from './services/RoadmapService/RoadmapService';
 import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import { ScimService } from './services/ScimService/ScimService';
 import { developmentViewMiddleware } from './services/SemanticStudioService/developmentViewMiddleware';
+import { DraftChecker } from './services/SemanticStudioService/DraftChecker';
+import { IncrementalDbtCompileService } from './services/SemanticStudioService/IncrementalDbtCompileService';
 import { RepoModelSource } from './services/SemanticStudioService/repoModels';
+import { SemanticStudioCheckoutService } from './services/SemanticStudioService/SemanticStudioCheckoutService';
 import { SemanticStudioService } from './services/SemanticStudioService/SemanticStudioService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
 import { CommercialSlackService } from './services/SlackService/SlackService';
@@ -458,13 +461,43 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             models.getGithubAppInstallationsModel(),
                     }),
                     savedChartModel: models.getSavedChartModel(),
+                    aiWritebackService:
+                        repository.getAiWritebackService<AiWritebackService>(),
+                    fileStorageClient: clients.getFileStorageClient(),
+                }),
+            semanticStudioCheckoutService: ({
+                models,
+                repository,
+                clients,
+                context,
+            }) =>
+                new SemanticStudioCheckoutService({
+                    analytics: context.lightdashAnalytics,
+                    studio: repository.getSemanticStudioService<SemanticStudioService>(),
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
+                    projectModel: models.getProjectModel(),
+                    workspaceModel:
+                        models.getSemanticStudioWorkspaceModel<SemanticStudioWorkspaceModel>(),
+                    projectService: repository.getProjectService(),
+                    fileStorageClient: clients.getFileStorageClient(),
                     jobModel: models.getJobModel(),
-                    projectCompileLogModel: models.getProjectCompileLogModel(),
                     writebackPreviewService:
                         repository.getWritebackPreviewService<WritebackPreviewService>(),
                     aiWritebackService:
                         repository.getAiWritebackService<AiWritebackService>(),
+                    incrementalDbtCompile:
+                        repository.getIncrementalDbtCompileService<IncrementalDbtCompileService>(),
+                }),
+            incrementalDbtCompileService: ({ models, repository, clients }) =>
+                new IncrementalDbtCompileService({
+                    projectModel: models.getProjectModel(),
+                    projectService: repository.getProjectService(),
+                    checker: new DraftChecker(repository.getProjectService()),
                     fileStorageClient: clients.getFileStorageClient(),
+                    projectCompileLogModel: models.getProjectCompileLogModel(),
+                    aiWritebackService:
+                        repository.getAiWritebackService<AiWritebackService>(),
                 }),
             homepageRecommendedActionSkipsService: ({ models }) =>
                 new HomepageRecommendedActionSkipsService({
@@ -936,6 +969,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getProjectContextService<ProjectContextService>(),
                     semanticStudioService:
                         repository.getSemanticStudioService<SemanticStudioService>(),
+                    semanticStudioCheckoutService:
+                        repository.getSemanticStudioCheckoutService<SemanticStudioCheckoutService>(),
+                    incrementalDbtCompileService:
+                        repository.getIncrementalDbtCompileService<IncrementalDbtCompileService>(),
                     writebackPreviewService:
                         repository.getWritebackPreviewService<WritebackPreviewService>(),
                     githubAppInstallationsModel:
@@ -1985,6 +2022,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 aiAgentService: context.serviceRepository.getAiAgentService(),
                 semanticStudioService:
                     context.serviceRepository.getSemanticStudioService<SemanticStudioService>(),
+                semanticStudioCheckoutService:
+                    context.serviceRepository.getSemanticStudioCheckoutService<SemanticStudioCheckoutService>(),
+                incrementalDbtCompileService:
+                    context.serviceRepository.getIncrementalDbtCompileService<IncrementalDbtCompileService>(),
                 dataAppAnalysisService:
                     context.serviceRepository.getDataAppAnalysisService<DataAppAnalysisService>(),
                 aiAgentMemoryService:

@@ -628,7 +628,7 @@ import {
     getDatabaseListFailureReason,
     listConnectionDatabases,
 } from './connectionSqlRunner';
-import { developmentView, toExploreSummary } from './developmentView';
+import { developmentView, toExploreSummaryWithAccess } from './developmentView';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
 import { mergePersonalWarehouseCredentials } from './personalWarehouseCredentials';
@@ -14778,7 +14778,7 @@ export class ProjectService
                       ({ name }) => !inDevelopment.has(name),
                   ),
                   ...[...inDevelopment.values()].flatMap((explore) =>
-                      explore ? [toExploreSummary(explore)] : [],
+                      explore ? [toExploreSummaryWithAccess(explore)] : [],
                   ),
               ]
             : liveSummaries;

@@ -1,5 +1,5 @@
-import { diffModelDocuments } from '@lightdash/common';
-import { foldDraft, toDraftEdit } from './draftFold';
+import { diffModelDocuments, toDraftEdit } from '@lightdash/common';
+import { foldDraft } from './draftFold';
 
 const current = `type: model
 name: orders
@@ -56,7 +56,7 @@ joins:
     label: Buyer
 `;
 
-describe('toDraftEdit', () => {
+describe('toDraftEdit with foldDraft', () => {
     it('folds back to exactly what was edited', () => {
         const items = toDraftEdit('orders', current, edited);
         const { writes, results } = foldDraft(new Map([['orders', current]]), [
@@ -68,20 +68,6 @@ describe('toDraftEdit', () => {
         expect(
             diffModelDocuments(writes.get('orders') ?? null, edited),
         ).toEqual([]);
-    });
-
-    it('puts removals first and changes nothing for an edit of comments alone', () => {
-        expect(toDraftEdit('orders', current, `# Note\n${current}`)).toEqual(
-            [],
-        );
-        expect(toDraftEdit('orders', current, edited)[0]).toMatchObject({
-            yaml: null,
-            remove: expect.arrayContaining([
-                'dimensions.customer_id',
-                'dimensions.amount.metrics.order_count',
-                'metrics.average_amount',
-            ]),
-        });
     });
 });
 

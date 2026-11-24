@@ -8,6 +8,7 @@ export { BASES } from './bases';
 export {
     buildLoadout,
     getAvailableSkills,
+    getStudioAbilities,
     resolveLoadout,
     selectLoadoutBase,
 } from './resolveLoadout';

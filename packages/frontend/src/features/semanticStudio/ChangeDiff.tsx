@@ -2,7 +2,7 @@ import { type SemanticLayerModelChange } from '@lightdash/common';
 import { Box, Button, Text, useComputedColorScheme } from '@mantine/core';
 import { MultiFileDiff, Virtualizer } from '@pierre/diffs/react';
 import { useState, type FC } from 'react';
-import { pierreThemeFor } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
+import { pierreThemeFor } from '../writeback/pierreDiffConfig';
 import classes from './ChangeDiff.module.css';
 import { findPeekStart } from './modelCode';
 

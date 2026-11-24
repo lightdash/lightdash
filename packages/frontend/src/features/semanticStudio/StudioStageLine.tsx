@@ -3,23 +3,10 @@ import { Tooltip } from '@mantine/core';
 import { IconArrowUpRight } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { STUDIO_STEPS, type StudioStage } from './studioStage';
 import classes from './StudioStageLine.module.css';
 
-/** Where a workspace's changes stand, from first proposed to live. */
-export type StudioStage =
-    | { step: 'proposed' }
-    | { step: 'saving' }
-    | { step: 'in_review'; pullRequestNumber: string | null }
-    | { step: 'closed'; pullRequestNumber: string | null }
-    | {
-          step: 'live';
-          /** How its update for everyone is going, when this tab merged it. */
-          update: 'unknown' | 'running' | 'failed' | 'done';
-      };
-
 type StepState = 'done' | 'now' | 'busy' | 'stopped' | 'todo';
-
-const STEPS = ['Proposed', 'Saved', 'In review', 'Published'] as const;
 
 const withNumber = (label: string, pullRequestNumber: string | null) =>
     pullRequestNumber ? `${label} #${pullRequestNumber}` : label;
@@ -82,7 +69,10 @@ export const StudioStageLine: FC<{
 }> = ({ stage, href }) => {
     const { index, label, state } = positionOf(stage);
     // A closed change has nowhere left to go, so its path ends where it stopped.
-    const steps = STEPS.slice(0, state === 'stopped' ? index + 1 : undefined);
+    const steps = STUDIO_STEPS.slice(
+        0,
+        state === 'stopped' ? index + 1 : undefined,
+    );
     const stateOf = (i: number): StepState =>
         i < index ? 'done' : i === index ? state : 'todo';
     // An ended change needs only its label; the path stays in the tooltip.

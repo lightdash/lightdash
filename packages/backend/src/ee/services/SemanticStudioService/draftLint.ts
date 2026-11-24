@@ -1,9 +1,12 @@
 import {
+    getItemId,
     MetricType,
     parseModelDocument,
+    parseModelPartPath,
     type DimensionType,
     type LightdashModel,
     type LightdashModelMetric,
+    type ModelFragmentChange,
 } from '@lightdash/common';
 import { isEqual } from 'es-toolkit/compat';
 import { toModelPath } from './draftFold';
@@ -88,35 +91,38 @@ export const findNewModelAdvice = (
     ];
 };
 
-const METRIC_PATH = /(?:^|\.)metrics\.(\w+)(\.|$)/;
 const MAX_METRICS_TO_RUN = 10;
 
 /** The metrics a write adds or defines differently, as field ids: the ones worth running once on real rows. */
 export const findMetricsToRun = (
     name: string,
-    changes: { path: string; action: string }[],
+    changes: Pick<ModelFragmentChange, 'path' | 'action'>[],
     createdContents: string | null,
 ): string[] => {
     const metrics =
         createdContents === null
             ? changes.flatMap(({ path, action }) => {
-                  const [, metric, deeper] = METRIC_PATH.exec(path) ?? [];
+                  const part = parseModelPartPath(path);
+                  if (part?.part !== 'entry' || part.group !== 'metrics') {
+                      return [];
+                  }
                   // A label or description leaves the number alone, and a removed metric has none.
                   const changesTheNumber =
                       action !== 'patched' &&
-                      !(action === 'removed' && deeper === '');
-                  return metric && changesTheNumber ? [metric] : [];
+                      !(action === 'removed' && part.key === null);
+                  return changesTheNumber ? [part.name] : [];
               })
             : metricsOf(
                   parseModelDocument(createdContents, toModelPath(name)),
               ).map(([metric]) => metric);
     return [...new Set(metrics)]
         .slice(0, MAX_METRICS_TO_RUN)
-        .map((metric) => `${name}_${metric}`);
+        .map((metric) => getItemId({ table: name, name: metric }));
 };
 
 const COLUMN_REFERENCE = /\$\{TABLE\}\.(\w+)/g;
-const PLAIN_COLUMN = /^\s*\$\{TABLE\}\.(\w+)\s*$/;
+// A dimension that reads a column as it is, so the column's type is its type.
+export const PLAIN_COLUMN = /^\s*\$\{TABLE\}\.(\w+)\s*$/;
 const MAX_LISTED_COLUMNS = 30;
 
 /** Why a model does not fit its table as the catalog describes it: a column that is not there, or a new dimension typed differently from its column. */
