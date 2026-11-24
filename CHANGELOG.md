@@ -1,3 +1,10 @@
+# [3.383.0](https://github.com/lightdash/lightdash/compare/3.382.0...3.383.0) (2026-11-24)
+
+
+### Features
+
+* **live-sources:** test access from the Access card when adding a source and in settings ([#33307](https://github.com/lightdash/lightdash/issues/33307)) ([a0e7845](https://github.com/lightdash/lightdash/commit/a0e7845648c0ea0ae4f0d228ecf5fa7e45b1a060))
+
 # [3.382.0](https://github.com/lightdash/lightdash/compare/3.381.3...3.382.0) (2026-11-24)
 
 
