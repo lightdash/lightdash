@@ -217,6 +217,56 @@ describe('getProposeSemanticLayerChange', () => {
         });
 
         it.each([
+            ['an imported metric view', table, false],
+            ['a new model written as yaml', null, true],
+        ])(
+            'gives primary key advice for %s only when it is not a metric view',
+            async (_, fromMetricView, advisesKey) => {
+                described = metricView(true);
+                const created = `type: model
+name: orders
+sql_from: public.orders
+dimensions:
+  - name: id
+    type: number
+    sql: \${TABLE}.id
+`;
+                const output = await propose(
+                    async () => ({
+                        results: [
+                            {
+                                model: 'orders',
+                                status: 'ready',
+                                changes: [
+                                    { path: 'orders', action: 'created' },
+                                ],
+                                refusals: [],
+                                error: null,
+                                rejection: null,
+                                notes: [],
+                            },
+                        ],
+                        diffs: [
+                            {
+                                model: 'orders',
+                                contentBefore: null,
+                                contentAfter: created,
+                            },
+                        ],
+                        draftChangeUuid: 'draft-1',
+                        startedChange: null,
+                    }),
+                    fromMetricView === null ? created : null,
+                    false,
+                    fromMetricView,
+                );
+                expect(output.result.includes('no primary_key')).toBe(
+                    advisesKey,
+                );
+            },
+        );
+
+        it.each([
             [
                 'a table that is not a metric view',
                 false,

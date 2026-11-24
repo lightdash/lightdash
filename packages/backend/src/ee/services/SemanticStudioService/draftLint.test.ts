@@ -62,7 +62,7 @@ metrics:
 `;
 
     it('names a missing primary key and metrics without a description', () => {
-        expect(findNewModelAdvice('orders', base)).toEqual([
+        expect(findNewModelAdvice('orders', base, false)).toEqual([
             'no primary_key: set it to the columns that identify one row; it is checked on the warehouse',
             'no description on total: say in one sentence what each measures',
         ]);
@@ -73,7 +73,14 @@ metrics:
             findNewModelAdvice(
                 'orders',
                 `${base}    description: Sum of ids\nprimary_key: id\n`,
+                false,
             ),
         ).toEqual([]);
+    });
+
+    it('asks no primary key of a model on a metric view', () => {
+        expect(findNewModelAdvice('orders', base, true)).toEqual([
+            'no description on total: say in one sentence what each measures',
+        ]);
     });
 });
