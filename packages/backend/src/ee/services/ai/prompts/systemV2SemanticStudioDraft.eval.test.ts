@@ -108,7 +108,7 @@ const runAsk = async (prompt: string, rejectWith: string | null) => {
             studio: {
                 kind: 'draft',
                 canQueryDraft: false,
-                hasRepository: true,
+                canDraftContext: false,
             },
         }),
         prompt,

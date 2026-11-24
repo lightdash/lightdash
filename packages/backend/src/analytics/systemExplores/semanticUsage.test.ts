@@ -91,7 +91,7 @@ const event = (
         isPreviewProject: false,
         status: error ? 'error' : 'success',
         context: QueryExecutionContext.EXPLORE,
-        onboardingFlow: 'legacy',
+        onboardingFlow: 'new',
         exploreName: 'table1',
         chartId: 'chart',
         dashboardId: 'dashboard',

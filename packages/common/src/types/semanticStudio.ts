@@ -2,6 +2,7 @@ import {
     type ModelFragmentChange,
     type ModelFragmentRefusal,
 } from '../lightdash/applyModelFragment';
+import assertUnreachable from '../utils/assertUnreachable';
 import { type ApiSuccess } from './api/success';
 import { type UUID } from './api/uuid';
 import { type CiChecks } from './ci';
@@ -153,6 +154,61 @@ export type SemanticLayerDraftItemResult = {
     notes: string[];
 };
 
+/** Why a draft check left a model out; `detail` is the check's or the warehouse's own words. */
+export type SemanticStudioRejection =
+    | { kind: 'query_builder'; detail: string }
+    | { kind: 'warehouse_refused'; detail: string }
+    | { kind: 'breaks_joining_model'; models: string[]; detail: string }
+    | { kind: 'access_change'; fields: string[]; detail: null }
+    | { kind: 'already_failing'; detail: string };
+
+/** One plain sentence on why a model was left out. */
+export const summarizeSemanticStudioRejection = (
+    model: string,
+    rejection: SemanticStudioRejection,
+): string => {
+    switch (rejection.kind) {
+        case 'query_builder':
+            return `${model} can't be used in a query as written.`;
+        case 'warehouse_refused':
+            return `The warehouse refused ${model} when it was checked.`;
+        case 'breaks_joining_model':
+            return `This change would break ${rejection.models.join(', ')}, so ${model} was not added.`;
+        case 'access_change':
+            return `This would change who can see ${rejection.fields.join(', ')} in ${model}, which can't be changed here.`;
+        case 'already_failing':
+            return `${model} was already failing the warehouse check before this change, and the parts it changes fail too.`;
+        default:
+            return assertUnreachable(rejection, 'Unknown rejection kind');
+    }
+};
+
+/** The sentence and the detail behind it, as the agent and a publish failure read it. */
+export const formatSemanticStudioRejection = (
+    model: string,
+    rejection: SemanticStudioRejection,
+): string =>
+    [summarizeSemanticStudioRejection(model, rejection), rejection.detail]
+        .filter(Boolean)
+        .join(' ');
+
+/** Whether asking the agent can fix a rejection; it cannot change access rules or a model that already fails. */
+export const canAgentFixRejection = (
+    kind: SemanticStudioRejection['kind'],
+): boolean => {
+    switch (kind) {
+        case 'query_builder':
+        case 'warehouse_refused':
+        case 'breaks_joining_model':
+            return true;
+        case 'access_change':
+        case 'already_failing':
+            return false;
+        default:
+            return assertUnreachable(kind, 'Unknown rejection kind');
+    }
+};
+
 /** How one model's part of a proposal fared: it joins the draft whole or not at all, so only a failed part carries refusals. */
 export type SemanticLayerProposalItemResult =
     | {
@@ -161,6 +217,7 @@ export type SemanticLayerProposalItemResult =
           changes: ModelFragmentChange[];
           refusals: [];
           error: null;
+          rejection: null;
           notes: string[];
       }
     | {
@@ -169,6 +226,7 @@ export type SemanticLayerProposalItemResult =
           changes: [];
           refusals: [];
           error: null;
+          rejection: null;
           notes: [];
       }
     | {
@@ -177,6 +235,8 @@ export type SemanticLayerProposalItemResult =
           changes: [];
           refusals: ModelFragmentRefusal[];
           error: string;
+          /** Null when the change could not be applied to the model, before any check ran. */
+          rejection: SemanticStudioRejection | null;
           notes: [];
       };
 
@@ -205,6 +265,8 @@ export type SemanticLayerDraftChange = {
         /** Why this no longer applies to what is live; null when it does. */
         error: string | null;
     }[];
+    /** Ids of the project context entries this change adds or replaces. */
+    projectContextEntries: string[];
 };
 
 /** A part of a model that changed live and that the draft changes too, with each side's version of it as YAML. */
@@ -275,10 +337,22 @@ export type SemanticLayerInReviewModel = {
     contentAfter: string | null;
 };
 
+/** The project context file in a draft, under a name no model can take since model names have no dots. */
+export const SEMANTIC_STUDIO_PROJECT_CONTEXT_FILE = 'lightdash.project_context';
+
+/** What the draft does to the project's context, as its file; publishing makes it what agents read. */
+export type SemanticLayerDraftProjectContext = {
+    /** Null when the project has no context yet. */
+    contentBefore: string | null;
+    contentAfter: string;
+};
+
 export type SemanticLayerDraft = {
     /** Oldest first: each builds on the ones before it. */
     changes: SemanticLayerDraftChange[];
     models: SemanticLayerDraftModel[];
+    /** Null when the draft leaves the project context as it is. */
+    projectContext: SemanticLayerDraftProjectContext | null;
     /** Models the draft leaves unable to compile. */
     errors: { model: string; message: string }[];
     settled: SemanticLayerSettledDraftChange[];

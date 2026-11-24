@@ -14,7 +14,6 @@ import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { z } from 'zod';
-import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
 import { usePasswordResetLinkMutation } from '../hooks/usePasswordReset';
 import useApp from '../providers/App/useApp';
 
@@ -22,8 +21,6 @@ type RecoverPasswordForm = { email: string };
 
 export const PasswordRecoveryForm: FC = () => {
     const { health } = useApp();
-    const { isNewLayout } = useAuthLayoutVariant();
-    const textAlign = isNewLayout ? 'left' : 'center';
     const form = useForm<RecoverPasswordForm>({
         initialValues: {
             email: '',
@@ -42,10 +39,10 @@ export const PasswordRecoveryForm: FC = () => {
         <div>
             {!isSuccess ? (
                 <>
-                    <Title order={3} ta={textAlign} mb="sm">
+                    <Title order={3} ta="left" mb="sm">
                         Forgot your password?
                     </Title>
-                    <Text ta={textAlign} mb="md" c="dimmed">
+                    <Text ta="left" mb="md" c="dimmed">
                         Enter your email address and we’ll send you a password
                         reset link
                     </Text>
@@ -84,10 +81,10 @@ export const PasswordRecoveryForm: FC = () => {
                 </>
             ) : (
                 <>
-                    <Title order={3} ta={textAlign} mb="sm">
+                    <Title order={3} ta="left" mb="sm">
                         Check your inbox!
                     </Title>
-                    <Text ta={textAlign} mb="lg" c="dimmed">
+                    <Text ta="left" mb="lg" c="dimmed">
                         We have emailed you instructions about how to reset your
                         password. Haven’t received anything yet?
                     </Text>

@@ -40,6 +40,8 @@ type ApiSourceFieldDefinition = {
     sql?: string;
     /** Set from an admin's edits; built-in and scanned fields have none. */
     aiHint?: string;
+    /** Display labels by internal value, for fields that show an option's label. */
+    valueLabels?: Record<string, string>;
     groups?: string[];
 };
 
@@ -226,6 +228,9 @@ export const buildLiveExplore = ({
                     {
                         apiName: field.apiName,
                         filterOperators: field.filterOperators,
+                        ...(field.valueLabels
+                            ? { valueLabels: field.valueLabels }
+                            : {}),
                     },
                 ]),
             ),

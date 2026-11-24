@@ -7,14 +7,11 @@ import {
     Group,
     Stack,
     Text,
-    Title,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import AuthLayout from '../components/common/AuthLayout';
-import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
-import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import PageSpinner from '../components/PageSpinner';
 import { useOrganizationCreateMutation } from '../hooks/organization/useOrganizationCreateMutation';
@@ -26,7 +23,6 @@ import styles from './JoinOrganization.module.css';
 
 const JoinOrganizationPage: FC = () => {
     const { health, user } = useApp();
-    const { isNewLayout } = useAuthLayoutVariant();
     const navigate = useNavigate();
     const { isInitialLoading: isLoadingAllowedOrgs, data: allowedOrgs } =
         useAllowedOrganizations();
@@ -90,29 +86,14 @@ const JoinOrganizationPage: FC = () => {
             />
         );
 
-        return isNewLayout ? (
-            <AuthLayout pageTitle="Join a workspace" withLegacyCard={false}>
-                {errorState}
-            </AuthLayout>
-        ) : (
-            <Page
-                title="Join a workspace"
-                withCenteredContent
-                withNavbar={false}
-            >
-                <Stack mt="4xl">{errorState}</Stack>
-            </Page>
+        return (
+            <AuthLayout pageTitle="Join a workspace">{errorState}</AuthLayout>
         );
     }
 
     const orgList = (
         <Stack justify="center" gap="md" mb="xs">
-            {!isNewLayout && (
-                <Title order={3} ta="center">
-                    Join a workspace
-                </Title>
-            )}
-            <Text c="dimmed" ta={isNewLayout ? 'left' : 'center'}>
+            <Text c="dimmed" ta="left">
                 The workspaces below are open to anyone with a{' '}
                 <Text span fw={600}>
                     @{emailDomain}
@@ -150,8 +131,7 @@ const JoinOrganizationPage: FC = () => {
     return (
         <AuthLayout
             pageTitle="Join a workspace"
-            title={isNewLayout ? 'Join a workspace' : undefined}
-            withLegacyCard={false}
+            title="Join a workspace"
             footer={
                 <Anchor
                     className={disabled ? styles.disabledAnchor : undefined}
@@ -164,13 +144,7 @@ const JoinOrganizationPage: FC = () => {
                 </Anchor>
             }
         >
-            {isNewLayout ? (
-                orgList
-            ) : (
-                <Card p="xl" radius="md">
-                    {orgList}
-                </Card>
-            )}
+            {orgList}
         </AuthLayout>
     );
 };

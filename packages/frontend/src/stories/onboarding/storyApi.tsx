@@ -3,7 +3,6 @@ import {
     DbtProjectType,
     getSlackFeatureAvailability,
     type SlackSettings,
-    FeatureFlags,
     LightdashMode,
     ProjectType,
     WarehouseTypes,
@@ -120,8 +119,6 @@ export const storyProject = {
     provisioningSource: null,
 };
 
-const ENABLED_FLAGS: string[] = [FeatureFlags.NewOnboarding];
-
 export type StubRequest = {
     method: string;
     path: string;
@@ -201,7 +198,7 @@ const defaultRoutes = (): StubRoutes => ({
     },
     'GET /feature-flag/:flagId': ({ params }: StubRequest) => ({
         id: params.flagId,
-        enabled: ENABLED_FLAGS.includes(params.flagId),
+        enabled: false,
     }),
 });
 

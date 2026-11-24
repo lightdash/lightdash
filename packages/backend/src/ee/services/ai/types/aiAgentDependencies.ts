@@ -63,6 +63,7 @@ import {
     WarehouseTableMetadata,
     WarehouseTablesCatalog,
     WarehouseTypes,
+    type ProjectContextWritebackEntry,
     type SqlApprovalToolName,
 } from '@lightdash/common';
 import {
@@ -955,6 +956,17 @@ export type ReadPinnedThreadFn = (args: { threadUuid: string }) => Promise<
         createdAt: string;
     }[]
 >;
+
+/** Adds or replaces one project context entry in the person's draft. */
+export type DraftProjectContextFn = (
+    entry: ProjectContextWritebackEntry,
+    changeName: string | null,
+) => Promise<{
+    entryId: string;
+    op: 'create' | 'update';
+    draftChangeUuid: string;
+    startedChange: { workspaceUuid: string; name: string } | null;
+}>;
 
 /**
  * Run one read-only shell command over the documents the user attached to
