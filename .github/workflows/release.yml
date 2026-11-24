@@ -270,4 +270,10 @@ jobs:
               continue
             fi
             pnpm dist-tag add "$pkg@$VERSION" "$TAG"
+            for _ in 1 2 3 4 5 6; do
+              after=$(curl -fsS "https://registry.npmjs.org/-/package/$pkg/dist-tags" | jq -r --arg tag "$TAG" '.[$tag] // ""')
+              [ "$after" = "$VERSION" ] && break
+              sleep 5
+            done
+            [ "$after" = "$VERSION" ] || { echo "::error::$pkg: $TAG reads '$after' after the move, expected $VERSION"; exit 1; }
           done
