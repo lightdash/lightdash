@@ -1,10 +1,8 @@
-import { FeatureFlags } from '@lightdash/common';
 import { type ReactElement } from 'react';
 import { Navigate } from 'react-router';
 import PageSpinner from '../components/PageSpinner';
 import useApp from '../providers/App/useApp';
 import { type UserWithAbility } from './user/useUser';
-import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 type OnboardingPageGuardResult =
     | { status: 'blocked'; element: ReactElement }
@@ -12,7 +10,6 @@ type OnboardingPageGuardResult =
 
 export const useOnboardingPageGuard = (): OnboardingPageGuardResult => {
     const { health, user } = useApp();
-    const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
 
     if (health.isInitialLoading || health.error) {
         return { status: 'blocked', element: <PageSpinner /> };
@@ -22,7 +19,7 @@ export const useOnboardingPageGuard = (): OnboardingPageGuardResult => {
         return { status: 'blocked', element: <Navigate to="/login" /> };
     }
 
-    if (user.isInitialLoading || orgSetupPageFlag.isLoading) {
+    if (user.isInitialLoading) {
         return { status: 'blocked', element: <PageSpinner /> };
     }
 
@@ -35,10 +32,6 @@ export const useOnboardingPageGuard = (): OnboardingPageGuardResult => {
             status: 'blocked',
             element: <Navigate to="/join-organization" />,
         };
-    }
-
-    if (!orgSetupPageFlag.data?.enabled) {
-        return { status: 'blocked', element: <Navigate to="/" /> };
     }
 
     return { status: 'ready', user: user.data };

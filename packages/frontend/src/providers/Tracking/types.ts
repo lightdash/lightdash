@@ -27,6 +27,7 @@ import {
     type PageType,
     type SectionName,
 } from '../../types/Events';
+import { type OnboardingFlow } from './onboardingFlow';
 
 type GenericEvent = {
     name:
@@ -966,7 +967,7 @@ type CreateProjectButtonClickedEvent = {
         warehouse: WarehouseTypes;
         authenticationType?: string;
         warehouseOnly?: boolean;
-        onboardingFlow: 'legacy' | 'new';
+        onboardingFlow: OnboardingFlow;
     };
 };
 
@@ -988,7 +989,7 @@ type CreateProjectFailedEvent = {
         failedStep: JobStepType | null;
         errorCategory: CreateProjectErrorCategory;
         warehouseOnly: boolean;
-        onboardingFlow: 'legacy' | 'new';
+        onboardingFlow: OnboardingFlow;
     };
 };
 
@@ -996,7 +997,7 @@ type SignupFormSubmittedEvent = {
     name: EventName.SIGNUP_FORM_SUBMITTED;
     properties: {
         variant: 'email_only' | 'password';
-        onboardingFlow: 'legacy' | 'new';
+        onboardingFlow: OnboardingFlow;
     };
 };
 
@@ -1064,7 +1065,7 @@ type OnboardingWarehouseSelectedEvent = {
         organizationId: string | null;
         warehouse: string;
         tier: 'popular' | 'all' | 'other';
-        onboardingFlow: 'legacy' | 'new';
+        onboardingFlow: OnboardingFlow;
     };
 };
 
@@ -1088,7 +1089,7 @@ type BigquerySsoSigninCompletedEvent = {
 type SnowflakeCliSsoCommandCopiedEvent = {
     name: EventName.SNOWFLAKE_CLI_SSO_COMMAND_COPIED;
     properties: {
-        onboardingFlow: 'legacy' | 'new';
+        onboardingFlow: OnboardingFlow;
     };
 };
 
@@ -1096,7 +1097,7 @@ type SnowflakeCliSsoConnectCompletedEvent = {
     name: EventName.SNOWFLAKE_CLI_SSO_CONNECT_COMPLETED;
     properties: {
         success: boolean;
-        onboardingFlow: 'legacy' | 'new';
+        onboardingFlow: OnboardingFlow;
     };
 };
 
@@ -1105,7 +1106,7 @@ type OnboardingProjectReadyStartExploringClickedEvent = {
     properties: {
         organizationId: string | null;
         projectId: string;
-        onboardingFlow: 'legacy' | 'new';
+        onboardingFlow: OnboardingFlow;
     };
 };
 

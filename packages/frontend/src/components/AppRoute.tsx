@@ -1,15 +1,10 @@
 import { subject } from '@casl/ability';
-import {
-    FeatureFlags,
-    type Organization,
-    ProjectType,
-} from '@lightdash/common';
+import { type Organization, ProjectType } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRef, type FC } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { useHomepageBuilderFlag } from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
 import { useOrganization } from '../hooks/organization/useOrganization';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import { getNoProjectPath } from '../utils/noProjectPath';
 import ErrorState from './common/ErrorState';
@@ -33,7 +28,6 @@ const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
             : undefined,
     );
     const homepageBuilderFlag = useHomepageBuilderFlag();
-    const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
 
     if (health.isInitialLoading || orgRequest.isInitialLoading) {
         return <PageSpinner />;
@@ -53,7 +47,6 @@ const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
         if (
             (mustConfirmNoProjectRef.current && orgRequest.isFetching) ||
             homepageBuilderFlag.isLoading ||
-            orgSetupPageFlag.isLoading ||
             user.isInitialLoading
         ) {
             return <PageSpinner />;
@@ -70,7 +63,6 @@ const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
 
         if (canCreateProject) {
             const pathname = getNoProjectPath({
-                isNewOnboardingEnabled: orgSetupPageFlag.data?.enabled ?? false,
                 isHomepageBuilderEnabled: homepageBuilderFlag.isEnabled,
             });
             return <Navigate to={{ pathname }} state={{ from: location }} />;

@@ -178,9 +178,9 @@ const configureSnowflakeWarehouse = async (
     config: (typeof warehouseConfig)['snowflake'],
 ) => {
     await page.locator('input[name="warehouse.account"]').fill(config.account);
-    await page.locator('input[name="warehouse.user"]').fill(config.user);
-
+    // New projects open in CLI SSO mode, which hides the user field
     await selectMantine(page, 'warehouse.authenticationType', 'Password');
+    await page.locator('input[name="warehouse.user"]').fill(config.user);
 
     await page
         .locator('input[name="warehouse.password"]')

@@ -1,5 +1,4 @@
 import { Ability } from '@casl/ability';
-import { FeatureFlags } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
@@ -83,12 +82,6 @@ const setup = ({
         if (url === ORG_URL) {
             return Promise.resolve(organization(serverNeedsProject));
         }
-        if (url === `/feature-flag/${FeatureFlags.NewOnboarding}`) {
-            return Promise.resolve({
-                id: FeatureFlags.NewOnboarding,
-                enabled: true,
-            });
-        }
         if (url === '/org/homepage-settings') {
             return Promise.resolve(HOMEPAGE_OFF);
         }
@@ -103,10 +96,6 @@ const setup = ({
     );
     if (primeFlagCache) {
         queryClient.setQueryData(['org_homepage_settings'], HOMEPAGE_OFF);
-        queryClient.setQueryData(['feature-flag', FeatureFlags.NewOnboarding], {
-            id: FeatureFlags.NewOnboarding,
-            enabled: true,
-        });
     }
 
     render(
