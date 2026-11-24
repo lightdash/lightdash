@@ -39,26 +39,31 @@ export const listProposalIssues = (
         })),
     ]);
 
-/** A turn's issues across its proposals; a model that failed and the agent went on to fix in the same turn has none. */
+/** A turn's issues across its proposals; a failed model's error goes once a later proposal changes it, and each refusal once a later one changes that part. */
 export const listTurnIssues = (
     proposals: Pick<SemanticLayerProposal, 'models'>[],
 ): Issue[] =>
     proposals.flatMap((proposal, index) => {
-        const failed = new Set(
-            proposal.models
-                .filter(({ status }) => status === 'failed')
-                .map(({ model }) => model),
-        );
-        const isFixedLater = (model: string) =>
+        const changedLater = (model: string) =>
             proposals
                 .slice(index + 1)
-                .some(({ models }) =>
-                    models.some(
-                        (later) =>
-                            later.model === model && later.status === 'ready',
+                .flatMap(({ models }) => models)
+                .filter(
+                    (later) =>
+                        later.model === model && later.status === 'ready',
+                )
+                .flatMap(({ changes }) => changes.map(({ path }) => path));
+        return listProposalIssues({
+            models: proposal.models.map((item) => {
+                if (item.status !== 'failed') return item;
+                const changed = changedLater(item.model);
+                return {
+                    ...item,
+                    error: changed.length > 0 ? null : item.error,
+                    refusals: item.refusals.filter(
+                        ({ path }) => !changed.includes(path),
                     ),
-                );
-        return listProposalIssues(proposal).filter(
-            ({ model }) => !(failed.has(model) && isFixedLater(model)),
-        );
+                };
+            }),
+        });
     });
