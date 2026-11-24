@@ -36,6 +36,7 @@ import {
     DucklakeCatalogType,
     DucklakeDataPathType,
     EMPTY_WAREHOUSE_LOCATION,
+    ExploreSplitError,
     ExploreType,
     FeatureFlags,
     FieldType,
@@ -461,9 +462,10 @@ const projectModel = {
             ),
         },
     })),
-    findExploreSplitCandidates: vi.fn<
-        ProjectModel['findExploreSplitCandidates']
-    >(async () => []),
+    getMissingExploreError: vi.fn<ProjectModel['getMissingExploreError']>(
+        async (_projectUuid, exploreName) =>
+            new NotFoundError(`Explore "${exploreName}" does not exist.`),
+    ),
     createVirtualView: vi.fn<ProjectModel['createVirtualView']>(
         async (_projectUuid, payload, builder) =>
             createVirtualView(
@@ -10201,40 +10203,24 @@ describe('ProjectService', () => {
             ).rejects.toThrow('does not exist');
         });
 
-        test('returns split candidates when the requested explore name was qualified', async () => {
+        test('throws why the explore is missing, such as a split', async () => {
             vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce(
                 [],
             );
+            const splitError = new ExploreSplitError('orders', [
+                'sourceA__orders',
+                'sourceB__orders',
+            ]);
             vi.mocked(
-                projectModel.findExploreSplitCandidates,
-            ).mockResolvedValueOnce(['sourceA__orders', 'sourceB__orders']);
+                projectModel.getMissingExploreError,
+            ).mockResolvedValueOnce(splitError);
 
             await expect(
                 service.getExplore(account, projectUuid, 'orders'),
-            ).rejects.toMatchObject({
-                name: 'NotFoundError',
-                data: {
-                    exploreName: 'orders',
-                    candidateExploreNames: [
-                        'sourceA__orders',
-                        'sourceB__orders',
-                    ],
-                },
-            });
-        });
-
-        test('keeps the plain not found error when the explore was not split', async () => {
-            vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce(
-                [],
-            );
-            vi.mocked(
-                projectModel.findExploreSplitCandidates,
-            ).mockResolvedValueOnce([]);
-
-            await expect(
-                service.getExplore(account, projectUuid, 'orders'),
-            ).rejects.toEqual(
-                new NotFoundError('Explore "orders" does not exist.'),
+            ).rejects.toBe(splitError);
+            expect(projectModel.getMissingExploreError).toHaveBeenCalledWith(
+                projectUuid,
+                'orders',
             );
         });
 

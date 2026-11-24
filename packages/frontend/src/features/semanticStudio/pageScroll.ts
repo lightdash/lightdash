@@ -41,7 +41,8 @@ export const usePageVirtualizer = <T extends HTMLElement>(
         const observer = new ResizeObserver(measure);
         Array.from(page.children).forEach((child) => observer.observe(child));
         return () => observer.disconnect();
-    }, [page, listRef]);
+        // A new row count (Show hidden, a search) can move the list too.
+    }, [page, listRef, options.count]);
     return useVirtualizer({
         ...options,
         getScrollElement: () => page ?? listRef.current,

@@ -15,10 +15,14 @@ import {
     type LiveSourceFieldEdits,
     type LiveSourceFieldState,
 } from '../../../services/QuerySourceService/live/explores/fields';
+import { POSTHOG_EVENTS_EXPLORE } from '../../../services/QuerySourceService/live/integrations/postHog/explores';
 import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
-import { type DeletedLiveSource } from '../../models/ExternalConnectionModel';
+import {
+    type DeletedLiveSource,
+    type LiveSourceEdits,
+} from '../../models/ExternalConnectionModel';
 import { ExternalConnectionService } from './ExternalConnectionService';
 
 vi.mock('../../../utils/secureFetch/secureFetch', async (importOriginal) => {
@@ -88,6 +92,7 @@ const buildService = ({
     let fieldState: LiveSourceFieldState = {
         lastScan: null,
         fields: null,
+        explores: {},
         aiHint: null,
         targetLabel: null,
     };
@@ -186,7 +191,11 @@ const buildService = ({
         restoreLiveSourceDetails: vi.fn().mockResolvedValue(undefined),
         saveLiveSourceTargetLabel: vi.fn().mockResolvedValue(undefined),
         withLiveSourceBuildLock: vi.fn(
-            async (_uuid: string, rebuild: () => Promise<unknown>) => rebuild(),
+            async (
+                _uuid: string,
+                rebuild: (trx: unknown) => Promise<unknown>,
+                trx?: unknown,
+            ) => rebuild(trx ?? { id: 'build-trx' }),
         ),
         listLiveSourceRefs: vi.fn().mockResolvedValue([]),
         getLiveSourceFieldState: vi
@@ -205,25 +214,34 @@ const buildService = ({
                     fields: fieldState.fields ?? fields,
                 };
             }),
-        updateLiveSourceFieldEdits: vi
+        updateLiveSourceEdits: vi
             .fn()
             .mockImplementation(
                 async (
                     _uuid: string,
-                    update: (
-                        current: LiveSourceFieldEdits,
-                    ) => LiveSourceFieldEdits,
+                    update: (current: LiveSourceEdits) => LiveSourceEdits,
                 ) => {
-                    fieldState = {
-                        ...fieldState,
-                        fields: update(fieldState.fields ?? {}),
-                    };
+                    const next = update({
+                        fields: fieldState.fields ?? {},
+                        explores: fieldState.explores,
+                    });
+                    fieldState = { ...fieldState, ...next };
                 },
             ),
     };
     const savedChartModel = {
         getChartCountPerField: vi.fn().mockResolvedValue([]),
         getChartCountForExplores: vi.fn().mockResolvedValue(chartCount),
+        getContentOnExplore: vi
+            .fn()
+            .mockResolvedValue({ charts: [], dashboards: [] }),
+    };
+    const spacePermissionService = {
+        getAccessibleSpaceUuids: vi
+            .fn()
+            .mockImplementation(async (_action, _user, spaceUuids: string[]) =>
+                spaceUuids.filter((uuid) => uuid !== 'private-space'),
+            ),
     };
     const analytics = { track: vi.fn(), trackAccount: vi.fn() };
     const schedulerClient = {
@@ -245,6 +263,7 @@ const buildService = ({
     const service = new ExternalConnectionService({
         projectModel,
         savedChartModel,
+        spacePermissionService,
         allowedPrivateHostCidrs: {},
         externalConnectionModel,
         analytics,
@@ -1270,6 +1289,7 @@ describe('ExternalConnectionService live source explores', () => {
                 expect.stringContaining('One query reads at most'),
                 'PostHog project 303731, EU region',
                 'EU project',
+                POSTHOG_EVENTS_EXPLORE.aiHint,
             ]);
         });
 
@@ -1300,6 +1320,7 @@ describe('ExternalConnectionService live source explores', () => {
                 externalConnectionUuid: 'conn-1',
                 projectUuid: 'proj-1',
                 connector: ApiConnectorType.POSTHOG,
+                switchedOffModels: [] as string[],
             },
         ];
         const currentHashes = Object.values(
@@ -1336,6 +1357,26 @@ describe('ExternalConnectionService live source explores', () => {
 
         it('leaves a source whose hash matches', async () => {
             const { service, projectModel } = setUp(currentHashes);
+            await expect(
+                service.rebuildOutdatedApiSourceExplores(),
+            ).resolves.toEqual({ rebuilt: 0, failed: 0 });
+            expect(
+                projectModel.replaceApiSourceExplores,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('leaves a source whose only missing explore is switched off', async () => {
+            const hashes = getLiveDefinitionHashes(ApiConnectorType.HYDRA);
+            const { service, projectModel, externalConnectionModel } = setUp([
+                { connectionUuid: 'conn-1', definitionHash: hashes.events },
+            ]);
+            externalConnectionModel.listLiveSourceRefs.mockResolvedValue([
+                {
+                    ...refs[0],
+                    connector: ApiConnectorType.HYDRA,
+                    switchedOffModels: ['users'],
+                },
+            ]);
             await expect(
                 service.rebuildOutdatedApiSourceExplores(),
             ).resolves.toEqual({ rebuilt: 0, failed: 0 });
@@ -1426,6 +1467,254 @@ describe('ExternalConnectionService live source explores', () => {
             ).toBeDefined();
         });
 
+        it('saves field edits and rebuilds the explores in one transaction', async () => {
+            const { service, projectModel, externalConnectionModel } =
+                await createScanned();
+            projectModel.replaceApiSourceExplores.mockClear();
+            await service.updateLiveSourceFields(account, 'proj-1', 'conn-1', [
+                { name: 'property_plan', inUse: true },
+            ]);
+
+            const editTrx =
+                externalConnectionModel.updateLiveSourceEdits.mock.calls[0][2];
+            expect(editTrx).toBeDefined();
+            expect(projectModel.replaceApiSourceExplores.mock.calls[0][3]).toBe(
+                editTrx,
+            );
+        });
+
+        it('fails the edit when the rebuild fails, so nothing is saved', async () => {
+            const { service, projectModel } = await createScanned();
+            projectModel.replaceApiSourceExplores.mockRejectedValueOnce(
+                new Error('rebuild failed'),
+            );
+            await expect(
+                service.updateLiveSourceFields(account, 'proj-1', 'conn-1', [
+                    { name: 'property_plan', inUse: true },
+                ]),
+            ).rejects.toThrow('rebuild failed');
+        });
+
+        describe('explores', () => {
+            const savedExploreNames = (
+                projectModel: ReturnType<typeof buildService>['projectModel'],
+            ) =>
+                (
+                    projectModel.replaceApiSourceExplores.mock.calls.at(
+                        -1,
+                    )?.[2] ?? []
+                ).map(({ name }: { name: string }) => name);
+
+            it('lists each explore as on, with its own chart count', async () => {
+                const { service, savedChartModel } = await createScanned();
+                savedChartModel.getChartCountForExplores.mockResolvedValue(5);
+                const { explores } = await service.getLiveSourceFields(
+                    account,
+                    'proj-1',
+                    'conn-1',
+                );
+                expect(explores).toEqual([
+                    expect.objectContaining({
+                        exploreName: 'product_analytics_events',
+                        inUse: true,
+                        canEditFields: true,
+                        usedByChartCount: 5,
+                        aiHint: POSTHOG_EVENTS_EXPLORE.aiHint,
+                        lastEdit: null,
+                    }),
+                ]);
+            });
+
+            it('switches an explore off so it is no longer built, and back on with its field choices', async () => {
+                const { service, projectModel } = await createScanned();
+                await service.updateLiveSourceFields(
+                    account,
+                    'proj-1',
+                    'conn-1',
+                    [{ name: 'property_plan', inUse: true }],
+                );
+                const off = await service.updateLiveSourceFields(
+                    account,
+                    'proj-1',
+                    'conn-1',
+                    [],
+                    [
+                        {
+                            exploreName: 'product_analytics_events',
+                            inUse: false,
+                        },
+                    ],
+                );
+                // Every explore off is allowed
+                expect(savedExploreNames(projectModel)).toEqual([]);
+                expect(off.explores[0]).toMatchObject({
+                    inUse: false,
+                    lastEdit: { userUuid: expect.any(String) },
+                });
+
+                await service.updateLiveSourceFields(
+                    account,
+                    'proj-1',
+                    'conn-1',
+                    [],
+                    [{ exploreName: 'product_analytics_events', inUse: true }],
+                );
+                expect(savedExploreNames(projectModel)).toEqual([
+                    'product_analytics_events',
+                ]);
+                expect(
+                    lastSavedFields(projectModel)
+                        .product_analytics_events_property_plan,
+                ).toBeDefined();
+            });
+
+            it('renames, describes and hints an explore, after the source hint', async () => {
+                const { service, projectModel } = await createScanned();
+                const { explores } = await service.updateLiveSourceFields(
+                    account,
+                    'proj-1',
+                    'conn-1',
+                    [],
+                    [
+                        {
+                            exploreName: 'product_analytics_events',
+                            label: ' Product events ',
+                            description: 'Every tracked event',
+                            aiHint: 'Use for funnels',
+                        },
+                    ],
+                );
+                expect(explores[0]).toMatchObject({
+                    label: 'Product events',
+                    description: 'Every tracked event',
+                    aiHint: 'Use for funnels',
+                });
+                const [saved] =
+                    projectModel.replaceApiSourceExplores.mock.calls.at(
+                        -1,
+                    )?.[2];
+                expect(saved.label).toBe('Product events');
+                expect(saved.aiHint.at(-1)).toBe('Use for funnels');
+
+                const cleared = await service.updateLiveSourceFields(
+                    account,
+                    'proj-1',
+                    'conn-1',
+                    [],
+                    [
+                        {
+                            exploreName: 'product_analytics_events',
+                            label: null,
+                            aiHint: null,
+                        },
+                    ],
+                );
+                // Clearing the admin's hint brings back the built-in one
+                expect(cleared.explores[0]).toMatchObject({
+                    label: 'Events',
+                    description: 'Every tracked event',
+                    aiHint: POSTHOG_EVENTS_EXPLORE.aiHint,
+                });
+            });
+
+            it('lists the content on an explore or one of its fields', async () => {
+                const { service, savedChartModel } = await createScanned();
+                savedChartModel.getContentOnExplore.mockResolvedValueOnce({
+                    charts: [
+                        { uuid: 'c1', name: 'Open', spaceUuid: 'team-space' },
+                        {
+                            uuid: 'c2',
+                            name: 'Private',
+                            spaceUuid: 'private-space',
+                        },
+                    ],
+                    dashboards: [
+                        { uuid: 'd1', name: 'Board', spaceUuid: 'team-space' },
+                    ],
+                });
+                const usage = await service.getLiveSourceContentUsage(
+                    account,
+                    'proj-1',
+                    'conn-1',
+                    'product_analytics_events',
+                    'event',
+                );
+                expect(
+                    savedChartModel.getContentOnExplore,
+                ).toHaveBeenCalledWith(
+                    'proj-1',
+                    'product_analytics_events',
+                    'product_analytics_events_event',
+                );
+                // Content in spaces the editor can't open is counted, not named
+                expect(usage).toEqual({
+                    charts: [{ uuid: 'c1', name: 'Open' }],
+                    hiddenChartCount: 1,
+                    dashboards: [{ uuid: 'd1', name: 'Board' }],
+                    hiddenDashboardCount: 0,
+                });
+                await expect(
+                    service.getLiveSourceContentUsage(
+                        account,
+                        'proj-1',
+                        'conn-1',
+                        'orders',
+                        null,
+                    ),
+                ).rejects.toThrow(ParameterError);
+            });
+
+            it('refuses an explore the source does not have, or an empty label', async () => {
+                const { service } = await createScanned();
+                await expect(
+                    service.updateLiveSourceFields(
+                        account,
+                        'proj-1',
+                        'conn-1',
+                        [],
+                        [
+                            {
+                                exploreName: 'product_analytics_other',
+                                inUse: false,
+                            },
+                        ],
+                    ),
+                ).rejects.toThrow(ParameterError);
+                await expect(
+                    service.updateLiveSourceFields(
+                        account,
+                        'proj-1',
+                        'conn-1',
+                        [],
+                        [
+                            {
+                                exploreName: 'product_analytics_events',
+                                label: ' ',
+                            },
+                        ],
+                    ),
+                ).rejects.toThrow('needs a label');
+            });
+
+            it('lets only people who manage the source switch explores', async () => {
+                const { service } = buildService({ canView: false });
+                await expect(
+                    service.updateLiveSourceFields(
+                        account,
+                        'proj-1',
+                        'conn-1',
+                        [],
+                        [
+                            {
+                                exploreName: 'product_analytics_events',
+                                inUse: false,
+                            },
+                        ],
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+            });
+        });
+
         it('stops using a field so charts and agents no longer see it', async () => {
             const { service, projectModel } = await createScanned();
             await service.updateLiveSourceFields(account, 'proj-1', 'conn-1', [
@@ -1489,11 +1778,11 @@ describe('ExternalConnectionService live source explores', () => {
             );
 
             expect(explores).toEqual([
-                {
+                expect.objectContaining({
                     exploreName: 'product_analytics_events',
                     label: expect.any(String),
                     fields,
-                },
+                }),
             ]);
         });
 
@@ -1572,6 +1861,7 @@ describe('ExternalConnectionService live source explores', () => {
         apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '303731' },
         sourceName: 'posthog',
         fieldEdits: null,
+        exploreEdits: {},
         aiHint: null,
         targetLabel: null,
         ...overrides,
@@ -1813,7 +2103,7 @@ describe('ExternalConnectionService live source explores', () => {
         expect(reattached.liveSourceName).toBe('posthog');
         expect(
             externalConnectionModel.reattachLiveSourceName,
-        ).toHaveBeenCalledWith('proj-1', 'conn-1', 'posthog', fieldEdits);
+        ).toHaveBeenCalledWith('proj-1', 'conn-1', 'posthog', fieldEdits, {});
         expect(savedExploreName(projectModel)).toBe('posthog_events');
     });
 
@@ -1864,6 +2154,7 @@ describe('ExternalConnectionService live source explores', () => {
             expect.stringContaining('One query reads at most'),
             expect.stringContaining('Default project'),
             'EU project',
+            POSTHOG_EVENTS_EXPLORE.aiHint,
         ]);
     });
 

@@ -1,3 +1,10 @@
+# [3.393.0](https://github.com/lightdash/lightdash/compare/3.392.0...3.393.0) (2026-11-24)
+
+
+### Features
+
+* **backend:** compress query results pages with brotli or gzip ([#33373](https://github.com/lightdash/lightdash/issues/33373)) ([9d4fe64](https://github.com/lightdash/lightdash/commit/9d4fe644d2005a95cbc43e89dbaa48f391575413))
+
 # [3.392.0](https://github.com/lightdash/lightdash/compare/3.391.1...3.392.0) (2026-11-24)
 
 

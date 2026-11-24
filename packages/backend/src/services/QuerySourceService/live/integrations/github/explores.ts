@@ -45,11 +45,13 @@ const dimension = (
     type: DimensionType,
     filterOperators: FilterOperator[],
     description: string,
+    aiHint?: string,
 ): LiveDimensionDefinition => ({
     name,
     apiName: name,
     label,
     description,
+    ...(aiHint ? { aiHint } : {}),
     type,
     filterOperators,
 });
@@ -63,16 +65,18 @@ const date = (name: string, label: string, description: string) =>
         description,
     );
 
-const SEARCH_COUNT: LiveMetricDefinition = {
-    name: 'count',
+const SEARCH_COUNT_NAME = 'count';
+
+const searchCount = (noun: string): LiveMetricDefinition => ({
+    name: SEARCH_COUNT_NAME,
     apiName: 'total_count',
     label: 'Count',
-    description:
-        'How many match the filters, from the total GitHub reports for the search.',
+    description: `Number of ${noun}s that match the filters.`,
+    aiHint: "Comes from GitHub search's total, so it cannot be split by any dimension: use it alone (with filters) or list rows without it.",
     type: MetricType.NUMBER,
     filterOperators: [],
     aggregation: { aggregation: 'additive' },
-};
+});
 
 const searchDimensions = (noun: string): LiveDimensionDefinition[] => [
     dimension(
@@ -87,7 +91,8 @@ const searchDimensions = (noun: string): LiveDimensionDefinition[] => [
         'Title',
         DimensionType.STRING,
         GITHUB_TEXT_FILTERS,
-        `The ${noun} title. Filters match whole words.`,
+        `Title of the ${noun}.`,
+        'Text filters match whole words only (GitHub search).',
     ),
     dimension(
         'url',
@@ -101,21 +106,23 @@ const searchDimensions = (noun: string): LiveDimensionDefinition[] => [
         'Author',
         DimensionType.STRING,
         GITHUB_VALUE_FILTERS,
-        `GitHub login of whoever opened the ${noun}.`,
+        `GitHub username of the person who opened the ${noun}.`,
     ),
     dimension(
         'assignee',
         'Assignee',
         DimensionType.STRING,
         GITHUB_VALUE_FILTERS,
-        `GitHub login of the first assignee.`,
+        `GitHub username of the first person assigned to the ${noun}.`,
+        'Only the first assignee is shown; filtering by it matches any assignee.',
     ),
     dimension(
         'labels',
         'Labels',
         DimensionType.STRING,
         GITHUB_VALUE_FILTERS,
-        `The ${noun}'s labels, comma separated. "Is" keeps ${noun}s that have the label.`,
+        `Labels on the ${noun}, separated by commas.`,
+        `"Is" keeps ${noun}s that have the label.`,
     ),
     dimension(
         'comments',
@@ -124,20 +131,21 @@ const searchDimensions = (noun: string): LiveDimensionDefinition[] => [
         GITHUB_NUMBER_FILTERS,
         'Number of comments.',
     ),
-    date('created_at', 'Created', `The day the ${noun} was opened, in UTC.`),
-    date('updated_at', 'Updated', `The day the ${noun} last changed, in UTC.`),
-    date('closed_at', 'Closed', `The day the ${noun} was closed, in UTC.`),
+    date('created_at', 'Created', `Day the ${noun} was opened, in UTC.`),
+    date('updated_at', 'Updated', `Day the ${noun} last changed, in UTC.`),
+    date('closed_at', 'Closed', `Day the ${noun} was closed, in UTC.`),
     dimension(
         'search',
         'Search text',
         DimensionType.STRING,
         GITHUB_TEXT_FILTERS,
-        'Filter only: words in the title or description. Matches whole words. Empty when selected.',
+        'Words to look for in the title or description.',
+        'Filter only: matches whole words. Empty when selected.',
     ),
 ];
 
 const countIncompatibility = (dimensions: LiveDimensionDefinition[]) => ({
-    fields: [SEARCH_COUNT.name],
+    fields: [SEARCH_COUNT_NAME],
     with: dimensions.map(({ name }) => name),
     reason: "GitHub search returns one total, so Count can't be split by a dimension. Filter by it instead, or list rows without Count.",
     selectedOnly: true as const,
@@ -150,7 +158,8 @@ const PULL_REQUEST_DIMENSIONS: LiveDimensionDefinition[] = [
         'State',
         DimensionType.STRING,
         GITHUB_STATE_FILTERS,
-        'open, merged or closed (closed without merging).',
+        'Whether the pull request is open, merged, or closed without merging.',
+        'Filter with equals only.',
     ),
     dimension(
         'draft',
@@ -159,16 +168,16 @@ const PULL_REQUEST_DIMENSIONS: LiveDimensionDefinition[] = [
         GITHUB_BOOLEAN_FILTERS,
         'Whether the pull request is a draft.',
     ),
-    date('merged_at', 'Merged', 'The day the pull request was merged, in UTC.'),
+    date('merged_at', 'Merged', 'Day the pull request was merged, in UTC.'),
 ];
 
 export const GITHUB_PULL_REQUESTS_EXPLORE: LiveExploreDefinition = {
     name: 'pull_requests',
     label: 'Pull requests',
-    description:
-        'Pull requests of one GitHub repository, read live from GitHub search. Count is the total for the filters; listing reads at most 1,000 pull requests.',
+    description: 'Pull requests in one GitHub repository.',
+    aiHint: "Read live from GitHub search. Count is GitHub's total for the filters and cannot be split by any dimension: query Count alone with filters, or list rows without Count. Text filters match whole words. Dates are UTC days.",
     dimensions: PULL_REQUEST_DIMENSIONS,
-    metrics: [SEARCH_COUNT],
+    metrics: [searchCount('pull request')],
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
@@ -182,7 +191,8 @@ const ISSUE_DIMENSIONS: LiveDimensionDefinition[] = [
         'State',
         DimensionType.STRING,
         GITHUB_STATE_FILTERS,
-        'open or closed.',
+        'Whether the issue is open or closed.',
+        'Filter with equals only.',
     ),
     dimension(
         'state_reason',
@@ -197,9 +207,10 @@ export const GITHUB_ISSUES_EXPLORE: LiveExploreDefinition = {
     name: 'issues',
     label: 'Issues',
     description:
-        'Issues of one GitHub repository, without pull requests, read live from GitHub search. Count is the total for the filters; listing reads at most 1,000 issues.',
+        'Issues in one GitHub repository, not including pull requests.',
+    aiHint: "Read live from GitHub search. Count is GitHub's total for the filters and cannot be split by any dimension: query Count alone with filters, or list rows without Count. Text filters match whole words. Dates are UTC days.",
     dimensions: ISSUE_DIMENSIONS,
-    metrics: [SEARCH_COUNT],
+    metrics: [searchCount('issue')],
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
@@ -211,11 +222,13 @@ const contributorMetric = (
     apiName: string,
     label: string,
     description: string,
+    aiHint?: string,
 ): LiveMetricDefinition => ({
     name,
     apiName,
     label,
     description,
+    ...(aiHint ? { aiHint } : {}),
     type: MetricType.NUMBER,
     filterOperators: [],
     aggregation: { aggregation: 'additive' },
@@ -225,21 +238,22 @@ export const GITHUB_CONTRIBUTORS_EXPLORE: LiveExploreDefinition = {
     name: 'contributors',
     label: 'Contributors',
     description:
-        "Commits per author and week on the repository's default branch, from GitHub's contributor statistics. Covers the top contributors GitHub reports; lines added and deleted are 0 on repositories with 10,000 commits or more.",
+        "Weekly commits, lines added and lines deleted per author on the repository's default branch.",
+    aiHint: "From GitHub's contributor statistics: covers only the top 100 contributors, weeks start on Sunday (UTC), and Lines added and Lines deleted are 0 for repositories with 10,000 or more commits. Without a Week filter it returns the full history; filter Week to choose the weeks. GitHub may compute statistics in the background on first request.",
     dimensions: [
         dimension(
             'author',
             'Author',
             DimensionType.STRING,
             GITHUB_VALUE_FILTERS,
-            'GitHub login of the commit author.',
+            'GitHub username of the commit author.',
         ),
         dimension(
             'week',
             'Week',
             DimensionType.DATE,
             GITHUB_DATE_FILTERS,
-            'The week of the commits, starting on Sunday, in UTC.',
+            'Week of the commits, shown as its Sunday, in UTC.',
         ),
     ],
     metrics: [
@@ -247,19 +261,21 @@ export const GITHUB_CONTRIBUTORS_EXPLORE: LiveExploreDefinition = {
             'commits',
             'commits',
             'Commits',
-            'Commits on the default branch.',
+            'Number of commits on the default branch.',
         ),
         contributorMetric(
             'additions',
             'additions',
             'Lines added',
-            'Lines added. GitHub reports 0 for repositories with 10,000 commits or more.',
+            'Number of lines added.',
+            'GitHub reports 0 for repositories with 10,000 or more commits.',
         ),
         contributorMetric(
             'deletions',
             'deletions',
             'Lines deleted',
-            'Lines deleted. GitHub reports 0 for repositories with 10,000 commits or more.',
+            'Number of lines deleted.',
+            'GitHub reports 0 for repositories with 10,000 or more commits.',
         ),
     ],
     maxDimensions: null,

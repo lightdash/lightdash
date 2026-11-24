@@ -41,11 +41,13 @@ const dimension = (
     type: DimensionType,
     filterOperators: FilterOperator[],
     description: string,
+    aiHint?: string,
 ): LiveDimensionDefinition => ({
     name,
     apiName: name,
     label,
     description,
+    ...(aiHint ? { aiHint } : {}),
     type,
     filterOperators,
 });
@@ -55,22 +57,52 @@ const text = (
     label: string,
     filterOperators: FilterOperator[],
     description: string,
-) => dimension(name, label, DimensionType.STRING, filterOperators, description);
+    aiHint?: string,
+) =>
+    dimension(
+        name,
+        label,
+        DimensionType.STRING,
+        filterOperators,
+        description,
+        aiHint,
+    );
 
-const date = (name: string, label: string, description: string) =>
-    dimension(name, label, DimensionType.DATE, PYLON_DATE_FILTERS, description);
+const date = (
+    name: string,
+    label: string,
+    description: string,
+    aiHint?: string,
+) =>
+    dimension(
+        name,
+        label,
+        DimensionType.DATE,
+        PYLON_DATE_FILTERS,
+        description,
+        aiHint,
+    );
 
 /**
  * A date of an issue with its week and month, worked out per issue from the
  * day. The grains take no filters of their own: the day filters them.
  */
-const withGrains = (
-    name: string,
-    label: string,
-    description: string,
-): LiveDimensionDefinition[] => [
+const withGrains = ({
+    name,
+    label,
+    description,
+    happened,
+    aiHint,
+}: {
+    name: string;
+    label: string;
+    description: string;
+    /** What happened to the issue on the day, such as "was created". */
+    happened: string;
+    aiHint?: string;
+}): LiveDimensionDefinition[] => [
     {
-        ...date(name, label, description),
+        ...date(name, label, description, aiHint),
         // The day is its own grain, grouped with the coarser ones
         timeInterval: { base: name, grain: TimeFrames.DAY },
     },
@@ -80,7 +112,8 @@ const withGrains = (
             `${label} week`,
             DimensionType.DATE,
             [],
-            `Monday of the week, in UTC. Filter ${label} to choose the weeks.`,
+            `Week the issue ${happened}, shown as its Monday, in UTC.`,
+            `Filter ${label}, not this field, to choose the weeks.`,
         ),
         timeInterval: { base: name, grain: TimeFrames.WEEK },
     },
@@ -90,7 +123,8 @@ const withGrains = (
             `${label} month`,
             DimensionType.DATE,
             [],
-            `First day of the month, in UTC. Filter ${label} to choose the months.`,
+            `Month the issue ${happened}, shown as its first day, in UTC.`,
+            `Filter ${label}, not this field, to choose the months.`,
         ),
         timeInterval: { base: name, grain: TimeFrames.MONTH },
     },
@@ -100,29 +134,36 @@ export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
     name: 'issues',
     label: 'Issues',
     description:
-        'Support issues (conversations and tickets) of one Pylon workspace, read live from issue search, one row per issue, created in the last 30 days unless the Created filter says otherwise. Dates are UTC days.',
+        'Support issues (conversations and tickets) in one Pylon workspace, one row per issue. Dates are in UTC.',
+    aiHint: 'Read live from Pylon issue search, one row per issue. Without a Created filter the query reads issues created in the last 30 days. There are no metrics: count, sum or average by aggregating rows. Tags "is" keeps issues with any of the tags. Title filters match part of the title. SLA fields are empty when the issue has no SLA.',
     dimensions: [
         dimension(
             'number',
             'Number',
             DimensionType.NUMBER,
             [],
-            'The issue number in the workspace.',
+            'Issue number in the workspace.',
         ),
         text(
             'title',
             'Title',
             PYLON_TEXT_FILTERS,
-            'The issue title. Filters match part of it.',
+            'Title of the issue.',
+            'Filters match part of the title.',
         ),
         text('link', 'Link', [], 'Link to the issue in Pylon.'),
         text(
             'state',
             'State',
             PYLON_VALUE_FILTERS,
-            'new, waiting_on_you, waiting_on_customer, on_hold, closed, or a custom status slug.',
+            'Status of the issue: new, waiting_on_you, waiting_on_customer, on_hold, closed, or a custom status.',
         ),
-        text('type', 'Type', PYLON_VALUE_FILTERS, 'conversation or ticket.'),
+        text(
+            'type',
+            'Type',
+            PYLON_VALUE_FILTERS,
+            'Whether the issue is a conversation or a ticket.',
+        ),
         text(
             'source',
             'Source',
@@ -157,141 +198,148 @@ export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
             'tags',
             'Tags',
             PYLON_VALUE_FILTERS,
-            'The issue tags, comma separated. "Is" keeps issues with any of the tags.',
+            'Tags on the issue, separated by commas.',
+            '"Is" keeps issues with any of the tags.',
         ),
-        ...withGrains(
-            'created_at',
-            'Created',
-            'The day the issue was created, in UTC.',
-        ),
-        ...withGrains(
-            'updated_at',
-            'Updated',
-            'The day the issue last changed, in UTC.',
-        ),
-        ...withGrains(
-            'resolved_at',
-            'Resolved',
-            'The day the issue was last resolved, in UTC.',
-        ),
+        ...withGrains({
+            name: 'created_at',
+            label: 'Created',
+            description: 'Day the issue was created, in UTC.',
+            happened: 'was created',
+            aiHint: 'Without a filter the query reads issues created in the last 30 days.',
+        }),
+        ...withGrains({
+            name: 'updated_at',
+            label: 'Updated',
+            description: 'Day the issue last changed, in UTC.',
+            happened: 'was last updated',
+        }),
+        ...withGrains({
+            name: 'resolved_at',
+            label: 'Resolved',
+            description: 'Day the issue was last resolved, in UTC.',
+            happened: 'was last resolved',
+        }),
         dimension(
             'first_response_minutes',
             'First response (minutes)',
             DimensionType.NUMBER,
             [FilterOperator.GREATER_THAN, FilterOperator.LESS_THAN],
-            'Minutes from creation to the first reply from the team. Empty before a reply.',
+            "Minutes from creation to the team's first reply. Empty until the team replies.",
         ),
         dimension(
             'resolution_hours',
             'Resolution time (hours)',
             DimensionType.NUMBER,
             [],
-            'Hours from creation to resolution. Empty while open.',
+            'Hours from creation to resolution. Empty while the issue is open.',
         ),
         dimension(
             'touches',
             'Touches',
             DimensionType.NUMBER,
             PYLON_NUMBER_FILTERS,
-            "Pylon's number of touches: replies and actions from the team.",
+            'Number of touches: replies and actions by the team on the issue.',
         ),
         dimension(
             'csat_score',
             'CSAT score',
             DimensionType.NUMBER,
             [],
-            'The CSAT score the customer gave, when they answered the survey.',
+            'Satisfaction (CSAT) score the customer gave, if they answered the survey.',
         ),
         dimension(
             'csat_comment',
             'CSAT comment',
             DimensionType.STRING,
             [],
-            'What the customer wrote with their CSAT score, when they wrote anything.',
+            'Comment the customer left with their CSAT score, if any.',
         ),
         dimension(
             'first_response_due',
             'First response due',
             DimensionType.TIMESTAMP,
             [],
-            "The issue's first response SLA deadline, in UTC. Empty without an SLA.",
+            "Deadline for the first response under the issue's SLA, in UTC. Empty without an SLA.",
         ),
         dimension(
             'first_response_breached',
             'First response breached',
             DimensionType.BOOLEAN,
             [],
-            'Whether the first reply came after its SLA deadline, or there is none yet and the deadline has passed. Empty without an SLA.',
+            'Whether the first-response SLA was missed: the first reply came after the deadline, or none has come and the deadline has passed. Empty without an SLA.',
         ),
         dimension(
             'resolution_due',
             'Resolution due',
             DimensionType.TIMESTAMP,
             [],
-            "The issue's resolution SLA deadline, in UTC. Empty without an SLA.",
+            "Deadline for resolution under the issue's SLA, in UTC. Empty without an SLA.",
         ),
         dimension(
             'resolution_breached',
             'Resolution breached',
             DimensionType.BOOLEAN,
             [],
-            'Whether the issue was resolved after its SLA deadline, or is still open and the deadline has passed. Empty without an SLA.',
+            'Whether the resolution SLA was missed: resolved after the deadline, or still open past it. Empty without an SLA.',
         ),
         dimension(
             'next_reply_due',
             'Next reply due',
             DimensionType.TIMESTAMP,
             [],
-            "The issue's next reply SLA deadline, in UTC. Empty without one.",
+            "Deadline for the team's next reply under the issue's SLA, in UTC. Empty when there is none.",
         ),
         dimension(
             'first_resolved_at',
             'First resolved',
             DimensionType.DATE,
             [],
-            'The day the issue was first resolved, in UTC; Resolved is the last time.',
+            'Day the issue was first resolved, in UTC.',
+            'Resolved is the last resolution; use this for first-time resolution.',
         ),
         dimension(
             'business_first_response_minutes',
             'First response (business minutes)',
             DimensionType.NUMBER,
             [],
-            'Business-hours minutes from creation to the first reply from the team. Empty before a reply.',
+            "Minutes from creation to the team's first reply, counting business hours only. Empty until the team replies.",
         ),
         dimension(
             'business_resolution_hours',
             'Resolution time (business hours)',
             DimensionType.NUMBER,
             [],
-            'Business hours from creation to resolution. Empty while open.',
+            'Hours from creation to resolution, counting business hours only. Empty while the issue is open.',
         ),
         dimension(
             'created_time',
             'Created time',
             DimensionType.TIMESTAMP,
             [],
-            'When the issue was created, with the time, in UTC. Filter by Created.',
+            'Date and time the issue was created, in UTC.',
+            'Filter by Created, not this field.',
         ),
         dimension(
             'priority',
             'Priority',
             DimensionType.STRING,
             [],
-            'The issue\'s "priority" custom field. Empty when the workspace has none.',
+            `Priority of the issue, from the workspace's "priority" custom field. Empty when the workspace has no such field.`,
         ),
         dimension(
             'linked_issue_sources',
             'Linked issue sources',
             DimensionType.STRING,
             [],
-            'Where the linked engineering issues live, such as linear or github, comma separated.',
+            'Where the linked engineering issues live, such as linear or github, separated by commas.',
         ),
         dimension(
             'linked_issue_links',
             'Linked issue links',
             DimensionType.STRING,
             [],
-            'Links to the linked engineering issues, comma separated.',
+            'Links to the linked engineering issues, separated by commas.',
         ),
     ],
     metrics: [],
@@ -305,7 +353,8 @@ export const PYLON_ACCOUNTS_EXPLORE: LiveExploreDefinition = {
     name: 'accounts',
     label: 'Accounts',
     description:
-        'Customer accounts of one Pylon workspace, read live from account search, one row per account.',
+        'Customer accounts in one Pylon workspace, one row per account.',
+    aiHint: 'Read live from Pylon account search, one row per account. No metrics: count rows to count accounts. Tags "is" keeps accounts with any of the tags. Dates are UTC days.',
     dimensions: [
         text(
             'id',
@@ -317,19 +366,19 @@ export const PYLON_ACCOUNTS_EXPLORE: LiveExploreDefinition = {
             'name',
             'Name',
             [...PYLON_VALUE_FILTERS, ...PYLON_TEXT_FILTERS],
-            'The account name.',
+            'Name of the account.',
         ),
         text(
             'domain',
             'Domain',
             [...PYLON_VALUE_FILTERS, ...PYLON_TEXT_FILTERS],
-            "The account's primary domain.",
+            'Primary domain of the account.',
         ),
         text(
             'type',
             'Type',
             PYLON_VALUE_FILTERS,
-            'The account type, such as customer.',
+            'Account type, such as customer.',
         ),
         text(
             'owner_email',
@@ -341,22 +390,19 @@ export const PYLON_ACCOUNTS_EXPLORE: LiveExploreDefinition = {
             'tags',
             'Tags',
             PYLON_VALUE_FILTERS,
-            'The account tags, comma separated. "Is" keeps accounts with any of the tags.',
+            'Tags on the account, separated by commas.',
+            '"Is" keeps accounts with any of the tags.',
         ),
-        date(
-            'created_at',
-            'Created',
-            'The day the account was created, in UTC.',
-        ),
+        date('created_at', 'Created', 'Day the account was created, in UTC.'),
         date(
             'last_customer_activity_at',
             'Last customer activity',
-            'The day of the latest message from the customer, in UTC.',
+            'Day of the latest message from the customer, in UTC.',
         ),
         date(
             'last_vendor_activity_at',
             'Last team activity',
-            'The day of the latest message from the team, in UTC.',
+            'Day of the latest message from your team, in UTC.',
         ),
     ],
     metrics: [],
@@ -370,7 +416,8 @@ export const PYLON_CONTACTS_EXPLORE: LiveExploreDefinition = {
     name: 'contacts',
     label: 'Contacts',
     description:
-        'Customer contacts of one Pylon workspace, read live from contact search, one row per contact.',
+        'Customer contacts in one Pylon workspace, one row per contact.',
+    aiHint: 'Read live from Pylon contact search, one row per contact. No metrics: count rows to count contacts.',
     dimensions: [
         text(
             'id',
@@ -382,13 +429,13 @@ export const PYLON_CONTACTS_EXPLORE: LiveExploreDefinition = {
             'name',
             'Name',
             [...PYLON_VALUE_FILTERS, ...PYLON_TEXT_FILTERS],
-            'The contact name.',
+            'Name of the contact.',
         ),
         text(
             'email',
             'Email',
             [...PYLON_VALUE_FILTERS, ...PYLON_TEXT_FILTERS],
-            'The contact email.',
+            'Email address of the contact.',
         ),
         text(
             'account_name',
@@ -406,7 +453,7 @@ export const PYLON_CONTACTS_EXPLORE: LiveExploreDefinition = {
             'portal_role',
             'Portal role',
             [],
-            "The contact's role in the customer portal.",
+            "Contact's role in the customer portal.",
         ),
     ],
     metrics: [],

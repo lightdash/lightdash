@@ -114,12 +114,19 @@ describe('HubSpot fields', () => {
         expect(byName.contract_date.type).toBe('date');
         expect(byName.hs_is_closed_won.type).toBe('boolean');
         expect(byName.dealstage.description).toBe(
-            "The Deal Stage property in HubSpot. Values are HubSpot's internal option names: appointmentscheduled (Appointment Scheduled), closedwon (Closed Won).",
+            'The Deal Stage property in HubSpot.',
         );
-        expect(byName.deal_tags.description).toContain('semicolons');
+        expect(byName.dealstage.aiHint).toBe(
+            "Values are HubSpot's internal option names: appointmentscheduled (Appointment Scheduled), closedwon (Closed Won).",
+        );
+        expect(byName.deal_tags.aiHint).toContain('semicolons');
         expect(byName.dealname.description).toBe(
-            'The name given to this deal. Contains matches whole words or part of one word.',
+            'The name given to this deal.',
         );
+        expect(byName.dealname.aiHint).toBe(
+            "Text 'contains' matches whole words or part of one word.",
+        );
+        expect(byName.amount.aiHint).toBeUndefined();
         expect(byName.property_count.apiName).toBe('count');
     });
 
@@ -143,7 +150,10 @@ describe('HubSpot fields', () => {
                 closedwon: 'Closed Won',
             },
         });
-        expect(byName.dealstage_label.description).toContain(
+        expect(byName.dealstage_label.description).toBe(
+            "Deal Stage as HubSpot shows it, using the option's label rather than its internal value.",
+        );
+        expect(byName.dealstage_label.aiHint).toContain(
             'Filter with these labels: Appointment Scheduled, Closed Won.',
         );
         // No options, so nothing to label
@@ -205,9 +215,9 @@ describe('HubSpot fields', () => {
                 },
             ],
         }).dimensions.filter(({ name }) => name === 'hs_pipeline_stage');
-        expect(stage.description).toContain('1 (Stage 1)');
-        expect(stage.description).toContain('20 (Stage 20)');
-        expect(stage.description).not.toContain('more');
+        expect(stage.aiHint).toContain('1 (Stage 1)');
+        expect(stage.aiHint).toContain('20 (Stage 20)');
+        expect(stage.aiHint).not.toContain('more');
     });
 
     it('keeps the built-in fields when the list is unreadable', () => {

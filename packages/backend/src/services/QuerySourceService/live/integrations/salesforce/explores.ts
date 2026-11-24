@@ -106,8 +106,8 @@ const GRAINS = [
     },
 ] as const;
 
-const grainDescription = (label: string, grain: string) =>
-    `${label} by ${grain}, as the ${grain}'s first day. Salesforce groups it with its CALENDAR functions, in UTC. Filter by ${label} itself.`;
+const GRAIN_AI_HINT =
+    'Salesforce groups it with CALENDAR_* functions in UTC. Filter the base date field, not this one.';
 
 /** Fields every object has; a scan adds the object's own. */
 const BUILT_IN_DIMENSIONS: LiveDimensionDefinition[] = [
@@ -115,7 +115,7 @@ const BUILT_IN_DIMENSIONS: LiveDimensionDefinition[] = [
         name: 'record_id',
         apiName: 'Id',
         label: 'Record ID',
-        description: "The record's 18-character Salesforce ID.",
+        description: "Salesforce's 18-character ID for the record.",
         type: DimensionType.STRING,
         filterOperators: SALESFORCE_CHOICE_FILTERS.filter(
             (operator) =>
@@ -127,8 +127,8 @@ const BUILT_IN_DIMENSIONS: LiveDimensionDefinition[] = [
         name: 'created_at',
         apiName: 'CreatedDate',
         label: 'Created',
-        description:
-            'When the record was created, in UTC. Lists show it as is; totals group it by day, month, quarter or year.',
+        description: 'When the record was created, in UTC.',
+        aiHint: 'Listed as is; with a metric it groups by day, month, quarter or year.',
         type: DimensionType.TIMESTAMP,
         filterOperators: SALESFORCE_DATE_FILTERS,
     },
@@ -136,7 +136,7 @@ const BUILT_IN_DIMENSIONS: LiveDimensionDefinition[] = [
         name: 'created_at_day',
         apiName: 'DAY_ONLY(CreatedDate)',
         label: 'Created day',
-        description: 'The day the record was created, in UTC.',
+        description: 'Day the record was created, in UTC.',
         type: DimensionType.DATE,
         filterOperators: SALESFORCE_DATE_FILTERS,
         timeInterval: { base: 'created_at', grain: TimeFrames.DAY },
@@ -146,7 +146,10 @@ const BUILT_IN_DIMENSIONS: LiveDimensionDefinition[] = [
             name: `created_at_${suffix}`,
             apiName: `${fn}(CreatedDate)`,
             label: `Created ${label}`,
-            description: grainDescription('Created', label),
+            description: `${label.charAt(0).toUpperCase()}${label.slice(
+                1,
+            )} the record was created, shown as its first day, in UTC.`,
+            aiHint: GRAIN_AI_HINT,
             type: DimensionType.DATE,
             filterOperators: [],
             timeInterval: { base: 'created_at', grain },
@@ -158,8 +161,8 @@ const COUNT: LiveMetricDefinition = {
     name: 'count',
     apiName: 'COUNT(Id)',
     label: 'Count',
-    description:
-        'How many records match, counted by Salesforce: one call, whatever the number of records.',
+    description: 'Number of records that match.',
+    aiHint: 'Counted by Salesforce in one call, whatever the number of records.',
     type: MetricType.COUNT,
     filterOperators: SALESFORCE_METRIC_FILTERS,
     aggregation: { aggregation: 'additive' },
@@ -182,9 +185,12 @@ const OBJECT_EXPLORES: Record<
  */
 const toObjectExplore = (object: SalesforceObject): LiveExploreDefinition => ({
     ...OBJECT_EXPLORES[object],
-    description: `Salesforce ${object} records, read live with SOQL. With a metric, Salesforce groups and totals the records itself and returns at most ${SALESFORCE_MAX_AGGREGATE_ROWS.toLocaleString(
+    description: `${
+        OBJECT_EXPLORES[object].label
+    } in Salesforce, one row per ${object.toLowerCase()}, with their fields.`,
+    aiHint: `Read live with SOQL. With a metric, Salesforce groups and totals the records itself and returns at most ${SALESFORCE_MAX_AGGREGATE_ROWS.toLocaleString(
         'en-US',
-    )} rows, in one call. Without one, it lists records.`,
+    )} rows in one call. Without a metric it lists records. Date and time fields group by day, month, quarter or year (UTC); filter the base date field, not its grains. Long text, multi-select picklists and decimal fields are not offered as dimensions. Lookup fields have a companion "<name> name" field read through the lookup. Picklist values are listed in the field's description.`,
     dimensions: BUILT_IN_DIMENSIONS,
     metrics: [COUNT],
     maxDimensions: null,
@@ -336,15 +342,31 @@ const describeValues = (field: DescribeField) => {
         .join(', ')}${more > 0 ? ` and ${more} more` : ''}.`;
 };
 
-const describe = (field: DescribeField, extra = '') =>
-    [
-        field.inlineHelpText?.trim() ||
-            `The ${field.label} field in Salesforce (${field.name}).`,
-        describeValues(field),
-        extra,
-    ]
-        .filter(Boolean)
-        .join(' ');
+/** A scanned field's description, with its API name moved to the AI hint. */
+const describe = (
+    field: DescribeField,
+    extra = '',
+): Pick<LiveDimensionDefinition, 'description' | 'aiHint'> => {
+    const values = describeValues(field);
+    return {
+        description: [
+            field.inlineHelpText?.trim() ||
+                `The ${field.label} field in Salesforce.`,
+            values,
+            extra,
+        ]
+            .filter(Boolean)
+            .join(' '),
+        aiHint: [
+            `Salesforce API name: ${field.name}.`,
+            values
+                ? `Picklist values are listed as value (label), up to ${MAX_LISTED_VALUES} active ones.`
+                : '',
+        ]
+            .filter(Boolean)
+            .join(' '),
+    };
+};
 
 const textFilters = (field: DescribeField, operators: FilterOperator[]) =>
     field.filterable === false ? [] : operators;
@@ -363,7 +385,7 @@ const toDimensions = (field: DescribeField): LiveDimensionDefinition[] => {
                           name: toName(apiName),
                           apiName,
                           label,
-                          description: describe(field),
+                          ...describe(field),
                           type: DimensionType.STRING,
                           filterOperators: textFilters(
                               field,
@@ -380,7 +402,7 @@ const toDimensions = (field: DescribeField): LiveDimensionDefinition[] => {
                           name: toName(apiName),
                           apiName,
                           label,
-                          description: describe(field),
+                          ...describe(field),
                           type: DimensionType.STRING,
                           filterOperators: textFilters(
                               field,
@@ -396,7 +418,7 @@ const toDimensions = (field: DescribeField): LiveDimensionDefinition[] => {
                           name: toName(apiName),
                           apiName,
                           label,
-                          description: describe(field),
+                          ...describe(field),
                           type: DimensionType.STRING,
                           filterOperators: textFilters(
                               field,
@@ -418,9 +440,10 @@ const toDimensions = (field: DescribeField): LiveDimensionDefinition[] => {
                     name: toName(relationshipName, 'name'),
                     apiName: `${relationshipName}.Name`,
                     label: `${label.replace(/ ID$/, '')} name`,
-                    description: `The name of the ${referenceTo.join(
+                    description: `Name of the ${referenceTo.join(
                         ' or ',
-                    )} in ${field.label}, read through the lookup.`,
+                    )} in ${field.label}.`,
+                    aiHint: 'Read through the lookup relationship.',
                     type: DimensionType.STRING,
                     filterOperators: SALESFORCE_TEXT_FILTERS,
                 },
@@ -433,7 +456,7 @@ const toDimensions = (field: DescribeField): LiveDimensionDefinition[] => {
                           name: toName(apiName),
                           apiName,
                           label,
-                          description: describe(field),
+                          ...describe(field),
                           type: DimensionType.BOOLEAN,
                           filterOperators:
                               field.filterable === false
@@ -449,7 +472,7 @@ const toDimensions = (field: DescribeField): LiveDimensionDefinition[] => {
                           name: toName(apiName),
                           apiName,
                           label,
-                          description: describe(field),
+                          ...describe(field),
                           type: DimensionType.NUMBER,
                           filterOperators: textFilters(
                               field,
@@ -471,9 +494,9 @@ const toDimensions = (field: DescribeField): LiveDimensionDefinition[] => {
                     name: day,
                     apiName: isDatetime ? `DAY_ONLY(${apiName})` : apiName,
                     label,
-                    description: describe(
+                    ...describe(
                         field,
-                        isDatetime ? 'The day, in UTC.' : '',
+                        isDatetime ? 'Shown as the day, in UTC.' : '',
                     ),
                     type: DimensionType.DATE,
                     filterOperators: textFilters(
@@ -493,7 +516,8 @@ const toDimensions = (field: DescribeField): LiveDimensionDefinition[] => {
                         name: toName(apiName, suffix),
                         apiName: `${fn}(${apiName})`,
                         label: `${label} ${grainLabel}`,
-                        description: grainDescription(label, grainLabel),
+                        description: `${label} by ${grainLabel}, shown as the period's first day, in UTC.`,
+                        aiHint: GRAIN_AI_HINT,
                         type: DimensionType.DATE,
                         filterOperators: [],
                         timeInterval: { base: day, grain },
@@ -524,7 +548,8 @@ const toMetrics = (field: DescribeField): LiveMetricDefinition[] =>
               name: toName(field.name, suffix),
               apiName: `${fn}(${field.name})`,
               label: `${label} ${field.label}`,
-              description: `${label} ${field.label} of the matching records, computed by Salesforce (${fn}).`,
+              description: `${label} ${field.label} of the matching records.`,
+              aiHint: `Computed by Salesforce (${fn}); sum is not offered for percent fields.`,
               type,
               filterOperators: SALESFORCE_METRIC_FILTERS,
           }))

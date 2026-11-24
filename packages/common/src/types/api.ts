@@ -94,6 +94,7 @@ import type {
     ApiInstallRegistryChartTypeResponse,
     ApiListDataAppVizsResponse,
     ApiListRegistryChartTypesResponse,
+    ApiLiveSourceContentUsageResponse,
     ApiLiveSourceFieldsResponse,
     ApiManagedAgentActionResponse,
     ApiManagedAgentRunResponse,
@@ -1745,6 +1746,7 @@ type ApiResults =
     | ApiVirtualViewAsCodeUpsertResponse['results']
     | ApiExternalConnectionAsCodeListResponse['results']
     | ApiExternalConnectionAsCodeUpsertResponse['results']
+    | ApiLiveSourceContentUsageResponse['results']
     | ApiLiveSourceFieldsResponse['results']
     | ApiExplorePrefixCheckResponse['results']
     | ApiReattachableLiveSourcesResponse['results']
