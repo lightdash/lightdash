@@ -339,13 +339,20 @@ describe('useDeepResearchThreadRunRegistrations', () => {
             ]),
         );
     });
+});
+
+describe('useDeepResearchThreadRunRegistrationState', () => {
+    afterEach(() => {
+        lightdashApiMock.mockReset();
+    });
 
     it('lets a page gated on the lookup render once the lookup fails', async () => {
         lightdashApiMock.mockRejectedValue({
             status: 'error',
             error: { name: 'NotFoundError', statusCode: 404 },
         });
-        const Child = () => {
+        // Mounting another observer of the errored query refetches it.
+        const ThreadWithSameLookup = () => {
             useHasActiveDeepResearchRun({
                 projectUuid: 'project-1',
                 threadUuid: 'thread-1',
@@ -358,7 +365,11 @@ describe('useDeepResearchThreadRunRegistrations', () => {
                     projectUuid: 'project-1',
                     threadUuid: 'thread-1',
                 });
-            return isFirstLookupPending ? <p>loading</p> : <Child />;
+            return isFirstLookupPending ? (
+                <p>loading</p>
+            ) : (
+                <ThreadWithSameLookup />
+            );
         };
         const Wrapper = getWrapper();
         render(
