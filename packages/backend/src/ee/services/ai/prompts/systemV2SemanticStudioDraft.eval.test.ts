@@ -1,12 +1,12 @@
 import {
     TOOL_ANALYZE_FIELD_IMPACT_DESCRIPTION,
-    TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION,
     TOOL_GREP_WAREHOUSE_COLUMNS_DESCRIPTION,
     TOOL_LIST_WAREHOUSE_TABLES_DESCRIPTION,
     toolAnalyzeFieldImpactArgsSchema,
-    toolDescribeWarehouseTableArgsSchema,
     toolGrepWarehouseColumnsArgsSchema,
     toolListWarehouseTablesArgsSchema,
+    WarehouseTableType,
+    WarehouseTypes,
     type SemanticLayerDraftModelInput,
 } from '@lightdash/common';
 import { generateText, tool } from 'ai';
@@ -21,6 +21,7 @@ import {
 } from '../../SemanticStudioService/draftFold';
 import { getStudioCardResponse } from '../agents/agentV2';
 import { getModel } from '../models';
+import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import {
     getProposeSemanticLayerChange,
     getReadSemanticModel,
@@ -61,9 +62,26 @@ dimensions:
 const COLUMNS =
     'order_id bigint, customer_id bigint, status varchar, amount double';
 
+const TABLE_COMMENT = 'One row per order placed.';
+const STATUS_COMMENT = 'Where the order is in fulfilment.';
+const AMOUNT_COMMENT = 'Order total in the account currency.';
+
+const COLUMN_TYPES = [
+    { name: 'order_id', type: 'number', nativeType: 'bigint' },
+    { name: 'customer_id', type: 'number', nativeType: 'bigint' },
+    { name: 'status', type: 'string', nativeType: 'varchar' },
+    { name: 'amount', type: 'number', nativeType: 'double' },
+];
+
+const COLUMN_COMMENTS: Record<string, string | null> = {
+    status: STATUS_COMMENT,
+    amount: AMOUNT_COMMENT,
+};
+
 type Dimension = { name: string; metrics?: Record<string, unknown> };
 
-const runAsk = async (prompt: string) => {
+/** rejectWith fails every proposal with that error, as a warehouse check would. */
+const runAsk = async (prompt: string, rejectWith: string | null) => {
     const { model, callOptions, providerOptions } = getModel(
         aiCopilotConfigSchema.parse(getAiConfig()),
     );
@@ -111,6 +129,25 @@ const runAsk = async (prompt: string) => {
                 canRunMetrics: false,
                 proposeSemanticLayerChange: async (models) => {
                     proposals.push(models);
+                    if (rejectWith !== null) {
+                        return {
+                            results: models.map(({ name }) => ({
+                                model: name,
+                                status: 'failed' as const,
+                                changes: [],
+                                refusals: [],
+                                error: rejectWith,
+                                rejection: {
+                                    kind: 'warehouse_refused' as const,
+                                    detail: rejectWith,
+                                },
+                                notes: [],
+                            })),
+                            diffs: [],
+                            draftChangeUuid: null,
+                            startedChange: null,
+                        };
+                    }
                     const before = readDraft();
                     const { results, writes } = foldProposal(
                         live,
@@ -153,10 +190,24 @@ const runAsk = async (prompt: string) => {
                 inputSchema: toolListWarehouseTablesArgsSchema,
                 execute: stub('memory.public.orders'),
             }),
-            describeWarehouseTable: tool({
-                description: TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION,
-                inputSchema: toolDescribeWarehouseTableArgsSchema,
-                execute: stub(COLUMNS),
+            describeWarehouseTable: getDescribeWarehouseTable({
+                describeWarehouseTable: async () => ({
+                    columns: COLUMN_TYPES,
+                    resolvedSchema: 'public',
+                    resolvedDatabase: 'memory',
+                    partitioning: null,
+                    metadata: {
+                        tableType: WarehouseTableType.TABLE,
+                        comment: TABLE_COMMENT,
+                        columns: COLUMN_TYPES.map(({ name }) => ({
+                            name,
+                            comment: COLUMN_COMMENTS[name] ?? null,
+                            isMeasure: false,
+                        })),
+                        definition: null,
+                    },
+                    warehouseType: WarehouseTypes.DATABRICKS,
+                }),
             }),
             grepWarehouseColumns: tool({
                 description: TOOL_GREP_WAREHOUSE_COLUMNS_DESCRIPTION,
@@ -202,6 +253,9 @@ const runAsk = async (prompt: string) => {
     return {
         content,
         proposals,
+        toolNames: steps
+            .flatMap(({ toolCalls }) => toolCalls)
+            .map(({ toolName }) => toolName),
         said: [text, ...notes].join(' '),
         metricsOf,
         hasDimension: (name: string) =>
@@ -209,8 +263,8 @@ const runAsk = async (prompt: string) => {
     };
 };
 
-const runMany = (prompt: string) =>
-    Promise.all(Array.from({ length: RUNS }, () => runAsk(prompt)));
+const runMany = (prompt: string, rejectWith: string | null = null) =>
+    Promise.all(Array.from({ length: RUNS }, () => runAsk(prompt, rejectWith)));
 
 describeEval('Semantic Studio changes a model in the draft', () => {
     // The unit setup stubs fetch; this suite talks to the provider.
@@ -254,6 +308,40 @@ describeEval('Semantic Studio changes a model in the draft', () => {
                 expect(content).toContain('label: Sales orders');
                 expect(content).not.toMatch(/tags/);
                 expect(said).toMatch(/tag/i);
+            });
+        },
+        TIMEOUT,
+    );
+
+    it(
+        'drafts descriptions from warehouse comments without asking for a paste',
+        async () => {
+            const runs = await runMany(
+                'add descriptions to the orders model from the warehouse',
+            );
+            runs.forEach(({ toolNames, content, said }) => {
+                expect(toolNames).toContain('describeWarehouseTable');
+                expect(content).toContain(TABLE_COMMENT);
+                expect(content).toContain(STATUS_COMMENT);
+                expect(content).toContain(AMOUNT_COMMENT);
+                expect(said).not.toMatch(/paste/i);
+            });
+        },
+        TIMEOUT,
+    );
+
+    it(
+        'explains a rejected change without offering a hand edit around it',
+        async () => {
+            const runs = await runMany(
+                'add a count_distinct metric on customer_id to the orders model',
+                'The warehouse refused the check query: permission denied on table memory.public.orders.',
+            );
+            runs.forEach(({ proposals, said }) => {
+                expect(proposals.length).toBeGreaterThan(0);
+                expect(said).not.toMatch(
+                    /code tab|by hand|manually|paste|yaml yourself/i,
+                );
             });
         },
         TIMEOUT,
