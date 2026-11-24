@@ -217,6 +217,7 @@ export const useExplorerQueryManager = ({
         !mergeReplacesQuery,
         queryUuidHistory,
         setQueryUuidHistory,
+        { progressiveFirstPage: !minimal },
     );
     const { query, queryResults } = mainQueryExecutor;
 
@@ -228,6 +229,7 @@ export const useExplorerQueryManager = ({
         unpivotedEnabled,
         unpivotedQueryUuidHistory,
         setUnpivotedQueryUuidHistory,
+        { progressiveFirstPage: !minimal },
     );
     const { query: unpivotedQuery, queryResults: unpivotedQueryResults } =
         unpivotedQueryExecutor;
