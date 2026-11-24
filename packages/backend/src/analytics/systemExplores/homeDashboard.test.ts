@@ -289,7 +289,7 @@ describe('Overview dashboard', () => {
                     bindingOf(key);
                 const [day] = swappedOf(key).metricQuery.dimensions;
                 // A short card has no room for a change badge under the number
-                expect(minVersion).toBe('0.8.3');
+                expect(minVersion).toBe('0.8.4');
                 expect(optionValues).toMatchObject({
                     showComparison: false,
                     showSparklineArea: true,

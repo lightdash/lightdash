@@ -1004,10 +1004,7 @@ describe('built-in usage dashboards', () => {
         const captioned = spec.tabs.flatMap(({ sections }) =>
             sections.filter(({ caption }) => caption).map(({ title }) => title),
         );
-        expect(captioned).toEqual([
-            'Which dashboards are slow or expensive?',
-            'Most-used fields',
-        ]);
+        expect(captioned).toEqual(['Most-used fields']);
         spec.tabs.forEach((tab) => {
             const notes = dashboard.tiles.filter(
                 (tile) =>

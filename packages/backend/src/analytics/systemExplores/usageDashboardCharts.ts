@@ -295,7 +295,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         visualization: 'number',
         libraryChart: {
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.8.3',
+            minVersion: '0.8.4',
             fieldMapping: {
                 value: 'agent_requests_total_requests',
                 sparklineMetric: 'agent_requests_total_requests',
@@ -345,7 +345,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         visualization: 'number',
         libraryChart: {
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.8.3',
+            minVersion: '0.8.4',
             fieldMapping: {
                 value: 'agent_requests_distinct_requesters',
                 sparklineMetric: 'agent_requests_distinct_requesters',
@@ -735,7 +735,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.18.7',
+            minVersion: '0.18.8',
             fieldMapping: {
                 x: 'ai_usage_user_name',
                 m1: 'ai_usage_total_tokens_used',
@@ -893,7 +893,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         visualization: 'number',
         libraryChart: {
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.8.3',
+            minVersion: '0.8.4',
             fieldMapping: {
                 value: failedTokens,
                 sparklineMetric: failedTokens,

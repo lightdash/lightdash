@@ -149,8 +149,10 @@ export const libraryChartOptions: Record<
         // Whole-number ticks, for an axis that counts a few things
         yIntegerTicks: '0.18.6',
         y2IntegerTicks: '0.18.6',
-        // Shades each group's series by a ranked list of words in their names, darkest first
-        splitShadeRank: '0.18.7',
+        // Shades each group's series by a ranked list of words in their names, darkest first. Added in
+        // 0.18.7; 0.18.8 narrowed the ramp so the weakest tier is not too pale, which is the version a
+        // binding asks for
+        splitShadeRank: '0.18.8',
         // 'groups' lists one legend entry for each colour group instead of one for each series
         legendMode: '0.18.7',
     },
@@ -163,6 +165,10 @@ export const libraryChartOptions: Record<
         // From this version the number's size and format no longer depend on how the value is
         // added up, so cards in a row can match
         reserveComparisonSpace: '0.8.2',
+        // The bar of a card with a target: as wide as the card, and how tall. From 0.8.4 the target
+        // label also takes {target}, {value} and {field_id}
+        progressWidth: '0.8.4',
+        progressHeight: '0.8.4',
     },
     'word-cloud': {
         ...sinceFirstBinding(
@@ -177,8 +183,9 @@ export const libraryChartOptions: Record<
 // the chart wrongly. The sync upgrades an installed type only when it is below a binding's version, so
 // a fix reaches an instance only if the bindings ask for the version that has it.
 export const libraryChartFloors: Record<string, string> = {
-    // 0.8.3 stops the sparkline being clipped at the bottom of the card
-    'big-number-with-sparkline-trend': '0.8.3',
+    // 0.8.3 stops the sparkline being clipped at the bottom of the card; 0.8.4 draws the number of a
+    // card with a target at its normal size
+    'big-number-with-sparkline-trend': '0.8.4',
 };
 
 // Swaps a chart to its library type only when the installed version meets its binding and the binding is valid.

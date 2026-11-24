@@ -370,7 +370,7 @@ describe('model tiers', () => {
         expect(shaded).toHaveLength(5);
         shaded.forEach(({ optionValues, minVersion }) => {
             expect(optionValues.splitShadeRank).toBe(modelTierRanks);
-            expect(minVersion).toBe('0.18.7');
+            expect(minVersion).toBe('0.18.8');
         });
     });
 });

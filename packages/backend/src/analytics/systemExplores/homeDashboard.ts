@@ -41,7 +41,7 @@ const card = ({
     visualization: 'number',
     libraryChart: {
         slug: 'big-number-with-sparkline-trend',
-        minVersion: '0.8.3',
+        minVersion: '0.8.4',
         fieldMapping: { value: metric, sparklineMetric: metric, time: day },
         optionValues: {
             ...(distinct

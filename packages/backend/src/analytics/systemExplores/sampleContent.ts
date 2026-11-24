@@ -192,7 +192,7 @@ const chart = (
 // The models as horizontal bars in the order of the query, each in the colour of its provider.
 const modelRanking = (metric: string): LibraryChartBinding => ({
     slug: 'customizable-cartesian-chart',
-    minVersion: '0.18.7',
+    minVersion: '0.18.8',
     fieldMapping: { x: 'ai_usage_model_name', m1: metric },
     optionValues: {
         seriesType: 'bar',
@@ -222,7 +222,7 @@ const aiUsageContent = {
                 'AI calls in the selected period. One agent request can make several AI calls.',
             libraryChart: {
                 slug: 'big-number-with-sparkline-trend',
-                minVersion: '0.8.3',
+                minVersion: '0.8.4',
                 fieldMapping: {
                     value: 'ai_usage_total_ai_calls',
                     sparklineMetric: 'ai_usage_total_ai_calls',
@@ -260,7 +260,7 @@ const aiUsageContent = {
                 description: 'Tokens used in the selected period.',
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
-                    minVersion: '0.8.3',
+                    minVersion: '0.8.4',
                     fieldMapping: {
                         value: 'ai_usage_total_tokens_used',
                         sparklineMetric: 'ai_usage_total_tokens_used',
@@ -303,7 +303,7 @@ const aiUsageContent = {
                     'People who used AI on the latest day in the selected period.',
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
-                    minVersion: '0.8.3',
+                    minVersion: '0.8.4',
                     fieldMapping: {
                         value: 'ai_usage_unique_users',
                         sparklineMetric: 'ai_usage_unique_users',
@@ -344,7 +344,7 @@ const aiUsageContent = {
                 description: 'Output tokens in the selected period.',
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
-                    minVersion: '0.8.3',
+                    minVersion: '0.8.4',
                     fieldMapping: {
                         value: 'ai_usage_total_output_tokens',
                         sparklineMetric: 'ai_usage_total_output_tokens',
@@ -387,7 +387,7 @@ const aiUsageContent = {
                 description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
-                    minVersion: '0.18.7',
+                    minVersion: '0.18.8',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         m1: 'ai_usage_total_ai_calls',
@@ -440,7 +440,7 @@ const aiUsageContent = {
                 description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
-                    minVersion: '0.18.7',
+                    minVersion: '0.18.8',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         m1: 'ai_usage_total_tokens_used',
@@ -601,7 +601,7 @@ export const analyticsSampleDashboards = [
                     description: 'Queries run in the selected period.',
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
-                        minVersion: '0.8.3',
+                        minVersion: '0.8.4',
                         fieldMapping: {
                             value: 'query_events_total_queries',
                             sparklineMetric: 'query_events_total_queries',
@@ -644,7 +644,7 @@ export const analyticsSampleDashboards = [
                         'People who ran queries on the latest day in the selected period. Service accounts are counted too.',
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
-                        minVersion: '0.8.3',
+                        minVersion: '0.8.4',
                         fieldMapping: {
                             value: 'query_events_unique_users',
                             sparklineMetric: 'query_events_unique_users',
@@ -687,7 +687,7 @@ export const analyticsSampleDashboards = [
                         'Average warehouse execution time on the latest day in the selected period.',
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
-                        minVersion: '0.8.3',
+                        minVersion: '0.8.4',
                         fieldMapping: {
                             value: 'query_events_avg_warehouse_execution_time_s',
                             sparklineMetric:
@@ -733,7 +733,7 @@ export const analyticsSampleDashboards = [
                         'P90 warehouse execution time on the latest day in the selected period.',
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
-                        minVersion: '0.8.3',
+                        minVersion: '0.8.4',
                         fieldMapping: {
                             value: 'query_events_p90_warehouse_execution_time_s',
                             sparklineMetric:

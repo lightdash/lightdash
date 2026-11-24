@@ -42,7 +42,7 @@ export const card = ({
     visualization: 'number',
     libraryChart: {
         slug: 'big-number-with-sparkline-trend',
-        minVersion: '0.8.3',
+        minVersion: '0.8.4',
         fieldMapping: { value: metric, sparklineMetric: metric, time: day },
         optionValues: {
             ...(latestDay
@@ -80,8 +80,8 @@ export const card = ({
 // One number as a card, with a line of plain words saying what it counts (`label`; left to the hover
 // text on a card that draws a bar). For a number with no daily
 // series behind it, so no sparkline. A number that is part of a whole also draws a bar of its share:
-// `whole` is the field holding the whole, and `wholeLabel` ends the line under the bar ("65% of all
-// content"). A share that is already a percentage draws the bar alone.
+// `whole` is the field holding the whole, and `wholeLabel` ends the line under the bar; {target} in it
+// is replaced by the whole ("65% of 301 items"). A share that is already a percentage draws the bar alone.
 export const numberCard = (
     value: string,
     label: string,
@@ -102,7 +102,7 @@ export const numberCard = (
     } = {},
 ): LibraryChartBinding => ({
     slug: 'big-number-with-sparkline-trend',
-    minVersion: '0.8.3',
+    minVersion: '0.8.4',
     fieldMapping: { value, ...(whole ? { target: whole } : {}) },
     optionValues: {
         valueAggregation: 'latest',
@@ -125,6 +125,9 @@ export const numberCard = (
                   targetDisplay: percent ? 'bar' : 'both',
                   ...(wholeLabel ? { targetLabel: wholeLabel } : {}),
                   ...(color ? { progressColor: color } : {}),
+                  // A bar the width of the card, thick enough to read as the point of it
+                  progressWidth: 'full',
+                  progressHeight: 10,
               }
             : {}),
         ...(strong && color
