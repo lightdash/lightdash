@@ -1,3 +1,10 @@
+## [3.383.2](https://github.com/lightdash/lightdash/compare/3.383.1...3.383.2) (2026-11-24)
+
+
+### Bug Fixes
+
+* **semantic-studio:** publish a hand-edited draft when no AI is set up ([#33301](https://github.com/lightdash/lightdash/issues/33301)) ([45bd781](https://github.com/lightdash/lightdash/commit/45bd781c5ada03f3db7f0e0ca45f32436bce79f5))
+
 ## [3.383.1](https://github.com/lightdash/lightdash/compare/3.383.0...3.383.1) (2026-11-24)
 
 
