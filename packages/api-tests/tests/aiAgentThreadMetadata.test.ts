@@ -20,11 +20,11 @@ describe('AI agent thread metadata', () => {
     let agentUuid: string;
 
     const threadsUrl = () => `${AGENTS_API_PREFIX}/${agentUuid}/threads`;
-    const listAdminThreadUuids = async (query: Record<string, string>) => {
+    const listAdminThreads = async (query: Record<string, string>) => {
         const resp = await admin.get<
             Body<KnexPaginatedData<AiAgentAdminConversationsSummary>>
         >(`${ADMIN_THREADS_URL}?${new URLSearchParams(query).toString()}`);
-        return resp.body.results.data.threads.map((t) => t.uuid);
+        return resp.body.results.data.threads;
     };
 
     beforeAll(async () => {
@@ -48,10 +48,11 @@ describe('AI agent thread metadata', () => {
             },
             { failOnStatusCode: false },
         );
-        if (agentResp.status !== 201) {
+        if (agentResp.status === 403) {
             available = false;
             return;
         }
+        expect(agentResp.status).toBe(201);
         agentUuid = agentResp.body.results.uuid;
     });
 
@@ -82,20 +83,23 @@ describe('AI agent thread metadata', () => {
         );
         expect(opened.body.results.metadata).toEqual(metadata);
 
+        const matching = await listAdminThreads({
+            metadataKey: 'user',
+            metadataValue: endUser,
+        });
+        expect(matching.map((t) => [t.uuid, t.metadata])).toEqual([
+            [threadUuid, metadata],
+        ]);
         expect(
-            await listAdminThreadUuids({
-                metadataKey: 'user',
-                metadataValue: endUser,
-            }),
-        ).toEqual([threadUuid]);
-        expect(
-            await listAdminThreadUuids({
+            await listAdminThreads({
                 metadataKey: 'user',
                 metadataValue: `${endUser}-other`,
             }),
         ).toEqual([]);
         expect(
-            await listAdminThreadUuids({ metadataKey: 'environment' }),
+            (await listAdminThreads({ metadataKey: 'environment' })).map(
+                (t) => t.uuid,
+            ),
         ).toContain(threadUuid);
     });
 
