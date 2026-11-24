@@ -17,7 +17,6 @@ import {
     CachedWarehouse,
     DbtSourcePreparation,
     ProjectAdapter,
-    type TrackingParams,
 } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 import { GIT_REPOSITORY_ENVIRONMENT, GitRepository } from './gitRepository';
@@ -163,16 +162,10 @@ export class DbtGitProjectAdapter
     }
 
     public async prepareExploreStream(
-        trackingParams?: TrackingParams,
-        loadSources?: boolean,
-        allowPartialCompilation?: boolean,
+        ...args: Parameters<ProjectAdapter['prepareExploreStream']>
     ) {
         await this.prepareDbtSource();
-        return super.prepareExploreStream(
-            trackingParams,
-            loadSources,
-            allowPartialCompilation,
-        );
+        return super.prepareExploreStream(...args);
     }
 
     /** The commit the clone is at, or null before the clone or once it is gone. */
