@@ -27,7 +27,10 @@ import {
     toScannedLiveSourceFields,
 } from './build';
 import { assertLiveQuery, getLiveDefinitionName } from './definition';
-import { getInitialLiveSourceFieldEdits } from './fields';
+import {
+    getInitialLiveSourceFieldEdits,
+    type LiveSourceExploreEdits,
+} from './fields';
 
 const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
 
@@ -204,6 +207,53 @@ describe('buildLiveExplores', () => {
         );
         expect(Object.keys(posthog().apiSource?.fields ?? {})).not.toContain(
             'posthog_03386598_events_property_plan',
+        );
+    });
+});
+
+describe('switching explores off and editing them', () => {
+    const hydra = (exploreEdits: LiveSourceExploreEdits) =>
+        buildLiveExplores({
+            connectionUuid: CONNECTION_UUID,
+            sourceName: 'hydra',
+            name: 'Hydra',
+            apiSource: { connector: ApiConnectorType.HYDRA },
+            scannedFields: [],
+            edits: {},
+            exploreEdits,
+            aiHint: ['Hydra target', 'Source hint'],
+        });
+
+    it('builds every explore unless it is switched off', () => {
+        expect(hydra({}).map(({ name }) => name)).toEqual([
+            'hydra_events',
+            'hydra_users',
+        ]);
+        expect(
+            hydra({ events: { inUse: false } }).map(({ name }) => name),
+        ).toEqual(['hydra_users']);
+        expect(
+            hydra({ events: { inUse: false }, users: { inUse: false } }),
+        ).toEqual([]);
+    });
+
+    it('applies label and description overrides, and adds the explore hint last', () => {
+        const [, users] = hydra({
+            users: {
+                label: 'Customers',
+                description: 'Paying users',
+                aiHint: 'Seats are per workspace',
+            },
+        });
+        expect(users.label).toBe('Customers');
+        expect(users.tables[users.baseTable].description).toBe('Paying users');
+        expect(users.aiHint).toEqual([
+            'Hydra target',
+            'Source hint',
+            'Seats are per workspace',
+        ]);
+        expect(users.apiSource?.definitionHash).toBe(
+            hydra({}).at(1)?.apiSource?.definitionHash,
         );
     });
 });
@@ -711,6 +761,7 @@ describe('getLostLiveFieldIds', () => {
                 rebuilt,
                 edits: {},
                 sourceName: 'site',
+                firstModel: 'performance',
             }),
         ).toEqual(['site_performance_custom']);
     });
@@ -722,6 +773,7 @@ describe('getLostLiveFieldIds', () => {
                 rebuilt,
                 edits: { custom: { inUse: false, lastEdit: null } },
                 sourceName: 'site',
+                firstModel: 'performance',
             }),
         ).toEqual([]);
     });
@@ -733,7 +785,27 @@ describe('getLostLiveFieldIds', () => {
                 rebuilt,
                 edits: { 'contacts.email': { inUse: false, lastEdit: null } },
                 sourceName: 'site',
+                firstModel: 'performance',
             }),
         ).toEqual(['site_contacts_phone']);
+    });
+
+    it('allows dropping every field of a switched-off explore, the first one included', () => {
+        expect(
+            getLostLiveFieldIds({
+                storedFieldIds: [
+                    'site_performance_clicks',
+                    'site_contacts_email',
+                ],
+                rebuilt: [],
+                edits: {},
+                exploreEdits: {
+                    performance: { inUse: false },
+                    contacts: { inUse: false },
+                },
+                sourceName: 'site',
+                firstModel: 'performance',
+            }),
+        ).toEqual([]);
     });
 });

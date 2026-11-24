@@ -29,10 +29,19 @@ export type LiveSourceField = {
     lastEdit: LiveSourceFieldEditor | null;
 };
 
-/** The fields of one explore of a live data source. */
+/** One explore of a live data source, with its fields when they can be curated. */
 export type LiveSourceExploreFields = {
     exploreName: string;
     label: string;
+    description: string;
+    aiHint: string | null;
+    /** Off, the explore isn't built, so charts, dashboards and agents can't use it. */
+    inUse: boolean;
+    /** Saved charts on the explore. */
+    usedByChartCount: number;
+    lastEdit: LiveSourceFieldEditor | null;
+    /** False for an explore scans add no fields to; its `fields` is then empty. */
+    canEditFields: boolean;
     fields: LiveSourceField[];
 };
 
@@ -44,7 +53,7 @@ export type LiveSourceFields = {
     /** ISO timestamp of the last scan, or null when the source was never scanned. */
     scannedAt: string | null;
     fields: LiveSourceField[];
-    /** Every explore whose fields can be curated, the first one included. */
+    /** Every explore of the source, in use or not, the first one included. */
     explores: LiveSourceExploreFields[];
 };
 
@@ -65,6 +74,16 @@ export type LiveSourceFieldChange = {
     group?: string | null;
 };
 
+/** One explore change; unset keys stay as they are, null clears an override. */
+export type LiveSourceExploreChange = {
+    exploreName: string;
+    inUse?: boolean;
+    label?: string | null;
+    description?: string | null;
+    aiHint?: string | null;
+};
+
 export type ApiUpdateLiveSourceFieldsRequest = {
     changes: LiveSourceFieldChange[];
+    exploreChanges?: LiveSourceExploreChange[];
 };

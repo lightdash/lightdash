@@ -427,7 +427,8 @@ export class ExternalConnectionController extends BaseController {
 
     /**
      * Put fields of a live data source in or out of use, or change their
-     * label, group, description or AI hint
+     * label, group, description or AI hint. `exploreChanges` switches whole
+     * explores on or off, or changes their label, description or AI hint
      * @summary Update live data source fields
      */
     @Middlewares([
@@ -453,6 +454,7 @@ export class ExternalConnectionController extends BaseController {
                 projectUuid,
                 connectionUuid,
                 body.changes,
+                body.exploreChanges,
             ),
         };
     }
