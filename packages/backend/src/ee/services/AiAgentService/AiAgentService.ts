@@ -12081,11 +12081,6 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<AgentLiveSource[]> {
-        const { enabled } = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.ApiQuerySources,
-        });
-        if (!enabled) return [];
         const connections =
             await this.externalConnectionService.listApiSourceConnections(
                 fromSession(user),
