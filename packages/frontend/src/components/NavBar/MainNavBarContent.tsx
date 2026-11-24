@@ -93,7 +93,7 @@ export const MainNavBarContent: FC<Props> = ({
                         title="Home"
                         className={classes.logoButton}
                     >
-                        <NavBarLogo />
+                        <NavBarLogo mark="tile" />
                     </ActionIcon>
                 )}
 
@@ -218,7 +218,7 @@ export const MainNavBarContent: FC<Props> = ({
                     size="lg"
                     className={classes.logoButton}
                 >
-                    <NavBarLogo />
+                    <NavBarLogo mark="tile" />
                 </ActionIcon>
                 <Group className={classes.compactActions} gap={0} wrap="nowrap">
                     {activeProjectUuid && (

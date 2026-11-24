@@ -145,7 +145,7 @@ export const useAppSidebarSections = ({
                       tourNav: 'ask-ai',
                       label: 'Ask AI',
                       to: `/projects/${projectUuid}/ai-agents`,
-                      icon: <AiAgentIcon size={16} />,
+                      icon: <AiAgentIcon size={16} muted />,
                       status: null,
                       onClick: null,
                   },

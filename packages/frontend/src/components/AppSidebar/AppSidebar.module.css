@@ -13,7 +13,8 @@
     flex-direction: column;
     gap: var(--mantine-spacing-md);
     height: 100%;
-    padding: rem(6px) var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    /* The header row shares a centre line with the gutter beside it. */
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-xs);
     overflow: hidden;
 }
 
@@ -40,6 +41,8 @@
     display: flex;
     flex-direction: column;
     gap: rem(4px);
+    /* The first rows belong to the header more than to the sections below. */
+    margin-bottom: rem(-6px);
 }
 
 .header {
@@ -72,10 +75,18 @@
     height: rem(28px);
 
     & :is(svg, img) {
-        width: rem(20px);
-        height: rem(20px);
-        border-radius: rem(5px);
+        width: rem(22px);
+        height: rem(22px);
+        border-radius: rem(6px);
         object-fit: contain;
+    }
+
+    /* The bolt is narrower than the tile, so it is drawn to the tile's
+       height rather than squeezed into its square. */
+    & svg[data-mark='bolt'] {
+        width: rem(15px);
+        border-radius: 0;
+        color: var(--mantine-color-text);
     }
 }
 
