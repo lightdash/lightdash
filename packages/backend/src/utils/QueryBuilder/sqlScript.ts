@@ -71,6 +71,12 @@ const isHoistableStatement = (statement: string): boolean =>
         statement.slice(skipLeadingComments(statement)),
     );
 
+/** Metadata statements return a result set but can't take a LIMIT or be wrapped. */
+const METADATA_STATEMENT_PATTERN = /^(describe|desc|show|explain|list)\b/i;
+
+export const isMetadataStatement = (sql: string): boolean =>
+    METADATA_STATEMENT_PATTERN.test(sql.slice(skipLeadingComments(sql)));
+
 const attachCommentOnlyStatements = (statements: string[]): string[] => {
     const grouped = statements.reduce<{
         statements: string[];

@@ -1,4 +1,8 @@
-import { parseSqlScript, splitSqlStatements } from './sqlScript';
+import {
+    isMetadataStatement,
+    parseSqlScript,
+    splitSqlStatements,
+} from './sqlScript';
 
 describe('splitSqlStatements', () => {
     test('returns a single statement unchanged', () => {
@@ -133,5 +137,32 @@ describe('parseSqlScript', () => {
             kind: 'statement',
             sql: 'SELECT setting FROM a;\nSELECT 1',
         });
+    });
+});
+
+describe('isMetadataStatement', () => {
+    test.each([
+        'DESCRIBE TABLE my_schema.my_table',
+        'desc my_table',
+        'SHOW CREATE TABLE my_table',
+        'show server_version;',
+        'EXPLAIN SELECT 1',
+        'LIST @my_stage',
+        '  \n  DESCRIBE TABLE my_table',
+        '-- inspect the table\nDESCRIBE TABLE my_table',
+        '/* inspect */ SHOW TABLES',
+    ])('detects %s', (sql) => {
+        expect(isMetadataStatement(sql)).toBe(true);
+    });
+
+    test.each([
+        'SELECT * FROM my_table',
+        'WITH a AS (SELECT 1) SELECT * FROM a',
+        'SELECT description FROM my_table',
+        '-- SHOW TABLES\nSELECT 1',
+        'SET x = 1; SHOW TABLES',
+        'showcase_table',
+    ])('ignores %s', (sql) => {
+        expect(isMetadataStatement(sql)).toBe(false);
     });
 });

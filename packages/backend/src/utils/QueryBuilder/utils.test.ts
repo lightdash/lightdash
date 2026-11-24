@@ -1021,6 +1021,34 @@ describe('applyLimitToSqlQuery', () => {
 
         expect(result).toBe(expectedQuery);
     });
+    it.each([
+        ['DESCRIBE TABLE my_table', 'DESCRIBE TABLE my_table'],
+        ['SHOW CREATE TABLE my_table;', 'SHOW CREATE TABLE my_table'],
+        [
+            '-- inspect\n  explain select * from my_table',
+            'explain select * from my_table',
+        ],
+    ])(
+        'should not add a limit to metadata statement %s',
+        (sqlQuery, expected) => {
+            expect(applyLimitToSqlQuery({ sqlQuery, limit: 1 })).toBe(expected);
+            expect(applyLimitToSqlQuery({ sqlQuery, limit: 500 })).toBe(
+                expected,
+            );
+            expect(applyLimitToSqlQuery({ sqlQuery, limit: null })).toBe(
+                expected,
+            );
+        },
+    );
+
+    it('should still limit a select after a metadata statement check', () => {
+        expect(
+            applyLimitToSqlQuery({
+                sqlQuery: 'SELECT description FROM my_table',
+                limit: 1,
+            }),
+        ).toBe('SELECT description FROM my_table LIMIT 1');
+    });
 });
 
 describe('findMetricInflationWarnings', () => {
