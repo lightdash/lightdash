@@ -521,6 +521,7 @@ export const lightdashConfigMock: LightdashConfig = {
         flushBatchSize: 1000,
         bufferMaxSize: 10000,
         s3: null,
+        backfillDiskBudgetBytes: null,
     },
     appRuntime: {
         dataAppCodingAgent: 'claude',

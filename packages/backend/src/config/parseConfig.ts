@@ -2103,6 +2103,8 @@ export type LightdashConfig = {
         flushBatchSize: number;
         bufferMaxSize: number;
         s3: Omit<S3Config, 'expirationTime'> | null;
+        /** Pod ephemeral-storage share for one history backfill; statfs only sees the node disk. */
+        backfillDiskBudgetBytes: number | null;
     };
     appRuntime: AppRuntimeConfig;
     enabledFeatureFlags: Set<string>;
@@ -4394,6 +4396,13 @@ export const parseConfig = (): LightdashConfig => {
                     'USAGE_EVENTS_BUFFER_MAX_SIZE',
                 ) ?? 10000,
             s3: usageEventsS3,
+            backfillDiskBudgetBytes: process.env
+                .USAGE_HISTORY_BACKFILL_DISK_BUDGET_BYTES
+                ? getPositiveIntegerFromEnvironmentVariable(
+                      'USAGE_HISTORY_BACKFILL_DISK_BUDGET_BYTES',
+                      1,
+                  )
+                : null,
         },
         appRuntime: parseAppRuntimeConfig(siteUrl),
         enabledFeatureFlags: new Set([

@@ -3399,3 +3399,21 @@ describe('dbt source disk configuration', () => {
         });
     });
 });
+
+describe('usage history backfill disk budget', () => {
+    it('leaves the budget unknown by default', () => {
+        expect(parseConfig().usageEvents.backfillDiskBudgetBytes).toBeNull();
+    });
+    it('parses a byte budget', () => {
+        process.env.USAGE_HISTORY_BACKFILL_DISK_BUDGET_BYTES = '2147483648';
+        expect(parseConfig().usageEvents.backfillDiskBudgetBytes).toBe(
+            2147483648,
+        );
+    });
+    it.each(['0', '-1', 'lots'])('rejects %s', (value) => {
+        process.env.USAGE_HISTORY_BACKFILL_DISK_BUDGET_BYTES = value;
+        expect(() => parseConfig()).toThrow(
+            /USAGE_HISTORY_BACKFILL_DISK_BUDGET_BYTES/,
+        );
+    });
+});

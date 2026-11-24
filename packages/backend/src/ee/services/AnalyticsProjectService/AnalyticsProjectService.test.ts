@@ -122,6 +122,7 @@ describe('AnalyticsProjectService', () => {
                 flushIntervalMs: 1000,
                 flushBatchSize: 1000,
                 bufferMaxSize: 1000,
+                backfillDiskBudgetBytes: null,
             },
         },
         schedulerClient: {

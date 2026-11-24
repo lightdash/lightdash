@@ -20,9 +20,15 @@ export const usageHistoryCompletionKey = (org: string) => {
 export class UsageHistoryBackfill extends S3BaseClient {
     private readonly storage: Omit<S3Config, 'expirationTime'>;
 
-    constructor(storage: Omit<S3Config, 'expirationTime'>) {
+    private readonly diskBudgetBytes: number | null;
+
+    constructor(
+        storage: Omit<S3Config, 'expirationTime'>,
+        diskBudgetBytes: number | null = null,
+    ) {
         super(storage);
         this.storage = storage;
+        this.diskBudgetBytes = diskBudgetBytes;
     }
 
     async isComplete(org: string): Promise<boolean> {
@@ -69,6 +75,7 @@ export class UsageHistoryBackfill extends S3BaseClient {
                     this.storage,
                     models[index],
                     source,
+                    this.diskBudgetBytes,
                 ).run(org);
             }
             // Publish only after every source succeeds, including empty/no-op runs.

@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
 import { gzipSync } from 'zlib';
+import Logger from '../../logging/logger';
 import { UsageAdditionalHistoryModel } from '../../models/UsageAdditionalHistoryModel';
 import { UsageHistoryModel } from '../../models/UsageHistoryModel';
 import { UsageLegacyHistoryModel } from '../../models/UsageLegacyHistoryModel';
@@ -28,7 +29,9 @@ const transport = vi.hoisted(() => ({
     failMarker: false,
     failListing: false,
     uploads: 0,
+    spillParents: [] as string[],
 }));
+const SPILL_BYTES = 4096;
 vi.mock('../../clients/Aws/S3BaseClient', () => ({
     S3BaseClient: class {
         protected s3 = {
@@ -82,7 +85,22 @@ vi.mock('@lightdash/warehouses', async () => {
                 threads: '1',
                 memory_limit: '128MB',
             });
+            private spillParent: string;
+            constructor(
+                _credentials: unknown,
+                options: { isolatedTempDirectoryParent: string },
+            ) {
+                this.spillParent = options.isolatedTempDirectoryParent;
+                transport.spillParents.push(this.spillParent);
+            }
             async runSqlWithMetrics(sql: string) {
+                // Stands in for the engine's spill files, kept until close.
+                const spill = path.join(this.spillParent, 'duckdb-temp-test');
+                await mkdir(spill, { recursive: true });
+                await writeFile(
+                    path.join(spill, 'spill.tmp'),
+                    Buffer.alloc(SPILL_BYTES),
+                );
                 const instance = await this.engine;
                 const connection = await instance.connect();
                 try {
@@ -176,6 +194,7 @@ describe('usage history backfill reconciliation', () => {
         transport.failUpload = false;
         transport.failListing = false;
         transport.uploads = 0;
+        transport.spillParents = [];
         rows = [row('existing'), row('missing'), row('pending')];
         await parquet(
             `events/compacted/org_id=${org}/stream=query_events/dt=2026-09-02/captured.parquet`,
@@ -556,5 +575,157 @@ describe('usage history backfill reconciliation', () => {
             { record_id: 'view-3', current_status: null },
         ]);
         expect(transport.keys.has(queryHistoryBackfillKey(org))).toBe(false);
+    });
+
+    describe('run summary', () => {
+        const SUMMARY = 'Analytics history backfill source finished';
+        const NEAR_BUDGET =
+            'Analytics history backfill is near its disk budget';
+        const logged = (
+            spy: { mock: { calls: unknown[][] } },
+            message: string,
+        ) =>
+            spy.mock.calls
+                .filter(([text]) => text === message)
+                .map(([, fields]) => fields as Record<string, unknown>);
+        const withBudget = (budget: number | null) =>
+            new UsageQueryHistoryBackfill(
+                storage,
+                {
+                    async *getJsonLines() {
+                        for (const value of rows)
+                            yield `${JSON.stringify(value)}\n`;
+                    },
+                },
+                usageHistorySources[0],
+                budget,
+            );
+        afterEach(() => vi.restoreAllMocks());
+
+        it('logs rows, file sizes, peak temp disk including the DuckDB spill directory, and durations', async () => {
+            const info = vi.spyOn(Logger, 'info');
+            const warn = vi.spyOn(Logger, 'warn');
+            await backfill().run(org);
+            const [summary] = logged(info, SUMMARY);
+            expect(summary).toEqual({
+                organizationUuid: org,
+                source: 'query_events',
+                outcome: 'published',
+                rowsWritten: 3,
+                jsonlBytes: expect.any(Number),
+                parquetBytes: expect.any(Number),
+                peakTempDiskBytes: expect.any(Number),
+                diskBudgetBytes: null,
+                diskBudgetUsedPercent: null,
+                durationMs: expect.any(Number),
+                phaseDurationsMs: {
+                    'read database': expect.any(Number),
+                    'read storage': expect.any(Number),
+                    'reconcile history': expect.any(Number),
+                    'publish history': expect.any(Number),
+                },
+            });
+            const jsonl = rows.map((value) => `${JSON.stringify(value)}\n`);
+            expect(summary.jsonlBytes).toBe(Buffer.byteLength(jsonl.join('')));
+            expect(summary.parquetBytes).toBeGreaterThan(0);
+            expect(summary.peakTempDiskBytes).toBeGreaterThanOrEqual(
+                (summary.jsonlBytes as number) +
+                    (summary.parquetBytes as number) +
+                    SPILL_BYTES,
+            );
+            expect(logged(warn, NEAR_BUDGET)).toEqual([]);
+
+            info.mockClear();
+            await backfill().run(org);
+            expect(logged(info, SUMMARY)).toEqual([
+                expect.objectContaining({
+                    outcome: 'unchanged',
+                    rowsWritten: 3,
+                    parquetBytes: null,
+                }),
+            ]);
+        });
+
+        it('reports an empty source without a Parquet file', async () => {
+            const info = vi.spyOn(Logger, 'info');
+            rows = [];
+            await backfill().run(org);
+            expect(logged(info, SUMMARY)).toEqual([
+                expect.objectContaining({
+                    outcome: 'empty',
+                    rowsWritten: 0,
+                    jsonlBytes: 0,
+                    parquetBytes: null,
+                }),
+            ]);
+        });
+
+        it('spills DuckDB under the run directory and removes it afterwards', async () => {
+            await backfill().run(org);
+            const [parent] = transport.spillParents;
+            expect(path.dirname(parent)).toBe(tmpdir());
+            expect(path.basename(parent)).toMatch(/^usage-query-history-/);
+            await expect(readFile(parent)).rejects.toMatchObject({
+                code: 'ENOENT',
+            });
+        });
+
+        it('warns once when temp disk passes 70% of the budget and reports the percentage', async () => {
+            const info = vi.spyOn(Logger, 'info');
+            const warn = vi.spyOn(Logger, 'warn');
+            await withBudget(1024).run(org);
+            const warnings = logged(warn, NEAR_BUDGET);
+            expect(warnings).toEqual([
+                {
+                    organizationUuid: org,
+                    source: 'query_events',
+                    phase: 'read database',
+                    tempDiskBytes: expect.any(Number),
+                    diskBudgetBytes: 1024,
+                    diskBudgetUsedPercent: expect.any(Number),
+                },
+            ]);
+            expect(
+                warnings[0].diskBudgetUsedPercent as number,
+            ).toBeGreaterThanOrEqual(70);
+            const [summary] = logged(info, SUMMARY);
+            expect(summary.diskBudgetBytes).toBe(1024);
+            expect(summary.diskBudgetUsedPercent).toBe(
+                Math.round(
+                    ((summary.peakTempDiskBytes as number) / 1024) * 1000,
+                ) / 10,
+            );
+        });
+
+        it('does not warn while temp disk stays under 70% of the budget', async () => {
+            const warn = vi.spyOn(Logger, 'warn');
+            await withBudget(1024 ** 4).run(org);
+            expect(logged(warn, NEAR_BUDGET)).toEqual([]);
+        });
+
+        it('puts the same fields in the failure log without provider details', async () => {
+            const error = vi.spyOn(Logger, 'error');
+            const info = vi.spyOn(Logger, 'info');
+            transport.failUpload = true;
+            await expect(backfill().run(org)).rejects.toThrow(
+                /Unable to publish/,
+            );
+            const failures = logged(error, 'Analytics history backfill failed');
+            expect(failures).toEqual([
+                expect.objectContaining({
+                    organizationUuid: org,
+                    source: 'query_events',
+                    outcome: 'failed',
+                    phase: 'publish history',
+                    rowsWritten: 3,
+                    jsonlBytes: expect.any(Number),
+                    parquetBytes: expect.any(Number),
+                    peakTempDiskBytes: expect.any(Number),
+                    durationMs: expect.any(Number),
+                }),
+            ]);
+            expect(JSON.stringify(failures)).not.toContain('private');
+            expect(logged(info, SUMMARY)).toEqual([]);
+        });
     });
 });

@@ -11,6 +11,7 @@ import type { S3Config } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import type { UsageQueryHistoryModel } from '../../models/UsageQueryHistoryModel';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
+import { diskBudgetUsage, TempDiskMonitor } from './backfillDiskUsage';
 import {
     usageHistoryKey,
     usageHistorySources,
@@ -36,6 +37,8 @@ const failureMessages = {
     'publish history':
         'Unable to publish retained analytics history to storage',
 };
+type Phase = keyof typeof failureMessages;
+const DISK_SAMPLE_INTERVAL_MS = 5_000;
 
 /** One atomically replaced, org-scoped history file; no completion flag. */
 export class UsageQueryHistoryBackfill extends S3BaseClient {
@@ -43,6 +46,7 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
         private readonly storage: Omit<S3Config, 'expirationTime'>,
         private readonly history: Pick<UsageQueryHistoryModel, 'getJsonLines'>,
         private readonly source: UsageHistorySource = usageHistorySources[0],
+        private readonly diskBudgetBytes: number | null = null,
     ) {
         super(storage);
     }
@@ -93,37 +97,118 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
             sameIdentity(keyColumns, left, right);
         const runtime = getDuckdbRuntimeConfig(this.storage);
         if (!runtime) throw new Error('Usage storage is not configured');
-        const duckdb = new DuckdbWarehouseClient(
-            {
-                type: 'duckdb_s3',
-                s3Config: {
-                    ...runtime,
-                    ...(this.storage.authMode === 'gcp_oauth'
-                        ? { scope: [`gs://${this.storage.bucket}/events/`] }
-                        : {}),
-                },
-            },
-            {
-                resourceLimits: { memoryLimit: '256MB', threads: 1 },
-                logger: Logger,
-            },
-        );
         const directory = await mkdtemp(
             path.join(tmpdir(), 'usage-query-history-'),
         );
-        let phase: keyof typeof failureMessages = 'read database';
+        let duckdb: DuckdbWarehouseClient;
+        try {
+            duckdb = new DuckdbWarehouseClient(
+                {
+                    type: 'duckdb_s3',
+                    s3Config: {
+                        ...runtime,
+                        ...(this.storage.authMode === 'gcp_oauth'
+                            ? {
+                                  scope: [
+                                      `gs://${this.storage.bucket}/events/`,
+                                  ],
+                              }
+                            : {}),
+                    },
+                },
+                {
+                    resourceLimits: { memoryLimit: '256MB', threads: 1 },
+                    isolatedTempDirectoryParent: directory,
+                    logger: Logger,
+                },
+            );
+        } catch (error) {
+            await rm(directory, { recursive: true, force: true });
+            throw error;
+        }
+        const startedAt = performance.now();
+        let phase: Phase = 'read database';
+        let phaseStartedAt = startedAt;
+        const phaseDurationsMs: Partial<Record<Phase, number>> = {};
+        const enterPhase = (next: Phase) => {
+            const now = performance.now();
+            phaseDurationsMs[phase] = Math.round(now - phaseStartedAt);
+            phase = next;
+            phaseStartedAt = now;
+        };
+        let outcome: 'empty' | 'unchanged' | 'published' = 'empty';
+        let rowsWritten = 0;
+        let jsonlBytes = 0;
+        let parquetBytes: number | null = null;
+        let warned = false;
+        const monitor = new TempDiskMonitor(
+            directory,
+            DISK_SAMPLE_INTERVAL_MS,
+            (bytes) => {
+                const usage = diskBudgetUsage(bytes, this.diskBudgetBytes);
+                if (warned || !usage.nearBudget) return;
+                warned = true;
+                Logger.warn(
+                    'Analytics history backfill is near its disk budget',
+                    {
+                        organizationUuid: org,
+                        source: streamName,
+                        phase,
+                        tempDiskBytes: bytes,
+                        diskBudgetBytes: this.diskBudgetBytes,
+                        diskBudgetUsedPercent: usage.diskBudgetUsedPercent,
+                    },
+                );
+            },
+        );
+        const summary = () => {
+            phaseDurationsMs[phase] = Math.round(
+                performance.now() - phaseStartedAt,
+            );
+            return {
+                organizationUuid: org,
+                source: streamName,
+                rowsWritten,
+                jsonlBytes,
+                parquetBytes,
+                peakTempDiskBytes: monitor.peakBytes,
+                diskBudgetBytes: this.diskBudgetBytes,
+                diskBudgetUsedPercent: diskBudgetUsage(
+                    monitor.peakBytes,
+                    this.diskBudgetBytes,
+                ).diskBudgetUsedPercent,
+                durationMs: Math.round(performance.now() - startedAt),
+                phaseDurationsMs,
+            };
+        };
+        let failed = false;
+        monitor.start();
         try {
             const now = new Date();
             const input = path.join(directory, 'history.jsonl');
+            const lines = this.history.getJsonLines(org, now.toISOString());
             await pipeline(
                 Readable.from(
-                    this.history.getJsonLines(org, now.toISOString()),
+                    (async function* countLines() {
+                        for await (const chunk of lines) {
+                            for (
+                                let index = chunk.indexOf('\n');
+                                index !== -1;
+                                index = chunk.indexOf('\n', index + 1)
+                            )
+                                rowsWritten += 1;
+                            yield chunk;
+                        }
+                    })(),
                     { objectMode: false },
                 ),
                 createWriteStream(input, { mode: 0o600 }),
             );
-            if ((await stat(input)).size === 0) return;
-            phase = 'read storage';
+            jsonlBytes = (await stat(input)).size;
+            await monitor.sample();
+            if (jsonlBytes === 0) return;
+            outcome = 'unchanged';
+            enterPhase('read storage');
             // Read published files only. Daily compaction owns raw files and
             // dimensions; later captured identities override these fallbacks.
             const prefix = `events/compacted/org_id=${org}/`;
@@ -159,11 +244,12 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
             const source = `SELECT * FROM read_json(${literal(input)}, format='newline_delimited', columns={${defs}})`;
             const missing = `SELECT h.* FROM history h WHERE NOT EXISTS (SELECT 1 FROM existing e WHERE ${sameExisting})`;
             const ctes = `WITH history AS (${source}), existing AS (${existing}), missing AS (${missing})`;
-            phase = 'reconcile history';
+            enterPhase('reconcile history');
             const check = path.join(directory, 'missing.json');
             await duckdb.runSqlWithMetrics(
                 `COPY (${ctes} SELECT EXISTS (SELECT 1 FROM missing) AS missing) TO ${literal(check)} (FORMAT JSON, ARRAY true)`,
             );
+            await monitor.sample();
             const [result] = JSON.parse(await readFile(check, 'utf8')) as {
                 missing: boolean;
             }[];
@@ -171,11 +257,13 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
                 const previous = compacted.includes(historyKey)
                     ? `SELECT ${columns.map(({ name }) => name).join(',')} FROM (SELECT * FROM read_parquet([${files([historyKey])}], hive_partitioning=false) UNION ALL BY NAME ${empty})`
                     : empty;
-                phase = 'publish history';
+                enterPhase('publish history');
                 const output = path.join(directory, 'history.parquet');
                 await duckdb.runSqlWithMetrics(
                     `COPY (${ctes} SELECT * FROM (${previous}) p ${replaceExisting ? `WHERE NOT EXISTS (SELECT 1 FROM history h WHERE ${matches('h', 'p')})` : ''} UNION ALL SELECT * FROM ${replaceExisting ? 'history' : 'missing'} ORDER BY ${keyColumns.join(',')}) TO ${literal(output)} (FORMAT PARQUET, COMPRESSION zstd)`,
                 );
+                parquetBytes = (await stat(output)).size;
+                await monitor.sample();
                 const body = createReadStream(output);
                 try {
                     await new Upload({
@@ -192,18 +280,27 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
                 } finally {
                     body.destroy();
                 }
+                outcome = 'published';
             }
         } catch {
+            failed = true;
+            await monitor.stop();
             // Never log provider messages, which can include signed credentials.
             Logger.error('Analytics history backfill failed', {
-                organizationUuid: org,
-                source: streamName,
+                ...summary(),
+                outcome: 'failed',
                 phase,
             });
             throw new Error(
                 `${failureMessages[phase]} (${historyNames[streamName]}). Retry the backfill or contact your administrator.`,
             );
         } finally {
+            await monitor.stop();
+            if (!failed)
+                Logger.info('Analytics history backfill source finished', {
+                    ...summary(),
+                    outcome,
+                });
             await duckdb.close();
             this.s3?.destroy();
             await rm(directory, { recursive: true, force: true });
