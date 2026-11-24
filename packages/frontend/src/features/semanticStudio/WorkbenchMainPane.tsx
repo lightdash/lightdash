@@ -21,7 +21,6 @@ import {
 } from 'react';
 import { Link, useNavigate } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
-import { useLiveSourceFields } from '../externalConnections/hooks/useLiveSourceFields';
 import { useLiveSourceActions } from '../externalConnections/liveSources/liveSourceActions';
 import { LiveSourceBetaBadge } from '../externalConnections/liveSources/LiveSourceBetaBadge';
 import { LiveSourceSettings } from '../externalConnections/liveSources/LiveSourceSettings';
@@ -41,7 +40,6 @@ import { DraftMarksContext } from './draftMarks';
 import { FieldDetailModal } from './FieldDetailModal';
 import { FieldList, FieldListToolbar } from './FieldList';
 import { JoinDiagram } from './JoinDiagram';
-import { LiveExploresTable } from './LiveExploresTable';
 import {
     containerOf,
     fieldGroups,
@@ -64,7 +62,7 @@ import {
     type ModelTab,
 } from './modelCode';
 import { ModelMark } from './ModelMark';
-import { ModelTabs, SourceTabs } from './ModelTabs';
+import { LiveSourceFlow, ModelTabs } from './ModelTabs';
 import { OthersDraftNotice } from './OthersDraftNotice';
 import { PageScrollContext, usePageVirtualizer } from './pageScroll';
 import { SemanticLayerNudge } from './SemanticLayerNudge';
@@ -469,19 +467,7 @@ export const MainPane: FC<{
             ? source.connectionUuid
             : undefined,
     );
-    // A source with several explores, or one switched off, lists every
-    // explore with its switch, built or not
-    const { data: liveFields } = useLiveSourceFields({
-        projectUuid: view.project.id,
-        connectionUuid: liveConnection?.externalConnectionUuid ?? '',
-        enabled: !!liveConnection && ref?.type !== 'explore',
-    });
-    const showsLiveExplores =
-        ref?.type !== 'explore' &&
-        !!liveFields &&
-        (liveFields.explores.length > 1 ||
-            liveFields.explores.some(({ inUse }) => !inUse));
-    // A source's settings sit in a tab beside its fields or explores
+    // A source's settings sit below its fields or explores, on one page
     const liveSettings = liveConnection ? (
         <LiveSourceSettings
             key={liveConnection.externalConnectionUuid}
@@ -581,6 +567,7 @@ export const MainPane: FC<{
                         <LiveSourceSummary
                             projectUuid={view.project.id}
                             connection={liveConnection}
+                            exploreLabels={sourceExploreLabels}
                         />
                     ) : null}
                     {externalSource ? (
@@ -611,6 +598,20 @@ export const MainPane: FC<{
                                 onOpen({ type: 'source', sourceId: sourceUuid })
                             }
                         />
+                    ) : explore && source?.kind === 'live' && liveSettings ? (
+                        <LiveSourceFlow
+                            key={explore.id}
+                            title="Fields"
+                            main={
+                                <ExploreBody
+                                    key={explore.id}
+                                    view={view}
+                                    exploreId={explore.id}
+                                    openFieldId={openFieldId}
+                                />
+                            }
+                            settings={liveSettings}
+                        />
                     ) : explore ? (
                         <ModelTabs
                             key={explore.id}
@@ -636,33 +637,10 @@ export const MainPane: FC<{
                                 />
                             }
                         />
-                    ) : liveConnection && liveSettings && showsLiveExplores ? (
-                        <SourceTabs
-                            explores={
-                                <LiveExploresTable
-                                    projectUuid={view.project.id}
-                                    connectionUuid={
-                                        liveConnection.externalConnectionUuid
-                                    }
-                                    sourceName={liveConnection.name}
-                                    isOpenable={(exploreName) =>
-                                        view.project.explores.some(
-                                            ({ id }) => id === exploreName,
-                                        )
-                                    }
-                                    onOpen={(exploreName) =>
-                                        onOpen({
-                                            type: 'explore',
-                                            exploreId: exploreName,
-                                        })
-                                    }
-                                />
-                            }
-                            settings={liveSettings}
-                        />
                     ) : nodes.length > 0 && liveSettings ? (
-                        <SourceTabs
-                            explores={
+                        <LiveSourceFlow
+                            title="Explores"
+                            main={
                                 <ChildrenList
                                     view={view}
                                     nodes={nodes}
