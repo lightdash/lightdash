@@ -1,3 +1,10 @@
+## [3.385.1](https://github.com/lightdash/lightdash/compare/3.385.0...3.385.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* release scheduler jobs locked by a dead worker ([#33328](https://github.com/lightdash/lightdash/issues/33328)) ([d479ec9](https://github.com/lightdash/lightdash/commit/d479ec927d1d30709bf14d47b5891726cc8568ff))
+
 # [3.385.0](https://github.com/lightdash/lightdash/compare/3.384.3...3.385.0) (2026-11-24)
 
 
