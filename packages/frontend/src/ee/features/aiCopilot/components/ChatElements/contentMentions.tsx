@@ -51,6 +51,7 @@ import {
     getPromptContextItemKey,
 } from './contentReferenceUtils';
 import { deleteMentionBeforeCaret } from './mentionBackspace';
+import { repositionOnResize } from './repositionOnResize';
 
 const CONTENT_MENTION_NAME = 'contentMention';
 const MIN_CONTENT_SEARCH_QUERY_LENGTH = 2;
@@ -776,6 +777,7 @@ const generateContentMentionSuggestion = (
     render: () => {
         let component: ReactRenderer<SuggestionListRef> | undefined;
         let popup: TippyInstance | undefined;
+        let stopRepositioning: (() => void) | undefined;
         // Escape hides the dropdown but leaves the suggestion match in place;
         // it must stay hidden — and stay out of Enter's way — until the match
         // exits.
@@ -813,6 +815,10 @@ const generateContentMentionSuggestion = (
                     placement: 'bottom-start',
                     maxWidth: 'none',
                 })[0];
+                stopRepositioning = repositionOnResize(
+                    popup,
+                    component.element,
+                );
             },
             onUpdate: (props) => {
                 if (dismissed) return;
@@ -847,9 +853,11 @@ const generateContentMentionSuggestion = (
             onExit: () => {
                 dismissed = false;
                 onMenuStateChange?.(CLOSED_CONTENT_MENTION_MENU);
+                stopRepositioning?.();
                 popup?.destroy();
                 component?.destroy();
                 popup = undefined;
+                stopRepositioning = undefined;
                 component = undefined;
             },
         };

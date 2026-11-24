@@ -24,6 +24,7 @@ import {
     type ContentMentionMenuState,
 } from './contentMentions';
 import { deleteMentionBeforeCaret } from './mentionBackspace';
+import { repositionOnResize } from './repositionOnResize';
 import { SkillMentionNodeView } from './SkillMentionNodeView';
 import { SkillMenuName } from './SkillMenuName';
 
@@ -163,6 +164,7 @@ const generateSkillMentionSuggestion = ({
     render: () => {
         let component: ReactRenderer<SuggestionListRef> | undefined;
         let popup: TippyInstance | undefined;
+        let stopRepositioning: (() => void) | undefined;
         let dismissed = false;
         const emptyMessage = (query: string, editor: Editor) => {
             if (findSkillMention(editor)) {
@@ -224,6 +226,10 @@ const generateSkillMentionSuggestion = ({
                     placement: 'bottom-start',
                     maxWidth: 'none',
                 })[0];
+                stopRepositioning = repositionOnResize(
+                    popup,
+                    component.element,
+                );
             },
             onUpdate: (props) => {
                 if (dismissed) return;
@@ -260,9 +266,11 @@ const generateSkillMentionSuggestion = ({
             onExit: () => {
                 dismissed = false;
                 onMenuStateChange?.(CLOSED_CONTENT_MENTION_MENU);
+                stopRepositioning?.();
                 popup?.destroy();
                 component?.destroy();
                 popup = undefined;
+                stopRepositioning = undefined;
                 component = undefined;
             },
         };
