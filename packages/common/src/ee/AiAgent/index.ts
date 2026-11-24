@@ -1380,10 +1380,6 @@ export type ApiAiAgentVerifiedArtifactsResponse = ApiSuccess<
     KnexPaginatedData<AiAgentVerifiedArtifact[]>
 >;
 
-export type ApiAiAgentVerifiedQuestionsResponse = ApiSuccess<
-    { question: string; uuid: string }[]
->;
-
 export type AiAgentEvaluationPrompt = {
     evalPromptUuid: string;
     createdAt: Date;
@@ -1537,7 +1533,6 @@ export type AgentSummaryContext = {
     name: string;
     description: string | null;
     explores: string[];
-    verifiedQuestions: string[];
     instruction: string | null;
 };
 

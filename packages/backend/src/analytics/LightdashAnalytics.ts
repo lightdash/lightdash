@@ -4335,7 +4335,6 @@ export type AiAgentSuggestionsGeneratedEvent = BaseTrack & {
         agentId: string;
         chipCount: number;
         exploreCount: number;
-        verifiedQuestionsCount: number;
         latencyMs: number;
         modelId: string;
         usingFallback: boolean;

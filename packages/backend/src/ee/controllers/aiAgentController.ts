@@ -47,7 +47,6 @@ import {
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentThreadUpdateRequest,
     ApiAiAgentThreadWorkstreamsResponse,
-    ApiAiAgentVerifiedQuestionsResponse,
     ApiAiAgentVisualizeSlackPreviewRequest,
     ApiAiAgentVisualizeSlackSendRequest,
     ApiAiAgentVisualizeSlackSendResponse,
@@ -927,40 +926,6 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: readinessScore,
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/{agentUuid}/verified-questions')
-    @OperationId('getVerifiedQuestions')
-    async getVerifiedQuestions(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Path() agentUuid: string,
-    ): Promise<ApiAiAgentVerifiedQuestionsResponse> {
-        this.setStatus(200);
-
-        if (req.account?.authentication.type === 'jwt') {
-            assertEmbeddedAuth(req.account);
-            return {
-                status: 'ok',
-                results:
-                    await this.getAiAgentService().getEmbedVerifiedQuestions(
-                        req.account,
-                        projectUuid,
-                        agentUuid,
-                    ),
-            };
-        }
-
-        assertRegisteredAccount(req.account);
-        return {
-            status: 'ok',
-            results: await this.getAiAgentService().getVerifiedQuestions(
-                toSessionUser(req.account),
-                agentUuid,
-            ),
         };
     }
 

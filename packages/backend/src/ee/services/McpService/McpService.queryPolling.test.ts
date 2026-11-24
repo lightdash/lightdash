@@ -415,7 +415,6 @@ const makeMcpService = ({
                 projectUuid,
                 context: {
                     explores: [],
-                    verifiedQuestions: [],
                     instruction: null,
                 },
                 ...agent,

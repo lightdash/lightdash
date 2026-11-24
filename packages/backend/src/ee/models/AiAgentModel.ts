@@ -6936,36 +6936,6 @@ export class AiAgentModel {
         return result.verified_question;
     }
 
-    async getVerifiedQuestions(agentUuid: string): Promise<
-        {
-            question: string;
-            uuid: string;
-        }[]
-    > {
-        const rows = await this.database(AiArtifactVersionsTableName)
-            .join(
-                AiArtifactsTableName,
-                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
-                `${AiArtifactsTableName}.ai_artifact_uuid`,
-            )
-            .join(
-                AiThreadTableName,
-                `${AiArtifactsTableName}.ai_thread_uuid`,
-                `${AiThreadTableName}.ai_thread_uuid`,
-            )
-            .where(`${AiThreadTableName}.agent_uuid`, agentUuid)
-            .whereNotNull(`${AiArtifactVersionsTableName}.verified_at`)
-            .whereNotNull(`${AiArtifactVersionsTableName}.verified_question`)
-            .select(
-                `${AiArtifactVersionsTableName}.verified_question as question`,
-                `${AiArtifactVersionsTableName}.ai_artifact_version_uuid as uuid`,
-            )
-            .orderBy(`${AiArtifactVersionsTableName}.verified_at`, 'desc')
-            .limit(40);
-
-        return rows;
-    }
-
     async findAgentEvalsForCode(agentUuids: string[]): Promise<
         Array<
             AgentAsCodeEvaluation & {

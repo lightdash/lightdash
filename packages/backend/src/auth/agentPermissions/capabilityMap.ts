@@ -352,7 +352,6 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'AiAgentController.getModelOptions': [AgentCapability.ReadDiscover],
     'AiAgentController.getUserAgentPreferences': [AgentCapability.ReadDiscover],
-    'AiAgentController.getVerifiedQuestions': [AgentCapability.ReadDiscover],
     'AiAgentController.interruptAgentThreadMessage': [
         AgentCapability.ReadDiscover,
     ],
