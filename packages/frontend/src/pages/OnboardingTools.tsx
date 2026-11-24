@@ -559,7 +559,12 @@ const OnboardingToolsContent: FC<{
     const isTeamStep = searchParams.get('step') === 'team';
 
     if (searchParams.get('step') === 'done') {
-        return <OnboardingDoneStep projectUuid={projectUuid} />;
+        return (
+            <OnboardingDoneStep
+                projectUuid={projectUuid}
+                connections={connections}
+            />
+        );
     }
 
     if (liveSourcesAvailability.isLoading) {

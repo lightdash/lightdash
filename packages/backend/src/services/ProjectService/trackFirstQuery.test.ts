@@ -30,7 +30,6 @@ describe('trackFirstQuery', () => {
         await trackFirstQuery({
             account,
             organizationUuid: ORGANIZATION_UUID,
-            onboardingFlow: 'new',
             ...deps,
         });
         expect(deps.onboardingModel.setRanQueryAtIfUnset).toHaveBeenCalledWith(
@@ -55,7 +54,6 @@ describe('trackFirstQuery', () => {
         await trackFirstQuery({
             account: fromSession(defaultSessionUser),
             organizationUuid: ORGANIZATION_UUID,
-            onboardingFlow: 'new',
             ...deps,
         });
         expect(deps.analytics.trackAccount).not.toHaveBeenCalled();
@@ -66,7 +64,6 @@ describe('trackFirstQuery', () => {
         await trackFirstQuery({
             account: fromSession(defaultSessionUser),
             organizationUuid: ORGANIZATION_UUID,
-            onboardingFlow: 'legacy',
             ...deps,
         });
         expect(
@@ -80,7 +77,6 @@ describe('trackFirstQuery', () => {
         await trackFirstQuery({
             account: fromApiKey(defaultSessionUser, 'ApiKey ldpat_user'),
             organizationUuid: ORGANIZATION_UUID,
-            onboardingFlow: 'new',
             ...deps,
         });
         expect(deps.analytics.trackAccount).toHaveBeenCalledOnce();

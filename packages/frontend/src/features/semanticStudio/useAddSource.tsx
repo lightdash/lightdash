@@ -92,20 +92,15 @@ export const useAddSource = (view: ViewModel, kind?: Kind) => {
             isAvailable(option) &&
             view.permissions[option.kind],
     );
-    // One warehouse per project: once it has one, the menu still lists it,
-    // greyed out, so people see where their models read from.
+    // One warehouse per project: once it has one, it is not offered again.
     const options = allowed.filter(
         (option) => option.key !== WAREHOUSE_OPTION || !hasWarehouse,
     );
-    const menuOptions = allowed.map((option) => ({
-        option,
-        disabled: option.key === WAREHOUSE_OPTION && hasWarehouse,
-    }));
     const pathOf = (option: AddOption) =>
         option.path ? addPath(view, option.path) : null;
     const addInPlace = (option: AddOption) =>
         option.key === 'live' ? liveSources?.add() : externalSources?.add();
-    return { options, menuOptions, pathOf, addInPlace };
+    return { options, pathOf, addInPlace };
 };
 
 export const addPath = (view: ViewModel, path: string) =>

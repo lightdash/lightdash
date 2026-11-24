@@ -100,7 +100,12 @@ export const StudioDevelopmentBar: FC<{
                     </Button>
                 </Tooltip>
             ) : isMine ? (
-                <Tooltip multiline w={240} label={step.hint}>
+                <Tooltip
+                    multiline
+                    w={240}
+                    label={step.hint}
+                    events={{ hover: true, focus: true, touch: false }}
+                >
                     <Button
                         size="xs"
                         variant={canPublish ? 'filled' : 'default'}

@@ -1,4 +1,4 @@
-import { FeatureFlags, ProjectType } from '@lightdash/common';
+import { ProjectType } from '@lightdash/common';
 import { Stack, Title } from '@mantine/core';
 import { useRef, type FC } from 'react';
 import { Navigate } from 'react-router';
@@ -9,28 +9,18 @@ import { StepVisual } from '../../../components/common/OnboardingVisuals';
 import PageSpinner from '../../../components/PageSpinner';
 import { DataSourceChooser } from '../../../components/ProjectConnection/ProjectConnectFlow/DataSourceChooser';
 import { useProjects } from '../../../hooks/useProjects';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { isPlaygroundProvisioningSource } from '../../../utils/playgroundProject';
 import { useHomepageBuilderFlag } from './hooks/useProjectHomepage';
 
 const NoProjectHomepage: FC = () => {
     const { data: projects, isInitialLoading } = useProjects();
-    const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
     const homepageBuilderFlag = useHomepageBuilderFlag();
     // Judged on arrival only: a project made from this page navigates on its own.
     // The sample workspace doesn't count, so its users can still bring real data.
     const hadRealProjectOnArrival = useRef<boolean | null>(null);
 
-    if (
-        isInitialLoading ||
-        orgSetupPageFlag.isLoading ||
-        homepageBuilderFlag.isLoading
-    ) {
+    if (isInitialLoading || homepageBuilderFlag.isLoading) {
         return <PageSpinner />;
-    }
-
-    if (!orgSetupPageFlag.data?.enabled) {
-        return <Navigate to="/" replace />;
     }
 
     if (!homepageBuilderFlag.isEnabled) {

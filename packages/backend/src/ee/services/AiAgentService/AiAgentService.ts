@@ -600,6 +600,7 @@ import {
 import {
     ClosePullRequestFn,
     DiscoverReposFn,
+    DraftProjectContextFn,
     EditDbtProjectFn,
     EditProjectContextFn,
     ExploreRepoFn,
@@ -6657,20 +6658,15 @@ export class AiAgentService extends BaseService {
                 return;
             }
 
-            const { enabled: isNewOnboarding } =
-                await this.featureFlagService.get({
-                    user,
-                    featureFlagId: FeatureFlags.NewOnboarding,
-                });
             await this.createAgent(
                 user,
                 {
-                    name: isNewOnboarding ? 'Analytics agent' : 'Aurora',
+                    name: 'Analytics agent',
                     projectUuid,
                     description: null,
                     integrations: [],
                     tags: null,
-                    instruction: `You are ${isNewOnboarding ? '' : 'Aurora, '}this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.`,
+                    instruction: `You are this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.`,
                     imageUrl: null,
                     groupAccess: [],
                     userAccess: [],
@@ -15193,6 +15189,18 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 changeName,
             );
 
+        const draftProjectContext: DraftProjectContextFn = (
+            entry,
+            changeName,
+        ) =>
+            this.semanticStudioService.draftProjectContextEntry(
+                user,
+                projectUuid,
+                entry,
+                prompt.promptUuid,
+                changeName,
+            );
+
         const listChanges = () =>
             this.semanticStudioService.listChanges(
                 user,
@@ -15392,6 +15400,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             getDraftExplore,
             runDraftQuery,
             readSemanticModel,
+            draftProjectContext,
             verify,
             read,
             exploreRepo,
@@ -17570,15 +17579,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                           promptProject.projectUuid,
                       )
                     : null;
-                // Only a project with no repository has nowhere to keep project context.
-                const semanticStudioHasRepository =
-                    semanticStudioStatus?.appliesAs !== 'live';
-                // Studio saves a dbt change with a script wherever Studio itself is on for the person.
-                const semanticStudioCodeMode =
+                // A dbt project's Studio thread works on pull requests where Studio is on for the person.
+                const semanticStudioWorksAsDbt =
                     semanticStudioStatus !== null &&
                     worksAsDbtPullRequests(semanticStudioStatus);
                 // A dbt project's layout spares the agent surveying the repository.
-                const semanticStudioProjectMap = semanticStudioCodeMode
+                const semanticStudioProjectMap = semanticStudioWorksAsDbt
                     ? await this.incrementalDbtCompileService.getDbtProjectMap(
                           promptProject.projectUuid,
                       )
@@ -17586,7 +17592,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 const semanticStudioDrafts =
                     semanticStudioStatus !== null &&
                     semanticStudioStatus.enabled &&
-                    !semanticStudioCodeMode;
+                    !semanticStudioWorksAsDbt;
+                const semanticStudioKeepsContext =
+                    semanticStudioDrafts &&
+                    semanticStudioStatus.appliesAs === 'live';
                 let aiWritebackEnabled = hasTrustedPromptUserIdentity;
                 if (!aiWritebackEnabled) {
                     this.logger.info(
@@ -17812,6 +17821,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     getDraftExplore,
                     runDraftQuery,
                     readSemanticModel,
+                    draftProjectContext,
                     verify,
                     read,
                     exploreRepo,
@@ -18111,8 +18121,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     enableEditProjectContext: isReviewRemediationWorkThread,
                     isSemanticStudioThread: isStudioThread,
                     semanticStudioDrafts,
-                    semanticStudioCodeMode,
-                    semanticStudioHasRepository,
+                    semanticStudioKeepsContext,
                     semanticStudioProjectMap,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
@@ -18346,6 +18355,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     getDraftExplore,
                     runDraftQuery,
                     readSemanticModel,
+                    draftProjectContext,
                     verify,
                     read,
                     exploreRepo,
@@ -20306,6 +20316,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     return 'Listing your changes...';
                 case 'readSemanticModel':
                     return 'Reading the model...';
+                case 'draftProjectContext':
+                    return 'Drafting the project context...';
                 case 'verify':
                     return 'Checking the change...';
                 case 'read':

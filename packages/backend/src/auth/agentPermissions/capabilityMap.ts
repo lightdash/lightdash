@@ -73,6 +73,7 @@ export const AGENT_TOOL_CAPABILITIES = {
     proposeSemanticLayerChange: [AgentCapability.DbtWriteback],
     listChanges: [AgentCapability.ReadDiscover],
     readSemanticModel: [AgentCapability.ReadDiscover],
+    draftProjectContext: [AgentCapability.DbtWriteback],
     verify: [AgentCapability.DbtWriteback],
     read: [AgentCapability.ReadDiscover],
     exploreRepo: [AgentCapability.ReadDiscover],
