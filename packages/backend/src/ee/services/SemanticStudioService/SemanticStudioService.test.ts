@@ -31,6 +31,7 @@ import {
     type SemanticStudioWorkspacePullRequestState,
     type SessionUser,
 } from '@lightdash/common';
+import { type Knex } from 'knex';
 import { Readable } from 'node:stream';
 import { stringify } from 'yaml';
 import { user } from '../../../services/ProjectService/ProjectService.mock';
@@ -49,6 +50,8 @@ import {
 
 const ORGANIZATION_UUID = '00000000-0000-0000-0000-000000000001';
 const PROJECT_UUID = '00000000-0000-0000-0000-000000000002';
+// The models are mocked, so nothing reads the transaction they are handed.
+const TRX = {} as Knex.Transaction;
 const USER_UUID = '00000000-0000-0000-0000-000000000003';
 
 const orders = `type: model
@@ -241,6 +244,8 @@ const setup = ({
             stale -= 1;
             throw new ModelDocumentsChangedError();
         }
+        // Stands in for the transaction: a throw here writes nothing.
+        await args.withSettled?.(TRX);
         upsert(args.projectUuid, args.documents, args.userUuid);
         return { changeSetUuid: 'change-set', deployed: await deploy() };
     };
@@ -613,6 +618,7 @@ const setup = ({
                 drafts: selection,
                 status,
                 pullRequestUrl,
+                withSettled,
             }) => {
                 if (pullRequestUrl) recordedPullRequests.push(pullRequestUrl);
                 const holds = (change: StoredDraftChange) =>
@@ -622,6 +628,8 @@ const setup = ({
                             ({ name }) => name === selection.model,
                         ));
                 const settling = drafts.filter(holds);
+                // Runs before anything settles, so a throw leaves the draft as it was.
+                await withSettled?.(TRX, settling.length);
                 const kept = drafts.flatMap((change) => {
                     if (!holds(change)) return [change];
                     const rest = change.models.filter(
@@ -717,6 +725,7 @@ const setup = ({
         recordPullRequestState,
         fileStorageClient: args.fileStorageClient,
         workspaceModel: args.workspaceModel,
+        projectModelDocumentModel: args.projectModelDocumentModel,
         setActiveWorkspace: (next: typeof activeWorkspace) => {
             activeWorkspace = next;
         },
@@ -3541,6 +3550,71 @@ describe('project context in the draft', () => {
             ),
         ).rejects.toThrow(/Invalid lightdash.project_context.yml/);
         expect(context.drafts).toEqual([]);
+    });
+
+    it('finishes the workspace when a context-only draft is published', async () => {
+        const context = setup();
+        const { startedChange } =
+            await context.service.draftProjectContextEntry(
+                deployer,
+                PROJECT_UUID,
+                active,
+                null,
+                'Active customers',
+            );
+        await context.service.applyDraft(deployer, PROJECT_UUID, null);
+        expect(context.finishWorkspace).toHaveBeenCalledWith(
+            expect.anything(),
+            startedChange?.workspaceUuid,
+        );
+    });
+
+    it('takes no context live when the model write keeps conflicting', async () => {
+        const context = setup({ liveContext: [hr], staleCommits: 5 });
+        await context.service.draftProjectContextEntry(
+            deployer,
+            PROJECT_UUID,
+            active,
+            null,
+            null,
+        );
+        await context.service.proposeDraftChange(
+            deployer,
+            PROJECT_UUID,
+            [toDraftModel({ name: 'orders', label: 'All orders' })],
+            null,
+            null,
+        );
+        await expect(
+            context.service.applyDraft(deployer, PROJECT_UUID, null),
+        ).rejects.toThrow(ModelDocumentsChangedError);
+        expect(context.projectContext()).toEqual([hr]);
+        expect(context.drafts).toHaveLength(2);
+    });
+
+    it('takes no context live when the draft is discarded while it publishes', async () => {
+        const context = setup({ liveContext: [hr] });
+        await context.service.draftProjectContextEntry(
+            deployer,
+            PROJECT_UUID,
+            active,
+            null,
+            null,
+        );
+        const model = context.projectModelDocumentModel;
+        const read = model.findDraftChanges.bind(model);
+        // A discard lands right after the publish reads the draft.
+        vi.spyOn(model, 'findDraftChanges').mockImplementation(
+            async (owner) => {
+                const changes = await read(owner);
+                context.drafts.splice(0);
+                return changes;
+            },
+        );
+        await expect(
+            context.service.applyDraft(deployer, PROJECT_UUID, null),
+        ).rejects.toThrow(/changed while it was being published/);
+        expect(context.projectContext()).toEqual([hr]);
     });
 
     it('refuses a publish whose merged context fails the schema, and keeps the draft', async () => {

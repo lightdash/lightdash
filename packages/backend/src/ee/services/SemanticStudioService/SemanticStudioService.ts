@@ -63,6 +63,7 @@ import {
     type WritebackMergeResult,
 } from '@lightdash/common';
 import { groupBy } from 'es-toolkit/compat';
+import { type Knex } from 'knex';
 import { createHash } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import {
@@ -2109,20 +2110,26 @@ export class SemanticStudioService extends BaseService {
                 ),
                 model,
             };
-            // Upserts by id, so a retry after a failed model write applies the same entries again harmlessly.
-            const contextEntries = draft.changes.flatMap(
-                ({ projectContextEntries }) => projectContextEntries ?? [],
-            );
-            if (model === null && contextEntries.length > 0) {
-                if (draft.repo) {
-                    throw new ParameterError(
-                        'This draft has project context, but this project now keeps it in lightdash.project_context.yml in its repository. Discard the project context change and publish again; nothing was published.',
-                    );
-                }
+            const contextEntries =
+                model === null
+                    ? draft.changes.flatMap(
+                          ({ projectContextEntries }) =>
+                              projectContextEntries ?? [],
+                      )
+                    : [];
+            if (contextEntries.length > 0 && draft.repo) {
+                throw new ParameterError(
+                    'This draft has project context, but this project now keeps it in lightdash.project_context.yml in its repository. Discard the project context change and publish again; nothing was published.',
+                );
+            }
+            // Joins the transaction that settles the draft, so context goes live only with the rows it came from.
+            const writeContext = async (trx: Knex.Transaction) => {
+                if (contextEntries.length === 0) return;
                 try {
                     await this.projectContextModel.upsertEntries(
                         projectUuid,
                         contextEntries,
+                        trx,
                     );
                 } catch (error) {
                     if (!(error instanceof ParseError)) throw error;
@@ -2130,7 +2137,7 @@ export class SemanticStudioService extends BaseService {
                         `The project context in this draft cannot be published: ${error.message}. Change the entry and publish again; nothing was published.`,
                     );
                 }
-            }
+            };
             // Nothing left to write: what the draft asked for is live already.
             if (!check.explores) {
                 await this.projectModelDocumentModel.updateDraftChangeStatus({
@@ -2138,9 +2145,21 @@ export class SemanticStudioService extends BaseService {
                     drafts,
                     status: 'applied',
                     pullRequestUrl: null,
+                    withSettled: async (trx, settled) => {
+                        if (
+                            contextEntries.length > 0 &&
+                            settled !== drafts.changeUuids.length
+                        ) {
+                            throw new ParameterError(
+                                'The draft changed while it was being published, so nothing was published. Check it and publish again.',
+                            );
+                        }
+                        await writeContext(trx);
+                    },
                 });
                 return {
-                    exploreCount: null,
+                    // Context went live with no explores, which finishes the workspace as a model publish does.
+                    exploreCount: contextEntries.length > 0 ? 0 : null,
                     failures: [],
                     pullRequestUrl: null,
                     merge: null,
@@ -2213,6 +2232,7 @@ export class SemanticStudioService extends BaseService {
                         )?.promptUuid ?? null,
                     drafts,
                 },
+                withSettled: writeContext,
             });
             return {
                 exploreCount,
@@ -2232,12 +2252,15 @@ export class SemanticStudioService extends BaseService {
             writes,
             explores,
             source,
+            withSettled,
         }: {
             stored: ProjectModelDocument[];
             /** Null content deletes the model. */
             writes: Map<string, string | null>;
             explores: (Explore | ExploreError)[];
             source: ChangeSetSource;
+            /** Writes more in the transaction that settles the draft. */
+            withSettled?: (trx: Knex.Transaction) => Promise<void>;
         },
     ): Promise<number> {
         const removed = [...writes].flatMap(([name, content]) =>
@@ -2257,6 +2280,7 @@ export class SemanticStudioService extends BaseService {
                         name,
                         content,
                     })),
+                    withSettled,
                 },
                 async () => {
                     const { exploreCount } =

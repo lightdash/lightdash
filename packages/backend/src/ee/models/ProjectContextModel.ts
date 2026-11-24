@@ -47,8 +47,10 @@ export class ProjectContextModel {
     async upsertEntries(
         projectUuid: string,
         entries: ProjectContextEntry[],
+        /** A transaction to join, so the write commits or rolls back with it. */
+        database: Knex = this.database,
     ): Promise<ProjectContextEntry[]> {
-        return this.database.transaction(async (trx) => {
+        return database.transaction(async (trx) => {
             await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
                 `project-context:${projectUuid}`,
             ]);

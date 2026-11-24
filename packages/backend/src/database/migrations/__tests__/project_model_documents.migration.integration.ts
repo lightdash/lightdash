@@ -2,6 +2,7 @@ import {
     up as addWorkspace,
     down as dropWorkspace,
 } from '../../../ee/database/migrations/20261117170000_add_workspace_uuid_to_project_model_draft_changes';
+import { ProjectContextModel } from '../../../ee/models/ProjectContextModel';
 import {
     ModelDocumentsChangedError,
     ProjectModelDocumentModel,
@@ -18,6 +19,10 @@ import {
     up as addBaseVersions,
     down as dropBaseVersions,
 } from '../20261111200000_add_base_versions_to_project_model_draft_changes';
+import {
+    up as addProjectContextEntries,
+    down as dropProjectContextEntries,
+} from '../20261124120000_add_project_context_entries_to_project_model_draft_changes';
 
 describe('Project model documents on PostgreSQL', () => {
     let migrated: MigratedDatabase;
@@ -125,6 +130,7 @@ describe('Project model documents on PostgreSQL', () => {
 
     test('down and up remove and restore the tables', async () => {
         const { database } = migrated;
+        await database.transaction(dropProjectContextEntries);
         await database.transaction(dropWorkspace);
         await database.transaction(dropBaseVersions);
         await database.transaction(down);
@@ -138,6 +144,7 @@ describe('Project model documents on PostgreSQL', () => {
         await database.transaction(addPullRequestUrl);
         await database.transaction(addBaseVersions);
         await database.transaction(addWorkspace);
+        await database.transaction(addProjectContextEntries);
         expect(await database.schema.hasTable('project_model_revisions')).toBe(
             true,
         );
@@ -767,5 +774,140 @@ describe('Project model documents on PostgreSQL', () => {
             .delete();
         // A change outlives its workspace as one from before workspaces.
         expect(await modelsIn(null)).toEqual(['legacy', 'customers']);
+    });
+
+    describe('project context published with the draft', () => {
+        const entry = {
+            id: 'active',
+            kind: 'definition' as const,
+            content: '"Active" means ordered in the last 30 days.',
+            terms: ['active'],
+            objects: [],
+        };
+        const contextModel = () =>
+            new ProjectContextModel({ database: migrated.database });
+        const writeContext = async (
+            trx: Parameters<ProjectContextModel['upsertEntries']>[2],
+        ) => {
+            await contextModel().upsertEntries(projectUuid, [entry], trx);
+        };
+
+        test('a failed deploy takes the context back with the models', async () => {
+            const drafts = {
+                changeUuids: [await draft(['orders'])],
+                model: null,
+            };
+            await expect(
+                model.createChangeSet(
+                    {
+                        projectUuid,
+                        userUuid,
+                        workspaceUuid: null,
+                        source: { kind: 'draft', promptUuid: null, drafts },
+                        readVersions: new Map(),
+                        documents: [{ name: 'orders', content: 'v1' }],
+                        withSettled: writeContext,
+                    },
+                    async () => {
+                        throw new Error('deploy failed');
+                    },
+                ),
+            ).rejects.toThrow('deploy failed');
+            expect(await contextModel().getDocument(projectUuid)).toEqual([]);
+            expect(await draftedModels()).toEqual([['orders']]);
+        });
+
+        test('a draft settled meanwhile writes no context', async () => {
+            const drafts = {
+                changeUuids: [await draft(['orders'])],
+                model: null,
+            };
+            await model.updateDraftChangeStatus({
+                projectUuid,
+                userUuid,
+                workspaceUuid: null,
+                drafts,
+                status: 'discarded',
+                pullRequestUrl: null,
+            });
+            await expect(
+                model.createChangeSet(
+                    {
+                        projectUuid,
+                        userUuid,
+                        workspaceUuid: null,
+                        source: { kind: 'draft', promptUuid: null, drafts },
+                        readVersions: new Map(),
+                        documents: [{ name: 'orders', content: 'v1' }],
+                        withSettled: writeContext,
+                    },
+                    async () => 'deployed',
+                ),
+            ).rejects.toThrow(ModelDocumentsChangedError);
+            expect(await contextModel().getDocument(projectUuid)).toEqual([]);
+        });
+
+        test('settling a context-only draft commits or rolls back with its context', async () => {
+            const drafts = { changeUuids: [await draft([])], model: null };
+            const settle = (
+                withSettled: (
+                    trx: Parameters<ProjectContextModel['upsertEntries']>[2],
+                    settled: number,
+                ) => Promise<void>,
+            ) =>
+                model.updateDraftChangeStatus({
+                    projectUuid,
+                    userUuid,
+                    workspaceUuid: null,
+                    drafts,
+                    status: 'applied',
+                    pullRequestUrl: null,
+                    withSettled,
+                });
+            await expect(
+                settle(async (trx) => {
+                    await writeContext(trx);
+                    throw new Error('refused');
+                }),
+            ).rejects.toThrow('refused');
+            expect(await contextModel().getDocument(projectUuid)).toEqual([]);
+            expect(await draftedModels()).toEqual([[]]);
+
+            let settledRows = -1;
+            await settle(async (trx, settled) => {
+                settledRows = settled;
+                await writeContext(trx);
+            });
+            expect(settledRows).toBe(1);
+            expect(await contextModel().getDocument(projectUuid)).toEqual([
+                entry,
+            ]);
+            expect(await draftedModels()).toEqual([]);
+        });
+
+        test('a discard that lands first leaves nothing to settle', async () => {
+            const drafts = { changeUuids: [await draft([])], model: null };
+            await model.updateDraftChangeStatus({
+                projectUuid,
+                userUuid,
+                workspaceUuid: null,
+                drafts,
+                status: 'discarded',
+                pullRequestUrl: null,
+            });
+            let settledRows = -1;
+            await model.updateDraftChangeStatus({
+                projectUuid,
+                userUuid,
+                workspaceUuid: null,
+                drafts,
+                status: 'applied',
+                pullRequestUrl: null,
+                withSettled: async (_trx, settled) => {
+                    settledRows = settled;
+                },
+            });
+            expect(settledRows).toBe(0);
+        });
     });
 });
