@@ -716,6 +716,25 @@ export type ApiCreateAiAgent = Pick<
     threadRetentionHours?: number | null;
 };
 
+/** The agent a project gets when none exists yet, so people can start without configuring one. */
+export const getDefaultAiAgent = (projectUuid: string): ApiCreateAiAgent => ({
+    name: 'Analytics agent',
+    projectUuid,
+    description: null,
+    integrations: [],
+    tags: null,
+    instruction: `You are this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.`,
+    imageUrl: null,
+    groupAccess: [],
+    userAccess: [],
+    spaceAccess: [],
+    enableDataAccess: true,
+    enableSelfImprovement: false,
+    enableContentTools: true,
+    enableUserContext: true,
+    version: 2,
+});
+
 export type ApiUpdateAiAgent = Partial<
     Pick<
         AiAgent,

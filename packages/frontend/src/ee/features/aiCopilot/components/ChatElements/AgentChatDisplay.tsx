@@ -241,7 +241,8 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                     maw={ChatElementsUtils.centeredElementProps.maw}
                     mx={ChatElementsUtils.centeredElementProps.mx}
                     px={ChatElementsUtils.centeredElementProps.px}
-                    pb="md"
+                    // Room for the last reply's hover actions, which float below it
+                    pb="xl"
                     gap="xl"
                     flex={1}
                 >

@@ -45,7 +45,7 @@ describe('summarizeWarehouseCatalog', () => {
 });
 
 describe('getStudioStarters', () => {
-    it('names real tables from the catalog', () => {
+    it('leaves naming tables to the warehouse card when the catalog lists some', () => {
         const starters = getStudioStarters(
             summarizeWarehouseCatalog({
                 db: { schema_a: { table_a: {}, table_b: {}, table_c: {} } },
@@ -53,11 +53,8 @@ describe('getStudioStarters', () => {
         );
         expect(starters.map(({ label }) => label)).toEqual([
             STUDIO_STARTERS[0].label,
-            'Model table_a',
-            'Model table_b',
             STUDIO_STARTERS[2].label,
         ]);
-        expect(starters[1].prompt).toContain('schema_a.table_a');
     });
 
     it('falls back to general starters when nothing is listed', () => {

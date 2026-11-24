@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     DbtProjectType,
     FeatureFlags,
+    getDefaultAiAgent,
     type Project,
     type SemanticLayerStatus,
 } from '@lightdash/common';
@@ -21,6 +22,7 @@ import { type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { WarehouseLogoStack } from '../../components/ProjectConnection/ProjectConnectFlow/WarehouseLogoStack';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
+import { useProjectCreateAiAgentMutation } from '../../ee/features/aiCopilot/hooks/useProjectAiAgents';
 import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { useProject } from '../../hooks/useProject';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -29,7 +31,6 @@ import classes from './EmptyProject.module.css';
 import sharedClasses from './shared.module.css';
 import { describeBlocker, deploysWithCli } from './studioBlocker';
 import { StudioDraftIllustration } from './StudioDraftIllustration';
-import { getNewAgentUrl } from './urls';
 import { useAddSource, WAREHOUSE_OPTION } from './useAddSource';
 import { useSemanticLayerStatus } from './useSemanticLayerModel';
 import { type ViewModel } from './useSemanticStudio';
@@ -146,7 +147,7 @@ const StartFromLiveSource: FC<{ view: ViewModel }> = ({ view }) => {
 const SEMANTIC_LAYER_LINE =
     'A semantic layer defines your tables and metrics once, so every chart, dashboard and answer calculates them the same way.';
 
-const CARD_TABLES = 5;
+const CARD_TABLES = 3;
 
 /** What the warehouse holds; each table starts the chat when onModel is given, otherwise the card is read-only. */
 const WarehouseCard: FC<{
@@ -245,7 +246,7 @@ export const BuildFirstModel: FC<{
 }> = ({ view, onAsk, firstRequest }) => (
     <Box className={classes.starter}>
         <Stack align="center" gap="lg" w="100%" maw={640}>
-            <StudioDraftIllustration width={280} />
+            <StudioDraftIllustration width={180} />
             <Stack gap="xs" align="center" ta="center" maw={480}>
                 <Title order={3}>Build your semantic layer</Title>
                 <Text c="dimmed" fz="sm">
@@ -308,6 +309,11 @@ export const EmptyProject: FC<{
     const status = useSemanticLayerStatus(view.project.id);
     const isCopilotEnabled =
         useAiOrganizationSettings().data?.isCopilotEnabled === true;
+    // The agent list refetches once it is created, which swaps this screen for the chat
+    const createAgent = useProjectCreateAiAgentMutation(view.project.id, {
+        skipNavigation: true,
+        skipSuccessToast: true,
+    });
     const state = getEmptyState({
         project,
         isFlagLoading: flag.isInitialLoading,
@@ -388,10 +394,18 @@ export const EmptyProject: FC<{
                         />
                         {state === 'noAgent' && isCopilotEnabled ? (
                             <Button
-                                component={Link}
-                                to={getNewAgentUrl(view.project.id)}
+                                // Stays busy until the agent list refetches and this screen goes away
+                                loading={
+                                    createAgent.isLoading ||
+                                    createAgent.isSuccess
+                                }
+                                onClick={() =>
+                                    createAgent.mutate(
+                                        getDefaultAiAgent(view.project.id),
+                                    )
+                                }
                             >
-                                Create an agent to draft models for you
+                                Get started
                             </Button>
                         ) : null}
                         <StartFromSources view={view} />
