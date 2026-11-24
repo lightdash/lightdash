@@ -3,7 +3,7 @@ import {
     MODEL_FRAGMENT_ACTIONS,
     MODEL_FRAGMENT_REFUSAL_REASONS,
 } from '../../../../lightdash/applyModelFragment';
-import { parseModelPartPath } from '../../../../lightdash/diffModelDocuments';
+import { parseRemovablePartPath } from '../../../../lightdash/diffModelDocuments';
 import { type SemanticLayerDraftItemResult } from '../../../../types/semanticStudio';
 import {
     baseOutputMetadataSchema,
@@ -25,10 +25,8 @@ export const TOOL_PROPOSE_SEMANTIC_LAYER_CHANGE_DESCRIPTION = [
 ].join(' ');
 
 // A path that names no whole field or join would only come back as not found.
-const isRemovablePath = (path: string): boolean => {
-    const part = parseModelPartPath(path);
-    return part?.part === 'entry' && part.key === null;
-};
+const isRemovablePath = (path: string): boolean =>
+    parseRemovablePartPath(path) !== null;
 
 export const toolProposeSemanticLayerChangeArgsSchema = z.object({
     models: z
