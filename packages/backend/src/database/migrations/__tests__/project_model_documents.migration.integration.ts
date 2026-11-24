@@ -655,6 +655,7 @@ describe('Project model documents on PostgreSQL', () => {
             ...owner,
             workspaceUuid: null,
             baseVersions: null,
+            projectContextEntries: null,
             promptUuid,
             changeName: 'A model',
             models: [

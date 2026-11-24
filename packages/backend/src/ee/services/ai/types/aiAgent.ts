@@ -346,8 +346,6 @@ export type AiAgentArgs = AnyAiModel & {
     // Whether the repo host has server-side code search (GitHub yes, GitLab no).
     // Drives whether the prompt tells the agent to use `search`.
     repoFsSupportsCodeSearch: boolean;
-    // False only for a Studio project with no repository.
-    semanticStudioHasRepository: boolean;
     // A Studio dbt project's layout from its last compile; null otherwise.
     semanticStudioProjectMap: string | null;
     canRunSql: boolean;

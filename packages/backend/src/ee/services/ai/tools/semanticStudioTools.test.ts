@@ -1,7 +1,7 @@
 import {
     describeSemanticLayerProposals,
-    toolProposeSemanticLayerChangeArgsSchema,
     toolDraftProjectContextOutputSchema,
+    toolProposeSemanticLayerChangeArgsSchema,
     toolProposeSemanticLayerChangeOutputSchema,
     toolReadSemanticModelOutputSchema,
     type StudioChangeSummary,

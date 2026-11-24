@@ -17584,9 +17584,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                           promptProject.projectUuid,
                       )
                     : null;
-                // Only a project with no repository has nowhere to keep project context.
-                const semanticStudioHasRepository =
-                    semanticStudioStatus?.appliesAs !== 'live';
                 // A dbt project's Studio thread works on pull requests where Studio is on for the person.
                 const semanticStudioWorksAsDbt =
                     semanticStudioStatus !== null &&
@@ -18129,7 +18126,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     enableEditProjectContext: isReviewRemediationWorkThread,
                     isSemanticStudioThread: isStudioThread,
                     semanticStudioDrafts,
-                    semanticStudioHasRepository,
                     semanticStudioKeepsContext,
                     semanticStudioProjectMap,
                     writebackAttribution,

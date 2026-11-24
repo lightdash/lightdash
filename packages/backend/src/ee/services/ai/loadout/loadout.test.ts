@@ -348,7 +348,6 @@ describe('loadout contracts', () => {
         );
         const studio = getSemanticStudioTurn(loadout, {
             drafts: false,
-            hasRepository: true,
             projectMap: null,
             repoFsRoot: '.',
             repoFsSupportsCodeSearch: true,

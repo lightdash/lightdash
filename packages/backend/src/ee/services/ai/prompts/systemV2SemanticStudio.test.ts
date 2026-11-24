@@ -183,7 +183,6 @@ describe('getSemanticStudioSystemPrompt', () => {
                 studio: getSemanticStudioTurn(loadout, {
                     drafts: true,
                     projectMap: null,
-                    siteUrl: '',
                     repoFsRoot: null,
                     repoFsSupportsCodeSearch: false,
                 }),
