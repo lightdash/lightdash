@@ -997,15 +997,18 @@ const installationTokens = new Map<
 export const getCachedInstallationToken = async (
     installationId: string,
 ): Promise<string> => {
-    const cached = await installationTokens
-        .get(installationId)
-        ?.catch(() => undefined);
+    const pending = installationTokens.get(installationId);
+    const cached = await pending?.catch(() => undefined);
     if (
         cached &&
         Date.parse(cached.expiresAt) - Date.now() >
             INSTALLATION_TOKEN_REUSE_MARGIN_MS
     ) {
         return cached.token;
+    }
+    // Another caller started a fetch while this one waited; share it
+    if (installationTokens.get(installationId) !== pending) {
+        return getCachedInstallationToken(installationId);
     }
     const minting = getInstallationAccessToken(installationId);
     installationTokens.set(installationId, minting);

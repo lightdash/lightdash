@@ -432,6 +432,21 @@ describe('getCachedInstallationToken', () => {
         expect(mockCreateInstallationAccessToken).toHaveBeenCalledTimes(3);
     });
 
+    it('shares one fetch between concurrent callers', async () => {
+        mockCreateInstallationAccessToken
+            .mockResolvedValueOnce(tokenExpiringIn('short', 4 * 60 * 1000))
+            .mockResolvedValueOnce(tokenExpiringIn('next', 60 * 60 * 1000));
+        await getCachedInstallationToken('14');
+
+        await expect(
+            Promise.all([
+                getCachedInstallationToken('14'),
+                getCachedInstallationToken('14'),
+            ]),
+        ).resolves.toEqual(['next', 'next']);
+        expect(mockCreateInstallationAccessToken).toHaveBeenCalledTimes(2);
+    });
+
     it('fetches again after a failed fetch', async () => {
         mockCreateInstallationAccessToken
             .mockRejectedValueOnce(octokitError(404, {}, 'Not Found'))
