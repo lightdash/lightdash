@@ -284,13 +284,13 @@ export const getAiAccessRefusalAction = (
         case AiAccessRefusalReason.PRINCIPAL_FAILED:
         case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING:
         case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID:
-        case AiAccessRefusalReason.AI_ACCESS_NEVER:
             return AiAccessRefusalAction.ASK_ADMIN;
         case AiAccessRefusalReason.MCP_PROJECT_NOT_ALLOWED:
         case AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED:
         case AiAccessRefusalReason.EMBED_NOT_SUPPORTED:
         case AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED:
         case AiAccessRefusalReason.SERVICE_ACCOUNT:
+        case AiAccessRefusalReason.AI_ACCESS_NEVER:
             return null;
         default:
             return assertUnreachable(
