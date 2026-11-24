@@ -231,7 +231,12 @@ import {
     withNonStreamingProviderTiming,
     type StepTiming,
 } from './turnTiming';
-import { createTurnTranscript, type TurnTranscript } from './turnTranscript';
+import {
+    createTurnTranscript,
+    getTranscriptModel,
+    TURN_TRANSCRIPT_FORMAT_VERSION,
+    type TurnTranscript,
+} from './turnTranscript';
 
 const createAiAgentLogger =
     (debugLoggingEnabled: boolean) => (context: string, message: string) => {
@@ -552,7 +557,7 @@ const makeStreamSafePersist = (
         }
     };
 
-    /** False when the update failed. */
+    /** True only when the update is confirmed written, not failed or still running. */
     return async (
         update: Parameters<AiAgentDependencies['updatePrompt']>[0],
     ): Promise<boolean> => {
@@ -564,7 +569,7 @@ const makeStreamSafePersist = (
                     'Something went wrong while saving the response. Please try again.',
             });
         }
-        return outcome !== 'failed';
+        return outcome === 'persisted';
     };
 };
 
@@ -1623,7 +1628,7 @@ export const buildPrepareStep = ({
     invalidToolCallIds,
     agentContext,
     turnTranscript,
-    boundContentIndex = null,
+    cachePinIndex = null,
 }: {
     args: AiAgentArgs;
     dependencies: AiAgentDependencies;
@@ -1637,7 +1642,8 @@ export const buildPrepareStep = ({
     invalidToolCallIds: ReadonlySet<string>;
     agentContext?: AgentContext;
     turnTranscript?: TurnTranscript;
-    boundContentIndex?: number | null;
+    /** Last message the next turn sends unchanged: earlier turns end there. */
+    cachePinIndex?: number | null;
 }) => {
     const forcedFirstStep = buildForcedFirstStep(args, tools);
     const retryMarkersPersisted = new Set<string>();
@@ -1819,11 +1825,10 @@ export const buildPrepareStep = ({
             );
         }
         const stepActiveTools = stepBudgetOverride?.activeTools ?? activeTools;
-        // The next turn replays this one without the bound content, so a breakpoint
-        // just before it keeps the replayed prefix cached.
+        // The next turn rebuilds this turn's user messages, so it reuses the cache up to the pin.
         const preparedMessages = withRollingCacheBreakpoint(
             [...stepMessages, ...extraMessages],
-            boundContentIndex === null ? null : boundContentIndex - 1,
+            cachePinIndex,
         );
         turnTranscript?.recordStep(preparedMessages);
 
@@ -3151,15 +3156,10 @@ const prepareAgentTurn = async ({
               siteUrl: args.siteUrl,
           })
         : null;
-    // Read fresh each turn and left out of the stored transcript, so no later turn sees a stale copy.
-    const boundContentIndex = boundContent
-        ? messages.push({ role: 'user', content: boundContent }) - 1
-        : null;
+    // Read fresh each turn; the stored transcript keeps no user messages, so no later turn sees a stale copy.
+    if (boundContent) messages.push({ role: 'user', content: boundContent });
     const turnTranscript = replaysTurns
-        ? createTurnTranscript({
-              start: turnStart,
-              currentOnlyIndex: boundContentIndex,
-          })
+        ? createTurnTranscript({ start: turnStart })
         : undefined;
     const invalidToolCallIds = new Set<string>();
     const prepareStep = buildPrepareStep({
@@ -3175,7 +3175,7 @@ const prepareAgentTurn = async ({
         invalidToolCallIds,
         agentContext,
         turnTranscript,
-        boundContentIndex,
+        cachePinIndex: turnTranscript ? turnStart - 1 : null,
     });
 
     return {
@@ -3202,20 +3202,21 @@ const prepareAgentTurn = async ({
     };
 };
 
-/** Stores a cleanly finished, persisted turn so later turns replay it as sent. */
+/** Stores a cleanly finished, persisted turn so later turns replay its tool steps as sent. */
 const storeTurnTranscript = async (
     args: AiAgentArgs,
     dependencies: AiAgentDependencies,
     turnTranscript: TurnTranscript | undefined,
-    finalStep: {
-        finishReason: string;
-        response: { messages: readonly ModelMessage[] };
-    },
+    finalStep: { finishReason: string },
 ) => {
     if (!turnTranscript || finalStep.finishReason !== 'stop') return;
-    const messages = turnTranscript.complete(finalStep.response.messages);
+    const messages = turnTranscript.complete();
     if (messages)
-        await dependencies.storeTurnTranscript(args.promptUuid, messages);
+        await dependencies.storeTurnTranscript(args.promptUuid, {
+            messages,
+            formatVersion: TURN_TRANSCRIPT_FORMAT_VERSION,
+            model: getTranscriptModel(args.model),
+        });
 };
 
 // Forked scope so every capture in the turn, including from tool execute, carries the model.

@@ -729,7 +729,12 @@ export type StoreReasoningFn = (
 
 export type StoreTurnTranscriptFn = (
     promptUuid: string,
-    messages: ModelMessage[],
+    transcript: {
+        messages: ModelMessage[];
+        formatVersion: number;
+        /** Provider and model id that ran the turn. */
+        model: string;
+    },
 ) => Promise<void>;
 
 export type StoreLoadoutFn = (

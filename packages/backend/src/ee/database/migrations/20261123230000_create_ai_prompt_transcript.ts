@@ -23,7 +23,17 @@ export async function up(knex: Knex): Promise<void> {
             .json('messages')
             .notNullable()
             .comment(
-                "This prompt's own model messages exactly as sent (from its user message through the final response), without system messages or earlier turns.",
+                "This prompt's assistant and tool messages exactly as sent, from its first tool call to its last tool result.",
+            );
+        table
+            .integer('format_version')
+            .notNullable()
+            .comment('Rows of another format version are not replayed.');
+        table
+            .text('model')
+            .notNullable()
+            .comment(
+                'Provider and model id that ran the turn; replayed only to the same model.',
             );
         table
             .timestamp('created_at', { useTz: true })

@@ -407,7 +407,6 @@ import { type ClientInfo } from '../../../utils/clientHeader';
 import { redactItemsMapSql } from '../../../utils/embedCompiledSql';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
 import {
-    type DbAiPrompt,
     type DbAiPromptTurnDecision,
     type DbAiPromptTurnDecisionOutcome,
 } from '../../database/entities/ai';
@@ -481,6 +480,10 @@ import {
     type SuggestionPromptContext,
 } from '../ai/agents/suggestionGenerator';
 import { generateThreadTitle as generateTitleFromMessages } from '../ai/agents/titleGenerator';
+import {
+    getReplayableTranscript,
+    getTranscriptModel,
+} from '../ai/agents/turnTranscript';
 import { AiAgentMcpRuntimeClient } from '../ai/AiAgentMcpRuntimeClient';
 import {
     resolveAttachmentPaths,
@@ -847,8 +850,8 @@ type AgentConversationContext = {
 };
 
 type TranscriptReplay = {
-    /** The answering prompt's model; turns that ran on another model are rebuilt. */
-    modelConfig: DbAiPrompt['model_config'];
+    /** Provider and model id that will answer; turns that ran on another model are rebuilt. */
+    model: string;
     /** Set by the history build. */
     currentPromptStart: number | null;
 };
@@ -8884,11 +8887,14 @@ export class AiAgentService extends BaseService {
             aiCreditCheck,
             flagPinnedOutsideAgentSpaces = true,
             threadImages = 'load',
+            replayTurnTranscripts = false,
         }: {
             agentUuid: string;
             threadUuid: string;
             promptUuid?: string;
             aiCreditCheck: AiCreditCheck | null;
+            /** For the agent's own turns: earlier turns' tool steps replay as sent when they ran on the same model. */
+            replayTurnTranscripts?: boolean;
             /** Off for embeds, whose space limits come from the token, not the agent. */
             flagPinnedOutsideAgentSpaces?: boolean;
             /** 'omit' names the attached images without reading them from storage. */
@@ -9080,10 +9086,12 @@ export class AiAgentService extends BaseService {
             );
             return threadAttachments;
         };
-        const transcriptReplay: TranscriptReplay = {
-            modelConfig: prompt.modelConfig ?? null,
-            currentPromptStart: null,
-        };
+        const transcriptReplay = replayTurnTranscripts
+            ? await this.getTranscriptReplay(
+                  prompt,
+                  agent.providerCredentialUuid,
+              )
+            : undefined;
         const historyOptions = {
             loadThreadAttachments,
             transcriptReplay,
@@ -9150,10 +9158,42 @@ export class AiAgentService extends BaseService {
             user,
             chatHistoryMessages,
             resolveChatHistory,
-            currentPromptStart: transcriptReplay.currentPromptStart,
+            currentPromptStart: transcriptReplay?.currentPromptStart ?? null,
             prompt,
             compaction: applicableCompaction,
         };
+    }
+
+    /** The model this prompt will run on, resolved as the agent run resolves it; undefined turns replay off. */
+    private async getTranscriptReplay(
+        prompt: Pick<
+            AiWebAppPrompt,
+            'organizationUuid' | 'projectUuid' | 'modelConfig'
+        >,
+        credentialUuid: string | null,
+    ): Promise<TranscriptReplay | undefined> {
+        try {
+            const copilotConfig =
+                await this.orgAiCopilotConfigResolver.getCopilotConfig({
+                    organizationUuid: prompt.organizationUuid,
+                    projectUuid: prompt.projectUuid,
+                    credentialUuid,
+                });
+            const { model } = getModel(copilotConfig, {
+                enableReasoning: prompt.modelConfig?.reasoning,
+                modelName: prompt.modelConfig?.modelName,
+                provider: prompt.modelConfig?.modelProvider as AnyType,
+            });
+            return {
+                model: getTranscriptModel(model),
+                currentPromptStart: null,
+            };
+        } catch (error) {
+            this.logger.warn(
+                `Turn transcripts not replayed: ${getErrorMessage(error)}`,
+            );
+            return undefined;
+        }
     }
 
     private beginStreamPreparation(): void {
@@ -9392,6 +9432,7 @@ export class AiAgentService extends BaseService {
                 threadUuid,
                 resetErrorForStreamRetry: true,
                 expectedDeepResearchRunUuid: null,
+                replayTurnTranscripts: true,
                 deferCurrentVerifiedExamples: true,
                 enableFastDecisions,
                 aiCreditCheck: { isEmbedViewer: runtimeOptions !== undefined },
@@ -10243,6 +10284,7 @@ export class AiAgentService extends BaseService {
                         : null,
                 aiCreditCheck,
                 flagPinnedOutsideAgentSpaces: !aiCreditCheck?.isEmbedViewer,
+                replayTurnTranscripts: true,
                 onPromptResolved: (uuid) => {
                     resolvedPromptUuid = uuid;
                 },
@@ -14065,23 +14107,26 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         return { threadFiles, threadImages };
     }
 
-    private static createFeedbackMessages(
-        message: Pick<DbAiPrompt, 'human_score' | 'human_feedback'>,
-    ): UserModelMessage[] {
-        if (!message.human_score) return [];
-        // TODO: we don't have a neutral option, we are storing -1 and 1 at the moment
-        const liked =
-            message.human_score > 0
-                ? 'I liked this response'
-                : 'I did not like this response';
-        return [
-            {
-                role: 'user',
-                content: message.human_feedback
-                    ? `${liked}\nReasoning: ${message.human_feedback}`
-                    : liked,
-            },
-        ];
+    /** Stored tool steps by prompt; a row that cannot be read or replayed to `model` is rebuilt instead. */
+    private async findReplayableTranscripts(
+        promptUuids: string[],
+        model: string,
+    ): Promise<Map<string, ModelMessage[]>> {
+        try {
+            const rows =
+                await this.aiAgentModel.findPromptTranscripts(promptUuids);
+            return new Map(
+                rows.flatMap((row) => {
+                    const transcript = getReplayableTranscript(row, model);
+                    return transcript ? [[row.ai_prompt_uuid, transcript]] : [];
+                }),
+            );
+        } catch (error) {
+            this.logger.warn(
+                `Turn transcripts not read, rebuilding history: ${getErrorMessage(error)}`,
+            );
+            return new Map();
+        }
     }
 
     /** Replayed tool results get the status and queryUuid a rebuilt turn has, under a key no provider sends. */
@@ -14152,8 +14197,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             /** Lets several history builds of one turn share a single read of the images. */
             loadThreadAttachments?: ThreadAttachmentsLoader;
             /**
-             * Replays each earlier prompt's stored transcript, when it ran on this model, instead of
-             * rebuilding it, and reports where the prompt being answered starts in the history.
+             * Replays each earlier prompt's stored tool steps, when they ran on this model, instead of
+             * rebuilding them, and reports where the prompt being answered starts in the history.
              */
             transcriptReplay?: TranscriptReplay;
         },
@@ -14182,44 +14227,18 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 ),
             ]);
 
-        // Earlier turns replay byte for byte as sent, so the provider reuses its prompt cache.
-        // A turn sent to another model is rebuilt: transcripts carry provider-specific parts.
         const replay = options.transcriptReplay;
-        const transcripts = replay
-            ? await this.aiAgentModel.findPromptTranscripts(
+        const transcriptByPrompt = replay
+            ? await this.findReplayableTranscripts(
                   promptUuids.filter(
                       (uuid) => uuid !== options.currentPromptUuid,
                   ),
+                  replay.model,
               )
-            : [];
-        const transcriptByPrompt = new Map(
-            transcripts
-                .filter(
-                    (row) =>
-                        row.model_config?.modelProvider ===
-                            replay?.modelConfig?.modelProvider &&
-                        row.model_config?.modelName ===
-                            replay?.modelConfig?.modelName,
-                )
-                .map((row) => [row.ai_prompt_uuid, row.messages]),
-        );
+            : new Map<string, ModelMessage[]>();
 
         const messagesWithToolCalls = await Promise.all(
             threadMessages.map(async (message, index) => {
-                const transcript = transcriptByPrompt.get(
-                    message.ai_prompt_uuid,
-                );
-                if (transcript) {
-                    return [
-                        ...AiAgentService.withToolResultStatus(
-                            transcript,
-                            await this.aiAgentModel.getToolCallsAndResultsForPrompt(
-                                message.ai_prompt_uuid,
-                            ),
-                        ),
-                        ...AiAgentService.createFeedbackMessages(message),
-                    ];
-                }
                 const messages: ModelMessage[] =
                     message.prompt.trim().length > 0
                         ? [
@@ -14307,12 +14326,23 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                         ),
                     );
                 }
+                // An earlier turn's tool steps replay as sent, so the provider reuses its prompt
+                // cache; only with its answer saved, which follows them as rebuilt.
+                const transcript =
+                    message.response && !message.error_message
+                        ? transcriptByPrompt.get(message.ai_prompt_uuid)
+                        : undefined;
                 messages.push(
-                    ...AiAgentService.buildToolCallTurnMessages(
-                        toolCallsAndResults,
-                        isCurrentPrompt,
-                        options.fastDecisionsEnabled,
-                    ),
+                    ...(transcript
+                        ? AiAgentService.withToolResultStatus(
+                              transcript,
+                              toolCallsAndResults,
+                          )
+                        : AiAgentService.buildToolCallTurnMessages(
+                              toolCallsAndResults,
+                              isCurrentPrompt,
+                              options.fastDecisionsEnabled,
+                          )),
                 );
 
                 // The current prompt resuming mid SQL-approval has only a
@@ -14335,9 +14365,22 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     } satisfies AssistantModelMessage);
                 }
 
-                messages.push(
-                    ...AiAgentService.createFeedbackMessages(message),
-                );
+                if (message.human_score) {
+                    let feedbackContent =
+                        // TODO: we don't have a neutral option, we are storing -1 and 1 at the moment
+                        message.human_score > 0
+                            ? 'I liked this response'
+                            : 'I did not like this response';
+
+                    if (message.human_feedback) {
+                        feedbackContent += `\nReasoning: ${message.human_feedback}`;
+                    }
+
+                    messages.push({
+                        role: 'user',
+                        content: feedbackContent,
+                    } satisfies UserModelMessage);
+                }
 
                 return messages;
             }),
@@ -15662,12 +15705,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
 
         const storeTurnTranscript: StoreTurnTranscriptFn = async (
             promptUuid,
-            messages,
+            transcript,
         ) => {
             try {
                 await this.aiAgentModel.upsertPromptTranscript(
                     promptUuid,
-                    messages,
+                    transcript,
                 );
             } catch (error) {
                 this.logger.warn(

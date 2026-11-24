@@ -7,70 +7,73 @@ const earlierTurn: ModelMessage[] = [
     { role: 'user', content: 'earlier' },
     { role: 'assistant', content: 'earlier answer' },
 ];
+const toolCall: ModelMessage = {
+    role: 'assistant',
+    content: [
+        {
+            type: 'tool-call',
+            toolCallId: 'call-1',
+            toolName: 'editContent',
+            input: { slug: 'revenue' },
+        },
+    ],
+};
+const toolResult: ModelMessage = {
+    role: 'tool',
+    content: [
+        {
+            type: 'tool-result',
+            toolCallId: 'call-1',
+            toolName: 'editContent',
+            output: { type: 'text', value: 'Saved.' },
+        },
+    ],
+};
 
 describe('createTurnTranscript', () => {
-    it('keeps this turn as the last step sent it, plus the final response', () => {
-        const transcript = createTurnTranscript({
-            start: 3,
-            currentOnlyIndex: null,
-        });
+    it("keeps only this turn's tool steps; prompt, hints, preloads and steers are rebuilt each turn", () => {
+        const transcript = createTurnTranscript({ start: 3 });
         transcript.recordStep([
             system,
             ...earlierTurn,
-            { role: 'user', content: 'a' },
-        ]);
-        transcript.recordStep([
-            system,
-            ...earlierTurn,
-            { role: 'user', content: 'a' },
-            { role: 'assistant', content: 'b' },
-        ]);
-
-        expect(
-            transcript.complete([{ role: 'assistant', content: 'done' }]),
-        ).toEqual([
-            { role: 'user', content: 'a' },
-            { role: 'assistant', content: 'b' },
-            { role: 'assistant', content: 'done' },
-        ]);
-    });
-
-    it('leaves out the bound content read for this turn, so a later turn sees only its own fresh copy', () => {
-        const transcript = createTurnTranscript({
-            start: 1,
-            currentOnlyIndex: 2,
-        });
-        transcript.recordStep([
-            system,
-            { role: 'user', content: 'Rename the chart' },
+            { role: 'user', content: 'Rename it\n\nCandidate fields: ...' },
+            { role: 'user', content: 'Reference material preloaded ...' },
             { role: 'user', content: 'Current content of the bound chart' },
-            { role: 'assistant', content: 'Renamed.' },
+            toolCall,
+            toolResult,
+            { role: 'user', content: 'Additional guidance from the user' },
         ]);
 
-        expect(transcript.complete([])).toEqual([
-            { role: 'user', content: 'Rename the chart' },
-            { role: 'assistant', content: 'Renamed.' },
-        ]);
+        expect(transcript.complete()).toEqual([toolCall, toolResult]);
     });
 
     it('is not kept when the turn holds binary inputs', () => {
-        const transcript = createTurnTranscript({
-            start: 1,
-            currentOnlyIndex: null,
-        });
+        const transcript = createTurnTranscript({ start: 1 });
         transcript.recordStep([
             system,
+            toolCall,
             {
-                role: 'user',
+                role: 'tool',
                 content: [
                     {
-                        type: 'image',
-                        image: new Uint8Array([1]),
+                        type: 'tool-result',
+                        toolCallId: 'call-1',
+                        toolName: 'editContent',
+                        output: {
+                            type: 'content',
+                            value: [
+                                {
+                                    type: 'file-data',
+                                    data: 'AQ==',
+                                    mediaType: 'image/png',
+                                },
+                            ],
+                        },
                     },
                 ],
             },
         ]);
 
-        expect(transcript.complete([])).toBeNull();
+        expect(transcript.complete()).toBeNull();
     });
 });

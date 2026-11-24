@@ -21,7 +21,6 @@ import {
     type DataAppAnalysisLimits,
     type DataAppModelVisibility,
 } from '@lightdash/common';
-import type { ModelMessage } from 'ai';
 import { Knex } from 'knex';
 
 export const AiThreadTableName = 'ai_thread';
@@ -404,13 +403,21 @@ export const AiPromptTranscriptTableName = 'ai_prompt_transcript';
 
 export type DbAiPromptTranscript = {
     ai_prompt_uuid: string;
-    messages: ModelMessage[];
+    // Validated on read: rows of an older format or a bad write are rebuilt instead.
+    messages: unknown;
+    format_version: number;
+    model: string;
     created_at: Date;
 };
 
 export type AiPromptTranscriptTable = Knex.CompositeTableType<
     DbAiPromptTranscript,
-    Pick<DbAiPromptTranscript, 'ai_prompt_uuid'> & { messages: string },
+    Pick<
+        DbAiPromptTranscript,
+        'ai_prompt_uuid' | 'format_version' | 'model'
+    > & {
+        messages: string;
+    },
     never
 >;
 
