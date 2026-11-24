@@ -1935,3 +1935,73 @@ describe('SchedulerService', () => {
         });
     });
 });
+
+describe('checkForStuckJobs', () => {
+    const HOUR_MS = 60 * 60 * 1000;
+    const runningJob = (id: string, lockedHoursAgo: number) => ({
+        id,
+        taskIdentifier: 'backfillUsageQueryHistory',
+        lockedAt: new Date(Date.now() - lockedHoursAgo * HOUR_MS),
+        lockedBy: `worker-${id}`,
+        runAt: new Date(Date.now() - lockedHoursAgo * HOUR_MS),
+        payload: { organizationUuid },
+    });
+    const buildStuckJobService = (jobs: ReturnType<typeof runningJob>[]) => {
+        const client = {
+            getRecentRunningJobs: vi.fn(async () => jobs),
+            failJobs: vi.fn(async (released: { id: string }[]) =>
+                released.map(({ id }) => id),
+            ),
+        };
+        const model = { logSchedulerJob: vi.fn(async () => {}) };
+        const service = new SchedulerService({
+            lightdashConfig: lightdashConfigMock,
+            analytics: analyticsMock,
+            schedulerModel: model as unknown as SchedulerModel,
+            dashboardModel: {} as DashboardModel,
+            savedChartModel: {} as SavedChartModel,
+            savedSqlModel: {} as SavedSqlModel,
+            appModel: {} as AppModel,
+            projectModel: {} as ProjectModel,
+            schedulerClient: client as unknown as SchedulerClient,
+            slackClient: {} as SlackClient,
+            emailClient: {} as EmailClient,
+            userModel: {} as UserModel,
+            googleDriveClient: {} as GoogleDriveClient,
+            userService: {} as UserService,
+            jobModel: {} as JobModel,
+            spacePermissionService: {} as SpacePermissionService,
+        });
+        return { service, client, model };
+    };
+
+    it('releases a stuck job locked past graphile job expiry with its stored worker id', async () => {
+        const { service, client, model } = buildStuckJobService([
+            runningJob('old', 5),
+        ]);
+        await expect(service.checkForStuckJobs()).resolves.toEqual({
+            runningCount: 1,
+            warningCount: 0,
+            errorCount: 1,
+        });
+        expect(client.failJobs).toHaveBeenCalledExactlyOnceWith(
+            [{ id: 'old', lockedBy: 'worker-old' }],
+            expect.stringContaining('4 hours'),
+        );
+        expect(model.logSchedulerJob).toHaveBeenCalledOnce();
+    });
+
+    it('logs but does not release a stuck job that may still be running', async () => {
+        const { service, client, model } = buildStuckJobService([
+            runningJob('young', 1.2),
+            runningJob('fresh', 0.6),
+        ]);
+        await expect(service.checkForStuckJobs()).resolves.toEqual({
+            runningCount: 2,
+            warningCount: 1,
+            errorCount: 1,
+        });
+        expect(model.logSchedulerJob).toHaveBeenCalledOnce();
+        expect(client.failJobs).not.toHaveBeenCalled();
+    });
+});

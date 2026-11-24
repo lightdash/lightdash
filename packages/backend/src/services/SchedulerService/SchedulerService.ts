@@ -2494,13 +2494,28 @@ export class SchedulerService extends BaseService {
             }),
         );
 
-        // Remove stuck jobs from graphile queue to prevent indefinite running
-        if (jobsToLog.length > 0) {
-            const jobIdsToFail = jobsToLog.map(({ job }) => job.id);
-            await this.schedulerClient.failJobs(jobIdsToFail);
-            this.logger.info(
-                `Removed ${jobIdsToFail.length} stuck jobs from queue`,
-                { jobIds: jobIdsToFail },
+        // Handlers have no common timeout, so only locks past graphile's own
+        // expiry are treated as held by a dead worker and released.
+        const deadLockMs = SchedulerClient.DEAD_LOCK_AFTER_HOURS * ONE_HOUR_MS;
+        const jobsToRelease = jobsToLog
+            .filter(
+                ({ job }) =>
+                    now.getTime() - job.lockedAt.getTime() >= deadLockMs,
+            )
+            .map(({ job }) => ({ id: job.id, lockedBy: job.lockedBy }));
+        if (jobsToRelease.length > 0) {
+            const releasedJobIds = await this.schedulerClient.failJobs(
+                jobsToRelease,
+                `Released by the stuck job check: locked for over ${SchedulerClient.DEAD_LOCK_AFTER_HOURS} hours by a worker that stopped responding`,
+            );
+            this.logger.warn(
+                `Released ${releasedJobIds.length} stuck jobs from the queue`,
+                {
+                    jobIds: releasedJobIds,
+                    taskIdentifiers: jobsToLog
+                        .filter(({ job }) => releasedJobIds.includes(job.id))
+                        .map(({ job }) => job.taskIdentifier),
+                },
             );
         }
 

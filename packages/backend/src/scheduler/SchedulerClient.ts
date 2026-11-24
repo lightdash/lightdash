@@ -142,6 +142,9 @@ export class SchedulerClient {
 
     private static STUCK_JOB_WINDOW = 1.5;
 
+    // Graphile's job_expiry: get_job already treats older job and queue locks as abandoned.
+    static readonly DEAD_LOCK_AFTER_HOURS = 4;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -1729,10 +1732,16 @@ export class SchedulerClient {
                 WHERE locked_by IS NOT NULL
                   AND locked_at IS NOT NULL
                   AND run_at < now()
-                  AND locked_at > now() - $1::interval
+                  AND (
+                    locked_at > now() - $1::interval
+                    OR locked_at < now() - $2::interval
+                  )
                 ORDER BY locked_at ASC
             `,
-                [`${SchedulerClient.STUCK_JOB_WINDOW} hours`],
+                [
+                    `${SchedulerClient.STUCK_JOB_WINDOW} hours`,
+                    `${SchedulerClient.DEAD_LOCK_AFTER_HOURS} hours`,
+                ],
             );
             return rows;
         });
@@ -1755,12 +1764,51 @@ export class SchedulerClient {
         );
     }
 
-    async failJobs(jobIds: string[]): Promise<void> {
-        if (jobIds.length === 0) return;
+    /**
+     * Releases jobs still locked by the given worker for longer than
+     * DEAD_LOCK_AFTER_HOURS: fail_job clears the job and queue locks, then
+     * permanently_fail_jobs stops automatic retries. Younger locks are skipped.
+     * Returns the ids actually released.
+     */
+    async failJobs(
+        jobs: { id: string; lockedBy: string }[],
+        errorMessage: string,
+    ): Promise<string[]> {
+        if (jobs.length === 0) return [];
         const graphileClient = await this.graphileUtils;
-        // Note: graphile-worker's completeJobs removes jobs from the queue
-        // The "failed" status is tracked in our scheduler_log table separately
-        await graphileClient.permanentlyFailJobs(jobIds);
+        return graphileClient.withPgClient(async (pgClient) => {
+            await pgClient.query('BEGIN');
+            try {
+                const { rows } = await pgClient.query<{ id: string | null }>(
+                    `
+                    SELECT (graphile_worker.fail_job(jobs.locked_by, jobs.id, $3)).id
+                    FROM graphile_worker.jobs
+                    JOIN unnest($1::bigint[], $2::text[]) AS stuck(id, locked_by)
+                      ON stuck.id = jobs.id AND stuck.locked_by = jobs.locked_by
+                    WHERE jobs.locked_at < now() - $4::interval
+                `,
+                    [
+                        jobs.map(({ id }) => id),
+                        jobs.map(({ lockedBy }) => lockedBy),
+                        errorMessage,
+                        `${SchedulerClient.DEAD_LOCK_AFTER_HOURS} hours`,
+                    ],
+                );
+                const released = rows.flatMap(({ id }) =>
+                    id === null ? [] : [id],
+                );
+                if (released.length > 0)
+                    await pgClient.query(
+                        'SELECT id FROM graphile_worker.permanently_fail_jobs($1::bigint[], $2)',
+                        [released, errorMessage],
+                    );
+                await pgClient.query('COMMIT');
+                return released;
+            } catch (error) {
+                await pgClient.query('ROLLBACK');
+                throw error;
+            }
+        });
     }
 
     async downloadAsyncQueryResults(payload: DownloadAsyncQueryResultsPayload) {
@@ -1905,32 +1953,66 @@ export class SchedulerClient {
         );
     }
 
-    async getUsageHistoryBackfillJob(
-        organizationUuid: string,
-    ): Promise<{ running: boolean; failed: boolean }> {
+    async getUsageHistoryBackfillJob(organizationUuid: string): Promise<{
+        running: boolean;
+        failed: boolean;
+        deadLock: { id: string; lockedBy: string } | null;
+    }> {
         const graphileClient = await this.graphileUtils;
         const result = await graphileClient.withPgClient((pgClient) =>
             pgClient.query(
-                'SELECT locked_at, attempts, max_attempts, last_error FROM graphile_worker.jobs WHERE key = $1',
-                [`usage-query-history:${organizationUuid}`],
+                `SELECT id, locked_at, locked_by, attempts, max_attempts, last_error,
+                    locked_at < now() - $2::interval AS lock_expired
+                FROM graphile_worker.jobs WHERE key = $1`,
+                [
+                    `usage-query-history:${organizationUuid}`,
+                    `${SchedulerClient.DEAD_LOCK_AFTER_HOURS} hours`,
+                ],
             ),
         );
         const job = result.rows[0];
+        const deadLock =
+            job?.lock_expired === true && job.locked_by
+                ? { id: String(job.id), lockedBy: String(job.locked_by) }
+                : null;
         return {
             running:
                 !!job &&
+                !deadLock &&
                 (job.locked_at !== null || job.attempts < job.max_attempts),
-            failed: !!job?.last_error,
+            failed: !!job?.last_error || !!deadLock,
+            deadLock,
         };
     }
 
     async scheduleUsageHistoryBackfill(payload: TraceTaskBase): Promise<void> {
-        if (
-            (await this.getUsageHistoryBackfillJob(payload.organizationUuid))
-                .running
-        )
-            return;
+        const job = await this.getUsageHistoryBackfillJob(
+            payload.organizationUuid,
+        );
+        if (job.running) return;
         const graphileClient = await this.graphileUtils;
+        const { deadLock } = job;
+        if (deadLock) {
+            // fail_job also releases the queue lock that would block the new job.
+            await graphileClient.withPgClient((pgClient) =>
+                pgClient.query(
+                    `SELECT graphile_worker.fail_job($1, $2, $3)
+                    FROM graphile_worker.jobs
+                    WHERE id = $2 AND locked_by = $1
+                      AND locked_at < now() - $4::interval`,
+                    [
+                        deadLock.lockedBy,
+                        deadLock.id,
+                        'Released before retry: the worker running this job stopped responding',
+                        `${SchedulerClient.DEAD_LOCK_AFTER_HOURS} hours`,
+                    ],
+                ),
+            );
+            Logger.warn('Released a dead usage history backfill lock', {
+                organizationUuid: payload.organizationUuid,
+                graphileJobId: deadLock.id,
+            });
+        }
         // Serialize backfills on one low-priority worker without locking nightly compaction.
         await graphileClient.addJob(
             SCHEDULER_TASKS.BACKFILL_USAGE_QUERY_HISTORY,
