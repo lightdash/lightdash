@@ -11,7 +11,6 @@ import {
 } from '@lightdash/common';
 import {
     Button,
-    Code,
     Group,
     PasswordInput,
     SegmentedControl,
@@ -24,7 +23,6 @@ import { useForm, type UseFormReturnType } from '@mantine/form';
 import { IconTrash } from '@tabler/icons-react';
 import { useState, type FC, type FormEvent } from 'react';
 import { Link } from 'react-router';
-import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useResultsCacheStatus } from '../../../hooks/useProjectResultsCacheSettings';
@@ -375,23 +373,6 @@ export const LiveSourceSettings: FC<{
                     title="Details"
                     onSubmit={submit(['name', 'aiHint'])}
                 >
-                    {connection.liveSourceName ? (
-                        <SettingsRow
-                            label="Explore prefix"
-                            hint="Added to the start of each explore name"
-                        >
-                            <Code className={rowClasses.settingsCode}>
-                                {connection.liveSourceName}
-                            </Code>
-                            <CopyActionIcon
-                                value={connection.liveSourceName}
-                                copyLabel="Copy explore prefix"
-                                variant="subtle"
-                                color="gray"
-                                size="sm"
-                            />
-                        </SettingsRow>
-                    ) : null}
                     <SettingsRow
                         label="Name"
                         hint="Shown in explores and to agents"

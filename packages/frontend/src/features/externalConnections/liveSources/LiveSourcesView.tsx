@@ -7,6 +7,7 @@ import {
     ActionIcon,
     Box,
     Button,
+    Code,
     Group,
     Paper,
     Stack,
@@ -21,6 +22,7 @@ import {
     type MouseEvent,
     type ReactNode,
 } from 'react';
+import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import tableClasses from '../../../components/common/sourceTable.module.css';
 import { useResultsCacheStatus } from '../../../hooks/useProjectResultsCacheSettings';
@@ -39,6 +41,7 @@ import {
     type LiveSourceConnection,
 } from './liveSourceRows';
 import classes from './LiveSources.module.css';
+import rowClasses from './LiveSourceSettingsRows.module.css';
 import { getRateLimitStat } from './rateLimitFormat';
 
 const stopPropagation = (event: MouseEvent) => event.stopPropagation();
@@ -225,22 +228,37 @@ const Stat: FC<{
     labelExtra?: ReactNode;
     /** Colours the value: red for a full rate limit, orange for a warning. */
     tone?: 'danger' | 'warning';
-}> = ({ label, value, detail, title, labelExtra, tone }) => (
+    /** Shows the value as code people copy, such as an explore prefix. */
+    copyLabel?: string;
+}> = ({ label, value, detail, title, labelExtra, tone, copyLabel }) => (
     <Box className={tableClasses.stat}>
         <span className={tableClasses.statLabel}>
             {label}
             {labelExtra}
         </span>
-        <span
-            className={tableClasses.statValue}
-            data-tone={tone}
-            title={title ?? (detail ? `${value} (${detail})` : value)}
-        >
-            {value}
-            {detail && (
-                <span className={tableClasses.statDetail}> ({detail})</span>
-            )}
-        </span>
+        {copyLabel ? (
+            <Group gap={4} wrap="nowrap">
+                <Code className={rowClasses.settingsCode}>{value}</Code>
+                <CopyActionIcon
+                    value={value}
+                    copyLabel={copyLabel}
+                    variant="subtle"
+                    color="gray"
+                    size="sm"
+                />
+            </Group>
+        ) : (
+            <span
+                className={tableClasses.statValue}
+                data-tone={tone}
+                title={title ?? (detail ? `${value} (${detail})` : value)}
+            >
+                {value}
+                {detail && (
+                    <span className={tableClasses.statDetail}> ({detail})</span>
+                )}
+            </span>
+        )}
     </Box>
 );
 
@@ -270,19 +288,17 @@ export const LiveSourceSummary: FC<{
     // Every explore whose fields can be curated, not only the first
     const allFields = fields?.explores.flatMap((explore) => explore.fields);
     const inUse = allFields?.filter((field) => field.inUse).length;
-    const exploresOn = fields?.explores.filter(
-        (explore) => explore.inUse,
-    ).length;
     return (
         <Box className={tableClasses.summary} aria-label="Live data source">
             <Stat label="Integration" value={row.integration} />
-            {fields && fields.explores.length > 1 ? (
+            {connection.liveSourceName ? (
                 <Stat
-                    label="Explores"
-                    value={`${exploresOn?.toLocaleString()} of ${fields.explores.length.toLocaleString()} on`}
+                    label="Explore prefix"
+                    value={connection.liveSourceName}
+                    copyLabel="Copy explore prefix"
                 />
             ) : (
-                <Stat label="Explore" value={fields?.exploreName ?? '—'} />
+                <Stat label="Explore prefix" value="—" />
             )}
             <Stat
                 label="Fields in use"

@@ -576,7 +576,6 @@ export const MainPane: FC<{
                         <LiveSourceSummary
                             projectUuid={view.project.id}
                             connection={liveConnection}
-                            exploreLabels={sourceExploreLabels}
                         />
                     ) : null}
                     {externalSource ? (
