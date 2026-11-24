@@ -1,3 +1,4 @@
+import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 
@@ -12,7 +13,7 @@ vi.mock('../common/PivotTable', () => ({
 }));
 
 vi.mock('../common/Table', () => ({
-    default: () => null,
+    default: ({ notice }: { notice?: React.ReactNode }) => notice ?? null,
 }));
 
 vi.mock('../LightdashVisualization/types', () => ({
@@ -216,5 +217,66 @@ describe('SimpleTable screenshot readiness', () => {
         );
 
         expect(onScreenshotReady).toHaveBeenCalledOnce();
+    });
+});
+
+const buildPagedTableContext = (resultsData: Record<string, unknown>) => {
+    const context = buildFlatTableContext({ showSubtotals: false });
+    return {
+        ...context,
+        resultsData: { ...context.resultsData, ...resultsData },
+    };
+};
+
+describe('SimpleTable while the first 500 rows load', () => {
+    const smallPage = Array.from({ length: 56 }, () => ({}));
+
+    it('does not signal screenshot ready on the smaller first page', () => {
+        const onScreenshotReady = vi.fn();
+        const renderTable = () => (
+            <SimpleTable isDashboard onScreenshotReady={onScreenshotReady} />
+        );
+        mockContext.current = buildPagedTableContext({
+            rows: smallPage,
+            totalResults: 2000,
+            hasFetchedAllRows: false,
+            isExpandingFirstPage: true,
+        });
+        const { rerender } = renderWithProviders(renderTable());
+
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+
+        mockContext.current = buildPagedTableContext({
+            rows: Array.from({ length: 500 }, () => ({})),
+            totalResults: 2000,
+            hasFetchedAllRows: false,
+            isExpandingFirstPage: false,
+        });
+        rerender(renderTable());
+
+        expect(onScreenshotReady).toHaveBeenCalledOnce();
+    });
+
+    it('keeps the rows and offers a retry when the rest fail to load', () => {
+        const retryFetchRows = vi.fn();
+        mockContext.current = buildPagedTableContext({
+            rows: smallPage,
+            totalResults: 2000,
+            hasFetchedAllRows: false,
+            isExpandingFirstPage: false,
+            rowsExpansionError: {
+                status: 'error',
+                error: { name: 'Error', statusCode: 500, message: 'x' },
+            },
+            retryFetchRows,
+        });
+
+        renderWithProviders(<SimpleTable isDashboard />);
+
+        expect(
+            screen.getByText(/the rest of the rows did not load/i),
+        ).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+        expect(retryFetchRows).toHaveBeenCalledOnce();
     });
 });
