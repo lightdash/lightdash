@@ -10040,22 +10040,95 @@ describe('AiAgentToolsService in a thread bound to a dashboard', () => {
             expect(upsertChart).toHaveBeenCalled();
         });
 
-        it('saves no chart whose explore cannot be found', async () => {
-            const upsertChart = vi.fn();
+        it.each([
+            ['cannot be found', {}, /Explore "orders" is not available/],
+            [
+                'cannot be loaded',
+                {
+                    findExploresFromCache: vi
+                        .fn()
+                        .mockRejectedValue(new Error('cache read timed out')),
+                },
+                /cache read timed out/,
+            ],
+        ])(
+            'saves no chart whose explore %s',
+            async (_, projectModel, reason) => {
+                const upsertChart = vi.fn();
+                const service = makeService({
+                    projectModel,
+                    coderService: { upsertChart },
+                    aiAgentContentValidation: contentValidation(),
+                });
+
+                const create = service
+                    .createRuntime(makeRuntimeContext())
+                    .createContent({
+                        type: 'chart',
+                        content: makeChart(undefined),
+                    } as never);
+                await expect(create).rejects.toThrow(/was not saved/);
+                await expect(create).rejects.toThrow(reason);
+                expect(upsertChart).not.toHaveBeenCalled();
+            },
+        );
+
+        it('keeps a saved chart whose tile cannot be placed, and says how to add it', async () => {
+            const upsertChart = vi.fn().mockResolvedValue({
+                charts: [
+                    { data: { uuid: 'chart-uuid', slug: 'orders-chart' } },
+                ],
+            });
             const service = makeService({
-                coderService: { upsertChart },
+                explores: {
+                    orders: makeExplore({
+                        name: 'orders',
+                        metrics: {
+                            count: {
+                                name: 'count',
+                                table: 'orders',
+                                fieldType: 'metric',
+                            },
+                        },
+                    }),
+                },
+                dashboardModel: dashboardModel(),
+                dashboardService: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue(boundDashboard),
+                },
+                savedChartService: {
+                    get: vi.fn().mockResolvedValue({ uuid: 'chart-uuid' }),
+                },
+                coderService: {
+                    upsertChart,
+                    upsertDashboard: vi
+                        .fn()
+                        .mockRejectedValue(new Error('dashboard locked')),
+                    getChartsForRead: vi.fn().mockResolvedValue({
+                        charts: [makeChart(boundDashboard.slug)],
+                    }),
+                    getDashboardsForRead: vi.fn().mockResolvedValue({
+                        dashboards: [makeDashboard(boundDashboard.slug)],
+                    }),
+                },
                 aiAgentContentValidation: contentValidation(),
             });
 
-            await expect(
-                service.createRuntime(makeRuntimeContext()).createContent({
+            const created = await service
+                .createRuntime(makeRuntimeContext())
+                .createContent({
                     type: 'chart',
-                    content: makeChart(undefined),
-                } as never),
-            ).rejects.toThrow(
-                /was not saved: Explore "orders" is not available/,
-            );
-            expect(upsertChart).not.toHaveBeenCalled();
+                    content: makeChart(boundDashboard.slug),
+                } as never);
+
+            expect(upsertChart).toHaveBeenCalledTimes(1);
+            expect(created).toMatchObject({
+                type: 'chart',
+                uuid: 'chart-uuid',
+                placementError: expect.stringMatching(
+                    /dashboard locked\. Add its tile with editContent/,
+                ),
+            });
         });
 
         it('rejects a new SQL chart', async () => {

@@ -202,10 +202,12 @@ export const getCreateContent = ({
                     const result = await createContent(
                         await getCreateArgs(args, approveSql),
                     );
-                    const created = toCreatedContent(
-                        result,
-                        getContentWarnings(result),
-                    );
+                    const created = toCreatedContent(result, [
+                        ...getContentWarnings(result),
+                        ...(result.type === 'chart' && result.placementError
+                            ? [result.placementError]
+                            : []),
+                    ]);
                     const metadata = {
                         status: 'success' as const,
                         slug: created.slug,

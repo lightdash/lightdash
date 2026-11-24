@@ -519,6 +519,8 @@ export type CreateContentFn = (
           content: ChartAsCode;
           uuid: string;
           href: string;
+          /** Why its dashboard tile could not be placed; null when placed or not asked for. */
+          placementError: string | null;
       }
     | {
           type: 'sql_chart';

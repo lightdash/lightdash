@@ -4118,15 +4118,6 @@ export class AiAgentToolsService extends BaseService {
                         const finalSlug =
                             promotionChanges.dashboards[0]?.data.slug ??
                             content.slug;
-                        if (
-                            context.source === 'ai_agent' &&
-                            finalSlug !== content.slug
-                        ) {
-                            this.getTurnWrites(context).dashboardSlugs.set(
-                                content.slug,
-                                finalSlug,
-                            );
-                        }
                         const uuid = promotionChanges.dashboards[0]?.data.uuid;
                         if (!uuid) {
                             throw new NotFoundError(
@@ -4140,6 +4131,11 @@ export class AiAgentToolsService extends BaseService {
                                 type,
                             },
                         );
+                        if (createdContent.type !== 'dashboard') {
+                            throw new NotFoundError(
+                                `Created dashboard "${finalSlug}" was not found`,
+                            );
+                        }
                         return {
                             ...createdContent,
                             uuid,
@@ -4153,18 +4149,15 @@ export class AiAgentToolsService extends BaseService {
                     case 'chart': {
                         // Agent only: MCP saves the chart as sent.
                         const isAgent = context.source === 'ai_agent';
-                        const chart = isAgent
-                            ? this.withCreatedDashboardSlug(context, content)
-                            : content;
                         if (isAgent) {
-                            await this.assertChartFieldsExist(context, chart);
+                            await this.assertChartFieldsExist(context, content);
                         }
                         const promotionChanges =
                             await this.coderService.upsertChart(
                                 context.user,
                                 context.projectUuid,
-                                chart.slug,
-                                chart,
+                                content.slug,
+                                content,
                                 {
                                     mode: 'create',
                                     authorization: 'space_access',
@@ -4172,21 +4165,23 @@ export class AiAgentToolsService extends BaseService {
                                 },
                             );
                         const finalSlug =
-                            promotionChanges.charts[0]?.data.slug ?? chart.slug;
+                            promotionChanges.charts[0]?.data.slug ??
+                            content.slug;
                         const uuid = promotionChanges.charts[0]?.data.uuid;
                         if (!uuid) {
                             throw new NotFoundError(
                                 `Created chart "${finalSlug}" was not found`,
                             );
                         }
-                        if (isAgent && chart.dashboardSlug) {
-                            await this.placeChartOnDashboard(context, {
-                                dashboardSlug: chart.dashboardSlug,
-                                chartSlug: finalSlug,
-                                chartName: chart.name,
-                                chartType: chart.chartConfig.type,
-                            });
-                        }
+                        const placementError =
+                            isAgent && content.dashboardSlug
+                                ? await this.placeChartOnDashboard(context, {
+                                      dashboardSlug: content.dashboardSlug,
+                                      chartSlug: finalSlug,
+                                      chartName: content.name,
+                                      chartType: content.chartConfig.type,
+                                  })
+                                : null;
                         const createdContent = await this.readContentAsCode(
                             context,
                             {
@@ -4202,6 +4197,7 @@ export class AiAgentToolsService extends BaseService {
                                 'chart',
                                 uuid,
                             ),
+                            placementError,
                         };
                     }
                     case 'sql_chart':
@@ -4232,16 +4228,12 @@ export class AiAgentToolsService extends BaseService {
             exploreName: chart.metricQuery.exploreName ?? chart.tableName,
             userAttributeOverrides: context.userAttributeOverrides,
         }).catch((error: unknown) => {
-            // A missing explore fails the save, as the old test query did, unless the query is unchanged.
-            if (
-                error instanceof NotFoundError &&
-                !(before && isEqual(before.metricQuery, chart.metricQuery))
-            ) {
-                throw new ParameterError(
-                    `Chart "${chart.slug}" was not saved: ${error.message}`,
-                );
-            }
-            return null;
+            // No unchecked query is saved, as the old test query could not run either.
+            if (before && isEqual(before.metricQuery, chart.metricQuery))
+                return null;
+            throw new ParameterError(
+                `Chart "${chart.slug}" was not saved: ${getErrorMessage(error)}`,
+            );
         });
         if (!explore) return;
         const existing = new Set(
@@ -4257,33 +4249,19 @@ export class AiAgentToolsService extends BaseService {
         }
     }
 
-    // Per agent turn: dashboards saved under another slug (requested -> saved) and the chart tiles the server placed.
-    private readonly turnWrites = new WeakMap<
+    // Per agent turn: the chart tiles the server placed.
+    private readonly placedTilesByTurn = new WeakMap<
         AiAgentToolsRuntimeContext,
-        { dashboardSlugs: Map<string, string>; placedTiles: Set<string> }
+        Set<string>
     >();
 
-    private getTurnWrites(context: AiAgentToolsRuntimeContext) {
-        const writes = this.turnWrites.get(context) ?? {
-            dashboardSlugs: new Map<string, string>(),
-            placedTiles: new Set<string>(),
-        };
-        this.turnWrites.set(context, writes);
-        return writes;
+    private getPlacedTiles(context: AiAgentToolsRuntimeContext) {
+        const placed = this.placedTilesByTurn.get(context) ?? new Set<string>();
+        this.placedTilesByTurn.set(context, placed);
+        return placed;
     }
 
-    /** A chart created in the same response as its dashboard follows that dashboard's saved slug. */
-    private withCreatedDashboardSlug(
-        context: AiAgentToolsRuntimeContext,
-        chart: ChartAsCode,
-    ): ChartAsCode {
-        const saved =
-            chart.dashboardSlug &&
-            this.getTurnWrites(context).dashboardSlugs.get(chart.dashboardSlug);
-        return saved ? { ...chart, dashboardSlug: saved } : chart;
-    }
-
-    /** A chart saved in a dashboard gets a tile there, laid out by the server. */
+    /** A chart saved in a dashboard gets a tile there, laid out by the server; returns why not when it fails. */
     private async placeChartOnDashboard(
         context: AiAgentToolsRuntimeContext,
         {
@@ -4297,7 +4275,7 @@ export class AiAgentToolsService extends BaseService {
             chartName: string;
             chartType: ChartType;
         },
-    ): Promise<void> {
+    ): Promise<string | null> {
         const place = async () => {
             const read = await this.readContentAsCode(
                 context,
@@ -4326,7 +4304,7 @@ export class AiAgentToolsService extends BaseService {
                 (existing) => (existing.tabSlug ?? null) === tabSlug,
             );
             // Only tiles placed this turn may be resized; the user's tiles stay as they are.
-            const { placedTiles } = this.getTurnWrites(context);
+            const placedTiles = this.getPlacedTiles(context);
             const tileKey = (slug: string) => `${dashboardSlug}/${slug}`;
             const layout = placeTile(
                 tabTiles,
@@ -4377,12 +4355,11 @@ export class AiAgentToolsService extends BaseService {
         };
         try {
             await place();
+            return null;
         } catch (error) {
-            throw new ParameterError(
-                `Chart "${chartSlug}" was saved but not placed on dashboard "${dashboardSlug}": ${getErrorMessage(
-                    error,
-                )}. Add its tile with editContent.`,
-            );
+            return `Not placed on dashboard "${dashboardSlug}": ${getErrorMessage(
+                error,
+            )}. Add its tile with editContent.`;
         }
     }
 
@@ -4944,6 +4921,11 @@ export class AiAgentToolsService extends BaseService {
             slug: created.slug,
             type: 'sql_chart',
         });
+        if (createdContent.type !== 'sql_chart') {
+            throw new NotFoundError(
+                `Created SQL chart "${content.slug}" was not found`,
+            );
+        }
         return { ...createdContent, uuid: created.uuid };
     }
 

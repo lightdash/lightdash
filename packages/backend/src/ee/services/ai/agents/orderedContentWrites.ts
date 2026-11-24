@@ -1,4 +1,4 @@
-import type { ToolSet } from 'ai';
+import type { ModelMessage, ToolSet } from 'ai';
 import { z } from 'zod';
 import { toolFailure } from '../utils/structuredToolResult';
 
@@ -10,12 +10,15 @@ const dashboardCreate = z.object({
     type: z.literal('dashboard'),
     content: z.object({ slug: z.string() }),
 });
-const chartCreateInDashboard = z.object({
+const chartCreateInDashboard = z.looseObject({
     type: z.literal('chart'),
-    content: z.object({ dashboardSlug: z.string() }),
+    content: z.looseObject({ dashboardSlug: z.string() }),
 });
 const failedOutput = z.object({
     metadata: z.object({ status: z.literal('error') }),
+});
+const savedOutput = z.object({
+    metadata: z.object({ status: z.literal('success'), slug: z.string() }),
 });
 
 /**
@@ -26,6 +29,11 @@ export const withOrderedContentWrites = (tools: ToolSet): ToolSet => {
     let queue: Promise<unknown> = Promise.resolve();
     // Dashboards whose create failed this turn: charts sent for them are not saved.
     const failedDashboards = new Set<string>();
+    // Dashboards saved under another slug; only charts sent in the same response follow them.
+    const renamedDashboards = new Map<
+        string,
+        { slug: string; response: ModelMessage[] }
+    >();
     return Object.fromEntries(
         Object.entries(tools).map(([toolName, toolDef]) => {
             const { execute } = toolDef;
@@ -44,11 +52,38 @@ export const withOrderedContentWrites = (tools: ToolSet): ToolSet => {
                         `Dashboard "${chart.data.content.dashboardSlug}" was not created, so this chart was not saved. Create the dashboard first, then its charts.`,
                     );
                 }
+                // Tool calls of one response share its messages array.
+                const renamed = chart.success
+                    ? renamedDashboards.get(chart.data.content.dashboardSlug)
+                    : undefined;
+                const toRun =
+                    chart.success &&
+                    renamed !== undefined &&
+                    renamed.response === options.messages
+                        ? {
+                              ...chart.data,
+                              content: {
+                                  ...chart.data.content,
+                                  dashboardSlug: renamed.slug,
+                              },
+                          }
+                        : input;
                 const dashboard = dashboardCreate.safeParse(input);
                 let failed = true;
                 try {
-                    const output: unknown = await execute(input, options);
+                    const output: unknown = await execute(toRun, options);
                     failed = failedOutput.safeParse(output).success;
+                    const saved = savedOutput.safeParse(output);
+                    if (
+                        dashboard.success &&
+                        saved.success &&
+                        saved.data.metadata.slug !== dashboard.data.content.slug
+                    ) {
+                        renamedDashboards.set(dashboard.data.content.slug, {
+                            slug: saved.data.metadata.slug,
+                            response: options.messages,
+                        });
+                    }
                     return output;
                 } finally {
                     if (dashboard.success && failed)

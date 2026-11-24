@@ -95,6 +95,42 @@ describe('withOrderedContentWrites', () => {
         ).resolves.toMatchObject({ metadata: { status: 'success' } });
     });
 
+    it('points charts at a dashboard saved under another slug only in the response that created it', async () => {
+        const savedIn: string[] = [];
+        const tools = withOrderedContentWrites({
+            createContent: {
+                execute: async (input: {
+                    type: string;
+                    content: { slug: string; dashboardSlug?: string };
+                }) => {
+                    if (input.type === 'dashboard')
+                        return {
+                            metadata: { status: 'success', slug: 'sales-1' },
+                        };
+                    savedIn.push(input.content.dashboardSlug ?? '');
+                    return { metadata: { status: 'success' } };
+                },
+            },
+        } as unknown as ToolSet);
+        const execute = tools.createContent.execute as Execute;
+        const firstResponse = { messages: [] };
+        const laterResponse = { messages: [] };
+        const chart = {
+            type: 'chart',
+            content: { slug: 'c', dashboardSlug: 'sales' },
+        };
+
+        await Promise.all([
+            execute(
+                { type: 'dashboard', content: { slug: 'sales' } },
+                firstResponse,
+            ),
+            execute(chart, firstResponse),
+        ]);
+        await execute(chart, laterResponse);
+        expect(savedIn).toEqual(['sales-1', 'sales']);
+    });
+
     it('keeps going after a failed write', async () => {
         const tools = withOrderedContentWrites({
             editContent: {
