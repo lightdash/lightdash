@@ -137,6 +137,10 @@ const runAsk = async (prompt: string, rejectWith: string | null) => {
                                 changes: [],
                                 refusals: [],
                                 error: rejectWith,
+                                rejection: {
+                                    kind: 'warehouse_refused' as const,
+                                    detail: rejectWith,
+                                },
                                 notes: [],
                             })),
                             diffs: [],
