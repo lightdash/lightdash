@@ -14,7 +14,7 @@ import attioIcon from './icons/attio.svg';
 import githubIcon from './icons/github.svg';
 import googleAdsIcon from './icons/google-ads.svg';
 import googleAnalyticsIcon from './icons/google-analytics.svg';
-import googleSearchConsoleIcon from './icons/google-search-console.png';
+import googleSearchConsoleIcon from './icons/google-search-console.svg';
 import hubspotIcon from './icons/hubspot.svg';
 import hydraIcon from './icons/hydra.svg';
 import jiraIcon from './icons/jira.svg';
