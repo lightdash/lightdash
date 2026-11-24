@@ -69,6 +69,7 @@ import {
     type UpdateExternalConnection,
 } from '@lightdash/common';
 import { groupBy, isEqual, sortBy, uniqBy } from 'es-toolkit/compat';
+import { type Knex } from 'knex';
 import { createHash, randomBytes } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
@@ -1493,21 +1494,26 @@ export class ExternalConnectionService extends BaseService {
     /**
      * Rebuilds the source's explores from its stored scan and field edits,
      * without calling the integration. `keepFields` fails instead of removing
-     * a field the source has today, leaving its explores as they are.
+     * a field the source has today, leaving its explores as they are. Pass
+     * `trx` to commit or roll back the rebuild with the writes before it.
      */
     private async rebuildApiSourceExplores(
         connection: ExternalConnection,
         apiSource: ExternalConnectionApiSource,
-        { keepFields }: { keepFields: boolean } = { keepFields: false },
+        {
+            keepFields = false,
+            trx,
+        }: { keepFields?: boolean; trx?: Knex.Transaction } = {},
     ): Promise<void> {
         const { externalConnectionUuid, projectUuid } = connection;
         await this.externalConnectionModel.withLiveSourceBuildLock(
             externalConnectionUuid,
-            async () => {
+            async (lockTrx) => {
                 const [sourceName, state] = await Promise.all([
                     this.resolveLiveSourceName(connection, apiSource),
                     this.externalConnectionModel.getLiveSourceFieldState(
                         externalConnectionUuid,
+                        lockTrx,
                     ),
                 ]);
                 const scannedFields = state.lastScan?.fields ?? [];
@@ -1554,8 +1560,10 @@ export class ExternalConnectionService extends BaseService {
                     projectUuid,
                     externalConnectionUuid,
                     explores,
+                    lockTrx,
                 );
             },
+            trx,
         );
     }
 
@@ -1712,18 +1720,29 @@ export class ExternalConnectionService extends BaseService {
                 `${account.user.firstName ?? ''} ${account.user.lastName ?? ''}`.trim(),
             at: new Date().toISOString(),
         };
-        await this.externalConnectionModel.updateLiveSourceFieldEdits(
+        // Edits and the rebuild commit together, so a failed rebuild never leaves edits its explores lack
+        await this.externalConnectionModel.withLiveSourceBuildLock(
             connectionUuid,
-            (current) =>
-                applyLiveSourceFieldChanges({
-                    current,
-                    changes: keyedChanges,
-                    knownNames,
-                    requiredNames,
-                    editor,
-                }),
+            async (trx) => {
+                await this.externalConnectionModel.updateLiveSourceFieldEdits(
+                    connectionUuid,
+                    (current) =>
+                        applyLiveSourceFieldChanges({
+                            current,
+                            changes: keyedChanges,
+                            knownNames,
+                            requiredNames,
+                            editor,
+                        }),
+                    trx,
+                );
+                await this.rebuildApiSourceExplores(
+                    { ...connection, liveSourceName: sourceName },
+                    apiSource,
+                    { trx },
+                );
+            },
         );
-        await this.rebuildApiSourceExplores(connection, apiSource);
         this.analytics.track({
             event: 'live_source.fields_updated',
             userId: account.user.id,

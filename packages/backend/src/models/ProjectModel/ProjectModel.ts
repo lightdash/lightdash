@@ -8878,14 +8878,16 @@ export class ProjectModel {
     /**
      * Replaces every explore of one live data source. Sources are soft
      * deleted and explores have no foreign key, so explores are always
-     * written and removed per source.
+     * written and removed per source. Pass `trx` to write them with other
+     * changes, such as the field edits they were built from.
      */
     async replaceApiSourceExplores(
         projectUuid: string,
         connectionUuid: string,
         explores: Explore[],
+        outerTrx?: Knex.Transaction,
     ): Promise<void> {
-        await this.database.transaction(async (trx) => {
+        const replace = async (trx: Knex.Transaction) => {
             await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
             const clashing = await trx(CachedExploreTableName)
                 .select('name')
@@ -8918,7 +8920,10 @@ export class ProjectModel {
                     })),
                 );
             }
-        });
+        };
+        await (outerTrx
+            ? replace(outerTrx)
+            : this.database.transaction(replace));
     }
 
     /** Which of these explore names belong to something other than this live source. */
