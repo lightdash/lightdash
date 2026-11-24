@@ -31,6 +31,9 @@ export const retiredAnalyticsCharts: Readonly<Record<string, string>> = {
     'lightdash-analytics-apps-viewed-apps': 'lightdash-analytics-apps',
     'lightdash-analytics-content-content-by-activity-status':
         'lightdash-analytics-content',
+    // Moved to Queries as lightdash-analytics-query-activity-dashboards-warehouse-and-response-time
+    'lightdash-analytics-content-high-compute-dashboards-audience-versus-warehouse-time':
+        'lightdash-analytics-content',
     'lightdash-analytics-embed-embed-dashboards': 'lightdash-analytics-embed',
     'lightdash-analytics-embed-embed-viewer-trend': 'lightdash-analytics-embed',
     'lightdash-analytics-embed-embed-viewers': 'lightdash-analytics-embed',
