@@ -357,6 +357,18 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
                 },
             },
             {
+                path: ':agentUuid/edit/verified-artifacts/*',
+                lazy: async () => {
+                    const VerifiedArtifactRedirectPage =
+                        await loadLazyRouteDefault(
+                            './pages/AiAgents/VerifiedArtifactRedirectPage',
+                            () =>
+                                import('./pages/AiAgents/VerifiedArtifactRedirectPage'),
+                        );
+                    return { Component: VerifiedArtifactRedirectPage };
+                },
+            },
+            {
                 path: ':agentUuid/edit',
                 lazy: async () => {
                     const ProjectAiAgentEditPage = await loadLazyRouteDefault(
