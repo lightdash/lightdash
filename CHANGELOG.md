@@ -1,3 +1,15 @@
+# [3.380.0](https://github.com/lightdash/lightdash/compare/3.379.1...3.380.0) (2026-11-24)
+
+
+### Bug Fixes
+
+* **ai-agents:** fetch the GitHub App token only when a GitHub tool is called ([#33294](https://github.com/lightdash/lightdash/issues/33294)) ([220d637](https://github.com/lightdash/lightdash/commit/220d6373a9dcb28eeeafaf1af44eb1162fb27ed9))
+
+
+### Features
+
+* **ai-agents:** connect MCP servers on demand so answers stream without waiting ([#33070](https://github.com/lightdash/lightdash/issues/33070)) ([97dfff2](https://github.com/lightdash/lightdash/commit/97dfff23885ea578c154e3d34d4d5f7b1368be28))
+
 ## [3.379.1](https://github.com/lightdash/lightdash/compare/3.379.0...3.379.1) (2026-11-24)
 
 
