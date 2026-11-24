@@ -1,5 +1,6 @@
 import {
     describeModelFragmentRefusal,
+    draftProjectContextToolDefinition,
     endsTurnOnCard,
     listChangesToolDefinition,
     proposeSemanticLayerChangeToolDefinition,
@@ -7,6 +8,7 @@ import {
     type SemanticLayerProposal,
     type SemanticLayerProposalItemResult,
     type StudioChangeSummary,
+    type ToolDraftProjectContextOutput,
     type ToolProposeSemanticLayerChangeOutput,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -15,6 +17,7 @@ import {
     findNewModelAdvice,
 } from '../../SemanticStudioService/draftLint';
 import type {
+    DraftProjectContextFn,
     ProposeSemanticLayerChangeFn,
     ReadSemanticModelFn,
 } from '../types/aiAgentDependencies';
@@ -189,6 +192,53 @@ export const getListChanges = (
                 };
             } catch (error) {
                 return toolErrorOutput(error, 'Error listing your changes.');
+            }
+        },
+    });
+
+export const getDraftProjectContext = ({
+    draftProjectContext,
+}: {
+    draftProjectContext: DraftProjectContextFn;
+}) =>
+    tool({
+        ...draftProjectContextToolDefinition.for('agent'),
+        execute: async ({
+            op,
+            id,
+            kind,
+            content,
+            terms,
+            objects,
+            changeName,
+        }): Promise<ToolDraftProjectContextOutput> => {
+            try {
+                const drafted = await draftProjectContext(
+                    { op, id, kind, content, terms, objects },
+                    changeName,
+                );
+                return {
+                    result: [
+                        `${drafted.op === 'update' ? 'Replaced' : 'Added'} project context entry "${drafted.entryId}" in the draft.`,
+                        ...(drafted.startedChange
+                            ? [
+                                  `Started draft "${drafted.startedChange.name}" and checked it out.`,
+                              ]
+                            : []),
+                        'Agents read it once the person publishes the draft; say so in one sentence.',
+                    ].join('\n'),
+                    metadata: { status: 'success' },
+                    structuredContent: {
+                        entryId: drafted.entryId,
+                        op: drafted.op,
+                        draftChangeUuid: drafted.draftChangeUuid,
+                    },
+                };
+            } catch (error) {
+                return toolErrorOutput(
+                    error,
+                    'Error adding the project context entry to the draft.',
+                );
             }
         },
     });

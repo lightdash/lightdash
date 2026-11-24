@@ -239,7 +239,11 @@ export const getSystemPromptV2 = (
         siteUrl = '',
         repoFsRoot = null,
         repoFsSupportsCodeSearch = true,
-        studio = { kind: 'draft', canQueryDraft: false, hasRepository: true },
+        studio = {
+            kind: 'draft',
+            canQueryDraft: false,
+            canDraftContext: false,
+        },
         projectContextInRead = false,
         promptSections = NO_PROMPT_SECTIONS,
         slackChannelId = null,

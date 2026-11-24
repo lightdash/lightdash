@@ -265,6 +265,8 @@ export type SemanticLayerDraftChange = {
         /** Why this no longer applies to what is live; null when it does. */
         error: string | null;
     }[];
+    /** Ids of the project context entries this change adds or replaces. */
+    projectContextEntries: string[];
 };
 
 /** A part of a model that changed live and that the draft changes too, with each side's version of it as YAML. */
@@ -335,10 +337,22 @@ export type SemanticLayerInReviewModel = {
     contentAfter: string | null;
 };
 
+/** The project context file in a draft, under a name no model can take since model names have no dots. */
+export const SEMANTIC_STUDIO_PROJECT_CONTEXT_FILE = 'lightdash.project_context';
+
+/** What the draft does to the project's context, as its file; publishing makes it what agents read. */
+export type SemanticLayerDraftProjectContext = {
+    /** Null when the project has no context yet. */
+    contentBefore: string | null;
+    contentAfter: string;
+};
+
 export type SemanticLayerDraft = {
     /** Oldest first: each builds on the ones before it. */
     changes: SemanticLayerDraftChange[];
     models: SemanticLayerDraftModel[];
+    /** Null when the draft leaves the project context as it is. */
+    projectContext: SemanticLayerDraftProjectContext | null;
     /** Models the draft leaves unable to compile. */
     errors: { model: string; message: string }[];
     settled: SemanticLayerSettledDraftChange[];

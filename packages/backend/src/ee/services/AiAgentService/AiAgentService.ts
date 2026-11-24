@@ -600,6 +600,7 @@ import {
 import {
     ClosePullRequestFn,
     DiscoverReposFn,
+    DraftProjectContextFn,
     EditDbtProjectFn,
     EditProjectContextFn,
     ExploreRepoFn,
@@ -15188,6 +15189,18 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 changeName,
             );
 
+        const draftProjectContext: DraftProjectContextFn = (
+            entry,
+            changeName,
+        ) =>
+            this.semanticStudioService.draftProjectContextEntry(
+                user,
+                projectUuid,
+                entry,
+                prompt.promptUuid,
+                changeName,
+            );
+
         const listChanges = () =>
             this.semanticStudioService.listChanges(
                 user,
@@ -15387,6 +15400,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             getDraftExplore,
             runDraftQuery,
             readSemanticModel,
+            draftProjectContext,
             verify,
             read,
             exploreRepo,
@@ -17565,9 +17579,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                           promptProject.projectUuid,
                       )
                     : null;
-                // Only a project with no repository has nowhere to keep project context.
-                const semanticStudioHasRepository =
-                    semanticStudioStatus?.appliesAs !== 'live';
                 // A dbt project's Studio thread works on pull requests where Studio is on for the person.
                 const semanticStudioWorksAsDbt =
                     semanticStudioStatus !== null &&
@@ -17582,6 +17593,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     semanticStudioStatus !== null &&
                     semanticStudioStatus.enabled &&
                     !semanticStudioWorksAsDbt;
+                const semanticStudioKeepsContext =
+                    semanticStudioDrafts &&
+                    semanticStudioStatus.appliesAs === 'live';
                 let aiWritebackEnabled = hasTrustedPromptUserIdentity;
                 if (!aiWritebackEnabled) {
                     this.logger.info(
@@ -17807,6 +17821,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     getDraftExplore,
                     runDraftQuery,
                     readSemanticModel,
+                    draftProjectContext,
                     verify,
                     read,
                     exploreRepo,
@@ -18106,7 +18121,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     enableEditProjectContext: isReviewRemediationWorkThread,
                     isSemanticStudioThread: isStudioThread,
                     semanticStudioDrafts,
-                    semanticStudioHasRepository,
+                    semanticStudioKeepsContext,
                     semanticStudioProjectMap,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
@@ -18340,6 +18355,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     getDraftExplore,
                     runDraftQuery,
                     readSemanticModel,
+                    draftProjectContext,
                     verify,
                     read,
                     exploreRepo,
@@ -20300,6 +20316,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     return 'Listing your changes...';
                 case 'readSemanticModel':
                     return 'Reading the model...';
+                case 'draftProjectContext':
+                    return 'Drafting the project context...';
                 case 'verify':
                     return 'Checking the change...';
                 case 'read':

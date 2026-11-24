@@ -47,6 +47,7 @@ export const draftOf = (
 ): SemanticLayerDraft => ({
     changes: [],
     models,
+    projectContext: null,
     errors: [],
     settled: [],
     inReview: [],
