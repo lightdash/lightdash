@@ -2,6 +2,7 @@ import express, { type Response } from 'express';
 import http, { type IncomingHttpHeaders } from 'http';
 import type { AddressInfo } from 'net';
 import zlib from 'zlib';
+import Logger from '../../logging/logger';
 import {
     compressionChunkSize,
     createResponseCompression,
@@ -85,6 +86,14 @@ beforeAll(async () => {
     app.get('/budget', compressWithBudget, (_req, res) => {
         res.json(largePayload);
     });
+    const etagFailsApp = express();
+    etagFailsApp.set('etag', () => {
+        throw new Error('etag failed');
+    });
+    etagFailsApp.get('/', compress, (_req, res) => {
+        res.json(largePayload);
+    });
+    app.use('/etag-fails', etagFailsApp);
     server = app.listen(0);
     await new Promise<void>((resolve) => {
         server.once('listening', () => resolve());
@@ -148,11 +157,11 @@ const failingEncoder = ((
         Buffer.alloc(0),
     )) as typeof zlib.brotliCompress;
 
-const holdNextBrotliCompress = () => {
+const heldEncoder = () => {
     const started = deferred();
     const release = deferred();
     const finished = deferred();
-    vi.spyOn(zlib, 'brotliCompress').mockImplementationOnce(((
+    const implementation = ((
         body: Buffer,
         options: zlib.BrotliOptions,
         callback: zlib.CompressCallback,
@@ -164,8 +173,16 @@ const holdNextBrotliCompress = () => {
                 setImmediate(() => finished.resolve());
             }),
         );
-    }) as typeof zlib.brotliCompress);
-    return { started, release, finished };
+    }) as typeof zlib.brotliCompress;
+    return { implementation, started, release, finished };
+};
+
+const holdNextBrotliCompress = () => {
+    const held = heldEncoder();
+    vi.spyOn(zlib, 'brotliCompress').mockImplementationOnce(
+        held.implementation,
+    );
+    return held;
 };
 
 const captureUnhandledRejections = () => {
@@ -311,9 +328,7 @@ describe('createResponseCompression', () => {
                     zlib.ZlibOptions,
                 ];
                 expect(body).toEqual(largeBody);
-                expect(options.chunkSize).toBe(
-                    Math.ceil(largeBody.length / 4),
-                );
+                expect(options.chunkSize).toBe(Math.ceil(largeBody.length / 4));
             },
         );
 
@@ -417,6 +432,52 @@ describe('createResponseCompression', () => {
                 expect(received.headers['content-encoding']).toBeUndefined();
                 expect(observedResponse!.getHeader('Content-Encoding')).toBe(
                     undefined,
+                );
+                expect(unhandled.rejections).toEqual([]);
+            } finally {
+                unhandled.stop();
+            }
+        });
+
+        it('drops a superseded send that finishes first', async () => {
+            const unhandled = captureUnhandledRejections();
+            try {
+                const first = heldEncoder();
+                const second = heldEncoder();
+                vi.spyOn(zlib, 'brotliCompress')
+                    .mockImplementationOnce(first.implementation)
+                    .mockImplementationOnce(second.implementation);
+                const response = request('/then-send', browserAcceptEncoding);
+                await second.started.promise;
+
+                first.release.resolve();
+                await first.finished.promise;
+                second.release.resolve();
+                const received = await response;
+
+                expect(decodeJson(received)).toEqual(otherPayload);
+                expect(unhandled.rejections).toEqual([]);
+            } finally {
+                unhandled.stop();
+            }
+        });
+
+        it('logs and closes the response when finishing it throws', async () => {
+            const unhandled = captureUnhandledRejections();
+            const loggerError = vi
+                .spyOn(Logger, 'error')
+                .mockImplementation(() => Logger);
+            try {
+                await expect(
+                    request('/etag-fails', browserAcceptEncoding),
+                ).rejects.toThrow();
+                await new Promise((resolve) => {
+                    setImmediate(resolve);
+                });
+
+                expect(loggerError).toHaveBeenCalledWith(
+                    'Response compression could not send',
+                    expect.objectContaining({ error: expect.any(Error) }),
                 );
                 expect(unhandled.rejections).toEqual([]);
             } finally {
