@@ -24,7 +24,7 @@ import { heatmapColorClamp, heatmapColorClampNote } from './chartBuilders';
 import { withEmbedRankingPresentation } from './embedDashboard';
 import { trendRows } from './homeDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
-import { noteRows } from './noteLayout';
+import { noteRows, titledNote } from './noteLayout';
 import { buildQueryCalendarChart } from './queryCalendarChart';
 import {
     buildUsageDashboards,
@@ -1049,7 +1049,168 @@ const aiTokenDashboard = buildAiTokenDashboard();
 // AI token usage is one dashboard built in two halves: the Any period tab (charts that follow the Date
 // filter, laid out by buildUsageDashboards) and the month-to-date tabs (aiTokenDashboard). The Date and
 // Project filters are switched off for every month-to-date chart, whose period is fixed.
-const builtDashboards = buildUsageDashboards(legacyContentAsCode);
+// Queries in four tabs, one subject each. The cards, daily charts and calendar came from an older tab
+// called Overview that held a little of everything, so the three tabs they join are laid out here, row
+// by row; Metrics & dimensions keeps the layout it is given in usageDashboardDefinitions.ts.
+type QueriesRow =
+    | { note: string }
+    | { charts: string[]; h: number; widths?: number[] };
+const queriesSlug = 'lightdash-analytics-query-activity';
+const queriesTabs: { slug: string; name: string; rows: QueriesRow[] }[] = [
+    {
+        slug: 'volume',
+        name: 'Volume',
+        rows: [
+            {
+                note: titledNote(
+                    'How much is Lightdash queried?',
+                    'Queries and the people running them. These tiles follow the Date filter.',
+                ),
+            },
+            { charts: ['queries', 'query-users'], h: 4 },
+            { charts: ['queries-by-day', 'active-users-by-day'], h: 8 },
+            {
+                note: titledNote(
+                    'Longer views, whatever the Date filter says',
+                    'The calendar covers the last 26 weeks. The monthly tiles cover up to the last 12 complete months (UTC), each compared with the month before.',
+                ),
+            },
+            { charts: ['query-calendar'], h: 6 },
+            {
+                charts: [
+                    'querying-users-month-over-month',
+                    'queries-run-month-over-month',
+                ],
+                h: 7,
+                widths: [16, 20],
+            },
+        ],
+    },
+    {
+        slug: 'latency',
+        name: 'Speed & failures',
+        rows: [
+            {
+                note: titledNote(
+                    'How fast are queries?',
+                    'Warehouse time is how long the warehouse took to run a query. Response time is how long Lightdash took to answer, warehouse included; each tile says which it shows.',
+                ),
+            },
+            { charts: ['avg-execution-time', 'p90-execution-time'], h: 4 },
+            { charts: ['query-latency-by-day'], h: 8 },
+            {
+                note: titledNote(
+                    'Which dashboards are slow or expensive?',
+                    'P95 response time is how long the backend took to respond, before the browser draws the result. Warehouse time is what the queries cost to run.',
+                ),
+            },
+            {
+                charts: [
+                    'slow-dashboards-tail-latency-and-demand',
+                    'dashboards-warehouse-and-response-time',
+                ],
+                h: 9,
+            },
+            {
+                note: titledNote(
+                    'Failures',
+                    'Ranked by people affected and failure count. Error messages and causes are not shown here; investigate them separately.',
+                ),
+            },
+            { charts: ['query-failures-affected-people'], h: 7 },
+        ],
+    },
+    {
+        slug: 'origins',
+        name: 'Origins & caching',
+        rows: [
+            {
+                note: titledNote(
+                    'Where do queries come from?',
+                    'Origin is the kind of work, such as interactive, scheduled or data app. Context is where the query was run from, such as a dashboard or an Explore.',
+                ),
+            },
+            { charts: ['queries-by-context'], h: 8 },
+            { charts: ['query-origin-and-initiating-actor'], h: 7 },
+            {
+                note: titledNote(
+                    'Is the cache used?',
+                    'Queries run on the warehouse beside queries served from the cache. Money saved by caching and warehouse cost are not recorded.',
+                ),
+            },
+            {
+                charts: ['query-cache', 'warehouse-versus-cached-demand'],
+                h: 8,
+                widths: [12, 24],
+            },
+        ],
+    },
+];
+const withQueriesTabs = <
+    T extends { dashboard: DashboardAsCode; charts: ChartAsCode[] },
+>(
+    bundle: T,
+): T => {
+    if (bundle.dashboard.slug !== queriesSlug) return bundle;
+    const tiles = queriesTabs.flatMap(({ slug, rows }) => {
+        let y = 0;
+        return rows.flatMap((row): DashboardAsCode['tiles'] => {
+            if ('note' in row) {
+                const h = noteRows(row.note);
+                const tile = note(slug, y, h, row.note);
+                y += h;
+                return [tile];
+            }
+            const widths =
+                row.widths ?? row.charts.map(() => 36 / row.charts.length);
+            const rowTiles = row.charts.map((key, index) => {
+                const chartSlug = `${queriesSlug}-${key}`;
+                if (!bundle.charts.some((item) => item.slug === chartSlug))
+                    throw new Error(`No Queries chart ${key}`);
+                return {
+                    uuid: undefined,
+                    type: DashboardTileTypes.SAVED_CHART as const,
+                    tileSlug: `${slug}-${chartSlug}`,
+                    tabSlug: slug,
+                    x: widths.slice(0, index).reduce((a, b) => a + b, 0),
+                    y,
+                    w: widths[index],
+                    h: row.h,
+                    properties: { chartSlug },
+                };
+            });
+            y += row.h;
+            return rowTiles;
+        });
+    });
+    return {
+        ...bundle,
+        dashboard: {
+            ...bundle.dashboard,
+            tabs: [
+                ...queriesTabs.map(({ slug, name }, order) => ({
+                    slug,
+                    name,
+                    order,
+                })),
+                {
+                    slug: 'fields',
+                    name: 'Metrics & dimensions',
+                    order: queriesTabs.length,
+                },
+            ],
+            tiles: [
+                ...tiles,
+                ...bundle.dashboard.tiles.filter(
+                    ({ tabSlug }) => tabSlug === 'fields',
+                ),
+            ],
+        },
+    };
+};
+
+const builtDashboards =
+    buildUsageDashboards(legacyContentAsCode).map(withQueriesTabs);
 const anyPeriodTokens = builtDashboards.find(
     ({ dashboard }) => dashboard.slug === aiTokenDashboard.dashboard.slug,
 )!;

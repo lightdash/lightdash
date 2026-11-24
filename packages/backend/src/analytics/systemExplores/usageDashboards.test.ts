@@ -868,13 +868,15 @@ describe('built-in usage dashboards', () => {
                 );
         expect(slugs('origins')).toEqual(
             [
+                'queries-by-context',
                 'query-origin-and-initiating-actor',
+                'query-cache',
                 'warehouse-versus-cached-demand',
             ].map((key) => `${prefix}${key}`),
         );
+        // The table of fields only: the word cloud beside it drew the same data
         expect(slugs('fields')).toEqual(
             [
-                'most-used-fields-cloud',
                 'most-used-fields',
                 'people-using-fields',
                 'content-using-fields',
@@ -887,16 +889,6 @@ describe('built-in usage dashboards', () => {
         expect(fallbackType('query-origin-and-initiating-actor')).toBe(
             ChartType.TABLE,
         );
-        expect(fallbackType('most-used-fields-cloud')).toBe(
-            ChartType.CARTESIAN,
-        );
-        const cloud = queryCharts.find(
-            ({ slug }) => slug === `${prefix}most-used-fields-cloud`,
-        )!;
-        expect(cloud.metricQuery.limit).toBe(20);
-        expect(cloud.metricQuery.dimensions).toEqual([
-            'semantic_usage_field_label',
-        ]);
     });
 
     it('lays the Queries latency section out as an explicit row', () => {
@@ -991,32 +983,35 @@ describe('built-in usage dashboards', () => {
             sections.filter(({ caption }) => caption).map(({ title }) => title),
         );
         expect(captioned).toEqual(['Most-used fields']);
-        spec.tabs.forEach((tab) => {
-            const notes = dashboard.tiles.filter(
-                (tile) =>
-                    tile.tabSlug === tab.key &&
-                    tile.type === DashboardTileTypes.MARKDOWN,
-            );
-            tab.sections.forEach((section, index) => {
-                const { h, properties } = notes[index] as {
-                    h: number;
-                    properties: { content: string };
-                };
-                if (section.caption) {
-                    expect(h).toBe(1);
-                    expect(properties.content).toBe(section.description);
-                } else {
-                    // One row when the description is a single line under a bold title, else two
-                    const oneLine = noteLines(section.description) === 1;
-                    expect(h).toBe(oneLine ? 1 : 2);
-                    expect(properties.content).toBe(
-                        oneLine
-                            ? `**${section.title}**  \n${section.description}`
-                            : `### ${section.title}\n\n${section.description}`,
-                    );
-                }
+        // Metrics & dimensions keeps the layout of its spec; the other tabs are laid out in sampleContent.ts
+        spec.tabs
+            .filter(({ key }) => key === 'fields')
+            .forEach((tab) => {
+                const notes = dashboard.tiles.filter(
+                    (tile) =>
+                        tile.tabSlug === tab.key &&
+                        tile.type === DashboardTileTypes.MARKDOWN,
+                );
+                tab.sections.forEach((section, index) => {
+                    const { h, properties } = notes[index] as {
+                        h: number;
+                        properties: { content: string };
+                    };
+                    if (section.caption) {
+                        expect(h).toBe(1);
+                        expect(properties.content).toBe(section.description);
+                    } else {
+                        // One row when the description is a single line under a bold title, else two
+                        const oneLine = noteLines(section.description) === 1;
+                        expect(h).toBe(oneLine ? 1 : 2);
+                        expect(properties.content).toBe(
+                            oneLine
+                                ? `**${section.title}**  \n${section.description}`
+                                : `### ${section.title}\n\n${section.description}`,
+                        );
+                    }
+                });
             });
-        });
         const queries = analyticsLibraryChartBindings.get(
             'lightdash-analytics-query-activity-queries',
         )!;

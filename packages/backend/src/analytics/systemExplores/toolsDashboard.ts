@@ -221,10 +221,8 @@ export const toolsDashboardSpec: UsageDashboardSpec = {
                     title: 'Tools and people',
                     description: '',
                     note: false,
-                    charts: [
-                        'tools-mcp-tools-cloud',
-                        'mcp-users-clients-tools-and-error-rates',
-                    ],
+                    // Which tools are used most is the chart above, one row for each tool
+                    charts: ['mcp-users-clients-tools-and-error-rates'],
                     layout: 'row',
                     rowHeight: 9,
                 },

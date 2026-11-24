@@ -42,11 +42,17 @@ describe('analytics sample content', () => {
                 expect(tile.x + tile.w).toBeLessThanOrEqual(36);
             }
         }
+        // No dashboard keeps a tab called Overview but the Overview dashboard itself
         expect(
-            analyticsContentAsCode[1].dashboard.tiles
-                .filter((tile) => tile.tabSlug === 'overview')
-                .at(-1)?.w,
-        ).toBe(36);
+            analyticsContentAsCode
+                .filter(
+                    ({ dashboard }) =>
+                        dashboard.slug !== 'lightdash-analytics-home',
+                )
+                .flatMap(({ dashboard }) =>
+                    dashboard.tabs.map(({ name }) => name),
+                ),
+        ).not.toContain('Overview');
     });
     it('uses unique stable keys and fields available in the system explores', () => {
         const explores = createAnalyticsExplores();
@@ -310,28 +316,44 @@ describe('analytics sample content', () => {
             });
         });
 
-        it('keeps the query activity overview geometry', () => {
+        it('lays the Queries volume tab out with its filtered tiles above the fixed-window ones', () => {
             const prefix = 'lightdash-analytics-query-activity-';
-            expect(overviewTiles('lightdash-analytics-query-activity')).toEqual(
-                [
-                    ['queries', 0, 0, 9, 4],
-                    ['query-users', 9, 0, 9, 4],
-                    ['avg-execution-time', 18, 0, 9, 4],
-                    ['p90-execution-time', 27, 0, 9, 4],
-                    ['queries-by-day', 0, 10, 18, 8],
-                    ['active-users-by-day', 18, 10, 18, 8],
-                    ['query-cache', 0, 18, 18, 8],
-                    ['queries-by-context', 18, 18, 18, 8],
-                    ['query-latency-by-day', 0, 26, 36, 8],
-                    ['query-calendar', 0, 4, 36, 6],
-                ].map(([key, x, y, w, h]) => ({
-                    chartSlug: `${prefix}${key}`,
-                    x,
-                    y,
-                    w,
-                    h,
-                })),
-            );
+            const queries = analyticsContentAsCode.find(
+                ({ dashboard }) =>
+                    dashboard.slug === 'lightdash-analytics-query-activity',
+            )!.dashboard;
+            expect(queries.tabs.map(({ name }) => name)).toEqual([
+                'Volume',
+                'Speed & failures',
+                'Origins & caching',
+                'Metrics & dimensions',
+            ]);
+            expect(
+                queries.tiles
+                    .filter(
+                        (tile) =>
+                            tile.tabSlug === 'volume' &&
+                            'chartSlug' in tile.properties,
+                    )
+                    .map(({ properties, x, y, w, h }) => [
+                        (properties as { chartSlug: string }).chartSlug.slice(
+                            prefix.length,
+                        ),
+                        x,
+                        y,
+                        w,
+                        h,
+                    ]),
+            ).toEqual([
+                ['queries', 0, 1, 18, 4],
+                ['query-users', 18, 1, 18, 4],
+                ['queries-by-day', 0, 5, 18, 8],
+                ['active-users-by-day', 18, 5, 18, 8],
+                // A note says these three cover their own period
+                ['query-calendar', 0, 14, 36, 6],
+                ['querying-users-month-over-month', 0, 20, 16, 7],
+                ['queries-run-month-over-month', 16, 20, 20, 7],
+            ]);
         });
     });
 });

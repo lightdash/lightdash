@@ -123,7 +123,8 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
     {
         key: 'lightdash-analytics-query-activity',
         name: 'Queries',
-        description: 'Query volume, performance and cache usage.',
+        description:
+            'How much is queried, how fast, where from, and which fields are used.',
         tabs: [
             {
                 key: 'monthly-comparison',
@@ -195,7 +196,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         caption: true,
                         description:
                             'Fields used by queries, including filters and sorting. A query counts once for each field it uses.',
-                        charts: ['most-used-fields-cloud', 'most-used-fields'],
+                        charts: ['most-used-fields'],
                     },
                     {
                         title: 'People and content',
