@@ -10,6 +10,8 @@ import {
 } from '@lightdash/common';
 import { createHash } from 'crypto';
 import fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
 import type { Mock } from 'vitest';
 import { AnalyticsQueryCancelledError } from './AnalyticsQueryError';
 import {
@@ -1567,6 +1569,33 @@ describe('DuckdbWarehouseClient', () => {
         expect(runMock).toHaveBeenCalledWith(secrets[1], ['refreshed-token']);
         expect(runMock).not.toHaveBeenCalledWith('LOAD aws;');
         expect(runMock).not.toHaveBeenCalledWith('INSTALL aws;');
+    });
+
+    it('spills isolated sessions under the caller directory and removes the spill directory', async () => {
+        const runMock = vi.fn();
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(
+                vi.fn(async () => getMockStreamResult([[{ val: 1 }]], [4])),
+                runMock,
+            ),
+        );
+        const parent = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'isolated-parent-'),
+        );
+        try {
+            const client = new DuckdbWarehouseClient(duckdbS3Credentials, {
+                resourceLimits: { memoryLimit: '256MB', threads: 1 },
+                isolatedTempDirectoryParent: parent,
+            });
+            await client.runQuery('SELECT 1 AS val');
+            const spill = runMock.mock.calls
+                .map(([sql]) => sql as string)
+                .find((sql) => sql.startsWith('SET temp_directory'));
+            expect(spill).toContain(`${path.join(parent, 'duckdb-temp-')}`);
+            expect(await fs.readdir(parent)).toEqual([]);
+        } finally {
+            await fs.rm(parent, { recursive: true, force: true });
+        }
     });
 
     it('should use DuckDB credential chain for S3 config without static credentials', async () => {

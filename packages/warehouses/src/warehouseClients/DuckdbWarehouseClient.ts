@@ -217,6 +217,8 @@ export type DuckdbWarehouseClientOptions = {
     agentSession?: boolean;
     /** Resource-constrained isolated sessions, used for materialization/parquet conversion and embedded databases. */
     resourceLimits?: DuckdbResourceLimits;
+    /** Parent of the isolated session spill directory, so a caller can measure its disk use. Defaults to os.tmpdir(). */
+    isolatedTempDirectoryParent?: string;
     /** Resource limits for query sessions. When combined with instanceCacheKey, they apply to the shared warm instance. */
     sharedResourceLimits?: DuckdbResourceLimits;
     /**
@@ -712,6 +714,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
 
     private readonly resourceLimits?: DuckdbResourceLimits;
 
+    private readonly isolatedTempDirectoryParent: string | undefined;
+
     private readonly sharedResourceLimits?: DuckdbResourceLimits;
 
     private readonly instanceCacheKey?: string;
@@ -859,6 +863,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                   ...options?.resourceLimits,
               }
             : options?.resourceLimits;
+        this.isolatedTempDirectoryParent = options?.isolatedTempDirectoryParent;
         this.sharedResourceLimits = isParquet
             ? {
                   memoryLimit: '256MB',
@@ -2352,7 +2357,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             await this.loadAwsExtensionForCredentialChain(db);
         }
 
-        await db.run(`SET temp_directory = '${tempDir}';`);
+        await db.run(
+            `SET temp_directory = '${DuckdbWarehouseClient.escapeDuckdbString(tempDir)}';`,
+        );
 
         if (this.ducklakeConfig) {
             await db.run('SET pg_connection_limit = 64;');
@@ -2410,7 +2417,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         onPhaseTiming?.('connect', instanceCreateMs + connectMs);
 
         const tempDir = await fs.mkdtemp(
-            path.join(os.tmpdir(), 'duckdb-temp-'),
+            path.join(
+                this.isolatedTempDirectoryParent ?? os.tmpdir(),
+                'duckdb-temp-',
+            ),
         );
 
         try {
