@@ -99,7 +99,10 @@ const styleTable = (chart: ChartAsCode): ChartAsCode => {
     const rules: ConditionalFormattingConfig[] = [
         ...(config?.conditionalFormattings ?? []),
     ];
-    for (const field of chart.metricQuery.metrics) {
+    // Most data apps have a failed load or two, so a tint on every count above zero coloured nearly the
+    // whole table and marked nothing. The bars carry the size.
+    const tintsErrors = chart.tableName !== 'data_app_outcomes';
+    for (const field of tintsErrors ? chart.metricQuery.metrics : []) {
         if (/error|failure|negative_feedback/.test(field)) {
             // A light tint with dark text: a solid colour made one failure look like an outage
             rules.push({

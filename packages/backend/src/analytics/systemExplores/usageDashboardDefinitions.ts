@@ -20,7 +20,6 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                 sections: [
                     {
                         title: 'Request activity',
-                        caption: true,
                         description:
                             'Agent requests and the people who sent them.',
                         charts: [
@@ -32,7 +31,6 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     },
                     {
                         title: 'Requests by agent',
-                        caption: true,
                         description: 'Which agents are used most, day by day.',
                         charts: ['agent-requests-by-agent-and-day'],
                         layout: 'row',
@@ -40,7 +38,6 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     },
                     {
                         title: 'Requests by person',
-                        caption: true,
                         description:
                             'Who is asking, and which agents they use.',
                         charts: ['agent-adoption-by-week'],
@@ -52,10 +49,9 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                 name: 'Outcomes, retries & feedback',
                 sections: [
                     {
-                        title: 'Technical outcomes',
-                        caption: true,
+                        title: 'How requests ended',
                         description:
-                            'Outcomes show whether a request finished, which is a technical result. Pending and unknown outcomes are included.',
+                            'Whether each request finished, which is a technical result and not a judgement of the answer. Pending and unknown outcomes are included.',
                         charts: [
                             'agent-requests-and-completion-by-day',
                             'agent-request-outcomes',
@@ -65,16 +61,14 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     },
                     {
                         title: 'Feedback',
-                        caption: true,
                         description:
                             'Unrated requests are not positive feedback. Small samples are not reliable rankings.',
                         charts: ['agent-feedback-rating-and-sample-coverage'],
                     },
                     {
                         title: 'Failed requests and retries',
-                        caption: true,
                         description:
-                            'Tokens spent on agent requests that failed or were cancelled, next to requests and average latency by retry count. Each retry runs the request again, so it takes longer and uses more tokens.',
+                            'Tokens spent on requests that failed or were cancelled, beside requests and average latency by retry count. Each retry runs the request again.',
                         charts: [
                             'request-consumption-by-outcome-and-feedback',
                             'agent-retries-latency-and-consumption',
@@ -106,6 +100,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                 sections: [
                     {
                         title: 'Who and what drives tokens',
+                        // The owner of this dashboard writes its text: a caption with no title, as it was
                         caption: true,
                         description:
                             'Tokens by person and model, and by feature and model, for all usage in the selected period.',
@@ -193,7 +188,6 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                 sections: [
                     {
                         title: 'Most-used fields',
-                        caption: true,
                         description:
                             'Fields used by queries, including filters and sorting. A query counts once for each field it uses.',
                         charts: ['most-used-fields'],

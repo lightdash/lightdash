@@ -87,13 +87,13 @@ export const noteTextHeight = (content: string): number => {
     );
 };
 
-// The text above a section with a title. A heading with one line under it needs two grid rows and
-// leaves most of the second empty, so a one-line description takes a bold title on the line above it
-// instead: two lines, one row.
+// The text above a section: its title in bold on the line above its description, the same on every
+// tab. A one-line description makes two lines, which fit one grid row. A large heading is not used: it
+// needs two rows and makes one section look more important than the next.
 export const titledNote = (title: string, description: string): string =>
-    description && noteLines(description) === 1
+    description
         ? `**${title}**${NOTE_LINE_BREAK}${description}`
-        : `### ${title}\n\n${description}`;
+        : `**${title}**`;
 
 export const noteTileHeight = (rows: number): number =>
     rows * ROW_PX + (rows - 1) * ROW_GAP_PX;

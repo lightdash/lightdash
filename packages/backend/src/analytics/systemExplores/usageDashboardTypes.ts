@@ -60,6 +60,7 @@ export type UsageDashboardSpec = {
         sections: {
             title: string;
             description: string;
+            // The description alone, with no title above it. Only AI token usage, whose text its owner writes
             caption?: true;
             // false leaves out the text above the tiles, for tiles that explain themselves
             note?: false;

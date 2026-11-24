@@ -168,7 +168,7 @@ export const agentEvaluationSections: UsageDashboardSpec['tabs'][number]['sectio
         {
             title: 'Do the agents pass their evaluations?',
             description:
-                'Test runs of agents, in the selected period; empty until an evaluation has run. Filter by agent or evaluation; pass rate is passing assessments divided by all assessments.',
+                'Test runs of agents in the selected period, empty until an evaluation has run. Pass rate is passing assessments divided by all assessments.',
             charts: [
                 'evals-runs',
                 'evals-passed-assessments',
