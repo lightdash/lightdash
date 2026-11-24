@@ -22,6 +22,10 @@ export type DbProjectModelDraftChange = {
     base_versions: Record<string, number | null> | null;
     /** The Studio workspace this change belongs to; null on changes made before drafts had workspaces. */
     workspace_uuid: string | null;
+    /** Someone other than the owner who discarded this; null when the owner did, or it was not discarded. */
+    discarded_by_user_uuid: string | null;
+    /** When someone other than the owner discarded this; null otherwise. */
+    discarded_at: Date | null;
     created_at: Date;
 };
 
@@ -37,7 +41,11 @@ export type ProjectModelDraftChangesTable = Knex.CompositeTableType<
     Partial<
         Pick<
             DbProjectModelDraftChange,
-            'status' | 'applied_change_set_uuid' | 'applied_pull_request_url'
+            | 'status'
+            | 'applied_change_set_uuid'
+            | 'applied_pull_request_url'
+            | 'discarded_by_user_uuid'
+            | 'discarded_at'
         >
     > & { models?: string; base_versions?: Knex.Raw; created_at?: Knex.Raw }
 >;

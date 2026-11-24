@@ -626,6 +626,11 @@ export class ProjectModelDocumentModel {
                 `${ProjectModelChangeSetsTableName}.project_model_change_set_uuid`,
                 `${ProjectModelDraftChangesTableName}.applied_change_set_uuid`,
             )
+            .leftJoin(
+                `${UserTableName} as discarder`,
+                'discarder.user_uuid',
+                `${ProjectModelDraftChangesTableName}.discarded_by_user_uuid`,
+            )
             .select<
                 {
                     draftChangeUuid: string;
@@ -633,6 +638,9 @@ export class ProjectModelDocumentModel {
                     pullRequestUrl: string | null;
                     revertedBy: string | null;
                     models: SemanticLayerDraftModelInput[];
+                    discarderFirstName: string | null;
+                    discarderLastName: string | null;
+                    discardedAt: Date | null;
                 }[]
             >({
                 draftChangeUuid: `${ProjectModelDraftChangesTableName}.project_model_draft_change_uuid`,
@@ -640,6 +648,9 @@ export class ProjectModelDocumentModel {
                 pullRequestUrl: `${ProjectModelDraftChangesTableName}.applied_pull_request_url`,
                 revertedBy: `${ProjectModelChangeSetsTableName}.reverted_by_change_set_uuid`,
                 models: `${ProjectModelDraftChangesTableName}.models`,
+                discarderFirstName: 'discarder.first_name',
+                discarderLastName: 'discarder.last_name',
+                discardedAt: `${ProjectModelDraftChangesTableName}.discarded_at`,
             })
             .where(
                 `${ProjectModelDraftChangesTableName}.project_uuid`,
@@ -659,11 +670,22 @@ export class ProjectModelDocumentModel {
                 pullRequestUrl,
                 revertedBy,
                 models,
+                discarderFirstName,
+                discarderLastName,
+                discardedAt,
             }) => ({
                 draftChangeUuid,
                 status: revertedBy ? 'undone' : status,
                 pullRequestUrl,
                 models: models.map(({ name }) => name),
+                // Someone since removed has no name to show.
+                discardedBy:
+                    discardedAt !== null && discarderFirstName !== null
+                        ? {
+                              name: `${discarderFirstName} ${discarderLastName ?? ''}`.trim(),
+                              at: discardedAt,
+                          }
+                        : null,
             }),
         );
     }
@@ -872,6 +894,8 @@ export class ProjectModelDocumentModel {
             status: SettledDraftChangeStatus;
             applied_change_set_uuid: string | null;
             applied_pull_request_url: string | null;
+            discarded_by_user_uuid: string | null;
+            discarded_at: Date | null;
         },
     ): Promise<number> {
         const settling =
@@ -893,12 +917,15 @@ export class ProjectModelDocumentModel {
         drafts,
         status,
         pullRequestUrl,
+        discardedByUserUuid,
         ...owner
     }: DraftOwner & {
         drafts: DraftSelection;
         status: SettledDraftChangeStatus;
         /** The pull request an applied draft was sent as; null for anything else. */
         pullRequestUrl: string | null;
+        /** Someone other than the owner discarding it; null for anything else. */
+        discardedByUserUuid: string | null;
     }): Promise<number> {
         return this.database.transaction((trx) =>
             ProjectModelDocumentModel.updateSelectedDraftChanges(
@@ -909,6 +936,9 @@ export class ProjectModelDocumentModel {
                     status,
                     applied_change_set_uuid: null,
                     applied_pull_request_url: pullRequestUrl,
+                    discarded_by_user_uuid: discardedByUserUuid,
+                    discarded_at:
+                        discardedByUserUuid === null ? null : new Date(),
                 },
             ),
         );
@@ -1057,6 +1087,8 @@ export class ProjectModelDocumentModel {
                         status: 'applied',
                         applied_change_set_uuid: changeSetUuid,
                         applied_pull_request_url: null,
+                        discarded_by_user_uuid: null,
+                        discarded_at: null,
                     },
                 );
             }

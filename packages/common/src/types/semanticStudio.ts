@@ -284,6 +284,8 @@ export type SemanticLayerSettledDraftChange = {
     pullRequestUrl: string | null;
     /** The models the change touched. */
     models: string[];
+    /** A project admin who discarded it as stale; null when its owner settled it. */
+    discardedBy: { name: string; at: Date } | null;
 };
 
 /** What this person's changes waiting in an open pull request do to one model, against what is live. */

@@ -1811,7 +1811,34 @@ dimensions:
                 drafts: { changeUuids: ['other-change-0'], model: 'orders' },
                 status: 'discarded',
                 pullRequestUrl: null,
+                discardedByUserUuid: USER_UUID,
             });
+        });
+
+        it('records no discarder when owners discard their own draft', async () => {
+            const context = setup();
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+                null,
+            );
+            const update = vi.spyOn(
+                context.projectModelDocumentModel,
+                'updateDraftChangeStatus',
+            );
+            await context.service.discardDraft(deployer, PROJECT_UUID, {
+                kind: 'model',
+                model: 'orders',
+            });
+            expect(update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    userUuid: USER_UUID,
+                    status: 'discarded',
+                    discardedByUserUuid: null,
+                }),
+            );
         });
 
         it.each([

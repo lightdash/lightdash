@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { listProposalIssues, listTurnIssues } from './proposalIssues';
+import {
+    getDiscardedLabel,
+    listProposalIssues,
+    listTurnIssues,
+} from './proposalIssues';
 
 const attempt = (status: 'ready' | 'failed', error: string | null) => ({
     models: [
@@ -154,5 +158,17 @@ describe('listTurnIssues', () => {
         expect(listTurnIssues([attempt('ready', null), failed])).toEqual([
             issue,
         ]);
+    });
+});
+
+describe('getDiscardedLabel', () => {
+    it('names whoever discarded it when that was not its owner', () => {
+        expect(getDiscardedLabel(null)).toBe('Discarded');
+        expect(
+            getDiscardedLabel({
+                name: 'Person B',
+                at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+            }),
+        ).toBe('Discarded by Person B · 2 days ago');
     });
 });

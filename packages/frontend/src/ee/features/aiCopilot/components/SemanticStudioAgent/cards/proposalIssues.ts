@@ -8,6 +8,7 @@ import {
     IconMinus,
     type Icon,
 } from '@tabler/icons-react';
+import { formatDistanceToNow } from 'date-fns';
 
 export const ISSUE_KINDS = {
     failed: { icon: IconAlertTriangle, color: 'red', label: 'Not added' },
@@ -67,3 +68,11 @@ export const listTurnIssues = (
             }),
         });
     });
+
+/** "Discarded", or who discarded it and when if that was not its owner. */
+export const getDiscardedLabel = (
+    by: { name: string; at: Date } | null,
+): string =>
+    by === null
+        ? 'Discarded'
+        : `Discarded by ${by.name} · ${formatDistanceToNow(new Date(by.at), { addSuffix: true })}`;

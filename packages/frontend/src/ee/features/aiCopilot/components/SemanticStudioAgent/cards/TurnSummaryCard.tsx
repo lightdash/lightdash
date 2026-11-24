@@ -45,7 +45,7 @@ import {
     useSemanticLayerDraftImpact,
 } from '../../../../../../features/semanticStudio/useSemanticLayerModel';
 import { useDraftPullRequest } from '../../../../../../features/semanticStudio/useStudioCheckout';
-import { listTurnIssues } from './proposalIssues';
+import { getDiscardedLabel, listTurnIssues } from './proposalIssues';
 import { draftActions, fixAction } from './turnActions';
 import { TurnCard, type Safety } from './TurnCard';
 import { useRefreshUnknownDraftChanges } from './useRefreshUnknownDraftChanges';
@@ -187,7 +187,7 @@ const getPhase = (
         case 'undone':
             return { kind: 'gone', label: 'Undone' };
         case 'discarded':
-            return { kind: 'gone', label: 'Discarded' };
+            return { kind: 'gone', label: getDiscardedLabel(phase.by) };
         default:
             return assertUnreachable(phase, 'Unknown proposal phase');
     }

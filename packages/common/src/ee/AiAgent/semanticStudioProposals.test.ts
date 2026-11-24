@@ -122,7 +122,13 @@ describe('getProposalPhase', () => {
         draftChangeUuid: string,
         status: 'applied' | 'undone' | 'discarded',
         pullRequestUrl: string | null = null,
-    ) => ({ draftChangeUuid, status, pullRequestUrl, models: [] });
+    ) => ({
+        draftChangeUuid,
+        status,
+        pullRequestUrl,
+        models: [],
+        discardedBy: null,
+    });
     const latest = { pullRequestFrom: 'latest_applied' } as const;
     const any = { pullRequestFrom: 'any_applied' } as const;
 
@@ -159,7 +165,18 @@ describe('getProposalPhase', () => {
                 ['d1', 'd2'],
                 any,
             ),
-        ).toEqual({ kind: 'discarded' });
+        ).toEqual({ kind: 'discarded', by: null });
+    });
+
+    it('says who discarded a change when it was not its owner', () => {
+        const by = { name: 'Person B', at: new Date(0) };
+        expect(
+            getProposalPhase(
+                draft([], [{ ...settled('d1', 'discarded'), discardedBy: by }]),
+                ['d1'],
+                any,
+            ),
+        ).toEqual({ kind: 'discarded', by });
     });
 
     it('is unknown when the draft as read has not seen the change', () => {

@@ -42,7 +42,12 @@ import {
     useDiscardDraftChange,
     useSemanticLayerDraft,
 } from '../../../../../../features/semanticStudio/useSemanticLayerModel';
-import { ISSUE_KINDS, listProposalIssues, type Issue } from './proposalIssues';
+import {
+    getDiscardedLabel,
+    ISSUE_KINDS,
+    listProposalIssues,
+    type Issue,
+} from './proposalIssues';
 import classes from './SemanticLayerProposalCard.module.css';
 import { useRefreshUnknownDraftChanges } from './useRefreshUnknownDraftChanges';
 
@@ -187,7 +192,7 @@ const getStatusLabel = (phase: SemanticLayerProposalPhase): string | null => {
         case 'undone':
             return 'Undone';
         case 'discarded':
-            return 'Discarded';
+            return getDiscardedLabel(phase.by);
         case 'unknown':
             return null;
         default:
