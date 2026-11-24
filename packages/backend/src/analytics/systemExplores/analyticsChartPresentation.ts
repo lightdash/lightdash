@@ -30,7 +30,6 @@ const outcomeColor = (field: string): string | undefined => {
 const warning = '#C92A2A';
 const positiveTint = '#D1FAE5';
 const cautionTint = '#FFEDD5';
-const waitingTint = '#FEF3C7';
 
 const numberRule = (
     field: string,
@@ -105,33 +104,6 @@ const styleTable = (chart: ChartAsCode): ChartAsCode => {
                 textStyle: undefined,
             });
         }
-    }
-    // The action column of a list to act on: orange for what to check first, amber for the rest
-    if (
-        chart.metricQuery.tableCalculations.some(
-            ({ name }) => name === 'review_status',
-        )
-    ) {
-        (
-            [
-                ['Nothing uses it: check first', cautionTint],
-                ['Still on a dashboard or schedule', waitingTint],
-            ] as const
-        ).forEach(([value, color]) =>
-            rules.push({
-                target: { fieldId: 'review_status' },
-                color,
-                applyTo: ConditionalFormattingColorApplyTo.CELL,
-                rules: [
-                    {
-                        id: `review_status-${value}`,
-                        operator: FilterOperator.EQUALS,
-                        values: [value],
-                    },
-                ],
-            }),
-        );
-        columns.review_status = { ...columns.review_status, width: 260 };
     }
     for (const field of chart.metricQuery.dimensions) {
         if (field.endsWith('_url')) {

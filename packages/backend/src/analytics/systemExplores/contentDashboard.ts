@@ -13,9 +13,6 @@ const allHistory = 'Uses all recorded history; the date filter does not apply.';
 const week = 'content_health_created_at_week';
 const runningTotal = 'content_running_total';
 // Text columns of the two lists an admin acts on
-export const reviewStatus = 'review_status';
-export const nothingUsesIt = 'Nothing uses it: check first';
-export const stillInUse = 'Still on a dashboard or schedule';
 const whereItLives = {
     name: 'where_it_lives',
     displayName: 'Where',
@@ -337,7 +334,7 @@ export const contentChartSpecs: UsageChartSpec[] = [
         // at the top. Text columns, so it is a plain table in both versions.
         key: 'review-candidates-activity-and-known-dependencies',
         name: 'What could be cleaned up?',
-        description: `Up to 200 items nobody has viewed, queried or loaded, the ones nothing else uses first and the oldest at the top. ${allHistory}`,
+        description: `Up to 200 items nobody has viewed, queried or loaded since recording began; check the ones nothing else uses first, listed oldest at the top. ${allHistory}`,
         explore: 'content_health',
         dimensions: [
             'content_health_content_name',
@@ -363,19 +360,14 @@ export const contentChartSpecs: UsageChartSpec[] = [
             },
         ],
         tableCalculations: [
-            {
-                name: reviewStatus,
-                displayName: 'What to do',
-                type: TableCalculationType.STRING,
-                sql: `CASE WHEN \${content_health.activity_status} = 'No activity observed; coverage incomplete' THEN '${nothingUsesIt}' ELSE '${stillInUse}' END`,
-            },
             whereItLives,
             createdOn,
             {
                 name: 'used_by',
                 displayName: 'Used by',
+                // A count that was never recorded is nothing known, the same as none
                 type: TableCalculationType.STRING,
-                sql: `CASE WHEN \${content_health.total_dashboard_references} = 0 AND \${content_health.total_enabled_schedules} = 0 THEN 'Nothing' ELSE concat_ws(', ', CASE WHEN \${content_health.total_dashboard_references} = 1 THEN '1 dashboard' WHEN \${content_health.total_dashboard_references} > 1 THEN CAST(\${content_health.total_dashboard_references} AS VARCHAR) || ' dashboards' END, CASE WHEN \${content_health.total_enabled_schedules} = 1 THEN '1 schedule' WHEN \${content_health.total_enabled_schedules} > 1 THEN CAST(\${content_health.total_enabled_schedules} AS VARCHAR) || ' schedules' END) END`,
+                sql: `CASE WHEN COALESCE(\${content_health.total_dashboard_references}, 0) = 0 AND COALESCE(\${content_health.total_enabled_schedules}, 0) = 0 THEN 'Nothing' ELSE concat_ws(', ', CASE WHEN COALESCE(\${content_health.total_dashboard_references}, 0) = 1 THEN '1 dashboard' WHEN COALESCE(\${content_health.total_dashboard_references}, 0) > 1 THEN CAST(COALESCE(\${content_health.total_dashboard_references}, 0) AS VARCHAR) || ' dashboards' END, CASE WHEN COALESCE(\${content_health.total_enabled_schedules}, 0) = 1 THEN '1 schedule' WHEN COALESCE(\${content_health.total_enabled_schedules}, 0) > 1 THEN CAST(COALESCE(\${content_health.total_enabled_schedules}, 0) AS VARCHAR) || ' schedules' END) END`,
             },
             {
                 // Items nothing uses first
@@ -400,7 +392,6 @@ export const contentChartSpecs: UsageChartSpec[] = [
             whereItLives.name,
             createdOn.name,
             'used_by',
-            reviewStatus,
             'content_health_project_name',
             'content_health_space_name',
             'content_health_created_at_day',
@@ -648,10 +639,10 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                     rowHeight: 3,
                 },
                 {
+                    // No text between the cards and the list: the list's title is its question
                     title: 'What could be cleaned up?',
-                    caption: true,
-                    description:
-                        'Content nobody has viewed, queried or loaded since recording began. Check the items nothing else uses first.',
+                    description: '',
+                    note: false,
                     charts: [
                         'review-candidates-activity-and-known-dependencies',
                     ],

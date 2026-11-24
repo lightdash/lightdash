@@ -354,20 +354,16 @@ describe('Content inventory charts', () => {
             row.where_it_lives,
             row.created_on,
             row.used_by,
-            row.review_status,
         ];
-        // Items nothing uses come first, and say so
-        expect(review[0].review_status).toBe('Nothing uses it: check first');
-        expect(review.map((row) => row.review_status).join('|')).toMatch(
-            /^(Nothing uses it: check first\|?)+(Still on a dashboard or schedule\|?)*$/,
-        );
+        // Items nothing uses come first: no column repeats what Used by already says
+        expect(review[0].used_by).toBe('Nothing');
+        expect(Object.keys(review[0])).not.toContain('review_status');
         expect(review.map(shown)).toContainEqual([
             'Pipeline by stage',
             'Chart',
             'Sales / Forecasts',
             'Jun 3, 2026',
             'Nothing',
-            'Nothing uses it: check first',
         ]);
         expect(review.map(shown)).toContainEqual([
             'Win rate',
@@ -375,7 +371,6 @@ describe('Content inventory charts', () => {
             'Sales / Forecasts',
             'Feb 10, 2026',
             '2 dashboards, 1 schedule',
-            'Still on a dashboard or schedule',
         ]);
         const owners = await rowsOf('content-owners-needing-review');
         expect(
