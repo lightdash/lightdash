@@ -1,3 +1,10 @@
+## [3.384.2](https://github.com/lightdash/lightdash/compare/3.384.1...3.384.2) (2026-11-24)
+
+
+### Bug Fixes
+
+* reject conflicting agent thread model configs ([#32106](https://github.com/lightdash/lightdash/issues/32106)) ([1a9f08f](https://github.com/lightdash/lightdash/commit/1a9f08f4f619f3649199623e48d576f3141f6a67))
+
 ## [3.384.1](https://github.com/lightdash/lightdash/compare/3.384.0...3.384.1) (2026-11-24)
 
 
