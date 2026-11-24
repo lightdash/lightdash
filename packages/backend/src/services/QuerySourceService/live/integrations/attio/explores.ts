@@ -71,9 +71,7 @@ const OBJECT_LABELS: Record<AttioObject, string> = {
 const toObjectExplore = (object: AttioObject): LiveExploreDefinition => ({
     name: object,
     label: OBJECT_LABELS[object],
-    description: `Attio ${object} records, read live from Attio, one row per record, at most ${ATTIO_MAX_RECORDS.toLocaleString(
-        'en-US',
-    )} per query.`,
+    description: `Attio ${object} records, read live from Attio, one row per record.`,
     dimensions: BUILT_IN_DIMENSIONS,
     metrics: [],
     maxDimensions: null,

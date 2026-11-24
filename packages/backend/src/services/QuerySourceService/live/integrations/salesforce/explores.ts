@@ -184,9 +184,7 @@ const toObjectExplore = (object: SalesforceObject): LiveExploreDefinition => ({
     ...OBJECT_EXPLORES[object],
     description: `Salesforce ${object} records, read live with SOQL. With a metric, Salesforce groups and totals the records itself and returns at most ${SALESFORCE_MAX_AGGREGATE_ROWS.toLocaleString(
         'en-US',
-    )} rows, in one call. Without one, it lists records, at most ${SALESFORCE_MAX_RECORD_ROWS.toLocaleString(
-        'en-US',
-    )} per query.`,
+    )} rows, in one call. Without one, it lists records.`,
     dimensions: BUILT_IN_DIMENSIONS,
     metrics: [COUNT],
     maxDimensions: null,

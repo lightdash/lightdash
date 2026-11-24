@@ -168,6 +168,17 @@ export const toScannedLiveSourceFields = (
     });
 };
 
+/**
+ * The most rows one query reads, for the AI agent, so it narrows a query
+ * before running it instead of after the refusal.
+ */
+export const describeLiveRowCap = (connector: ApiConnectorType): string => {
+    const { label, limits } = getLiveIntegration(connector);
+    return `One query reads at most ${limits.maxRows.toLocaleString(
+        'en-US',
+    )} ${label} rows. A query with more is refused, so add a filter or narrow the date range first.`;
+};
+
 const buildDefinitionExplore = (
     connector: ApiConnectorType,
     args: Pick<
@@ -184,6 +195,8 @@ const buildDefinitionExplore = (
     const { baseVersion, capabilities } = getLiveBaseLayer(connector);
     return buildLiveExplore({
         ...args,
+        // The row cap comes first in every explore's hint, before the target
+        aiHint: [describeLiveRowCap(connector), ...(args.aiHint ?? [])],
         integration: connector,
         baseVersion,
         capabilities,

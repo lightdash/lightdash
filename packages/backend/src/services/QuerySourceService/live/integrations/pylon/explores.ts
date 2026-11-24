@@ -100,7 +100,7 @@ export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
     name: 'issues',
     label: 'Issues',
     description:
-        'Support issues (conversations and tickets) of one Pylon workspace, read live from issue search, one row per issue. One query reads at most 9,999 issues, created in the last 30 days unless the Created filter says otherwise. Dates are UTC days.',
+        'Support issues (conversations and tickets) of one Pylon workspace, read live from issue search, one row per issue, created in the last 30 days unless the Created filter says otherwise. Dates are UTC days.',
     dimensions: [
         dimension(
             'number',
@@ -305,7 +305,7 @@ export const PYLON_ACCOUNTS_EXPLORE: LiveExploreDefinition = {
     name: 'accounts',
     label: 'Accounts',
     description:
-        'Customer accounts of one Pylon workspace, read live from account search, one row per account. One query reads at most 9,999 accounts.',
+        'Customer accounts of one Pylon workspace, read live from account search, one row per account.',
     dimensions: [
         text(
             'id',
@@ -370,7 +370,7 @@ export const PYLON_CONTACTS_EXPLORE: LiveExploreDefinition = {
     name: 'contacts',
     label: 'Contacts',
     description:
-        'Customer contacts of one Pylon workspace, read live from contact search, one row per contact. One query reads at most 9,999 contacts.',
+        'Customer contacts of one Pylon workspace, read live from contact search, one row per contact.',
     dimensions: [
         text(
             'id',

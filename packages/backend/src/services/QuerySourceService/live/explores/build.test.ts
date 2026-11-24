@@ -18,6 +18,7 @@ import { type LiveScanResult } from '../types';
 import {
     buildLiveExplores,
     compileLiveMetricQuery,
+    describeLiveRowCap,
     describeLiveTarget,
     getLiveDefinitionHashes,
     getLiveExploreNames,
@@ -661,7 +662,7 @@ describe('explore AI hints', () => {
         expect(describeLiveTarget(apiSource, origin, label)).toBe(expected);
     });
 
-    it('stores the target first, then the admin text, and keeps the hash', () => {
+    it('starts every explore hint with the row cap, then the target and the admin text', () => {
         const apiSource = {
             connector: ApiConnectorType.SEARCH_CONSOLE,
             siteUrl: 'https://example.com/',
@@ -680,9 +681,11 @@ describe('explore AI hints', () => {
         });
         const [plain] = buildLiveExplores(args);
         expect(hinted.aiHint).toEqual([
+            'One query reads at most 24,999 Search Console rows. A query with more is refused, so add a filter or narrow the date range first.',
             'Search Console site https://example.com/',
             'EU store',
         ]);
+        expect(plain.aiHint).toEqual([describeLiveRowCap(apiSource.connector)]);
         expect(hinted.apiSource?.definitionHash).toBe(
             plain.apiSource?.definitionHash,
         );

@@ -1267,6 +1267,7 @@ describe('ExternalConnectionService live source explores', () => {
             const [explore] =
                 projectModel.replaceApiSourceExplores.mock.calls[0][2];
             expect(explore.aiHint).toEqual([
+                expect.stringContaining('One query reads at most'),
                 'PostHog project 303731, EU region',
                 'EU project',
             ]);
@@ -1860,6 +1861,7 @@ describe('ExternalConnectionService live source explores', () => {
         const [explore] =
             projectModel.replaceApiSourceExplores.mock.calls[0][2];
         expect(explore.aiHint).toEqual([
+            expect.stringContaining('One query reads at most'),
             expect.stringContaining('Default project'),
             'EU project',
         ]);

@@ -144,9 +144,7 @@ export const HUBSPOT_OBJECT_LABELS: Record<HubspotObject, string> = {
 const toObjectExplore = (object: HubspotObject): LiveExploreDefinition => ({
     name: object,
     label: HUBSPOT_OBJECT_LABELS[object],
-    description: `HubSpot ${object}, read live from HubSpot, one row per record, at most ${HUBSPOT_MAX_ROWS.toLocaleString(
-        'en-US',
-    )} per query. Count gives the number of matching ${object} without reading them.`,
+    description: `HubSpot ${object}, read live from HubSpot, one row per record. Count gives the number of matching ${object} without reading them.`,
     dimensions: BUILT_IN_DIMENSIONS,
     metrics: [COUNT],
     maxDimensions: null,
