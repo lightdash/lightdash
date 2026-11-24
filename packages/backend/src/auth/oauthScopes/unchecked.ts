@@ -174,7 +174,6 @@ export const OAUTH_UNCHECKED_OPERATIONS = {
     'AiAgentController.listAgentMcpServers': 'read',
     'AiAgentController.getModelOptions': 'read',
     'AiAgentController.getAgentSuggestions': 'read',
-    'AiAgentController.getVerifiedArtifacts': 'read',
     'AiAgentController.listAgentThreads': 'read',
     'AiAgentController.getAgentThread': 'read',
     'AiAgentController.getAgentThreadComposerNodes': 'read',

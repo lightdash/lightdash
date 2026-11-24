@@ -139,7 +139,6 @@ const selectedAgent: AiAgentWithContext = {
         name: 'Finance',
         description: 'Finance specialist',
         explores: ['orders'],
-        verifiedQuestions: ['What is monthly revenue?'],
         instruction: 'Prioritize revenue metrics.',
     },
 };

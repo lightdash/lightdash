@@ -51,25 +51,12 @@ import {
     getPromptContextItemKey,
 } from './contentReferenceUtils';
 import { deleteMentionBeforeCaret } from './mentionBackspace';
+import { composerAnchorRect, repositionOnResize } from './mentionPopup';
 
 const CONTENT_MENTION_NAME = 'contentMention';
 const MIN_CONTENT_SEARCH_QUERY_LENGTH = 2;
 
 const contentMentionPluginKey = new PluginKey('contentMention');
-
-const DOM_RECT_FALLBACK: DOMRect = {
-    bottom: 0,
-    height: 0,
-    left: 0,
-    right: 0,
-    top: 0,
-    width: 0,
-    x: 0,
-    y: 0,
-    toJSON() {
-        return {};
-    },
-};
 
 type ContentMentionGroup = 'thread' | 'current' | 'dashboardTile' | 'search';
 
@@ -776,6 +763,7 @@ const generateContentMentionSuggestion = (
     render: () => {
         let component: ReactRenderer<SuggestionListRef> | undefined;
         let popup: TippyInstance | undefined;
+        let stopRepositioning: (() => void) | undefined;
         // Escape hides the dropdown but leaves the suggestion match in place;
         // it must stay hidden — and stay out of Enter's way — until the match
         // exits.
@@ -804,7 +792,7 @@ const generateContentMentionSuggestion = (
 
                 popup = tippy('body', {
                     getReferenceClientRect: () =>
-                        props.clientRect?.() ?? DOM_RECT_FALLBACK,
+                        composerAnchorRect(props.editor, props.clientRect?.()),
                     appendTo: () => document.body,
                     content: component.element,
                     showOnCreate: true,
@@ -813,6 +801,10 @@ const generateContentMentionSuggestion = (
                     placement: 'bottom-start',
                     maxWidth: 'none',
                 })[0];
+                stopRepositioning = repositionOnResize(
+                    popup,
+                    component.element,
+                );
             },
             onUpdate: (props) => {
                 if (dismissed) return;
@@ -830,7 +822,7 @@ const generateContentMentionSuggestion = (
                 });
                 popup?.setProps({
                     getReferenceClientRect: () =>
-                        props.clientRect?.() ?? DOM_RECT_FALLBACK,
+                        composerAnchorRect(props.editor, props.clientRect?.()),
                 });
             },
             onKeyDown: (props) => {
@@ -847,9 +839,11 @@ const generateContentMentionSuggestion = (
             onExit: () => {
                 dismissed = false;
                 onMenuStateChange?.(CLOSED_CONTENT_MENTION_MENU);
+                stopRepositioning?.();
                 popup?.destroy();
                 component?.destroy();
                 popup = undefined;
+                stopRepositioning = undefined;
                 component = undefined;
             },
         };

@@ -333,6 +333,10 @@ port = 443
 host = "lightdash.github.io"        # chart type registry (Chart library)
 port = 443
 
+[[egress.allow]]
+host = "docs.lightdash.com"         # docs MCP server, attachable to AI agents
+port = 443
+
 # Runtime dbt deps needs the registry and the GitHub archive redirect destination.
 [[egress.allow]]
 host = "hub.getdbt.com"

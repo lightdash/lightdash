@@ -14,7 +14,6 @@ import {
     Code,
     Group,
     PasswordInput,
-    Popover,
     SegmentedControl,
     Select,
     Stack,
@@ -98,7 +97,7 @@ type Values = LiveSourceAccessValues & {
     ttl: string;
 };
 
-/** The saved token, or a new one in its place, and a check that it works. */
+/** The saved token, or a new one typed in its place to save with the card. */
 const TokenRow: FC<{
     projectUuid: string;
     connection: LiveSourceConnection;
@@ -106,23 +105,7 @@ const TokenRow: FC<{
     /** Only token integrations know a small read to test with. */
     tokenForm: TokenLiveSourceForm | null;
     form: UseFormReturnType<Values>;
-    isReplacing: boolean;
-    isSaving: boolean;
-    onReplace: () => void;
-    onKeep: () => void;
-    onSave: () => void;
-}> = ({
-    projectUuid,
-    connection,
-    label,
-    tokenForm,
-    form,
-    isReplacing,
-    isSaving,
-    onReplace,
-    onKeep,
-    onSave,
-}) => {
+}> = ({ projectUuid, connection, label, tokenForm, form }) => {
     const testSaved = useTestConnection();
     const testNew = useTestConnectionConfig();
     const { values } = form;
@@ -148,71 +131,35 @@ const TokenRow: FC<{
         });
     };
     return (
-        <>
-            <SettingsRow
-                label={label}
-                hint={
-                    test.data && !test.isLoading ? (
-                        <TestOutcome response={test.data} />
-                    ) : (
-                        'Saved and encrypted, never shown again'
-                    )
-                }
-            >
-                <Popover
-                    opened={isReplacing}
-                    onChange={(opened) => {
-                        if (!opened && !isSaving) onKeep();
-                    }}
-                    position="bottom-end"
-                    trapFocus
-                    withinPortal
+        <SettingsRow
+            label={label}
+            hint={
+                test.data && !test.isLoading ? (
+                    <TestOutcome response={test.data} />
+                ) : (
+                    'Saved and encrypted, never shown again'
+                )
+            }
+        >
+            <PasswordInput
+                size="xs"
+                w={240}
+                aria-label={`New ${label}`}
+                placeholder="Leave empty to keep the saved key"
+                autoComplete="off"
+                {...form.getInputProps('token')}
+            />
+            {tokenForm ? (
+                <Button
+                    size="xs"
+                    variant="default"
+                    loading={test.isLoading}
+                    onClick={() => handleTest(tokenForm)}
                 >
-                    <Popover.Target>
-                        <Button
-                            size="xs"
-                            variant="default"
-                            onClick={isReplacing ? onKeep : onReplace}
-                        >
-                            Replace
-                        </Button>
-                    </Popover.Target>
-                    <Popover.Dropdown>
-                        <Group gap="xs" wrap="nowrap">
-                            <PasswordInput
-                                size="xs"
-                                w={200}
-                                aria-label={`New ${label}`}
-                                placeholder={`New ${label.toLowerCase()}`}
-                                data-autofocus
-                                {...form.getInputProps('token')}
-                                onKeyDown={(event) => {
-                                    if (event.key === 'Enter') onSave();
-                                }}
-                            />
-                            <Button
-                                size="xs"
-                                disabled={values.token.trim() === ''}
-                                loading={isSaving}
-                                onClick={onSave}
-                            >
-                                Save
-                            </Button>
-                        </Group>
-                    </Popover.Dropdown>
-                </Popover>
-                {tokenForm ? (
-                    <Button
-                        size="xs"
-                        variant="default"
-                        loading={test.isLoading}
-                        onClick={() => handleTest(tokenForm)}
-                    >
-                        Test
-                    </Button>
-                ) : null}
-            </SettingsRow>
-        </>
+                    Test
+                </Button>
+            ) : null}
+        </SettingsRow>
     );
 };
 
@@ -230,11 +177,13 @@ export const LiveSourceSettings: FC<{
     const access = getLiveSourceAccess(connection);
     const accountField = getAccountField(access);
     const isPostHogKey = access.kind === 'posthogKey';
-    /** What the Access card saves together. */
-    const accessKeys: (keyof LiveSourceAccessValues)[] = isPostHogKey
-        ? ['accountId', 'region']
-        : ['accountId'];
     const tokenLabel = getTokenLabel(access);
+    /** What the Access card saves together, the new token included. */
+    const accessKeys: (keyof LiveSourceAccessValues)[] = [
+        ...(accountField ? (['accountId'] as const) : []),
+        ...(isPostHogKey ? (['region'] as const) : []),
+        ...(tokenLabel ? (['token'] as const) : []),
+    ];
     const { data: fields } = useLiveSourceFields(params);
     const refreshFields = useRefreshLiveSourceFields(params);
     const purge = usePurgeLiveSourceCache(params);
@@ -246,7 +195,6 @@ export const LiveSourceSettings: FC<{
     const { data: projectCache } = useResultsCacheStatus(projectUuid);
     /** The project doesn't cache results, so the source has nothing to tune or clear. */
     const isProjectCacheOff = projectCache?.enabled === false;
-    const [isReplacingToken, setIsReplacingToken] = useState(false);
 
     const form = useForm<Values>({
         initialValues: {
@@ -270,11 +218,6 @@ export const LiveSourceSettings: FC<{
         ? `Last refreshed ${formatDate(fields.scannedAt)}`
         : 'Never refreshed';
 
-    const keepToken = () => {
-        form.setFieldValue('token', '');
-        setIsReplacingToken(false);
-    };
-
     /** Saves the given settings over the saved ones, if they changed and are valid. */
     const saveSource = async (keys: (keyof LiveSourceAccessValues)[]) => {
         const saved = form.getInitialValues();
@@ -282,6 +225,15 @@ export const LiveSourceSettings: FC<{
         if (keys.every((key) => values[key].trim() === saved[key].trim()))
             return;
         if (keys.some((key) => form.validateField(key).hasError)) return;
+        // A saved key is never sent to another region, so moving needs a new one
+        if (
+            keys.includes('region') &&
+            values.region !== saved.region &&
+            values.token.trim() === ''
+        ) {
+            form.setFieldError('token', 'Enter a key for the new region');
+            return;
+        }
         const changed = Object.fromEntries(
             keys.map((key) => [key, values[key].trim()]),
         );
@@ -296,8 +248,12 @@ export const LiveSourceSettings: FC<{
             return;
         }
         form.setInitialValues({ ...next, token: '' });
+        // Another card's save leaves a key typed into Access in place
+        if (!keys.includes('token')) {
+            form.setValues(changed);
+            return;
+        }
         form.setValues({ ...changed, token: '' });
-        setIsReplacingToken(false);
     };
 
     const isChanged = (keys: (keyof LiveSourceAccessValues)[]) =>
@@ -306,11 +262,12 @@ export const LiveSourceSettings: FC<{
                 form.values[key].trim() !== form.getInitialValues()[key].trim(),
         );
 
-    const revert = (keys: (keyof LiveSourceAccessValues)[]) =>
+    const revert = (keys: (keyof LiveSourceAccessValues)[]) => {
         keys.forEach((key) => {
             form.setFieldValue(key, form.getInitialValues()[key]);
             form.clearFieldError(key);
         });
+    };
 
     /** Cancel and Save changes under a card's editable rows. */
     const saveFooter = (keys: (keyof LiveSourceAccessValues)[]) => {
@@ -369,7 +326,9 @@ export const LiveSourceSettings: FC<{
             <Stack gap="lg">
                 <SettingsCard
                     title="Access"
-                    onSubmit={accountField ? submit(accessKeys) : undefined}
+                    onSubmit={
+                        accessKeys.length > 0 ? submit(accessKeys) : undefined
+                    }
                 >
                     {accountField ? (
                         <SettingsRow
@@ -408,11 +367,6 @@ export const LiveSourceSettings: FC<{
                                 access.kind === 'token' ? access.form : null
                             }
                             form={form}
-                            isReplacing={isReplacingToken}
-                            isSaving={updateSource.isLoading}
-                            onReplace={() => setIsReplacingToken(true)}
-                            onKeep={keepToken}
-                            onSave={() => void saveSource(['token'])}
                         />
                     ) : (
                         <SettingsRow
@@ -444,7 +398,7 @@ export const LiveSourceSettings: FC<{
                             </Button>
                         </SettingsRow>
                     ) : null}
-                    {accountField ? saveFooter(accessKeys) : null}
+                    {accessKeys.length > 0 ? saveFooter(accessKeys) : null}
                 </SettingsCard>
 
                 <SettingsCard

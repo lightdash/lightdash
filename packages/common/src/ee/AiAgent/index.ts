@@ -402,7 +402,6 @@ export type AiAgentMessageAssistant = {
     savedQueryUuid: string | null;
 
     artifacts: AiAgentMessageAssistantArtifact[] | null;
-    referencedArtifacts: AiAgentMessageAssistantArtifact[] | null;
     modelConfig: AiAgentModelConfig | null;
     tokenUsage: AiPromptTokenUsage | null;
     responseTiming: AiPromptResponseTiming | null;
@@ -1283,8 +1282,6 @@ export type AiArtifact = {
     chartConfig: AiChartArtifactConfig | null;
     dashboardConfig: ToolDashboardV2Args | null;
     versionCreatedAt: Date;
-    verifiedByUserUuid: string | null;
-    verifiedAt: Date | null;
 };
 
 export const isAiSqlChartArtifactConfig = (
@@ -1358,31 +1355,6 @@ export type ApiAiAgentVisualizeSlackSendResponse = {
         permalink: string | null;
     };
 };
-
-export type AiAgentVerifiedArtifact = {
-    artifactUuid: string;
-    versionUuid: string;
-    artifactType: 'chart' | 'dashboard';
-    title: string | null;
-    description: string | null;
-    verifiedAt: Date;
-    verifiedBy: {
-        userUuid: string;
-        firstName: string;
-        lastName: string;
-    };
-    referenceCount: number;
-    threadUuid: string;
-    promptUuid: string | null;
-};
-
-export type ApiAiAgentVerifiedArtifactsResponse = ApiSuccess<
-    KnexPaginatedData<AiAgentVerifiedArtifact[]>
->;
-
-export type ApiAiAgentVerifiedQuestionsResponse = ApiSuccess<
-    { question: string; uuid: string }[]
->;
 
 export type AiAgentEvaluationPrompt = {
     evalPromptUuid: string;
@@ -1537,7 +1509,6 @@ export type AgentSummaryContext = {
     name: string;
     description: string | null;
     explores: string[];
-    verifiedQuestions: string[];
     instruction: string | null;
 };
 

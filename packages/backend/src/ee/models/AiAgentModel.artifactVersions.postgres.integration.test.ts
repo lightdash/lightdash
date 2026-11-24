@@ -54,8 +54,6 @@ describe('AiAgentModel.createOrUpdateArtifact concurrency (PostgreSQL)', () => {
                 saved_composer_chart_uuid uuid,
                 chart_config jsonb,
                 dashboard_config jsonb,
-                verified_by_user_uuid uuid,
-                verified_at timestamptz,
                 UNIQUE (ai_artifact_uuid, version_number)
             );
             CREATE TABLE composer_charts (

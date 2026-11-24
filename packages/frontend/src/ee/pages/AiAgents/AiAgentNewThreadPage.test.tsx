@@ -70,7 +70,6 @@ vi.mock('../../features/aiCopilot/hooks/useProjectAiAgents', () => ({
         mutateAsync: createThread,
         isLoading: false,
     }),
-    useVerifiedQuestions: () => ({ data: undefined }),
 }));
 
 vi.mock('../../features/aiCopilot/hooks/usePinnedContext', () => ({
