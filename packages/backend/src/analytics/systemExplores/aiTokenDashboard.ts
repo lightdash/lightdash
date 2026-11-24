@@ -39,7 +39,12 @@ type Query = ChartAsCode['metricQuery'];
 // Tokens in a table read 48.1M, like the cards and the share bars, not 48,123,257
 const compactTokens = {
     [tokens]: {
-        formatOptions: { type: CustomFormatType.NUMBER, compact: Compact.AUTO },
+        formatOptions: {
+            type: CustomFormatType.NUMBER,
+            compact: Compact.AUTO,
+            // Without it a compact number keeps three decimals: 270.337K
+            round: 1,
+        },
     },
 };
 type Breakdown = {

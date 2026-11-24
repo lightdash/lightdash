@@ -816,6 +816,34 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 values: ['error'],
             },
         ],
+        libraryChart: {
+            slug: 'sortable-pivot-table',
+            minVersion: '0.15.0',
+            fieldMapping: {
+                rowDimension: 'query_events_dashboard_name',
+                rowDimension2: 'query_events_explore_name',
+                // The dashboard name opens the dashboard, as it does in the plain table
+                link: 'query_events_dashboard_url',
+                metric: [
+                    'query_events_unique_users',
+                    'query_events_total_queries',
+                ],
+            },
+            // The two names sit side by side. A group row would add up people over its explores, and
+            // a person who met failures in two of them would be counted twice.
+            optionValues: {
+                groupSubtotals: false,
+                showMiniBars: true,
+                showTotalsRow: false,
+                decimalPlaces: 0,
+                density: 'compact',
+                initialSort: 'firstValue',
+                rowHeaderName: 'Dashboard',
+                valueNames: 'People affected,Failed queries',
+            },
+            // Shares the plain table's query, which carries the address of each dashboard
+            query: null,
+        },
     },
     // Rows are the origins, with where their queries were run from under each. Who started them is a
     // column for each kind of starter, so the three names fit a table that groups by two.
@@ -932,7 +960,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             // Ranked bars with the names beside them: twenty long names under a chart had to be
             // written at an angle. One measure, so one axis.
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.18.4',
+            minVersion: '0.18.9',
             fieldMapping: {
                 x: 'query_events_dashboard_name',
                 m1: 'query_events_p95_response_time_s',
@@ -941,6 +969,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 seriesType: 'bar',
                 orientation: 'horizontal',
                 m1Name: 'P95 response time (s)',
+                // One very slow dashboard would squeeze every other bar against the axis. Its bar is cut
+                // short at the edge with a break mark, and its label keeps the true value.
+                capOutliers: true,
                 showDataLabels: true,
                 lightdashLabels: false,
                 showAxisTitles: false,
@@ -983,6 +1014,34 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 fieldId: 'query_events_total_warehouse_execution_time_s',
             },
         ],
+        libraryChart: {
+            slug: 'sortable-pivot-table',
+            minVersion: '0.15.0',
+            fieldMapping: {
+                rowDimension: 'query_events_dashboard_name',
+                // The dashboard name opens the dashboard, as it does in the plain table
+                link: 'query_events_dashboard_url',
+                metric: [
+                    'query_events_total_warehouse_execution_time_s',
+                    'query_events_p95_response_time_s',
+                    'query_events_total_queries',
+                    'query_events_unique_users',
+                ],
+            },
+            optionValues: {
+                showMiniBars: true,
+                showTotalsRow: false,
+                density: 'compact',
+                initialSort: 'firstValue',
+                rowHeaderName: 'Dashboard',
+                valueNames:
+                    'Warehouse time (s),P95 response time (s),Queries,People',
+                // Seconds keep their decimals and counts stay whole
+                useFieldFormats: true,
+            },
+            // Shares the plain table's query, which carries the address of each dashboard
+            query: null,
+        },
     },
     {
         key: 'verified-content-audience-share',

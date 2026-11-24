@@ -161,6 +161,7 @@ const dimensionLabels: Record<string, string> = {
     agent_name: 'Agent',
     app_name: 'Data app',
     dashboard_name: 'Dashboard',
+    explore_name: 'Explore',
     chart_name: 'Chart',
     tool_name: 'Tool',
     field_label: 'Field',

@@ -1,7 +1,7 @@
 # Semantic usage
 
 `semantic_usage` shows direct metric and dimension references from completed
-semantic query attempts. Select **Field label**, **Explore name**, **Role**, and
+semantic query attempts. Select **Field label**, **Explore**, **Role**, and
 **Total queries** to see what gets used. Add **Workload origin**, app/chart names,
 user name or day to break usage down. Counts are distinct queries, not sums of
 field-reference rows: selecting and filtering the same field counts once.
