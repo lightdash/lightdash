@@ -341,6 +341,7 @@ export const getResultsPage = async (
     page: number = 1,
     pageSize: number | null = null,
     resultsUrl: string | null = null,
+    signal?: AbortSignal,
 ): Promise<ApiGetAsyncQueryResults> => {
     const searchParams = new URLSearchParams();
     if (page) {
@@ -354,6 +355,7 @@ export const getResultsPage = async (
         return lightdashApi<ApiGetAsyncQueryResults>({
             url: `${resultsUrl}&${searchParams}`,
             method: 'GET',
+            signal,
         });
     }
     const urlQueryParams = searchParams.toString();
@@ -363,6 +365,7 @@ export const getResultsPage = async (
         }`,
         version: 'v2',
         method: 'GET',
+        signal,
     });
 };
 
@@ -384,6 +387,9 @@ export type InfiniteQueryResults = Partial<
     isFetchingFirstPage: boolean;
     isFetchingRows: boolean;
     isFetchingAllPages: boolean;
+    isExpandingFirstPage?: boolean;
+    rowsExpansionError?: ApiError | null;
+    retryFetchRows?: () => void;
     fetchMoreRows: () => void;
     refetchRows: () => Promise<unknown>;
     setFetchAll: (value: boolean) => void;
@@ -395,6 +401,7 @@ export type InfiniteQueryResults = Partial<
 
 type FetchedResultsPage = ReadyQueryResultsPage & {
     clientFetchTimeMs: number;
+    firstVisibleClientFetchTimeMs?: number;
     requestedPageSize: number;
 };
 
@@ -402,6 +409,8 @@ const isPartialFirstPage = (page: FetchedResultsPage) =>
     page.page === 1 &&
     page.requestedPageSize < DEFAULT_RESULTS_PAGE_SIZE &&
     page.rows.length < page.totalResults;
+
+const isForbiddenError = (error: ApiError) => error.error?.statusCode === 403;
 
 // This hook lazy load results has they are needed in the UI
 export const useInfiniteQueryResults = (
@@ -477,26 +486,7 @@ export const useInfiniteQueryResults = (
         return fetchedRows.length >= fetchedPages[0].totalResults;
     }, [fetchedRows, fetchedPages]);
 
-    const isFetchingRows = useMemo(() => {
-        const isFetchingPage =
-            fetchArgs.page > fetchedPages.length ||
-            fetchedPages.some(isPartialFirstPage);
-
-        return (
-            (!!projectUuid &&
-                !!queryUuid &&
-                (isFetchingPage || (fetchAll && !hasFetchedAllRows))) ||
-            dependenciesChanged
-        );
-    }, [
-        fetchedPages,
-        fetchArgs.page,
-        projectUuid,
-        queryUuid,
-        fetchAll,
-        hasFetchedAllRows,
-        dependenciesChanged,
-    ]);
+    const hasPartialFirstPage = fetchedPages.some(isPartialFirstPage);
 
     const queryClient = useQueryClient();
 
@@ -523,7 +513,7 @@ export const useInfiniteQueryResults = (
             requestArgs,
             ...(resultsUrl === null ? [] : [resultsUrl]),
         ],
-        queryFn: async () => {
+        queryFn: async ({ signal }) => {
             const startTime = performance.now();
             const results = await getResultsPage(
                 lightdashApi,
@@ -532,6 +522,7 @@ export const useInfiniteQueryResults = (
                 requestArgs.page,
                 requestArgs.pageSize,
                 resultsUrl,
+                signal,
             );
 
             const { status } = results;
@@ -597,12 +588,48 @@ export const useInfiniteQueryResults = (
     });
     const { data: nextPageData } = nextPage;
 
+    const isExpansionFailure =
+        !dependenciesChanged &&
+        hasPartialFirstPage &&
+        !!nextPage.error &&
+        !isForbiddenError(nextPage.error);
+    const rowsExpansionError =
+        isExpansionFailure && !nextPage.isFetching ? nextPage.error : null;
+
+    const { refetch: refetchNextPage } = nextPage;
+    const retryFetchRows = useCallback(() => {
+        void refetchNextPage();
+    }, [refetchNextPage]);
+
+    const isFetchingRows = useMemo(() => {
+        if (rowsExpansionError) return false;
+        const isFetchingPage =
+            fetchArgs.page > fetchedPages.length || hasPartialFirstPage;
+
+        return (
+            (!!projectUuid &&
+                !!queryUuid &&
+                (isFetchingPage || (fetchAll && !hasFetchedAllRows))) ||
+            dependenciesChanged
+        );
+    }, [
+        fetchedPages,
+        fetchArgs.page,
+        projectUuid,
+        queryUuid,
+        fetchAll,
+        hasFetchedAllRows,
+        dependenciesChanged,
+        hasPartialFirstPage,
+        rowsExpansionError,
+    ]);
+
     // On error
     useEffect(() => {
-        if (nextPage.error) {
+        if (nextPage.error && !isExpansionFailure) {
             setErrorResponse(nextPage.error);
         }
-    }, [nextPage.error, setErrorResponse]);
+    }, [nextPage.error, isExpansionFailure, setErrorResponse]);
 
     useEffect(() => {
         const pageData = nextPage.data;
@@ -624,7 +651,14 @@ export const useInfiniteQueryResults = (
                     return prevState;
                 }
                 return prevState.map((p) =>
-                    p === existingPage ? pageData : p,
+                    p === existingPage
+                        ? {
+                              ...pageData,
+                              firstVisibleClientFetchTimeMs:
+                                  existingPage.firstVisibleClientFetchTimeMs ??
+                                  existingPage.clientFetchTimeMs,
+                          }
+                        : p,
                 );
             });
             if (isPartialFirstPage(pageData)) {
@@ -684,7 +718,11 @@ export const useInfiniteQueryResults = (
                       return acc + page.clientFetchTimeMs;
                   }, 0),
               )
-            : Math.round(fetchedPages[0]?.clientFetchTimeMs ?? 0); // If we're not fetching all pages, only return the time for the first page (enough to render the viz)
+            : Math.round(
+                  fetchedPages[0]?.firstVisibleClientFetchTimeMs ??
+                      fetchedPages[0]?.clientFetchTimeMs ??
+                      0,
+              ); // If we're not fetching all pages, only return the time for the first visible page (enough to render the viz)
 
         return (
             totalPagesFetchTime +
@@ -718,8 +756,14 @@ export const useInfiniteQueryResults = (
                 (!!queryUuid && !fetchedPages.length) ||
                 (!!queryUuid && fetchedPages[0]?.totalResults === undefined),
             isFetchingAllPages: !!queryUuid && fetchAll && !hasFetchedAllRows,
+            isExpandingFirstPage:
+                !dependenciesChanged &&
+                hasPartialFirstPage &&
+                !rowsExpansionError,
+            rowsExpansionError,
+            retryFetchRows,
             fetchAll,
-            error: nextPage.error,
+            error: isExpansionFailure ? null : nextPage.error,
         }),
         [
             projectUuid,
@@ -736,6 +780,10 @@ export const useInfiniteQueryResults = (
             isInitialLoading,
             nextPage.error,
             fetchAll,
+            hasPartialFirstPage,
+            rowsExpansionError,
+            retryFetchRows,
+            isExpansionFailure,
         ],
     );
 };

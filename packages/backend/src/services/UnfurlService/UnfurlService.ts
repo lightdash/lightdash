@@ -2227,6 +2227,7 @@ export class UnfurlService extends BaseService {
                                 tileParameters,
                             [SessionStorageKeys.DASHBOARD_TILE_RENDER_REQUEST]:
                                 dashboardTileRenderRequest,
+                            [SessionStorageKeys.HEADLESS_CAPTURE]: true,
                         },
                     );
 

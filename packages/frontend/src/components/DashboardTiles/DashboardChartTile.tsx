@@ -144,7 +144,10 @@ import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFilter
 import { useEmbedDashboardChartDownload } from '../../hooks/dashboard/useEmbedDashboardChartDownload';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../hooks/organization/useOrganization';
-import { getTableTileFirstPageColumnCount } from '../../hooks/resultsFirstPage';
+import {
+    getTableTileFirstPageColumnCount,
+    isCaptureRender,
+} from '../../hooks/resultsFirstPage';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useExploreConnectionName } from '../../hooks/useConnectionBadges';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
@@ -2420,12 +2423,11 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         readyQuery.refusedDateZoom,
     ]);
 
-    const firstPageColumnCount = props.minimal
-        ? undefined
-        : getTableTileFirstPageColumnCount(
-              readyQuery.data?.chart,
-              readyQuery.data?.executeQueryResponse.metricQuery,
-          );
+    const firstPageColumnCount = getTableTileFirstPageColumnCount(
+        readyQuery.data?.chart,
+        readyQuery.data?.executeQueryResponse.metricQuery,
+        { captureMode: !!props.minimal || isCaptureRender() },
+    );
 
     const resultsData = useInfiniteQueryResults(
         readyQuery.data?.chart.projectUuid,
@@ -2443,7 +2445,8 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
             resultsData.fetchAll && !resultsData.hasFetchedAllRows;
         return (
             (isCreatingQuery || isFetchingFirstPage || isFetchingAllRows) &&
-            !resultsData.error
+            !resultsData.error &&
+            !resultsData.rowsExpansionError
         );
     }, [
         readyQuery.isFetching,
@@ -2451,6 +2454,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         resultsData.hasFetchedAllRows,
         resultsData.isFetchingFirstPage,
         resultsData.error,
+        resultsData.rowsExpansionError,
     ]);
     useTileQueryQueueVisibility(props.tile.uuid);
 
