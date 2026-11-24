@@ -1,3 +1,19 @@
+# [3.394.0](https://github.com/lightdash/lightdash/compare/3.393.0...3.394.0) (2026-11-24)
+
+
+### Bug Fixes
+
+* **live-sources:** save field edits and their rebuild in one transaction ([#33388](https://github.com/lightdash/lightdash/issues/33388)) ([e17a150](https://github.com/lightdash/lightdash/commit/e17a150ef169d329e499f07d11683a5a4591359c))
+
+
+### Features
+
+* **live-sources:** show that a chart's live explore is switched off ([#33391](https://github.com/lightdash/lightdash/issues/33391)) ([213be80](https://github.com/lightdash/lightdash/commit/213be801d6790a74650ba331b29faf6377610220))
+* **live-sources:** split built-in descriptions into text for people and AI hints ([#33398](https://github.com/lightdash/lightdash/issues/33398)) ([1aa3056](https://github.com/lightdash/lightdash/commit/1aa3056a27f21623a8324b39aa075aa0965639f8))
+* **live-sources:** switch explores on and off on the source page ([#33390](https://github.com/lightdash/lightdash/issues/33390)) ([2c8c023](https://github.com/lightdash/lightdash/commit/2c8c023d6c605b959746af599a385ceba1ccba9f))
+* **live-sources:** switch live explores on and off, with label, description and AI hint overrides ([#33389](https://github.com/lightdash/lightdash/issues/33389)) ([4e09f86](https://github.com/lightdash/lightdash/commit/4e09f86053b399e6df46835c5893db7e7a7f514d))
+* **semantic-studio:** switch and edit live explores from the source and explore pages ([#33397](https://github.com/lightdash/lightdash/issues/33397)) ([45f9f2b](https://github.com/lightdash/lightdash/commit/45f9f2b426399c5d712748cfe8f40f1aa0093336))
+
 # [3.393.0](https://github.com/lightdash/lightdash/compare/3.392.0...3.393.0) (2026-11-24)
 
 

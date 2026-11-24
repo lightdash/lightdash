@@ -18371,6 +18371,34 @@
                         },
                         "type": "array"
                     },
+                    "canEditFields": {
+                        "type": "boolean",
+                        "description": "False for an explore scans add no fields to; its `fields` is then empty."
+                    },
+                    "lastEdit": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LiveSourceFieldEditor"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "usedByChartCount": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Saved charts on the explore."
+                    },
+                    "inUse": {
+                        "type": "boolean",
+                        "description": "Off, the explore isn't built, so charts, dashboards and agents can't use it."
+                    },
+                    "aiHint": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string"
+                    },
                     "label": {
                         "type": "string"
                     },
@@ -18378,9 +18406,19 @@
                         "type": "string"
                     }
                 },
-                "required": ["fields", "label", "exploreName"],
+                "required": [
+                    "fields",
+                    "canEditFields",
+                    "lastEdit",
+                    "usedByChartCount",
+                    "inUse",
+                    "aiHint",
+                    "description",
+                    "label",
+                    "exploreName"
+                ],
                 "type": "object",
-                "description": "The fields of one explore of a live data source."
+                "description": "One explore of a live data source, with its fields when they can be curated."
             },
             "LiveSourceFields": {
                 "properties": {
@@ -18389,7 +18427,7 @@
                             "$ref": "#/components/schemas/LiveSourceExploreFields"
                         },
                         "type": "array",
-                        "description": "Every explore whose fields can be curated, the first one included."
+                        "description": "Every explore of the source, in use or not, the first one included."
                     },
                     "fields": {
                         "items": {
@@ -18435,6 +18473,73 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "LiveSourceContentUsage": {
+                "properties": {
+                    "hiddenDashboardCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dashboards": {
+                        "items": {
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["name", "uuid"],
+                            "type": "object"
+                        },
+                        "type": "array",
+                        "description": "Dashboards showing any of the charts, or holding one of them."
+                    },
+                    "hiddenChartCount": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Charts in spaces the caller can't open, counted but not named."
+                    },
+                    "charts": {
+                        "items": {
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["name", "uuid"],
+                            "type": "object"
+                        },
+                        "type": "array",
+                        "description": "The charts the caller can open."
+                    }
+                },
+                "required": [
+                    "hiddenDashboardCount",
+                    "dashboards",
+                    "hiddenChartCount",
+                    "charts"
+                ],
+                "type": "object",
+                "description": "Saved content one item of a live data source is used by."
+            },
+            "ApiLiveSourceContentUsageResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LiveSourceContentUsage"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "LiveSourceFieldChange": {
                 "properties": {
                     "group": {
@@ -18468,8 +18573,39 @@
                 "type": "object",
                 "description": "One field change; unset keys stay as they are, null clears an override."
             },
+            "LiveSourceExploreChange": {
+                "properties": {
+                    "aiHint": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "label": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "inUse": {
+                        "type": "boolean"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["exploreName"],
+                "type": "object",
+                "description": "One explore change; unset keys stay as they are, null clears an override."
+            },
             "ApiUpdateLiveSourceFieldsRequest": {
                 "properties": {
+                    "exploreChanges": {
+                        "items": {
+                            "$ref": "#/components/schemas/LiveSourceExploreChange"
+                        },
+                        "type": "array"
+                    },
                     "changes": {
                         "items": {
                             "$ref": "#/components/schemas/LiveSourceFieldChange"
@@ -81591,7 +81727,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.393.0",
+        "version": "3.394.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
