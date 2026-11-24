@@ -1,3 +1,12 @@
+## [3.385.2](https://github.com/lightdash/lightdash/compare/3.385.1...3.385.2) (2026-11-24)
+
+
+### Bug Fixes
+
+* **feature-flags:** re-check flags when the window regains focus ([#33330](https://github.com/lightdash/lightdash/issues/33330)) ([20b1dcb](https://github.com/lightdash/lightdash/commit/20b1dcbac54ff32ffa90b35fb3261d4387001e88))
+* **live-sources:** use official integration logos and fix dark mode icons ([#33336](https://github.com/lightdash/lightdash/issues/33336)) ([8fee0e4](https://github.com/lightdash/lightdash/commit/8fee0e4fcd18ebc50873634e805186fff4e845c0)), closes [#33335](https://github.com/lightdash/lightdash/issues/33335)
+* **semantic-studio:** reopen a chat's draft when it keeps editing after publish ([#33332](https://github.com/lightdash/lightdash/issues/33332)) ([9a15ae3](https://github.com/lightdash/lightdash/commit/9a15ae3da55ffd1897caebd2cdb0372f204d75e1))
+
 ## [3.385.1](https://github.com/lightdash/lightdash/compare/3.385.0...3.385.1) (2026-11-24)
 
 
