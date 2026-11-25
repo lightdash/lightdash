@@ -496,16 +496,18 @@ describe('Project connections settings navigation', () => {
                         name: 'Project',
                     } as Project,
                     user: {
-                        ability: new Ability([
-                            {
-                                action: 'manage',
-                                subject: 'ExternalConnection',
-                                conditions: {
-                                    organizationUuid: 'org',
-                                    projectUuid: 'project',
-                                },
-                            },
-                        ]),
+                        ability: new Ability(
+                            ['ExternalConnection', 'LiveSource'].map(
+                                (subject) => ({
+                                    action: 'manage',
+                                    subject,
+                                    conditions: {
+                                        organizationUuid: 'org',
+                                        projectUuid: 'project',
+                                    },
+                                }),
+                            ),
+                        ),
                     } as SettingsContext['user'],
                     projectSettingsAccess: {
                         type: 'full',
@@ -567,6 +569,31 @@ describe('Project connections settings navigation', () => {
         expect(labels).toContain('Live data sources');
         expect(labels).not.toContain('Data app connections');
     });
+
+    it.each([
+        ['ExternalConnection', false],
+        ['LiveSource', true],
+    ])(
+        'shows Live data sources to someone who manages only %s: %s',
+        (subject, shown) => {
+            const labels = projectLabels({
+                isLiveSourcesAvailable: true,
+                user: {
+                    ability: new Ability([
+                        {
+                            action: 'manage',
+                            subject,
+                            conditions: {
+                                organizationUuid: 'org',
+                                projectUuid: 'project',
+                            },
+                        },
+                    ]),
+                } as SettingsContext['user'],
+            });
+            expect(labels.includes('Live data sources')).toBe(shown);
+        },
+    );
 
     it('shows Data app connections without Live data sources when only data apps are enabled', () => {
         const labels = projectLabels({

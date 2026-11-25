@@ -533,10 +533,7 @@ const OnboardingToolsContent: FC<{
     });
     const showLiveSources =
         liveSourcesAvailability.isAvailable &&
-        user.ability.can(
-            'manage',
-            subject('ExternalConnection', projectSubject()),
-        );
+        user.ability.can('manage', subject('LiveSource', projectSubject()));
     const showGoogle =
         showLiveSources && health.data?.hasGoogleLiveSources === true;
 

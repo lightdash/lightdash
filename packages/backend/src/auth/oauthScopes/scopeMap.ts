@@ -75,6 +75,7 @@ export const OAUTH_OPERATIONS: Partial<
     InviteLink: OAUTH_ACTIONS,
     Job: OAUTH_ACTIONS,
     JobStatus: ['view'],
+    LiveSource: OAUTH_ACTIONS,
     Learn: ['view'],
     MergeQuery: OAUTH_ACTIONS,
     MetricsTree: OAUTH_ACTIONS,

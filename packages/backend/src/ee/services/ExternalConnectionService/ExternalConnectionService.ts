@@ -51,6 +51,7 @@ import {
     type ExternalConnectionApiUsage,
     type ExternalConnectionAuthType,
     type ExternalConnectionConfigProposal,
+    type ExternalConnectionKind,
     type ExternalConnectionLinkedApps,
     type ExternalConnectionListItem,
     type ExternalConnectionMethod,
@@ -172,7 +173,12 @@ import {
     validateApiSourceConnection,
     withApiSourceAccessRules,
 } from './apiSourceConnection';
-import { getExternalConnectionSubject } from './externalConnectionAuthz';
+import {
+    getConnectionKind,
+    getConnectionSubject,
+    getExternalConnectionSubject,
+    getRequestedConnectionKind,
+} from './externalConnectionAuthz';
 import {
     validateExternalConnectionConfig,
     validateServiceAccountKeyfile,
@@ -255,6 +261,7 @@ type ExternalConnectionServiceArguments = {
         | 'deleteApiSourceExplores'
         | 'findExploreNamesTakenByOthers'
         | 'hasApiSourceExplores'
+        | 'getApiSourceExploreNames'
         | 'listApiSourceExploreHashes'
         | 'getApiSourceFieldIds'
     >;
@@ -417,6 +424,18 @@ export class ExternalConnectionService extends BaseService {
         this.savedChartModel = args.savedChartModel;
     }
 
+    /** Data app linking never applies to live data sources. */
+    private static assertNoDataAppLinking(
+        kind: ExternalConnectionKind,
+        allowDataAppBuilderLinking: boolean | undefined,
+    ) {
+        if (kind === 'live_source' && allowDataAppBuilderLinking) {
+            throw new ParameterError(
+                'Live data sources cannot be linked to data apps',
+            );
+        }
+    }
+
     /** Trimmed, without blanks or repeats; empty clears them. */
     private static parseLiveSourceTags(tags: string[] | null): string[] {
         const parsed = [
@@ -446,37 +465,53 @@ export class ExternalConnectionService extends BaseService {
         }
     }
 
+    /** Live data sources need `manage:LiveSource`; data app connections `manage:ExternalConnection`. */
     private assertCanManage(
         account: RegisteredAccount,
         projectUuid: string,
         organizationUuid: string,
+        kind: ExternalConnectionKind,
     ): void {
         const ability = this.createAuditedAbility(account);
         if (
             ability.cannot(
                 'manage',
-                getExternalConnectionSubject({
-                    organizationUuid,
-                    projectUuid,
-                }),
+                getConnectionSubject(kind, { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError(
-                'You do not have permission to manage external connections',
+                kind === 'live_source'
+                    ? 'You do not have permission to manage live data sources'
+                    : 'You do not have permission to manage external connections',
             );
         }
     }
 
+    /**
+     * Data app connections are viewable when linking is on. Live data sources
+     * have no view scope: reading one's settings takes `manage:LiveSource`,
+     * and querying it takes access to its explores (`getLiveSource`).
+     */
     private assertCanView(
         account: RegisteredAccount,
         connection: Pick<
             ExternalConnection,
-            'organizationUuid' | 'projectUuid' | 'allowDataAppBuilderLinking'
+            | 'organizationUuid'
+            | 'projectUuid'
+            | 'allowDataAppBuilderLinking'
+            | 'kind'
+            | 'apiSource'
         >,
         errorMessage = 'You do not have permission to view this external connection',
     ): void {
+        const kind = getConnectionKind(connection);
         const ability = this.createAuditedAbility(account);
-        if (ability.cannot('view', getExternalConnectionSubject(connection))) {
+        if (
+            ability.cannot(
+                kind === 'live_source' ? 'manage' : 'view',
+                getConnectionSubject(kind, connection),
+            )
+        ) {
             throw new ForbiddenError(errorMessage);
         }
     }
@@ -559,7 +594,16 @@ export class ExternalConnectionService extends BaseService {
         if (!organizationUuid) {
             throw new NotFoundError('Project not found');
         }
-        this.assertCanManage(account, projectUuid, organizationUuid);
+        this.assertCanManage(
+            account,
+            projectUuid,
+            organizationUuid,
+            getRequestedConnectionKind(data),
+        );
+        ExternalConnectionService.assertNoDataAppLinking(
+            getRequestedConnectionKind(data),
+            data.allowDataAppBuilderLinking,
+        );
         ExternalConnectionService.assertNotSignInType(data.type);
         const config = withApiSourceAccessRules(data);
         validateExternalConnectionConfig(config, Boolean(config.secret));
@@ -615,16 +659,23 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         const ability = this.createAuditedAbility(account);
-        if (
-            ability.cannot(
+        const canSeeEither =
+            ability.can(
                 'view',
                 getExternalConnectionSubject({
                     organizationUuid,
                     projectUuid,
                     allowDataAppBuilderLinking: true,
                 }),
-            )
-        ) {
+            ) ||
+            ability.can(
+                'manage',
+                getConnectionSubject('live_source', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            );
+        if (!canSeeEither) {
             throw new ForbiddenError(
                 'You do not have permission to view external connections',
             );
@@ -635,9 +686,14 @@ export class ExternalConnectionService extends BaseService {
             organizationUuid,
             { kind: null },
         );
-        return connections.filter((connection) =>
-            ability.can('view', getExternalConnectionSubject(connection)),
-        );
+        // Each row by its own subject: live data sources need manage:LiveSource
+        return connections.filter((connection) => {
+            const kind = getConnectionKind(connection);
+            return ability.can(
+                kind === 'live_source' ? 'manage' : 'view',
+                getConnectionSubject(kind, connection),
+            );
+        });
     }
 
     async listLinkedApps(
@@ -674,6 +730,7 @@ export class ExternalConnectionService extends BaseService {
             account,
             connection.projectUuid,
             connection.organizationUuid,
+            getConnectionKind(connection),
         );
         return connection;
     }
@@ -700,6 +757,11 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
+        if (getConnectionKind(connection) === 'live_source') {
+            throw new ParameterError(
+                'Live data sources cannot be linked to data apps',
+            );
+        }
         this.assertCanView(
             account,
             connection,
@@ -902,6 +964,10 @@ export class ExternalConnectionService extends BaseService {
                 'A live data source cannot drop its integration settings',
             );
         }
+        ExternalConnectionService.assertNoDataAppLinking(
+            getConnectionKind(existing),
+            data.allowDataAppBuilderLinking,
+        );
         if (data.aiHint !== undefined && !isLiveSource) {
             throw new ParameterError('Only live data sources have an AI hint');
         }
@@ -1296,7 +1362,7 @@ export class ExternalConnectionService extends BaseService {
         return app;
     }
 
-    /** Connections a live api query can use: api sources the account may view. */
+    /** Connections a live api query can use: live data sources whose explores the account can query. */
     async listApiSourceConnections(
         account: RegisteredAccount,
         projectUuid: string,
@@ -1308,17 +1374,19 @@ export class ExternalConnectionService extends BaseService {
         if (!organizationUuid) {
             throw new NotFoundError('Project not found');
         }
-        const ability = this.createAuditedAbility(account);
         const connections = await this.externalConnectionModel.list(
             projectUuid,
             organizationUuid,
             { kind: 'live_source' },
         );
-        return connections.filter(
-            (connection) =>
-                connection.apiSource &&
-                ability.can('view', getExternalConnectionSubject(connection)),
+        const queryable = await Promise.all(
+            connections.map(
+                async (connection) =>
+                    !!connection.apiSource &&
+                    this.canQueryLiveSource(account, connection),
+            ),
         );
+        return connections.filter((_, index) => queryable[index]);
     }
 
     /**
@@ -1336,7 +1404,12 @@ export class ExternalConnectionService extends BaseService {
         if (!organizationUuid) {
             throw new NotFoundError('Project not found');
         }
-        this.assertCanManage(account, projectUuid, organizationUuid);
+        this.assertCanManage(
+            account,
+            projectUuid,
+            organizationUuid,
+            'live_source',
+        );
         const windowDays =
             this.lightdashConfig.scheduler.queryHistory.cleanup.retentionDays;
         const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
@@ -1357,16 +1430,72 @@ export class ExternalConnectionService extends BaseService {
         connectionUuid: string,
         rateLimitDeadlineMs: number,
     ): Promise<MeteredLiveSource> {
-        const connection = await this.getViewableConnection(
-            account,
+        const connection = await this.loadConnection(
             projectUuid,
             connectionUuid,
         );
+        if (
+            getConnectionKind(connection) !== 'live_source' ||
+            !connection.apiSource
+        ) {
+            throw new ParameterError(
+                `"${connection.name}" is not a live data source`,
+            );
+        }
+        if (!(await this.canQueryLiveSource(account, connection))) {
+            throw new ForbiddenError(
+                'You do not have permission to query this live data source',
+            );
+        }
         return this.getMeteredLiveSource(
             account,
             projectUuid,
             connection,
             rateLimitDeadlineMs,
+        );
+    }
+
+    /**
+     * Querying a live data source directly sends a raw request, such as
+     * HogQL, that can read beyond its explores, so it takes the SQL runner,
+     * as a raw warehouse query does, plus view on every explore. A source
+     * with no explores yet is left to those who manage it. Data app linking
+     * never applies.
+     */
+    private async canQueryLiveSource(
+        account: RegisteredAccount,
+        connection: ExternalConnection,
+    ): Promise<boolean> {
+        const ability = this.createAuditedAbility(account);
+        const { organizationUuid, projectUuid } = connection;
+        if (
+            ability.cannot(
+                'manage',
+                subject('SqlRunner', { organizationUuid, projectUuid }),
+            )
+        ) {
+            return false;
+        }
+        const exploreNames = await this.projectModel.getApiSourceExploreNames(
+            projectUuid,
+            connection.externalConnectionUuid,
+        );
+        if (exploreNames.length === 0) {
+            return ability.can(
+                'manage',
+                getConnectionSubject('live_source', connection),
+            );
+        }
+        return exploreNames.every((exploreName) =>
+            ability.can(
+                'view',
+                subject('Explore', {
+                    organizationUuid,
+                    projectUuid,
+                    exploreNames: [exploreName],
+                    metadata: { exploreName },
+                }),
+            ),
         );
     }
 
@@ -2681,12 +2810,18 @@ export class ExternalConnectionService extends BaseService {
     ): Promise<ApiSourceSchemaScan> {
         let scan: ApiSourceSchemaScan;
         try {
+            // A scan is part of managing the source, not querying it.
+            const connection = await this.getOwnedConnection(
+                account,
+                projectUuid,
+                connectionUuid,
+            );
             scan = await scanPostHogSchema(async (args) =>
                 runLiveRequest(
-                    await this.getLiveSource(
+                    this.getMeteredLiveSource(
                         account,
                         projectUuid,
-                        connectionUuid,
+                        connection,
                         LIVE_RATE_LIMIT_DEADLINES_MS.background,
                     ),
                     args,
@@ -3083,7 +3218,12 @@ export class ExternalConnectionService extends BaseService {
         if (!organizationUuid) {
             throw new NotFoundError('Project not found');
         }
-        this.assertCanManage(account, projectUuid, organizationUuid);
+        this.assertCanManage(
+            account,
+            projectUuid,
+            organizationUuid,
+            'live_source',
+        );
         const { region, connectionUuid, explorePrefix } = request;
         if (!ExternalConnectionService.isPostHogRegion(region)) {
             throw new ParameterError('Pick the US or EU PostHog region');
@@ -3147,7 +3287,12 @@ export class ExternalConnectionService extends BaseService {
         if (!organizationUuid) {
             throw new NotFoundError('Project not found');
         }
-        this.assertCanManage(account, projectUuid, organizationUuid);
+        this.assertCanManage(
+            account,
+            projectUuid,
+            organizationUuid,
+            'live_source',
+        );
 
         const origin = POSTHOG_REGION_ORIGINS[session.region];
         const client: OAuthAuthorizationCodeClientConfig = {
@@ -3334,7 +3479,12 @@ export class ExternalConnectionService extends BaseService {
         if (!organizationUuid) {
             throw new NotFoundError('Project not found');
         }
-        this.assertCanManage(account, projectUuid, organizationUuid);
+        this.assertCanManage(
+            account,
+            projectUuid,
+            organizationUuid,
+            'live_source',
+        );
         return organizationUuid;
     }
 
@@ -3416,7 +3566,12 @@ export class ExternalConnectionService extends BaseService {
         if (!organizationUuid) {
             throw new NotFoundError('Project not found');
         }
-        this.assertCanManage(account, projectUuid, organizationUuid);
+        this.assertCanManage(
+            account,
+            projectUuid,
+            organizationUuid,
+            'live_source',
+        );
         const name = request.name.trim();
         if (!name) {
             throw new ParameterError('Name is required');
@@ -3505,7 +3660,12 @@ export class ExternalConnectionService extends BaseService {
         if (!organizationUuid) {
             throw new NotFoundError('Project not found');
         }
-        this.assertCanManage(account, projectUuid, organizationUuid);
+        this.assertCanManage(
+            account,
+            projectUuid,
+            organizationUuid,
+            'live_source',
+        );
 
         const client: OAuthAuthorizationCodeClientConfig = {
             tokenUrl: LINKEDIN_ADS_TOKEN_URL,
@@ -3728,7 +3888,12 @@ export class ExternalConnectionService extends BaseService {
         if (!organizationUuid) {
             throw new NotFoundError('Project not found');
         }
-        this.assertCanManage(account, projectUuid, organizationUuid);
+        this.assertCanManage(
+            account,
+            projectUuid,
+            organizationUuid,
+            'live_source',
+        );
 
         const client: OAuthAuthorizationCodeClientConfig = {
             // Sessions started before this field existed have none: production
@@ -4993,6 +5158,7 @@ export class ExternalConnectionService extends BaseService {
             account,
             storedConnection.projectUuid,
             storedConnection.organizationUuid,
+            getConnectionKind(storedConnection),
         );
         // Live data sources test against the rules their edited settings get
         const connection = withApiSourceAccessRules(
@@ -5061,7 +5227,12 @@ export class ExternalConnectionService extends BaseService {
         if (!organizationUuid) {
             throw new NotFoundError('Project not found');
         }
-        this.assertCanManage(account, projectUuid, organizationUuid);
+        this.assertCanManage(
+            account,
+            projectUuid,
+            organizationUuid,
+            getRequestedConnectionKind(requested),
+        );
         ExternalConnectionService.assertNotSignInType(requested.type);
 
         // Same validation create runs, so a test can never exercise a config we
@@ -5156,7 +5327,12 @@ export class ExternalConnectionService extends BaseService {
         if (!organizationUuid) {
             throw new NotFoundError('Project not found');
         }
-        this.assertCanManage(account, projectUuid, organizationUuid);
+        this.assertCanManage(
+            account,
+            projectUuid,
+            organizationUuid,
+            'data_app',
+        );
 
         const trimmed = description.trim();
         if (!trimmed) {
@@ -5222,7 +5398,12 @@ export class ExternalConnectionService extends BaseService {
             connectionUuid,
             projectUuid,
         );
-        this.assertCanManage(account, conn.projectUuid, conn.organizationUuid);
+        this.assertCanManage(
+            account,
+            conn.projectUuid,
+            conn.organizationUuid,
+            getConnectionKind(conn),
+        );
 
         // Validate the client-supplied request against the connection contract
         // before persisting, so a stored sample is always replayable + bounded.
@@ -5275,7 +5456,12 @@ export class ExternalConnectionService extends BaseService {
             connectionUuid,
             projectUuid,
         );
-        this.assertCanManage(account, conn.projectUuid, conn.organizationUuid);
+        this.assertCanManage(
+            account,
+            conn.projectUuid,
+            conn.organizationUuid,
+            getConnectionKind(conn),
+        );
         return this.externalConnectionModel.listSamples(connectionUuid);
     }
 
@@ -5293,7 +5479,12 @@ export class ExternalConnectionService extends BaseService {
             connectionUuid,
             projectUuid,
         );
-        this.assertCanManage(account, conn.projectUuid, conn.organizationUuid);
+        this.assertCanManage(
+            account,
+            conn.projectUuid,
+            conn.organizationUuid,
+            getConnectionKind(conn),
+        );
 
         const ownerConnectionUuid =
             await this.externalConnectionModel.getSampleConnectionUuid(

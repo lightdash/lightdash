@@ -1175,7 +1175,15 @@ export const useSettingsNavigation = (
                 });
             }
 
-            if (isLiveSourcesAvailable && canManageProjectConnections) {
+            const canManageLiveSources = ability?.can(
+                'manage',
+                subject('LiveSource', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid: project.projectUuid,
+                }),
+            );
+
+            if (isLiveSourcesAvailable && canManageLiveSources) {
                 // Managed on the Semantic Layer page; still listed here so
                 // people who look for it in settings find their way.
                 projectItems.push({

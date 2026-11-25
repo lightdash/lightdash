@@ -1,3 +1,4 @@
+import { Ability } from '@casl/ability';
 import {
     AlreadyExistsError,
     ApiConnectorType,
@@ -8,6 +9,7 @@ import {
     TimeoutError,
     type CreateExternalConnection,
     type ExternalConnection,
+    type PossibleAbilities,
 } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
 import { getLiveDefinitionHashes } from '../../../services/QuerySourceService/live/explores/build';
@@ -260,6 +262,7 @@ const buildService = ({
                     names.filter((name) => takenExploreNames.includes(name)),
             ),
         hasApiSourceExplores: vi.fn().mockResolvedValue(hasExplores),
+        getApiSourceExploreNames: vi.fn().mockResolvedValue(['posthog_events']),
         listApiSourceExploreHashes: vi.fn().mockResolvedValue([]),
         getApiSourceFieldIds: vi.fn().mockResolvedValue([]),
     };
@@ -365,12 +368,64 @@ describe('ExternalConnectionService api sources', () => {
         ).rejects.toThrow(ParameterError);
     });
 
-    it('refuses an account that cannot view the connection', async () => {
+    it('refuses an account that cannot query the source explores', async () => {
         const { service } = buildService({ canView: false });
         await expect(
             service.getLiveSource(account, 'proj-1', 'conn-1', 60_000),
         ).rejects.toThrow(ForbiddenError);
     });
+
+    it.each([
+        ['a viewer of its explores without the SQL runner', 'Explore', false],
+        ['a SQL runner user who views its explores', 'Explore', true],
+        [
+            'a data app builder the source was linked for',
+            'ExternalConnection',
+            false,
+        ],
+    ] as const)(
+        'lets %s query the source directly: %s',
+        async (who, subject, allowed) => {
+            const { service } = buildService({
+                connections: [
+                    posthogConnection({ allowDataAppBuilderLinking: true }),
+                ],
+            });
+            vi.spyOn(
+                service as unknown as { createAuditedAbility: () => unknown },
+                'createAuditedAbility',
+            ).mockReturnValue(
+                new Ability<PossibleAbilities>([
+                    {
+                        action: 'view',
+                        subject,
+                        conditions: { projectUuid: 'proj-1' },
+                    },
+                    ...(who.startsWith('a SQL runner') ||
+                    subject === 'ExternalConnection'
+                        ? [
+                              {
+                                  action: 'manage' as const,
+                                  subject: 'SqlRunner' as const,
+                                  conditions: { projectUuid: 'proj-1' },
+                              },
+                          ]
+                        : []),
+                ]),
+            );
+            const query = service.getLiveSource(
+                account,
+                'proj-1',
+                'conn-1',
+                60_000,
+            );
+            if (allowed) {
+                await expect(query).resolves.toBeDefined();
+            } else {
+                await expect(query).rejects.toThrow(ForbiddenError);
+            }
+        },
+    );
 
     it('reports a timeout as a timeout', async () => {
         mockSecureFetch.mockRejectedValue(
@@ -750,6 +805,49 @@ describe('ExternalConnectionService api source schema scans', () => {
         );
     });
 
+    it('scans for someone who manages the source without viewing its explores', async () => {
+        mockSecureFetch
+            .mockResolvedValueOnce(
+                postHogQueryResponse(
+                    [
+                        ['event', 'String'],
+                        ['occurrences', 'UInt64'],
+                    ],
+                    [['$pageview', 1]],
+                ),
+            )
+            .mockResolvedValueOnce(
+                postHogQueryResponse(
+                    [
+                        ['property_key', 'String'],
+                        ['occurrences', 'UInt64'],
+                    ],
+                    [],
+                ),
+            );
+        const { service } = buildService();
+        vi.spyOn(
+            service as unknown as { createAuditedAbility: () => unknown },
+            'createAuditedAbility',
+        ).mockReturnValue(
+            new Ability<PossibleAbilities>([
+                {
+                    action: 'manage',
+                    subject: 'LiveSource',
+                    conditions: { projectUuid: 'proj-1' },
+                },
+            ]),
+        );
+
+        const scan = await service.scanApiSourceSchema(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+
+        expect(scan).toMatchObject({ status: 'ready' });
+    });
+
     it('waits out a 429 part-way through a scan and keeps what it read', async () => {
         mockSecureFetch
             .mockResolvedValueOnce(
@@ -1079,9 +1177,8 @@ describe('ExternalConnectionService live source rate limits', () => {
         );
     });
 
-    it('shows viewers the admin limits beside the integration own', async () => {
+    it('shows managers the admin limits beside the integration own', async () => {
         const { service } = buildService({
-            canManage: false,
             connections: [posthogConnection({ adminRateLimits: settings })],
         });
 
@@ -1101,6 +1198,17 @@ describe('ExternalConnectionService live source rate limits', () => {
                 { id: 'day', capacity: 500, defaultCapacity: null },
             ],
         });
+    });
+
+    it('refuses rate limit usage to those who do not manage the source', async () => {
+        const { service } = buildService({
+            canManage: false,
+            connections: [posthogConnection({ adminRateLimits: settings })],
+        });
+
+        await expect(
+            service.getApiSourceRateLimitUsage(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow(ForbiddenError);
     });
 });
 

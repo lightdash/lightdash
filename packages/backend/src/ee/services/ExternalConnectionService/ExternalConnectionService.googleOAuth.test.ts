@@ -154,6 +154,7 @@ const buildService = ({
             replaceApiSourceExplores: vi.fn(),
             deleteApiSourceExplores: vi.fn(),
             findExploreNamesTakenByOthers: vi.fn(async () => []),
+            getApiSourceExploreNames: vi.fn(async () => []),
         },
         allowedPrivateHostCidrs: {},
         externalConnectionModel,

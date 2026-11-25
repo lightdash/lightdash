@@ -279,7 +279,10 @@ import {
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
 import { type AiCreditService } from '../AiCreditService';
-import { getExternalConnectionSubject } from '../ExternalConnectionService/externalConnectionAuthz';
+import {
+    getConnectionKind,
+    getExternalConnectionSubject,
+} from '../ExternalConnectionService/externalConnectionAuthz';
 import {
     createSandboxManager,
     S3SnapshotStore,
@@ -1978,6 +1981,12 @@ export class AppGenerateService extends BaseService {
                     'Alias must contain only letters, numbers, hyphens, and underscores (max 64 chars)',
                 );
             }
+            // Data app linking never applies to live data sources
+            if (getConnectionKind(connection) === 'live_source') {
+                throw new ParameterError(
+                    'Live data sources cannot be linked to data apps',
+                );
+            }
             if (
                 ability.cannot('view', getExternalConnectionSubject(connection))
             ) {
@@ -2060,6 +2069,13 @@ export class AppGenerateService extends BaseService {
                         `Skipped linking external connection alias "${link.alias}": no connection with slug "${link.connectionSlug}" exists in the target project. Upload it first ('lightdash upload --external-connections ${link.connectionSlug}') or fix connectionSlug in lightdash-app.yml.`,
                     );
                     break;
+                case 'live_source':
+                    // Manifests downloaded before integrations got their own
+                    // permission can still name one: skip it so re-upload works.
+                    linkWarnings.push(
+                        `Skipped linking external connection alias "${link.alias}": "${link.connectionSlug}" is a live data source, which data apps can't use. Remove it from lightdash-app.yml.`,
+                    );
+                    break;
                 case 'not_linkable':
                     throw new ForbiddenError(
                         'You do not have permission to link this external connection',
@@ -2098,6 +2114,9 @@ export class AppGenerateService extends BaseService {
                         slug,
                     );
                 if (!connection) return { slug, status: 'not_found' };
+                if (getConnectionKind(connection) === 'live_source') {
+                    return { slug, status: 'live_source' };
+                }
                 if (
                     ability.cannot(
                         'view',

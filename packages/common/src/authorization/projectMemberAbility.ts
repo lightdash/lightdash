@@ -305,6 +305,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'VirtualView', {
             projectUuid: member.projectUuid,
         });
+        can('manage', 'LiveSource', {
+            projectUuid: member.projectUuid,
+        });
         can('manage', 'CustomSql', {
             projectUuid: member.projectUuid,
         });

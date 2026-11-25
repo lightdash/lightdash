@@ -65,7 +65,7 @@ const renderPage = (health: Partial<HealthState>, search = '') =>
                 abilityRules: [
                     {
                         action: 'manage',
-                        subject: 'ExternalConnection',
+                        subject: 'LiveSource',
                         conditions: { organizationUuid: ORG_UUID },
                     },
                     {
