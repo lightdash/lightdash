@@ -680,3 +680,15 @@ Existing users must sign in to BigQuery again to grant the scope. The Google
 login with `AUTH_GOOGLE_INCLUDE_BIGQUERY_SCOPE` does not request it, because the
 organization is unknown at login. Disabling the flag stops new requests for the
 scope; it does not revoke tokens already granted.
+
+## Left navigation
+
+`left-navigation` is off by default. When on, the top navbar is replaced by a
+left sidebar. It changes the web app's layout only: no backend entry point
+reads it, and it grants no access. Each sidebar destination keeps the
+permission and flag checks its navbar entry has.
+
+It uses the standard resolver with no custom handler, so user and organization
+Console overrides and the generic ENV lists apply. A change shows after the
+page is reloaded. Phone-width windows and the chart editor opened from a
+dashboard keep the top navbar.

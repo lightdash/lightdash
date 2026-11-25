@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/react';
 import { noop } from 'es-toolkit/compat';
 import { Outlet, useMatch } from 'react-router';
-import NavBar from '../../../components/NavBar';
+import { AppNavigationShell } from '../../../components/AppSidebar/AppNavigationShell';
 import ScopeTourHost from '../../../features/scopeTours/ScopeTourHost';
 import { useAnalyticsProjectRouteView } from '../../../hooks/useAnalyticsProjectView';
 import { useProject } from '../../../hooks/useProject';
@@ -21,14 +21,13 @@ const AiAgentsRootLayout = () => {
     const isSettingsForm = isCreateForm !== null || isEditForm !== null;
 
     return (
-        <>
-            <NavBar isFixed={isSettingsForm} />
+        <AppNavigationShell isNavBarFixed={isSettingsForm}>
             {/* A walkthrough that clicked into Ask AI continues here. */}
             <Sentry.ErrorBoundary fallback={<></>}>
                 <ScopeTourHost />
             </Sentry.ErrorBoundary>
             <Outlet />
-        </>
+        </AppNavigationShell>
     );
 };
 
