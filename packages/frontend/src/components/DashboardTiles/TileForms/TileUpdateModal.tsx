@@ -196,6 +196,7 @@ const TileUpdateModal = <T extends Tile>({
                         />
                     ) : tile.type === DashboardTileTypes.AI_SUMMARY ? (
                         <AiSummaryTileForm
+                            tabUuid={tile.tabUuid ?? null}
                             form={
                                 form as UseFormReturnType<
                                     DashboardAiSummaryTileProperties['properties']

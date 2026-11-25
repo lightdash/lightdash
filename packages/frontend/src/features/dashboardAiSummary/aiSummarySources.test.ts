@@ -67,15 +67,27 @@ describe('getAiSummarySources', () => {
         expect(result.inFlight).toBe(false);
     });
 
-    it('reads only the charts the author picked, whatever tab they are on', () => {
+    it('reads only the charts the author picked', () => {
         const result = getAiSummarySources(
-            summaryTile('tab-1', { type: 'tiles', tileUuids: ['c'] }),
+            summaryTile('tab-1', { type: 'tiles', tileUuids: ['b'] }),
             tiles,
-            { a: ready('a', 'q-a'), c: ready('c', 'q-c') },
+            { a: ready('a', 'q-a'), b: ready('b', 'q-b') },
         );
 
-        expect(result.sources.map((s) => s.queryUuid)).toEqual(['q-c']);
+        expect(result.sources.map((s) => s.queryUuid)).toEqual(['q-b']);
         expect(result.chartCount).toBe(1);
+    });
+
+    it('does not wait for a picked chart that sits on another tab', () => {
+        const result = getAiSummarySources(
+            summaryTile('tab-1', { type: 'tiles', tileUuids: ['a', 'c'] }),
+            tiles,
+            { a: ready('a', 'q-a') },
+        );
+
+        expect(result.sources.map((s) => s.queryUuid)).toEqual(['q-a']);
+        expect(result.chartCount).toBe(1);
+        expect(result.inFlight).toBe(false);
     });
 
     it('waits while a chart in scope is still loading', () => {

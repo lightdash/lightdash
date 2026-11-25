@@ -15,20 +15,28 @@ export type AiSummarySources = {
     chartCount: number;
 };
 
-/** The charts an AI summary tile reads: its tab's, or the ones it names. */
+/** Charts a summary on this tab can read: other tabs' charts are not loaded with it. */
+export const getAiSummaryCandidateTiles = (
+    tabUuid: string | null,
+    tiles: DashboardTile[],
+): DashboardTile[] =>
+    tiles.filter(
+        (tile) => isAnalysableTile(tile) && (tile.tabUuid ?? null) === tabUuid,
+    );
+
+/** The charts an AI summary tile reads: its tab's, or the ones it names there. */
 const getAiSummaryScopeTiles = (
     summaryTile: Pick<DashboardAiSummaryTile, 'tabUuid' | 'properties'>,
     tiles: DashboardTile[],
 ): DashboardTile[] => {
     const { scope } = summaryTile.properties;
-    const analysable = tiles.filter(isAnalysableTile);
-    if (scope.type === 'tiles') {
-        const selected = new Set(scope.tileUuids);
-        return analysable.filter((tile) => selected.has(tile.uuid));
-    }
-    return analysable.filter(
-        (tile) => (tile.tabUuid ?? null) === (summaryTile.tabUuid ?? null),
+    const candidates = getAiSummaryCandidateTiles(
+        summaryTile.tabUuid ?? null,
+        tiles,
     );
+    if (scope.type === 'tab') return candidates;
+    const selected = new Set(scope.tileUuids);
+    return candidates.filter((tile) => selected.has(tile.uuid));
 };
 
 export const getAiSummarySources = (

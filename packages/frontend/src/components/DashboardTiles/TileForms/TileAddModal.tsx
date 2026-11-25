@@ -19,6 +19,10 @@ import {
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
+import {
+    selectActiveTabUuid,
+    useDashboardSelector,
+} from '../../../features/dashboard/store';
 import { DEFAULT_AI_SUMMARY_PROPERTIES } from '../../../features/dashboardAiSummary/aiSummaryDefaults';
 import AiSummaryTileForm from '../../../features/dashboardAiSummary/AiSummaryTileForm';
 import MantineModal from '../../common/MantineModal';
@@ -52,6 +56,7 @@ export const TileAddModal: FC<AddProps> = ({
     onConfirm,
 }) => {
     const [errorMessage, setErrorMessage] = useState<string>();
+    const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
 
     const getValidators = () => {
         const urlValidator = {
@@ -201,6 +206,7 @@ export const TileAddModal: FC<AddProps> = ({
                         />
                     ) : type === DashboardTileTypes.AI_SUMMARY ? (
                         <AiSummaryTileForm
+                            tabUuid={activeTabUuid ?? null}
                             form={
                                 form as UseFormReturnType<
                                     DashboardAiSummaryTileProperties['properties']

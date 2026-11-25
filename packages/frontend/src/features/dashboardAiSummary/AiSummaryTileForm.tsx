@@ -14,7 +14,7 @@ import {
 import { type UseFormReturnType } from '@mantine/form';
 import { useMemo, type FC } from 'react';
 import { selectDashboardTiles, useDashboardSelector } from '../dashboard/store';
-import { isAnalysableTile } from '../dashboard/store/analysisSourceSelectors';
+import { getAiSummaryCandidateTiles } from './aiSummarySources';
 
 type AiSummaryProperties = DashboardAiSummaryTileProperties['properties'];
 
@@ -25,17 +25,19 @@ const chartLabel = (tile: DashboardTile): string =>
 
 type Props = {
     form: UseFormReturnType<AiSummaryProperties>;
+    /** Tab the tile sits on; only its charts can be picked */
+    tabUuid: string | null;
 };
 
-const AiSummaryTileForm: FC<Props> = ({ form }) => {
+const AiSummaryTileForm: FC<Props> = ({ form, tabUuid }) => {
     const tiles = useDashboardSelector(selectDashboardTiles);
     const chartOptions = useMemo(
         () =>
-            (tiles ?? []).filter(isAnalysableTile).map((tile) => ({
+            getAiSummaryCandidateTiles(tabUuid, tiles ?? []).map((tile) => ({
                 value: tile.uuid,
                 label: chartLabel(tile),
             })),
-        [tiles],
+        [tiles, tabUuid],
     );
     const { scope, instructions } = form.values;
 
