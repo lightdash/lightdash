@@ -53,6 +53,6 @@ type Review = {
   "diffs": [{ "lens": "Config", "change": "added", "impact": "notable", "name": "ai-thread-images", "kind": "flag", "default": "off", "note": "kept off in previews" }],
   "added": 6900,
   "deleted": 1120,
-  "version": 1795457299
+  "version": 1795627695
 }
 ```
