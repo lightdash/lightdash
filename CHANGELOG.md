@@ -1,3 +1,10 @@
+## [3.409.1](https://github.com/lightdash/lightdash/compare/3.409.0...3.409.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* **rainbow:** run browserless so image and PDF exports work on previews ([#33458](https://github.com/lightdash/lightdash/issues/33458)) ([5cb0067](https://github.com/lightdash/lightdash/commit/5cb0067d1a6e86fbc537359b0b8b3d387020cc64))
+
 # [3.409.0](https://github.com/lightdash/lightdash/compare/3.408.0...3.409.0) (2026-11-25)
 
 
