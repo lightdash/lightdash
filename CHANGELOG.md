@@ -1,3 +1,10 @@
+# [3.396.0](https://github.com/lightdash/lightdash/compare/3.395.6...3.396.0) (2026-11-25)
+
+
+### Features
+
+* **ai-agents:** first-run tour for composer chart lineage ([#33409](https://github.com/lightdash/lightdash/issues/33409)) ([62315b6](https://github.com/lightdash/lightdash/commit/62315b6daf8a7696c973fa32f2c164952318950f))
+
 ## [3.395.6](https://github.com/lightdash/lightdash/compare/3.395.5...3.395.6) (2026-11-25)
 
 

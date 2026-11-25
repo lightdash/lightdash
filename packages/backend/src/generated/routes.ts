@@ -64494,6 +64494,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 memoryTour: { dataType: 'boolean', required: true },
                 dashboardEditTour: { dataType: 'boolean', required: true },
+                composerLineageTour: { dataType: 'boolean', required: true },
             },
             validators: {},
         },
@@ -64532,6 +64533,7 @@ const models: TsoaRoute.Models = {
             subSchemas: [
                 { dataType: 'enum', enums: ['memoryTour'] },
                 { dataType: 'enum', enums: ['dashboardEditTour'] },
+                { dataType: 'enum', enums: ['composerLineageTour'] },
             ],
             validators: {},
         },
