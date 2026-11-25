@@ -19,6 +19,12 @@ const RAW_SQL_WORKFLOW_GUIDANCE = `For a complete raw SQL query, follow step 0, 
 
 `;
 
+const EXPLORE_CHOICE_RULE = `- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
+`;
+
+const SQL_NODE_RULE = `- Use a sql node only when no explore answers the question or the user asks for SQL
+`;
+
 const CONTENT_ONLY_PROMPT = `# Lightdash MCP — Saved Content Mode
 
 This session cannot run queries. Answer from saved content the user can access.
@@ -79,10 +85,33 @@ ${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. \`get_context\`: select the 
 ## Rules
 
 - \`run_metric_query\` is registered for this session; if your catalogue lacks it, your client cached an outdated tool list — say so and ask the user to reconnect${runSqlEnabled ? '; never substitute `run_sql` for it' : ''}
-- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
-${runSqlEnabled ? runSqlGuidance : ''}${filterExpressionsEnabled ? `${FILTER_EXPRESSION_SKILL_REMINDER}\n` : ''}- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
+${EXPLORE_CHOICE_RULE}${runSqlEnabled ? runSqlGuidance : ''}${filterExpressionsEnabled ? `${FILTER_EXPRESSION_SKILL_REMINDER}\n` : ''}- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
 ${agentIdentityEnabled ? AGENT_CONNECT_RULE : ''}`;
 };
+
+const buildMcpComposerPrompt = (
+    sqlRunnerEnabled: boolean,
+    documentsEnabled: boolean,
+    agentIdentityEnabled: boolean,
+): string => `## Query Building Workflow
+
+0. \`get_context\`: select the project, and the agent when agent-scoped; follow production/preview and pinned-scope rules.
+1. \`grep_fields\`: discover fields and select one explore at the right grain.
+2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
+3. \`search_field_values\`: find valid filter values when needed.
+4. \`query\`: answer with one pipeline of nodes.
+5. \`get_query_result\`: poll running queries; never resubmit the original query.
+6. \`list_content\`: browse accessible content.
+7. \`find_content\`: search dashboards, charts, ${documentsEnabled ? 'Data Apps, and Documents' : 'and Data Apps'}.
+
+## Rules
+
+${EXPLORE_CHOICE_RULE}- Query each explore with one semanticLayer node
+- Combine semanticLayer nodes that share a dimension at the same grain with a merge node rather than a duckdb join; when a merge is refused, fix it: narrow a source, raise its limit or add the missing join key
+- Compute a metric the explore lacks as a custom metric on its semanticLayer node, and a metric in an earlier period as a period comparison there, so the warehouse computes it over every row
+${sqlRunnerEnabled ? SQL_NODE_RULE : ''}- Build each answer as one pipeline in one \`query\` call, whose terminal node answers the question
+- On a follow-up, reuse the earlier pipeline's nodes and change only what the user asked for
+${agentIdentityEnabled ? AGENT_CONNECT_RULE : ''}`;
 
 export const getMcpAnalystPrompt = ({
     queryPath,
@@ -99,10 +128,15 @@ export const getMcpAnalystPrompt = ({
         case 'sqlOnly':
             return buildSqlOnlyPrompt(agentIdentityEnabled);
         case 'classic':
-        case 'composer':
             return buildMcpAnalystPrompt(
                 queryPath.sqlRunnerEnabled,
                 queryPath.filterExpressionsEnabled,
+                documentsEnabled,
+                agentIdentityEnabled,
+            );
+        case 'composer':
+            return buildMcpComposerPrompt(
+                queryPath.sqlRunnerEnabled,
                 documentsEnabled,
                 agentIdentityEnabled,
             );

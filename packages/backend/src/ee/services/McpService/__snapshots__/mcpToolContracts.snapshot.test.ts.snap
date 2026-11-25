@@ -131,6 +131,53 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
 }
 `;
 
+exports[`MCP tool contracts > matches the composer with SQL Runner MCP server instructions snapshot 1`] = `
+"## Query Building Workflow
+
+0. \`get_context\`: select the project, and the agent when agent-scoped; follow production/preview and pinned-scope rules.
+1. \`grep_fields\`: discover fields and select one explore at the right grain.
+2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
+3. \`search_field_values\`: find valid filter values when needed.
+4. \`query\`: answer with one pipeline of nodes.
+5. \`get_query_result\`: poll running queries; never resubmit the original query.
+6. \`list_content\`: browse accessible content.
+7. \`find_content\`: search dashboards, charts, and Data Apps.
+
+## Rules
+
+- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
+- Query each explore with one semanticLayer node
+- Combine semanticLayer nodes that share a dimension at the same grain with a merge node rather than a duckdb join; when a merge is refused, fix it: narrow a source, raise its limit or add the missing join key
+- Compute a metric the explore lacks as a custom metric on its semanticLayer node, and a metric in an earlier period as a period comparison there, so the warehouse computes it over every row
+- Use a sql node only when no explore answers the question or the user asks for SQL
+- Build each answer as one pipeline in one \`query\` call, whose terminal node answers the question
+- On a follow-up, reuse the earlier pipeline's nodes and change only what the user asked for
+"
+`;
+
+exports[`MCP tool contracts > matches the composer without SQL Runner MCP server instructions snapshot 1`] = `
+"## Query Building Workflow
+
+0. \`get_context\`: select the project, and the agent when agent-scoped; follow production/preview and pinned-scope rules.
+1. \`grep_fields\`: discover fields and select one explore at the right grain.
+2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
+3. \`search_field_values\`: find valid filter values when needed.
+4. \`query\`: answer with one pipeline of nodes.
+5. \`get_query_result\`: poll running queries; never resubmit the original query.
+6. \`list_content\`: browse accessible content.
+7. \`find_content\`: search dashboards, charts, and Data Apps.
+
+## Rules
+
+- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
+- Query each explore with one semanticLayer node
+- Combine semanticLayer nodes that share a dimension at the same grain with a merge node rather than a duckdb join; when a merge is refused, fix it: narrow a source, raise its limit or add the missing join key
+- Compute a metric the explore lacks as a custom metric on its semanticLayer node, and a metric in an earlier period as a period comparison there, so the warehouse computes it over every row
+- Build each answer as one pipeline in one \`query\` call, whose terminal node answers the question
+- On a follow-up, reuse the earlier pipeline's nodes and change only what the user asked for
+"
+`;
+
 exports[`MCP tool contracts > matches the current MCP tool and prompt contract snapshot 1`] = `
 {
   "prompts": [

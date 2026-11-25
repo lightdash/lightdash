@@ -537,25 +537,37 @@ describe('MCP tool contracts', () => {
         },
     );
 
-    it.each([
+    it.each<{ name: string; queryPath: McpQueryPath }>([
         {
             name: 'structured-filter',
-            filterExpressionsEnabled: false,
+            queryPath: classicQueryPath(true, false),
         },
         {
             name: 'filter-expression',
-            filterExpressionsEnabled: true,
+            queryPath: classicQueryPath(true, true),
+        },
+        {
+            name: 'composer with SQL Runner',
+            queryPath: {
+                type: 'composer',
+                sqlRunnerEnabled: true,
+                filterExpressionsEnabled: false,
+            },
+        },
+        {
+            name: 'composer without SQL Runner',
+            queryPath: {
+                type: 'composer',
+                sqlRunnerEnabled: false,
+                filterExpressionsEnabled: false,
+            },
         },
     ])(
         'matches the $name MCP server instructions snapshot',
-        async ({ filterExpressionsEnabled }) => {
+        async ({ queryPath }) => {
             const mcpService = makeMcpService();
 
-            await mcpService.createServer(
-                makeMcpServerOptions({
-                    queryPath: classicQueryPath(true, filterExpressionsEnabled),
-                }),
-            );
+            await mcpService.createServer(makeMcpServerOptions({ queryPath }));
 
             expect(getLatestMcpServerInstructions()).toMatchSnapshot();
         },
@@ -1087,7 +1099,7 @@ describe('MCP tool contracts', () => {
                 filterExpressionsEnabled: false,
             },
             tools: [...classicQueryTools, McpToolName.GET_QUERY_RESULT],
-            instructions: '## Query Building Workflow',
+            instructions: '4. `run_metric_query`',
         },
         {
             name: 'classic with SQL Runner',
@@ -1101,7 +1113,7 @@ describe('MCP tool contracts', () => {
                 McpToolName.RUN_SQL,
                 McpToolName.GET_QUERY_RESULT,
             ],
-            instructions: '## Query Building Workflow',
+            instructions: '4. `run_metric_query`',
         },
         {
             name: 'composer',
@@ -1115,7 +1127,7 @@ describe('MCP tool contracts', () => {
                 McpToolName.QUERY,
                 McpToolName.GET_QUERY_RESULT,
             ],
-            instructions: '## Query Building Workflow',
+            instructions: '4. `query`',
         },
     ])(
         'registers the query tools and instructions of the $name query path',
