@@ -3,8 +3,16 @@
  * hint on the left, a control on the right, grouped in titled cards. Adding a
  * source and changing its settings use the same ones.
  */
-import { ActionIcon, Box, Button, Group, Stack, Tooltip } from '@mantine/core';
-import { IconInfoCircle } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    Group,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import { IconInfoCircle, IconPencil } from '@tabler/icons-react';
 import { type FC, type FormEvent, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import classes from './LiveSourceSettingsRows.module.css';
@@ -28,34 +36,47 @@ export const SettingsRow: FC<{
     </Box>
 );
 
-/** Cancel and Save changes under a card's editable rows, once one is edited. */
+/** A setting as read, in place of its control. */
+export const SettingsValue: FC<{ children: ReactNode; isEmpty?: boolean }> = ({
+    children,
+    isEmpty,
+}) => (
+    <Text className={classes.settingsValue} c={isEmpty ? 'dimmed' : undefined}>
+        {children}
+    </Text>
+);
+
+/** Cancel and Save changes under a card that is being edited. */
 export const SettingsSaveFooter: FC<{
     isChanged: boolean;
     isSaving: boolean;
     /** False keeps Save changes disabled until the fields can be saved. */
     isValid?: boolean;
+    /** False for a card with nothing to save, which only closes. */
+    hasFields?: boolean;
     onCancel: () => void;
-}> = ({ isChanged, isSaving, isValid = true, onCancel }) =>
-    isChanged ? (
-        <Group justify="flex-end" gap="xs" className={classes.settingsFooter}>
-            <Button
-                size="xs"
-                variant="default"
-                disabled={isSaving}
-                onClick={onCancel}
-            >
-                Cancel
-            </Button>
+}> = ({ isChanged, isSaving, isValid = true, hasFields = true, onCancel }) => (
+    <Group justify="flex-end" gap="xs" className={classes.settingsFooter}>
+        <Button
+            size="xs"
+            variant="default"
+            disabled={isSaving}
+            onClick={onCancel}
+        >
+            {hasFields ? 'Cancel' : 'Done'}
+        </Button>
+        {hasFields ? (
             <Button
                 type="submit"
                 size="xs"
-                disabled={!isValid}
+                disabled={!isChanged || !isValid}
                 loading={isSaving}
             >
                 Save changes
             </Button>
-        </Group>
-    ) : null;
+        ) : null}
+    </Group>
+);
 
 /** Content that brings its own surface (a table), titled like a card. */
 export const SettingsSection: FC<{
@@ -75,37 +96,64 @@ export const SettingsCard: FC<{
     titleInfo?: string;
     /** Makes the card a form whose rows save together. */
     onSubmit?: (event: FormEvent) => void;
+    /** Puts Edit in the card's footer, for a card that reads until it is used. */
+    edit?: { isEditing: boolean; onEdit: () => void };
     children: ReactNode;
-}> = ({ title, titleInfo, onSubmit, children }) => (
-    <Stack gap={6}>
-        {title ? (
-            <span className={classes.settingsTitle}>
-                {title}
-                {titleInfo ? (
-                    <Tooltip
-                        label={titleInfo}
-                        multiline
-                        maw={320}
-                        withinPortal
-                        events={{ hover: true, focus: true, touch: true }}
-                    >
-                        <ActionIcon size="xs" aria-label={titleInfo}>
-                            <MantineIcon
-                                icon={IconInfoCircle}
-                                size={14}
-                                color="dimmed"
-                            />
-                        </ActionIcon>
-                    </Tooltip>
-                ) : null}
-            </span>
-        ) : null}
-        {onSubmit ? (
-            <form className={classes.settings} onSubmit={onSubmit} noValidate>
-                {children}
-            </form>
-        ) : (
-            <Box className={classes.settings}>{children}</Box>
-        )}
-    </Stack>
-);
+}> = ({ title, titleInfo, onSubmit, edit, children }) => {
+    // Sits where Cancel and Save changes appear once it is used
+    const editFooter =
+        edit && !edit.isEditing ? (
+            <Group justify="flex-end" className={classes.settingsFooter}>
+                <Button
+                    size="xs"
+                    variant="default"
+                    leftSection={<MantineIcon icon={IconPencil} />}
+                    aria-label={`Edit ${title}`}
+                    onClick={edit.onEdit}
+                >
+                    Edit
+                </Button>
+            </Group>
+        ) : null;
+    return (
+        <Stack gap={6}>
+            {title ? (
+                <span className={classes.settingsTitle}>
+                    {title}
+                    {titleInfo ? (
+                        <Tooltip
+                            label={titleInfo}
+                            multiline
+                            maw={320}
+                            withinPortal
+                            events={{ hover: true, focus: true, touch: true }}
+                        >
+                            <ActionIcon size="xs" aria-label={titleInfo}>
+                                <MantineIcon
+                                    icon={IconInfoCircle}
+                                    size={14}
+                                    color="dimmed"
+                                />
+                            </ActionIcon>
+                        </Tooltip>
+                    ) : null}
+                </span>
+            ) : null}
+            {onSubmit ? (
+                <form
+                    className={classes.settings}
+                    onSubmit={onSubmit}
+                    noValidate
+                >
+                    {children}
+                    {editFooter}
+                </form>
+            ) : (
+                <Box className={classes.settings}>
+                    {children}
+                    {editFooter}
+                </Box>
+            )}
+        </Stack>
+    );
+};

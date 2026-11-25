@@ -44,6 +44,13 @@
     color: var(--mantine-color-dimmed);
 }
 
+.settingsValue {
+    max-width: 320px;
+    font-size: 13px;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
 .testOutcome {
     display: inline-flex;
     animation: testOutcomeIn 200ms ease-out;

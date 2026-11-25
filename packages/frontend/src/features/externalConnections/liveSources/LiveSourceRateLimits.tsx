@@ -60,8 +60,9 @@ const LimitRow: FC<{
     row: RateLimitRow;
     value: number | undefined;
     usage: ExternalConnectionRateLimitUsage;
+    isEditing: boolean;
     onChange: (value: number | undefined) => void;
-}> = ({ row, value, usage, onChange }) => {
+}> = ({ row, value, usage, isEditing, onChange }) => {
     const meter = getRateLimitMeter(row, usage.runningCalls);
     return (
         <SettingsRow
@@ -92,20 +93,24 @@ const LimitRow: FC<{
                     </Text>
                 )}
             </Box>
-            <NumberInput
-                w={96}
-                size="xs"
-                aria-label={`${row.label} limit`}
-                placeholder={row.defaultLimit?.toLocaleString() ?? 'No limit'}
-                min={1}
-                clampBehavior="none"
-                allowNegative={false}
-                thousandSeparator=","
-                hideControls
-                error={!isValidLimit(row, value)}
-                value={value ?? ''}
-                onNumberChange={onChange}
-            />
+            {isEditing ? (
+                <NumberInput
+                    w={96}
+                    size="xs"
+                    aria-label={`${row.label} limit`}
+                    placeholder={
+                        row.defaultLimit?.toLocaleString() ?? 'No limit'
+                    }
+                    min={1}
+                    clampBehavior="none"
+                    allowNegative={false}
+                    thousandSeparator=","
+                    hideControls
+                    error={!isValidLimit(row, value)}
+                    value={value ?? ''}
+                    onNumberChange={onChange}
+                />
+            ) : null}
         </SettingsRow>
     );
 };
@@ -121,15 +126,19 @@ const RateLimitsForm: FC<
     const values = edits ?? saved;
     const isChanged = rows.some(({ key }) => values[key] !== saved[key]);
     const isValid = rows.every((row) => isValidLimit(row, values[row.key]));
+    const [isEditing, setIsEditing] = useState(false);
+
+    const close = () => {
+        setEdits(null);
+        setIsEditing(false);
+    };
 
     const handleSubmit = (event: FormEvent) => {
         event.preventDefault();
         if (!isChanged || !isValid) {
             return;
         }
-        update.mutate(toRateLimitSettings(rows, values), {
-            onSuccess: () => setEdits(null),
-        });
+        update.mutate(toRateLimitSettings(rows, values), { onSuccess: close });
     };
 
     return (
@@ -137,6 +146,11 @@ const RateLimitsForm: FC<
             title="Rate limits"
             titleInfo={usage.note ?? undefined}
             onSubmit={handleSubmit}
+            edit={
+                rows.length > 0
+                    ? { isEditing, onEdit: () => setIsEditing(true) }
+                    : undefined
+            }
         >
             {usage.limitedUntil ? (
                 <SettingsRow
@@ -155,17 +169,20 @@ const RateLimitsForm: FC<
                     row={row}
                     value={values[row.key]}
                     usage={usage}
+                    isEditing={isEditing}
                     onChange={(value) =>
                         setEdits({ ...values, [row.key]: value })
                     }
                 />
             ))}
-            <SettingsSaveFooter
-                isChanged={isChanged}
-                isValid={isValid}
-                isSaving={update.isLoading}
-                onCancel={() => setEdits(null)}
-            />
+            {isEditing ? (
+                <SettingsSaveFooter
+                    isChanged={isChanged}
+                    isValid={isValid}
+                    isSaving={update.isLoading}
+                    onCancel={close}
+                />
+            ) : null}
         </SettingsCard>
     );
 };

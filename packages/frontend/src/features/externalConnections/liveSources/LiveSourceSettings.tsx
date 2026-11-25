@@ -2,8 +2,8 @@
  * One live data source's settings, below its summary on its own page. Rows
  * of a label on the left and its control on the right: how it signs in
  * (account, access), what it is (name, AI hint), its data (fields and
- * caching), then deleting it. An edited card of fields saves with its Save
- * changes, a choice or button as soon as it is used.
+ * caching), then deleting it. A card reads until its Edit is used, then its
+ * fields save with Save changes.
  */
 import {
     LIVE_SOURCE_AI_HINT_MAX_LENGTH,
@@ -57,6 +57,7 @@ import {
     SettingsCard,
     SettingsRow,
     SettingsSaveFooter,
+    SettingsValue,
 } from './LiveSourceSettingsRows';
 import { LiveSourceTagsCard } from './LiveSourceTagsCard';
 import { LiveSourceTestRow } from './LiveSourceTestRow';
@@ -71,6 +72,13 @@ const WINDOW_SECONDS = [
     6 * 60 * 60,
     LIVE_SOURCE_CACHE_TTL_MAX_SECONDS,
 ];
+
+const POSTHOG_REGIONS = [
+    { value: 'us', label: 'US Cloud' },
+    { value: 'eu', label: 'EU Cloud' },
+];
+
+type EditableCard = 'details' | 'caching' | 'access';
 
 const formatDate = (date: Date | string) =>
     new Date(date).toLocaleString(undefined, {
@@ -132,6 +140,14 @@ export const LiveSourceSettings: FC<{
     const testSource = useTestConnection({ showErrorToast: false });
     const [isPurgeOpen, setIsPurgeOpen] = useState(false);
     const [isAccessRuleOpen, setIsAccessRuleOpen] = useState(false);
+    const [editingCards, setEditingCards] = useState<EditableCard[]>([]);
+    const isEditing = (card: EditableCard) => editingCards.includes(card);
+    const stopEditing = (card: EditableCard) =>
+        setEditingCards((cards) => cards.filter((open) => open !== card));
+    const editProps = (card: EditableCard) => ({
+        isEditing: isEditing(card),
+        onEdit: () => setEditingCards((cards) => [...cards, card]),
+    });
     const accessRule = describeLiveSourceAccessRule(connection.accessRule);
     const { data: projectCache } = useResultsCacheStatus(projectUuid);
     /** The project doesn't cache results, so the source has nothing to tune or clear. */
@@ -155,14 +171,17 @@ export const LiveSourceSettings: FC<{
         ? WINDOW_SECONDS
         : [...WINDOW_SECONDS, savedTtl].sort((a, b) => a - b);
 
-    /** Saves the given settings over the saved ones, if they changed and are valid. */
+    /**
+     * Saves the given settings over the saved ones, if they changed and are
+     * valid. False leaves them unsaved.
+     */
     const saveSource = async (keys: (keyof LiveSourceAccessValues)[]) => {
         const saved = form.getInitialValues();
         const { values } = form;
         if (keys.every((key) => values[key].trim() === saved[key].trim()))
-            return;
-        if (keys.some((key) => form.validateField(key).hasError)) return;
-        if (keys.includes('region') && needsKeyForRegion()) return;
+            return true;
+        if (keys.some((key) => form.validateField(key).hasError)) return false;
+        if (keys.includes('region') && needsKeyForRegion()) return false;
         const changed = Object.fromEntries(
             keys.map((key) => [key, values[key].trim()]),
         );
@@ -174,15 +193,16 @@ export const LiveSourceSettings: FC<{
             });
         } catch {
             // The hook already says why; the field keeps what was typed.
-            return;
+            return false;
         }
         form.setInitialValues({ ...next, token: '' });
         // Another card's save leaves a key typed into Access in place
         if (!keys.includes('token')) {
             form.setValues(changed);
-            return;
+            return true;
         }
         form.setValues({ ...changed, token: '' });
+        return true;
     };
 
     const isChanged = (keys: (keyof LiveSourceAccessValues)[]) =>
@@ -240,33 +260,49 @@ export const LiveSourceSettings: FC<{
         });
     };
 
-    const saveFooter = (keys: (keyof LiveSourceAccessValues)[]) => (
-        <SettingsSaveFooter
-            isChanged={isChanged(keys)}
-            isSaving={updateSource.isLoading}
-            onCancel={() => revert(keys)}
-        />
-    );
+    const saveFooter = (
+        card: EditableCard,
+        keys: (keyof LiveSourceAccessValues)[],
+    ) =>
+        isEditing(card) ? (
+            <SettingsSaveFooter
+                isChanged={isChanged(keys)}
+                isSaving={updateSource.isLoading}
+                hasFields={keys.length > 0}
+                onCancel={() => {
+                    revert(keys);
+                    stopEditing(card);
+                }}
+            />
+        ) : null;
 
     const submit =
-        (keys: (keyof LiveSourceAccessValues)[]) => (event: FormEvent) => {
+        (card: EditableCard, keys: (keyof LiveSourceAccessValues)[]) =>
+        (event: FormEvent) => {
             event.preventDefault();
-            void saveSource(keys);
+            void saveSource(keys).then((isSaved) => {
+                if (isSaved) stopEditing(card);
+            });
         };
 
-    const saveTtl = (value: string | null) => {
-        if (!value || value === form.getInitialValues().ttl) return;
-        const previous = form.getInitialValues().ttl;
-        form.setFieldValue('ttl', value);
+    const isTtlChanged = form.values.ttl !== form.getInitialValues().ttl;
+
+    const cancelTtl = () => {
+        form.setFieldValue('ttl', form.getInitialValues().ttl);
+        stopEditing('caching');
+    };
+
+    const submitTtl = (event: FormEvent) => {
+        event.preventDefault();
+        if (!isTtlChanged) return;
+        const { ttl } = form.values;
         updateCache.mutate(
-            { ttlSeconds: Number(value) },
+            { ttlSeconds: Number(ttl) },
             {
-                onSuccess: () =>
-                    form.setInitialValues({
-                        ...form.getInitialValues(),
-                        ttl: value,
-                    }),
-                onError: () => form.setFieldValue('ttl', previous),
+                onSuccess: () => {
+                    form.setInitialValues({ ...form.getInitialValues(), ttl });
+                    stopEditing('caching');
+                },
             },
         );
     };
@@ -276,54 +312,63 @@ export const LiveSourceSettings: FC<{
             <Stack gap="lg">
                 <SettingsCard
                     title="Details"
-                    onSubmit={submit(['name', 'aiHint'])}
+                    onSubmit={submit('details', ['name', 'aiHint'])}
+                    edit={editProps('details')}
                 >
                     <SettingsRow
                         label="Name"
                         hint="Shown in explores and to agents"
                     >
-                        <TextInput
-                            w={240}
-                            size="xs"
-                            aria-label="Name"
-                            {...form.getInputProps('name')}
-                        />
+                        {isEditing('details') ? (
+                            <TextInput
+                                w={240}
+                                size="xs"
+                                autoFocus
+                                aria-label="Name"
+                                {...form.getInputProps('name')}
+                            />
+                        ) : (
+                            <SettingsValue>{form.values.name}</SettingsValue>
+                        )}
                     </SettingsRow>
                     <SettingsRow
                         label="AI hint"
                         hint="Helps agents pick this source"
                     >
-                        <Textarea
-                            w={240}
-                            size="xs"
-                            aria-label="AI hint"
-                            placeholder="For example: EU storefront"
-                            autosize
-                            minRows={1}
-                            maxRows={4}
-                            maxLength={LIVE_SOURCE_AI_HINT_MAX_LENGTH}
-                            {...form.getInputProps('aiHint')}
-                        />
+                        {isEditing('details') ? (
+                            <Textarea
+                                w={240}
+                                size="xs"
+                                aria-label="AI hint"
+                                placeholder="For example: EU storefront"
+                                autosize
+                                minRows={1}
+                                maxRows={4}
+                                maxLength={LIVE_SOURCE_AI_HINT_MAX_LENGTH}
+                                {...form.getInputProps('aiHint')}
+                            />
+                        ) : (
+                            <SettingsValue isEmpty={!form.values.aiHint}>
+                                {form.values.aiHint || 'Not set'}
+                            </SettingsValue>
+                        )}
                     </SettingsRow>
-                    {saveFooter(['name', 'aiHint'])}
+                    {saveFooter('details', ['name', 'aiHint'])}
                 </SettingsCard>
 
-                <SettingsCard title="Who can query">
-                    <SettingsRow
-                        label="Access rule"
-                        hint={
-                            accessRule
+                <SettingsCard
+                    title="Who can query"
+                    edit={{
+                        isEditing: false,
+                        onEdit: () => setIsAccessRuleOpen(true),
+                    }}
+                >
+                    <SettingsRow label="Access rule">
+                        <SettingsValue>
+                            {accessRule
                                 ? `Only people whose ${accessRule}`
-                                : 'Everyone in the project'
-                        }
-                    >
-                        <Button
-                            size="xs"
-                            variant="default"
-                            onClick={() => setIsAccessRuleOpen(true)}
-                        >
-                            Edit
-                        </Button>
+                                : 'Everyone in the project'}
+                        </SettingsValue>
                     </SettingsRow>
                 </SettingsCard>
 
@@ -332,7 +377,11 @@ export const LiveSourceSettings: FC<{
                     connection={connection}
                 />
 
-                <SettingsCard title="Caching">
+                <SettingsCard
+                    title="Caching"
+                    onSubmit={submitTtl}
+                    edit={isProjectCacheOff ? undefined : editProps('caching')}
+                >
                     <SettingsRow
                         label="Keep results for"
                         hint={
@@ -354,7 +403,7 @@ export const LiveSourceSettings: FC<{
                             >
                                 Turn on
                             </Button>
-                        ) : (
+                        ) : isEditing('caching') ? (
                             <>
                                 <Select
                                     w={116}
@@ -366,9 +415,8 @@ export const LiveSourceSettings: FC<{
                                         value: String(option),
                                         label: formatFreshness(option),
                                     }))}
-                                    value={form.values.ttl}
                                     disabled={updateCache.isLoading}
-                                    onChange={saveTtl}
+                                    {...form.getInputProps('ttl')}
                                 />
                                 <Button
                                     size="xs"
@@ -379,8 +427,19 @@ export const LiveSourceSettings: FC<{
                                     Clear cached results
                                 </Button>
                             </>
+                        ) : (
+                            <SettingsValue>
+                                {formatFreshness(Number(form.values.ttl))}
+                            </SettingsValue>
                         )}
                     </SettingsRow>
+                    {!isProjectCacheOff && isEditing('caching') ? (
+                        <SettingsSaveFooter
+                            isChanged={isTtlChanged}
+                            isSaving={updateCache.isLoading}
+                            onCancel={cancelTtl}
+                        />
+                    ) : null}
                 </SettingsCard>
 
                 <LiveSourceRateLimitsCard
@@ -391,7 +450,14 @@ export const LiveSourceSettings: FC<{
                 <SettingsCard
                     title="Access"
                     onSubmit={
-                        accessKeys.length > 0 ? submit(accessKeys) : undefined
+                        accessKeys.length > 0
+                            ? submit('access', accessKeys)
+                            : undefined
+                    }
+                    edit={
+                        accessKeys.length > 0 || reconnect
+                            ? editProps('access')
+                            : undefined
                     }
                 >
                     {accountField ? (
@@ -399,37 +465,60 @@ export const LiveSourceSettings: FC<{
                             label={accountField.label}
                             hint={accountField.description}
                         >
-                            <TextInput
-                                w={240}
-                                size="xs"
-                                aria-label={accountField.label}
-                                placeholder={accountField.placeholder}
-                                autoComplete="off"
-                                {...form.getInputProps('accountId')}
-                            />
+                            {isEditing('access') ? (
+                                <TextInput
+                                    w={240}
+                                    size="xs"
+                                    aria-label={accountField.label}
+                                    placeholder={accountField.placeholder}
+                                    autoComplete="off"
+                                    {...form.getInputProps('accountId')}
+                                />
+                            ) : (
+                                <SettingsValue isEmpty={!form.values.accountId}>
+                                    {form.values.accountId || 'Not set'}
+                                </SettingsValue>
+                            )}
                         </SettingsRow>
                     ) : null}
                     {isPostHogKey ? (
                         <SettingsRow label="Region" hint="Where you log in">
-                            <SegmentedControl
-                                size="xs"
-                                w={240}
-                                data={[
-                                    { value: 'us', label: 'US Cloud' },
-                                    { value: 'eu', label: 'EU Cloud' },
-                                ]}
-                                {...form.getInputProps('region')}
-                            />
+                            {isEditing('access') ? (
+                                <SegmentedControl
+                                    size="xs"
+                                    w={240}
+                                    data={POSTHOG_REGIONS}
+                                    {...form.getInputProps('region')}
+                                />
+                            ) : (
+                                <SettingsValue>
+                                    {
+                                        POSTHOG_REGIONS.find(
+                                            ({ value }) =>
+                                                value === form.values.region,
+                                        )?.label
+                                    }
+                                </SettingsValue>
+                            )}
                         </SettingsRow>
                     ) : null}
                     {tokenLabel ? (
-                        <TokenRow label={tokenLabel} form={form} />
+                        isEditing('access') ? (
+                            <TokenRow label={tokenLabel} form={form} />
+                        ) : (
+                            <SettingsRow
+                                label={tokenLabel}
+                                hint="Encrypted, never shown again"
+                            >
+                                <SettingsValue>Saved</SettingsValue>
+                            </SettingsRow>
+                        )
                     ) : (
                         <SettingsRow
                             label="Account"
                             hint={`Reads ${getApiSourceTarget(connection.apiSource)}`}
                         >
-                            {reconnect ? (
+                            {reconnect && isEditing('access') ? (
                                 <Button
                                     size="xs"
                                     variant="default"
@@ -440,7 +529,7 @@ export const LiveSourceSettings: FC<{
                             ) : null}
                         </SettingsRow>
                     )}
-                    {isPostHogKey && reconnect ? (
+                    {isPostHogKey && reconnect && isEditing('access') ? (
                         <SettingsRow
                             label="Sign in instead"
                             hint="Replaces the key with a PostHog sign-in"
@@ -466,7 +555,7 @@ export const LiveSourceSettings: FC<{
                             inputs={accessKeys.map((key) => form.values[key])}
                         />
                     ) : null}
-                    {accessKeys.length > 0 ? saveFooter(accessKeys) : null}
+                    {saveFooter('access', accessKeys)}
                 </SettingsCard>
 
                 <SettingsCard title="Danger zone">

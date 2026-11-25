@@ -6,7 +6,7 @@ import {
     LIVE_SOURCE_MAX_TAGS,
     LIVE_SOURCE_TAG_MAX_LENGTH,
 } from '@lightdash/common';
-import { TagsInput } from '@mantine/core';
+import { Badge, Group, TagsInput } from '@mantine/core';
 import { isEqual } from 'es-toolkit/compat';
 import { useState, type FC, type FormEvent } from 'react';
 import {
@@ -18,6 +18,7 @@ import {
     SettingsCard,
     SettingsRow,
     SettingsSaveFooter,
+    SettingsValue,
 } from './LiveSourceSettingsRows';
 
 export const LiveSourceTagsCard: FC<{
@@ -30,6 +31,12 @@ export const LiveSourceTagsCard: FC<{
         LIVE_SOURCE_UPDATE_MESSAGES,
     );
     const isChanged = !isEqual(tags, savedTags);
+    const [isEditing, setIsEditing] = useState(false);
+
+    const cancel = () => {
+        setTags(savedTags);
+        setIsEditing(false);
+    };
 
     const submit = async (event: FormEvent) => {
         event.preventDefault();
@@ -45,31 +52,51 @@ export const LiveSourceTagsCard: FC<{
             return;
         }
         setSavedTags(tags);
+        setIsEditing(false);
     };
 
     return (
-        <SettingsCard title="AI agents" onSubmit={submit}>
+        <SettingsCard
+            title="AI agents"
+            onSubmit={submit}
+            edit={{ isEditing, onEdit: () => setIsEditing(true) }}
+        >
             <SettingsRow
                 label="Tags"
                 hint="Agents limited to tags use this source when they share one"
             >
-                <TagsInput
-                    w={240}
-                    size="xs"
-                    aria-label="Tags"
-                    placeholder={tags.length ? undefined : 'Add a tag'}
-                    maxTags={LIVE_SOURCE_MAX_TAGS}
-                    maxLength={LIVE_SOURCE_TAG_MAX_LENGTH}
-                    clearable
-                    value={tags}
-                    onChange={setTags}
-                />
+                {isEditing ? (
+                    <TagsInput
+                        w={240}
+                        size="xs"
+                        autoFocus
+                        aria-label="Tags"
+                        placeholder={tags.length ? undefined : 'Add a tag'}
+                        maxTags={LIVE_SOURCE_MAX_TAGS}
+                        maxLength={LIVE_SOURCE_TAG_MAX_LENGTH}
+                        clearable
+                        value={tags}
+                        onChange={setTags}
+                    />
+                ) : savedTags.length > 0 ? (
+                    <Group gap={4} justify="flex-end" maw={320}>
+                        {savedTags.map((tag) => (
+                            <Badge key={tag} variant="default" tt="none">
+                                {tag}
+                            </Badge>
+                        ))}
+                    </Group>
+                ) : (
+                    <SettingsValue isEmpty>No tags</SettingsValue>
+                )}
             </SettingsRow>
-            <SettingsSaveFooter
-                isChanged={isChanged}
-                isSaving={updateSource.isLoading}
-                onCancel={() => setTags(savedTags)}
-            />
+            {isEditing ? (
+                <SettingsSaveFooter
+                    isChanged={isChanged}
+                    isSaving={updateSource.isLoading}
+                    onCancel={cancel}
+                />
+            ) : null}
         </SettingsCard>
     );
 };
