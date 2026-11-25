@@ -654,6 +654,18 @@ describe('GoogleDriveClient', () => {
             useFake(fake);
             const { sheetId } = fake.sheet('Sheet1');
             const rows = makeRows(60_000);
+            const tabsDuringWrite: Array<{ title: string; hidden: boolean }> =
+                [];
+            fake.beforeUpdate = (_call, index) => {
+                if (index === 0) {
+                    tabsDuringWrite.push(
+                        ...fake.sheets.map(({ title, hidden }) => ({
+                            title,
+                            hidden,
+                        })),
+                    );
+                }
+            };
 
             await makeClient().appendCsvToSheet(
                 'refresh-token',
@@ -661,6 +673,16 @@ describe('GoogleDriveClient', () => {
                 rows,
             );
 
+            expect(tabsDuringWrite).toEqual([
+                { title: 'Sheet1', hidden: false },
+                { title: 'Summary', hidden: false },
+                {
+                    title: expect.stringMatching(
+                        /^Lightdash sync in progress [0-9a-f]{8}-[0-9a-f]{6}$/,
+                    ),
+                    hidden: true,
+                },
+            ]);
             expect(fake.updateCalls).toHaveLength(3);
             expect(fake.updateCalls[0].range).toMatch(/!A1$/);
             expect(fake.updateCalls[0].rows[0]).toEqual(['id', 'hash']);
