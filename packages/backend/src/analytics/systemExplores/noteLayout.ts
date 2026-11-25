@@ -29,39 +29,70 @@ const linesOf = (text: string): number => {
     return lines;
 };
 
-const blocksOf = (content: string) =>
-    content
-        .split(/\n+/)
-        .map((block) => block.trim())
-        .filter(Boolean)
-        .map((block) => ({
-            isHeading: block.startsWith('#'),
-            // Markers for bold text take no room
-            text: block.replace(/^#+\s*/, '').replaceAll('**', ''),
-        }));
+// Ends a line inside a paragraph without the gap a new paragraph has (two spaces before the newline)
+export const NOTE_LINE_BREAK = '  \n';
 
-// The text of a note without its heading
+type Block = { isHeading: boolean; lines: string[] };
+
+// Markers for bold text take no room
+const plain = (text: string) => text.trim().replaceAll('**', '');
+
+// Headings and paragraphs, as markdown reads them: a blank line starts a new paragraph, a line break
+// starts a new line in the same paragraph, and any other newline is only a space.
+const blocksOf = (content: string): Block[] => {
+    const blocks: Block[] = [];
+    for (const paragraph of content.split(/\n{2,}/)) {
+        let current: Block | null = null;
+        let brokeLine = false;
+        for (const raw of paragraph.split('\n')) {
+            const text = plain(raw.replace(/^#+\s*/, ''));
+            if (raw.trim().startsWith('#')) {
+                blocks.push({ isHeading: true, lines: [text] });
+                current = null;
+            } else if (text) {
+                if (!current) {
+                    current = { isHeading: false, lines: [text] };
+                    blocks.push(current);
+                } else if (brokeLine) current.lines.push(text);
+                else current.lines[current.lines.length - 1] += ` ${text}`;
+            }
+            brokeLine = raw.endsWith('  ');
+        }
+    }
+    return blocks;
+};
+
+const paragraphsOf = (content: string) =>
+    blocksOf(content).filter(({ isHeading }) => !isHeading);
+const linesIn = ({ lines }: Block) =>
+    lines.reduce((total, text) => total + linesOf(text), 0);
+
+// The text of a note without its heading or bold title line
 export const noteBody = (content: string): string =>
-    blocksOf(content)
-        .filter(({ isHeading }) => !isHeading)
-        .map(({ text }) => text)
+    paragraphsOf(content.replace(/^\*\*[^*\n]+\*\* {2}\n/, ''))
+        .flatMap(({ lines }) => lines)
         .join(' ');
 
 export const noteLines = (content: string): number =>
-    blocksOf(content)
-        .filter(({ isHeading }) => !isHeading)
-        .reduce((total, { text }) => total + linesOf(text), 0);
+    paragraphsOf(content).reduce((total, block) => total + linesIn(block), 0);
 
 export const noteTextHeight = (content: string): number => {
-    const blocks = blocksOf(content);
-    const paragraphs = blocks.filter(({ isHeading }) => !isHeading);
+    const paragraphs = paragraphsOf(content);
     return (
-        blocks.filter(({ isHeading }) => isHeading).length * HEADING_PX +
-        paragraphs.reduce((total, { text }) => total + linesOf(text), 0) *
+        (blocksOf(content).length - paragraphs.length) * HEADING_PX +
+        paragraphs.reduce((total, block) => total + linesIn(block), 0) *
             LINE_PX +
         Math.max(paragraphs.length - 1, 0) * PARAGRAPH_GAP_PX
     );
 };
+
+// The text above a section with a title. A heading with one line under it needs two grid rows and
+// leaves most of the second empty, so a one-line description takes a bold title on the line above it
+// instead: two lines, one row.
+export const titledNote = (title: string, description: string): string =>
+    description && noteLines(description) === 1
+        ? `**${title}**${NOTE_LINE_BREAK}${description}`
+        : `### ${title}\n\n${description}`;
 
 export const noteTileHeight = (rows: number): number =>
     rows * ROW_PX + (rows - 1) * ROW_GAP_PX;

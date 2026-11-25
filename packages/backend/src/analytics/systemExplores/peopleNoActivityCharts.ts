@@ -6,13 +6,13 @@ const eligiblePeople: NonNullable<UsageChartSpec['filters']> = [
 const personDimensions = [
     'people_adoption_name',
     'people_adoption_user_id',
-    'people_adoption_organization_role',
-    'people_adoption_activity_status',
+    'people_adoption_organization_role_name',
+    'people_adoption_activity_status_name',
 ];
 const personLabels = {
-    people_adoption_activity_status: 'Activity status',
+    people_adoption_activity_status_name: 'Activity status',
     people_adoption_activity_through_day: 'Activity through (UTC)',
-    people_adoption_organization_role: 'Organization role',
+    people_adoption_organization_role_name: 'Organization role',
 };
 
 export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
@@ -32,7 +32,7 @@ export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
         key: 'people-without-observed-activity-detail',
         name: 'Who has not used Lightdash?',
         description:
-            'Members with an active account and finished setup who have no confirmed human activity in recorded history. This includes people with only automated, inferred or unclassified activity. People without a name show their primary email, or their user UUID if there is no email. Shows up to 1,000 people. Activity through shows the cut-off date. The Date filter does not apply.',
+            'Members with an active account and finished setup with no confirmed activity of their own in recorded history. The Date filter does not apply.',
         explore: 'people_adoption',
         dimensions: [
             ...personDimensions,
@@ -54,11 +54,12 @@ export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
         key: 'people-without-activity-30d-detail',
         name: 'Who has not used Lightdash in the last 30 complete days?',
         description:
-            'Members with an active account and finished setup who have no confirmed human activity in the 30 complete UTC days before the membership snapshot. Includes people who have never used Lightdash and people who used it earlier but have lapsed. Activity status tells them apart. People without a name show their primary email, or their user UUID if there is no email. Shows up to 1,000 people. Activity through shows the cut-off date. The Date filter does not apply.',
+            'Members with an active account and finished setup with no confirmed activity of their own in the 30 complete days before the latest membership snapshot, including people who have never used Lightdash. The Date filter does not apply.',
         explore: 'people_adoption',
         dimensions: [
             ...personDimensions,
-            'people_adoption_last_observed_activity_at',
+            // The day is enough: the time of day would show to the millisecond
+            'people_adoption_last_observed_activity_at_day',
             'people_adoption_days_since_last_activity',
             'people_adoption_activity_through_day',
         ],
@@ -74,7 +75,7 @@ export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
         ],
         fieldLabels: {
             ...personLabels,
-            people_adoption_last_observed_activity_at:
+            people_adoption_last_observed_activity_at_day:
                 'Last used Lightdash (UTC)',
             people_adoption_days_since_last_activity: 'Days since last use',
         },

@@ -3,6 +3,7 @@ import {
     cloud,
     ranking,
     stackedByDay,
+    trend,
     trendByCategory,
 } from './chartBuilders';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
@@ -11,6 +12,9 @@ const toolDay = 'tool_activity_event_ts_day';
 const exportDay = 'export_events_event_ts_day';
 const mcp: NonNullable<UsageChartSpec['filters']> = [
     { field: 'tool_activity_source', values: ['mcp'] },
+];
+const googleSheets: NonNullable<UsageChartSpec['filters']> = [
+    { field: 'query_events_context', values: ['gsheets'] },
 ];
 
 export const toolsChartSpecs: UsageChartSpec[] = [
@@ -71,7 +75,7 @@ export const toolsChartSpecs: UsageChartSpec[] = [
         key: 'mcp-users-clients-tools-and-error-rates',
         name: 'MCP tool calls by person and tool',
         description:
-            'MCP tool calls for each person, client and tool, including service accounts. Duration is in milliseconds. An error rate over a few calls is not reliable.',
+            'MCP tool calls for each person, client and tool, including service accounts. An error rate over a few calls is not reliable.',
         explore: 'tool_activity',
         by: 'tool_activity_user_name',
         then: 'tool_activity_tool_name',
@@ -85,7 +89,7 @@ export const toolsChartSpecs: UsageChartSpec[] = [
         metrics: ['tool_activity_total_calls', 'tool_activity_failed_calls'],
         extraMetrics: [
             'tool_activity_error_rate',
-            'tool_activity_p90_duration_ms',
+            'tool_activity_p90_duration_s',
         ],
         filters: mcp,
         limit: 40,
@@ -126,7 +130,7 @@ export const toolsChartSpecs: UsageChartSpec[] = [
         explore: 'export_events',
         day: exportDay,
         metric: 'export_events_total_downloads',
-        splitBy: 'export_events_format',
+        splitBy: 'export_events_format_name',
         yName: 'Downloads',
         splitDescription: 'Finished downloads per day, split by file format.',
     }),
@@ -137,12 +141,12 @@ export const toolsChartSpecs: UsageChartSpec[] = [
             'Downloads of results only, with the chart or dashboard they came from. A blank content link means the content is unknown, not that there was none.',
         explore: 'export_events',
         by: 'export_events_user_name',
-        then: 'export_events_format',
+        then: 'export_events_format_name',
         dimensions: [
             'export_events_user_name',
             'export_events_chart_name',
             'export_events_dashboard_name',
-            'export_events_format',
+            'export_events_format_name',
             'export_events_event_name',
             'export_events_user_id',
             'export_events_chart_id',
@@ -156,12 +160,34 @@ export const toolsChartSpecs: UsageChartSpec[] = [
         libraryDescription:
             'Finished downloads for each person. Open a person to see the file formats they downloaded.',
     }),
+    trend({
+        key: 'tools-google-sheets-queries-by-day',
+        name: 'Google Sheets queries by day',
+        description: '',
+        explore: 'query_events',
+        day: 'query_events_event_ts_day',
+        metric: 'query_events_total_queries',
+        filters: googleSheets,
+    }),
+    ranking({
+        key: 'tools-google-sheets-queries-by-person',
+        name: 'Google Sheets queries by person',
+        description:
+            'Queries each person ran through the Google Sheets integration in the selected period.',
+        explore: 'query_events',
+        by: 'query_events_user_name',
+        dimensions: ['query_events_user_name', 'query_events_user_id'],
+        metrics: ['query_events_total_queries'],
+        filters: googleSheets,
+        limit: 100,
+        fieldLabels: { query_events_user_name: 'Person' },
+    }),
 ];
 
 export const toolsDashboardSpec: UsageDashboardSpec = {
     key: 'lightdash-analytics-tools',
     name: 'Tools & operations',
-    description: 'MCP tool usage and downloads.',
+    description: 'MCP tool usage, downloads and Google Sheets.',
     tabs: [
         {
             key: 'mcp',
@@ -229,6 +255,23 @@ export const toolsDashboardSpec: UsageDashboardSpec = {
                     description: '',
                     note: false,
                     charts: ['export-audit-actor-content-and-outcome'],
+                    layout: 'row',
+                    rowHeight: 8,
+                },
+                {
+                    title: 'Google Sheets',
+                    caption: true,
+                    description:
+                        'Queries run through the Google Sheets integration, which is not everyone who reads the spreadsheet.',
+                    charts: ['tools-google-sheets-queries-by-day'],
+                    layout: 'row',
+                    rowHeight: 5,
+                },
+                {
+                    title: 'Google Sheets queries by person',
+                    description: '',
+                    note: false,
+                    charts: ['tools-google-sheets-queries-by-person'],
                     layout: 'row',
                     rowHeight: 8,
                 },

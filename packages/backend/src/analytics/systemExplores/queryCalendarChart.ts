@@ -2,12 +2,57 @@ import {
     ChartType,
     CustomDimensionType,
     DimensionType,
+    FilterOperator,
+    UnitOfTime,
     type ChartAsCode,
 } from '@lightdash/common';
+import { analyticsColorPalette } from './analyticsColorPalette';
 
 const day = 'query_calendar_day';
 const queries = 'query_events_total_queries';
+// The day's queries as a number
+const count = 'query_count';
 const ink = '#868E96';
+
+// The calendar always shows the same window, so it fills its tile whatever the dashboard's date range.
+export const queryCalendarWeeks = 26;
+const windowDays = queryCalendarWeeks * 7;
+// 26 weeks of days touch at most 27 calendar weeks, one column each
+const columns = queryCalendarWeeks + 1;
+const dayMs = 86400000;
+// Pixels: the columns share the full width, and a row is at most 1.4 times as tall as a column is wide,
+// so on a very wide tile the cells become wide rectangles instead of leaving the right side empty
+const step = `(width / ${columns})`;
+const unit = `min(1.4 * ${step}, (height - 72) / 7)`;
+const gridTop = 46;
+
+// Days of the window as a grid, whether or not they have data. Runs on one row, after `firstRow`.
+const windowGrid = [
+    {
+        calculate: `sequence(0, ${columns * 7})`,
+        as: 'grid_days',
+    },
+    { flatten: ['grid_days'] },
+    {
+        calculate: `datum.start_monday + datum.grid_days * ${dayMs}`,
+        as: 'grid_day',
+    },
+    {
+        filter: 'datum.grid_day >= datum.window_start && datum.grid_day <= datum.last_day',
+    },
+    { calculate: 'floor(datum.grid_days / 7)', as: 'week' },
+    { calculate: 'datum.grid_days % 7', as: 'weekday' },
+];
+// Where a day's cell is drawn, from its week and weekday
+const cellPixels = [
+    { calculate: `datum.week * ${step}`, as: 'cell_x' },
+    { calculate: `(datum.week + 0.88) * ${step}`, as: 'cell_x2' },
+    { calculate: `${gridTop} + datum.weekday * ${unit}`, as: 'cell_y' },
+    {
+        calculate: `${gridTop} + (datum.weekday + 0.88) * ${unit}`,
+        as: 'cell_y2',
+    },
+];
 
 // Calendar arithmetic uses UTC to preserve the returned date-only bucket in
 // every browser timezone. No query aggregation or missing-day value is changed.
@@ -16,133 +61,90 @@ export const queryCalendarSpec: Record<string, unknown> = {
     autosize: { type: 'fit', contains: 'padding' },
     padding: { left: 34, right: 12, top: 8, bottom: 10 },
     transform: [
-        { joinaggregate: [{ op: 'count', as: 'source_rows' }] },
         {
             calculate: `utcParse(substring(toString(datum.${day}), 0, 10), '%Y-%m-%d')`,
             as: 'day',
         },
-        { filter: `isValid(datum.day) && isValid(datum.${queries})` },
+        // The count can arrive as text, and text sorts "890" above "5000"
+        { calculate: `toNumber(datum.${queries})`, as: count },
+        { filter: `isValid(datum.day) && isFinite(datum.${count})` },
+        { joinaggregate: [{ op: 'max', field: 'day', as: 'last_day' }] },
+        // The window ends on the latest day with data and starts 26 weeks before it
+        {
+            calculate: `toNumber(datum.last_day) - ${windowDays - 1} * ${dayMs}`,
+            as: 'window_start',
+        },
+        { filter: 'toNumber(datum.day) >= datum.window_start' },
+        {
+            calculate: `toNumber(datum.last_day) - ((utcday(datum.last_day) + 6) % 7) * ${dayMs} - ${queryCalendarWeeks * 7} * ${dayMs}`,
+            as: 'start_monday',
+        },
+        // The colours stop at about the 95th percentile of the daily values, so one very busy day takes
+        // the darkest colour without turning every other day pale. The cut-off is the smallest of the
+        // busiest 5% of days, ranked on the count as a number.
+        { joinaggregate: [{ op: 'count', as: 'day_count' }] },
+        {
+            window: [{ op: 'row_number', as: 'busiest_rank' }],
+            sort: [{ field: count, order: 'descending' }],
+        },
+        {
+            calculate: `datum.busiest_rank <= max(1, ceil(datum.day_count * 0.05)) ? datum.${count} : null`,
+            as: 'busiest_value',
+        },
         {
             joinaggregate: [
-                { op: 'min', field: 'day', as: 'first_day' },
-                { op: 'max', field: 'day', as: 'last_day' },
+                { op: 'min', field: 'busiest_value', as: 'colour_top' },
             ],
+        },
+        {
+            calculate: `min(datum.${count}, datum.colour_top)`,
+            as: 'colour_value',
         },
         { calculate: '(utcday(datum.day) + 6) % 7', as: 'weekday' },
         {
-            calculate:
-                'toNumber(datum.first_day) - ((utcday(datum.first_day) + 6) % 7) * 86400000',
-            as: 'first_monday',
-        },
-        {
-            calculate:
-                'floor((toNumber(datum.day) - datum.first_monday) / 604800000)',
+            calculate: `floor((toNumber(datum.day) - datum.start_monday) / ${7 * dayMs})`,
             as: 'week',
         },
-        {
-            calculate:
-                'floor((toNumber(datum.last_day) - datum.first_monday) / 604800000) + 1',
-            as: 'weeks',
-        },
-        {
-            calculate:
-                'max(ceil(width / 28), min(datum.weeks, max(8, floor(width / 14))))',
-            as: 'columns',
-        },
-        { calculate: 'ceil(datum.weeks / datum.columns)', as: 'bands' },
-        // Short histories keep compact cells rather than a tall strip on the
-        // left. Long and folded calendars retain their existing coordinates.
-        {
-            calculate:
-                'datum.weeks < datum.columns ? (1 - datum.weeks / datum.columns) / 2 : 0',
-            as: 'column_offset',
-        },
-        {
-            calculate:
-                'datum.weeks < datum.columns ? min(1, datum.bands * 9 * 28 / max(1, height - 76)) : 1',
-            as: 'row_scale',
-        },
-        { calculate: 'floor(datum.week / datum.columns)', as: 'band' },
-        { calculate: 'datum.week % datum.columns', as: 'column' },
-        {
-            calculate: 'datum.column / datum.columns + datum.column_offset',
-            as: 'cell_x',
-        },
-        {
-            calculate:
-                '(datum.column + 0.88) / datum.columns + datum.column_offset',
-            as: 'cell_x2',
-        },
-        {
-            calculate:
-                '0.5 + ((datum.band * 9 + 1 + datum.weekday) / (datum.bands * 9) - 0.5) * datum.row_scale',
-            as: 'cell_y',
-        },
-        {
-            calculate:
-                '0.5 + ((datum.band * 9 + 1.88 + datum.weekday) / (datum.bands * 9) - 0.5) * datum.row_scale',
-            as: 'cell_y2',
-        },
+        ...cellPixels,
         { calculate: "utcFormat(datum.day, '%A, %d %B %Y')", as: 'date_label' },
         {
             window: [{ op: 'row_number', as: 'row' }],
             sort: [{ field: 'day', order: 'ascending' }],
         },
     ],
-    resolve: { scale: { x: 'independent', y: 'independent' } },
     layer: [],
     config: {
         view: { stroke: null },
         font: 'Inter, Arial, sans-serif',
-        axis: {
-            domain: false,
-            grid: false,
-            tickColor: ink,
-            labelColor: ink,
-            titleColor: ink,
-            labelFontSize: 10,
-            titleFontSize: 11,
-        },
+        // The legend sits above the right end of the grid, on the line of the date range
         legend: {
-            orient: 'bottom',
+            orient: 'top-right',
             direction: 'horizontal',
+            titleOrient: 'left',
+            titleAnchor: 'middle',
             titleFontSize: 11,
+            titleFontWeight: 'normal',
+            titleColor: ink,
+            labelColor: ink,
             labelFontSize: 10,
-            gradientLength: 160,
+            gradientLength: 140,
             gradientThickness: 8,
-            offset: 12,
+            offset: 0,
         },
     },
 };
 
+const pixels = { type: 'quantitative', scale: null, axis: null };
 const calendarPosition = {
-    x: {
-        field: 'cell_x',
-        type: 'quantitative',
-        scale: { domain: [0, 1], nice: false, zero: false },
-        axis: null,
-    },
+    x: { field: 'cell_x', ...pixels },
     x2: { field: 'cell_x2' },
-    y: {
-        field: 'cell_y',
-        type: 'quantitative',
-        scale: {
-            domain: [0, 1],
-            range: [36, { expr: 'height - 40' }],
-            nice: false,
-            zero: false,
-        },
-        axis: null,
-    },
+    y: { field: 'cell_y', ...pixels },
     y2: { field: 'cell_y2' },
 };
 const tooltip = [
     { field: 'date_label', type: 'nominal', title: 'Day' },
-    { field: queries, type: 'quantitative', title: 'Queries', format: ',.0f' },
+    { field: count, type: 'quantitative', title: 'Queries', format: ',.0f' },
 ];
-const calendarFits = {
-    filter: 'datum.weeks <= 104 && (height - 76) / (datum.bands * 9) >= 9',
-};
 const firstRow = { filter: 'datum.row === 1' };
 
 queryCalendarSpec.layer = [
@@ -151,7 +153,7 @@ queryCalendarSpec.layer = [
             firstRow,
             {
                 calculate:
-                    "utcFormat(datum.first_day, width < 500 ? '%d %b %y' : '%d %b %Y') + ' – ' + utcFormat(datum.last_day, width < 500 ? '%d %b %y' : '%d %b %Y') + ' · UTC'",
+                    "utcFormat(datum.window_start, width < 500 ? '%d %b %y' : '%d %b %Y') + ' – ' + utcFormat(datum.last_day, width < 500 ? '%d %b %y' : '%d %b %Y') + ' · UTC'",
                 as: 'range_label',
             },
         ],
@@ -163,42 +165,11 @@ queryCalendarSpec.layer = [
         },
     },
     {
-        // Bound the neutral calendar scaffold independently from the row cap:
-        // 500 sparse observations can span many years. The native trend remains
-        // available beside this calendar when that span cannot fit legibly.
+        // Every day of the window in grey, so a day with no data still has its cell
         transform: [
             firstRow,
-            calendarFits,
-            { calculate: 'sequence(0, datum.weeks * 7)', as: 'grid_days' },
-            { flatten: ['grid_days'] },
-            {
-                calculate: 'datum.first_monday + datum.grid_days * 86400000',
-                as: 'grid_day',
-            },
-            {
-                filter: 'datum.grid_day >= datum.first_day && datum.grid_day <= datum.last_day',
-            },
-            { calculate: 'floor(datum.grid_days / 7)', as: 'grid_week' },
-            {
-                calculate:
-                    '(datum.grid_week % datum.columns) / datum.columns + datum.column_offset',
-                as: 'cell_x',
-            },
-            {
-                calculate:
-                    '(datum.grid_week % datum.columns + 0.88) / datum.columns + datum.column_offset',
-                as: 'cell_x2',
-            },
-            {
-                calculate:
-                    '0.5 + ((floor(datum.grid_week / datum.columns) * 9 + 1 + datum.grid_days % 7) / (datum.bands * 9) - 0.5) * datum.row_scale',
-                as: 'cell_y',
-            },
-            {
-                calculate:
-                    '0.5 + ((floor(datum.grid_week / datum.columns) * 9 + 1.88 + datum.grid_days % 7) / (datum.bands * 9) - 0.5) * datum.row_scale',
-                as: 'cell_y2',
-            },
+            ...windowGrid,
+            ...cellPixels,
             {
                 calculate: "utcFormat(datum.grid_day, '%A, %d %B %Y')",
                 as: 'grid_label',
@@ -221,127 +192,103 @@ queryCalendarSpec.layer = [
         },
     },
     {
-        transform: [calendarFits],
         mark: { type: 'rect', cornerRadius: 2 },
         encoding: {
             ...calendarPosition,
             color: {
-                field: queries,
+                field: 'colour_value',
                 type: 'quantitative',
+                // Up to full strength of the first colour of the Analytics palette. The light end is
+                // dark enough to tell a quiet day from a day with no data
                 scale: {
                     domainMin: 0,
-                    range: ['#D0EBFF', '#748FFC', '#364FC7'],
+                    range: [
+                        '#C7D2FE',
+                        analyticsColorPalette.colors[16],
+                        analyticsColorPalette.colors[0],
+                    ],
                 },
                 legend: {
-                    title: 'Queries / day',
-                    format: '~s',
-                    // The calendar can deliberately hide a range that cannot fit.
-                    // Its empty color domain must not expose NaN legend labels.
-                    gradientOpacity: {
-                        expr: "isFinite(domain('color')[1]) ? 1 : 0",
+                    title: 'Queries per day',
+                    // Zero, half way and the top of the colours
+                    values: {
+                        expr: "[0, domain('color')[1] / 2, domain('color')[1]]",
                     },
-                    labelOpacity: {
-                        expr: "isFinite(domain('color')[1]) ? 1 : 0",
-                    },
-                    titleOpacity: {
-                        expr: "isFinite(domain('color')[1]) ? 1 : 0",
-                    },
+                    // 9.3K, not 9.313k. The top label ends in + because busier days share its colour
                     labelExpr:
-                        "isFinite(datum.value) ? format(datum.value, '~s') : ''",
+                        "isFinite(datum.value) ? upper(format(datum.value, '.2~s')) + (datum.value >= domain('color')[1] ? '+' : '') : ''",
                 },
             },
             tooltip,
         },
     },
     {
+        // A label over the week each month starts in, and over the first week when there is room
+        // before the next one
         transform: [
-            calendarFits,
+            firstRow,
+            ...windowGrid,
             {
-                joinaggregate: [{ op: 'min', field: 'day', as: 'band_start' }],
-                groupby: ['band'],
-            },
-            {
-                filter: 'datum.day === datum.band_start || (utcdate(datum.day) === 1 && datum.column >= 4 && datum.column < datum.columns - 3)',
+                filter: 'utcdate(datum.grid_day) === 1 || (datum.grid_day === datum.window_start && utcdate(datum.grid_day) > 1 && utcdate(datum.grid_day) <= 12)',
             },
             {
                 calculate:
-                    "utcFormat(datum.day, utcmonth(datum.day) === 0 || datum.day === datum.band_start ? '%b %Y' : '%b')",
+                    "utcFormat(datum.grid_day, utcmonth(datum.grid_day) === 0 || datum.grid_day === datum.window_start ? '%b %Y' : '%b')",
                 as: 'month_label',
             },
-            {
-                calculate:
-                    '0.5 + ((datum.band * 9 + 0.25) / (datum.bands * 9) - 0.5) * datum.row_scale',
-                as: 'cell_y',
-            },
+            { calculate: `datum.week * ${step}`, as: 'cell_x' },
         ],
-        mark: { type: 'text', align: 'left', fontSize: 11, color: ink },
+        mark: {
+            type: 'text',
+            align: 'left',
+            baseline: 'bottom',
+            fontSize: 11,
+            color: ink,
+        },
         encoding: {
             x: calendarPosition.x,
-            y: calendarPosition.y,
+            y: { value: gridTop - 6 },
             text: { field: 'month_label' },
         },
     },
     {
         transform: [
             firstRow,
-            calendarFits,
-            { calculate: 'sequence(0, datum.bands * 7)', as: 'labels' },
-            { flatten: ['labels'] },
+            { calculate: 'sequence(0, 7)', as: 'weekday' },
+            { flatten: ['weekday'] },
+            // Every other weekday when the rows are too short for all seven
+            { filter: `${unit} >= 13 || datum.weekday % 2 === 0` },
             {
-                filter: '(height - 76) / (datum.bands * 9) >= 13 || datum.labels % 7 === 0 || datum.labels % 7 === 2 || datum.labels % 7 === 4 || datum.labels % 7 === 6',
-            },
-            {
-                calculate:
-                    '0.5 + ((floor(datum.labels / 7) * 9 + 1.44 + datum.labels % 7) / (datum.bands * 9) - 0.5) * datum.row_scale',
+                calculate: `${gridTop} + (datum.weekday + 0.44) * ${unit}`,
                 as: 'cell_y',
             },
             {
                 calculate:
-                    "['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][datum.labels % 7]",
+                    "['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][datum.weekday]",
                 as: 'weekday_label',
             },
         ],
         mark: {
             type: 'text',
             align: 'right',
+            baseline: 'middle',
             dx: -7,
             color: ink,
             fontSize: 10,
         },
         encoding: {
-            x: { ...calendarPosition.x, field: 'column_offset' },
+            x: { value: 0 },
             y: calendarPosition.y,
             text: { field: 'weekday_label' },
         },
     },
     {
-        transform: [
-            firstRow,
-            {
-                filter: 'datum.weeks > 104 || (height - 76) / (datum.bands * 9) < 9',
-            },
-        ],
-        mark: { type: 'text', align: 'left', fontSize: 12, color: ink },
-        encoding: {
-            x: { value: 0 },
-            y: { value: 60 },
-            text: { value: 'Narrow the date range to see the calendar.' },
-        },
-    },
-    {
-        transform: [
-            firstRow,
-            {
-                calculate:
-                    "datum.source_rows >= 500 ? '500 results · more dates may exist' : 'Grey gaps: no recorded data'",
-                as: 'note',
-            },
-        ],
+        transform: [firstRow],
         mark: { type: 'text', align: 'left', color: ink, fontSize: 10 },
         encoding: {
             x: { value: 0 },
-            y: { value: { expr: 'height - 12' } },
-            text: { field: 'note' },
+            y: { value: { expr: `${gridTop} + 7 * ${unit} + 10` } },
+            text: { value: 'Grey: no recorded data' },
         },
     },
 ];
@@ -351,10 +298,28 @@ export const buildQueryCalendarChart = (source: ChartAsCode): ChartAsCode => ({
     slug: 'lightdash-analytics-query-activity-query-calendar',
     name: 'Queries by day (calendar)',
     description:
-        'Queries per UTC day. Date-range filters apply, but the calendar always groups by day. Grey means no recorded data. Shows the earliest 500 days in the range. Use Queries by day for date zoom and drill-down.',
+        'Queries per UTC day over the last 26 weeks; grey means no recorded data. The date filter does not change this tile.',
     metricQuery: {
         ...source.metricQuery,
         dimensions: [day],
+        // Its own period: a chart that sets one is left alone by the dashboard's date filter
+        filters: {
+            dimensions: {
+                id: 'query-calendar-window',
+                and: [
+                    {
+                        id: 'query-calendar-window-days',
+                        target: { fieldId: 'query_events_event_ts_raw' },
+                        operator: FilterOperator.IN_THE_PAST,
+                        values: [windowDays],
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                            completed: false,
+                        },
+                    },
+                ],
+            },
+        },
         sorts: [{ fieldId: day, descending: false }],
         timezone: 'UTC',
         customDimensions: [

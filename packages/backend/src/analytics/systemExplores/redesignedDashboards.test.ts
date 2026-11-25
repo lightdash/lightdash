@@ -137,120 +137,12 @@ type Tile = [
     fallback: string,
 ];
 const redesigned: Record<string, Record<string, Tile[]>> = {
-    'lightdash-analytics-people': {
-        activity: [
-            [
-                'people-active-latest-day',
-                0,
-                2,
-                18,
-                4,
-                'big-number-with-sparkline-trend',
-                'big_number',
-            ],
-            [
-                'people-recorded-activities',
-                18,
-                2,
-                9,
-                4,
-                'big-number-with-sparkline-trend',
-                'big_number',
-            ],
-            [
-                'people-queries',
-                27,
-                2,
-                9,
-                4,
-                'big-number-with-sparkline-trend',
-                'big_number',
-            ],
-            [
-                'daily-observed-active-people',
-                0,
-                6,
-                36,
-                5,
-                'vega-trellis',
-                'cartesian',
-            ],
-            [
-                'people-activity-by-type-and-day',
-                0,
-                11,
-                36,
-                7,
-                'customizable-cartesian-chart',
-                'cartesian',
-            ],
-            [
-                'power-users-queries-ai-and-exports',
-                0,
-                18,
-                36,
-                8,
-                'sortable-pivot-table',
-                'table',
-            ],
-        ],
-        returning: [
-            [
-                'people-without-observed-activity',
-                0,
-                2,
-                36,
-                4,
-                null,
-                'big_number',
-            ],
-            [
-                'people-without-observed-activity-detail',
-                0,
-                8,
-                36,
-                7,
-                null,
-                'table',
-            ],
-            ['people-without-activity-30d-detail', 0, 15, 36, 7, null, 'table'],
-            [
-                'people-activity-by-person-and-day',
-                0,
-                24,
-                36,
-                9,
-                'heatmap',
-                'table',
-            ],
-        ],
-        channels: [
-            [
-                'people-google-sheets-queries-by-day',
-                0,
-                2,
-                36,
-                5,
-                'vega-trellis',
-                'cartesian',
-            ],
-            [
-                'google-sheets-query-audience',
-                0,
-                7,
-                36,
-                8,
-                'sortable-pivot-table',
-                'table',
-            ],
-        ],
-    },
     'lightdash-analytics-content': {
         audience: [
             [
                 'content-viewers-latest-day',
                 0,
-                2,
+                1,
                 12,
                 4,
                 'big-number-with-sparkline-trend',
@@ -259,7 +151,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'content-views',
                 12,
-                2,
+                1,
                 12,
                 4,
                 'big-number-with-sparkline-trend',
@@ -268,7 +160,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'verified-content-audience-share',
                 24,
-                2,
+                1,
                 12,
                 4,
                 null,
@@ -277,7 +169,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'content-views-by-type-and-day',
                 0,
-                6,
+                5,
                 36,
                 7,
                 'customizable-cartesian-chart',
@@ -286,7 +178,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'content-reach-distinct-people-not-just-views',
                 0,
-                13,
+                12,
                 18,
                 9,
                 'sortable-pivot-table',
@@ -295,7 +187,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'who-visited-which-dashboard',
                 18,
-                13,
+                12,
                 18,
                 9,
                 'sortable-pivot-table',
@@ -306,7 +198,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'new-content-adoption-creation-week-proxy',
                 0,
-                2,
+                1,
                 36,
                 8,
                 'sortable-pivot-table',
@@ -315,7 +207,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'content-creation-by-month',
                 0,
-                10,
+                9,
                 36,
                 7,
                 'customizable-cartesian-chart',
@@ -326,7 +218,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'content-by-activity-status',
                 0,
-                2,
+                1,
                 36,
                 6,
                 'sortable-pivot-table',
@@ -335,7 +227,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'review-candidates-activity-and-known-dependencies',
                 0,
-                8,
+                7,
                 36,
                 8,
                 null,
@@ -346,7 +238,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'content-ownership-current-snapshot',
                 0,
-                2,
+                1,
                 36,
                 7,
                 'sortable-pivot-table',
@@ -355,7 +247,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'high-compute-dashboards-audience-versus-warehouse-time',
                 0,
-                11,
+                9,
                 36,
                 8,
                 'sortable-pivot-table',
@@ -368,7 +260,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'apps-viewers-latest-day',
                 0,
-                2,
+                1,
                 18,
                 4,
                 'big-number-with-sparkline-trend',
@@ -377,7 +269,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'total-loads',
                 18,
-                2,
+                1,
                 9,
                 4,
                 'big-number-with-sparkline-trend',
@@ -386,7 +278,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'apps-loaded-latest-day',
                 27,
-                2,
+                1,
                 9,
                 4,
                 'big-number-with-sparkline-trend',
@@ -395,33 +287,33 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'apps-loads-by-app-and-day',
                 0,
-                7,
+                6,
                 36,
                 14,
                 'vega-trellis',
                 'table',
             ],
-            ['top-apps', 0, 23, 36, 8, 'sortable-pivot-table', 'table'],
+            ['top-apps', 0, 21, 36, 8, 'sortable-pivot-table', 'table'],
         ],
         people: [
-            ['top-people', 0, 2, 18, 9, 'sortable-pivot-table', 'table'],
-            ['user-app-detail', 18, 2, 18, 9, 'sortable-pivot-table', 'table'],
+            ['top-people', 0, 1, 18, 9, 'sortable-pivot-table', 'table'],
+            ['user-app-detail', 18, 1, 18, 9, 'sortable-pivot-table', 'table'],
         ],
         builders: [
             [
                 'apps-builds-by-type-and-day',
                 0,
-                2,
+                1,
                 36,
                 7,
                 'customizable-cartesian-chart',
                 'cartesian',
             ],
-            ['apps-builders', 0, 9, 18, 8, 'sortable-pivot-table', 'table'],
+            ['apps-builders', 0, 8, 18, 8, 'sortable-pivot-table', 'table'],
             [
                 'app-lifecycle-build-activity-versus-loads',
                 18,
-                9,
+                8,
                 18,
                 8,
                 'sortable-pivot-table',
@@ -430,7 +322,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'apps-generation-tokens-by-day',
                 0,
-                19,
+                17,
                 36,
                 5,
                 'vega-trellis',
@@ -439,7 +331,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'app-generation-consumption',
                 0,
-                24,
+                22,
                 36,
                 8,
                 'sortable-pivot-table',
@@ -452,7 +344,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'tools-mcp-people-latest-day',
                 0,
-                2,
+                1,
                 18,
                 4,
                 'big-number-with-sparkline-trend',
@@ -461,7 +353,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'tools-mcp-calls',
                 18,
-                2,
+                1,
                 9,
                 4,
                 'big-number-with-sparkline-trend',
@@ -470,7 +362,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'tools-mcp-failed-calls',
                 27,
-                2,
+                1,
                 9,
                 4,
                 'big-number-with-sparkline-trend',
@@ -479,17 +371,17 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'tools-mcp-calls-by-tool-and-day',
                 0,
-                6,
+                5,
                 36,
                 14,
                 'vega-trellis',
                 'table',
             ],
-            ['tools-mcp-tools-cloud', 0, 20, 18, 9, 'word-cloud', 'cartesian'],
+            ['tools-mcp-tools-cloud', 0, 19, 18, 9, 'word-cloud', 'cartesian'],
             [
                 'mcp-users-clients-tools-and-error-rates',
                 18,
-                20,
+                19,
                 18,
                 9,
                 'sortable-pivot-table',
@@ -542,6 +434,24 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'sortable-pivot-table',
                 'table',
             ],
+            [
+                'tools-google-sheets-queries-by-day',
+                0,
+                22,
+                36,
+                5,
+                'vega-trellis',
+                'cartesian',
+            ],
+            [
+                'tools-google-sheets-queries-by-person',
+                0,
+                27,
+                36,
+                8,
+                'sortable-pivot-table',
+                'table',
+            ],
         ],
     },
     'lightdash-analytics-agent-evaluations': {
@@ -549,7 +459,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'evals-runs',
                 0,
-                2,
+                1,
                 12,
                 4,
                 'big-number-with-sparkline-trend',
@@ -558,7 +468,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'evals-passed-assessments',
                 12,
-                2,
+                1,
                 12,
                 4,
                 'big-number-with-sparkline-trend',
@@ -567,7 +477,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'evals-failed-assessments',
                 24,
-                2,
+                1,
                 12,
                 4,
                 'big-number-with-sparkline-trend',
@@ -576,7 +486,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'assessment-pass-rate-by-day',
                 0,
-                6,
+                5,
                 18,
                 8,
                 'customizable-cartesian-chart',
@@ -585,7 +495,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'assessment-volume-by-day',
                 18,
-                6,
+                5,
                 18,
                 8,
                 'customizable-cartesian-chart',
@@ -594,13 +504,13 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'quality-by-evaluation',
                 0,
-                16,
+                14,
                 36,
                 8,
                 'sortable-pivot-table',
                 'table',
             ],
-            ['recent-evaluation-runs', 0, 24, 36, 7, null, 'table'],
+            ['recent-evaluation-runs', 0, 22, 36, 7, null, 'table'],
         ],
     },
     'lightdash-analytics-adoption': {
@@ -608,7 +518,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-active-people-latest-day',
                 0,
-                2,
+                1,
                 12,
                 4,
                 'big-number-with-sparkline-trend',
@@ -617,7 +527,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-dashboard-viewers-latest-day',
                 12,
-                2,
+                1,
                 12,
                 4,
                 'big-number-with-sparkline-trend',
@@ -626,7 +536,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-app-viewers-latest-day',
                 24,
-                2,
+                1,
                 12,
                 4,
                 'big-number-with-sparkline-trend',
@@ -635,7 +545,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-active-people-day',
                 0,
-                6,
+                5,
                 18,
                 5,
                 'vega-trellis',
@@ -644,7 +554,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-active-people-week',
                 18,
-                6,
+                5,
                 18,
                 5,
                 'vega-trellis',
@@ -653,7 +563,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-activity-by-person-and-day',
                 0,
-                11,
+                10,
                 36,
                 9,
                 'heatmap',
@@ -662,7 +572,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-dashboard-audience',
                 0,
-                22,
+                20,
                 18,
                 8,
                 'sortable-pivot-table',
@@ -671,7 +581,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-app-audience',
                 18,
-                22,
+                20,
                 18,
                 8,
                 'sortable-pivot-table',
@@ -682,7 +592,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'people-without-observed-activity',
                 0,
-                2,
+                1,
                 36,
                 4,
                 null,
@@ -691,19 +601,19 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'people-without-observed-activity-detail',
                 0,
-                8,
+                6,
                 36,
                 7,
                 null,
                 'table',
             ],
-            ['people-without-activity-30d-detail', 0, 15, 36, 7, null, 'table'],
+            ['people-without-activity-30d-detail', 0, 13, 36, 7, null, 'table'],
         ],
         'data-apps': [
             [
                 'adoption-apps-created-by-day',
                 0,
-                2,
+                1,
                 36,
                 5,
                 'vega-trellis',
@@ -712,7 +622,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-app-creators',
                 0,
-                7,
+                6,
                 36,
                 8,
                 'sortable-pivot-table',
@@ -721,7 +631,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-app-reader-trend',
                 0,
-                17,
+                16,
                 36,
                 8,
                 'vega-trellis',
@@ -730,7 +640,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-app-reader-detail',
                 0,
-                25,
+                24,
                 18,
                 8,
                 'sortable-pivot-table',
@@ -739,7 +649,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-app-first-audience',
                 18,
-                25,
+                24,
                 18,
                 8,
                 'sortable-pivot-table',
@@ -762,7 +672,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-ask-ai-questions',
                 0,
-                2,
+                1,
                 36,
                 5,
                 'vega-trellis',
@@ -771,7 +681,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-ask-ai-people',
                 0,
-                7,
+                6,
                 18,
                 5,
                 'vega-trellis',
@@ -780,7 +690,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-ask-ai-frequency',
                 18,
-                7,
+                6,
                 18,
                 5,
                 'vega-trellis',
@@ -789,7 +699,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-ask-ai-users',
                 0,
-                14,
+                12,
                 18,
                 8,
                 'sortable-pivot-table',
@@ -798,7 +708,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'adoption-ask-ai-agents',
                 18,
-                14,
+                12,
                 18,
                 8,
                 'sortable-pivot-table',
@@ -811,7 +721,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'embed-viewers-latest-day',
                 0,
-                2,
+                1,
                 18,
                 4,
                 'big-number-with-sparkline-trend',
@@ -820,7 +730,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'embed-loads',
                 18,
-                2,
+                1,
                 9,
                 4,
                 'big-number-with-sparkline-trend',
@@ -829,18 +739,18 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'embed-dashboards-latest-day',
                 27,
-                2,
+                1,
                 9,
                 4,
                 'big-number-with-sparkline-trend',
                 'big_number',
             ],
-            ['embed-load-trend', 0, 8, 36, 5, 'vega-trellis', 'cartesian'],
-            ['embed-popular-dashboards', 0, 15, 18, 8, null, 'custom'],
+            ['embed-load-trend', 0, 6, 36, 5, 'vega-trellis', 'cartesian'],
+            ['embed-popular-dashboards', 0, 12, 18, 8, null, 'custom'],
             [
                 'embed-identity-coverage',
                 18,
-                15,
+                12,
                 18,
                 8,
                 'customizable-cartesian-chart',
@@ -866,11 +776,11 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'big-number-with-sparkline-trend',
                 'big_number',
             ],
-            ['embed-query-trend', 0, 8, 18, 7, 'vega-trellis', 'cartesian'],
+            ['embed-query-trend', 0, 7, 18, 7, 'vega-trellis', 'cartesian'],
             [
                 'embed-query-latency',
                 18,
-                8,
+                7,
                 18,
                 7,
                 'customizable-cartesian-chart',
@@ -879,7 +789,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'embed-query-outcomes',
                 0,
-                17,
+                15,
                 18,
                 7,
                 'customizable-cartesian-chart',
@@ -888,7 +798,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'embed-query-cache',
                 18,
-                17,
+                15,
                 18,
                 7,
                 'customizable-cartesian-chart',
@@ -1324,11 +1234,17 @@ describe('Agents & AI failed-request card', () => {
         expect(failed.metricQuery.dimensions).toEqual([
             'agent_requests_requested_at_day',
         ]);
-        // The card keeps the outcome filter of the plain number, so both show the same total
-        expect(failed.metricQuery.filters).toEqual(
-            all.find((chart) => chart.slug === failedSlug)!.metricQuery.filters,
+        // The card measures the same failed and cancelled requests as the plain number
+        expect(failed.metricQuery.metrics).toContain(
+            all.find((chart) => chart.slug === failedSlug)!.metricQuery
+                .metrics[0],
         );
         expect(sqlOf(failed)).toContain("IN ('error','cancelled')");
+        // Their share of all tokens is worked out over the whole period, not one day
+        expect(failed.metricQuery.tableCalculations).toMatchObject([
+            { name: 'failed_token_share' },
+        ]);
+        expect(sqlOf(failed)).toContain('failed_token_share');
     });
 
     it('falls back to the plain big number on an older library type', () => {
@@ -1337,6 +1253,64 @@ describe('Agents & AI failed-request card', () => {
             failedSlug,
         );
         expect(failed.chartConfig.type).toBe(ChartType.BIG_NUMBER);
+    });
+
+    it('gives every day the share of the whole period, from real rows', async () => {
+        const { failed } = draw(installedTypes());
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            for (const stream of [
+                'agent_request_events',
+                'ai_usage',
+            ] as const) {
+                await db.run(
+                    `CREATE TABLE ${stream} (${compactedStreamSchemas[stream].map(({ name, type }) => `"${name}" ${type}`).join(',')})`,
+                );
+            }
+            await db.run(
+                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR)',
+            );
+            await db.run(
+                'CREATE TABLE lightdash_agents (org_id VARCHAR, agent_id VARCHAR, name VARCHAR)',
+            );
+            // Day one: a failed request (30 tokens) and a cancelled one (10). Day two: a success (60).
+            await db.run(`INSERT INTO agent_request_events
+                (org_id, project_id, user_id, agent_id, thread_id, prompt_id, event_id, event_ts, stage, outcome) VALUES
+                ('org','project','u','a','t','p1','c1','2026-01-05 10:00:00','created',NULL),
+                ('org','project','u','a','t','p1','o1','2026-01-05 10:00:01','outcome','error'),
+                ('org','project','u','a','t','p2','c2','2026-01-05 11:00:00','created',NULL),
+                ('org','project','u','a','t','p2','o2','2026-01-05 11:00:01','interrupted',NULL),
+                ('org','project','u','a','t','p3','c3','2026-01-06 10:00:00','created',NULL),
+                ('org','project','u','a','t','p3','o3','2026-01-06 10:00:01','outcome','success')`);
+            await db.run(`INSERT INTO ai_usage
+                (org_id, project_id, agent_id, prompt_id, event_id, event_ts, total_tokens) VALUES
+                ('org','project','a','p1','k1','2026-01-05 10:00:01',30),
+                ('org','project','a','p2','k2','2026-01-05 11:00:01',10),
+                ('org','project','a','p3','k3','2026-01-06 10:00:01',60)`);
+            const rows = (
+                await db.runAndReadAll(sqlOf(failed))
+            ).getRowObjectsJS();
+            expect(
+                rows.map((row) => [
+                    Number(
+                        row.agent_requests_failed_or_cancelled_request_tokens ??
+                            0,
+                    ),
+                    Number(row.agent_requests_total_request_tokens),
+                    Number(row.failed_token_share),
+                ]),
+            ).toEqual([
+                [40, 40, 0.4],
+                [0, 60, 0.4],
+            ]);
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
     });
 });
 
@@ -1375,6 +1349,121 @@ describe('library chart options', () => {
     });
 });
 
+describe('hover descriptions', () => {
+    const sentencesOf = (text: string) =>
+        text.split(/[.?!](?:\s+|$)/).filter((sentence) => sentence.trim())
+            .length;
+
+    it('say what a tile shows in at most two sentences, in the plain and the library version', () => {
+        const long = analyticsContentAsCode.flatMap(({ dashboard, charts }) => {
+            const tiled = new Set(
+                dashboard.tiles.flatMap((tile) =>
+                    'chartSlug' in tile.properties
+                        ? [tile.properties.chartSlug]
+                        : [],
+                ),
+            );
+            return charts
+                .filter(({ slug }) => tiled.has(slug))
+                .flatMap(({ slug, description }) =>
+                    [
+                        description ?? '',
+                        analyticsLibraryChartBindings.get(slug)?.query
+                            ?.description ?? '',
+                    ]
+                        .filter((text) => sentencesOf(text) > 2)
+                        .map((text) => `${slug}: ${text}`),
+                );
+        });
+        expect(long).toEqual([]);
+    });
+});
+
+describe('field labels a library chart can show', () => {
+    // A library chart titles its axes, legends and columns with the label of each field it draws
+    it('are plain words, with no column-style names', () => {
+        const labels = new Map(
+            explores.flatMap((explore) =>
+                Object.values(explore.tables).flatMap((table) =>
+                    [
+                        ...Object.values(table.dimensions),
+                        ...Object.values(table.metrics),
+                    ].map((field) => [
+                        `${explore.name}|${table.name}_${field.name}`,
+                        field.label,
+                    ]),
+                ),
+            ),
+        );
+        const shown = analyticsContentAsCode.flatMap(({ charts }) =>
+            charts.flatMap((chart) =>
+                Object.values(
+                    analyticsLibraryChartBindings.get(chart.slug)
+                        ?.fieldMapping ?? {},
+                )
+                    .flat()
+                    .flatMap((field) => {
+                        const label = labels.get(`${chart.tableName}|${field}`);
+                        return label ? [label] : [];
+                    }),
+            ),
+        );
+        expect(shown.length).toBeGreaterThan(100);
+        expect(
+            [...new Set(shown)].filter((label) =>
+                /\b(ts|at|Total|Unique|Distinct|Qualifying|Observed|coverage|count|name|label|User|Users)\b| name$/i.test(
+                    label,
+                ),
+            ),
+        ).toEqual([]);
+        expect(labels.get('ai_usage|ai_usage_feature_name')).toBe('Feature');
+        expect(labels.get('ai_usage|ai_usage_feature')).toBe(
+            'Feature (recorded value)',
+        );
+        expect(labels.get('query_events|query_events_event_ts_day')).toBe(
+            'Day',
+        );
+        expect(
+            labels.get('query_events|query_events_p95_response_time_s'),
+        ).toBe('P95 response time (seconds)');
+    });
+});
+
+describe('axis titles of the area charts', () => {
+    // The trellis has no title options: it titles its axes with the labels of the fields it draws
+    it.each([
+        ['lightdash-analytics-home-people-by-day', 'Day', 'People'],
+        [
+            'lightdash-analytics-home-agent-requests-by-day',
+            'Day',
+            'Agent requests',
+        ],
+        [
+            'lightdash-analytics-query-activity-active-users-by-day',
+            'Day',
+            'People',
+        ],
+    ])('%s reads %s and %s', (slug, xTitle, yTitle) => {
+        const binding = analyticsLibraryChartBindings.get(slug)!;
+        expect(binding.slug).toBe('vega-trellis');
+        const labels = new Map(
+            explores.flatMap((explore) =>
+                Object.values(explore.tables).flatMap((table) =>
+                    [
+                        ...Object.values(table.dimensions),
+                        ...Object.values(table.metrics),
+                    ].map((field) => [
+                        `${table.name}_${field.name}`,
+                        field.label,
+                    ]),
+                ),
+            ),
+        );
+        expect(labels.get(binding.fieldMapping.x as string)).toBe(xTitle);
+        expect(labels.get(binding.fieldMapping.value as string)).toBe(yTitle);
+    });
+});
+
 describe('top categories', () => {
     it('keeps the categories with the largest totals, whatever the day', async () => {
         const chart = analyticsContentAsCode
@@ -1382,7 +1471,7 @@ describe('top categories', () => {
             .find(
                 ({ slug }) =>
                     slug ===
-                    'lightdash-analytics-people-people-activity-by-person-and-day',
+                    'lightdash-analytics-adoption-adoption-activity-by-person-and-day',
             )!;
         const instance = await DuckDBInstance.create(':memory:', {
             threads: '1',
@@ -1404,8 +1493,8 @@ describe('top categories', () => {
                     `INSERT INTO lightdash_users VALUES ('org','u${n}','Person ${n}',NULL)`,
                 );
                 await db.run(`INSERT INTO user_activity (org_id,project_id,user_id,activity_date,event_count,stream) VALUES
-                    ('org','project','u${n}','2026-01-05',${n},'query_events'),
-                    ('org','project','u${n}','2026-01-06',${n},'query_events')`);
+                    ('org','project','u${n}',CURRENT_DATE - 3,${n},'query_events'),
+                    ('org','project','u${n}',CURRENT_DATE - 2,${n},'query_events')`);
             }
             const rows = (
                 await db.runAndReadAll(sqlOf(chart))

@@ -7,27 +7,32 @@ import {
 import type { UsageChartSpec } from './usageDashboardTypes';
 
 const month = '${query_events.event_ts_month}';
+export const monthLabel = 'month_label';
 const previousMonth = `LAG(${month}) OVER (ORDER BY ${month})`;
 const adjacentMonth = `date_diff('month', ${previousMonth}, ${month}) = 1`;
 
 export const monthlyQueryComparisonCharts: UsageChartSpec[] = [
     {
         key: 'querying-users-month-over-month',
-        name: 'Users running queries by month',
+        name: 'People running queries by month',
         metric: 'unique_users',
-        label: 'Querying users',
+        label: 'People',
+        // Newest month first in the table
+        newestFirst: true,
         description:
-            'Distinct user IDs that ran a query in each month, including service accounts. Queries with no user ID are left out. A user who queried on several days counts once for the month. ∅ means there is no data for the month before, or it was zero. Months with no data are left out.',
+            'People who ran a query in each month, counted once for the month, including service accounts. ∅ means there is no figure for the month before.',
     },
     {
         key: 'queries-run-month-over-month',
         name: 'Queries run by month',
         metric: 'total_queries',
         label: 'Queries run',
+        // Oldest month first, so the chart reads left to right
+        newestFirst: false,
         description:
-            'Completed query attempts, including cache hits and queries that failed during execution. Preview projects and queries that failed before execution are left out. ∅ means there is no data for the month before, or it was zero. Months with no data are left out.',
+            'Queries run in each month, including cache hits and queries that failed while running. The change axis stops at 200%, so a larger change runs off the top.',
     },
-].map(({ metric, label, ...spec }) => {
+].map(({ metric, label, newestFirst, ...spec }) => {
     const value = `\${query_events.${metric}}`;
     const previous = `LAG(${value}) OVER (ORDER BY ${month})`;
     return {
@@ -44,13 +49,30 @@ export const monthlyQueryComparisonCharts: UsageChartSpec[] = [
             },
         ],
         timezone: 'UTC',
-        sorts: [{ fieldId: 'query_events_event_ts_month', descending: true }],
+        sorts: [
+            {
+                fieldId: 'query_events_event_ts_month',
+                descending: newestFirst,
+            },
+        ],
         limit: 12,
-        fieldLabels: {
-            query_events_event_ts_month: 'Month (UTC)',
-            [`query_events_${metric}`]: label,
-        },
+        fieldLabels: { [`query_events_${metric}`]: label },
+        // The month is shown by its name ("Oct 2026"); the date itself only orders the rows
+        hiddenColumns: ['query_events_event_ts_month'],
+        columnOrder: [
+            monthLabel,
+            'query_events_event_ts_month',
+            `query_events_${metric}`,
+            'monthly_change',
+            'monthly_change_percent',
+        ],
         tableCalculations: [
+            {
+                name: monthLabel,
+                displayName: 'Month (UTC)',
+                type: TableCalculationType.STRING,
+                sql: `strftime(${month}, '%b %Y')`,
+            },
             {
                 name: 'monthly_change',
                 displayName: 'Change vs previous month',

@@ -1,4 +1,5 @@
 import { FilterOperator, ProjectType } from '@lightdash/common';
+import { seriesByDay } from './chartBuilders';
 import type { LibraryChartBinding } from './libraryCharts';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
 
@@ -62,16 +63,14 @@ const card = ({
             metrics: [metric],
             sorts: [{ fieldId: day, descending: false }],
             limit: 500,
-            description: distinct
-                ? `${description} The line shows each day. A person active on several days is counted on each of those days.`
-                : description,
+            description,
         },
     },
 });
 
 // One full-width smooth filled line. Each measure has its own tile and scale: people is a distinct count
 // and the others count events, so they cannot share an axis.
-const trendRows: LibraryChartBinding['optionValues'] = {
+export const trendRows: LibraryChartBinding['optionValues'] = {
     arrangement: 'rows',
     minPanelHeight: 70,
     sharedY: false,
@@ -174,13 +173,21 @@ export const homeChartSpecs: UsageChartSpec[] = [
         metric: 'user_activity_unique_users',
         fieldLabels: userActivityLabels,
     }),
-    trend({
-        key: 'queries-by-day',
-        name: 'Queries by day',
-        description: 'Includes failed and scheduled queries.',
-        explore: 'query_events',
-        day: 'query_events_event_ts_day',
-        metric: 'query_events_total_queries',
+    // What the recorded activity is made of. Stacked, so it does not repeat the shape of the two
+    // area charts around it.
+    seriesByDay({
+        key: 'activity-by-type-and-day',
+        name: 'Queries, AI calls and downloads by day',
+        description: `Recorded activity each day, by what it was. ${anyActivity}`,
+        explore: 'user_activity',
+        day: 'user_activity_activity_date_day',
+        series: [
+            { metric: 'user_activity_total_queries', name: 'Queries' },
+            { metric: 'user_activity_total_ai_calls', name: 'AI calls' },
+            { metric: 'user_activity_total_downloads', name: 'Downloads' },
+        ],
+        yName: 'Count',
+        stacked: true,
     }),
     trend({
         key: 'agent-requests-by-day',
@@ -228,7 +235,7 @@ export const homeChartSpecs: UsageChartSpec[] = [
                     },
                 ],
                 limit: 10,
-                description: `${mostActivePeopleDescription} People without a display name are grouped as Unknown user.`,
+                description: mostActivePeopleDescription,
             },
         },
     },
@@ -255,20 +262,24 @@ export const homeDashboardSpec: UsageDashboardSpec = {
                         'content-created',
                     ],
                 },
-                ...[
-                    'people-by-day',
-                    'queries-by-day',
-                    'agent-requests-by-day',
-                ].map(
-                    (
+                ...(
+                    [
+                        ['people-by-day', 5],
+                        // Stacked bars need more height than a single line
+                        ['activity-by-type-and-day', 6],
+                        ['agent-requests-by-day', 5],
+                    ] as const
+                ).map(
+                    ([
                         key,
-                    ): UsageDashboardSpec['tabs'][number]['sections'][number] => ({
+                        rowHeight,
+                    ]): UsageDashboardSpec['tabs'][number]['sections'][number] => ({
                         title: 'Activity by day',
                         description: '',
                         note: false,
                         charts: [key],
                         layout: 'row',
-                        rowHeight: 5,
+                        rowHeight,
                     }),
                 ),
                 {

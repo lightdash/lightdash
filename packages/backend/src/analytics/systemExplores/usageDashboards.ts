@@ -1,6 +1,7 @@
 import {
     CartesianSeriesType,
     ChartType,
+    Compact,
     CustomFormatType,
     DashboardTileTypes,
     FilterOperator,
@@ -20,8 +21,7 @@ import { dataAppsChartSpecs, dataAppsDashboardSpec } from './dataAppsDashboard';
 import { embedChartSpecs, embedDashboardSpec } from './embedDashboard';
 import { homeChartSpecs, homeDashboardSpec } from './homeDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
-import { noteRows } from './noteLayout';
-import { peopleChartSpecs, peopleDashboardSpec } from './peopleDashboard';
+import { noteRows, titledNote } from './noteLayout';
 import { peopleNoActivityChartSpecs } from './peopleNoActivityCharts';
 import { toolsChartSpecs, toolsDashboardSpec } from './toolsDashboard';
 import { usageActivityOriginSql } from './usageActivityOrigin';
@@ -124,10 +124,6 @@ const withPeopleDisplayName = (chart: ChartAsCode): ChartAsCode => {
     };
 };
 
-// Appended to every table that shows the person and Activity source columns.
-const userActivityNote =
-    'People without a display name show their primary email, or User <ID> if there is no email. No user recorded means the activity has no user ID. Activity source lists where the activity in each row came from; older rows can be missing embed context.';
-
 const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
     const tableName =
         chart.tableName === 'agent_request_starts'
@@ -152,9 +148,6 @@ const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
     const originField = `${tableName}_${originName}`;
     return {
         ...chart,
-        description: [chart.description, userActivityNote]
-            .filter(Boolean)
-            .join(' '),
         metricQuery: {
             ...chart.metricQuery,
             dimensions: [
@@ -231,7 +224,11 @@ const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
     if (spec.visualization === 'number') {
         return {
             type: ChartType.BIG_NUMBER,
-            config: { selectedField: metric, showBigNumberLabel: false },
+            // A number can show a table calculation, named as its one y field
+            config: {
+                selectedField: spec.yFields?.[0] ?? metric,
+                showBigNumberLabel: false,
+            },
         };
     }
     if (spec.visualization === 'donut') {
@@ -352,6 +349,28 @@ const topCategoryCalculations = (
     ];
 };
 
+// Counts on a chart axis read 10K and 10M, not 10,000 and 10,000,000. Rates and durations keep their
+// own formats.
+export const compactAxisOverrides = (metrics: string[]) =>
+    Object.fromEntries(
+        metrics
+            .filter(
+                (field) =>
+                    !['_ms', '_s', '_rate', '_coverage', '_share'].some(
+                        (suffix) => field.endsWith(suffix),
+                    ),
+            )
+            .map((field) => [
+                field,
+                {
+                    formatOptions: {
+                        type: CustomFormatType.NUMBER,
+                        compact: Compact.AUTO,
+                    },
+                },
+            ]),
+    );
+
 /** Millisecond metrics show as whole numbers: decimals add noise, not signal. */
 export const wholeMillisecondOverrides = (metrics: string[]) =>
     Object.fromEntries(
@@ -385,6 +404,10 @@ const buildChart = (
         dimensions: spec.dimensions,
         metrics: spec.metrics,
         metricOverrides: {
+            ...(spec.visualization &&
+            ['line', 'bar', 'scatter'].includes(spec.visualization)
+                ? compactAxisOverrides(spec.metrics)
+                : {}),
             ...Object.fromEntries(
                 spec.metrics
                     .filter((field) =>
@@ -447,7 +470,7 @@ const buildChart = (
     },
     chartConfig: chartConfig(spec),
     tableConfig: {
-        columnOrder: [
+        columnOrder: spec.columnOrder ?? [
             ...spec.dimensions,
             ...spec.metrics,
             ...(spec.tableCalculations ?? []).map(({ name }) => name),
@@ -474,7 +497,6 @@ export const note = (
 
 const dashboardSpecs = [
     ...usageDashboardSpecs,
-    peopleDashboardSpec,
     contentDashboardSpec,
     dataAppsDashboardSpec,
     toolsDashboardSpec,
@@ -487,7 +509,6 @@ const dashboardSpecs = [
 const allChartSpecs: UsageChartSpec[] = [
     ...homeChartSpecs,
     ...usageChartSpecs,
-    ...peopleChartSpecs,
     ...contentChartSpecs,
     ...dataAppsChartSpecs,
     ...toolsChartSpecs,
@@ -560,7 +581,7 @@ export const buildUsageDashboards = (
                 if (section.note !== false) {
                     const content = section.caption
                         ? section.description
-                        : `### ${section.title}\n\n${section.description}`;
+                        : titledNote(section.title, section.description);
                     // As tall as its text and no taller
                     const noteHeight = noteRows(content);
                     dashboard.tiles.push(note(tab.key, y, noteHeight, content));

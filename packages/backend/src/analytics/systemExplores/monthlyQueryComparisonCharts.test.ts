@@ -118,21 +118,36 @@ describe('monthly query comparisons', () => {
                 null,
                 null,
             ]);
+            expect(users.map((row) => row.month_label)).toEqual([
+                'Mar 2026',
+                'Jan 2026',
+                'Dec 2025',
+                'Nov 2025',
+                'Apr 2025',
+            ]);
+            // The chart's rows run oldest first, so it reads left to right
+            expect(queries.map((row) => row.month_label)).toEqual([
+                'Apr 2025',
+                'Nov 2025',
+                'Dec 2025',
+                'Jan 2026',
+                'Mar 2026',
+            ]);
             expect(
                 queries.map((row) => Number(row.query_events_total_queries)),
-            ).toEqual([1, 3, 2, 1, 1]);
+            ).toEqual([1, 1, 2, 3, 1]);
             expect(
                 queries.map((row) =>
                     row.monthly_change === null
                         ? null
                         : Number(row.monthly_change),
                 ),
-            ).toEqual([null, 1, 1, null, null]);
+            ).toEqual([null, null, 1, 1, null]);
             expect(queries.map((row) => row.monthly_change_percent)).toEqual([
                 null,
-                0.5,
-                1,
                 null,
+                1,
+                0.5,
                 null,
             ]);
         } finally {

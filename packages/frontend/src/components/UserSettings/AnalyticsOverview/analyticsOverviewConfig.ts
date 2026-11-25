@@ -167,7 +167,7 @@ export const analyticsHeadlineMetrics = [
     {
         title: 'Active people',
         description: 'People with any recorded activity',
-        tab: 'people',
+        tab: 'adoption',
         query: activityTotals,
         metric: 'unique_users',
     },
@@ -220,7 +220,13 @@ const analyticsAiSummary = {
 
 export type AnalyticsSummarySpec = {
     query: AnalyticsQuerySpec;
-    metrics: { title: string; metric: string; compact: boolean }[];
+    metrics: {
+        title: string;
+        metric: string;
+        compact: boolean;
+        // Decimal places to keep: a duration in seconds needs one
+        decimals?: number;
+    }[];
 };
 
 const querySummary: AnalyticsSummarySpec = {
@@ -230,26 +236,28 @@ const querySummary: AnalyticsSummarySpec = {
         [
             'total_queries',
             'unique_users',
-            'avg_warehouse_execution_time_ms',
-            'p90_warehouse_execution_time_ms',
+            'avg_warehouse_execution_time_s',
+            'p90_warehouse_execution_time_s',
         ],
     ),
     metrics: [
         { title: 'Queries', metric: 'total_queries', compact: false },
         {
-            title: 'Users running queries',
+            title: 'People running queries',
             metric: 'unique_users',
             compact: false,
         },
         {
-            title: 'Average warehouse time (ms)',
-            metric: 'avg_warehouse_execution_time_ms',
+            title: 'Average warehouse time (s)',
+            metric: 'avg_warehouse_execution_time_s',
             compact: false,
+            decimals: 1,
         },
         {
-            title: 'P90 warehouse time (ms)',
-            metric: 'p90_warehouse_execution_time_ms',
+            title: 'P90 warehouse time (s)',
+            metric: 'p90_warehouse_execution_time_s',
             compact: false,
+            decimals: 1,
         },
     ],
 };
@@ -346,29 +354,6 @@ export const analyticsTabs: {
                 ),
                 kind: 'donut',
             },
-        ],
-    },
-    {
-        id: 'people',
-        summary: null,
-        label: 'People',
-        description: 'Active people, returning people and channels.',
-        dashboardSlug: 'lightdash-analytics-people',
-        charts: [
-            activeUsers,
-            topUsers,
-            ranking(
-                'Activity by source',
-                'activity',
-                ['stream'],
-                'total_events',
-            ),
-            ranking(
-                'People by project',
-                'activity',
-                ['project_id'],
-                'unique_users',
-            ),
         ],
     },
     {
@@ -624,10 +609,11 @@ export const analyticsDateRange = (days: number, now: Date) => {
     };
 };
 
-export const formatAnalyticsNumber = (value: number) =>
-    new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(
-        value,
-    );
+export const formatAnalyticsNumber = (value: number, decimals = 0) =>
+    new Intl.NumberFormat(undefined, {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+    }).format(value);
 
 export const analyticsCategoryLabels: Record<string, Record<string, string>> = {
     stream: {

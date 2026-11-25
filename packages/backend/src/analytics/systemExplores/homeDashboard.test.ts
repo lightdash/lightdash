@@ -109,7 +109,9 @@ const installedTypes = (): Map<string, UsableLibraryChartType> => {
 };
 
 const cards = ['active-people', 'queries', 'agent-requests', 'content-created'];
-const trends = ['people-by-day', 'queries-by-day', 'agent-requests-by-day'];
+const trends = ['people-by-day', 'agent-requests-by-day'];
+// Between the two trends: what the recorded activity is made of, as stacked bars
+const breakdown = 'activity-by-type-and-day';
 const table = 'most-active-people';
 
 describe('Overview dashboard', () => {
@@ -120,11 +122,13 @@ describe('Overview dashboard', () => {
             tabs: [{ slug: 'overview', name: 'Overview', order: 0 }],
         });
         expect(charts.map((chart) => chart.slug)).toEqual(
-            [...cards, ...trends, table].map((key) => `${slug}-${key}`),
+            [...cards, trends[0], breakdown, trends[1], table].map(
+                (key) => `${slug}-${key}`,
+            ),
         );
     });
 
-    it('lays out four cards, three full-width trends and the table, with no text tiles', () => {
+    it('lays out four cards, three full-width charts by day and the table, with no text tiles', () => {
         expect(
             dashboard.tiles.every(
                 (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
@@ -146,9 +150,9 @@ describe('Overview dashboard', () => {
             ['agent-requests', 18, 0, 9, 4],
             ['content-created', 27, 0, 9, 4],
             ['people-by-day', 0, 4, 36, 5],
-            ['queries-by-day', 0, 9, 36, 5],
-            ['agent-requests-by-day', 0, 14, 36, 5],
-            ['most-active-people', 0, 19, 36, 8],
+            ['activity-by-type-and-day', 0, 9, 36, 6],
+            ['agent-requests-by-day', 0, 15, 36, 5],
+            ['most-active-people', 0, 20, 36, 8],
         ]);
     });
 
@@ -159,7 +163,7 @@ describe('Overview dashboard', () => {
             'Agent requests',
             'Content created',
             'People with any recorded activity by day',
-            'Queries by day',
+            'Queries, AI calls and downloads by day',
             'Agent requests by day',
             'Most active people (top 10)',
         ]);
@@ -206,6 +210,13 @@ describe('Overview dashboard', () => {
                         ),
                 ).toEqual(['line']);
             });
+            const stacked = chartOf(breakdown).chartConfig;
+            expect(
+                stacked.type === ChartType.CARTESIAN &&
+                    stacked.config?.eChartsConfig.series?.map(
+                        (series) => series.name,
+                    ),
+            ).toEqual(['Queries', 'AI calls', 'Downloads']);
             expect(chartOf(table).chartConfig.type).toBe(ChartType.TABLE);
         });
 
@@ -248,7 +259,9 @@ describe('Overview dashboard', () => {
                 ),
             ).toEqual([
                 ...cards.map(() => 'big-number-with-sparkline-trend-1'),
-                ...trends.map(() => 'vega-trellis-1'),
+                'vega-trellis-1',
+                'customizable-cartesian-chart-1',
+                'vega-trellis-1',
                 'sortable-pivot-table-1',
             ]);
         });
@@ -444,7 +457,7 @@ describe('Overview dashboard', () => {
                 // The day the content was created
                 'content-created': 'content_health_created_at_day',
                 'people-by-day': 'user_activity_activity_date_day',
-                'queries-by-day': 'query_events_event_ts_day',
+                'activity-by-type-and-day': 'user_activity_activity_date_day',
                 'agent-requests-by-day': 'agent_requests_requested_at_day',
                 'most-active-people': 'user_activity_activity_date_day',
             });
@@ -454,7 +467,7 @@ describe('Overview dashboard', () => {
                 'agent-requests': 'agent_requests_project_id',
                 'content-created': 'content_health_project_id',
                 'people-by-day': 'user_activity_project_id',
-                'queries-by-day': 'query_events_project_id',
+                'activity-by-type-and-day': 'user_activity_project_id',
                 'agent-requests-by-day': 'agent_requests_project_id',
                 'most-active-people': 'user_activity_project_id',
             });

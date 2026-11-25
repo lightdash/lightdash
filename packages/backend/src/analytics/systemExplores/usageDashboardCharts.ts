@@ -3,9 +3,13 @@ import {
     FilterOperator,
     TableCalculationType,
 } from '@lightdash/common';
-import { card } from './chartBuilders';
 import { monthlyQueryComparisonCharts } from './monthlyQueryComparisonCharts';
 import type { UsageChartSpec } from './usageDashboardTypes';
+
+const failedTokens = 'agent_requests_failed_or_cancelled_request_tokens';
+const failedTokenShare = 'failed_token_share';
+const failedTokensDescription =
+    'Tokens from AI calls linked to agent requests that ended in an error or were cancelled. Tokens are not cost.';
 
 export const usageChartSpecs: UsageChartSpec[] = [
     ...monthlyQueryComparisonCharts,
@@ -19,7 +23,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'agent_evaluation_runs_event_ts_raw',
             'agent_evaluation_runs_agent_name',
             'agent_evaluation_runs_evaluation_name',
-            'agent_evaluation_runs_run_status',
+            'agent_evaluation_runs_run_status_name',
             'agent_evaluation_runs_run_id',
         ],
         metrics: [
@@ -39,13 +43,13 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'most-used-fields',
         name: 'Queries per field',
         description:
-            'Distinct queries per field, counting fields that were selected, filtered, grouped or sorted. Cached and failed queries count. A field missing here can still be in use. Names are those recorded when the query ran, so a renamed field can appear more than once.',
+            'Distinct queries per field, counting fields that were selected, filtered, grouped or sorted. A renamed field can appear more than once.',
         explore: 'semantic_usage',
         dimensions: [
             'semantic_usage_field_label',
             'semantic_usage_table_name',
-            'semantic_usage_field_kind',
-            'semantic_usage_field_origin',
+            'semantic_usage_field_kind_name',
+            'semantic_usage_field_origin_name',
             'semantic_usage_field_id',
             'semantic_usage_project_id',
         ],
@@ -117,8 +121,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'semantic_usage_user_id',
             'semantic_usage_field_label',
             'semantic_usage_table_name',
-            'semantic_usage_field_kind',
-            'semantic_usage_field_origin',
+            'semantic_usage_field_kind_name',
+            'semantic_usage_field_origin_name',
             'semantic_usage_field_id',
             'semantic_usage_project_id',
         ],
@@ -141,7 +145,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         dimensions: [
             'semantic_usage_field_label',
             'semantic_usage_table_name',
-            'semantic_usage_field_origin',
+            'semantic_usage_field_origin_name',
             'semantic_usage_field_id',
             'semantic_usage_project_id',
             'semantic_usage_chart_name',
@@ -150,7 +154,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'semantic_usage_dashboard_id',
             'semantic_usage_app_name',
             'semantic_usage_app_id',
-            'semantic_usage_context',
+            'semantic_usage_context_name',
         ],
         metrics: ['semantic_usage_total_queries'],
         filters: [
@@ -164,16 +168,29 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'field-capture-coverage',
-        name: 'Queries with field details',
+        name: 'Share of queries with a full field list',
         description:
-            'Distinct queries by how much field detail was recorded, including older history and SQL queries. Missing detail does not mean a query used no fields. Captured means the fields were recorded, partial that some could not be, unavailable includes SQL queries, and not captured includes older history.',
+            'Queries in the selected period where Lightdash has the full list of metrics and dimensions the query used, as a share of all queries. SQL queries and queries from before the list was switched on have no list, and very large queries can have only part of one.',
         explore: 'semantic_usage',
-        dimensions: ['semantic_usage_lineage_status'],
-        metrics: ['semantic_usage_total_queries'],
-        limit: 10,
+        dimensions: [],
+        metrics: [
+            'semantic_usage_queries_with_field_details',
+            'semantic_usage_total_queries',
+        ],
+        tableCalculations: [
+            {
+                name: 'field_list_share',
+                displayName: 'Share of queries with a full field list',
+                type: TableCalculationType.NUMBER,
+                sql: '${semantic_usage.queries_with_field_details} * 1.0 / NULLIF(${semantic_usage.total_queries}, 0)',
+                format: { type: CustomFormatType.PERCENT, round: 0 },
+            },
+        ],
+        limit: 1,
         sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
-        visualization: 'bar',
-        flipAxes: true,
+        visualization: 'number',
+        // The number shown is the share, not the first measure
+        yFields: ['field_list_share'],
     },
     {
         key: 'agent-requests-trend',
@@ -544,13 +561,13 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'agent-retries-latency-and-consumption',
         name: 'Requests and latency by retry count',
         description:
-            'Requests, time spent on failed attempts, average latency and tokens for each retry count. Waiting time between attempts is not included. Token totals can be incomplete. An agent step is not a retry.',
+            'Requests, time spent on failed attempts, average latency and tokens for each retry count. Each retry runs the request again with new AI calls, so more retries mean a longer wait and more tokens.',
         explore: 'agent_requests',
         dimensions: ['agent_requests_retry_count'],
         metrics: [
             'agent_requests_total_requests',
-            'agent_requests_total_retry_overhead_ms',
-            'agent_requests_average_request_latency_ms',
+            'agent_requests_total_retry_overhead_s',
+            'agent_requests_average_request_latency_s',
             'agent_requests_total_request_tokens',
         ],
         limit: 30,
@@ -566,11 +583,11 @@ export const usageChartSpecs: UsageChartSpec[] = [
             fieldMapping: {
                 x: 'agent_requests_retry_count',
                 m1: 'agent_requests_total_requests',
-                m2: 'agent_requests_average_request_latency_ms',
+                m2: 'agent_requests_average_request_latency_s',
             },
             optionValues: {
                 m1Name: 'Agent requests',
-                m2Name: 'Average latency (ms)',
+                m2Name: 'Average latency (s)',
                 seriesType: 'bar',
                 m2Type: 'line',
                 dualAxis: true,
@@ -579,13 +596,13 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 showSymbols: true,
                 xName: 'Retries',
                 yName: 'Agent requests',
-                yRightName: 'Average latency (ms)',
+                yRightName: 'Average latency (s)',
             },
             query: {
                 dimensions: ['agent_requests_retry_count'],
                 metrics: [
                     'agent_requests_total_requests',
-                    'agent_requests_average_request_latency_ms',
+                    'agent_requests_average_request_latency_s',
                 ],
                 sorts: [
                     {
@@ -595,7 +612,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 ],
                 limit: 30,
                 description:
-                    'Requests and average request latency by recorded retry count. An agent step is not a retry.',
+                    'Requests and average request latency by retry count. Each retry runs the request again with new AI calls, so more retries mean a longer wait and more tokens.',
             },
         },
     },
@@ -607,7 +624,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         dimensions: [
             'ai_usage_user_name',
             'ai_usage_model',
-            'ai_usage_feature',
+            'ai_usage_feature_name',
             'ai_usage_user_id',
         ],
         metrics: ['ai_usage_total_tokens_used', 'ai_usage_total_ai_calls'],
@@ -620,7 +637,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.17.1',
+            minVersion: '0.18.3',
             fieldMapping: {
                 x: 'ai_usage_user_name',
                 m1: 'ai_usage_total_tokens_used',
@@ -631,6 +648,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 yName: 'Tokens',
                 seriesType: 'bar',
                 stack: 'normal',
+                splitSort: 'total',
                 xAxisType: 'category',
                 xLabelAutoRotate: false,
                 xLabelRotate: 45,
@@ -655,7 +673,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         name: 'Tokens by feature and model',
         description: '',
         explore: 'ai_usage',
-        dimensions: ['ai_usage_feature', 'ai_usage_model'],
+        dimensions: ['ai_usage_feature_name', 'ai_usage_model'],
         metrics: ['ai_usage_total_tokens_used'],
         limit: 100,
         sorts: [
@@ -669,7 +687,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             minVersion: '0.5.0',
             fieldMapping: {
                 x: 'ai_usage_model',
-                y: 'ai_usage_feature',
+                y: 'ai_usage_feature_name',
                 value: 'ai_usage_total_tokens_used',
             },
             optionValues: {
@@ -683,12 +701,12 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'query-failures-affected-people',
-        name: 'Query failures by users affected',
+        name: 'Query failures by people affected',
         description:
-            'Failed queries, ranked by users affected. Failures not linked to any content are still shown.',
+            'Failed queries, ranked by people affected. Failures not linked to any content are still shown.',
         explore: 'query_events',
+        // Every row is a failure, so the outcome is not a column
         dimensions: [
-            'query_events_status',
             'query_events_dashboard_name',
             'query_events_explore_name',
             'query_events_dashboard_id',
@@ -714,9 +732,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
         description: 'Older queries with unknown values are still shown.',
         explore: 'query_events',
         dimensions: [
-            'query_events_workload_origin',
-            'query_events_initiating_actor_type',
-            'query_events_context',
+            'query_events_workload_origin_name',
+            'query_events_initiating_actor_type_name',
+            'query_events_context_name',
         ],
         metrics: ['query_events_total_queries'],
         limit: 50,
@@ -727,21 +745,64 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
         ],
     },
-    card({
+    {
         key: 'request-consumption-by-outcome-and-feedback',
         name: 'Tokens spent on failed or cancelled requests',
-        description:
-            'Tokens from AI calls linked to agent requests that ended in an error or were cancelled. Requests still pending or waiting for a clarification are not counted. Unlinked AI calls and unknown token counts are not zero tokens.',
+        description: failedTokensDescription,
         explore: 'agent_requests',
-        day: 'agent_requests_requested_at_day',
-        metric: 'agent_requests_total_request_tokens',
-        filters: [
-            {
-                field: 'agent_requests_status',
-                values: ['error', 'cancelled'],
+        dimensions: [],
+        metrics: [failedTokens],
+        limit: 1,
+        sorts: [{ fieldId: failedTokens, descending: true }],
+        visualization: 'number',
+        libraryChart: {
+            slug: 'big-number-with-sparkline-trend',
+            minVersion: '0.8.0',
+            fieldMapping: {
+                value: failedTokens,
+                sparklineMetric: failedTokens,
+                time: 'agent_requests_requested_at_day',
+                secondary: failedTokenShare,
             },
-        ],
-    }),
+            optionValues: {
+                valueAggregation: 'sum',
+                style: 'compact',
+                showComparison: true,
+                comparisonSource: 'previousPeriod',
+                comparisonLabel: 'vs the day before',
+                secondaryLabel: 'of all tokens used by agent requests',
+                colorSparklineByTrend: false,
+                showSparklineArea: true,
+                showLabel: true,
+                label: 'Selected period',
+                showCardBorder: false,
+                showCardShadow: false,
+            },
+            query: {
+                dimensions: ['agent_requests_requested_at_day'],
+                metrics: [failedTokens, 'agent_requests_total_request_tokens'],
+                sorts: [
+                    {
+                        fieldId: 'agent_requests_requested_at_day',
+                        descending: false,
+                    },
+                ],
+                limit: 500,
+                // The same share on every row: the card reads it from the latest day
+                tableCalculations: [
+                    {
+                        name: failedTokenShare,
+                        displayName: 'Share of all tokens',
+                        type: TableCalculationType.NUMBER,
+                        sql: 'SUM(${agent_requests.failed_or_cancelled_request_tokens}) OVER () * 1.0 / NULLIF(SUM(${agent_requests.total_request_tokens}) OVER (), 0)',
+                        format: { type: CustomFormatType.PERCENT, round: 1 },
+                    },
+                ],
+                description:
+                    'Tokens from AI calls linked to agent requests that ended in an error or were cancelled. The percentage is their share of all tokens used by agent requests in the selected period.',
+            },
+        },
+    },
     {
         key: 'review-candidates-activity-and-known-dependencies',
         name: 'Review candidates: activity and known dependencies',
@@ -750,13 +811,11 @@ export const usageChartSpecs: UsageChartSpec[] = [
         explore: 'content_health',
         dimensions: [
             'content_health_content_name',
-            'content_health_content_type',
-            'content_health_activity_status',
+            'content_health_content_type_name',
+            'content_health_activity_status_name',
             'content_health_enabled_schedules',
             'content_health_dashboard_references',
-            'content_health_dependency_coverage',
-            'content_health_capture_coverage',
-            'content_health_is_deleted',
+            'content_health_is_deleted_name',
             'content_health_content_id',
             'content_health_project_id',
         ],
@@ -790,8 +849,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
         metrics: [
             'query_events_total_queries',
             'query_events_unique_users',
-            'query_events_p95_response_time_ms',
-            'query_events_avg_warehouse_execution_time_ms',
+            'query_events_p95_response_time_s',
+            'query_events_avg_warehouse_execution_time_s',
         ],
         filters: [
             {
@@ -804,7 +863,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         sorts: [
             {
                 descending: true,
-                fieldId: 'query_events_p95_response_time_ms',
+                fieldId: 'query_events_p95_response_time_s',
             },
         ],
         libraryChart: {
@@ -813,11 +872,11 @@ export const usageChartSpecs: UsageChartSpec[] = [
             fieldMapping: {
                 x: 'query_events_dashboard_name',
                 m1: 'query_events_total_queries',
-                m2: 'query_events_p95_response_time_ms',
+                m2: 'query_events_p95_response_time_s',
             },
             optionValues: {
                 m1Name: 'Queries',
-                m2Name: 'P95 response time (ms)',
+                m2Name: 'P95 response time (s)',
                 xName: 'Dashboard',
                 seriesType: 'bar',
                 m2Type: 'scatter',
@@ -827,7 +886,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 xLabelAutoRotate: false,
                 xLabelRotate: 45,
                 yName: 'Queries',
-                yRightName: 'P95 response time (ms)',
+                yRightName: 'P95 response time (s)',
             },
             query: null,
         },
@@ -855,7 +914,10 @@ export const usageChartSpecs: UsageChartSpec[] = [
         description:
             'Queries by cache hit and by what ran or served them, such as the warehouse, the results cache or a pre-aggregate.',
         explore: 'query_events',
-        dimensions: ['query_events_cache_hit', 'query_events_execution_source'],
+        dimensions: [
+            'query_events_cache_hit_name',
+            'query_events_execution_source_name',
+        ],
         metrics: ['query_events_total_queries'],
         limit: 30,
         sorts: [

@@ -94,7 +94,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         title: 'Failed requests and retries',
                         caption: true,
                         description:
-                            'Tokens spent on agent requests that failed or were cancelled, next to requests and average request latency by retry count. The exact tokens added by each attempt are not recorded.',
+                            'Tokens spent on agent requests that failed or were cancelled, next to requests and average latency by retry count. Each retry runs the request again with new AI calls, so a request with more retries takes longer and uses more tokens.',
                         charts: [
                             'request-consumption-by-outcome-and-feedback',
                             'agent-retries-latency-and-consumption',
@@ -124,6 +124,11 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                             'querying-users-month-over-month',
                             'queries-run-month-over-month',
                         ],
+                        // Side by side: the table is narrow and at most 12 rows long. A tile cannot grow
+                        // with its rows, so this height shows about nine and scrolls for the rest
+                        layout: 'row',
+                        widths: [16, 20],
+                        rowHeight: 6,
                     },
                 ],
             },
@@ -143,7 +148,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Failures',
                         description:
-                            'Ranked by users affected and failure count. Error messages and causes are not shown here; investigate them separately.',
+                            'Ranked by people affected and failure count. Error messages and causes are not shown here; investigate them separately.',
                         charts: ['query-failures-affected-people'],
                     },
                 ],
@@ -184,9 +189,9 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                         charts: ['people-using-fields', 'content-using-fields'],
                     },
                     {
-                        title: 'Queries with field details',
+                        title: 'How complete these numbers are',
                         description:
-                            'How much field detail was recorded for each query. Recording starts once the feature is switched on.',
+                            'For each query, Lightdash keeps a list of the metrics and dimensions it used, and the tiles above count only what is on those lists. A low share here means the tiles above undercount how much each field is used, because SQL queries and older queries have no list.',
                         charts: ['field-capture-coverage'],
                     },
                 ],

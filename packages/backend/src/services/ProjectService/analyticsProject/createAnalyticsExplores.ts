@@ -7,6 +7,7 @@ import {
     friendlyName,
     JoinRelationship,
     MetricType,
+    TimeFrames,
     WarehouseTypes,
     type Explore,
     type Metric,
@@ -78,6 +79,12 @@ import {
     totalMembersMetric,
 } from '../../../analytics/systemExplores/peopleAdoption';
 import {
+    aiFeatureNames,
+    plainNameSql,
+    type PlainNames,
+} from '../../../analytics/systemExplores/plainNames';
+import { queryContextNameSql } from '../../../analytics/systemExplores/queryContextNames';
+import {
     semanticUsageColumns,
     semanticUsageMetrics,
     semanticUsageSql,
@@ -98,6 +105,101 @@ const dimensionFields = {
     users: { key: 'user_id', label: 'User name' },
     agents: { key: 'agent_id', label: 'Agent name' },
     projects: { key: 'project_id', label: 'Project name' },
+};
+
+// Shown in a plain-name field when nothing was recorded
+const notRecorded = 'Not recorded';
+// Plain labels, by field name, for every explore
+const intervalLabels: Partial<Record<TimeFrames, string>> = {
+    [TimeFrames.DAY]: 'Day',
+    [TimeFrames.WEEK]: 'Week',
+    [TimeFrames.MONTH]: 'Month',
+};
+const dimensionLabels: Record<string, string> = {
+    user_name: 'Person',
+    project_name: 'Project',
+    content_name: 'Content',
+    retry_count: 'Retries',
+    observed_viewers: 'Viewers',
+    identity_coverage: 'Viewer ID',
+    agent_name: 'Agent',
+    app_name: 'Data app',
+    dashboard_name: 'Dashboard',
+    chart_name: 'Chart',
+    tool_name: 'Tool',
+    field_label: 'Field',
+    view_context: 'Surface',
+    evaluation_name: 'Evaluation',
+};
+// Plain labels for measures with the same name in several explores
+const sharedMetricLabels: Record<string, string> = {
+    unique_users: 'People',
+    unique_viewers: 'Viewers',
+    distinct_viewers: 'Viewers',
+    unique_dashboards: 'Dashboards',
+    unique_charts: 'Charts',
+    unique_apps: 'Data apps',
+    total_input_tokens: 'Input tokens',
+    total_output_tokens: 'Output tokens',
+    total_cache_read_tokens: 'Cache read tokens',
+    total_cache_write_tokens: 'Cache write tokens',
+    total_reasoning_tokens: 'Reasoning tokens',
+    total_csv_downloads: 'CSV downloads',
+    total_observed_queries: 'Queries',
+    total_warehouse_execution_time_s: 'Warehouse time (seconds)',
+};
+// Plain labels for measures, by base table
+const metricLabels: Record<string, Record<string, string>> = {
+    ai_usage: { total_tokens_used: 'Tokens', total_ai_calls: 'AI calls' },
+    user_activity: {
+        total_events: 'Recorded activities',
+        total_queries: 'Queries',
+        total_ai_calls: 'AI calls',
+        total_downloads: 'Downloads',
+    },
+    data_app_reach: { total_loads: 'Loads' },
+    data_app_events: {
+        unique_apps: 'Data apps',
+        total_events: 'Events',
+        total_views: 'Loads',
+    },
+    data_app_outcomes: {
+        html_error: 'Page delivery failures',
+        runtime_error: 'Runtime errors',
+    },
+    embed_reach: { total_loads: 'Loads' },
+    content_health: { total_content: 'Content' },
+    content_reach: { qualifying_views: 'Views' },
+    agent_requests: { distinct_requesters: 'People asking' },
+    agent_evaluation_runs: { total_runs: 'Runs' },
+    tool_activity: { total_calls: 'Tool calls' },
+    export_events: { total_downloads: 'Downloads' },
+    semantic_usage: { total_queries: 'Queries' },
+};
+// What a plain-name field is called, by the column it is made from
+const plainNameLabels: Record<string, string> = {
+    feature: 'Feature',
+    content_type: 'Content type',
+    format: 'Format',
+    run_status: 'Status',
+    status: 'Outcome',
+    cache_hit: 'Cache',
+    event_name: 'Activity',
+    activity_status: 'Activity status',
+    organization_role: 'Organization role',
+    workload_origin: 'Origin',
+    initiating_actor_type: 'Started by',
+    execution_source: 'Run or served by',
+    field_kind: 'Kind',
+    field_origin: 'Defined in',
+    is_deleted: 'Deleted',
+};
+const contentTypeNames = {
+    saved_chart: 'Chart',
+    chart: 'Chart',
+    sql_chart: 'SQL chart',
+    dashboard: 'Dashboard',
+    data_app: 'Data app',
 };
 
 const dimensionTypes: Record<CompactedColumnType, DimensionType> = {
@@ -324,6 +426,23 @@ export const createAnalyticsExplores = (): Explore[] => {
             ]),
         );
 
+        // Every duration is recorded in milliseconds. Dashboards show seconds, so each such measure has a
+        // twin in seconds with one decimal.
+        for (const { column, ...definition } of modelDefinition.metrics) {
+            if (definition.name.endsWith('_ms')) {
+                const secondsName = `${definition.name.slice(0, -3)}_s`;
+                metrics[secondsName] = {
+                    ...base,
+                    ...definition,
+                    name: secondsName,
+                    // "P95", not "P 95"
+                    label: `${friendlyName(definition.name.slice(0, -3)).replace(/^P (\d+)/, 'P$1')} (seconds)`,
+                    description: `${definition.description} Shown in seconds.`,
+                    sql: `\${${column}} / 1000.0`,
+                    formatOptions: { type: CustomFormatType.NUMBER, round: 1 },
+                };
+            }
+        }
         if (name === 'tool_activity') {
             metrics.error_rate = {
                 ...base,
@@ -467,6 +586,118 @@ export const createAnalyticsExplores = (): Explore[] => {
             }),
             metrics,
         };
+        // A second field beside one whose values are code names, showing them in plain words
+        const addPlainName = (column: string, names: PlainNames = {}) => {
+            const recorded = table.dimensions[column];
+            // Not every model that shares a table has the column
+            if (!recorded) return;
+            table.dimensions[`${column}_name`] = {
+                ...recorded,
+                name: `${column}_name`,
+                label: plainNameLabels[column],
+                type: DimensionType.STRING,
+                description: `${recorded.label} in plain words. Filter on ${recorded.label} (recorded value).`,
+                sql: plainNameSql(recorded.sql, names),
+            };
+            // Two fields cannot share a name in the field list
+            recorded.label = `${recorded.label} (recorded value)`;
+        };
+        if (name === 'ai_usage') addPlainName('feature', aiFeatureNames);
+        if (name === 'query_events') {
+            addPlainName('workload_origin', {
+                names: { app: 'Data app', mcp: 'MCP' },
+                missing: notRecorded,
+            });
+            addPlainName('initiating_actor_type', {
+                names: { registered_user: 'Signed-in person' },
+                missing: notRecorded,
+            });
+            addPlainName('cache_hit', {
+                names: { true: 'Cache hit', false: 'Cache miss' },
+                missing: notRecorded,
+            });
+            addPlainName('execution_source', {
+                names: {
+                    warehouse: 'Warehouse',
+                    pre_aggregate_duckdb: 'Pre-aggregate (DuckDB)',
+                    pre_aggregate_warehouse: 'Pre-aggregate (warehouse)',
+                    external_source_duckdb: 'External source (DuckDB)',
+                    composer_duckdb: 'Composer (DuckDB)',
+                    live_source: 'Live source',
+                },
+                missing: notRecorded,
+            });
+            // A cache hit never reaches an executor, so it is recorded with no source: the results
+            // cache served it
+            table.dimensions.execution_source_name.sql = `CASE WHEN ${table.dimensions.execution_source.sql} IS NULL AND ${table.dimensions.cache_hit.sql} THEN 'Results cache' ELSE ${table.dimensions.execution_source_name.sql} END`;
+            addPlainName('status', { missing: notRecorded });
+        }
+        if (
+            name === 'content_health' ||
+            name === 'content_inventory' ||
+            name === 'content_reach'
+        ) {
+            addPlainName('content_type', { names: contentTypeNames });
+            addPlainName('is_deleted', {
+                names: { true: 'Deleted', false: 'Not deleted' },
+            });
+            addPlainName('activity_status', {
+                names: {
+                    'Activity observed': 'Has recorded activity',
+                    'No activity observed; known dependency':
+                        'No recorded activity, used by a dashboard or schedule',
+                    'No activity observed; coverage incomplete':
+                        'No recorded activity',
+                },
+            });
+        }
+        if (name === 'data_app_events')
+            addPlainName('event_name', {
+                names: {
+                    'data_app.created': 'Created',
+                    'data_app.iterated': 'Iterated',
+                    'data_app.view': 'Loaded',
+                    'data_app.view_outcome': 'Load result signal',
+                    'data_app.deleted': 'Deleted',
+                    'data_app.downloaded': 'Downloaded',
+                    'data_app.duplicated': 'Duplicated',
+                    'data_app.file_uploaded': 'File uploaded',
+                    'data_app.promoted': 'Promoted',
+                    'data_app.registry_installed': 'Installed from the library',
+                    'data_app.upgrade_requested': 'Upgrade requested',
+                    'data_app.upload_rejected': 'Upload rejected',
+                    'data_app.uploaded': 'Uploaded',
+                },
+            });
+        if (name === 'export_events')
+            addPlainName('format', {
+                names: {
+                    csv: 'CSV',
+                    xlsx: 'Excel',
+                    pdf: 'PDF',
+                    gsheets: 'Google Sheets',
+                },
+                missing: notRecorded,
+            });
+        if (name === 'agent_evaluation_runs') addPlainName('run_status');
+        if (name === 'people_adoption') {
+            addPlainName('organization_role');
+            addPlainName('activity_status', {
+                names: {
+                    'Not currently eligible': 'Not currently eligible',
+                    'Active in last 7 closed days': 'Active in the last 7 days',
+                    'Active in last 30 closed days':
+                        'Active in the last 30 days',
+                    'Previously observed; inactive for 30 days':
+                        'Used Lightdash before, not in the last 30 days',
+                    'No qualifying activity observed': 'No recorded use',
+                },
+            });
+        }
+        if (name === 'semantic_usage') {
+            addPlainName('field_kind');
+            addPlainName('field_origin');
+        }
         if (table.dimensions.user_id)
             table.dimensions.user_id.label = 'User UUID';
         if (table.dimensions.project_id)
@@ -514,7 +745,18 @@ export const createAnalyticsExplores = (): Explore[] => {
         }
         if (name === 'query_events') {
             table.dimensions.semantic_field_references.hidden = true;
-            metrics.unique_users.label = 'Querying users';
+            // The same grouping as Context, under names a reader does not have to decode
+            table.dimensions.context_name = {
+                ...table.dimensions.context,
+                name: 'context_name',
+                label: 'Run from',
+                description:
+                    'Plain name for Context, such as Dashboard view, Explore or Scheduled delivery. A value with no plain name is shown as recorded. Filter on Context, which holds the recorded value.',
+                sql: queryContextNameSql(table.dimensions.context.sql),
+            };
+            // Library charts title their axes with these labels
+            metrics.unique_users.label = 'People';
+            metrics.total_queries.label = 'Queries';
             metrics.queries_per_user = {
                 ...base,
                 name: 'queries_per_user',
@@ -536,6 +778,14 @@ export const createAnalyticsExplores = (): Explore[] => {
                 'Meaning of the database record. Chart view records can include query executions; these counts must not be added to captured view totals.';
         }
         if (name === 'semantic_usage') {
+            table.dimensions.context_name = {
+                ...table.dimensions.context,
+                name: 'context_name',
+                label: 'Run from',
+                description:
+                    'Plain name for Context, such as Dashboard view, Explore or Scheduled delivery. A value with no plain name is shown as recorded. Filter on Context, which holds the recorded value.',
+                sql: queryContextNameSql(table.dimensions.context.sql),
+            };
             table.dimensions.org_id.hidden = true;
             table.dimensions.field_identity.hidden = true;
             table.dimensions.definition_hash.description =
@@ -616,7 +866,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             }
         }
         if (name === 'agent_requests') {
-            metrics.total_requests.label = 'Agent questions';
+            metrics.total_requests.label = 'Agent requests';
         }
         if (name === 'agent_evaluation_runs') {
             for (const column of [
@@ -633,7 +883,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             metrics.total_ai_calls.label = 'AI model calls';
         }
         if (name === 'user_activity') {
-            metrics.unique_users.label = 'Users with recorded activity';
+            metrics.unique_users.label = 'People';
             table.dimensions.org_id.hidden = true;
             for (const column of userActivityColumns.filter(
                 ({ type }) => type === 'BIGINT',
@@ -932,6 +1182,22 @@ export const createAnalyticsExplores = (): Explore[] => {
                     },
                 ];
             }
+        }
+        // Library charts title their axes, legends and columns with these labels, so the fields a
+        // dashboard tile can show are named the way a tile would name them.
+        for (const dimension of Object.values(baseTable.dimensions)) {
+            const plain =
+                (dimension.timeInterval &&
+                    intervalLabels[dimension.timeInterval]) ??
+                dimensionLabels[dimension.name];
+            if (plain) dimension.label = plain;
+        }
+        for (const [metric, plain] of Object.entries({
+            ...sharedMetricLabels,
+            ...metricLabels[explore.baseTable],
+        })) {
+            if (baseTable.metrics[metric])
+                baseTable.metrics[metric].label = plain;
         }
         return compiler.compileExplore(explore);
     });
