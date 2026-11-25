@@ -1,5 +1,4 @@
 import { useElementSize } from '@mantine/hooks';
-import { isEqual } from 'es-toolkit/compat';
 import {
     useEffect,
     useLayoutEffect,
@@ -28,11 +27,17 @@ export const ResponsiveGridLayout: FC<Props> = ({
     const { breakpoints, cols, onBreakpointChange } = props;
     const hasReportedInitialBreakpoint = useRef(false);
 
-    // react-grid-layout clamps new layouts to its old cols, so new cols go in
-    // first and their layouts one render later, both before paint
+    // react-grid-layout clamps new layouts to its old cols, so a finer or
+    // coarser grid (the widest breakpoint's cols change) goes in first and its
+    // layouts one render later, both before paint; other changes pass through
     const committed = useRef({ cols, layouts: props.layouts });
     const [, renderLayouts] = useReducer((n: number) => n + 1, 0);
-    const isAwaitingCols = !isEqual(committed.current.cols, cols);
+    const widest = breakpoints
+        ? getBreakpointForWidth(breakpoints, Infinity)
+        : undefined;
+    const isAwaitingCols =
+        widest !== undefined &&
+        committed.current.cols?.[widest] !== cols?.[widest];
     const layouts = isAwaitingCols ? committed.current.layouts : props.layouts;
     useLayoutEffect(() => {
         committed.current = { cols, layouts: props.layouts };
