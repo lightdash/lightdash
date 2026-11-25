@@ -10,6 +10,7 @@ import { GITHUB_TOKEN_FORM } from './githubConnection';
 import { HUBSPOT_TOKEN_FORM } from './hubspotConnection';
 import { HYDRA_TOKEN_FORM } from './hydraConnection';
 import amplitudeIcon from './icons/amplitude.svg';
+import appStoreConnectIcon from './icons/app-store-connect.svg';
 import attioIcon from './icons/attio.svg';
 import githubIcon from './icons/github.svg';
 import googleAdsIcon from './icons/google-ads.svg';
@@ -39,7 +40,8 @@ export type LiveSourceSetup =
     | { kind: 'token'; form: TokenLiveSourceForm }
     | { kind: 'linkedin_ads' }
     | { kind: 'salesforce' }
-    | { kind: 'amplitude' };
+    | { kind: 'amplitude' }
+    | { kind: 'app_store_connect' };
 
 export type AvailableLiveSource = Omit<LiveIntegrationCatalogEntry, 'setup'> & {
     status: 'available';
@@ -75,6 +77,7 @@ const ICONS: Record<string, string> = {
     [ApiConnectorType.HUBSPOT]: hubspotIcon,
     [ApiConnectorType.SALESFORCE]: salesforceIcon,
     [ApiConnectorType.AMPLITUDE]: amplitudeIcon,
+    [ApiConnectorType.APP_STORE_CONNECT]: appStoreConnectIcon,
     [ApiConnectorType.HYDRA]: hydraIcon,
     shopify: shopifyIcon,
     stripe: stripeIcon,
@@ -109,6 +112,7 @@ const DISPLAY_ORDER = [
     ApiConnectorType.HUBSPOT,
     ApiConnectorType.SALESFORCE,
     ApiConnectorType.AMPLITUDE,
+    ApiConnectorType.APP_STORE_CONNECT,
     ApiConnectorType.HYDRA,
 ] as const satisfies readonly ApiConnectorType[];
 

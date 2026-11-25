@@ -166,8 +166,10 @@ import {
     validateApiSourceConnection,
     withApiSourceAccessRules,
 } from './apiSourceConnection';
+import { type AppStoreConnectTokenProvider } from './AppStoreConnectTokenProvider';
 import { getExternalConnectionSubject } from './externalConnectionAuthz';
 import {
+    validateAppStoreConnectKey,
     validateExternalConnectionConfig,
     validateServiceAccountKeyfile,
 } from './externalConnectionConfigValidation';
@@ -227,6 +229,7 @@ type ExternalConnectionServiceArguments = {
     embedService: EmbedService;
     spacePermissionService: SpacePermissionService;
     googleTokenProvider: GoogleServiceAccountTokenProvider;
+    appStoreConnectTokenProvider: AppStoreConnectTokenProvider;
     oauthClientCredentialsTokenProvider: OAuthClientCredentialsTokenProvider;
     oauthAuthorizationCodeTokenClient: OAuthAuthorizationCodeTokenClient;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
@@ -352,6 +355,8 @@ export class ExternalConnectionService extends BaseService {
 
     private readonly googleTokenProvider: GoogleServiceAccountTokenProvider;
 
+    private readonly appStoreConnectTokenProvider: AppStoreConnectTokenProvider;
+
     private readonly oauthClientCredentialsTokenProvider: OAuthClientCredentialsTokenProvider;
 
     private readonly oauthAuthorizationCodeTokenClient: OAuthAuthorizationCodeTokenClient;
@@ -389,6 +394,7 @@ export class ExternalConnectionService extends BaseService {
         this.embedService = args.embedService;
         this.spacePermissionService = args.spacePermissionService;
         this.googleTokenProvider = args.googleTokenProvider;
+        this.appStoreConnectTokenProvider = args.appStoreConnectTokenProvider;
         this.oauthClientCredentialsTokenProvider =
             args.oauthClientCredentialsTokenProvider;
         this.oauthAuthorizationCodeTokenClient =
@@ -533,6 +539,9 @@ export class ExternalConnectionService extends BaseService {
         validateApiSourceConnection(config);
         if (config.type === 'google_service_account' && config.secret) {
             validateServiceAccountKeyfile(config.secret);
+        }
+        if (config.type === 'app_store_connect_key' && config.secret) {
+            validateAppStoreConnectKey(config.secret);
         }
         const explorePrefix = await this.resolveNewExplorePrefix(
             projectUuid,
@@ -842,6 +851,9 @@ export class ExternalConnectionService extends BaseService {
         // keyfile; only a replacement keyfile needs parsing again.
         if (resultingType === 'google_service_account' && data.secret) {
             validateServiceAccountKeyfile(data.secret);
+        }
+        if (resultingType === 'app_store_connect_key' && data.secret) {
+            validateAppStoreConnectKey(data.secret);
         }
 
         return resolved;
@@ -4300,6 +4312,21 @@ export class ExternalConnectionService extends BaseService {
                 );
             }
             headers.Authorization = `Bearer ${accessToken}`;
+        } else if (connection.type === 'app_store_connect_key') {
+            if (!secret) {
+                throw new ParameterError(
+                    'Connection is missing its App Store Connect key',
+                );
+            }
+            try {
+                oauthAccessToken =
+                    await this.appStoreConnectTokenProvider.getToken(secret);
+            } catch {
+                throw new ParameterError(
+                    'Failed to sign the App Store Connect token',
+                );
+            }
+            headers.Authorization = `Bearer ${oauthAccessToken}`;
         } else if (connection.type === 'oauth_client_credentials') {
             if (
                 !secret ||
@@ -4878,6 +4905,9 @@ export class ExternalConnectionService extends BaseService {
         validateApiSourceConnection(data);
         if (data.type === 'google_service_account' && data.secret) {
             validateServiceAccountKeyfile(data.secret);
+        }
+        if (data.type === 'app_store_connect_key' && data.secret) {
+            validateAppStoreConnectKey(data.secret);
         }
 
         const method: ExternalConnectionMethod = req.method ?? 'GET';

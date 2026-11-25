@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     EXTERNAL_CONNECTION_METHODS,
     ParameterError,
+    parseAppStoreConnectSecret,
     type ApiKeyLocation,
     type ExternalConnectionAuthType,
     type OAuthClientAuthMethod,
@@ -95,6 +96,18 @@ export function validateServiceAccountKeyfile(secret: string): void {
     ) {
         throw new ParameterError(
             'Service account key must include a private_key',
+        );
+    }
+}
+
+/**
+ * Validate an App Store Connect team API key (the decrypted secret for an
+ * 'app_store_connect_key' connection), where the plaintext secret is available.
+ */
+export function validateAppStoreConnectKey(secret: string): void {
+    if (!parseAppStoreConnectSecret(secret)) {
+        throw new ParameterError(
+            'The App Store Connect key needs a 10-character key ID, the issuer ID and the .p8 private key',
         );
     }
 }
@@ -397,6 +410,18 @@ export function validateExternalConnectionConfig(
             });
             break;
         }
+        case 'app_store_connect_key':
+            if (!hasSecretAfter) {
+                throw new ParameterError(
+                    'type "app_store_connect_key" requires a secret',
+                );
+            }
+            if (config.apiKeyName || config.apiKeyLocation) {
+                throw new ParameterError(
+                    'type "app_store_connect_key" must not set an api key name or location',
+                );
+            }
+            break;
         case 'oauth_authorization_code':
             // The tokens come from the sign-in flow; a missing one means the
             // credential destination changed and the user must sign in again.

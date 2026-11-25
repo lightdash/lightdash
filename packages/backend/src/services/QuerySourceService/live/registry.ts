@@ -6,6 +6,7 @@ import {
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
 import { amplitudeIntegration } from './integrations/amplitude';
+import { appStoreConnectIntegration } from './integrations/appStoreConnect';
 import { attioIntegration } from './integrations/attio';
 import { ga4Integration } from './integrations/ga4';
 import { githubIntegration } from './integrations/github';
@@ -38,6 +39,7 @@ const LIVE_INTEGRATIONS: {
     [ApiConnectorType.HUBSPOT]: hubspotIntegration,
     [ApiConnectorType.SALESFORCE]: salesforceIntegration,
     [ApiConnectorType.AMPLITUDE]: amplitudeIntegration,
+    [ApiConnectorType.APP_STORE_CONNECT]: appStoreConnectIntegration,
     [ApiConnectorType.HYDRA]: hydraIntegration,
 };
 

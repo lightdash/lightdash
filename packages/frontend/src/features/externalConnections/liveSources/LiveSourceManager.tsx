@@ -15,6 +15,7 @@ import { useDeleteExternalConnection } from '../hooks/useDeleteExternalConnectio
 import { useLiveSourceFields } from '../hooks/useLiveSourceFields';
 import { AddLiveSourceModal } from './AddLiveSourceModal';
 import { AmplitudeConnectionModal } from './AmplitudeConnectionModal';
+import { AppStoreConnectConnectionModal } from './AppStoreConnectConnectionModal';
 import { getGoogleSignInUrl, isGoogleConnector } from './googleConnection';
 import { GoogleConnectionModal } from './GoogleConnectionModal';
 import { GoogleSourcePickerModal } from './GoogleSourcePickerModal';
@@ -154,6 +155,7 @@ export const LiveSourceManager: FC<{
                         return null;
                     // A new key pair means adding the source again
                     case 'amplitude':
+                    case 'app_store_connect':
                         return null;
                     case 'linkedin_ads': {
                         const { apiSource } = connection;
@@ -281,6 +283,15 @@ const LiveSourceConnectDialog: FC<{
         case 'amplitude':
             return (
                 <AmplitudeConnectionModal
+                    opened
+                    onClose={onClose}
+                    projectUuid={projectUuid}
+                    onCreated={onCreated}
+                />
+            );
+        case 'app_store_connect':
+            return (
+                <AppStoreConnectConnectionModal
                     opened
                     onClose={onClose}
                     projectUuid={projectUuid}

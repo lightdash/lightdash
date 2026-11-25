@@ -212,6 +212,7 @@ function buildService(opts: {
         googleTokenProvider: {
             getAccessToken: vi.fn().mockResolvedValue('test-access-token'),
         } as never,
+        appStoreConnectTokenProvider: {} as never,
         oauthClientCredentialsTokenProvider: {
             getAccessToken: vi.fn().mockResolvedValue('test-oauth-token'),
             invalidateAccessToken: vi.fn(),

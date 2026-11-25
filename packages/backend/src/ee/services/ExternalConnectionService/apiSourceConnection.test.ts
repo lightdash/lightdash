@@ -88,6 +88,18 @@ describe('validateApiSourceConnection', () => {
             ),
         ).not.toThrow();
     });
+
+    it('refuses an App Store Connect key outside a live data source', () => {
+        expect(() =>
+            validateApiSourceConnection(
+                config({
+                    apiSource: null,
+                    type: 'app_store_connect_key',
+                    origin: 'https://api.appstoreconnect.apple.com',
+                }),
+            ),
+        ).toThrow('Only live data sources can use an App Store Connect key');
+    });
 });
 
 describe('Search Console connections', () => {
