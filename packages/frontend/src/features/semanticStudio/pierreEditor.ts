@@ -81,3 +81,16 @@ export const editorOptionsFor = <T extends EditorType>(
         }),
     onAttach,
 });
+
+/** Esc on a bare caret leaves the editor, since Tab indents inside it and would trap keyboard focus. */
+export const leaveOnEscape = (event: KeyboardEvent, code: Attached | null) => {
+    if (event.key !== 'Escape') return;
+    const ranges = code?.getViewState().selections ?? [];
+    const [range] = ranges;
+    const isCaret =
+        ranges.length === 1 &&
+        range.start.line === range.end.line &&
+        range.start.character === range.end.character;
+    const focused = event.composedPath()[0];
+    if (isCaret && focused instanceof HTMLElement) focused.blur();
+};

@@ -67,6 +67,7 @@ import classes from './ModelTabs.module.css';
 import {
     createEditor,
     editorOptionsFor,
+    leaveOnEscape,
     readSelection,
     type Attached,
 } from './pierreEditor';
@@ -358,6 +359,7 @@ export const ModelCodeView: FC<{
                 className={classes.codeEditor}
                 ref={editor}
                 onKeyDownCapture={(event) => {
+                    leaveOnEscape(event.nativeEvent, editorInstance.current);
                     if (!(event.metaKey || event.ctrlKey)) return;
                     const key = event.key.toLowerCase();
                     if (key === 's') {

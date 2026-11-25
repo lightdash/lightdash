@@ -61,6 +61,7 @@ import tabClasses from './ModelTabs.module.css';
 import {
     createEditor,
     editorOptionsFor,
+    leaveOnEscape,
     readSelection,
     type Attached,
 } from './pierreEditor';
@@ -420,6 +421,8 @@ export const SourcePane: FC<{
             : null;
     const save = useSaveStudioSource(target.projectUuid, target.startThread);
     const [layout, setLayout] = useState<Layout>('diff');
+    // A file typed in before its comparison loaded stays as code, so the view does not change under the cursor.
+    const [typedAsCode, setTypedAsCode] = useState<string | null>(null);
     // Pierre owns the document while editing: it starts from what it is mounted with and reports each change into `text`.
     const [text, setText] = useState<string | null>(null);
     const [revision, setRevision] = useState(0);
@@ -517,8 +520,11 @@ export const SourcePane: FC<{
         setProposedFrom(null);
         setRevision((current) => current + 1);
         trackedEdit.current = null;
+        setTypedAsCode(null);
     };
     const editContent = (contents: string) => {
+        if (shownLayout === 'code' && typedAsCode !== editKey)
+            setTypedAsCode(editKey);
         if (contents !== value && trackedEdit.current !== editKey) {
             trackedEdit.current = editKey;
             track({
@@ -659,7 +665,12 @@ export const SourcePane: FC<{
             ? (live?.content ?? null)
             : before
         : proposedFrom;
-    const shownLayout = compare !== null ? layout : 'code';
+    const shownLayout =
+        compare !== null && typedAsCode !== editKey ? layout : 'code';
+    const pickLayout = (next: Layout) => {
+        setTypedAsCode(null);
+        setLayout(next);
+    };
     const options = {
         ...pierreThemeFor(colorScheme),
         overflow: 'scroll',
@@ -761,24 +772,28 @@ export const SourcePane: FC<{
                 </Group>
                 <Group gap="xs" wrap="nowrap" flex="none">
                     {!canEdit ? (
-                        <Tooltip
-                            label={target.readOnlyReason ?? 'Read only'}
-                            multiline
-                            maw={280}
-                        >
-                            <Box
-                                className={classes.readOnly}
-                                aria-label={
-                                    target.readOnlyReason ?? 'Read only'
-                                }
+                        <Group gap={4} wrap="nowrap" miw={0}>
+                            <MantineIcon
+                                icon={IconLock}
+                                size={14}
+                                color="dimmed"
+                            />
+                            <Text
+                                fz="xs"
+                                c="dimmed"
+                                truncate
+                                maw={320}
+                                title={target.readOnlyReason ?? undefined}
                             >
-                                <MantineIcon
-                                    icon={IconLock}
-                                    size={14}
-                                    color="dimmed"
-                                />
-                            </Box>
-                        </Tooltip>
+                                {target.readOnlyReason ?? 'Read only'}
+                            </Text>
+                        </Group>
+                    ) : !isDirty ? (
+                        <Text fz="xs" c="dimmed" truncate maw={240}>
+                            {target.prUrl
+                                ? `Saves to ${where}`
+                                : 'Saving starts a draft'}
+                        </Text>
                     ) : null}
                     {isFetching && !isDirty ? (
                         <Loader size={12} color="gray" />
@@ -816,14 +831,14 @@ export const SourcePane: FC<{
                                     rightSection={check(shownLayout !== 'code')}
                                     onClick={() =>
                                         shownLayout === 'code' &&
-                                        setLayout('diff')
+                                        pickLayout('diff')
                                     }
                                 >
                                     {comparison}
                                 </Menu.Item>
                                 <Menu.Item
                                     rightSection={check(shownLayout === 'code')}
-                                    onClick={() => setLayout('code')}
+                                    onClick={() => pickLayout('code')}
                                 >
                                     Just the file
                                 </Menu.Item>
@@ -832,7 +847,7 @@ export const SourcePane: FC<{
                                 <Menu.Item
                                     disabled={shownLayout === 'code'}
                                     rightSection={check(shownLayout === 'diff')}
-                                    onClick={() => setLayout('diff')}
+                                    onClick={() => pickLayout('diff')}
                                 >
                                     Unified
                                 </Menu.Item>
@@ -841,7 +856,7 @@ export const SourcePane: FC<{
                                     rightSection={check(
                                         shownLayout === 'split',
                                     )}
-                                    onClick={() => setLayout('split')}
+                                    onClick={() => pickLayout('split')}
                                 >
                                     Side by side
                                 </Menu.Item>
@@ -875,6 +890,7 @@ export const SourcePane: FC<{
                                 <Button
                                     size="compact-xs"
                                     loading={save.isLoading}
+                                    disabled={!canEdit}
                                     onClick={submit}
                                 >
                                     {target.prUrl
@@ -912,6 +928,7 @@ export const SourcePane: FC<{
             <Box
                 className={classes.sourceCode}
                 onKeyDownCapture={(event) => {
+                    leaveOnEscape(event.nativeEvent, codeRef.current);
                     if (!(event.metaKey || event.ctrlKey)) return;
                     const key = event.key.toLowerCase();
                     if (key === 's') {

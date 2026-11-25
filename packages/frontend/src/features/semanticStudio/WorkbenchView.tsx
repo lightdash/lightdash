@@ -1036,7 +1036,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                 icon: null,
                                 title: 'Pick a file',
                                 description:
-                                    'Open one from the list to read it. Editing a file starts a draft.',
+                                    'Open one from the list to read or edit it. Saving a change starts a draft.',
                             };
                     return (
                         <EmptyState
