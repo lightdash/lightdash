@@ -78,7 +78,9 @@ export const GSHEETS_WRITE_RETRY_DELAYS_MS = [5_000, 15_000, 45_000];
 const GSHEETS_RETRY_AFTER_CEILING_MS = 60_000;
 const GOOGLE_INTERNAL_ERROR_MESSAGE =
     'Google Drive internal error encountered. Please try again later.';
-const STAGING_TAB_PREFIX = '_lightdash_sync_';
+// Hidden, so it does not show in the tab bar. Named so that an editor who
+// unhides it knows what it is.
+const STAGING_TAB_PREFIX = 'Lightdash sync in progress ';
 const NEW_TAB_ROW_COUNT = 1000;
 const NEW_TAB_COLUMN_COUNT = 26;
 
@@ -811,7 +813,7 @@ export class GoogleDriveClient {
         const stagingPrefix = `${STAGING_TAB_PREFIX}${createHash('sha256')
             .update(tabTitle)
             .digest('hex')
-            .slice(0, 8)}_`;
+            .slice(0, 8)}-`;
         // Left by a run that crashed or timed out. Deleting one that an
         // orphaned run still writes to makes that run fail without changes.
         const staleStagingSheets = existingSheets.filter(
@@ -992,6 +994,7 @@ export class GoogleDriveClient {
                     formatRequests,
                 });
             } else {
+                const swapStartedAt = Date.now();
                 await GoogleDriveClient.swapStagingTab(sheets, fileId, {
                     sheetId,
                     stagingSheetId: stagingSheetId!,
@@ -1007,6 +1010,9 @@ export class GoogleDriveClient {
                     formatRequests,
                 });
                 stagingSheetId = undefined;
+                Logger.info(
+                    `Swapped ${rowCount} rows from the staging tab into the Google Sheets tab in ${Date.now() - swapStartedAt} ms`,
+                );
             }
         } catch (e) {
             if (stagingSheetId !== undefined) {
