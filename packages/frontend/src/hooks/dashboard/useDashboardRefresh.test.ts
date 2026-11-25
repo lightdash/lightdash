@@ -103,7 +103,7 @@ describe('evictSavedDashboardResults', () => {
         remounted();
     });
 
-    it('does not fetch again for a tile still queued for a slot at the save', async () => {
+    it('keeps the result of a tile still queued for a slot at the save, fetched once', async () => {
         let freeSlot: () => void = () => {};
         const slot = new Promise<void>((resolve) => {
             freeSlot = resolve;
@@ -123,9 +123,13 @@ describe('evictSavedDashboardResults', () => {
         freeSlot();
         await flush();
         await flush();
+        unmount();
+        await flush();
 
         expect(calls).toBe(1);
-        unmount();
+        expect(queryClient.getQueryData(tileKey('queued'))).toBe(
+            'sent after save',
+        );
     });
 
     it('runs a tile again when its rows were still loading at the save', async () => {

@@ -85,14 +85,15 @@ export const evictSavedDashboardResults = (queryClient: QueryClient) => {
         predicate: dashboardResultsQueryPredicate,
         type: 'inactive',
     });
-    // Whether each on-screen result has a fetch started since the save
+    // Whether each on-screen result has a request sent since the save; a
+    // queued tile sends its request only once a slot frees
     const onScreen = new Map(
         queryCache
             .findAll({
                 predicate: dashboardResultsQueryPredicate,
                 type: 'active',
             })
-            .map((query) => [query, false]),
+            .map((query) => [query, waitingForSlot.has(query)]),
     );
     if (onScreen.size === 0) return;
     // A request started before the save may answer with older data, so its
