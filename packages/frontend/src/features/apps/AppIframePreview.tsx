@@ -1,5 +1,6 @@
 import {
     type AppColorScheme,
+    type AppSdkCaptureHold,
     type DataAppInsightAction,
     type DataAppInsightsPayload,
     type DataAppVizContext,
@@ -30,6 +31,10 @@ import {
 } from './hooks/useAppSdkBridge';
 import { useAppUrlStateSync } from './hooks/useAppUrlStateSync';
 import { useAppViewOutcomes } from './hooks/useAppViewOutcomes';
+import {
+    useIframeInspectAt,
+    type InspectedElement,
+} from './hooks/useIframeInspectAt';
 import { useIframePdfExport } from './hooks/useIframePdfExport';
 import { useIframeScreenshot } from './hooks/useIframeScreenshot';
 import { withColorSchemeParam } from './utils/appIframeUrl';
@@ -38,6 +43,11 @@ export type AppIframePreviewHandle = {
     captureScreenshot: () => Promise<File>;
     /** Runs the app's registered Download PDF builder; rejects if none. */
     exportPdf: () => Promise<Blob>;
+    /** The element at a point in the app's viewport; null when there is none or the bundle cannot say. */
+    inspectAt: (point: {
+        x: number;
+        y: number;
+    }) => Promise<InspectedElement | null>;
 };
 
 type Props = {
@@ -183,6 +193,8 @@ type Props = {
     onMountedQueriesChange?: (queryUuids: string[]) => void;
     /** The capture hotkey was pressed inside the app. Absent = no capture. */
     onCaptureHotkey?: () => void;
+    /** A Design Mode hold key went down or came up inside the app. */
+    onCaptureHold?: (hold: AppSdkCaptureHold) => void;
 };
 
 /**
@@ -258,6 +270,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
             onCaptureHotkey,
+            onCaptureHold,
         },
         ref,
     ) => {
@@ -417,14 +430,17 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
             onCaptureHotkey,
+            onCaptureHold,
         });
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
         const { exportPdf } = useIframePdfExport(iframeRef);
+        const { inspectAt } = useIframeInspectAt(iframeRef, identityKey);
 
-        useImperativeHandle(ref, () => ({ captureScreenshot, exportPdf }), [
-            captureScreenshot,
-            exportPdf,
-        ]);
+        useImperativeHandle(
+            ref,
+            () => ({ captureScreenshot, exportPdf, inspectAt }),
+            [captureScreenshot, exportPdf, inspectAt],
+        );
 
         // Reset availability to false when the served bundle changes (new app or
         // new version). Fires before the browser starts loading the new content,

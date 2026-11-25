@@ -1,4 +1,5 @@
 import {
+    APP_SDK_CAPTURE_HOLD_MESSAGE,
     APP_SDK_CAPTURE_HOTKEY_MESSAGE,
     APP_SDK_COLOR_SCHEME_MESSAGE,
     APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
@@ -3592,5 +3593,133 @@ describe('app-state branch', () => {
             });
             expect(fetch).not.toHaveBeenCalled();
         });
+    });
+});
+
+describe('element picker selections', () => {
+    const renderWithHandler = () => {
+        const onElementSelected = vi.fn();
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                onElementSelected,
+            }),
+        );
+        return onElementSelected;
+    };
+
+    it('parses rect when present and tolerates its absence', () => {
+        const onElementSelected = renderWithHandler();
+
+        dispatchFetchMessage({
+            type: 'lightdash:inspect:selected',
+            label: '[button "Save"]',
+            rect: { x: 12, y: 34, width: 120, height: 40 },
+        });
+        expect(onElementSelected).toHaveBeenLastCalledWith({
+            label: '[button "Save"]',
+            rect: { x: 12, y: 34, width: 120, height: 40 },
+        });
+
+        // A bundle built before the SDK sent the element's bounds.
+        dispatchFetchMessage({
+            type: 'lightdash:inspect:selected',
+            label: '[button "Save"]',
+        });
+        expect(onElementSelected).toHaveBeenLastCalledWith({
+            label: '[button "Save"]',
+        });
+    });
+
+    it('drops a rect that is not four finite numbers', () => {
+        const onElementSelected = renderWithHandler();
+
+        dispatchFetchMessage({
+            type: 'lightdash:inspect:selected',
+            label: '[button "Save"]',
+            rect: { x: 12, y: 'top', width: 120, height: Infinity },
+        });
+        expect(onElementSelected).toHaveBeenLastCalledWith({
+            label: '[button "Save"]',
+        });
+    });
+});
+
+describe('Design Mode hold keys forwarded from the app', () => {
+    const renderWithHandler = () => {
+        const onCaptureHold = vi.fn();
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                onCaptureHold,
+            }),
+        );
+        return onCaptureHold;
+    };
+
+    it('passes on the hold key going down and coming up', () => {
+        const onCaptureHold = renderWithHandler();
+
+        dispatchFetchMessage({
+            type: APP_SDK_CAPTURE_HOLD_MESSAGE,
+            phase: 'down',
+        });
+        dispatchFetchMessage({
+            type: APP_SDK_CAPTURE_HOLD_MESSAGE,
+            phase: 'up',
+        });
+        expect(onCaptureHold.mock.calls).toEqual([
+            [{ phase: 'down' }],
+            [{ phase: 'up' }],
+        ]);
+    });
+
+    it("keeps an older bundle's Option hold and drops its Control hold", () => {
+        const onCaptureHold = renderWithHandler();
+
+        dispatchFetchMessage({
+            type: APP_SDK_CAPTURE_HOLD_MESSAGE,
+            tool: 'stylus',
+            phase: 'down',
+        });
+        dispatchFetchMessage({
+            type: APP_SDK_CAPTURE_HOLD_MESSAGE,
+            tool: 'cursor',
+            phase: 'down',
+        });
+        expect(onCaptureHold.mock.calls).toEqual([[{ phase: 'down' }]]);
+    });
+
+    it('ignores a hold message with an unknown tool or phase', () => {
+        const onCaptureHold = renderWithHandler();
+
+        dispatchFetchMessage({
+            type: APP_SDK_CAPTURE_HOLD_MESSAGE,
+            tool: 'eraser',
+            phase: 'down',
+        });
+        dispatchFetchMessage({
+            type: APP_SDK_CAPTURE_HOLD_MESSAGE,
+            tool: 'stylus',
+            phase: 'sideways',
+        });
+        dispatchFetchMessage({ type: APP_SDK_CAPTURE_HOLD_MESSAGE });
+        expect(onCaptureHold).not.toHaveBeenCalled();
     });
 });

@@ -66,6 +66,8 @@ import ResizableSplitter from '../components/common/ResizableSplitter';
 import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { getAiAgentThreadPath } from '../ee/features/aiCopilot/hooks/aiAgentRouting';
+import { useAppBuilderDesignMode } from '../ee/features/appCapture/useAppBuilderDesignMode';
+import useIsEmbedded from '../ee/providers/Embed/useIsEmbedded';
 import AddAnalysisOffer from '../features/apps/analysis/AddAnalysisOffer';
 import AnalysisOffChip from '../features/apps/analysis/AnalysisOffChip';
 import { useDataAppAnalysisAvailability } from '../features/apps/analysis/useDataAppAnalysisAvailability';
@@ -100,6 +102,8 @@ import { formatElapsed } from '../features/apps/components/buildStepUtils';
 import ClarificationStepper from '../features/apps/components/ClarificationStepper';
 import ClearAgentContextAction from '../features/apps/components/ClearAgentContextAction';
 import ConnectionChip from '../features/apps/components/ConnectionChip';
+import DesignBundleTray from '../features/apps/components/DesignBundleTray';
+import DesignModeButton from '../features/apps/components/DesignModeButton';
 import { ElementPickerButton } from '../features/apps/components/ElementPickerButton';
 import { ElementRefPill } from '../features/apps/components/ElementRefPill';
 import LoadingDots from '../features/apps/components/LoadingDots';
@@ -161,6 +165,7 @@ import {
 } from '../features/apps/utils/appFileAttachments';
 import { getAppPageGate } from '../features/apps/utils/appPageGate';
 import { getBuildStageIndex } from '../features/apps/utils/buildStage';
+import { summaryToContent } from '../features/apps/utils/captureAttachments';
 import {
     emptyChatMessage,
     mergeChatMessages,
@@ -666,13 +671,20 @@ const AppGenerate: FC = () => {
         }
         return capture();
     }, []);
+    const inspectPreviewAt = useCallback(
+        (point: { x: number; y: number }) =>
+            previewRef.current?.inspectAt(point) ?? Promise.resolve(null),
+        [],
+    );
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const captureFlag = useServerFeatureFlag(FeatureFlags.DataAppCapture);
     const isChartStudioAvailable = useChartStudioAvailable();
     const { user, health } = useApp();
     const sampleDataEnabled = health.data?.dataApps.sampleDataEnabled !== false;
     // Org switch for screenshots, file attachments and thumbnails. Hides the
     // affordances below; the backend rejects the uploads regardless.
     const capturesEnabled = useDataAppCapturesEnabled();
+    const isEmbedded = useIsEmbedded();
     const ability = useAbilityContext();
     const chatMessagesRef = useRef<HTMLDivElement>(null);
 
@@ -1206,7 +1218,60 @@ const AppGenerate: FC = () => {
         null,
     );
 
+    // Design Mode: mark the preview and say what to change. The builder takes
+    // one prompt at a time, so bubbles bundle in the composer.
     const previewContentRef = useRef<HTMLDivElement>(null);
+    const getPreviewFrame = useCallback(
+        () => previewContentRef.current?.querySelector('iframe') ?? null,
+        [],
+    );
+    const designOffered = Boolean(
+        projectUuid &&
+        previewApp &&
+        captureFlag.data?.enabled &&
+        capturesEnabled &&
+        !isEmbedded,
+    );
+    // Set further down, past the early returns, where the handlers are made.
+    const attachFileRef = useRef<
+        (file: File, kind?: 'screenshot') => Promise<void>
+    >(async () => {});
+    const submitRef = useRef<() => Promise<void>>(async () => {});
+    const attachBundleImage = useCallback(
+        (image: File) => attachFileRef.current(image, 'screenshot'),
+        [],
+    );
+    const [bundleSubmitPending, setBundleSubmitPending] = useState(false);
+    const submitBundle = useCallback((prompt: string) => {
+        promptEditorRef.current?.insertContent(summaryToContent(prompt));
+        setMobilePanel('build');
+        setBundleSubmitPending(true);
+    }, []);
+    // Submits on the render after, which has the bundle's pictures attached.
+    useEffect(() => {
+        if (!bundleSubmitPending) return;
+        setBundleSubmitPending(false);
+        void submitRef.current();
+    }, [bundleSubmitPending]);
+    const warnBundleDropped = (dropped: number) =>
+        showToastWarning({
+            title: `${dropped} Design Mode images did not fit`,
+            subtitle: `You can attach up to ${MAX_APP_FILES_PER_VERSION} files per message.`,
+        });
+    const design = useAppBuilderDesignMode({
+        projectUuid: projectUuid ?? null,
+        getFrame: getPreviewFrame,
+        captureScreenshot:
+            designOffered && screenshotAvailable
+                ? capturePreviewScreenshot
+                : null,
+        inspectAt: inspectPreviewAt,
+        busy: isLoading,
+        attachedCount: fileAttachments.length,
+        attach: attachBundleImage,
+        submit: submitBundle,
+        onDropped: warnBundleDropped,
+    });
     const handleInsightsInUse = useCallback(
         () => setAnalysisInUseScope(previewScope),
         [previewScope],
@@ -1737,6 +1802,8 @@ const AppGenerate: FC = () => {
         });
     };
 
+    attachFileRef.current = handleFileAttach;
+
     const handlePaste = (e: React.ClipboardEvent) => {
         const items = e.clipboardData?.files;
         if (items && items.length > 0) {
@@ -2046,6 +2113,7 @@ const AppGenerate: FC = () => {
             submitState.end();
         }
     };
+    submitRef.current = handleSubmit;
 
     // One-click offers (add AI analysis): the optimistic bubble and lock
     // discipline of handleSubmit without touching the composer draft or
@@ -2929,12 +2997,31 @@ const AppGenerate: FC = () => {
                                                 selectedConnections.length >
                                                     0 ||
                                                 elementPicker.refs.length > 0 ||
+                                                design.bundle.chips.length >
+                                                    0 ||
                                                 fileAttachments.length > 0) && (
                                                 <Box
                                                     className={
                                                         classes.attachedResources
                                                     }
                                                 >
+                                                    <DesignBundleTray
+                                                        chips={
+                                                            design.bundle.chips
+                                                        }
+                                                        busy={isLoading}
+                                                        waiting={
+                                                            design.bundle
+                                                                .waiting
+                                                        }
+                                                        onRemove={
+                                                            design.bundle.remove
+                                                        }
+                                                        onSendAll={
+                                                            design.bundle
+                                                                .sendAll
+                                                        }
+                                                    />
                                                     {elementPicker.refs.length >
                                                         0 && (
                                                         <Group gap={4}>
@@ -3428,6 +3515,7 @@ const AppGenerate: FC = () => {
                                         <AppHeaderActions
                                             previewTools={
                                                 (elementPicker.available ||
+                                                    designOffered ||
                                                     (previewApp &&
                                                         screenshotAvailable &&
                                                         capturesEnabled)) && (
@@ -3461,6 +3549,20 @@ const AppGenerate: FC = () => {
                                                                     }
                                                                 />
                                                             )}
+                                                        {designOffered && (
+                                                            <DesignModeButton
+                                                                active={
+                                                                    design.on
+                                                                }
+                                                                screenshotAvailable={
+                                                                    design.available
+                                                                }
+                                                                onClick={
+                                                                    design.toggle
+                                                                }
+                                                                surface="builder"
+                                                            />
+                                                        )}
                                                     </>
                                                 )
                                             }
@@ -3632,6 +3734,7 @@ const AppGenerate: FC = () => {
                                 data-tour-return="none"
                                 data-tour-resultdocs="data-apps.mdx#restoring-an-earlier-version:1"
                             >
+                                {design.element}
                                 {previewApp ? (
                                     <AppPreview
                                         ref={previewRef}
@@ -3685,6 +3788,16 @@ const AppGenerate: FC = () => {
                                             analysisController.handleAction
                                         }
                                         onInsightsInUse={handleInsightsInUse}
+                                        onCaptureHotkey={
+                                            designOffered
+                                                ? design.toggle
+                                                : undefined
+                                        }
+                                        onCaptureHold={
+                                            designOffered
+                                                ? design.hold
+                                                : undefined
+                                        }
                                         onInsightInstructionsChange={
                                             setInsightInstructions
                                         }

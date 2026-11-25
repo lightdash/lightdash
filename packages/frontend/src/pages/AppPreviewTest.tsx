@@ -1,4 +1,9 @@
-import { FeatureFlags, isAppVersionInProgress } from '@lightdash/common';
+import {
+    DATA_APP_VIZ_TEMPLATE,
+    FeatureFlags,
+    isAppVersionInProgress,
+    type AppSdkCaptureHold,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -20,8 +25,14 @@ import {
     useRegisterLauncherAnalysisAdapter,
     type LauncherAnalysisAdapter,
 } from '../ee/features/aiCopilot/components/Launcher/launcherAnalysisAdapter';
+import { useDefaultAiAgent } from '../ee/features/aiCopilot/components/Launcher/useDefaultAiAgent';
+import { useProjectAiAgentButtonVisibility } from '../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { store as aiAgentStore } from '../ee/features/aiCopilot/store';
 import { openAnalysisPanel } from '../ee/features/aiCopilot/store/aiAgentLauncherSlice';
+import AppViewDesignMode, {
+    type AppViewDesignModeHandle,
+} from '../ee/features/appCapture/AppViewDesignMode';
+import useIsEmbedded from '../ee/providers/Embed/useIsEmbedded';
 import {
     useDataAppAnalysisAvailability,
     useIsAnalysisEntryVisible,
@@ -34,6 +45,7 @@ import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import DataAppAiAgentContextBridge from '../features/apps/components/DataAppAiAgentContextBridge';
+import DesignModeButton from '../features/apps/components/DesignModeButton';
 import { getVisiblePreviewTokenError } from '../features/apps/hooks/previewTokenQueryOptions';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppInspector } from '../features/apps/hooks/useAppInspector';
@@ -56,6 +68,12 @@ export default function AppPreviewTest() {
     const explicitVersion = versionParam ? Number(versionParam) : undefined;
 
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const captureFlag = useServerFeatureFlag(FeatureFlags.DataAppCapture);
+    const isEmbedded = useIsEmbedded();
+    // Same check the agent launcher uses before it shows itself.
+    const canUseAgents = useProjectAiAgentButtonVisibility(projectUuid);
+    const defaultAgent = useDefaultAiAgent(projectUuid);
+    const hasCaptureAgent = defaultAgent.agents.length > 0;
 
     // Always fetch app to get creator info + latest ready version when needed.
     // The backend enforces space-aware view permissions and will 403 if the
@@ -223,8 +241,33 @@ export default function AppPreviewTest() {
         }
         return capture();
     }, []);
+    const inspectPreviewAt = useCallback(
+        (point: { x: number; y: number }) =>
+            previewRef.current?.inspectAt(point) ?? Promise.resolve(null),
+        [],
+    );
 
+    // Design Mode: mark the running app and say what to change; each bubble
+    // of marks becomes an agent conversation shown beside them.
     const previewBodyRef = useRef<HTMLDivElement>(null);
+    const designRef = useRef<AppViewDesignModeHandle>(null);
+    const [designOn, setDesignOn] = useState(false);
+    const designModeOffered =
+        captureFlag.data?.enabled === true &&
+        !isEmbedded &&
+        canUseAgents &&
+        hasCaptureAgent &&
+        Boolean(token && version !== undefined && !isFullscreen);
+    // Stable: the preview re-attaches its message listener when these change.
+    const toggleDesignMode = useCallback(() => designRef.current?.toggle(), []);
+    const handleCaptureHold = useCallback(
+        (hold: AppSdkCaptureHold) => designRef.current?.hold(hold),
+        [],
+    );
+    const getAppFrame = useCallback(
+        () => previewBodyRef.current?.querySelector('iframe') ?? null,
+        [],
+    );
 
     if (dataAppsFlag.isLoading) {
         return null;
@@ -369,6 +412,8 @@ export default function AppPreviewTest() {
                         analysisController.setMountedQueryUuids
                     }
                     {...inspector.iframeProps}
+                    onCaptureHotkey={toggleDesignMode}
+                    onCaptureHold={handleCaptureHold}
                 />
                 {!inspector.hidden && !isFullscreen && (
                     <AppInspectorPanel
@@ -430,7 +475,18 @@ export default function AppPreviewTest() {
                     }}
                     rightSection={
                         <AppHeaderActions
-                            previewTools={null}
+                            previewTools={
+                                designModeOffered && (
+                                    <DesignModeButton
+                                        active={designOn}
+                                        screenshotAvailable={
+                                            screenshotAvailable
+                                        }
+                                        onClick={toggleDesignMode}
+                                        surface="app"
+                                    />
+                                )
+                            }
                             openUrl={null}
                             capturedQueryCount={inspector.readyQueryCount}
                             fullscreenToggle={
@@ -525,6 +581,28 @@ export default function AppPreviewTest() {
                 ref={previewBodyRef}
                 className={classes.previewBody}
             >
+                {designModeOffered && (
+                    <AppViewDesignMode
+                        ref={designRef}
+                        projectUuid={projectUuid}
+                        // The server refuses chart types as attachments.
+                        attachedAppUuid={
+                            !firstPage ||
+                            firstPage.template === DATA_APP_VIZ_TEMPLATE
+                                ? null
+                                : firstPage.appUuid
+                        }
+                        appName={appName}
+                        getFrame={getAppFrame}
+                        captureScreenshot={
+                            screenshotAvailable
+                                ? capturePreviewScreenshot
+                                : null
+                        }
+                        inspectAt={inspectPreviewAt}
+                        onStateChange={setDesignOn}
+                    />
+                )}
                 {body}
             </Box>
         </Box>
