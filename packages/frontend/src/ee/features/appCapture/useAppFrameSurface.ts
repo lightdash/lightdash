@@ -105,6 +105,7 @@ export const useAppFrameSurface = ({
                       // Tabs inside an app cannot be seen from outside it.
                       getTab: () => null,
                       resolveTarget: null,
+                      getAnchors: null,
                       pickAt: (point) =>
                           pickInFrame(
                               getFrameRef.current(),

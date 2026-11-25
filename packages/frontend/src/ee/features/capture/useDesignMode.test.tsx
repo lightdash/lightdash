@@ -72,6 +72,7 @@ const surface: DesignSurface = {
     resolveTarget: null,
     pickAt: null,
     transcribe: (audio) => transcribe(audio),
+    getAnchors: null,
 };
 
 type Api = ReturnType<typeof useDesignMode>;
@@ -456,6 +457,35 @@ describe('useDesignMode', () => {
             { startMs: 600, endMs: 900, text: 'blue' },
         ]);
     };
+
+    it('a mark follows the tile it was made on when the layout changes', async () => {
+        let tiles = [
+            { id: 't', rect: { x: 0, y: 0, width: 100, height: 100 } },
+        ];
+        surface.getAnchors = () => tiles;
+        try {
+            await turnOn();
+            await drawMark();
+            await waitFor(() => expect(collected()).toHaveLength(1));
+            const badge = () =>
+                document.querySelector<HTMLElement>('[data-mark-number="1"]')!;
+            const top = () =>
+                parseFloat(badge().style.getPropertyValue('--mark-top'));
+            const before = top();
+            // The tile moves 300px down, as when an agent rearranges the page.
+            tiles = [
+                { id: 't', rect: { x: 0, y: 300, width: 100, height: 100 } },
+            ];
+            await act(async () => {
+                api.screenChanged();
+            });
+            await waitFor(() => expect(top()).toBe(before + 300), {
+                timeout: 2000,
+            });
+        } finally {
+            surface.getAnchors = null;
+        }
+    });
 
     it('the mic choice is remembered for the next visit', async () => {
         const first = renderWithProviders(<Harness />);

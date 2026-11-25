@@ -38,6 +38,7 @@ import {
     type DesignSession,
 } from './designSession';
 import { grabDomFrame } from './domFrame';
+import { followAnchors } from './followAnchors';
 import { sameScreen, shiftMarks, type ScreenView } from './frameGeometry';
 import { CAPTURE_IGNORE_ATTRIBUTE } from './frameSource';
 import { cancelsHold, escapeIsForDesignMode, startsHold } from './holdKeys';
@@ -51,6 +52,7 @@ import {
     type DesignPayload,
     type DesignSendResult,
     type DesignSurface,
+    type Anchor,
     type LayerMark,
     type PickedElement,
     type Point,
@@ -186,6 +188,8 @@ const boxInRegion = (rect: DOMRect, region: DOMRect): MarkBox => {
     };
 };
 
+// How long a moved tile takes to come to rest.
+const LAYOUT_SETTLE_MS = 400;
 const MIC_ON_KEY = 'design-mode-mic-on';
 const readMicOn = (): boolean => {
     try {
@@ -500,11 +504,48 @@ export const useDesignMode = (
         [refreshShield, startGrab],
     );
 
+    // Where the page's tiles were when marks were last placed against them.
+    const anchorsRef = useRef<Anchor[] | null>(null);
+    const followTimerRef = useRef<number | null>(null);
+    // Once a new layout has settled, marks move with what they were made on.
+    const followPage = useCallback(() => {
+        if (followTimerRef.current !== null) {
+            window.clearTimeout(followTimerRef.current);
+        }
+        followTimerRef.current = window.setTimeout(() => {
+            followTimerRef.current = null;
+            const current = surfaceRef.current;
+            const now = current?.getAnchors?.() ?? null;
+            const before = anchorsRef.current;
+            anchorsRef.current = now;
+            if (!current || !now || !before) return;
+            const tabUuid = current.getTab()?.uuid ?? null;
+            updatePlaced((prev) => [
+                ...prev.filter((mark) => mark.tabUuid !== tabUuid),
+                ...followAnchors(
+                    prev.filter((mark) => mark.tabUuid === tabUuid),
+                    before,
+                    now,
+                ),
+            ]);
+        }, LAYOUT_SETTLE_MS);
+    }, [updatePlaced]);
+    useEffect(() => {
+        window.addEventListener('resize', followPage);
+        return () => {
+            window.removeEventListener('resize', followPage);
+            if (followTimerRef.current !== null) {
+                window.clearTimeout(followTimerRef.current);
+            }
+        };
+    }, [followPage]);
+
     // The page's content was replaced: marks made from now need a new picture.
     const screenChanged = useCallback(() => {
         grabNow();
         epochRef.current += 1;
-    }, [grabNow]);
+        followPage();
+    }, [followPage, grabNow]);
 
     const beginRecording = useCallback(
         (bubbleId: string): Promise<VoiceState> => {
@@ -904,6 +945,10 @@ export const useDesignMode = (
                     : { type: 'inputChanged', bubbleId: active.id, input },
             );
             active = activeCollection(next)?.bubble ?? null;
+        }
+        // Marks made in this hold sit on the page as it is now.
+        if (followTimerRef.current === null) {
+            anchorsRef.current = current.getAnchors?.() ?? null;
         }
         const region = current.getRegion();
         postponeGrab();

@@ -52,6 +52,7 @@ import {
     dashboardScroll,
     dashboardScrollContainer,
     targetAtPoint,
+    tileAnchors,
 } from './tilePicker';
 
 type Tab = Dashboard['tabs'][number];
@@ -121,6 +122,7 @@ const DashboardDesignSurface: FC<Props> = ({
                 pickPartAt(point, tilesOnTab())?.target ??
                 targetAtPoint(point, tilesOnTab()),
             pickAt: async (point) => pickPartAt(point, tilesOnTab()),
+            getAnchors: tileAnchors,
             transcribe: captureTranscriber(
                 lightdashApi,
                 projectUuid,

@@ -4,7 +4,11 @@ import {
     type DashboardTile,
 } from '@lightdash/common';
 import { getTileTitle } from '../../../features/dashboardControls/tileProps';
-import { type CaptureMark, type CaptureTarget } from '../capture/types';
+import {
+    type Anchor,
+    type CaptureMark,
+    type CaptureTarget,
+} from '../capture/types';
 
 const UNTITLED = 'Untitled tile';
 const TILE_SELECTOR = '[data-tile-uuid]';
@@ -166,3 +170,24 @@ export const dashboardScroll = (): { x: number; y: number } => {
  */
 export const dashboardScrollContainer = (): HTMLElement | null =>
     innerScroller() ? null : document.body;
+
+/** Where each tile is now, so marks can follow one that moves. */
+export const tileAnchors = (): Anchor[] => {
+    const scroll = dashboardScroll();
+    return [...document.querySelectorAll(TILE_SELECTOR)].flatMap((element) => {
+        const id = element.getAttribute('data-tile-uuid');
+        if (!id) return [];
+        const rect = element.getBoundingClientRect();
+        return [
+            {
+                id,
+                rect: {
+                    x: rect.left + scroll.x,
+                    y: rect.top + scroll.y,
+                    width: rect.width,
+                    height: rect.height,
+                },
+            },
+        ];
+    });
+};

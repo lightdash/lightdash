@@ -1,6 +1,8 @@
 // Points and boxes are fractions (0 to 1) of the capture region, origin top left.
 export type Point = { x: number; y: number };
 export type Box = { x: number; y: number; width: number; height: number };
+/** Something on the page a mark can sit on, such as a tile. Content pixels. */
+export type Anchor = { id: string; rect: Box };
 export type Stroke = { points: Point[] };
 export type MarkShape = 'circle' | 'underline' | 'arrow' | 'scribble' | 'pick';
 /** A mark drawn with the pointer, or an element picked with a click. */
@@ -72,6 +74,8 @@ export type DesignSurface = {
         | ((point: { x: number; y: number }) => Promise<PickedElement | null>)
         | null;
     transcribe: ((audio: Blob) => Promise<TranscriptWord[]>) | null;
+    /** Where each thing marks sit on is now, in content pixels. Null when marks cannot follow the page. */
+    getAnchors: (() => Anchor[]) | null;
 };
 
 export type DesignPayload = {
