@@ -129,6 +129,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     const isEmbed = useIsEmbedded();
     const [view, setView] = useState<ArtifactView>(initialView);
     const tourScopeId = useId();
+    const [isRunQueryChartDrawn, setIsRunQueryChartDrawn] = useState(false);
     const [imageExportRef, setImageExportRef] =
         useState<RefObject<EChartsReact | null>>();
     const [
@@ -297,7 +298,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         config.queries.length > 1 &&
         isResultReady &&
         !!queryUuid &&
-        run?.chartStage?.status !== 'error';
+        (!isRunQueryChart || isRunQueryChartDrawn);
 
     const head = (
         <Box className={clsx(styles.head, styles.flushHead)}>
@@ -460,6 +461,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
             metadata={metadata}
             headerContent={null}
             setImageExportRef={setImageExportRef}
+            onDrawnChange={setIsRunQueryChartDrawn}
         />
     ) : (
         <AiComposerArtifactVisualization
