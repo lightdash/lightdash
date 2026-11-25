@@ -20,10 +20,9 @@
 
 /* A source's rate limits in its settings: usage beside each limit's field. */
 
-/* Right-aligned against its bar, so short counts leave no gap after it. */
+/* Wide enough that the bars line up whatever each limit is. */
 .rateCount {
-    min-width: 136px;
-    text-align: right;
+    min-width: 112px;
     font-size: 13px;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
@@ -32,15 +31,6 @@
 .rateDetail[data-limit-reached],
 .rateError {
     color: var(--mantine-color-red-text);
-}
-
-/* Wide enough that the fields line up whatever each maximum is. */
-.rateMax {
-    min-width: 72px;
-    font-size: 12px;
-    color: var(--mantine-color-dimmed);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
 }
 
 .rateNote {

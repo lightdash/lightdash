@@ -171,7 +171,7 @@ export const getRateLimitMeter = (
         case 'window':
             return row.usage
                 ? counted(row.usage.used, row.usage.capacity)
-                : uncounted('Unlimited');
+                : uncounted('Unbounded');
         case 'callsPerSecond':
             return uncounted(`Up to ${inForce.toLocaleString()}`);
         case 'concurrentCalls':

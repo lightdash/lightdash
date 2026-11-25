@@ -106,12 +106,6 @@ const LimitRow: FC<{
                 />
             }
         >
-            <Text
-                className={classes.rateCount}
-                c={meter.isCounted ? undefined : 'dimmed'}
-            >
-                {meter.text}
-            </Text>
             <Progress
                 w={100}
                 size="sm"
@@ -119,6 +113,12 @@ const LimitRow: FC<{
                 color={meter.isFull ? 'red' : undefined}
                 aria-label={`${row.label}: ${meter.text}`}
             />
+            <Text
+                className={classes.rateCount}
+                c={meter.isCounted ? undefined : 'dimmed'}
+            >
+                {meter.text}
+            </Text>
             <NumberInput
                 w={96}
                 size="xs"
@@ -133,11 +133,6 @@ const LimitRow: FC<{
                 value={value ?? ''}
                 onNumberChange={onChange}
             />
-            <Text className={classes.rateMax}>
-                {row.defaultLimit === null
-                    ? 'no max'
-                    : `max ${row.defaultLimit.toLocaleString()}`}
-            </Text>
         </SettingsRow>
     );
 };

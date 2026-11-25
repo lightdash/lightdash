@@ -188,9 +188,9 @@ describe('getRateLimitMeter', () => {
         });
     });
 
-    it('calls a daily limit that is not set unlimited', () => {
+    it('calls a daily limit that is not set unbounded', () => {
         expect(getRateLimitMeter(rowOf('window:day'), 0)).toEqual({
-            text: 'Unlimited',
+            text: 'Unbounded',
             percent: 0,
             isCounted: false,
             isFull: false,
