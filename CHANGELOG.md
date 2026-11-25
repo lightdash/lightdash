@@ -1,3 +1,10 @@
+# [3.403.0](https://github.com/lightdash/lightdash/compare/3.402.0...3.403.0) (2026-11-25)
+
+
+### Features
+
+* **semantic-studio:** open code ready to edit and finish the editing flow ([#33422](https://github.com/lightdash/lightdash/issues/33422)) ([e5984ee](https://github.com/lightdash/lightdash/commit/e5984ee3db8027dbfe3360f028cbe1c8d7398aa8))
+
 # [3.402.0](https://github.com/lightdash/lightdash/compare/3.401.1...3.402.0) (2026-11-25)
 
 
