@@ -1,3 +1,10 @@
+## [3.395.2](https://github.com/lightdash/lightdash/compare/3.395.1...3.395.2) (2026-11-25)
+
+
+### Bug Fixes
+
+* **ai:** start chart turns with editContent so pinned charts can be edited ([#33408](https://github.com/lightdash/lightdash/issues/33408)) ([790a36c](https://github.com/lightdash/lightdash/commit/790a36cfa0ceb9ad045173e3a780c692a7e7e81a))
+
 ## [3.395.1](https://github.com/lightdash/lightdash/compare/3.395.0...3.395.1) (2026-11-25)
 
 
