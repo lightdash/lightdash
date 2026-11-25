@@ -7,7 +7,6 @@ import {
 import {
     ActionIcon,
     Anchor,
-    Badge,
     Box,
     Button,
     Code,
@@ -21,15 +20,13 @@ import {
 } from '@mantine/core';
 import { WorkerPoolContextProvider } from '@pierre/diffs/react';
 import {
-    IconAlertTriangle,
     IconChevronDown,
     IconDots,
     IconExternalLink,
-    IconEye,
     IconFileCode,
     IconPencil,
 } from '@tabler/icons-react';
-import { sortBy, uniqBy } from 'es-toolkit/compat';
+import { uniqBy } from 'es-toolkit/compat';
 import { useContext, useEffect, useRef, useState, type FC } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import Callout from '../../components/common/Callout';
@@ -83,17 +80,6 @@ import {
     useSemanticLayerDraftImpact,
 } from './useSemanticLayerModel';
 import { useDraftPullRequest } from './useStudioCheckout';
-
-/** How many models of the draft, or the one named, still have a part to choose between. */
-const countConflicts = (
-    { models }: SemanticLayerDraft,
-    model: string | null,
-): number =>
-    models.filter(
-        (entry) =>
-            (model === null || entry.model === model) &&
-            entry.reconciliation?.state === 'conflict',
-    ).length;
 
 const MessageList: FC<{
     variant: 'warning' | 'danger';
@@ -272,12 +258,7 @@ export const ApplyModal: FC<{
             }
             confirmLabel={isRisky ? `${confirmLabel} anyway` : confirmLabel}
             confirmLoading={apply.isLoading}
-            confirmDisabled={
-                isAgentWorking ||
-                scoped.some(
-                    (entry) => entry.reconciliation?.state === 'conflict',
-                )
-            }
+            confirmDisabled={isAgentWorking}
             onConfirm={() =>
                 // A promise, since the bar holding this modal leaves with the draft before a callback would run.
                 void apply.mutateAsync({ model, merge: mode === 'merge' }).then(
@@ -382,13 +363,10 @@ const ModelActions: FC<{
     const [applying, setApplying] = useState(false);
     const [armed, setArmed] = useState(false);
     const isAgentWorking = useStudioAgentWorking(projectUuid);
-    const hasConflict = countConflicts(draft, model) > 0;
-    const blocked = isAgentWorking || hasConflict || cannotApply(draft, model);
+    const blocked = isAgentWorking || cannotApply(draft, model);
     const blockedReason = isAgentWorking
         ? AGENT_WORKING_HINT
-        : hasConflict
-          ? 'Choose which version to keep first.'
-          : 'Some changes no longer pass their checks.';
+        : 'Some changes no longer pass their checks.';
     return (
         <>
             <Menu position="bottom-end" onClose={() => setArmed(false)}>
@@ -436,52 +414,35 @@ const ModelActions: FC<{
 
 /** Says so once when someone publishes to a model this person has in development, since the page does not reload for it. */
 const usePublishedUnderNotice = (draft: SemanticLayerDraft | undefined) => {
-    const { showToastInfo, showToastWarning } = useToaster();
-    const [, setSearchParams] = useSearchParams();
+    const { showToastInfo } = useToaster();
     // Null until the first read, which is not news: it was already so when the page opened.
     const seen = useRef<Set<string> | null>(null);
     useEffect(() => {
         if (!draft) return;
-        const current = draft.models.flatMap(
-            ({ model, publishedSince, reconciliation }) =>
-                publishedSince
-                    ? [
-                          {
-                              key: `${model}@${new Date(publishedSince.at).getTime()}`,
-                              model,
-                              publisher: describePublisher(publishedSince),
-                              isConflict: reconciliation?.state === 'conflict',
-                          },
-                      ]
-                    : [],
+        const current = draft.models.flatMap(({ model, publishedSince }) =>
+            publishedSince
+                ? [
+                      {
+                          key: `${model}@${new Date(publishedSince.at).getTime()}`,
+                          model,
+                          publisher: describePublisher(publishedSince),
+                      },
+                  ]
+                : [],
         );
         const known = seen.current;
         seen.current = new Set(current.map(({ key }) => key));
         if (known === null) return;
         current
             .filter(({ key }) => !known.has(key))
-            .forEach(({ model, publisher, isConflict }) =>
-                isConflict
-                    ? showToastWarning({
-                          title: `${publisher.subject} changed a part of ${model}${publisher.where} that this draft changes too`,
-                          subtitle:
-                              'Choose which version to keep before you publish.',
-                          action: {
-                              children: 'See both',
-                              icon: IconEye,
-                              onClick: () =>
-                                  setSearchParams({
-                                      [DRAFT_PARAM]: DRAFT_REVIEW,
-                                  }),
-                          },
-                      })
-                    : showToastInfo({
-                          title: `${publisher.subject} published a change to ${model}${publisher.where}`,
-                          subtitle:
-                              'It is outside what you changed, and your changes sit on top of it.',
-                      }),
+            .forEach(({ model, publisher }) =>
+                showToastInfo({
+                    title: `${publisher.subject} published a change to ${model}${publisher.where}`,
+                    subtitle:
+                        'Your review now shows what publishing would change.',
+                }),
             );
-    }, [draft, showToastInfo, showToastWarning, setSearchParams]);
+    }, [draft, showToastInfo]);
 };
 
 /** The project context file as the draft leaves it, read like a model's file. */
@@ -511,7 +472,7 @@ export const DraftDevelopmentBar: FC<{
     onDiscarded: () => void;
 }> = ({ projectUuid, onDiscarded }) => {
     const { data: draft } = useSemanticLayerDraft(projectUuid);
-    const [searchParams, setSearchParams] = useSearchParams();
+    const [, setSearchParams] = useSearchParams();
     const [publishing, setPublishing] = useState(false);
     const [discarding, setDiscarding] = useState(false);
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
@@ -533,12 +494,9 @@ export const DraftDevelopmentBar: FC<{
         if (draft && isEmpty && isPreviewing) setIsPreviewing(false);
     }, [draft, isEmpty, isPreviewing, setIsPreviewing]);
     if (isEmpty) return null;
-    const reviewing = searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW;
     const isInvalid = cannotApply(draft, null);
     const blocked = isAgentWorking || isInvalid;
-    const conflicts = countConflicts(draft, null);
-    // A removed model has nothing to open.
-    const showsPublish = conflicts === 0 && hasPublishable;
+    const showsPublish = hasPublishable;
     const tryModel =
         draft.models.find((entry) => getChangeKind(entry) !== 'removed')
             ?.model ?? null;
@@ -605,37 +563,6 @@ export const DraftDevelopmentBar: FC<{
                     )
                 }
             >
-                {conflicts > 0 ? (
-                    <Tooltip label="Someone published to a part you changed too. Choose which version to keep, then publish.">
-                        <Button
-                            size="xs"
-                            variant="default"
-                            leftSection={
-                                <MantineIcon
-                                    icon={IconAlertTriangle}
-                                    size={14}
-                                    color="yellow"
-                                />
-                            }
-                            onClick={() => {
-                                if (!reviewing) {
-                                    setSearchParams({
-                                        [DRAFT_PARAM]: DRAFT_REVIEW,
-                                    });
-                                    return;
-                                }
-                                document
-                                    .querySelector('[data-conflict]')
-                                    ?.scrollIntoView({
-                                        behavior: 'smooth',
-                                        block: 'center',
-                                    });
-                            }}
-                        >
-                            Resolve {count(conflicts, 'conflict')}
-                        </Button>
-                    </Tooltip>
-                ) : null}
                 {showsPublish ? (
                     <Button.Group>
                         <Tooltip
@@ -709,18 +636,44 @@ export const DraftDevelopmentBar: FC<{
 
 /** What the draft left out, could not do, or did not need to do. */
 const DraftNotes: FC<{ draft: SemanticLayerDraft }> = ({ draft }) => {
-    const notes = draft.changes
-        .flatMap((change) => change.models)
-        .flatMap(({ model, changes, refusals, error }) => [
-            ...refusals.map((refusal) => ({
-                text: refusalText(model, refusal),
+    const entries = draft.changes.flatMap((change) => change.models);
+    // Parts a later publish removed read as one line per model, not one per part.
+    const gone = new Map<string, number>();
+    const isGone = (model: string, reason: string) =>
+        (reason === 'not_found' || reason === 'incomplete') &&
+        draft.models.some(
+            (entry) => entry.model === model && entry.publishedSince,
+        );
+    entries.forEach(({ model, refusals }) =>
+        refusals.forEach(({ reason }) => {
+            if (isGone(model, reason))
+                gone.set(model, (gone.get(model) ?? 0) + 1);
+        }),
+    );
+    const notes = [
+        ...[...gone].map(([model, n]) => {
+            const { subject } = describePublisher(
+                draft.models.find((entry) => entry.model === model)
+                    ?.publishedSince ?? null,
+            );
+            return {
+                text: `${count(n, 'change')} to ${model} no longer ${n === 1 ? 'applies' : 'apply'}. ${subject} removed the parts they were on.`,
                 color: 'dimmed',
-            })),
+            };
+        }),
+        ...entries.flatMap(({ model, changes, refusals, error }) => [
+            ...refusals
+                .filter(({ reason }) => !isGone(model, reason))
+                .map((refusal) => ({
+                    text: refusalText(model, refusal),
+                    color: 'dimmed',
+                })),
             ...(error ? [{ text: `${model}: ${error}`, color: 'red' }] : []),
-            ...(!error && changes.length === 0
+            ...(!error && changes.length === 0 && refusals.length === 0
                 ? [{ text: `${model} already has this.`, color: 'dimmed' }]
                 : []),
-        ]);
+        ]),
+    ];
     if (notes.length === 0) return null;
     return (
         <Stack gap={2}>
@@ -758,10 +711,6 @@ export const DraftReview: FC<DraftReviewProps> = ({
     if (draft.changes.length === 0) {
         return <Navigate to={{ search: '' }} replace />;
     }
-    // A model with a choice still to make comes first: nothing publishes until it is made.
-    const models = sortBy(draft.models, ({ reconciliation }) =>
-        reconciliation?.state === 'conflict' ? 0 : 1,
-    );
     return (
         <Stack gap="md" className={classes.review}>
             <MessageList
@@ -785,7 +734,7 @@ export const DraftReview: FC<DraftReviewProps> = ({
                         variant="full"
                     />
                 ) : null}
-                {models.map((modelChange) => {
+                {draft.models.map((modelChange) => {
                     const fields = listPublishedParts(draft, modelChange);
                     return (
                         <Box
@@ -832,16 +781,6 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                 <LineCounts
                                     counts={countChangedLines(modelChange)}
                                 />
-                                {modelChange.reconciliation?.state ===
-                                'conflict' ? (
-                                    <Badge color="yellow" flex="none">
-                                        {count(
-                                            modelChange.reconciliation.conflicts
-                                                .length,
-                                            'conflict',
-                                        )}
-                                    </Badge>
-                                ) : null}
                                 {draft.models.length > 1 && publishesHere ? (
                                     <ModelActions
                                         projectUuid={projectUuid}
@@ -892,24 +831,12 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                     ))}
                                 </Box>
                             ) : null}
-                            <ModelNotices
-                                projectUuid={projectUuid}
-                                model={modelChange}
+                            <ModelNotices model={modelChange} />
+                            <ChangeDiff
+                                modelName={modelChange.model}
+                                change={modelChange}
+                                variant="full"
                             />
-                            {/* Until the choice is made the diff would only repeat both versions. */}
-                            {modelChange.reconciliation?.state ===
-                            'conflict' ? (
-                                <Text fz="xs" c="dimmed" p="sm">
-                                    The code shows once you choose which version
-                                    to keep.
-                                </Text>
-                            ) : (
-                                <ChangeDiff
-                                    modelName={modelChange.model}
-                                    change={modelChange}
-                                    variant="full"
-                                />
-                            )}
                         </Box>
                     );
                 })}

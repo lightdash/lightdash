@@ -539,19 +539,6 @@ export const useDiscardDraftChange = (projectUuid: string) =>
         changesLive: false,
     });
 
-/** Keeps the draft of a model over what was published to it since. */
-export const useKeepDraftModel = (projectUuid: string) =>
-    useWrite<undefined, { model: string; liveVersion: number | null }>({
-        projectUuid,
-        request: ({ model, liveVersion }) => ({
-            path: `${toDraftPath(model)}/keep`,
-            method: 'POST',
-            body: JSON.stringify({ liveVersion }),
-        }),
-        errorTitle: 'Could not keep your version',
-        changesLive: false,
-    });
-
 /** Saves a hand edit of a model's YAML into the draft, starting one on Published. */
 export const useSaveDraftModel = (projectUuid: string) =>
     useWrite<
@@ -565,19 +552,6 @@ export const useSaveDraftModel = (projectUuid: string) =>
             body: JSON.stringify({ base, content }),
         }),
         errorTitle: null,
-        changesLive: false,
-    });
-
-/** Leaves one part of a drafted model as it is live. */
-export const useTakeLiveDraftPart = (projectUuid: string) =>
-    useWrite<undefined, { model: string; path: string }>({
-        projectUuid,
-        request: ({ model, path }) => ({
-            path: `${toDraftPath(model)}/take-live`,
-            method: 'POST',
-            body: JSON.stringify({ path }),
-        }),
-        errorTitle: 'Could not take the published version',
         changesLive: false,
     });
 

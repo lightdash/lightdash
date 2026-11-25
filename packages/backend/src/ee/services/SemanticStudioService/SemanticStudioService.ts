@@ -1461,16 +1461,7 @@ export class SemanticStudioService extends BaseService {
                 contentBefore: projectContext.contentBefore,
                 contentAfter: projectContext.contentAfter,
             },
-            models: [
-                ...draft.writes,
-                // A conflict on a model the draft writes nothing to still needs settling.
-                ...[...reconciliations].flatMap(
-                    ([model, { state }]): [string, string | null][] =>
-                        state === 'conflict' && !draft.writes.has(model)
-                            ? [[model, draft.live.get(model) ?? null]]
-                            : [],
-                ),
-            ].map(([model, contentAfter]) => {
+            models: [...draft.writes].map(([model, contentAfter]) => {
                 const explore = explores.find(({ name }) => name === model);
                 return {
                     model,
@@ -2220,27 +2211,6 @@ export class SemanticStudioService extends BaseService {
                 return {
                     exploreCount: null,
                     failures: unmergeable,
-                    pullRequestUrl: null,
-                    merge: null,
-                };
-            }
-            // Publishing would put this person's version in place of one they have not looked at.
-            const contested = [
-                ...(await this.reconcileDraft(projectUuid, draft)),
-            ].flatMap(([name, { state }]) =>
-                state === 'conflict'
-                    ? [
-                          {
-                              model: name,
-                              error: 'Someone published a change to a part of this model that you changed too. Keep yours or combine them before publishing.',
-                          },
-                      ]
-                    : [],
-            );
-            if (contested.length > 0) {
-                return {
-                    exploreCount: null,
-                    failures: contested,
                     pullRequestUrl: null,
                     merge: null,
                 };
