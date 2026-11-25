@@ -1,5 +1,13 @@
 import { useElementSize } from '@mantine/hooks';
-import { useEffect, useRef, useState, type FC } from 'react';
+import { isEqual } from 'es-toolkit/compat';
+import {
+    useEffect,
+    useLayoutEffect,
+    useReducer,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import {
     Responsive,
     type ResponsiveProps,
@@ -19,6 +27,17 @@ export const ResponsiveGridLayout: FC<Props> = ({
     const [width, setWidth] = useState<number>();
     const { breakpoints, cols, onBreakpointChange } = props;
     const hasReportedInitialBreakpoint = useRef(false);
+
+    // react-grid-layout clamps new layouts to its old cols, so new cols go in
+    // first and their layouts one render later, both before paint
+    const committed = useRef({ cols, layouts: props.layouts });
+    const [, renderLayouts] = useReducer((n: number) => n + 1, 0);
+    const isAwaitingCols = !isEqual(committed.current.cols, cols);
+    const layouts = isAwaitingCols ? committed.current.layouts : props.layouts;
+    useLayoutEffect(() => {
+        committed.current = { cols, layouts: props.layouts };
+        if (isAwaitingCols) renderLayouts();
+    }, [cols, props.layouts, isAwaitingCols]);
 
     useEffect(() => {
         // Hidden dashboard tabs can report zero. Keep their last valid layout.
@@ -52,7 +71,14 @@ export const ResponsiveGridLayout: FC<Props> = ({
         );
     }
 
-    const grid = <Responsive {...props} innerRef={ref} width={width ?? 1280} />;
+    const grid = (
+        <Responsive
+            {...props}
+            layouts={layouts}
+            innerRef={ref}
+            width={width ?? 1280}
+        />
+    );
     // Grids that never zoom keep their DOM as it was
     return props.transformScale === undefined ? (
         grid

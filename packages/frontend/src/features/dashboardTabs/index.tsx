@@ -82,6 +82,7 @@ import { getDateZoomSummaryLabel } from '../dateZoom/utils';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 import { AddTabModal } from './AddTabModal';
 import { CanvasAddTile } from './CanvasAddTile';
+import { ACTUAL_SIZE_ZOOM } from './canvasZoomUtils';
 import { TabDeleteModal } from './DeleteTabModal';
 import DuplicateTabModal from './DuplicateTabModal';
 import { TabEditModal } from './EditTabModal';
@@ -210,9 +211,6 @@ const TabGridPanel = memo<TabGridPanelProps>(
             >
                 <ErrorBoundary>
                     <ResponsiveGridLayout
-                        // react-grid-layout keeps its old layout when only the column
-                        // count changes, so a new grid resolution needs a new grid
-                        key={gridProps.cols.lg}
                         {...gridProps}
                         onDragStart={onDragStart}
                         onDrag={onDrag}
@@ -863,7 +861,13 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const gridProps: DashboardGridProps = useMemo(
         () => ({
             ...unzoomedGridProps,
-            transformScale: isCanvasZoomable ? canvasZoom : undefined,
+            // Kept at actual size outside editing so leaving edit mode keeps
+            // the same grid tree instead of remounting every tile
+            transformScale: isCanvasZoomable
+                ? canvasZoom
+                : editErgonomicsFlag?.enabled === true
+                  ? ACTUAL_SIZE_ZOOM
+                  : undefined,
             // Only mid-gesture, so the grid still pushes stored overlaps apart
             allowOverlap: isEditErgonomicsEnabled && isInteracting,
             resizeHandles: isEditErgonomicsEnabled
@@ -874,6 +878,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             unzoomedGridProps,
             isCanvasZoomable,
             canvasZoom,
+            editErgonomicsFlag?.enabled,
             isEditErgonomicsEnabled,
             isInteracting,
         ],
@@ -1691,7 +1696,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                   visibleTiles && (
                                       <ErrorBoundary>
                                           <ResponsiveGridLayout
-                                              key={gridProps.cols.lg}
                                               {...gridProps}
                                               onDragStart={handleDragStart}
                                               onDrag={handleDrag}

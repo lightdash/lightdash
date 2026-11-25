@@ -126,4 +126,74 @@ describe('dashboard container resizing', () => {
         expect(onBreakpointChange).not.toHaveBeenCalledWith('wide', 2);
         expect(onBreakpointChange).toHaveBeenLastCalledWith('narrow', 1);
     });
+
+    it('switches to a finer grid in place, laying tiles out on the new columns', () => {
+        const resize = stubResizeObserver();
+        const grid = (cols: number, scale: number) => (
+            <ResponsiveGridLayout
+                breakpoints={{ wide: 0 }}
+                cols={{ wide: cols }}
+                margin={[0, 0]}
+                containerPadding={[0, 0]}
+                rowHeight={40}
+                compactType={null}
+                layouts={{
+                    wide: [
+                        { i: 'a', x: 0, y: 0, w: scale, h: 1 },
+                        { i: 'b', x: scale, y: 0, w: scale, h: 1 },
+                    ],
+                }}
+                useCSSTransforms={false}
+            >
+                <div key="a" data-testid="first-tile" />
+                <div key="b" data-testid="second-tile" />
+            </ResponsiveGridLayout>
+        );
+
+        const { rerender } = render(grid(2, 1));
+        resize(400);
+        const secondTile = screen.getByTestId('second-tile');
+
+        rerender(grid(4, 2));
+
+        expect(screen.getByTestId('second-tile')).toBe(secondTile);
+        expect(secondTile).toHaveStyle({ left: '200px', top: '0px' });
+    });
+
+    it('switches back to a coarser grid in place, as leaving edit mode does', () => {
+        const resize = stubResizeObserver();
+        const grid = (cols: number, tileWidth: number) => (
+            <ResponsiveGridLayout
+                breakpoints={{ wide: 0 }}
+                cols={{ wide: cols }}
+                margin={[0, 0]}
+                containerPadding={[0, 0]}
+                rowHeight={40}
+                compactType={null}
+                layouts={{
+                    wide: [
+                        { i: 'a', x: 0, y: 0, w: tileWidth, h: 1 },
+                        { i: 'b', x: tileWidth, y: 0, w: tileWidth, h: 1 },
+                    ],
+                }}
+                useCSSTransforms={false}
+            >
+                <div key="a" data-testid="first-tile" />
+                <div key="b" data-testid="second-tile" />
+            </ResponsiveGridLayout>
+        );
+
+        const { rerender } = render(grid(4, 2));
+        resize(400);
+        const secondTile = screen.getByTestId('second-tile');
+
+        rerender(grid(2, 1));
+
+        expect(screen.getByTestId('second-tile')).toBe(secondTile);
+        expect(secondTile).toHaveStyle({
+            left: '200px',
+            top: '0px',
+            width: '200px',
+        });
+    });
 });

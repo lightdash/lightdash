@@ -1432,10 +1432,14 @@ const Dashboard: FC = () => {
         dashboardTabs,
     ]);
 
-    // Until the controls flag answers the page could not pick its bar and
-    // would swap it, remounting the grid; the request runs alongside the
-    // dashboard's, so it only waits when the flag is slower
-    if (isDashboardLoading || dashboardControlsFlag.isInitialLoading) {
+    // Until these flags answer the page could not pick its bar or grid wrapper
+    // and would swap them, remounting the grid; the requests run alongside the
+    // dashboard's, so it only waits when a flag is slower
+    if (
+        isDashboardLoading ||
+        dashboardControlsFlag.isInitialLoading ||
+        editErgonomicsFlag.isInitialLoading
+    ) {
         return <PageSpinner />;
     }
 
