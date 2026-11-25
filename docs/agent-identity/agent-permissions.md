@@ -246,7 +246,9 @@ for environment and file access.
 include the SQL runner and exports. Every OAuth token is limited to its
 scopes, with no feature flag. A token with no scopes has no access, and OAuth
 tokens cannot create personal access tokens, service accounts, SCIM tokens or
-OAuth clients.
+OAuth clients. Until 15 March 2027, browser login in CLI releases before
+3.88.0 can still create a personal access token that expires after at most 30
+days, outside organizations with `agent-identity` on.
 
 ## MCP settings
 

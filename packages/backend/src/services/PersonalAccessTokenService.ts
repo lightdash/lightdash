@@ -9,15 +9,25 @@ import {
     RequestMethod,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
-import { assertOAuthCredentialOperationAllowed } from '../auth/oauthScopes/credentials';
+import {
+    assertOAuthCredentialOperationAllowed,
+    CLI_OAUTH_PAT_COMPAT_MAX_DAYS,
+    isCliOAuthPatCompatCandidate,
+    logCliOAuthPatCompatUsed,
+} from '../auth/oauthScopes/credentials';
+import { resolveOAuthSecurityStrict } from '../auth/oauthScopes/security';
 import { LightdashConfig } from '../config/parseConfig';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
+import { type FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { BaseService } from './BaseService';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 type PersonalAccessTokenServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     personalAccessTokenModel: PersonalAccessTokenModel;
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
 };
 
 export class PersonalAccessTokenService extends BaseService {
@@ -27,11 +37,39 @@ export class PersonalAccessTokenService extends BaseService {
 
     private readonly personalAccessTokenModel: PersonalAccessTokenModel;
 
+    private readonly featureFlagModel: Pick<FeatureFlagModel, 'get'>;
+
     constructor(args: PersonalAccessTokenServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
         this.personalAccessTokenModel = args.personalAccessTokenModel;
+        this.featureFlagModel = args.featureFlagModel;
+    }
+
+    private async isCliOAuthPatCompat(account: Account): Promise<boolean> {
+        if (!isCliOAuthPatCompatCandidate(account) || !this.featureFlagModel)
+            return false;
+        const strict = await resolveOAuthSecurityStrict(this.featureFlagModel, {
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
+        return !strict;
+    }
+
+    private capCliOAuthPatExpiry(expiresAt: Date | string | null): Date {
+        const now = Date.now();
+        const { maxExpirationTimeInDays } = this.lightdashConfig.auth.pat;
+        const requested = expiresAt ? new Date(expiresAt).getTime() : NaN;
+        return new Date(
+            Math.min(
+                now + CLI_OAUTH_PAT_COMPAT_MAX_DAYS * DAY_MS,
+                ...(maxExpirationTimeInDays
+                    ? [now + maxExpirationTimeInDays * DAY_MS]
+                    : []),
+                ...(Number.isNaN(requested) ? [] : [requested]),
+            ),
+        );
     }
 
     private throwIfExpirationTimeIsInvalid(expiresAt: string | Date | null) {
@@ -61,10 +99,12 @@ export class PersonalAccessTokenService extends BaseService {
         data: CreatePersonalAccessToken,
         method: RequestMethod,
     ): Promise<PersonalAccessTokenWithToken> {
-        assertOAuthCredentialOperationAllowed(
-            account,
-            'createPersonalAccessToken',
-        );
+        const cliPatCompat = await this.isCliOAuthPatCompat(account);
+        if (!cliPatCompat)
+            assertOAuthCredentialOperationAllowed(
+                account,
+                'createPersonalAccessToken',
+            );
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -80,8 +120,11 @@ export class PersonalAccessTokenService extends BaseService {
             );
         }
 
+        const tokenData = cliPatCompat
+            ? { ...data, expiresAt: this.capCliOAuthPatExpiry(data.expiresAt) }
+            : data;
         // validate expiration time
-        this.throwIfExpirationTimeIsInvalid(data.expiresAt);
+        this.throwIfExpirationTimeIsInvalid(tokenData.expiresAt);
 
         if (account.user.type !== 'registered') {
             throw new ForbiddenError(
@@ -90,8 +133,10 @@ export class PersonalAccessTokenService extends BaseService {
         }
         const result = await this.personalAccessTokenModel.create(
             { userId: account.user.userId },
-            data,
+            tokenData,
         );
+        if (cliPatCompat && tokenData.expiresAt)
+            logCliOAuthPatCompatUsed(account, tokenData.expiresAt);
         this.analytics.track({
             userId: account.user.id,
             event: 'personal_access_token.created',

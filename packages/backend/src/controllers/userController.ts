@@ -890,7 +890,7 @@ export class UserController extends BaseController {
      */
     @Middlewares([
         // NOTE: We do NOT allow personal access tokens to be created with PAT authentication
-        allowOauthAuthentication, // OAuth tokens are authenticated so the service can refuse them with 403
+        allowOauthAuthentication, // OAuth tokens are authenticated so the service can apply its OAuth credential rules
         isAuthenticated,
         unauthorisedInDemo,
     ])

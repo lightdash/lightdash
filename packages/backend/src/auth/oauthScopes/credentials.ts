@@ -5,6 +5,7 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
+import { DEFAULT_OAUTH_CLIENT_ID } from '../../models/OAuth2Model';
 import { clientIdForOAuthRecord, scopesForOAuthRecord } from './mode';
 import { getOAuthScopeContext } from './scopedAbility';
 
@@ -27,6 +28,43 @@ const cliVersionFromUserAgent = (
     /^lightdash-cli\/(\d+\.\d+\.\d+[\w.-]{0,32})(?:\s|$)/.exec(
         userAgent ?? '',
     )?.[1] ?? null;
+
+// CLI releases before 3.88.0 create a personal access token with their
+// browser-login OAuth token. This keeps that working for a limited time.
+// Remove the exception and this constant after this date.
+export const CLI_OAUTH_PAT_COMPAT_UNTIL = new Date('2027-03-15T00:00:00Z');
+
+export const CLI_OAUTH_PAT_COMPAT_MAX_DAYS = 30;
+
+export const isCliOAuthPatCompatCandidate = (
+    account: Account,
+    now: Date = new Date(),
+): boolean => {
+    const { authentication } = account;
+    return (
+        authentication.type === 'oauth' &&
+        authentication.clientId === DEFAULT_OAUTH_CLIENT_ID &&
+        authentication.scopes.includes('write') &&
+        authentication.agentConnectionGrant == null &&
+        now.getTime() < CLI_OAUTH_PAT_COMPAT_UNTIL.getTime()
+    );
+};
+
+export const logCliOAuthPatCompatUsed = (
+    account: Account,
+    expiresAt: Date,
+): void => {
+    Logger.warn('oauth_cli_pat_compat_used', {
+        clientId:
+            account.authentication.type === 'oauth'
+                ? clientIdForOAuthRecord(account.authentication.clientId)
+                : null,
+        userUuid: account.user.id,
+        organizationUuid: account.organization.organizationUuid ?? null,
+        expiresAt: expiresAt.toISOString(),
+        cliVersion: cliVersionFromUserAgent(account.requestContext?.userAgent),
+    });
+};
 
 export const assertOAuthCredentialOperationAllowed = (
     actor: Account | SessionUser,
