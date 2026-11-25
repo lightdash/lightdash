@@ -3,6 +3,7 @@ import { FieldType, type PivotData } from '@lightdash/common';
 export type RowSpanMerge = {
     isBlockStart: boolean;
     rowSpan: number;
+    blockStartRow: number;
 };
 
 /**
@@ -63,10 +64,10 @@ export const getRowSpanMerges = (
 
             if (startsNewBlock) {
                 blockStartRow = row;
-                spans[row] = { isBlockStart: true, rowSpan: 1 };
+                spans[row] = { isBlockStart: true, rowSpan: 1, blockStartRow };
             } else {
                 spans[blockStartRow].rowSpan += 1;
-                spans[row] = { isBlockStart: false, rowSpan: 0 };
+                spans[row] = { isBlockStart: false, rowSpan: 0, blockStartRow };
             }
         }
 
@@ -74,4 +75,31 @@ export const getRowSpanMerges = (
     });
 
     return result;
+};
+
+/**
+ * Clips a row's merge to the rendered (virtualized) rows `firstRow..lastRow`.
+ * A block that starts above `firstRow` gets a new start cell on `firstRow`,
+ * and no span reaches past `lastRow`, so every rendered row is covered by
+ * exactly one cell per merged column.
+ */
+export const getWindowedRowSpanMerge = (
+    spans: RowSpanMerge[] | undefined,
+    rowIndex: number,
+    firstRow: number,
+    lastRow: number,
+): RowSpanMerge | undefined => {
+    const merge = spans?.[rowIndex];
+    if (!spans || !merge) return merge;
+    if (!merge.isBlockStart && rowIndex !== firstRow) return merge;
+
+    const { blockStartRow } = merge;
+    const blockEndRow = blockStartRow + spans[blockStartRow].rowSpan - 1;
+    if (merge.isBlockStart && blockEndRow <= lastRow) return merge;
+
+    return {
+        isBlockStart: true,
+        rowSpan: Math.max(1, Math.min(blockEndRow, lastRow) - rowIndex + 1),
+        blockStartRow,
+    };
 };

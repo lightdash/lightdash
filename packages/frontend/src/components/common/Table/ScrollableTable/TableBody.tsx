@@ -36,6 +36,7 @@ import { getConditionalRuleLabelFromItem } from '../../Filters/FilterInputs/util
 import MantineIcon from '../../MantineIcon';
 import {
     getRowSpanMerges,
+    getWindowedRowSpanMerge,
     type RowSpanMerge,
 } from '../../PivotTable/getRowSpanMerges';
 import {
@@ -78,6 +79,8 @@ interface TableRowProps {
     // Per-column rowSpan-merge info for row-grouping mode, keyed by column id;
     // null when not in row-grouping mode.
     rowSpanMergesByColumnId?: Map<string, RowSpanMerge[]> | null;
+    firstRenderedRowIndex?: number;
+    lastRenderedRowIndex?: number;
 }
 
 const TableRow: FC<TableRowProps> = ({
@@ -91,6 +94,8 @@ const TableRow: FC<TableRowProps> = ({
     minMaxMap,
     minimal = false,
     rowSpanMergesByColumnId,
+    firstRenderedRowIndex = 0,
+    lastRenderedRowIndex = 0,
 }) => {
     const colorScheme = useComputedColorScheme();
     const { table } = useTableContext();
@@ -164,9 +169,12 @@ const TableRow: FC<TableRowProps> = ({
                 const cell = column
                     ? createCell(table, row, column, column.id)
                     : cells![columnIndex];
-                const rowSpanMerge = rowSpanMergesByColumnId?.get(
-                    cell.column.id,
-                )?.[index];
+                const rowSpanMerge = getWindowedRowSpanMerge(
+                    rowSpanMergesByColumnId?.get(cell.column.id),
+                    index,
+                    firstRenderedRowIndex,
+                    lastRenderedRowIndex,
+                );
                 // Absorbed (non-block-start) merged cell: the block-start cell's
                 // rowSpan already covers this row, so render no <td> here.
                 if (rowSpanMerge && !rowSpanMerge.isBlockStart) {
@@ -479,30 +487,13 @@ const VirtualizedTableBody: FC<{
               (virtualRows[virtualRows.length - 1]?.end || 0)
             : 0;
 
-    // Row-grouping mode renders every row (no virtualization) so the merged
-    // dimension cells' rowSpans span their full block — virtualization would
-    // unmount the absorbed rows and break the span.
-    if (groupingOnlyMode) {
-        return (
-            <tbody>
-                {rows.map((row, index) => (
-                    <TableRow
-                        columnWindow={columnWindow}
-                        minimal={minimal}
-                        key={index}
-                        index={index}
-                        virtualIndex={index}
-                        measureElement={measureElement}
-                        row={row}
-                        cellContextMenu={cellContextMenu}
-                        conditionalFormattings={conditionalFormattings}
-                        minMaxMap={minMaxMap}
-                        rowSpanMergesByColumnId={rowSpanMergesByColumnId}
-                    />
-                ))}
-            </tbody>
-        );
-    }
+    const isLoaderRow = (index: number) =>
+        isFetchingRows && index + 1 === rows.length && isInfiniteScrollEnabled;
+    const firstRenderedRowIndex = virtualRows[0]?.index ?? 0;
+    const lastVirtualRowIndex = virtualRows.at(-1)?.index ?? 0;
+    const lastRenderedRowIndex = isLoaderRow(lastVirtualRowIndex)
+        ? lastVirtualRowIndex - 1
+        : lastVirtualRowIndex;
 
     return (
         <tbody>
@@ -515,11 +506,7 @@ const VirtualizedTableBody: FC<{
                 : virtualRows.map((virtualRow) => {
                       const { index } = virtualRow;
                       // If this is the last row and we're loading, show the loader
-                      if (
-                          isFetchingRows &&
-                          index + 1 === rows.length &&
-                          isInfiniteScrollEnabled
-                      ) {
+                      if (isLoaderRow(index)) {
                           return (
                               <tr
                                   key={index}
@@ -552,6 +539,9 @@ const VirtualizedTableBody: FC<{
                               cellContextMenu={cellContextMenu}
                               conditionalFormattings={conditionalFormattings}
                               minMaxMap={minMaxMap}
+                              rowSpanMergesByColumnId={rowSpanMergesByColumnId}
+                              firstRenderedRowIndex={firstRenderedRowIndex}
+                              lastRenderedRowIndex={lastRenderedRowIndex}
                           />
                       );
                   })}
