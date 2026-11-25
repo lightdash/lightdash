@@ -172,35 +172,53 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
     ) => {
         const shouldRemoveBorders = isDashboard;
 
-        const [isContainerInitialized, setIsContainerInitialized] =
-            useState(false);
+        const [containerSize, setContainerSize] = useState<{
+            clientHeight: number;
+            scrollHeight: number;
+        } | null>(null);
         const containerScroll = useScroll(
             containerRef as React.RefObject<HTMLElement>,
         );
 
+        // The scroll height changes without a scroll event, e.g. when a
+        // virtualized body renders its first rows after an empty first render.
         useEffect(() => {
-            if (!containerRef.current) return;
-            setIsContainerInitialized(true);
+            const container = containerRef.current;
+            if (!container) return;
+            const updateContainerSize = () => {
+                const { clientHeight, scrollHeight } = container;
+                setContainerSize((current) =>
+                    current?.clientHeight === clientHeight &&
+                    current.scrollHeight === scrollHeight
+                        ? current
+                        : { clientHeight, scrollHeight },
+                );
+            };
+            updateContainerSize();
+            const observer = new ResizeObserver(updateContainerSize);
+            observer.observe(container);
+            if (container.firstElementChild) {
+                observer.observe(container.firstElementChild);
+            }
+            return () => observer.disconnect();
         }, [containerRef]);
 
         const { isAtTop, isAtBottom } = useMemo(() => {
-            if (!isContainerInitialized || !containerRef.current) {
+            if (!containerSize) {
                 return {
                     isAtTop: false,
                     isAtBottom: false,
                 };
             }
 
-            const { clientHeight, scrollHeight } = containerRef.current;
+            const { clientHeight, scrollHeight } = containerSize;
             const containerScrollPosY = containerScroll.y;
 
             return {
                 isAtTop: containerScrollPosY === 0,
-                isAtBottom:
-                    containerScrollPosY + clientHeight === scrollHeight ||
-                    containerScrollPosY + clientHeight === scrollHeight,
+                isAtBottom: containerScrollPosY + clientHeight === scrollHeight,
             };
-        }, [containerScroll, containerRef, isContainerInitialized]);
+        }, [containerScroll.y, containerSize]);
 
         return (
             <Box
