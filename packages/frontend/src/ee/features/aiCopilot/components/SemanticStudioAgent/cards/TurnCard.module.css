@@ -8,8 +8,7 @@
 }
 
 .head,
-.foot,
-.section {
+.foot {
     padding: 8px var(--mantine-spacing-sm);
 }
 
