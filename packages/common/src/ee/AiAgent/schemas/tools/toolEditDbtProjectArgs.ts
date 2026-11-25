@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { structuredToolOutputSchema } from '../outputMetadata';
+import { studioMoreToDoSchema } from './toolSemanticStudioArgs';
 
 export const AI_WRITEBACK_PENDING_GRACE_MS = 5 * 60 * 1000;
 
@@ -39,37 +40,47 @@ export const toolEditDbtProjectArgsSchema = z.object({
         ),
 });
 
-/** Semantic Studio's variant: the change can come as a script, saved in seconds without a sandbox. */
-export const toolEditDbtProjectCodeModeArgsSchema =
-    toolEditDbtProjectArgsSchema.extend({
-        script: z
-            .string()
-            .nullable()
-            .describe(
-                [
-                    'JavaScript that makes the change, run against the repository before the pull request is opened. Paths are relative to the dbt project. Nothing is written unless the whole script succeeds and every changed YAML file passes the semantic layer schema; on failure the tool returns the error, so fix the script and call again.',
-                    'API (synchronous, values are plain JSON): dbt.model(name) -> { yml, sql, keys } | null, where keys is the YAML path of that model;',
-                    'yaml.get(path, keys), yaml.set(path, keys, value), yaml.push(path, keys, value) to append to a list, yaml.remove(path, keys);',
-                    "keys is a list of mapping keys, list indexes, or { name } to pick the list item with that name, e.g. [...m.keys, 'columns', { name: '<column>' }, 'config', 'meta', 'metrics', '<metric>'];",
-                    'set creates missing mappings, and edits keep comments and the rest of the file as it is;',
-                    'repo.list(prefix?), repo.read(path), repo.write(path, text), repo.remove(path) for whole files such as a new model SQL; console.log(...) is returned with errors.',
-                    'Follow where the file already keeps things (e.g. config.meta rather than meta when it uses that). Null when the change needs dbt to run, such as checking new SQL against the warehouse.',
-                    'With a script, start prompt with a one-line summary under 72 characters, like a commit subject: it becomes the pull request title.',
-                ].join(' '),
-            ),
-        note: z
-            .string()
-            .nullable()
-            .describe(
-                'The one thing about this change most worth checking, under 15 words, shown on its card; null when nothing is.',
-            ),
-        options: z
-            .array(z.string().trim().min(1))
-            .max(2)
-            .describe(
-                'At most two things the person might ask for next instead, each written as they would say it in under 8 words. Each shows as a button that sends it. Empty for none.',
-            ),
-    });
+/** Semantic Studio's save: a script saved in seconds, or the sandbox when the script is null. */
+export const toolWriteArgsSchema = z.object({
+    prompt: z
+        .string()
+        .describe(
+            'The change in words: a one-line summary under 72 characters, like a commit subject, then the models and fields and what each becomes. With a script, the first line becomes the pull request title. With a null script the sandbox makes the change from this alone, so include every detail.',
+        ),
+    script: z
+        .string()
+        .nullable()
+        .describe(
+            [
+                'JavaScript that makes the change, run against the repository before the pull request is opened. Paths are relative to the dbt project. Nothing is written unless the whole script succeeds and every changed YAML file passes the semantic layer schema; on failure the tool returns the error, so fix the script and call again.',
+                'API (synchronous, values are plain JSON): dbt.model(name) -> { yml, sql, keys } | null, where keys is the YAML path of that model;',
+                'yaml.get(path, keys), yaml.set(path, keys, value), yaml.push(path, keys, value) to append to a list, yaml.remove(path, keys);',
+                "keys is a list of mapping keys, list indexes, or { name } to pick the list item with that name, e.g. [...m.keys, 'columns', { name: '<column>' }, 'config', 'meta', 'metrics', '<metric>'];",
+                'set creates missing mappings, and edits keep comments and the rest of the file as it is;',
+                'repo.list(prefix?), repo.read(path), repo.write(path, text), repo.remove(path) for whole files such as a new model SQL; console.log(...) is returned with errors.',
+                'Follow where the file already keeps things (e.g. config.meta rather than meta when it uses that). Null when the change needs dbt to run, such as checking new SQL against the warehouse.',
+            ].join(' '),
+        ),
+    note: z
+        .string()
+        .nullable()
+        .describe(
+            'The one thing about this change most worth checking, under 15 words, shown on its card; null when nothing is.',
+        ),
+    options: z
+        .array(z.string().trim().min(1))
+        .max(2)
+        .describe(
+            'At most two things the person might ask for next instead, each written as they would say it in under 8 words. Each shows as a button that sends it. Empty for none.',
+        ),
+    moreToDo: studioMoreToDoSchema,
+});
+
+/** Whether a Studio save was called with the person's request still going; false on a call made before it said. */
+export const hasMoreToDo = (toolArgs: unknown): boolean => {
+    const parsed = z.object({ moreToDo: z.boolean() }).safeParse(toolArgs);
+    return parsed.success && parsed.data.moreToDo;
+};
 
 /** The line kept as the reply when a Studio save ends its turn on the card with nothing written. */
 export const DBT_SAVE_CARD_REPLY = 'Saved the change to the draft.';

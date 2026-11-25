@@ -120,3 +120,13 @@
 .fold:focus-visible {
     background: var(--mantine-color-default-hover);
 }
+
+.toggle {
+    margin-top: 2px;
+}
+
+.toggle:hover p,
+.toggle:focus-visible p {
+    color: var(--mantine-color-text);
+    text-decoration: underline;
+}

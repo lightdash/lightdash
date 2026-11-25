@@ -1,4 +1,5 @@
 import {
+    DEFAULT_RESULTS_PAGE_SIZE,
     getMergeColumnTotals,
     QueryHistoryStatus,
     type ColumnProperties,
@@ -512,9 +513,12 @@ const useTableConfig = () => {
 
         // Step 2: Check cache - avoid recalculation if query and fields haven't changed
         const currentQueryUuid = resultsData.queryUuid;
-        const currentFieldsKey = Array.from(fieldsNeedingMinMax)
-            .sort()
-            .join(',');
+        const sortedFieldIds = Array.from(fieldsNeedingMinMax).sort().join(',');
+        const firstPageRowCount = Math.min(
+            resultsData.rows.length,
+            DEFAULT_RESULTS_PAGE_SIZE,
+        );
+        const currentFieldsKey = `${sortedFieldIds}|${firstPageRowCount}`;
 
         if (
             currentQueryUuid &&

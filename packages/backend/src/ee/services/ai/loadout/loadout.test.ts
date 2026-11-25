@@ -10,6 +10,7 @@ import {
     BUILT_IN_SKILL_NAMES,
     DEFERRED_SECTION_TOOLS,
     getAvailableSkills,
+    getStudioAbilities,
     resolveLoadout,
     type AgentToolName,
     type Loadout,
@@ -21,6 +22,10 @@ import { toolsForIntent } from '../agents/referenceToolGating';
 import { AiDecisionClient } from '../decisions/AiDecisionClient';
 import { TURN_INTENTS } from '../decisions/prepareContext';
 import { getSystemPromptV2 } from '../prompts/systemV2';
+import {
+    getSemanticStudioTurn,
+    type SemanticStudioTurn,
+} from '../prompts/systemV2SemanticStudio';
 import { BuiltInSkills } from '../skills/builtInSkills';
 
 const SKILL = {
@@ -77,6 +82,7 @@ const fullInput: LoadoutInput = {
     enableEditProjectContext: true,
     isSemanticStudioThread: false,
     semanticStudioDrafts: false,
+    semanticStudioKeepsContext: false,
     enableReadAttachments: true,
     enableReadPinnedThread: true,
     enableAskUser: true,
@@ -112,6 +118,7 @@ const minimalInput: LoadoutInput = {
     enableEditProjectContext: false,
     isSemanticStudioThread: false,
     semanticStudioDrafts: false,
+    semanticStudioKeepsContext: false,
     enableReadAttachments: false,
     enableReadPinnedThread: false,
     enableAskUser: false,
@@ -153,6 +160,7 @@ const inputs: Record<LoadoutBase, LoadoutInput> = {
         ...fullInput,
         isSemanticStudioThread: true,
         semanticStudioDrafts: true,
+        semanticStudioKeepsContext: true,
     },
     composer: { ...fullInput, enableComposerQueries: true },
     no_data_access: {
@@ -202,7 +210,11 @@ const contract = (loadout: Loadout) =>
     )}\n`;
 
 // Wording flags stay at their defaults; composer renders with the data access it requires and SQL access when sqlCatalog is on.
-const renderPrompt = (loadout: Loadout, input: LoadoutInput) =>
+const renderPrompt = (
+    loadout: Loadout,
+    input: LoadoutInput,
+    studio?: SemanticStudioTurn,
+) =>
     getSystemPromptV2({
         availableExplores: [],
         date: '2026-08-27',
@@ -214,6 +226,8 @@ const renderPrompt = (loadout: Loadout, input: LoadoutInput) =>
             loadout.toolNames.has('listWarehouseTables'),
         canRunQuery: loadout.toolNames.has('runQuery'),
         repoFsRoot: '.',
+        studio,
+        projectContextInRead: getStudioAbilities(loadout).builder,
     }).content;
 
 const fixture = (name: string) =>
@@ -321,6 +335,29 @@ describe('loadout contracts', () => {
             );
         },
     );
+
+    test('semantic studio builder with every add-on renders its prompt', async () => {
+        const builder = {
+            ...inputs.semantic_studio,
+            semanticStudioDrafts: false,
+            enableAiWriteback: true,
+        };
+        const loadout = buildLoadout('semantic_studio', builder, ADD_ON_NAMES);
+        await expect(contract(loadout)).toMatchFileSnapshot(
+            '__snapshots__/bases-with-add-ons/semantic_studio.builder.json.snap',
+        );
+        const studio = getSemanticStudioTurn(loadout, {
+            drafts: false,
+            projectMap: null,
+            repoFsRoot: '.',
+            repoFsSupportsCodeSearch: true,
+        });
+        await expect(
+            renderPrompt(loadout, builder, studio),
+        ).toMatchFileSnapshot(
+            '__snapshots__/bases-with-add-ons/semantic_studio.builder.prompt.txt',
+        );
+    });
 });
 
 describe('resolveLoadout', () => {
@@ -335,6 +372,7 @@ describe('resolveLoadout', () => {
         const dbt = resolveLoadout({
             ...inputs.semantic_studio,
             semanticStudioDrafts: false,
+            semanticStudioKeepsContext: false,
         });
         expect(dbt.base).toBe('semantic_studio');
         expect(dbt.toolNames.has('proposeSemanticLayerChange')).toBe(false);
@@ -353,12 +391,28 @@ describe('resolveLoadout', () => {
         const proposing = resolveLoadout({
             ...inputs.semantic_studio,
             semanticStudioDrafts: false,
+            semanticStudioKeepsContext: false,
             enableAiWriteback: false,
         });
         expect(proposing.toolNames.has('verify')).toBe(false);
         expect(proposing.toolNames.has('exploreRepo')).toBe(true);
         expect(proposing.withheldToolNames.size).toBe(0);
         expect(resolveLoadout(fullInput).toolNames.has('verify')).toBe(false);
+    });
+
+    it('offers drafting project context only where project context is on', () => {
+        expect(
+            resolveLoadout(inputs.semantic_studio).toolNames.has(
+                'draftProjectContext',
+            ),
+        ).toBe(true);
+        const off = resolveLoadout({
+            ...inputs.semantic_studio,
+            projectContextEnabled: false,
+            aiAgentMemoryEnabled: true,
+        });
+        expect(off.toolNames.has('draftProjectContext')).toBe(false);
+        expect(getStudioAbilities(off).canDraftContext).toBe(false);
     });
 
     test.each<[string, LoadoutInput, LoadoutBase]>([

@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     ForbiddenError,
     ParameterError,
     QueryExecutionContext,
@@ -69,11 +68,9 @@ const submitArgs = (query: ApiSourceQuery): SubmitSourceQueryArgs => ({
 });
 
 describe('ApiQuerySource', () => {
-    it('is gated by its own flag and refuses pivots', () => {
+    it('needs no feature flag and refuses pivots', () => {
         const { source } = createSource();
-        expect(source.requiredFeatureFlags).toEqual([
-            FeatureFlags.ApiQuerySources,
-        ]);
+        expect(source.requiredFeatureFlags).toEqual([]);
         expect(source.supportsPivot).toBe(false);
     });
 

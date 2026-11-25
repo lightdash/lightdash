@@ -58,6 +58,46 @@ describe('Analytics settings query scopes', () => {
         });
     });
 
+    it('names each tab after the dashboard it shows, with Overview first', () => {
+        expect(
+            analyticsTabs.map(({ label, dashboardSlug }) => [
+                label,
+                dashboardSlug,
+            ]),
+        ).toEqual([
+            ['Overview', 'lightdash-analytics-home'],
+            ['Agents', 'lightdash-analytics-overview'],
+            ['Queries', 'lightdash-analytics-query-activity'],
+            ['Content', 'lightdash-analytics-content'],
+            ['Data apps', 'lightdash-analytics-apps'],
+            ['Exports & MCP', 'lightdash-analytics-tools'],
+            ['Adoption', 'lightdash-analytics-adoption'],
+            ['AI token usage', 'lightdash-analytics-ai-tokens'],
+            ['Embed', 'lightdash-analytics-embed'],
+        ]);
+    });
+
+    it('uses the agreed words in every title, label and description', () => {
+        const copy = [
+            ...analyticsHeadlineMetrics.flatMap(({ title, description }) => [
+                title,
+                description,
+            ]),
+            ...analyticsTabs.flatMap((tab) => [
+                tab.label,
+                tab.description,
+                ...tab.charts.flatMap((chart) => [
+                    chart.title,
+                    ...chart.series.map(({ label }) => label),
+                ]),
+                ...(tab.summary?.metrics.map(({ title }) => title) ?? []),
+            ]),
+        ].join(' | ');
+        expect(copy).not.toMatch(
+            /\b(users?|observed|captured|retained|coverage|logical|Ask AI|AI agent|agent questions)\b|—/i,
+        );
+    });
+
     it('counts saved charts, SQL charts and dashboards with the inventory table alias', () => {
         const metric = analyticsHeadlineMetrics.find(
             ({ tab }) => tab === 'content',

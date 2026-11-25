@@ -288,6 +288,12 @@ import {
 } from './mcpAppHelpers';
 import { toMetaContentSecurityPolicy } from './mcpCustomChartFrameHtml';
 import { isProjectAllowedForMcp } from './mcpProjectAccess';
+import {
+    agentAllowsComposerQueries,
+    getMcpQueryTools,
+    type McpComposerAgentSettings,
+    type McpQueryPath,
+} from './mcpQueryPath';
 
 export enum McpToolName {
     CONNECT_AGENT = 'connect_agent',
@@ -704,6 +710,12 @@ const getMcpContext = (
     extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
 ): McpProtocolContext => mcpProtocolContextSchema.parse(extra);
 
+const DEFAULT_QUERY_PATH: McpQueryPath = {
+    type: 'classic',
+    sqlRunnerEnabled: false,
+    filterExpressionsEnabled: false,
+};
+
 export type McpServerToolOptions = {
     req: {
         pinnedProjectUuid: string | undefined;
@@ -716,10 +728,7 @@ export type McpServerToolOptions = {
     featureAvailability: {
         mcpContentWritesEnabled: boolean;
         scheduledDeliveryEnabled: boolean;
-        runSqlEnabled: boolean;
-        runMetricQueryEnabled: boolean;
-        queryEnabled: boolean;
-        filterExpressionsEnabled: boolean;
+        queryPath: McpQueryPath;
         documentsEnabled: boolean;
         dataAppBuildsEnabled: boolean;
         chartTypeBuildsEnabled: boolean;
@@ -829,9 +838,7 @@ export class McpService extends BaseService {
         try {
             this.mcpServer = this.buildMcpServer({
                 pinnedAgent: null,
-                runSqlEnabled: false,
-                runMetricQueryEnabled: true,
-                filterExpressionsEnabled: false,
+                queryPath: DEFAULT_QUERY_PATH,
                 documentsEnabled: false,
                 agentIdentityEnabled: false,
             });
@@ -844,16 +851,12 @@ export class McpService extends BaseService {
 
     private buildMcpServer(args: {
         pinnedAgent: McpPinnedAgent | null;
-        runSqlEnabled: boolean;
-        runMetricQueryEnabled: boolean;
-        filterExpressionsEnabled: boolean;
+        queryPath: McpQueryPath;
         documentsEnabled: boolean;
         agentIdentityEnabled: boolean;
     }): McpServer {
         const analystPrompt = getMcpAnalystPrompt({
-            runSqlEnabled: args.runSqlEnabled,
-            runMetricQueryEnabled: args.runMetricQueryEnabled,
-            filterExpressionsEnabled: args.filterExpressionsEnabled,
+            queryPath: args.queryPath,
             documentsEnabled: args.documentsEnabled,
             agentIdentityEnabled: args.agentIdentityEnabled,
         });
@@ -3786,10 +3789,7 @@ export class McpService extends BaseService {
             featureAvailability: {
                 mcpContentWritesEnabled: true,
                 scheduledDeliveryEnabled: true,
-                runSqlEnabled: false,
-                runMetricQueryEnabled: true,
-                queryEnabled: false,
-                filterExpressionsEnabled: false,
+                queryPath: DEFAULT_QUERY_PATH,
                 documentsEnabled: false,
                 agentIdentityEnabled: false,
                 dataAppBuildsEnabled: false,
@@ -3798,6 +3798,7 @@ export class McpService extends BaseService {
             },
         },
     ): void {
+        const queryTools = getMcpQueryTools(options.queryPath);
         if (options.agentIdentityEnabled) {
             this.registerTrackedTool(
                 mcpConnectAgentTool.name,
@@ -3889,7 +3890,7 @@ export class McpService extends BaseService {
             },
         );
 
-        if (options.runMetricQueryEnabled) {
+        if (queryTools.discovery) {
             this.registerTrackedTool(
                 mcpListExploresTool.name,
                 {
@@ -4566,8 +4567,8 @@ export class McpService extends BaseService {
             },
         );
 
-        if (options.runMetricQueryEnabled) {
-            const runMetricQueryTool = options.filterExpressionsEnabled
+        if (queryTools.runMetricQuery) {
+            const runMetricQueryTool = queryTools.filterExpressionsEnabled
                 ? mcpRunMetricQueryFilterExpressionTool
                 : mcpRunMetricQueryTool;
             this.registerTrackedTool(
@@ -4577,7 +4578,7 @@ export class McpService extends BaseService {
                     // The filter-expression description sits at the client text cap.
                     description:
                         options.agentIdentityEnabled &&
-                        !options.filterExpressionsEnabled
+                        !queryTools.filterExpressionsEnabled
                             ? runMetricQueryTool.description +
                               MCP_AGENT_CONNECT_GUIDANCE
                             : runMetricQueryTool.description,
@@ -4605,7 +4606,7 @@ export class McpService extends BaseService {
                             Date.now() + McpService.getMcpQueryWaitMs(extra);
                         const { account } = McpService.getAccount(ctx);
                         let queryTool: ToolRunQueryArgsTransformed;
-                        if (options.filterExpressionsEnabled) {
+                        if (queryTools.filterExpressionsEnabled) {
                             const expressionToolArgs =
                                 toolRunQueryExpressionArgsSchemaV2Mcp.parse(
                                     argsWithProject,
@@ -4748,7 +4749,7 @@ export class McpService extends BaseService {
         }
 
         // render_chart only renders metric queries, so it follows the same gate.
-        if (options.runMetricQueryEnabled) {
+        if (queryTools.runMetricQuery) {
             this.registerGetCustomChartTypeFrameTool();
             registerAppTool(
                 this.mcpServer,
@@ -4939,10 +4940,11 @@ export class McpService extends BaseService {
             );
         }
 
-        if (options.runMetricQueryEnabled) {
-            const searchFieldValuesToolView = options.filterExpressionsEnabled
-                ? mcpSearchFieldValuesFilterExpressionTool
-                : mcpSearchFieldValuesTool;
+        if (queryTools.discovery) {
+            const searchFieldValuesToolView =
+                queryTools.filterExpressionsEnabled
+                    ? mcpSearchFieldValuesFilterExpressionTool
+                    : mcpSearchFieldValuesTool;
             this.registerTrackedTool(
                 searchFieldValuesToolView.name,
                 {
@@ -4983,7 +4985,7 @@ export class McpService extends BaseService {
                                 await toolsRuntime.getExplore({ table }),
                             ),
                         enableFilterExpressions:
-                            options.filterExpressionsEnabled,
+                            queryTools.filterExpressionsEnabled,
                     });
                     const result = await searchFieldValuesTool.execute!(
                         searchFieldValuesArgs,
@@ -5023,7 +5025,7 @@ export class McpService extends BaseService {
         // permission per-project at invocation time; gating registration keeps
         // the tool out of tools/list for users who can never run SQL, so the
         // LLM doesn't loop on a tool it isn't allowed to call.
-        if (options.runSqlEnabled) {
+        if (queryTools.runSql) {
             // TODO: move config-dependent tool contracts into defineTool so
             // description and inputSchema can be resolved from one runtime-aware
             // definition instead of being rebuilt here.
@@ -5128,7 +5130,7 @@ export class McpService extends BaseService {
             );
         }
 
-        if (options.queryEnabled) {
+        if (queryTools.query) {
             const queryArgsSchema = createToolComposerQueriesArgsSchema({
                 enablePythonNodes: true,
             }).extend({
@@ -5138,7 +5140,7 @@ export class McpService extends BaseService {
                     .string()
                     .optional()
                     .describe(
-                        'The sessionId of an earlier query result: pass it to reuse that session\'s nodes by node id in "references". Omit it to start a new session.',
+                        'The sessionId of an earlier query result: pass it to reuse that session\'s nodes by node id in "references" or merge "sources". Omit it to start a new session.',
                     ),
             });
             this.registerTrackedTool(
@@ -5184,9 +5186,9 @@ export class McpService extends BaseService {
 
         // get_query_result only polls queries started by the execution tools.
         if (
-            options.runSqlEnabled ||
-            options.runMetricQueryEnabled ||
-            options.queryEnabled
+            queryTools.runSql ||
+            queryTools.runMetricQuery ||
+            queryTools.query
         ) {
             this.registerTrackedTool(
                 mcpGetQueryResultTool.name,
@@ -5225,7 +5227,7 @@ export class McpService extends BaseService {
                             queryHistory.context ===
                             QueryExecutionContext.MCP_RUN_METRIC_QUERY;
                         const isMcpComposerQuery =
-                            options.queryEnabled &&
+                            queryTools.query &&
                             queryHistory.context ===
                                 QueryExecutionContext.MCP_QUERY;
 
@@ -5476,9 +5478,7 @@ export class McpService extends BaseService {
             },
             async () => {
                 const promptText = getMcpAnalystPrompt({
-                    runSqlEnabled: options.runSqlEnabled,
-                    runMetricQueryEnabled: options.runMetricQueryEnabled,
-                    filterExpressionsEnabled: options.filterExpressionsEnabled,
+                    queryPath: options.queryPath,
                     documentsEnabled: options.documentsEnabled,
                     agentIdentityEnabled: options.agentIdentityEnabled,
                 });
@@ -6497,22 +6497,52 @@ export class McpService extends BaseService {
     }
 
     /**
-     * Whether the query tool should be registered: the compose SQL runner
-     * flag, manage:Explore (coarse without a pinned project) and, when pinned
-     * to an agent, its data access and composer query settings.
+     * The session's query path, from explore and SQL Runner permission (coarse
+     * without a pinned project), the compose SQL runner flag and pinned agent.
      */
+    public async resolveQueryPath(
+        user: SessionUser,
+        projectUuid: string | null,
+        pinnedAgent: McpComposerAgentSettings | null,
+    ): Promise<McpQueryPath> {
+        if (pinnedAgent && !pinnedAgent.enableDataAccess) {
+            return { type: 'contentOnly' };
+        }
+        const [
+            canExplore,
+            sqlRunnerEnabled,
+            { enabled: composeSqlRunnerEnabled },
+            filterExpressionsEnabled,
+        ] = await Promise.all([
+            this.isRunMetricQueryEnabled(user, projectUuid ?? undefined),
+            this.isRunSqlEnabled(user, projectUuid ?? undefined),
+            this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.ComposeSqlRunner,
+            }),
+            this.isFilterExpressionsEnabled(user),
+        ]);
+        if (!canExplore) {
+            return { type: sqlRunnerEnabled ? 'sqlOnly' : 'contentOnly' };
+        }
+        return {
+            type:
+                composeSqlRunnerEnabled &&
+                agentAllowsComposerQueries(pinnedAgent)
+                    ? 'composer'
+                    : 'classic',
+            sqlRunnerEnabled,
+            filterExpressionsEnabled,
+        };
+    }
+
+    /** Whether the query tool may run; the composer rule without the full path. */
     public async isQueryEnabled(
         user: SessionUser,
-        headerProjectUuid?: string,
-        pinnedAgent?: Pick<
-            AiAgent,
-            'enableDataAccess' | 'enableComposerQueries'
-        > | null,
+        projectUuid: string | null,
+        agent: McpComposerAgentSettings | null,
     ): Promise<boolean> {
-        if (
-            pinnedAgent &&
-            !(pinnedAgent.enableDataAccess && pinnedAgent.enableComposerQueries)
-        ) {
+        if (!agentAllowsComposerQueries(agent)) {
             return false;
         }
         const { enabled } = await this.featureFlagService.get({
@@ -6521,7 +6551,7 @@ export class McpService extends BaseService {
         });
         return (
             enabled &&
-            (await this.isRunMetricQueryEnabled(user, headerProjectUuid))
+            (await this.isRunMetricQueryEnabled(user, projectUuid ?? undefined))
         );
     }
 
@@ -6728,6 +6758,9 @@ export class McpService extends BaseService {
         authInfo: AuthInfo;
         durationMs: number;
     }): void {
+        const { queryPath, ...featureAvailability } =
+            params.catalogue.featureAvailability;
+        const queryTools = getMcpQueryTools(queryPath);
         void Promise.resolve()
             .then(() =>
                 this.persistToolCall({
@@ -6746,7 +6779,13 @@ export class McpService extends BaseService {
                             projectPinned:
                                 params.catalogue.req.pinnedProjectUuid !==
                                 undefined,
-                            ...params.catalogue.featureAvailability,
+                            ...featureAvailability,
+                            queryPath: queryPath.type,
+                            runSqlEnabled: queryTools.runSql,
+                            runMetricQueryEnabled: queryTools.runMetricQuery,
+                            queryEnabled: queryTools.query,
+                            filterExpressionsEnabled:
+                                queryTools.filterExpressionsEnabled,
                         },
                     },
                     trackAnalytics: false,

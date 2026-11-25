@@ -1,64 +1,115 @@
 import { FilterOperator } from '@lightdash/common';
-import { peopleNoActivitySections } from './peopleNoActivityCharts';
+import {
+    agentEvaluationFilters,
+    agentEvaluationSections,
+} from './agentEvaluationsDashboard';
 import type { UsageDashboardSpec } from './usageDashboardTypes';
 
 export const usageDashboardSpecs: UsageDashboardSpec[] = [
     {
+        // Keeps the slug it had as Agents & AI. Tokens are on AI token usage.
         key: 'lightdash-analytics-overview',
-        name: 'Agents & AI',
-        description: 'Agent adoption, outcomes and AI consumption.',
+        name: 'Agents',
+        description:
+            'How much agents are used, by whom, how their requests end and how they score in evaluations.',
+        filters: agentEvaluationFilters,
         tabs: [
             {
-                key: 'adoption',
-                name: 'Agent adoption',
+                key: 'use',
+                name: 'Use',
                 sections: [
                     {
-                        title: 'Observed request activity',
+                        title: 'Request activity',
                         description:
-                            'Requests by agent, person and week. This is not an eligible-user adoption rate or a comparison with external assistants.',
+                            'Agent requests and the people who sent them.',
+                        charts: [
+                            'agent-requests-trend',
+                            'agent-requesters-trend',
+                        ],
+                        layout: 'row',
+                        rowHeight: 4,
+                    },
+                    {
+                        title: 'Requests by agent',
+                        description: 'Which agents are used most, day by day.',
+                        charts: ['agent-requests-by-agent-and-day'],
+                        layout: 'row',
+                        rowHeight: 7,
+                    },
+                    {
+                        title: 'Requests by person',
+                        description:
+                            'Who is asking, and which agents they use.',
                         charts: ['agent-adoption-by-week'],
                     },
                 ],
             },
             {
                 key: 'outcomes',
-                name: 'Outcomes & feedback',
+                name: 'Outcomes, retries & feedback',
                 sections: [
                     {
-                        title: 'Technical outcomes',
+                        title: 'How requests ended',
                         description:
-                            "Captured request outcomes describe technical completion, not whether the answer solved the user's problem. Pending and unknown outcomes remain visible.",
-                        charts: ['agent-request-outcomes'],
+                            'Whether each request finished: a technical result, not a judgement of the answer. Pending and unknown outcomes are included.',
+                        charts: [
+                            'agent-requests-and-completion-by-day',
+                            'agent-request-outcomes',
+                        ],
+                        layout: 'row',
+                        rowHeight: 8,
                     },
                     {
-                        title: 'Feedback coverage',
+                        title: 'Feedback',
                         description:
-                            'Interpret ratings alongside the feedback sample and outcome coverage. Unrated requests are not positive feedback.',
+                            'Unrated requests are not positive feedback. Small samples are not reliable rankings.',
                         charts: ['agent-feedback-rating-and-sample-coverage'],
+                    },
+                    {
+                        title: 'Failed requests and retries',
+                        description:
+                            'Tokens spent on failed or cancelled requests, beside requests and average latency by retry count. Each retry runs the request again.',
+                        charts: [
+                            'request-consumption-by-outcome-and-feedback',
+                            'agent-retries-latency-and-consumption',
+                        ],
+                        layout: 'row',
+                        widths: [12, 24],
+                        rowHeight: 6,
                     },
                 ],
             },
             {
-                key: 'consumption',
-                name: 'Retries & consumption',
+                key: 'evaluations',
+                name: 'Evaluations',
+                sections: agentEvaluationSections,
+            },
+        ],
+    },
+    {
+        // The any-period tab of AI token usage: every token tile that follows the Date filter. The
+        // month-to-date tabs are built in aiTokenDashboard.ts and joined on in sampleContent.ts.
+        key: 'lightdash-analytics-ai-tokens',
+        name: 'AI token usage',
+        description: 'AI tokens used, in and out of billing scope.',
+        existingTab: { key: 'any-period', name: 'Any period' },
+        tabs: [
+            {
+                key: 'any-period',
+                name: 'Any period',
                 sections: [
                     {
-                        title: 'Retries',
+                        title: 'Who and what drives tokens',
+                        // The owner of this dashboard writes its text: a caption with no title, as it was
+                        caption: true,
                         description:
-                            'Retry overhead and request-linked tokens identify retry-heavy groups; precise incremental tokens per attempt are not captured.',
-                        charts: ['agent-retries-latency-and-consumption'],
-                    },
-                    {
-                        title: 'AI consumption',
-                        description:
-                            'Tokens by person, feature and model. Tokens are not monetary cost; team history, model pricing and external assistant spending are not included.',
-                        charts: ['ai-consumption-by-person-feature-and-model'],
-                    },
-                    {
-                        title: 'Consumption by outcome',
-                        description:
-                            'Request-linked tokens grouped by technical outcome and feedback. Unknown invocation-to-request linkage must not be interpreted as zero consumption.',
-                        charts: ['request-consumption-by-outcome-and-feedback'],
+                            'Tokens by person and model, and by feature and model, for all usage in the selected period.',
+                        charts: [
+                            'ai-consumption-by-person-feature-and-model',
+                            'ai-tokens-by-feature-and-model',
+                        ],
+                        layout: 'row',
+                        rowHeight: 8,
                     },
                 ],
             },
@@ -67,7 +118,8 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
     {
         key: 'lightdash-analytics-query-activity',
         name: 'Queries',
-        description: 'Query volume, performance and cache usage.',
+        description:
+            'How much is queried, how fast, where from, and which fields are used.',
         tabs: [
             {
                 key: 'monthly-comparison',
@@ -75,30 +127,39 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                 sections: [
                     {
                         title: 'How is query usage changing?',
-                        noteHeight: 3,
                         description:
-                            'Last 12 completed calendar months (UTC), excluding the current month. Changes compare adjacent months. ∅ means unavailable history or a zero percentage baseline. Missing months are omitted; capture and retention can leave history incomplete.',
+                            'Up to the last 12 completed calendar months (UTC), each compared with the month before. The date filter does not change these two tiles.',
                         charts: [
                             'querying-users-month-over-month',
                             'queries-run-month-over-month',
                         ],
+                        // Side by side: the table is narrow and at most 12 rows long. A tile cannot grow
+                        // with its rows, so this height shows about nine and scrolls for the rest
+                        layout: 'row',
+                        widths: [16, 20],
+                        rowHeight: 7,
                     },
                 ],
             },
             {
                 key: 'latency',
-                name: 'Latency & failures',
+                name: 'Response time & failures',
                 sections: [
                     {
-                        title: 'Response latency',
+                        title: 'Which dashboards are slow or expensive?',
                         description:
-                            'Response P95 includes observed backend response time, not browser rendering. Older events can lack timing; null is unknown, not instant.',
-                        charts: ['slow-dashboards-tail-latency-and-demand'],
+                            'P95 response time is how long the backend took, before the browser draws the result. Warehouse time is what the queries cost to run.',
+                        charts: [
+                            'slow-dashboards-tail-latency-and-demand',
+                            'dashboards-warehouse-and-response-time',
+                        ],
+                        layout: 'row',
+                        rowHeight: 9,
                     },
                     {
                         title: 'Failures',
                         description:
-                            'Ranked by distinct affected people and failure count. Error messages and root-cause diagnosis require separate investigation.',
+                            'Ranked by people affected and failure count. Error messages and causes are not shown here; investigate them separately.',
                         charts: ['query-failures-affected-people'],
                     },
                 ],
@@ -108,15 +169,15 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                 name: 'Origins & caching',
                 sections: [
                     {
-                        title: 'Workload origins',
+                        title: 'Query origins',
                         description:
-                            'Origin and actor metadata distinguish workloads where captured; historical unknown values are retained.',
+                            'Origin is the kind of work, such as interactive, scheduled or data app. Context is where it ran, such as a dashboard or an Explore.',
                         charts: ['query-origin-and-initiating-actor'],
                     },
                     {
                         title: 'Caching',
                         description:
-                            'Compare warehouse execution and recorded cache use. Cache savings and warehouse currency costs are not captured.',
+                            'Compare queries run on the warehouse with queries served from the cache. Money saved by caching and warehouse cost are not recorded.',
                         charts: ['warehouse-versus-cached-demand'],
                     },
                 ],
@@ -128,318 +189,23 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Most-used fields',
                         description:
-                            'Metrics and dimensions referenced by queries, including filters and sorting. Each query counts once per field, including cached and failed attempts. Counts across fields overlap; absence here does not prove a field is unused.',
+                            'Fields used by queries, including filters and sorting. A query counts once for each field it uses.',
                         charts: ['most-used-fields'],
                     },
                     {
                         title: 'People and content',
                         description:
-                            'See who uses each field and the charts, dashboards or apps associated with those queries. Names are shown where available; missing names and content attribution remain visible.',
+                            'Who uses each field, and which content the queries came from. The content table leaves out queries with no linked content.',
                         charts: ['people-using-fields', 'content-using-fields'],
                     },
                     {
-                        title: 'Available field details',
+                        title: 'How complete these numbers are',
                         description:
-                            'Captured means direct field references were recorded; partial means some could not be recorded. Unavailable includes SQL queries, while not captured includes older history. Collection begins after the feature is enabled and deployed; this is not a complete field inventory.',
+                            'The tiles above count only queries with a recorded field list, so a low share means they undercount. SQL and older queries have none.',
                         charts: ['field-capture-coverage'],
-                    },
-                ],
-            },
-        ],
-    },
-    {
-        key: 'lightdash-analytics-people',
-        name: 'People',
-        description: 'User activity, returning users and channels.',
-        tabs: [
-            {
-                key: 'activity',
-                name: 'Activity',
-                sections: [
-                    {
-                        title: 'Active people',
-                        description:
-                            'People with recorded activity. This does not include everyone with access or distinguish business users from the data team.',
-                        charts: [
-                            'observed-active-people',
-                            'daily-observed-active-people',
-                            'power-users-queries-ai-and-exports',
-                        ],
-                    },
-                ],
-            },
-            {
-                key: 'returning',
-                name: 'Returning & inactive people',
-                sections: [
-                    ...peopleNoActivitySections,
-                    {
-                        title: 'Activity over time',
-                        description:
-                            'Weekly activity is a return-use proxy. This is not a complete retention cohort or a history of who was eligible in each period.',
-                        charts: ['observed-activity-by-person-and-week'],
-                    },
-                ],
-            },
-            {
-                key: 'channels',
-                name: 'Channels & history',
-                sections: [
-                    {
-                        title: 'Google Sheets',
-                        description:
-                            'Query activity from the Sheets integration; this does not measure every spreadsheet reader.',
-                        charts: ['google-sheets-query-audience'],
-                    },
-                    {
-                        title: 'Activity history',
-                        description:
-                            'Recent recorded activity by person and project. This does not show past access or group membership.',
-                        charts: [
-                            'observed-history-stable-user-and-project-uuids',
-                        ],
-                    },
-                ],
-            },
-        ],
-    },
-    {
-        key: 'lightdash-analytics-content',
-        name: 'Content',
-        description: 'Content audiences, ownership and inventory.',
-        tabs: [
-            {
-                key: 'audience',
-                name: 'Audience & trust',
-                sections: [
-                    {
-                        title: 'Content audience',
-                        description:
-                            'People who viewed content, alongside recorded views. Reloads may add views; visits served entirely from the browser cache are not counted.',
-                        charts: [
-                            'content-reach-distinct-people-not-just-views',
-                            'who-visited-which-dashboard',
-                        ],
-                    },
-                    {
-                        title: 'Verified content',
-                        description:
-                            'Distinct viewers reaching verified content divided by viewers with known verification state. Audiences can overlap; unknown verification is excluded.',
-                        charts: ['verified-content-audience-share'],
-                    },
-                ],
-            },
-            {
-                key: 'adoption',
-                name: 'Creation & adoption',
-                sections: [
-                    {
-                        title: 'New content',
-                        description:
-                            'Creation-week return activity is a proxy for adoption. Older content may predate capture; inventory counts include deleted items unless filtered.',
-                        charts: [
-                            'new-content-adoption-creation-week-proxy',
-                            'content-creation-by-month',
-                        ],
-                    },
-                ],
-            },
-            {
-                key: 'health',
-                name: 'Activity & dependencies',
-                sections: [
-                    {
-                        title: 'Content review',
-                        description:
-                            'No observed activity is not proof that an item is safe to delete. Known dependencies cover current dashboard tiles and enabled schedules, not every external use.',
-                        charts: [
-                            'review-candidates-activity-and-known-dependencies',
-                        ],
-                    },
-                ],
-            },
-            {
-                key: 'ownership',
-                name: 'Ownership & compute',
-                sections: [
-                    {
-                        title: 'Current ownership',
-                        description:
-                            'Application membership is not employment history. Missing or inactive owners need review; complete schedule ownership is not captured.',
-                        charts: ['content-ownership-current-snapshot'],
-                    },
-                    {
-                        title: 'Audience and execution time',
-                        description:
-                            'Warehouse execution time is a compute proxy, not monetary cost. Attribution can overlap between charts and dashboards.',
-                        charts: [
-                            'high-compute-dashboards-audience-versus-warehouse-time',
-                        ],
-                    },
-                ],
-            },
-        ],
-    },
-    {
-        key: 'lightdash-analytics-apps',
-        name: 'Apps',
-        description: 'App usage, audiences and generation activity.',
-        tabs: [
-            {
-                key: 'usage',
-                name: 'App usage',
-                sections: [
-                    {
-                        title: 'Observed app use',
-                        description:
-                            'Recorded app loads, including reloads. Viewer counts exclude anonymous visitors, and preview activity may be incomplete.',
-                        charts: [
-                            'total-loads',
-                            'distinct-viewers',
-                            'viewed-apps',
-                        ],
-                    },
-                    {
-                        title: 'Daily activity',
-                        description:
-                            'Full retained history. Distinct users cannot be summed across days.',
-                        charts: ['daily-trend'],
-                    },
-                    {
-                        title: 'Popular apps',
-                        description:
-                            'Most-used apps and their projects. Unknown or removed apps remain in totals.',
-                        charts: ['top-apps'],
-                    },
-                ],
-            },
-            {
-                key: 'people',
-                name: 'People',
-                sections: [
-                    {
-                        title: 'App audiences',
-                        description:
-                            'See who uses each app, how often they load it and how many apps they use.',
-                        charts: ['top-people', 'user-app-detail'],
-                    },
-                ],
-            },
-            {
-                key: 'builders',
-                name: 'Builders & AI',
-                sections: [
-                    {
-                        title: 'Build activity',
-                        description:
-                            'Captured creation and iteration events by builder and week. Uploads and views are excluded.',
-                        charts: [
-                            'data-app-builders-creation-and-iterations-by-week',
-                        ],
-                    },
-                    {
-                        title: 'Generation consumption',
-                        description:
-                            'AI usage for app generation, by builder, week and AI model. Usage cannot yet be attributed to individual apps or builds.',
-                        charts: ['app-generation-consumption'],
-                    },
-                ],
-            },
-            {
-                key: 'lifecycle',
-                name: 'Lifecycle & adoption',
-                sections: [
-                    {
-                        title: 'Audience and loads',
-                        description:
-                            'Loads and observed viewers are usage evidence, not sessions or a complete creator-versus-consumer funnel.',
-                        charts: ['apps-loads-and-observed-viewers'],
-                    },
-                    {
-                        title: 'Builds and loads',
-                        description:
-                            'Lifecycle events are a proxy for adoption; preview-to-published conversion and build-version history are not yet captured.',
-                        charts: ['app-lifecycle-build-activity-versus-loads'],
-                    },
-                ],
-            },
-        ],
-    },
-    {
-        key: 'lightdash-analytics-tools',
-        name: 'Tools & operations',
-        description: 'MCP tool usage, exports and outcomes.',
-        tabs: [
-            {
-                key: 'mcp',
-                name: 'MCP tools',
-                sections: [
-                    {
-                        title: 'Tool usage',
-                        description:
-                            'Tool calls by person, client and tool, including service accounts. Error rates exclude calls whose outcome is unknown.',
-                        charts: ['mcp-users-clients-tools-and-error-rates'],
-                    },
-                ],
-            },
-            {
-                key: 'exports',
-                name: 'Exports',
-                sections: [
-                    {
-                        title: 'Export activity',
-                        description:
-                            'Captured download events with actor and available content attribution. This does not measure downstream recipients or use of the exported file.',
-                        charts: ['export-audit-actor-content-and-outcome'],
-                    },
-                ],
-            },
-        ],
-    },
-    {
-        key: 'lightdash-analytics-agent-evaluations',
-        name: 'Agent Evaluations',
-        description:
-            'Track evaluation quality over time across agents and evaluations.',
-        filters: {
-            dimensions: [
-                { label: 'Agent', fieldId: 'agent_evaluation_runs_agent_name' },
-                {
-                    label: 'Evaluation',
-                    fieldId: 'agent_evaluation_runs_evaluation_name',
-                },
-            ].map(({ label, fieldId }) => ({
-                label,
-                target: { fieldId, tableName: 'agent_evaluation_runs' },
-                operator: FilterOperator.EQUALS,
-                values: [],
-                disabled: true,
-            })),
-            metrics: [],
-            tableCalculations: [],
-        },
-        tabs: [
-            {
-                key: 'quality',
-                name: 'Evaluation quality',
-                sections: [
-                    {
-                        title: 'Assessment trends',
-                        description:
-                            'Filter by agent or evaluation to track quality across runs. Pass rate uses all assessments, not all prompts. Runs still in progress, unassessed results and execution errors do not count as failed assessments.',
-                        charts: [
-                            'assessment-pass-rate-by-day',
-                            'assessment-volume-by-day',
-                        ],
-                    },
-                    {
-                        title: 'Results by evaluation and run',
-                        description:
-                            'Compare evaluations and inspect individual runs. Results reflect the latest nightly refresh and may change if evaluation history is removed.',
-                        charts: [
-                            'quality-by-evaluation',
-                            'recent-evaluation-runs',
-                        ],
+                        // One number: a short tile, not a tall empty one
+                        layout: 'row',
+                        rowHeight: 3,
                     },
                 ],
             },

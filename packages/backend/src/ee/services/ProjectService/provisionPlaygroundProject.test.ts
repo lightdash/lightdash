@@ -1,6 +1,5 @@
 import { Ability } from '@casl/ability';
 import {
-    FeatureFlags,
     OrganizationMemberRole,
     ProjectType,
     type OrganizationProject,
@@ -68,10 +67,6 @@ const project = (source: string | null = null): OrganizationProject => ({
 });
 
 const buildArguments = () => {
-    const get = vi.fn(async () => ({
-        id: FeatureFlags.NewOnboarding,
-        enabled: true,
-    }));
     const getAllByOrganizationUuid = vi.fn(
         async () => [] as OrganizationProject[],
     );
@@ -126,7 +121,6 @@ const buildArguments = () => {
     return {
         args: {
             user,
-            featureFlagService: { get },
             projectModel: {
                 getAllByOrganizationUuid,
                 delete: deleteProject,
@@ -145,7 +139,6 @@ const buildArguments = () => {
             validatePlaygroundDatabase,
             now,
         } satisfies ProvisionPlaygroundProjectArguments,
-        get,
         getAllByOrganizationUuid,
         deleteProject,
         saveExploresToCache,
@@ -165,29 +158,6 @@ const buildArguments = () => {
 };
 
 describe('provisionPlaygroundProject', () => {
-    it('rejects when the new onboarding flag is disabled', async () => {
-        const mocks = buildArguments();
-        mocks.get.mockResolvedValue({
-            id: FeatureFlags.NewOnboarding,
-            enabled: false,
-        });
-        await expect(provisionPlaygroundProject(mocks.args)).rejects.toThrow(
-            'Playground projects are not available',
-        );
-        expect(mocks.getAllByOrganizationUuid).not.toHaveBeenCalled();
-        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
-            event: 'playground_project.skipped',
-            userId: user.userUuid,
-            properties: {
-                organizationId: organizationUuid,
-                projectId: null,
-                trigger: 'invite_expert',
-                onboardingFlow: 'legacy',
-                reason: 'new_onboarding_flag_disabled',
-            },
-        });
-    });
-
     it('leaves a cache on the current version alone and still seeds content', async () => {
         const mocks = buildArguments();
         mocks.getAllByOrganizationUuid.mockResolvedValue([

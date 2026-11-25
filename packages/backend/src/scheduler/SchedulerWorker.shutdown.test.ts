@@ -9,6 +9,7 @@ import {
     type WorkerPool,
 } from 'graphile-worker';
 import { type LightdashConfig } from '../config/parseConfig';
+import Logger from '../logging/logger';
 import {
     armCompileShutdown,
     CompileInterruptedError,
@@ -162,6 +163,78 @@ describe('SchedulerWorker ordinary shutdown', () => {
 
         expect(fakeRunner?.workerPool.gracefulShutdown).not.toHaveBeenCalled();
         expect(worker.isRunning).toBe(false);
+    });
+
+    it('logs one warning listing in-flight jobs when a shutdown signal arrives', async () => {
+        const activeJobs = [
+            {
+                id: '41',
+                task_identifier: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
+                payload: { organizationUuid: 'org-1' },
+            },
+            {
+                id: '42',
+                task_identifier: SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS,
+                payload: {},
+            },
+            null,
+        ];
+        vi.mocked(runGraphileWorker).mockImplementationOnce(async (options) => {
+            const fakeRunner = makeFakeGraphileRunner();
+            fakeRunners.push(fakeRunner);
+            options.events?.emit('pool:create', {
+                workerPool: fakeRunner.workerPool,
+            });
+            activeJobs.forEach((job, index) =>
+                options.events?.emit('worker:create', {
+                    worker: {
+                        workerId: `worker-${index}`,
+                        release: vi.fn(),
+                        promise: Promise.resolve(),
+                        getActiveJob: () => job,
+                    },
+                    tasks: {},
+                } as never),
+            );
+            return fakeRunner.runner;
+        });
+        const warn = vi.spyOn(Logger, 'warn');
+        const worker = makeWorker();
+        await worker.run();
+
+        worker.logInFlightJobs('received a shutdown signal');
+
+        expect(warn).toHaveBeenCalledExactlyOnceWith(
+            `Scheduler worker received a shutdown signal with 2 in-flight jobs: ${SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY}#41, ${SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS}#42`,
+            {
+                reason: 'received a shutdown signal',
+                jobs: [
+                    {
+                        taskIdentifier:
+                            SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
+                        graphileJobId: '41',
+                        organizationUuid: 'org-1',
+                    },
+                    {
+                        taskIdentifier: SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS,
+                        graphileJobId: '42',
+                        organizationUuid: null,
+                    },
+                ],
+            },
+        );
+        fakeRunners[0].finishActiveJobs();
+        await worker.stop();
+    });
+
+    it('does not warn about in-flight jobs when the worker is idle', async () => {
+        const warn = vi.spyOn(Logger, 'warn');
+        const worker = makeWorker();
+        await worker.run();
+        worker.logInFlightJobs('received a shutdown signal');
+        expect(warn).not.toHaveBeenCalled();
+        fakeRunners[0].finishActiveJobs();
+        await worker.stop();
     });
 
     it('releases still-active jobs for retry once the drain deadline passes', async () => {

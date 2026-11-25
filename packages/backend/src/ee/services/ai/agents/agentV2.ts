@@ -10,6 +10,7 @@ import {
     getErrorMessage,
     getRunProposals,
     getStudioCardReply,
+    hasMoreToDo,
     isDbtWriteToolName,
     isSqlApprovalToolCall,
     type AiDeepResearchBudget,
@@ -113,7 +114,7 @@ import { getDelegateResearchTask } from '../tools/delegateResearchTask';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getDiscoverRepos } from '../tools/discoverRepos';
 import { getEditContent } from '../tools/editContent';
-import { getEditDbtProject } from '../tools/editDbtProject';
+import { getEditDbtProject, getWrite } from '../tools/editDbtProject';
 import { getEditProjectContext } from '../tools/editProjectContext';
 import { getExploreRepo } from '../tools/exploreRepo';
 import { getExportChartAsCode } from '../tools/exportChartAsCode';
@@ -167,6 +168,7 @@ import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import {
+    getDraftProjectContext,
     getListChanges,
     getProposeSemanticLayerChange,
     getReadSemanticModel,
@@ -1379,7 +1381,10 @@ export const getStudioCardResponse = (
     }
     const studioSaves = new Set(
         last.toolCalls
-            .filter(({ toolName }) => isDbtWriteToolName(toolName))
+            .filter(
+                ({ toolName, input }) =>
+                    isDbtWriteToolName(toolName) && !hasMoreToDo(input),
+            )
             .map(({ toolCallId }) => toolCallId),
     );
     const isSaving = last.toolResults.some(
@@ -2237,15 +2242,8 @@ export const getAgentTools = (
         editDbtProject: () =>
             getEditDbtProject({
                 editDbtProject: dependencies.editDbtProject,
-                acceptsScript: args.semanticStudioCodeMode,
-                name: 'editDbtProject',
             }),
-        write: () =>
-            getEditDbtProject({
-                editDbtProject: dependencies.editDbtProject,
-                acceptsScript: args.semanticStudioCodeMode,
-                name: 'write',
-            }),
+        write: () => getWrite({ editDbtProject: dependencies.editDbtProject }),
         editProjectContext: () =>
             getEditProjectContext({
                 editProjectContext: dependencies.editProjectContext,
@@ -2254,12 +2252,26 @@ export const getAgentTools = (
             getProposeSemanticLayerChange({
                 proposeSemanticLayerChange:
                     dependencies.proposeSemanticLayerChange,
+                describeWarehouseTable: dependencies.describeWarehouseTable,
+                readSemanticModel: dependencies.readSemanticModel,
                 canRunMetrics: getStudioAbilities(loadout).canRunMetrics,
+                metricViewCheck:
+                    getStudioAbilities(loadout).canRunMetrics &&
+                    loadout.toolNames.has('runSql')
+                        ? {
+                              runDraftQuery: dependencies.runDraftQuery,
+                              runSqlJob: queryDependencies.runSqlJob,
+                          }
+                        : null,
             }),
         listChanges: () => getListChanges(dependencies.listChanges),
         readSemanticModel: () =>
             getReadSemanticModel({
                 readSemanticModel: dependencies.readSemanticModel,
+            }),
+        draftProjectContext: () =>
+            getDraftProjectContext({
+                draftProjectContext: dependencies.draftProjectContext,
             }),
         read: () =>
             getRead({
@@ -2301,6 +2313,7 @@ export const getAgentTools = (
         listWorkstreams: () =>
             getListWorkstreams({
                 listWorkstreams: dependencies.listWorkstreams,
+                savesWithWrite: loadout.toolNames.has('write'),
             }),
         closePullRequest: () =>
             getClosePullRequest({
@@ -2376,7 +2389,7 @@ export const getAgentTools = (
                 maxQueryLimit: args.runSqlMaxLimit,
                 enableDataAccess: args.enableDataAccess,
                 canRunSql: args.canRunSql,
-                enablePythonNodes: args.enableComposerQueries,
+                enablePythonNodes: args.enableComposerPythonNodes,
                 autoApproveSql: args.autoApproveSql,
                 autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
                 useSlackStreamCard: args.useSlackStreamCard,
@@ -2817,16 +2830,14 @@ export const getAgentMessages = (
         studio: loadout.promptSections.has('semanticStudio')
             ? getSemanticStudioTurn(loadout, {
                   drafts: args.semanticStudioDrafts,
-                  hasRepository: args.semanticStudioHasRepository,
                   projectMap: args.semanticStudioProjectMap,
-                  siteUrl: args.siteUrl,
                   repoFsRoot: args.repoFsRoot,
                   repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
               })
             : undefined,
         projectContextInRead: getStudioAbilities(loadout).builder,
         slackLinksOnly: args.slackLinksOnly,
-        enableComposerPythonNodes: args.enableComposerQueries,
+        enableComposerPythonNodes: args.enableComposerPythonNodes,
         liveSources: args.liveSources,
         unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
             args,

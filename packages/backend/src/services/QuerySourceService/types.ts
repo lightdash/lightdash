@@ -108,6 +108,8 @@ export interface QuerySourceClient {
     supportsPivot: boolean;
     /** Flags that must all be on for the org to list, scan or submit this source. */
     requiredFeatureFlags: FeatureFlags[];
+    /** What this deployment's config lacks to run this source; null when it can. */
+    unavailableReason: string | null;
     scanSchema(args: ScanSchemaArgs): Promise<QuerySourceSchema>;
     getQueryReferences(query: SourceQuery): string[];
     /** Refuses a query before any node of its submission runs. */

@@ -8,9 +8,11 @@ import {
     type ModelFragmentRefusal,
     type SemanticLayerDraft,
     type SemanticLayerDraftModel,
+    type SemanticLayerDrafter,
     type SemanticLayerModelChange,
 } from '@lightdash/common';
 import { parseDiffFromFile } from '@pierre/diffs';
+import { formatDistanceToNow } from 'date-fns';
 import { load } from 'js-yaml';
 
 export const VIEW_PARAM = 'view';
@@ -466,6 +468,53 @@ const parseModel = (content: string): ModelSummary => {
 export const count = (amount: number, noun: string) =>
     `${amount} ${noun}${amount === 1 ? '' : 's'}`;
 
+/** Parts of a model someone's draft changes, grouped in plain words: "2 metrics and the primary key". */
+export const summarizeDraftedPaths = (paths: string[]): string => {
+    if (paths.length === 0 || paths.includes('')) return 'this model';
+    const named = { metric: new Set<string>(), dimension: new Set<string>() };
+    const joins = new Set<string>();
+    const settings = new Set<string>();
+    paths.forEach((path) => {
+        const part = parseModelPartPath(path);
+        if (part?.part !== 'entry') {
+            settings.add(part?.part === 'key' ? part.key : path);
+            return;
+        }
+        const kind = kindOfPath(path);
+        if (kind === 'join') joins.add(part.name);
+        else if (kind === 'metric' || kind === 'dimension')
+            named[kind].add(part.name);
+    });
+    const [onlySetting] = settings;
+    const groups = [
+        ...(named.metric.size > 0 ? [count(named.metric.size, 'metric')] : []),
+        ...(named.dimension.size > 0
+            ? [count(named.dimension.size, 'dimension')]
+            : []),
+        ...(joins.size > 0 ? [count(joins.size, 'join')] : []),
+        ...(settings.size === 1
+            ? [`the ${onlySetting.replaceAll('_', ' ')}`]
+            : settings.size > 1
+              ? [count(settings.size, 'model setting')]
+              : []),
+    ];
+    return groups.length <= 1
+        ? (groups[0] ?? 'this model')
+        : `${groups.slice(0, -1).join(', ')} and ${groups[groups.length - 1]}`;
+};
+
+/** Who is editing what, and when they last did: "Name is editing 2 metrics · last active 2 hours ago". */
+export const describeDrafter = ({
+    name,
+    paths,
+    lastActiveAt,
+}: SemanticLayerDrafter): string =>
+    `${name} is editing ${summarizeDraftedPaths(paths)} · last active ${formatDistanceToNow(new Date(lastActiveAt), { addSuffix: true })}`;
+
+/** Each part a draft changes, named as precisely as the path allows. */
+export const listDraftedParts = (paths: string[]): string[] =>
+    paths.map(describePart);
+
 const CHANGE_KIND_PAST: Record<ChangeKind, string> = {
     new: 'Added',
     changed: 'Changed',
@@ -580,7 +629,7 @@ export const listPublishedParts = (
               entry,
           );
 
-/** How many changes a publish carries: each part touched, and each model added or removed whole. */
+/** How many changes a publish carries: each part touched, each model added or removed whole, and each project context entry. */
 export const countPublishedChanges = (
     draft: SemanticLayerDraft,
     model: string | null,
@@ -591,4 +640,11 @@ export const countPublishedChanges = (
             (total, entry) =>
                 total + Math.max(listPublishedParts(draft, entry).length, 1),
             0,
-        );
+        ) +
+    (model === null
+        ? new Set(
+              draft.changes.flatMap(
+                  ({ projectContextEntries }) => projectContextEntries,
+              ),
+          ).size
+        : 0);

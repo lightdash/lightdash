@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ChartKind,
+    FeatureFlags,
     getComposerVizPanelOptions,
     getComposerVizPanelValue,
     switchComposerVizKind,
@@ -30,7 +31,7 @@ import {
     IconTableExport,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
-import { useMemo, useState, type FC, type RefObject } from 'react';
+import { useId, useMemo, useState, type FC, type RefObject } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
@@ -46,6 +47,7 @@ import { AiComposerLineage } from '../../../../../features/composerCharts/lineag
 import { ArtifactLoadingSketch } from '../../../../../features/composerCharts/lineage/ArtifactLoadingSketch';
 import { useArtifactResultRows } from '../../../../../features/composerCharts/lineage/useArtifactResultRows';
 import { useComposerRunNodeStatuses } from '../../../../../features/composerCharts/lineage/useComposerRunNodeStatuses';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
 import useApp from '../../../../../providers/App/useApp';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
@@ -60,6 +62,8 @@ import { AiComposerNodeResult } from './AiComposerNodeResult';
 import { AiComposerRunQueryVisualization } from './AiComposerRunQueryVisualization';
 import { ArtifactWindowControls } from './ArtifactFocusToggle';
 import { ArtifactPanelHeading } from './ArtifactPanelHeading';
+import { ComposerLineageTour } from './composerLineageTour/ComposerLineageTour';
+import { type ComposerLineageTourSave } from './composerLineageTour/steps';
 import {
     AiComposerVizConfigPanel,
     type AiComposerVizConfigPanelMode,
@@ -127,6 +131,11 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     const ability = useAbilityContext();
     const isEmbed = useIsEmbedded();
     const [view, setView] = useState<ArtifactView>(initialView);
+    const tourScopeId = useId();
+    const { data: composerChartsFlag } = useServerFeatureFlag(
+        FeatureFlags.ComposerCharts,
+    );
+    const [isRunQueryChartDrawn, setIsRunQueryChartDrawn] = useState(false);
     const [imageExportRef, setImageExportRef] =
         useState<RefObject<EChartsReact | null>>();
     const [
@@ -279,6 +288,32 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         : !!canExportData;
     // Downloads the displayed node's result as run, like an embedded classic artifact
     const downloadQueryUuid = isResultReady ? (queryUuid ?? null) : null;
+    const hasActionsMenu =
+        canExportImage ||
+        canDownloadResults ||
+        !!mergeChartActions ||
+        !!composerSave;
+    const hasSaveInMenu =
+        !!mergeChartActions?.canSave ||
+        !!mergeChartActions?.quickSaveDashboard ||
+        (composerSave?.kind === 'save' && !composerSave.disabledReason);
+    // No save step unless composer charts are enabled.
+    const tourSave: ComposerLineageTourSave =
+        composerChartsFlag?.enabled !== true
+            ? null
+            : hasSaveInMenu
+              ? 'menu'
+              : 'agent';
+    const isTourReady =
+        !isEmbed &&
+        initialView === 'chart' &&
+        view === 'chart' &&
+        // Legacy v1 charts load their pivot separately, so "drawn" is not known.
+        config.schemaVersion === 2 &&
+        config.queries.length > 1 &&
+        isResultReady &&
+        !!queryUuid &&
+        (!isRunQueryChart || isRunQueryChartDrawn);
 
     const head = (
         <Box className={clsx(styles.head, styles.flushHead)}>
@@ -290,6 +325,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
             />
             <Group gap={4} className={styles.headRight}>
                 <SegmentedControl
+                    data-tour="composer-view-toggle"
                     mr={4}
                     classNames={{
                         root: styles.viewToggle,
@@ -310,13 +346,11 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                         },
                     ]}
                 />
-                {(canExportImage ||
-                    canDownloadResults ||
-                    !!mergeChartActions ||
-                    !!composerSave) && (
+                {hasActionsMenu && (
                     <Menu withArrow position="bottom-end">
                         <Menu.Target>
                             <ActionIcon
+                                data-tour="composer-quick-actions"
                                 size="sm"
                                 aria-label={getUiString(
                                     'aiAgent.composer.actions.quickActions',
@@ -442,6 +476,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
             metadata={metadata}
             headerContent={null}
             setImageExportRef={setImageExportRef}
+            onDrawnChange={setIsRunQueryChartDrawn}
         />
     ) : (
         <AiComposerArtifactVisualization
@@ -500,7 +535,10 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     );
 
     return (
-        <Box className={styles.floatingPanel}>
+        <Box
+            className={styles.floatingPanel}
+            data-composer-tour-scope={tourScopeId}
+        >
             <Box className={clsx(styles.floatingContent, styles.flushContent)}>
                 <Stack gap="md" h="100%" mih={0}>
                     {head}
@@ -509,6 +547,15 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                     </Box>
                 </Stack>
             </Box>
+            <ComposerLineageTour
+                scopeId={tourScopeId}
+                ready={isTourReady}
+                queries={config.queries}
+                terminalNodeId={config.terminalNodeId}
+                save={tourSave}
+                canAddToChat={onAddToChat !== null}
+                onShowLineage={(show) => setView(show ? 'lineage' : 'chart')}
+            />
             <AiChartImageExportModal
                 chartRef={imageExportRef}
                 chartName={title}

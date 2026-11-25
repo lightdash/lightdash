@@ -179,6 +179,18 @@ describe('content and saved query review', () => {
             expect(deps.runAsyncQuery).not.toHaveBeenCalled();
         },
     );
+
+    it('runs a saved chart by slug and reports its uuid', async () => {
+        const deps = makeDependencies();
+        const output = await getRunSavedChart(deps).execute!(
+            { chartUuid: 'orders-slug' },
+            options,
+        );
+        expect(output).toMatchObject({
+            structuredContent: { chart: { chartUuid: chart.uuid } },
+        });
+    });
+
     it('preserves stored parameters and other query settings when running a saved chart directly', async () => {
         const deps = makeDependencies();
         const customDimension: CustomDimension = {

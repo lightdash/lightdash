@@ -63,6 +63,10 @@ const SAMPLE_SETTINGS: {
     [ApiConnectorType.AMPLITUDE]: {
         connector: ApiConnectorType.AMPLITUDE,
     },
+    [ApiConnectorType.MIXPANEL]: {
+        connector: ApiConnectorType.MIXPANEL,
+        projectId: '12345',
+    },
     [ApiConnectorType.PYLON]: {
         connector: ApiConnectorType.PYLON,
     },

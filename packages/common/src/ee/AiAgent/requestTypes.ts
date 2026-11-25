@@ -225,6 +225,9 @@ export type CreateSlackThread = {
     agentUuid: string | null;
 };
 
+/** Caller-defined labels on a thread. They never change what the request can access. */
+export type AiThreadMetadata = Record<string, string>;
+
 export type CreateWebAppThread = {
     organizationUuid: string;
     projectUuid: string;
@@ -238,6 +241,7 @@ export type CreateWebAppThread = {
     battleProfile?: AiAgentBattleProfile | null;
     binding?: AiThreadBinding | null;
     threadContext?: string | null;
+    metadata?: AiThreadMetadata | null;
 };
 
 /**

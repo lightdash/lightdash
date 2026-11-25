@@ -220,12 +220,16 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getContentAsCodeSnapshotModel(),
                     organizationMemberProfileModel:
                         models.getOrganizationMemberProfileModel(),
+                    organizationModel: models.getOrganizationModel(),
                     usageDimensionsModel: models.getUsageDimensionsModel(),
                     coderService: repository.getCoderService(),
                     contentVerificationModel:
                         models.getContentVerificationModel(),
                     spaceModel: models.getSpaceModel(),
                     dashboardModel: models.getDashboardModel(),
+                    getDashboardService: () => repository.getDashboardService(),
+                    getSavedChartService: () =>
+                        repository.getSavedChartService(),
                     projectHomepageModel:
                         models.getProjectHomepageModel<ProjectHomepageModel>(),
                     savedChartModel: models.getSavedChartModel(),
@@ -461,6 +465,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             models.getGithubAppInstallationsModel(),
                     }),
                     savedChartModel: models.getSavedChartModel(),
+                    projectContextModel:
+                        models.getProjectContextModel<ProjectContextModel>(),
                     aiWritebackService:
                         repository.getAiWritebackService<AiWritebackService>(),
                     fileStorageClient: clients.getFileStorageClient(),
@@ -635,6 +641,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 const registry = QuerySourceRegistry.withBuiltInSources({
                     asyncQueryService: repository.getAsyncQueryService(),
                     projectService: repository.getProjectService(),
+                    lightdashConfig: context.lightdashConfig,
                 });
                 registry.register(
                     new ApiQuerySource({
@@ -668,6 +675,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         projectService: repository.getProjectService(),
                         externalSourceModel:
                             models.getExternalSourceModel<ExternalSourceModel>(),
+                        lightdashConfig: context.lightdashConfig,
                     }),
                 );
                 return new QuerySourceService({
@@ -1271,7 +1279,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     externalConnectionModel:
                         models.getExternalConnectionModel(),
                     appModel: models.getAppModel(),
-                    featureFlagModel: models.getFeatureFlagModel(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     projectModel: models.getProjectModel(),
@@ -1473,8 +1480,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             projectService,
                             canViewProject,
                             trigger,
-                            featureFlagService:
-                                repository.getFeatureFlagService(),
                             projectModel: models.getProjectModel(),
                             onboardingModel: models.getOnboardingModel(),
                             catalogService: repository.getCatalogService(),

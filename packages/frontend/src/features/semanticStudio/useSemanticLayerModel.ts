@@ -14,6 +14,7 @@ import {
     type SemanticLayerDraftUsage,
     type SemanticLayerTouchedField,
     type SemanticLayerModelCode,
+    type SemanticLayerOthersDraftModel,
     type SemanticLayerStatus,
     type SemanticLayerStoredModels,
     type SemanticStudioBranchCompile,
@@ -58,6 +59,8 @@ const useGet = <T extends ApiResponse['results']>(
     isPending: (data: T) => boolean = () => false,
     /** How often to read again otherwise; false never does. */
     idlePollMs: number | false = false,
+    /** Shapes what the server answered before it is cached. */
+    read: (data: T) => T = (data) => data,
 ) => {
     const lightdashApi = useLightdashApi();
     // Not asked for at all while this read is off: some callers sit on pages everyone opens.
@@ -71,7 +74,7 @@ const useGet = <T extends ApiResponse['results']>(
                 url: toUrl(projectUuid, path),
                 method: 'GET',
                 body: undefined,
-            }),
+            }).then(read),
         enabled: enabled && flag.data?.enabled === true,
         refetchInterval: (data) =>
             data !== undefined && isPending(data)
@@ -221,7 +224,7 @@ export const useAppliesAsPullRequest = (projectUuid: string): boolean =>
     useSemanticLayerStatus(projectUuid)?.appliesAs === 'pull_request';
 
 /** How publishing lands: live here, merged into the repository, or as a pull request for someone who can merge it. */
-type PublishMode = 'live' | 'merge' | 'pull_request';
+export type PublishMode = 'live' | 'merge' | 'pull_request';
 
 export const usePublishMode = (projectUuid: string): PublishMode => {
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
@@ -258,6 +261,16 @@ export const useSemanticLayerModel = (projectUuid: string, modelName: string) =>
         modelName !== '',
     );
 
+// A server from before drafted project context leaves its fields out.
+const withDraftDefaults = (draft: SemanticLayerDraft): SemanticLayerDraft => ({
+    ...draft,
+    projectContext: draft.projectContext ?? null,
+    changes: draft.changes.map((change) => ({
+        ...change,
+        projectContextEntries: change.projectContextEntries ?? [],
+    })),
+});
+
 /** This person's draft, replayed on what is live; empty for someone who cannot change the project. */
 export const useSemanticLayerDraft = (
     projectUuid: string,
@@ -268,7 +281,37 @@ export const useSemanticLayerDraft = (
         projectUuid,
         '/draft',
         enabled,
+        undefined,
+        undefined,
+        withDraftDefaults,
     );
+
+/** One model as someone else's draft leaves it, read-only; nothing is read while closed. */
+export const useOthersDraftModel = (
+    projectUuid: string,
+    ownerUuid: string,
+    model: string,
+    enabled: boolean,
+) =>
+    useGet<SemanticLayerOthersDraftModel>(
+        [DRAFT_KEY, projectUuid, 'others', ownerUuid, model],
+        projectUuid,
+        `/drafts/${ownerUuid}/models/${encodeURIComponent(model)}`,
+        enabled,
+    );
+
+/** Takes one model out of someone else's stale draft; a project admin only. */
+export const useDiscardOthersDraftModel = (projectUuid: string) =>
+    useWrite<undefined, { ownerUuid: string; model: string }>({
+        projectUuid,
+        request: ({ ownerUuid, model }) => ({
+            path: `/drafts/${ownerUuid}/models/${encodeURIComponent(model)}`,
+            method: 'DELETE',
+            body: undefined,
+        }),
+        errorTitle: 'Could not discard their draft',
+        changesLive: false,
+    });
 
 /** One of this person's workspaces, replayed on what is live; nothing is read for null. */
 export const useSemanticLayerWorkspaceDraft = (
@@ -280,6 +323,9 @@ export const useSemanticLayerWorkspaceDraft = (
         projectUuid,
         `/workspaces/${workspaceUuid ?? ''}/draft`,
         workspaceUuid !== null,
+        undefined,
+        undefined,
+        withDraftDefaults,
     );
 
 /**
@@ -493,19 +539,6 @@ export const useDiscardDraftChange = (projectUuid: string) =>
         changesLive: false,
     });
 
-/** Keeps the draft of a model over what was published to it since. */
-export const useKeepDraftModel = (projectUuid: string) =>
-    useWrite<undefined, { model: string; liveVersion: number | null }>({
-        projectUuid,
-        request: ({ model, liveVersion }) => ({
-            path: `${toDraftPath(model)}/keep`,
-            method: 'POST',
-            body: JSON.stringify({ liveVersion }),
-        }),
-        errorTitle: 'Could not keep your version',
-        changesLive: false,
-    });
-
 /** Saves a hand edit of a model's YAML into the draft, starting one on Published. */
 export const useSaveDraftModel = (projectUuid: string) =>
     useWrite<
@@ -519,19 +552,6 @@ export const useSaveDraftModel = (projectUuid: string) =>
             body: JSON.stringify({ base, content }),
         }),
         errorTitle: null,
-        changesLive: false,
-    });
-
-/** Leaves one part of a drafted model as it is live. */
-export const useTakeLiveDraftPart = (projectUuid: string) =>
-    useWrite<undefined, { model: string; path: string }>({
-        projectUuid,
-        request: ({ model, path }) => ({
-            path: `${toDraftPath(model)}/take-live`,
-            method: 'POST',
-            body: JSON.stringify({ path }),
-        }),
-        errorTitle: 'Could not take the published version',
         changesLive: false,
     });
 

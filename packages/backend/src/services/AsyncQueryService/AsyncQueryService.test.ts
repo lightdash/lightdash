@@ -676,6 +676,7 @@ const getMockedAsyncQueryService = (
                 registry: QuerySourceRegistry.withBuiltInSources({
                     asyncQueryService: service,
                     projectService: service,
+                    lightdashConfig: lightdashConfigMock,
                 }),
             });
             return querySourceService;
@@ -848,6 +849,8 @@ const getMockedAsyncQueryService = (
                 csvCellsLimit: null,
             })),
         } as unknown as OrganizationSettingsModel,
+        // Wired by the EE app when the Enterprise licence is valid
+        getLiveSourceForExplore: vi.fn(),
         ...overrides,
         getDataAppCustomSqlProvenance:
             overrides.getDataAppCustomSqlProvenance ??
@@ -1629,7 +1632,6 @@ describe('AsyncQueryService', () => {
             userUuid: 'user-uuid',
             isRegisteredUser: true,
             isPreviewProject: false,
-            onboardingFlow: 'self_service',
             queryTags: { query_context: QueryExecutionContext.SQL_RUNNER },
             queryCreatedAt: new Date(),
             errorMessage: 'warehouse failed',
@@ -1675,7 +1677,6 @@ describe('AsyncQueryService', () => {
             userUuid: 'user-uuid',
             isRegisteredUser: true,
             isPreviewProject: false,
-            onboardingFlow: 'self_service',
             queryTags: { query_context: QueryExecutionContext.SQL_RUNNER },
             queryCreatedAt: new Date(),
             errorMessage: 'warehouse failed',
@@ -2091,10 +2092,12 @@ describe('AsyncQueryService', () => {
             onboarding: Record<string, unknown>,
             limit?: number,
             featureFlagModel: FeatureFlagModel = flagsOn,
+            licensed = true,
         ) => {
             const now = new Date();
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 featureFlagModel,
+                ...(licensed ? {} : { getLiveSourceForExplore: undefined }),
                 onboardingModel: onboarding,
                 queryHistoryModel: {
                     create: vi.fn(async () => ({ queryUuid: 'api-uuid' })),
@@ -2137,6 +2140,14 @@ describe('AsyncQueryService', () => {
             expect(onboarding.setRanQueryAtIfUnset).toHaveBeenCalledTimes(1);
         });
 
+        test('refuses a live source query without an Enterprise licence', async () => {
+            const onboarding = firstQueryOnboardingModel();
+            await expect(
+                runLiveSourceQuery(onboarding, undefined, flagsOn, false),
+            ).rejects.toThrow(ForbiddenError);
+            expect(onboarding.setRanQueryAtIfUnset).not.toHaveBeenCalled();
+        });
+
         test('does not count a live source query rejected by validation', async () => {
             const onboarding = firstQueryOnboardingModel();
             await expect(runLiveSourceQuery(onboarding, -1)).rejects.toThrow(
@@ -2155,24 +2166,6 @@ describe('AsyncQueryService', () => {
             await expect(runLiveSourceQuery(onboarding)).resolves.toEqual({
                 queryUuid: 'api-uuid',
             });
-        });
-
-        test('a feature flag failure while tracking does not fail the query', async () => {
-            const onboarding = firstQueryOnboardingModel();
-            const failingFlags = {
-                get: vi.fn(
-                    async ({ featureFlagId }: { featureFlagId: string }) => {
-                        if (featureFlagId === FeatureFlags.NewOnboarding) {
-                            throw new Error('flag lookup failed');
-                        }
-                        return { id: featureFlagId, enabled: true };
-                    },
-                ),
-            } as unknown as FeatureFlagModel;
-            await expect(
-                runLiveSourceQuery(onboarding, undefined, failingFlags),
-            ).resolves.toEqual({ queryUuid: 'api-uuid' });
-            expect(onboarding.setRanQueryAtIfUnset).not.toHaveBeenCalled();
         });
 
         test('does not count an external query rejected by its checks', async () => {
@@ -2220,12 +2213,6 @@ describe('AsyncQueryService', () => {
         test('keeps the original fetch time when reusing a live result', async () => {
             const now = new Date();
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                featureFlagModel: {
-                    get: vi.fn(async ({ featureFlagId }) => ({
-                        id: featureFlagId,
-                        enabled: featureFlagId === FeatureFlags.ApiQuerySources,
-                    })),
-                } as unknown as FeatureFlagModel,
                 queryHistoryModel: {
                     create: vi.fn(async () => ({ queryUuid: 'api-uuid' })),
                     findMostRecentByCacheKey: vi.fn(async () =>
@@ -2565,12 +2552,6 @@ describe('AsyncQueryService', () => {
             const getLiveSourceForExplore = vi.fn(async () => source);
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 getLiveSourceForExplore,
-                featureFlagModel: {
-                    get: vi.fn(async ({ featureFlagId }) => ({
-                        id: featureFlagId,
-                        enabled: featureFlagId === FeatureFlags.ApiQuerySources,
-                    })),
-                } as unknown as FeatureFlagModel,
             } as never);
             (service as AnyType).assertOrganizationNotBlocked = vi.fn();
             const submitLiveQuery = vi.fn(async () => ({
@@ -6543,7 +6524,6 @@ describe('AsyncQueryService', () => {
             isRegisteredUser: true,
             isServiceAccount: false,
             isPreviewProject: false,
-            onboardingFlow: 'legacy',
             queryUuid: 'materialized-query',
             queryTags: { query_context: QueryExecutionContext.EXPLORE },
             fieldsMap: {},
@@ -8218,7 +8198,6 @@ describe('AsyncQueryService', () => {
             organizationUuid: sessionAccount.organization.organizationUuid!,
             isPreviewProject: false,
             isRegisteredUser: true,
-            onboardingFlow: 'legacy' as const,
             projectUuid,
             query: 'SELECT private FROM secret',
             fieldsMap: {},
@@ -10083,7 +10062,6 @@ describe('AsyncQueryService', () => {
             organizationUuid: sessionAccount.organization.organizationUuid!,
             isPreviewProject: false,
             isRegisteredUser: true,
-            onboardingFlow: 'legacy' as const,
             projectUuid,
             queryUuid: 'test-query-uuid',
             queryTags: {
@@ -12404,7 +12382,6 @@ describe('AsyncQueryService', () => {
                     organizationUuid: 'org',
                     isPreviewProject: false,
                     isRegisteredUser: true,
-                    onboardingFlow: 'legacy',
                     projectUuid,
                     query: 'SELECT 1',
                     fieldsMap: {},
@@ -12489,7 +12466,6 @@ describe('AsyncQueryService', () => {
             organizationUuid: sessionAccount.organization.organizationUuid!,
             isPreviewProject: false,
             isRegisteredUser: true,
-            onboardingFlow: 'legacy',
             projectUuid,
             query: 'SELECT 1',
             fieldsMap: {},
@@ -12609,7 +12585,6 @@ describe('AsyncQueryService', () => {
                 organizationUuid: sessionAccount.organization.organizationUuid!,
                 isPreviewProject: false,
                 isRegisteredUser: true,
-                onboardingFlow: 'legacy',
                 projectUuid,
                 query: 'SELECT 1',
                 fieldsMap: {},
@@ -12763,7 +12738,6 @@ describe('AsyncQueryService', () => {
                 organizationUuid: sessionAccount.organization.organizationUuid!,
                 isPreviewProject: false,
                 isRegisteredUser: true,
-                onboardingFlow: 'legacy',
                 projectUuid,
                 query: 'SELECT 1',
                 fieldsMap: {},
@@ -12925,7 +12899,6 @@ describe('AsyncQueryService', () => {
                         sessionAccount.organization.organizationUuid!,
                     isPreviewProject: false,
                     isRegisteredUser: true,
-                    onboardingFlow: 'legacy',
                     projectUuid,
                     query: 'SELECT * FROM test',
                     fieldsMap: {},
@@ -13042,7 +13015,6 @@ describe('AsyncQueryService', () => {
                 organizationUuid: sessionAccount.organization.organizationUuid!,
                 isPreviewProject: false,
                 isRegisteredUser: true,
-                onboardingFlow: 'legacy',
                 projectUuid,
                 query: 'SELECT * FROM test_table',
                 fieldsMap: {},
@@ -13108,7 +13080,6 @@ describe('AsyncQueryService', () => {
             isPreviewProject: true,
             isRegisteredUser: true,
             isServiceAccount: false,
-            onboardingFlow: 'legacy',
             projectUuid,
             query: 'SELECT 1',
             fieldsMap: {},
@@ -13600,7 +13571,6 @@ describe('AsyncQueryService', () => {
             organizationUuid: sessionAccount.organization.organizationUuid!,
             isPreviewProject: false,
             isRegisteredUser: true,
-            onboardingFlow: 'legacy',
             projectUuid,
             query: 'SELECT * FROM big_table',
             fieldsMap: {},
@@ -13741,7 +13711,6 @@ describe('AsyncQueryService', () => {
                 organizationUuid: sessionAccount.organization.organizationUuid!,
                 isPreviewProject: false,
                 isRegisteredUser: true,
-                onboardingFlow: 'legacy',
                 projectUuid,
                 query: 'SELECT * FROM orders',
                 fieldsMap: {},
@@ -14072,7 +14041,6 @@ describe('AsyncQueryService', () => {
                         sessionAccount.organization.organizationUuid!,
                     isPreviewProject,
                     isRegisteredUser: true,
-                    onboardingFlow: 'legacy',
                     projectUuid,
                     query: 'SELECT 1',
                     fieldsMap: {},
@@ -19310,7 +19278,6 @@ describe('runDuckdbQuery', () => {
         projectUuid,
         organizationUuid: projectSummary.organizationUuid,
         isPreviewProject: false,
-        onboardingFlow: 'default' as AnyType,
         queryUuid: 'duckdb-query-uuid',
         sql: 'SELECT 1 AS one',
         references: { kind: 'bound', referenceCtes: [] },
@@ -20891,6 +20858,7 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             registry: QuerySourceRegistry.withBuiltInSources({
                 asyncQueryService: service,
                 projectService: service,
+                lightdashConfig: lightdashConfigMock,
             }),
         });
 
@@ -25534,7 +25502,6 @@ describe('fresh stored result read boundary', () => {
                 projectUuid,
                 organizationUuid: projectSummary.organizationUuid,
                 isPreviewProject: false,
-                onboardingFlow: 'new',
                 queryUuid: 'compose-uuid',
                 sql: 'SELECT * FROM source',
                 references: {
@@ -25757,9 +25724,7 @@ describe('fresh stored result read boundary', () => {
         vi.mocked(f.service.featureFlagModel.get).mockImplementation(
             async ({ featureFlagId }) => ({
                 id: featureFlagId,
-                enabled:
-                    featureFlagId === FeatureFlags.AgentIdentity ||
-                    featureFlagId === FeatureFlags.ApiQuerySources,
+                enabled: featureFlagId === FeatureFlags.AgentIdentity,
             }),
         );
         Object.assign(f.service.queryHistoryModel, {
@@ -31075,7 +31040,6 @@ describe('fresh execution producer to result reader', () => {
             [
                 'claim validation',
                 'rebuild history',
-                'onboarding',
                 'usage',
                 'wrapper history',
                 'wrapper validation',
@@ -31090,7 +31054,6 @@ describe('fresh execution producer to result reader', () => {
         async ({ kind, failure }) => {
             await boundFixture(async (f, _auth, queryUuid) => {
                 const preparation = f.service as unknown as {
-                    getOnboardingFlow: () => Promise<unknown>;
                     isExcludedFromUsage: () => Promise<unknown>;
                     deriveWarehouseCredentialsOverrides: () => Promise<unknown>;
                 };
@@ -31142,11 +31105,6 @@ describe('fresh execution producer to result reader', () => {
                         .mockImplementationOnce(validate)
                         .mockRejectedValueOnce(error);
                 }
-                if (failure === 'onboarding')
-                    vi.spyOn(
-                        preparation,
-                        'getOnboardingFlow',
-                    ).mockRejectedValueOnce(error);
                 if (failure === 'usage')
                     vi.spyOn(
                         preparation,
@@ -32743,7 +32701,6 @@ describe('late query status writes', () => {
                 userUuid: sessionAccount.user.id,
                 isRegisteredUser: true,
                 isPreviewProject: false,
-                onboardingFlow: 'legacy',
                 queryTags: {
                     query_context: QueryExecutionContext.SQL_RUNNER,
                 },

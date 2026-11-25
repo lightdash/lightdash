@@ -119,6 +119,7 @@ import {
 import { BaseController } from '../../controllers/baseController';
 import { type ApiGetAsyncQueryResultsResponse } from '../../controllers/v2/QueryController';
 import Logger from '../../logging/logger';
+import { compressResultsPage } from '../../middlewares/responseCompression/responseCompression';
 import { parseLightdashClient } from '../../utils/clientHeader';
 import { type AiAgentCoderService } from '../services/AiAgentCoderService/AiAgentCoderService';
 import { type AiAgentMemoryService } from '../services/AiAgentMemoryService/AiAgentMemoryService';
@@ -1360,6 +1361,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
+    /**
+     * Adds a message using the thread's recorded model and reasoning settings.
+     * A different modelConfig returns HTTP 400; start a new thread to change it.
+     * @summary Create AI agent thread message
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
@@ -1367,6 +1373,10 @@ export class AiAgentController extends BaseController {
             'AiAgentController.createAgentThreadMessage',
         ),
     ])
+    @Response<ApiErrorPayload>(
+        '400',
+        'modelConfig differs from the thread configuration',
+    )
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/threads/{threadUuid}/messages')
     @OperationId('createAgentThreadMessage')
@@ -1941,6 +1951,7 @@ export class AiAgentController extends BaseController {
      * @summary Get AI agent node citation query results
      */
     @Middlewares([
+        compressResultsPage,
         allowApiKeyAuthentication,
         isAuthenticated,
         requireOAuthScopeOperation(
@@ -2206,6 +2217,7 @@ export class AiAgentController extends BaseController {
     }
 
     @Middlewares([
+        compressResultsPage,
         allowApiKeyAuthentication,
         isAuthenticated,
         requireOAuthScopeOperation('AiAgentController.getArtifactQueryResults'),

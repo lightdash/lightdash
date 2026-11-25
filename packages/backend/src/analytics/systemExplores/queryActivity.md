@@ -67,8 +67,11 @@ tile ID, Total queries, Average response time ms and P95 response time ms. Filte
 Status to success and Response timing basis to request; sort P95 descending.
 Add Cache hit to distinguish cache latency from warehouse-backed requests.
 
-For question 18, group Total queries by Event ts day and Workload origin. Add
-Initiating actor type, Context, App ID and App version to investigate a spike.
+For question 18, group Queries by Day and Workload origin. Add
+Initiating actor type, Run from, App ID and App version to investigate a spike.
+**Run from** shows Context under plain names (Dashboard view, Explore, Scheduled
+delivery and so on); a value with no plain name is shown as recorded. Filter on
+Context, which keeps the recorded value.
 Keep the unknown group in totals. Existing Status/User and Execution source/Cache
 hit breakdowns remain available for questions 17 and 19.
 

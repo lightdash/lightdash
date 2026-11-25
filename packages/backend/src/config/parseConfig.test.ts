@@ -861,6 +861,16 @@ describe('HTTP server config', () => {
 
         expect(parseConfig().httpServer.keepAliveTimeoutMs).toBe(300_000);
     });
+
+    it('enables response compression by default', () => {
+        expect(parseConfig().httpServer.responseCompressionEnabled).toBe(true);
+    });
+
+    it('disables response compression when the env var is false', () => {
+        process.env.HTTP_RESPONSE_COMPRESSION_ENABLED = 'false';
+
+        expect(parseConfig().httpServer.responseCompressionEnabled).toBe(false);
+    });
 });
 
 describe('mobile minimum supported versions', () => {

@@ -93,6 +93,10 @@ describe('live integration specs', () => {
               "rating": "medium",
               "score": 3,
             },
+            "mixpanel": {
+              "rating": "medium",
+              "score": 3,
+            },
             "posthog": {
               "rating": "easy",
               "score": 7,

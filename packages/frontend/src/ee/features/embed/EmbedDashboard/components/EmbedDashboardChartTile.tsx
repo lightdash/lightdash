@@ -8,6 +8,10 @@ import TileBase from '../../../../../components/DashboardTiles/TileBase';
 import UnmetRequirementsPlaceholder from '../../../../../components/DashboardTiles/UnmetRequirementsPlaceholder';
 import { useTileQueryQueueVisibility } from '../../../../../features/dashboard/tileQueryQueue/useTileQueryQueue';
 import { useDashboardChartReadyQuery } from '../../../../../hooks/dashboard/useDashboardChartReadyQuery';
+import {
+    getTableTileFirstPageColumnCount,
+    isCaptureRender,
+} from '../../../../../hooks/resultsFirstPage';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 
@@ -47,6 +51,14 @@ const EmbedDashboardChartTile: FC<Props> = ({
         readyQuery.data?.chart.projectUuid,
         readyQuery.data?.executeQueryResponse.queryUuid,
         readyQuery.data?.chart.name,
+        null,
+        {
+            firstPageColumnCount: getTableTileFirstPageColumnCount(
+                readyQuery.data?.chart,
+                readyQuery.data?.executeQueryResponse.metricQuery,
+                { captureMode: isCaptureRender() },
+            ),
+        },
     );
 
     const isLoading = useMemo(() => {
@@ -56,7 +68,8 @@ const EmbedDashboardChartTile: FC<Props> = ({
             resultsData.fetchAll && !resultsData.hasFetchedAllRows;
         return (
             (isCreatingQuery || isFetchingFirstPage || isFetchingAllRows) &&
-            !resultsData.error
+            !resultsData.error &&
+            !resultsData.rowsExpansionError
         );
     }, [
         readyQuery.isFetching,
@@ -64,6 +77,7 @@ const EmbedDashboardChartTile: FC<Props> = ({
         resultsData.hasFetchedAllRows,
         resultsData.isFetchingFirstPage,
         resultsData.error,
+        resultsData.rowsExpansionError,
     ]);
     useTileQueryQueueVisibility(tile.uuid);
 

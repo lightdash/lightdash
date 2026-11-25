@@ -47,6 +47,8 @@ type Props = {
     headerContent?: ReactNode;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
+    /** Told whether the chart is drawn, rather than loading or failed. */
+    onDrawnChange?: (drawn: boolean) => void;
     /** Receives the chart's echarts ref, only for chart types that export as an image. */
     setImageExportRef?: (
         ref: RefObject<EChartsReact | null> | undefined,
@@ -66,6 +68,7 @@ export const AiComposerRunQueryVisualization: FC<Props> = ({
     headerContent,
     onScreenshotReady,
     onScreenshotError,
+    onDrawnChange,
     setImageExportRef,
 }) => {
     const columns = useMemo(
@@ -144,6 +147,11 @@ export const AiComposerRunQueryVisualization: FC<Props> = ({
     useEffect(() => {
         if (errorMessage) onScreenshotError?.();
     }, [errorMessage, onScreenshotError]);
+
+    const isDrawn = !errorMessage && !!readyChart && results.hasFetchedAllRows;
+    useEffect(() => {
+        onDrawnChange?.(isDrawn);
+    }, [isDrawn, onDrawnChange]);
 
     const rows = useMemo(
         () =>

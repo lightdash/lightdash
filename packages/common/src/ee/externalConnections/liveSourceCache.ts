@@ -26,6 +26,8 @@ export const LIVE_SOURCE_DEFAULT_CACHE_TTL_SECONDS: Record<
     [ApiConnectorType.SALESFORCE]: DEFAULT_CACHE_TTL_SECONDS,
     // Queries count against a cost budget per hour, shared with other clients
     [ApiConnectorType.AMPLITUDE]: DEFAULT_CACHE_TTL_SECONDS,
+    // Queries count against 60 an hour per project, shared with other clients
+    [ApiConnectorType.MIXPANEL]: DEFAULT_CACHE_TTL_SECONDS,
     // Like every other source, so cache tests see the default window
     [ApiConnectorType.HYDRA]: DEFAULT_CACHE_TTL_SECONDS,
 };

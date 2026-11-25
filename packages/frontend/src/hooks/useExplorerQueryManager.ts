@@ -31,6 +31,10 @@ import { useMergeSafe } from '../features/mergeQuery/context/useMerge';
 import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
 import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import { buildQueryArgs } from './explorer/buildQueryArgs';
+import {
+    getExplorerProgressiveFirstPage,
+    isCaptureRender,
+} from './resultsFirstPage';
 import { useExploreByProjectUuid } from './useExplore';
 import { useDateZoomGranularitySearch } from './useExplorerRoute';
 import { usePreAggregateCacheEnabled } from './usePreAggregateCacheEnabled';
@@ -210,6 +214,13 @@ export const useExplorerQueryManager = ({
     // are what is on screen.
     const mergeReplacesQuery = !!useMergeSafe()?.replacesQuery;
 
+    const progressiveFirstPage = getExplorerProgressiveFirstPage({
+        chartConfig: unsavedChartVersion.chartConfig,
+        pivotColumns: unsavedChartVersion.pivotConfig?.columns,
+        minimal,
+        captureMode: isCaptureRender(),
+    });
+
     // Main query executor - creates TanStack Query subscriptions
     const [mainQueryExecutor] = useQueryExecutor(
         validQueryArgs,
@@ -217,6 +228,7 @@ export const useExplorerQueryManager = ({
         !mergeReplacesQuery,
         queryUuidHistory,
         setQueryUuidHistory,
+        { progressiveFirstPage: progressiveFirstPage.main },
     );
     const { query, queryResults } = mainQueryExecutor;
 
@@ -228,6 +240,7 @@ export const useExplorerQueryManager = ({
         unpivotedEnabled,
         unpivotedQueryUuidHistory,
         setUnpivotedQueryUuidHistory,
+        { progressiveFirstPage: progressiveFirstPage.unpivoted },
     );
     const { query: unpivotedQuery, queryResults: unpivotedQueryResults } =
         unpivotedQueryExecutor;

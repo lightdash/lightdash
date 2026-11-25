@@ -1040,8 +1040,12 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     ).rows,
                 ).toEqual([{ is_deleted: true }]);
                 expect(
-                    (await reader.runQuery(joinedSql)).rows.every(
-                        (row) => row.lightdash_users_name === 'Unknown user',
+                    (await reader.runQuery(joinedSql)).rows.every((row) =>
+                        // With no users snapshot nobody has a name: an ID reads Unknown user and
+                        // activity with no ID reads No user recorded
+                        ['Unknown user', 'No user recorded'].includes(
+                            row.lightdash_users_name,
+                        ),
                     ),
                 ).toBe(true);
                 expect(
@@ -1072,8 +1076,12 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     Key: usageDimensionKey(org, 'users'),
                 });
                 expect(
-                    (await reader.runQuery(joinedSql)).rows.every(
-                        (row) => row.lightdash_users_name === 'Unknown user',
+                    (await reader.runQuery(joinedSql)).rows.every((row) =>
+                        // With no users snapshot nobody has a name: an ID reads Unknown user and
+                        // activity with no ID reads No user recorded
+                        ['Unknown user', 'No user recorded'].includes(
+                            row.lightdash_users_name,
+                        ),
                     ),
                 ).toBe(true);
 

@@ -57,12 +57,12 @@ describe('Analytics chart presentation', () => {
         expect(chart.query.metrics).toEqual(['total_views', 'unique_viewers']);
         expect(option.series).toEqual([
             expect.objectContaining({
-                name: 'App loads',
+                name: 'Data app loads',
                 type: 'line',
                 data: [12],
             }),
             expect.objectContaining({
-                name: 'Observed viewers',
+                name: 'Viewers',
                 type: 'line',
                 data: [4],
             }),

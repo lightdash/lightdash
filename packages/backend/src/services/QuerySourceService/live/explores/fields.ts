@@ -3,6 +3,7 @@ import {
     FilterOperator,
     MetricType,
     ParameterError,
+    type LiveSourceExploreChange,
     type LiveSourceField,
     type LiveSourceFieldChange,
     type LiveSourceFieldEditor,
@@ -88,11 +89,38 @@ export const getLiveModelFieldInputs = ({
     };
 };
 
+/** What an admin changed on one explore; unset keys keep the default. */
+export type LiveSourceExploreEdit = {
+    /** Missing means on, so explores added later start on. */
+    inUse?: boolean;
+    label?: string;
+    description?: string;
+    aiHint?: string;
+    lastEdit?: LiveSourceFieldEditor | null;
+};
+
+/** Explore edits by model name. */
+export type LiveSourceExploreEdits = Record<string, LiveSourceExploreEdit>;
+
+/** The edit of one explore, or undefined when it has none. */
+export const getLiveExploreEdit = (
+    edits: LiveSourceExploreEdits,
+    model: string,
+): LiveSourceExploreEdit | undefined =>
+    Object.hasOwn(edits, model) ? edits[model] : undefined;
+
+/** Whether the explore is built; it is unless an admin switched it off. */
+export const isLiveExploreInUse = (
+    edits: LiveSourceExploreEdits,
+    model: string,
+): boolean => getLiveExploreEdit(edits, model)?.inUse !== false;
+
 /** How a source's fields are curated, as stored next to its settings. */
 export type LiveSourceFieldState = {
     lastScan: LiveSourceScan | null;
     /** Absent until the source's first build under curation. */
     fields: LiveSourceFieldEdits | null;
+    explores: LiveSourceExploreEdits;
     aiHint: string | null;
     targetLabel: string | null;
     /** Tags the source's explores carry, for AI agents limited to tags. */
@@ -106,6 +134,7 @@ const fieldDefinitionSchema = z.object({
     description: z.string().optional(),
     filterOperators: z.array(z.nativeEnum(FilterOperator)),
     sql: z.string().optional(),
+    valueLabels: z.record(z.string(), z.string()).optional(),
 });
 
 const scannedFieldSchema = z.discriminatedUnion('kind', [
@@ -157,6 +186,19 @@ const fieldStateSchema = z.object({
             }),
         )
         .nullish(),
+    explores: z
+        .record(
+            z.string(),
+            z.object({
+                inUse: z.boolean().optional(),
+                label: z.string().optional(),
+                description: z.string().optional(),
+                aiHint: z.string().optional(),
+                lastEdit: editorSchema.nullish(),
+            }),
+        )
+        .nullish()
+        .catch(null),
 });
 
 /** Reads the curation keys of a stored `api_source`; unreadable keys read as absent. */
@@ -168,6 +210,7 @@ export const parseLiveSourceFieldState = (
         return {
             lastScan: null,
             fields: null,
+            explores: {},
             aiHint: null,
             targetLabel: null,
             tags: [],
@@ -176,6 +219,7 @@ export const parseLiveSourceFieldState = (
     return {
         lastScan: parsed.data.lastScan ?? null,
         fields: parsed.data.fields ?? null,
+        explores: parsed.data.explores ?? {},
         aiHint: parsed.data.aiHint ?? null,
         targetLabel: parsed.data.targetLabel ?? null,
         tags: parsed.data.tags ?? [],
@@ -255,7 +299,7 @@ export const listLiveSourceFields = ({
             label: edit?.label ?? field.definition.label,
             description:
                 edit?.description ?? field.definition.description ?? '',
-            aiHint: edit?.aiHint ?? null,
+            aiHint: edit?.aiHint ?? field.definition.aiHint ?? null,
             group: edit?.group ?? null,
             isBuiltIn: field.isBuiltIn,
             isInternal: field.isInternal,
@@ -417,5 +461,66 @@ export const applyLiveSourceFieldChanges = ({
                 lastEdit: editor,
             },
         };
+    }, current);
+};
+
+/** A change to the explore of `model`, named by its model instead of its explore name. */
+export type LiveSourceExploreModelChange = Omit<
+    LiveSourceExploreChange,
+    'exploreName'
+> & { model: string };
+
+/**
+ * Applies explore changes to the stored edits and stamps each changed
+ * explore with its editor. Switching an explore on drops `inUse`, so the
+ * edits only ever store explores that are off. Fails on an empty label or
+ * text over the limit.
+ */
+export const applyLiveSourceExploreChanges = ({
+    current,
+    changes,
+    editor,
+}: {
+    current: LiveSourceExploreEdits;
+    changes: LiveSourceExploreModelChange[];
+    editor: LiveSourceFieldEditor;
+}): LiveSourceExploreEdits => {
+    const problems = changes.flatMap((change) => {
+        if (change.label !== undefined && change.label?.trim() === '') {
+            return [`Explore "${change.model}" needs a label.`];
+        }
+        const tooLong = [change.label, change.description, change.aiHint].some(
+            (text) => (text?.length ?? 0) > MAX_FIELD_TEXT_LENGTH,
+        );
+        return tooLong
+            ? [
+                  `Explore "${change.model}" has text over ${MAX_FIELD_TEXT_LENGTH} characters.`,
+              ]
+            : [];
+    });
+    if (problems.length > 0) {
+        throw new ParameterError(problems.join(' '));
+    }
+    return changes.reduce<LiveSourceExploreEdits>((edits, change) => {
+        const existing = getLiveExploreEdit(edits, change.model) ?? {};
+        const texts = (
+            ['label', 'description', 'aiHint'] as const
+        ).reduce<LiveSourceExploreEdit>((edit, key) => {
+            const value = change[key];
+            if (value === undefined) {
+                return edit;
+            }
+            const { [key]: _cleared, ...rest } = edit;
+            const text = value?.trim();
+            return text ? { ...rest, [key]: text } : rest;
+        }, existing);
+        const { inUse: _inUse, ...withoutInUse } = texts;
+        let next = texts;
+        if (change.inUse !== undefined) {
+            next = change.inUse
+                ? withoutInUse
+                : { ...withoutInUse, inUse: false };
+        }
+        return { ...edits, [change.model]: { ...next, lastEdit: editor } };
     }, current);
 };

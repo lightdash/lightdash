@@ -31,7 +31,7 @@ describe('DbtGithubProjectAdapter', () => {
             targetName: undefined,
             environment: undefined,
             environmentVariableAllowlist: [],
-            partialParseBaselinePath: null,
+            partialParseBaseline: null,
             cachedWarehouse: {
                 warehouseCatalog: {},
                 onWarehouseCatalogChange: vi.fn(),

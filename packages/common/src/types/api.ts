@@ -94,6 +94,7 @@ import type {
     ApiInstallRegistryChartTypeResponse,
     ApiListDataAppVizsResponse,
     ApiListRegistryChartTypesResponse,
+    ApiLiveSourceContentUsageResponse,
     ApiLiveSourceFieldsResponse,
     ApiManagedAgentActionResponse,
     ApiManagedAgentRunResponse,
@@ -490,6 +491,7 @@ import {
     type ApiSemanticLayerDraftResponse,
     type ApiSemanticLayerDraftStateResponse,
     type ApiSemanticLayerDraftUsageResponse,
+    type ApiSemanticLayerOthersDraftModelResponse,
     type ApiSemanticStudioBranchCompileFollowUpResponse,
     type ApiSemanticStudioCheckoutResponse,
     type ApiSemanticStudioSourceFileResponse,
@@ -1744,6 +1746,7 @@ type ApiResults =
     | ApiVirtualViewAsCodeUpsertResponse['results']
     | ApiExternalConnectionAsCodeListResponse['results']
     | ApiExternalConnectionAsCodeUpsertResponse['results']
+    | ApiLiveSourceContentUsageResponse['results']
     | ApiLiveSourceFieldsResponse['results']
     | ApiExplorePrefixCheckResponse['results']
     | ApiReattachableLiveSourcesResponse['results']
@@ -1937,6 +1940,7 @@ type ApiResults =
     | ApiAiProviderCredentialCreatedResponse['results']
     | ApiProjectAiCredentialResponse['results']
     | ApiSemanticLayerDraftResponse['results']
+    | ApiSemanticLayerOthersDraftModelResponse['results']
     | ApiSemanticLayerDraftModelSaveResponse['results']
     | ApiSemanticLayerDraftedModelsResponse['results']
     | ApiSemanticLayerDraftStateResponse['results']

@@ -5,6 +5,7 @@ import {
     type PythonSourceQuery,
 } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
+import { lightdashConfigWithAppRuntimeMock } from '../../../config/lightdashConfig.mock';
 import type { SubmitSourceQueryArgs } from '../types';
 import { PythonQuerySource } from './PythonQuerySource';
 
@@ -20,6 +21,7 @@ const createSource = () => {
     return {
         source: new PythonQuerySource({
             asyncQueryService: { executeAsyncPythonQuery },
+            lightdashConfig: lightdashConfigWithAppRuntimeMock,
         }),
         executeAsyncPythonQuery,
     };

@@ -14,7 +14,7 @@ export const cliArgs = {
     explicitCredentials: false,
     profileName: 'profileName',
     target: 'target',
-    partialParseBaselinePath: null,
+    partialParseBaseline: null,
 };
 
 export const expectedDbtOptions = ['--no-use-colors', '--log-format', 'json'];

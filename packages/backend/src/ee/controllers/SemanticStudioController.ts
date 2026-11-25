@@ -12,6 +12,7 @@ import {
     type ApiSemanticLayerDraftTakeLiveRequest,
     type ApiSemanticLayerDraftUsageResponse,
     type ApiSemanticLayerModelResponse,
+    type ApiSemanticLayerOthersDraftModelResponse,
     type ApiSemanticLayerStatusResponse,
     type ApiSemanticLayerStoredModelsResponse,
     type ApiSemanticLayerUndoResponse,
@@ -719,6 +720,56 @@ export class SemanticStudioController extends BaseController {
             toSessionUser(req.account),
             projectUuid,
             { kind: 'model', model },
+        );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * One model as someone else's draft leaves it, read-only.
+     * @summary Get another person's semantic layer draft of a model
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/drafts/{ownerUuid}/models/{model}')
+    @OperationId('getOthersSemanticLayerDraftModel')
+    async getOthersDraftModel(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() ownerUuid: UUID,
+        @Path() model: string,
+    ): Promise<ApiSemanticLayerOthersDraftModelResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getOthersDraftModel(
+                toSessionUser(req.account),
+                projectUuid,
+                ownerUuid,
+                model,
+            ),
+        };
+    }
+
+    /**
+     * Takes one model out of someone else's draft; only a project admin, once the draft has had no activity for 7 days.
+     * @summary Discard one model from another person's stale semantic layer draft
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Delete('/drafts/{ownerUuid}/models/{model}')
+    @OperationId('discardOthersSemanticLayerDraftModel')
+    async discardOthersDraftModel(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() ownerUuid: UUID,
+        @Path() model: string,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().discardOthersDraftModel(
+            toSessionUser(req.account),
+            projectUuid,
+            ownerUuid,
+            model,
         );
         return { status: 'ok', results: undefined };
     }
