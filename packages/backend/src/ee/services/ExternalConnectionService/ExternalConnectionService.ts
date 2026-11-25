@@ -2672,8 +2672,6 @@ export class ExternalConnectionService extends BaseService {
                 connection.apiSource,
             ),
             adminRateLimits: connection.adminRateLimits ?? null,
-            callsPerQuery: getLiveIntegration(connection.apiSource.connector)
-                .limits.callsPerQuery,
             snapshot,
         });
     }

@@ -3,10 +3,7 @@
  * resets, whether the vendor has paused it, and the lower limits an admin
  * sets. Usage is read when the page opens and after a save.
  */
-import {
-    assertUnreachable,
-    type ExternalConnectionRateLimitUsage,
-} from '@lightdash/common';
+import { type ExternalConnectionRateLimitUsage } from '@lightdash/common';
 import { Box, Progress, Text } from '@mantine/core';
 import { useState, type FC, type FormEvent } from 'react';
 import { NumberInput } from '../../../components/common/NumberInput';
@@ -22,48 +19,25 @@ import {
 } from './LiveSourceSettingsRows';
 import {
     getMaxLimit,
+    getRateLimitHint,
     getRateLimitMeter,
     getRateLimitRows,
     getSavedValues,
-    isBelowQueryCalls,
     isValidLimit,
     toRateLimitSettings,
     type RateLimitRow,
     type RateLimitValues,
 } from './rateLimitForm';
-import { capitalize, formatUntil, isFull, resetsOf } from './rateLimitFormat';
+import { formatUntil } from './rateLimitFormat';
 
 type RateLimitParams = { projectUuid: string; connectionUuid: string };
-
-const getRowStatus = (
-    row: RateLimitRow,
-    usage: ExternalConnectionRateLimitUsage,
-) => {
-    switch (row.kind) {
-        case 'window': {
-            if (!row.usage) {
-                return 'No limit set';
-            }
-            const resets = resetsOf(row.usage, usage.checkedAt);
-            return isFull(row.usage)
-                ? `Limit reached, ${resets}`
-                : capitalize(resets);
-        }
-        case 'callsPerSecond':
-            return 'Throttled to this rate';
-        case 'concurrentCalls':
-            return usage.runningCalls > 0 ? 'In flight now' : 'None in flight';
-        default:
-            return assertUnreachable(row, 'Unknown rate limit row');
-    }
-};
 
 const RowHint: FC<{
     row: RateLimitRow;
     value: number | undefined;
-    usage: ExternalConnectionRateLimitUsage;
+    checkedAt: string;
     isLimitReached: boolean;
-}> = ({ row, value, usage, isLimitReached }) => {
+}> = ({ row, value, checkedAt, isLimitReached }) => {
     if (!isValidLimit(row, value)) {
         return (
             <span className={classes.rateError}>
@@ -73,20 +47,12 @@ const RowHint: FC<{
         );
     }
     return (
-        <>
-            <span
-                className={classes.rateDetail}
-                data-limit-reached={isLimitReached || undefined}
-            >
-                {getRowStatus(row, usage)}
-            </span>
-            {isBelowQueryCalls(row, value, usage.callsPerQuery) ? (
-                <span className={classes.warningText}>
-                    {' '}
-                    · One query can make up to {usage.callsPerQuery} requests
-                </span>
-            ) : null}
-        </>
+        <span
+            className={classes.rateDetail}
+            data-limit-reached={isLimitReached || undefined}
+        >
+            {getRateLimitHint(row, checkedAt)}
+        </span>
     );
 };
 
@@ -104,7 +70,7 @@ const LimitRow: FC<{
                 <RowHint
                     row={row}
                     value={value}
-                    usage={usage}
+                    checkedAt={usage.checkedAt}
                     isLimitReached={meter.isFull}
                 />
             }

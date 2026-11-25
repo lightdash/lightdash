@@ -893,8 +893,6 @@ export type ExternalConnectionRateLimitUsage = {
     runningCalls: number;
     /** What admins are told alongside the limits they can lower. */
     note: string | null;
-    /** The most calls one query can make. */
-    callsPerQuery: number;
 };
 
 export type ApiExternalConnectionRateLimitUsageResponse = {

@@ -6,6 +6,7 @@ import {
 const SECOND = 1_000;
 const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
 
 const timeOf = (date: Date) =>
     date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
@@ -41,6 +42,19 @@ export const formatUntil = (until: string, checkedAt: string): string => {
         month: 'short',
     });
     return `until ${day}, ${timeOf(date)}`;
+};
+
+/** A window's length, such as "1 minute", "24 hours" or "30 days". */
+export const formatWindow = (windowMs: number): string => {
+    const getUnit = () => {
+        if (windowMs > DAY) return { size: DAY, name: 'day' };
+        if (windowMs >= HOUR) return { size: HOUR, name: 'hour' };
+        if (windowMs >= MINUTE) return { size: MINUTE, name: 'minute' };
+        return { size: SECOND, name: 'second' };
+    };
+    const { size, name } = getUnit();
+    const count = windowMs / size;
+    return `${count} ${name}${count === 1 ? '' : 's'}`;
 };
 
 /** Used of capacity, such as "410 of 10,000". */

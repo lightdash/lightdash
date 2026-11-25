@@ -15,7 +15,6 @@ export const toRateLimitUsage = ({
     rateLimits,
     declared,
     adminRateLimits,
-    callsPerQuery,
     snapshot,
 }: {
     integrationLabel: string;
@@ -24,7 +23,6 @@ export const toRateLimitUsage = ({
     /** The integration's own limits. */
     declared: LiveRateLimits;
     adminRateLimits: LiveSourceRateLimitSettings | null;
-    callsPerQuery: number;
     snapshot: ApiSourceRateUsageSnapshot;
 }): ExternalConnectionRateLimitUsage => {
     const now = snapshot.now.getTime();
@@ -76,6 +74,5 @@ export const toRateLimitUsage = ({
             rateLimits.concurrentCalls,
         ),
         note: declared.cardNote ?? null,
-        callsPerQuery,
     };
 };

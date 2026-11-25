@@ -1,10 +1,10 @@
 import { type ExternalConnectionRateLimitUsage } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    getRateLimitHint,
     getRateLimitMeter,
     getRateLimitRows,
     getSavedValues,
-    isBelowQueryCalls,
     isValidLimit,
     toRateLimitSettings,
 } from './rateLimitForm';
@@ -35,7 +35,6 @@ const usageWith = (
     defaultConcurrentCalls: 5,
     runningCalls: 0,
     note: null,
-    callsPerQuery: 5,
     ...overrides,
 });
 
@@ -142,17 +141,6 @@ describe('isValidLimit', () => {
     });
 });
 
-describe('isBelowQueryCalls', () => {
-    it('warns for a window below the calls one query can make', () => {
-        expect(isBelowQueryCalls(rowOf('window:hour'), 4, 5)).toBe(true);
-        expect(isBelowQueryCalls(rowOf('window:hour'), 5, 5)).toBe(false);
-    });
-
-    it('does not warn about concurrency', () => {
-        expect(isBelowQueryCalls(rowOf('concurrentCalls'), 1, 5)).toBe(false);
-    });
-});
-
 describe('toRateLimitSettings', () => {
     const rows = getRateLimitRows(usageWith());
 
@@ -175,6 +163,32 @@ describe('toRateLimitSettings', () => {
             callsPerSecond: null,
             concurrentCalls: null,
         });
+    });
+});
+
+describe('getRateLimitHint', () => {
+    const { checkedAt } = usageWith();
+
+    it('explains a window that is not counting', () => {
+        expect(getRateLimitHint(rowOf('window:day'), checkedAt)).toBe(
+            'Fixed window: 24 hours from the first request',
+        );
+    });
+
+    it('says when a counting window resets', () => {
+        const counting = usageWith({
+            buckets: [{ ...HOUR_BUCKET, resetsAt: '2026-11-23T14:37:00.000Z' }],
+        });
+
+        expect(
+            getRateLimitHint(rowOf('window:hour', counting), checkedAt),
+        ).toBe('Resets in 37 min');
+    });
+
+    it('explains concurrency whatever is in flight', () => {
+        expect(getRateLimitHint(rowOf('concurrentCalls'), checkedAt)).toBe(
+            'Max in flight. Extra requests wait for a slot.',
+        );
     });
 });
 

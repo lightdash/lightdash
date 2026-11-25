@@ -12,13 +12,20 @@ import {
     type ExternalConnectionRateLimitUsage,
     type LiveSourceRateLimitSettings,
 } from '@lightdash/common';
-import { capitalize, formatUsed } from './rateLimitFormat';
+import {
+    capitalize,
+    formatUsed,
+    formatWindow,
+    isFull,
+    resetsOf,
+} from './rateLimitFormat';
 
 type RateLimitKind =
     /** `usage` is null for a daily limit that isn't set yet. */
     | {
           kind: 'window';
           bucketId: string;
+          windowMs: number;
           usage: ExternalConnectionRateLimitBucket | null;
       }
     | { kind: 'callsPerSecond' }
@@ -54,7 +61,11 @@ export const getRateLimitRows = ({
     defaultConcurrentCalls,
 }: ExternalConnectionRateLimitUsage): RateLimitRow[] => {
     const toWindowRow = (
-        { id, label }: { id: string; label: string },
+        {
+            id,
+            label,
+            windowMs,
+        }: { id: string; label: string; windowMs: number },
         usage: ExternalConnectionRateLimitBucket | null,
         saved: number | undefined,
     ): RateLimitRow => {
@@ -63,6 +74,7 @@ export const getRateLimitRows = ({
             kind: 'window',
             key: `window:${id}`,
             bucketId: id,
+            windowMs,
             label: capitalize(label),
             usage,
             defaultLimit,
@@ -139,6 +151,33 @@ export const isValidLimit = (
     value === undefined ||
     (Number.isInteger(value) && value >= 1 && value <= getMaxLimit(row));
 
+/**
+ * The line under a row's label: how the limit behaves, and for a window that
+ * is counting, when it resets.
+ */
+export const getRateLimitHint = (
+    row: RateLimitRow,
+    checkedAt: string,
+): string => {
+    switch (row.kind) {
+        case 'window': {
+            if (!row.usage?.resetsAt) {
+                return `Fixed window: ${formatWindow(row.windowMs)} from the first request`;
+            }
+            const resets = resetsOf(row.usage, checkedAt);
+            return isFull(row.usage)
+                ? `Limit reached, ${resets}`
+                : capitalize(resets);
+        }
+        case 'callsPerSecond':
+            return 'Paced evenly. Extra requests queue.';
+        case 'concurrentCalls':
+            return 'Max in flight. Extra requests wait for a slot.';
+        default:
+            return assertUnreachable(row, 'Unknown rate limit row');
+    }
+};
+
 /** A row's progress bar and the words beside it. */
 export type RateLimitMeter = {
     /** Null where no limit is set. */
@@ -181,14 +220,6 @@ export const getRateLimitMeter = (
             return assertUnreachable(row, 'Unknown rate limit row');
     }
 };
-
-/** Whether one query could need more calls than the window allows. */
-export const isBelowQueryCalls = (
-    row: RateLimitRow,
-    value: number | undefined,
-    callsPerQuery: number,
-): boolean =>
-    row.kind === 'window' && value !== undefined && value < callsPerQuery;
 
 export const toRateLimitSettings = (
     rows: RateLimitRow[],

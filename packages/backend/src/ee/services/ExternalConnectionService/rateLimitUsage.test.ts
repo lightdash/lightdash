@@ -32,7 +32,6 @@ const usageOf = (
         rateLimits,
         declared: declared ?? rateLimits,
         adminRateLimits: null,
-        callsPerQuery: 5,
         snapshot: { now: NOW, buckets, runningCalls },
     });
 
@@ -95,7 +94,6 @@ describe('toRateLimitUsage', () => {
             defaultConcurrentCalls: 5,
             runningCalls: 0,
             note: null,
-            callsPerQuery: 5,
         });
     });
 
