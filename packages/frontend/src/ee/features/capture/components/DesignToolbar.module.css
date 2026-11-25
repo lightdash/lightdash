@@ -2,7 +2,8 @@
     position: fixed;
     bottom: 24px;
     left: 50%;
-    z-index: 10000;
+    /* Just under a guided tour, so the tour's highlight ring shows over it. */
+    z-index: calc(var(--ld-z-tour) - 1);
     transform: translateX(-50%);
     outline: none;
     display: flex;
