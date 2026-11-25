@@ -13,11 +13,11 @@ type Highlight = 'python' | 'merge' | 'default';
 const GRAPH_COPY: Record<Highlight, { title: string; body: string }> = {
     python: {
         title: 'This answer uses Python',
-        body: 'See how each step feeds into your chart. The agent can run Python for custom calculations and analysis.',
+        body: 'See how each query feeds into your chart. The agent can run Python for custom calculations and analysis.',
     },
     merge: {
         title: 'Flexible analysis, governed data',
-        body: 'See how each step feeds into your chart. The agent can combine and reshape governed query results instead of reaching for raw SQL.',
+        body: 'See how each query feeds into your chart. The agent can combine and reshape governed query results instead of reaching for raw SQL.',
     },
     default: {
         title: 'How each step connects',
@@ -88,7 +88,7 @@ export const getComposerLineageTourSteps = ({
         {
             target: `${scope} ${TARGETS.viewToggle}`,
             title: 'See how this was built',
-            body: 'Switch to Lineage to trace every step behind this answer.',
+            body: 'Switch to Lineage to trace every query behind this answer.',
         },
         {
             target: `${scope} ${TARGETS.graph}`,
@@ -99,11 +99,11 @@ export const getComposerLineageTourSteps = ({
             ...(canAddToChat
                 ? {
                       title: 'Check any step',
-                      body: 'Each step shows what it did and its result table. Use Add to chat on any step to ask follow-up questions.',
+                      body: 'Each query cell shows what it did and its result table. Use Add to chat on any step to ask follow-up questions.',
                   }
                 : {
                       title: 'Check any step',
-                      body: 'Each step shows what it did and its result table, so you can verify the numbers behind the chart.',
+                      body: 'Each query cell shows what it did and its result table, so you can verify the numbers behind the chart.',
                   }),
         },
         ...(save ? [SAVE_STEP[save](scope)] : []),
