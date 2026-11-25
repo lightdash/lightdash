@@ -60,3 +60,14 @@ Done when every claim you report names the env, the commit it served (`list_envs
 
 - `exec` stdout is clipped at 64 KB: write large output to a file and read it in slices.
 - The guest cannot reach its own public URL. To pull a file out, write it under `packages/frontend/build/<dir>/`, fetch it from the env URL, then delete it.
+
+## Google Sheets
+
+Google needs an exact redirect URI per host, so Google Sheets sync works only on three fixed env names: `gsheets`, `gsheets-2` and `gsheets-3` (`https://<name>.lightdash.rainbowmachine.dev`). Other envs show the option, and Google refuses the redirect. Pick a free name with `list_envs`.
+
+1. `create_env({repo: "lightdash/lightdash", branch, name: "gsheets"})`. The same call serves another branch at the same URL.
+2. Sign in to Lightdash, open a chart's Google Sheets sync and connect Google once per env. The env stores the refresh token in its database.
+3. `fork_env` the env for each experiment. A fork keeps the database, so it keeps the token: no new consent. `kill_env` the fork after.
+4. For charts above the default 5,000-row limit, `set_env` `LIGHTDASH_QUERY_MAX_LIMIT` on the fork. Read the sync in `logs` with service `dev`, and check `egress` for refused hosts.
+
+The OAuth client and the picker key live in the Google Cloud project `lightdash-cloud-dev`, and in the 1Password item "Rainbow previews - Google Sheets OAuth". A new pool name needs its redirect URI and JavaScript origin added to that client.
