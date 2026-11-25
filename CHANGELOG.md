@@ -1,3 +1,11 @@
+## [3.409.2](https://github.com/lightdash/lightdash/compare/3.409.1...3.409.2) (2026-11-25)
+
+
+### Bug Fixes
+
+* **design-mode:** include custom charts in the picture sent to the agent ([#33460](https://github.com/lightdash/lightdash/issues/33460)) ([1784175](https://github.com/lightdash/lightdash/commit/1784175b024fcafe8daa8c65a9d112f684fd719f))
+* **design-mode:** show the tour's highlight over the toolbar ([#33459](https://github.com/lightdash/lightdash/issues/33459)) ([ae200b9](https://github.com/lightdash/lightdash/commit/ae200b90f68f35f7e5aa2350fc262d52cb452820))
+
 ## [3.409.1](https://github.com/lightdash/lightdash/compare/3.409.0...3.409.1) (2026-11-25)
 
 
