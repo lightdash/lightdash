@@ -185,12 +185,14 @@ describe('designSessionReducer', () => {
         expect(visibleBubbles(s, 'tab2').map((b) => b.id)).toEqual(['a']);
         s = run(s, ...hold('a', 1000, 'tab2', true));
         expect(visibleBubbles(s, 'tab2').map((b) => b.id)).toEqual(['a']);
-        // Sent or thrown away, it lives on its home tab again.
+        // Thrown away, it lives on its home tab again.
         expect(
             visibleBubbles(run(s, { type: 'discard', bubbleId: 'a' }), 'tab2'),
         ).toEqual([]);
-        expect(visibleBubbles(sendAndFinish(s, 'a'), 'tab2')).toEqual([]);
-        expect(visibleBubbles(sendAndFinish(s, 'a'), 'tab1')).toHaveLength(1);
+        // Sent, it is still selected, so it stays with the user.
+        const replied = sendAndFinish(s, 'a');
+        expect(visibleBubbles(replied, 'tab2').map((b) => b.id)).toEqual(['a']);
+        expect(replied.active).toEqual({ kind: 'bubble', bubbleId: 'a' });
     });
 
     it('keepSent keeps sent conversations and drops everything unsent', () => {
@@ -524,7 +526,7 @@ describe('designSessionReducer', () => {
             });
         });
 
-        it('a reply minimises the bubble again', () => {
+        it('a reply from a selected conversation leaves it open and selected', () => {
             let s = run(empty, ...hold('a', 0), startSend('a'), ready('a'), {
                 type: 'expand',
                 bubbleId: 'a',
@@ -537,8 +539,13 @@ describe('designSessionReducer', () => {
             );
             expect(s.bubbles[0]).toMatchObject({
                 status: 'sending',
-                minimised: true,
+                minimised: false,
             });
+            expect(s.active).toEqual({ kind: 'bubble', bubbleId: 'a' });
+            // Once it is sent, the next hold is another reply.
+            s = run(s, ready('a'));
+            expect(s.active).toEqual({ kind: 'bubble', bubbleId: 'a' });
+            expect(canStartHold(s)).toBe(true);
         });
 
         it('the agent picker opens the bubble; picking minimises it', () => {
@@ -665,7 +672,7 @@ describe('designSessionReducer', () => {
             });
         });
 
-        it('a reply that fails stays minimised and says so, until expanded', () => {
+        it('a reply that fails stays open and says so', () => {
             let s = run(
                 sent(empty, 'a', 0),
                 { type: 'arm', bubbleId: 'a', input: 'text' },
@@ -675,7 +682,7 @@ describe('designSessionReducer', () => {
             );
             expect(s.bubbles[0]).toMatchObject({
                 status: 'thread',
-                minimised: true,
+                minimised: false,
                 sendFailed: true,
             });
             s = run(s, { type: 'expand', bubbleId: 'a' });

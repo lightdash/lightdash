@@ -537,7 +537,7 @@ describe('useDesignMode', () => {
         expect(payload.marks).toHaveLength(2);
     });
 
-    it('while a spoken reply is on its way out, it cannot be selected and the key marks a new bubble', async () => {
+    it('while a spoken reply is on its way out, the conversation stays selected and the key waits', async () => {
         await turnOn();
         const id = await sendFirst();
         await act(async () => {
@@ -553,20 +553,16 @@ describe('useDesignMode', () => {
         await drawMark();
         expect(startVoice).toHaveBeenCalledTimes(1);
         await waitFor(() => expect(stopVoice).toHaveBeenCalledTimes(1));
-        // Still being stopped and transcribed.
-        await act(async () => {
-            select(id, 'mic');
-        });
-        expect(api.session.active).toEqual({ kind: 'page' });
+        // Still being stopped and transcribed: no second bubble is started.
+        expect(api.session.active).toEqual({ kind: 'bubble', bubbleId: id });
         await keyDown({ key: 'Alt', altKey: true });
-        expect(api.holding).toBe(true);
+        expect(api.holding).toBe(false);
         await keyUp({ key: 'Alt' });
         await act(async () => {
             stopped(null);
         });
         await act(async () => {});
-        // The second hold recorded for the page and, with no mark, was dropped.
-        expect(startVoice).toHaveBeenCalledTimes(2);
+        expect(startVoice).toHaveBeenCalledTimes(1);
         expect(api.session.bubbles).toHaveLength(1);
     });
 
@@ -1470,13 +1466,19 @@ describe('useDesignMode', () => {
                 kind: 'bubble',
                 bubbleId: id,
             });
-            // Typed and sent, the page takes the next hold again.
+            // Typed and sent, the conversation keeps the next hold.
             await act(async () => {
                 api.send(id, 'this one too');
             });
             await waitFor(() => expect(onSend).toHaveBeenCalledTimes(2));
             expect(onSend.mock.calls[1][0].bubbleId).toBe(id);
-            expect(api.session.active).toEqual({ kind: 'page' });
+            await waitFor(() =>
+                expect(api.session.bubbles[0].status).toBe('thread'),
+            );
+            expect(api.session.active).toEqual({
+                kind: 'bubble',
+                bubbleId: id,
+            });
         });
 
         it('the toolbar mic at the hold, not at the click, decides that it records; release sends the reply', async () => {
@@ -1500,7 +1502,14 @@ describe('useDesignMode', () => {
             expect(
                 reply.marks.map((m: { number: number }) => m.number),
             ).toEqual([2]);
-            expect(api.session.active).toEqual({ kind: 'page' });
+            // A second hold replies to the same conversation, with no click.
+            await waitFor(() =>
+                expect(api.session.bubbles[0].status).toBe('thread'),
+            );
+            await drawMark();
+            await waitFor(() => expect(onSend).toHaveBeenCalledTimes(3));
+            expect(onSend.mock.calls[2][0].bubbleId).toBe(id);
+            expect(api.session.bubbles).toHaveLength(1);
         });
 
         it('a press on the page hands the page back, and the page still gets the press', async () => {

@@ -347,6 +347,12 @@ export const designSessionReducer = (
                 : next;
         }
         case 'sendStarted': {
+            // A reply from a selected conversation: it stays open and selected.
+            const before = s.bubbles.find((b) => b.id === action.bubbleId);
+            const selectedReply =
+                before?.status === 'thread' &&
+                activeBubbleId(s) === action.bubbleId;
+            const tuckAway = action.minimise && !selectedReply;
             const next = updateBubble(s, action.bubbleId, (b) =>
                 b.collection &&
                 (b.status === 'collecting' || b.status === 'thread')
@@ -355,21 +361,27 @@ export const designSessionReducer = (
                           status: action.needsPicker
                               ? 'picking-agent'
                               : 'sending',
-                          minimised: action.minimise && !action.needsPicker,
-                          unread: action.minimise,
+                          minimised: tuckAway && !action.needsPicker,
+                          unread: tuckAway,
                           sendFailed: false,
                       }
                     : b,
             );
-            // The page takes the next marks while this one is sent.
-            return next !== s && activeBubbleId(s) === action.bubbleId
+            // The page takes the next marks while a new bubble is sent.
+            return next !== s &&
+                !selectedReply &&
+                activeBubbleId(s) === action.bubbleId
                 ? { ...next, active: PAGE }
                 : next;
         }
-        case 'handOff':
-            return activeBubbleId(s) === action.bubbleId
+        case 'handOff': {
+            // A selected conversation keeps the next hold for itself.
+            const bubble = s.bubbles.find((b) => b.id === action.bubbleId);
+            return activeBubbleId(s) === action.bubbleId &&
+                bubble?.status !== 'thread'
                 ? { ...s, active: PAGE }
                 : s;
+        }
         case 'handBack': {
             const bubble = s.bubbles.find((b) => b.id === action.bubbleId);
             return s.active.kind === 'page' &&
@@ -406,17 +418,16 @@ export const designSessionReducer = (
                     : b,
             );
         case 'threadReady': {
-            const next = updateBubble(s, action.bubbleId, (b) => ({
+            // Still selected: a reply was sent, and the next one goes here too.
+            const selected = activeBubbleId(s) === action.bubbleId;
+            return updateBubble(s, action.bubbleId, (b) => ({
                 ...b,
                 status: 'thread',
                 sentMarks: [...b.sentMarks, ...collectedMarks(b.collection)],
-                collection: null,
+                collection: selected ? freshCollection(b.input) : null,
                 threadId: action.threadId,
                 agentUuid: action.agentUuid,
             }));
-            return activeBubbleId(s) === action.bubbleId
-                ? { ...next, active: PAGE }
-                : next;
         }
         case 'sendFailed': {
             const next = updateBubble(s, action.bubbleId, (b) =>

@@ -1393,6 +1393,13 @@ export const useDesignMode = (
                             threadId: result.threadId,
                             agentUuid: result.agentUuid,
                         });
+                        // Still selected: its next reply starts a new clock.
+                        if (
+                            activeCollection(sessionRef.current)?.bubble.id ===
+                            bubbleId
+                        ) {
+                            clocksRef.current.set(bubbleId, performance.now());
+                        }
                     }
                 } catch {
                     showToastError('Could not send your marks');
