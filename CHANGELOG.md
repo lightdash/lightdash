@@ -1,3 +1,10 @@
+## [3.397.1](https://github.com/lightdash/lightdash/compare/3.397.0...3.397.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* **onboarding:** focus the first field when the login, signup and password recovery pages load ([#33420](https://github.com/lightdash/lightdash/issues/33420)) ([bb0e742](https://github.com/lightdash/lightdash/commit/bb0e742f67677ba9b59317d211ad05f59af5936e))
+
 # [3.397.0](https://github.com/lightdash/lightdash/compare/3.396.1...3.397.0) (2026-11-25)
 
 
