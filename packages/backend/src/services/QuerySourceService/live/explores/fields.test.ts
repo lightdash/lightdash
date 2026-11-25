@@ -1,9 +1,12 @@
 import { ApiConnectorType, DimensionType } from '@lightdash/common';
 import { getLiveBaseLayer } from './build';
 import {
+    applyLiveSourceExploreChanges,
     getInitialLiveSourceFieldEdits,
     getLiveFieldEditKey,
     getLiveModelFieldInputs,
+    isLiveExploreInUse,
+    parseLiveSourceFieldState,
     type ScannedLiveSourceField,
 } from './fields';
 
@@ -94,5 +97,85 @@ describe('fields of several scanned explores', () => {
             'contacts.createdate',
             'companies.createdate',
         ]);
+    });
+});
+
+describe('stored live source field state', () => {
+    it('keeps a scanned field’s value labels', () => {
+        const valueLabels = { closedwon: 'Closed Won' };
+        const state = parseLiveSourceFieldState({
+            lastScan: {
+                scannedAt: '2026-11-24T10:00:00.000Z',
+                fields: [
+                    {
+                        kind: 'dimension',
+                        definition: {
+                            name: 'dealstage_label',
+                            apiName: 'dealstage:label',
+                            label: 'Deal Stage',
+                            filterOperators: [],
+                            type: DimensionType.STRING,
+                            valueLabels,
+                        },
+                        isInternal: false,
+                    },
+                ],
+            },
+            fields: null,
+        });
+        expect(state.lastScan?.fields[0].definition).toMatchObject({
+            valueLabels,
+        });
+    });
+});
+
+describe('explore edits', () => {
+    const editor = { userUuid: 'user-1', userName: 'Ada', at: '2026-11-24' };
+
+    it('reads a missing or unreadable explores key as every explore on', () => {
+        expect(parseLiveSourceFieldState({}).explores).toEqual({});
+        expect(parseLiveSourceFieldState({ explores: 'bad' }).explores).toEqual(
+            {},
+        );
+        const { explores } = parseLiveSourceFieldState({
+            explores: { users: { inUse: false } },
+        });
+        expect(isLiveExploreInUse(explores, 'users')).toBe(false);
+        expect(isLiveExploreInUse(explores, 'events')).toBe(true);
+    });
+
+    it('stores only explores that are off, and clears texts set to null', () => {
+        const off = applyLiveSourceExploreChanges({
+            current: {},
+            changes: [{ model: 'users', inUse: false, label: ' People ' }],
+            editor,
+        });
+        expect(off).toEqual({
+            users: { inUse: false, label: 'People', lastEdit: editor },
+        });
+        expect(
+            applyLiveSourceExploreChanges({
+                current: off,
+                changes: [{ model: 'users', inUse: true, label: null }],
+                editor,
+            }),
+        ).toEqual({ users: { lastEdit: editor } });
+    });
+
+    it('refuses an empty label or text over the limit', () => {
+        expect(() =>
+            applyLiveSourceExploreChanges({
+                current: {},
+                changes: [{ model: 'users', label: '  ' }],
+                editor,
+            }),
+        ).toThrow('needs a label');
+        expect(() =>
+            applyLiveSourceExploreChanges({
+                current: {},
+                changes: [{ model: 'users', aiHint: 'a'.repeat(2001) }],
+                editor,
+            }),
+        ).toThrow('over 2000 characters');
     });
 });

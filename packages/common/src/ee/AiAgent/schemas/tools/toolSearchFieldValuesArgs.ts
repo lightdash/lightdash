@@ -19,7 +19,7 @@ const emptyFiltersInstructionByRuntime = {
 } satisfies Record<ToolDescriptionContext['runtime'], string>;
 
 const PURPOSE = `Purpose:
-Validate or disambiguate a candidate value for a specific dimension (e.g. a product name or status) before filtering on it. Returns up to 100 unique values matching the query.`;
+Validate or disambiguate a candidate value for a specific dimension (e.g. a name or status) before filtering on it. Returns up to 100 unique values matching the query.`;
 
 const SEARCH_ONLY_WHEN_UNCERTAIN =
     'Search only when the value is uncertain: when the user or field metadata already gives the exact value, filter on it directly';

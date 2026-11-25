@@ -3,6 +3,7 @@
     "addOns": [],
     "toolNames": [
         "analyzeFieldImpact",
+        "draftProjectContext",
         "getMetadata",
         "grepFields",
         "grepWarehouseColumns",

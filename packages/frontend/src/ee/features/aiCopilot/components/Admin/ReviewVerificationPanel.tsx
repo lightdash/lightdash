@@ -28,12 +28,13 @@ import {
 import { useMemo, useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { usePullRequestCiChecks } from '../../../../../features/writeback/usePullRequestCiChecks';
 import { useProjectValidation } from '../../../../../hooks/validation/useValidation';
 import {
     useAiAgentReviewItemPrDiff,
     useProjectUpstreamDiff,
 } from '../../hooks/useAiAgentAdmin';
-import { usePullRequestCiChecks } from '../../hooks/usePullRequestCiChecks';
+import { getPullRequestNumber } from '../ChatElements/ToolCalls/pullRequestCardUtils';
 import { ReviewFieldsModal } from './ReviewFieldsModal';
 import { ReviewPrDiffModal } from './ReviewPrDiffModal';
 import { ReviewValidationModal } from './ReviewValidationModal';
@@ -46,11 +47,6 @@ type Props = {
     isResolving: boolean;
     onRetry: () => void;
     onMarkDone: () => void;
-};
-
-const getPrNumber = (prUrl: string): string | null => {
-    const match = prUrl.match(/\/pull\/(\d+)/);
-    return match ? match[1] : null;
 };
 
 // A single colour-coded phrase for the Checks row, prioritising whatever needs
@@ -95,7 +91,7 @@ export const ReviewVerificationPanel: FC<Props> = ({
     const [validationOpened, setValidationOpened] = useState(false);
     const remediation = reviewItem.remediation ?? null;
     const linkedPrUrl = remediation?.linkedPrUrl ?? null;
-    const prNumber = linkedPrUrl ? getPrNumber(linkedPrUrl) : null;
+    const prNumber = linkedPrUrl ? getPullRequestNumber(linkedPrUrl) : null;
     const isResolved = reviewItem.status === 'resolved';
     const previewProjectUuid = remediation?.previewProjectUuid ?? null;
     const sourceThreadUrl =

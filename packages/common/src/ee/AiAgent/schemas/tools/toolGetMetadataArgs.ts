@@ -27,8 +27,8 @@ Call this for the explores and fields you intend to use whose full detail you do
 
 Inputs:
 Each entry in \`requests\` is one of:
-- \`{ "type": "explore", "exploreIds": ["orders", "customers"] }\` for whole explores.
-- \`{ "type": "field", "fields": [{ "exploreId": "orders", "fieldId": "orders_status" }] }\` for specific fields.
+- \`{ "type": "explore", "exploreIds": ["<explore>", "<other explore>"] }\` for whole explores.
+- \`{ "type": "field", "fields": [{ "exploreId": "<explore>", "fieldId": "<table>_<field>" }] }\` for specific fields.
 
 Applying the result:
 Use a metric's default time dimension unless the user asks for a different one.
@@ -55,7 +55,7 @@ const fieldMetadataRequestSchema = z.object({
                 fieldId: z
                     .string()
                     .min(1)
-                    .describe('The fieldId, e.g. `orders_status`.'),
+                    .describe('The fieldId, e.g. `<table>_<field>`.'),
             }),
         )
         .min(1)

@@ -10,13 +10,13 @@ import * as fspromises from 'fs-extra';
 import * as path from 'path';
 import { SimpleGit, simpleGit, SimpleGitProgressEvent } from 'simple-git';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import type { DbtPartialParseBaseline } from '../dbt/dbtPartialParseBaseline';
 import Logger from '../logging/logger';
 import type { DbtTargetResult } from '../services/WarehouseClientFactory/CredentialResolver';
 import {
     CachedWarehouse,
     DbtSourcePreparation,
     ProjectAdapter,
-    type TrackingParams,
 } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 import { GIT_REPOSITORY_ENVIRONMENT, GitRepository } from './gitRepository';
@@ -38,7 +38,7 @@ export type DbtGitProjectAdapterArgs = {
     analytics?: LightdashAnalytics;
     gitConfigGlobalPath?: string;
     dbtDepsErrorHint?: string;
-    partialParseBaselinePath: string | null;
+    partialParseBaseline: DbtPartialParseBaseline | null;
 };
 
 export class DbtGitProjectAdapter
@@ -78,7 +78,7 @@ export class DbtGitProjectAdapter
         analytics,
         gitConfigGlobalPath,
         dbtDepsErrorHint,
-        partialParseBaselinePath,
+        partialParseBaseline,
     }: DbtGitProjectAdapterArgs) {
         if (dbtTarget.kind === 'none')
             throw new ParameterError(dbtTarget.reason);
@@ -101,7 +101,7 @@ export class DbtGitProjectAdapter
             analytics,
             gitConfigGlobalPath,
             dbtDepsErrorHint,
-            partialParseBaselinePath,
+            partialParseBaseline,
         });
         this.projectDirectorySubPath = projectDirectorySubPath;
         this.localRepositoryDir = localRepositoryDir;
@@ -162,16 +162,10 @@ export class DbtGitProjectAdapter
     }
 
     public async prepareExploreStream(
-        trackingParams?: TrackingParams,
-        loadSources?: boolean,
-        allowPartialCompilation?: boolean,
+        ...args: Parameters<ProjectAdapter['prepareExploreStream']>
     ) {
         await this.prepareDbtSource();
-        return super.prepareExploreStream(
-            trackingParams,
-            loadSources,
-            allowPartialCompilation,
-        );
+        return super.prepareExploreStream(...args);
     }
 
     /** The commit the clone is at, or null before the clone or once it is gone. */

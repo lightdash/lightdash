@@ -19,13 +19,6 @@ vi.mock('../../../hooks/useProjects', () => ({
     }),
 }));
 
-vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: { enabled: true },
-        isLoading: false,
-    }),
-}));
-
 vi.mock('./hooks/useProjectHomepage', () => ({
     useHomepageBuilderFlag: () => ({
         isEnabled: state.isHomepageBuilderEnabled,

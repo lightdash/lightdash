@@ -1,13 +1,8 @@
-import {
-    FeatureFlags,
-    type ApiError,
-    type EmailStatusExpiring,
-} from '@lightdash/common';
+import { type ApiError, type EmailStatusExpiring } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type LightdashApi } from '../api';
 import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useToaster from './toaster/useToaster';
-import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 const getEmailStatusQuery = async (lightdashApi: LightdashApi) => {
     return lightdashApi<EmailStatusExpiring>({
@@ -71,24 +66,12 @@ export const useOneTimePassword = () => {
 export const useVerifyEmail = () => {
     const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
-    const { showToastSuccess } = useToaster();
-    const emailOnlySignupFlag = useServerFeatureFlag(
-        FeatureFlags.NewOnboarding,
-    );
     return useMutation<EmailStatusExpiring, ApiError, string>(
         (code) => verifyOTPQuery(lightdashApi, code),
         {
             mutationKey: ['verify_one_time_password'],
-            onSuccess: async (data) => {
+            onSuccess: async () => {
                 await queryClient.invalidateQueries(['email_status']);
-
-                if (
-                    data.isVerified &&
-                    !(emailOnlySignupFlag.data?.enabled ?? false)
-                )
-                    showToastSuccess({
-                        title: 'Success! Your e-mail has been verified.',
-                    });
             },
         },
     );

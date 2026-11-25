@@ -3,7 +3,6 @@ import {
     createAmazonBedrock,
 } from '@ai-sdk/amazon-bedrock';
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
-import type { EmbeddingModel } from 'ai';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import {
     BEDROCK_MAX_OUTPUT_TOKENS,
@@ -136,15 +135,6 @@ export const getBedrockModel = (
             },
         },
     };
-};
-
-export const getBedrockEmbeddingModel = (
-    config: NonNullable<
-        LightdashConfig['ai']['copilot']['providers']['bedrock']
-    >,
-): EmbeddingModel => {
-    const bedrock = getBedrockProvider(config);
-    return bedrock.embedding(config.embeddingModelName);
 };
 
 export { getBedrockModelPrefix };

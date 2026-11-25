@@ -129,6 +129,7 @@ vi.mock('../../hooks/useProjectAiAgents', () => ({
                 firstName: 'Demo',
                 lastName: 'User',
             },
+            metadata: { user: 'end-user-42', environment: 'stage' },
             messages: [],
             compactions: [],
         },
@@ -188,5 +189,32 @@ describe('ThreadPreviewSidebar', () => {
             'href',
             '/projects/project-1/ai-agents/agent-1/threads/thread-1',
         );
+    });
+
+    it('shows caller metadata above the thread issues', () => {
+        renderWithProviders(
+            <MemoryRouter>
+                <ThreadPreviewSidebar
+                    projectUuid="project-1"
+                    agentUuid="agent-1"
+                    threadUuid="thread-1"
+                    isOpen
+                    onClose={vi.fn()}
+                />
+            </MemoryRouter>,
+        );
+
+        const metadataHeading = screen.getByRole('heading', {
+            name: 'Metadata',
+        });
+        const issuesHeading = screen.getByRole('heading', { name: 'Issues' });
+        expect(
+            metadataHeading.compareDocumentPosition(issuesHeading) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        expect(screen.getByText('user')).toBeInTheDocument();
+        expect(screen.getByText('end-user-42')).toBeInTheDocument();
+        expect(screen.getByText('environment')).toBeInTheDocument();
+        expect(screen.getByText('stage')).toBeInTheDocument();
     });
 });

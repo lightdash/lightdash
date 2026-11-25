@@ -8,10 +8,7 @@ import {
     type ByoAiProvider,
     type DataAppModelVisibility,
 } from '@lightdash/common';
-import {
-    AiCopilotConfigSchemaType,
-    DEFAULT_BEDROCK_EMBEDDING_MODEL,
-} from '../../../config/aiConfigSchema';
+import { AiCopilotConfigSchemaType } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { AiModelCatalog } from '../../clients/Ai/AiModelCatalog';
@@ -166,7 +163,6 @@ export const overlayOrgProviderApiKeys = (
                         getDefaultBedrockInferenceGeography(region),
                     modelName: allowedModels[0],
                     availableModels: allowedModels,
-                    embeddingModelName: DEFAULT_BEDROCK_EMBEDDING_MODEL,
                     customHeaders: {},
                     supportsStreaming: true,
                 },

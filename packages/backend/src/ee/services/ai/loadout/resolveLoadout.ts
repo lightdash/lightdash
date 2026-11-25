@@ -37,13 +37,17 @@ export const buildLoadout = (
         definition.accepts.filter((name) => addOnNames.includes(name)),
     );
     const addOns = definition.accepts.filter((name) => implied.includes(name));
+    const withheldToolNames = new Set(definition.withheldTools);
     return {
         base,
         addOns: new Set(addOns),
-        toolNames: new Set([
-            ...definition.tools,
-            ...addOns.flatMap((name) => ADD_ONS[name].tools),
-        ]),
+        toolNames: new Set(
+            [
+                ...definition.tools,
+                ...addOns.flatMap((name) => ADD_ONS[name].tools),
+            ].filter((name) => !withheldToolNames.has(name)),
+        ),
+        withheldToolNames,
         promptSections: new Set([
             ...definition.sections,
             ...addOns.flatMap((name) => {
@@ -61,6 +65,13 @@ export const buildLoadout = (
 /** Pure and total: one base plus the add-ons it accepts whose condition holds. */
 export const resolveLoadout = (input: LoadoutInput): Loadout =>
     buildLoadout(selectLoadoutBase(input), input, applicableAddOns(input));
+
+/** What a Semantic Studio loadout lets the agent do, read the same way by its prompt and its tools. */
+export const getStudioAbilities = (loadout: Pick<Loadout, 'toolNames'>) => ({
+    builder: loadout.toolNames.has('read'),
+    canRunMetrics: loadout.toolNames.has('runMetricQuery'),
+    canDraftContext: loadout.toolNames.has('draftProjectContext'),
+});
 
 /** The loadout's built-in skills, then the agent's custom skills. */
 export const getAvailableSkills = (

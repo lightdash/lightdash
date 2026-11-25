@@ -79,7 +79,6 @@ const LOGGED_OPERATIONS = new Set([
     'response-error',
     'response-signals',
     'review-evidence',
-    'verified-answer-relevance',
     'warehouse-table-ranking',
     'writeback-source',
 ]);

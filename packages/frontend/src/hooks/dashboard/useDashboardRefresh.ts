@@ -32,7 +32,7 @@ const dashboardRelatedQueryPredicate = getPredicateFunction(
     DASHBOARD_RELATED_QUERIES,
 );
 
-const dashboardResultsQueryPredicate = getPredicateFunction(
+export const dashboardResultsQueryPredicate = getPredicateFunction(
     DASHBOARD_RESULTS_QUERIES,
 );
 

@@ -25,7 +25,15 @@ import type {
     OAuthClientMetadata,
     OAuthTokens,
 } from '@modelcontextprotocol/sdk/shared/auth.js';
-import type { ToolSet } from 'ai';
+import {
+    asSchema,
+    dynamicTool,
+    jsonSchema,
+    type JSONSchema7,
+    type JSONValue,
+    type ToolSet,
+} from 'ai';
+import Ajv from 'ajv';
 import dns from 'node:dns';
 import type { LookupFunction } from 'node:net';
 import { Agent, type Dispatcher } from 'undici';
@@ -799,15 +807,26 @@ type McpServerConnectionArgs = {
     resolvedCredential: AiAgentMcpServer['resolvedCredential'];
     resolvedCredentialScope: AiAgentMcpServer['resolvedCredentialScope'];
     oauthProvider?: AiAgentMcpServer['oauthProvider'];
+    bearerTokenProvider?: AiAgentMcpServer['bearerTokenProvider'];
 };
 
-const getBearerToken = (mcpServer: McpServerConnectionArgs) => {
-    if (
-        mcpServer.authType === 'bearer' &&
-        (!mcpServer.resolvedCredential ||
-            mcpServer.resolvedCredential.type !== 'bearer' ||
-            !mcpServer.resolvedCredential.bearerToken)
-    ) {
+const hasBearerCredential = (
+    mcpServer: Pick<
+        McpServerConnectionArgs,
+        'resolvedCredential' | 'bearerTokenProvider'
+    >,
+): boolean =>
+    !!mcpServer.bearerTokenProvider ||
+    (mcpServer.resolvedCredential?.type === 'bearer' &&
+        !!mcpServer.resolvedCredential.bearerToken);
+
+const getBearerToken = async (
+    mcpServer: McpServerConnectionArgs,
+): Promise<string | undefined> => {
+    if (mcpServer.authType === 'bearer' && mcpServer.bearerTokenProvider) {
+        return mcpServer.bearerTokenProvider();
+    }
+    if (mcpServer.authType === 'bearer' && !hasBearerCredential(mcpServer)) {
         throw new Error(
             `MCP server "${mcpServer.name}" is missing bearer credentials`,
         );
@@ -865,12 +884,7 @@ const getUnavailableMcpStatus = (
     mcpServer: AiAgentMcpServer,
     error: Error,
 ): AiMcpServerConnectionStatus => {
-    if (
-        mcpServer.authType === 'bearer' &&
-        (!mcpServer.resolvedCredential ||
-            mcpServer.resolvedCredential.type !== 'bearer' ||
-            !mcpServer.resolvedCredential.bearerToken)
-    ) {
+    if (mcpServer.authType === 'bearer' && !hasBearerCredential(mcpServer)) {
         return 'not_connected';
     }
 
@@ -1056,13 +1070,13 @@ export const createHttpMcpClient = async (
     onUncaughtError?: (error: unknown) => void,
     allowPrivateAddresses = false,
 ): Promise<MCPClient> => {
-    const bearerToken = getBearerToken(mcpServer);
     const timeoutFetch = createMcpTimeoutFetch(
         timeoutMs,
         allowPrivateAddresses,
     );
 
     try {
+        const bearerToken = await getBearerToken(mcpServer);
         return await createMCPClient({
             transport:
                 mcpServer.authType === 'oauth'
@@ -1190,6 +1204,110 @@ const toMcpServerToolInputs = (
         annotations: tool.annotations ?? null,
         meta: tool._meta ?? null,
     }));
+
+type McpToolDefinition = ListToolsResult['tools'][number];
+
+const toMcpToolDefinition = (
+    tool: AiMcpServerToolInput,
+): McpToolDefinition => ({
+    name: tool.toolName,
+    title: tool.title ?? undefined,
+    description: tool.description ?? undefined,
+    inputSchema: tool.inputSchema as McpToolDefinition['inputSchema'],
+    annotations: (tool.annotations ??
+        undefined) as McpToolDefinition['annotations'],
+    _meta: (tool.meta ?? undefined) as McpToolDefinition['_meta'],
+});
+
+// Without $schema/$id, any draft compiles on a fresh validator; a schema that still
+// cannot compile passes, as live tools ran unchecked before.
+const isValidForLiveSchema = (schema: JSONSchema7, input: unknown): boolean => {
+    const { $schema, $id, ...validatedSchema } = schema;
+    try {
+        return !!new Ajv({
+            strict: false,
+            validateFormats: false,
+            logger: false,
+        }).validate(validatedSchema, input);
+    } catch (error) {
+        Logger.debug('[AiAgent][MCP] Skipped live input check', error);
+        return true;
+    }
+};
+
+const toMcpToolErrorResult = (message: string) => ({
+    isError: true,
+    content: [{ type: 'text', text: message }],
+});
+
+// Mirrors @ai-sdk/mcp's toolsFromDefinitions for a stored definition.
+const toOnDemandMcpTool = (
+    definition: McpToolDefinition,
+    getLiveTools: () => Promise<ToolSet>,
+): ToolSet[string] => {
+    let liveTool: ToolSet[string] | undefined;
+    return dynamicTool({
+        description: definition.description,
+        title: definition.title ?? definition.annotations?.title,
+        inputSchema: jsonSchema({
+            ...definition.inputSchema,
+            properties: definition.inputSchema.properties ?? {},
+            additionalProperties: false,
+        }),
+        execute: async (input, options) => {
+            liveTool = (await getLiveTools())[definition.name];
+            if (!liveTool?.execute) {
+                return toMcpToolErrorResult(
+                    `MCP tool "${definition.name}" is no longer available on this server. Ask an admin to refresh this MCP server's tools.`,
+                );
+            }
+            if (
+                !isValidForLiveSchema(
+                    await asSchema(liveTool.inputSchema).jsonSchema,
+                    input,
+                )
+            ) {
+                return toMcpToolErrorResult(
+                    `MCP tool "${definition.name}" has changed since its tools were last refreshed, and this call does not match its current inputs. Ask an admin to refresh this MCP server's tools.`,
+                );
+            }
+            return liveTool.execute(input, options);
+        },
+        toModelOutput: (options) => {
+            if (!liveTool?.toModelOutput) {
+                return { type: 'json', value: options.output as JSONValue };
+            }
+            return liveTool.toModelOutput(options);
+        },
+    });
+};
+
+const hasRuntimeCredential = (mcpServer: AiAgentMcpServer): boolean => {
+    switch (mcpServer.authType) {
+        case 'none':
+            return true;
+        case 'bearer':
+            return hasBearerCredential(mcpServer);
+        case 'oauth': {
+            const tokens =
+                mcpServer.resolvedCredential?.type === 'oauth'
+                    ? mcpServer.resolvedCredential.tokens
+                    : undefined;
+            if (!tokens?.accessToken) return false;
+            // An expired token without a refresh token needs the user to sign in again
+            return (
+                !!tokens.refreshToken ||
+                !tokens.expiresAt ||
+                Date.parse(tokens.expiresAt) > Date.now()
+            );
+        }
+        default:
+            return assertUnreachable(
+                mcpServer.authType,
+                `Unknown MCP auth type: ${mcpServer.authType}`,
+            );
+    }
+};
 
 export class AiAgentMcpRuntimeClient {
     private readonly aiAgentModel: AiAgentModel;
@@ -1475,7 +1593,10 @@ export class AiAgentMcpRuntimeClient {
     attachRuntimeProviders(args: {
         projectUuid: string;
         userUuid: string;
-        mcpServers: AiMcpServerWithSensitiveData[];
+        mcpServers: Array<
+            AiMcpServerWithSensitiveData &
+                Pick<AiAgentMcpServer, 'bearerTokenProvider'>
+        >;
     }) {
         return args.mcpServers.map((mcpServer) => ({
             ...mcpServer,
@@ -1622,130 +1743,210 @@ export class AiAgentMcpRuntimeClient {
         }
 
         const connectedClients: MCPClient[] = [];
+        const pendingConnections: Promise<unknown>[] = [];
         const usedToolNames = new Set<string>();
         const resolvedTools: ToolSet = {};
         const mcpToolNameToServerUuid: Record<string, string> = {};
         const connectedToolInventory: Record<string, ConnectedAgentTool> = {};
         const unavailableMcpServers: UnavailableMcpServer[] = [];
 
+        const connectServer = async (
+            mcpServer: AiAgentMcpServer,
+        ): Promise<
+            | { tools: ToolSet; unavailableMcpServer: null }
+            | { tools: null; unavailableMcpServer: UnavailableMcpServer }
+        > => {
+            const connection = {
+                ...mcpServer,
+                useStructuredErrors: !!args.decisions,
+            };
+            let mcpClient: MCPClient | undefined;
+
+            try {
+                log(`Connecting to ${mcpServer.name} (${mcpServer.url})`);
+                mcpClient = await createHttpMcpClientWithTimeout(
+                    connection,
+                    this.lightdashConfig.ai.copilot.mcpConnectionTimeoutMs,
+                    (error) => {
+                        Logger.error(
+                            `[AiAgent][MCP][${mcpServer.name}] Uncaught MCP client error`,
+                            error,
+                        );
+                    },
+                    this.lightdashConfig.ai.copilot.mcpAllowPrivateAddresses,
+                );
+                const connectedMcpClient = mcpClient;
+                const tools = await withMcpRetry(
+                    () =>
+                        withMcpTimeout(
+                            connectedMcpClient.tools(),
+                            this.lightdashConfig.ai.copilot
+                                .mcpConnectionTimeoutMs,
+                            `tool discovery for "${mcpServer.name}"`,
+                        ),
+                    `tool discovery for "${mcpServer.name}"`,
+                );
+                await this.persistRuntimeState({
+                    serverUuid: mcpServer.uuid,
+                    connectionStatus: 'connected',
+                    error: null,
+                    iconUrl: getMcpServerIconUrl(
+                        mcpClient.serverInfo,
+                        mcpServer.url,
+                    ),
+                    credentialScope: mcpServer.resolvedCredentialScope,
+                    userUuid:
+                        mcpServer.resolvedCredentialScope === 'user'
+                            ? args.userUuid
+                            : undefined,
+                });
+                connectedClients.push(mcpClient);
+
+                return { tools, unavailableMcpServer: null };
+            } catch (error) {
+                let normalizedError =
+                    error instanceof Error ? error : new Error(String(error));
+                if (args.decisions)
+                    normalizedError = normalizeMcpError(connection, error);
+                const userFacingErrorMessage =
+                    await resolveErrorMessage(normalizedError);
+                const status = getUnavailableMcpStatus(
+                    mcpServer,
+                    normalizedError,
+                );
+
+                await this.persistRuntimeState({
+                    serverUuid: mcpServer.uuid,
+                    connectionStatus: status,
+                    error: userFacingErrorMessage,
+                    credentialScope:
+                        mcpServer.authType === 'oauth'
+                            ? AiAgentMcpRuntimeClient.getRuntimeOAuthCredentialScope(
+                                  mcpServer,
+                              )
+                            : null,
+                    userUuid:
+                        mcpServer.authType === 'oauth' &&
+                        AiAgentMcpRuntimeClient.getRuntimeOAuthCredentialScope(
+                            mcpServer,
+                        ) === 'user'
+                            ? args.userUuid
+                            : undefined,
+                });
+
+                if (mcpClient) {
+                    await mcpClient.close().catch((closeError) => {
+                        Logger.error(
+                            `[AiAgent][MCP][${mcpServer.name}] Failed to close failed MCP client`,
+                            closeError,
+                        );
+                    });
+                }
+
+                return {
+                    tools: null,
+                    unavailableMcpServer: {
+                        serverUuid: mcpServer.uuid,
+                        serverName: mcpServer.name,
+                        message: userFacingErrorMessage,
+                        status,
+                    },
+                };
+            }
+        };
+
+        const getOnDemandTools = async (
+            mcpServer: AiAgentMcpServer,
+            enabledToolNames: string[],
+        ): Promise<ToolSet> => {
+            const enabled = new Set(enabledToolNames);
+            const definitions =
+                enabled.size === 0
+                    ? []
+                    : (
+                          await this.aiAgentModel.listMcpServerTools({
+                              projectUuid: mcpServer.projectUuid,
+                              serverUuid: mcpServer.uuid,
+                          })
+                      )
+                          .filter((tool) => enabled.has(tool.toolName))
+                          .map(toMcpToolDefinition);
+            let liveTools: Promise<ToolSet> | undefined;
+            const getLiveTools = () => {
+                if (!liveTools) {
+                    liveTools = connectServer(mcpServer).then((result) => {
+                        if (result.unavailableMcpServer) {
+                            throw new Error(
+                                result.unavailableMcpServer.message,
+                            );
+                        }
+                        return result.tools;
+                    });
+                    pendingConnections.push(liveTools);
+                }
+                return liveTools;
+            };
+
+            return Object.fromEntries(
+                definitions.map((definition) => [
+                    definition.name,
+                    toOnDemandMcpTool(definition, getLiveTools),
+                ]),
+            );
+        };
+
         const serverResults = await Promise.all(
             args.mcpServers.map(async (mcpServer) => {
-                const connection = {
-                    ...mcpServer,
-                    useStructuredErrors: !!args.decisions,
-                };
-                let mcpClient: MCPClient | undefined;
-
-                try {
-                    log(`Connecting to ${mcpServer.name} (${mcpServer.url})`);
-                    mcpClient = await createHttpMcpClientWithTimeout(
-                        connection,
-                        this.lightdashConfig.ai.copilot.mcpConnectionTimeoutMs,
-                        (error) => {
-                            Logger.error(
-                                `[AiAgent][MCP][${mcpServer.name}] Uncaught MCP client error`,
-                                error,
-                            );
-                        },
-                        this.lightdashConfig.ai.copilot
-                            .mcpAllowPrivateAddresses,
-                    );
-                    const connectedMcpClient = mcpClient;
-
-                    const tools = await withMcpRetry(
-                        () =>
-                            withMcpTimeout(
-                                connectedMcpClient.tools(),
-                                this.lightdashConfig.ai.copilot
-                                    .mcpConnectionTimeoutMs,
-                                `tool discovery for "${mcpServer.name}"`,
-                            ),
-                        `tool discovery for "${mcpServer.name}"`,
-                    );
-                    await this.persistRuntimeState({
-                        serverUuid: mcpServer.uuid,
-                        connectionStatus: 'connected',
-                        error: null,
-                        iconUrl: getMcpServerIconUrl(
-                            mcpClient.serverInfo,
-                            mcpServer.url,
-                        ),
-                        credentialScope: mcpServer.resolvedCredentialScope,
-                        userUuid:
-                            mcpServer.resolvedCredentialScope === 'user'
-                                ? args.userUuid
-                                : undefined,
-                    });
-
-                    return {
-                        mcpServer,
-                        mcpClient,
-                        tools,
-                        unavailableMcpServer: null,
-                    };
-                } catch (error) {
-                    let normalizedError =
-                        error instanceof Error
-                            ? error
-                            : new Error(String(error));
-                    if (args.decisions)
-                        normalizedError = normalizeMcpError(connection, error);
-                    const userFacingErrorMessage =
-                        await resolveErrorMessage(normalizedError);
-                    const status = getUnavailableMcpStatus(
-                        mcpServer,
-                        normalizedError,
-                    );
-
-                    await this.persistRuntimeState({
-                        serverUuid: mcpServer.uuid,
-                        connectionStatus: status,
-                        error: userFacingErrorMessage,
-                        credentialScope:
-                            mcpServer.authType === 'oauth'
-                                ? AiAgentMcpRuntimeClient.getRuntimeOAuthCredentialScope(
-                                      mcpServer,
-                                  )
-                                : null,
-                        userUuid:
-                            mcpServer.authType === 'oauth' &&
-                            AiAgentMcpRuntimeClient.getRuntimeOAuthCredentialScope(
+                if (
+                    mcpServer.enabledToolNames &&
+                    hasRuntimeCredential(mcpServer)
+                ) {
+                    try {
+                        return {
+                            mcpServer,
+                            tools: await getOnDemandTools(
                                 mcpServer,
-                            ) === 'user'
-                                ? args.userUuid
-                                : undefined,
-                    });
-
-                    if (mcpClient) {
-                        await mcpClient.close().catch((closeError) => {
-                            Logger.error(
-                                `[AiAgent][MCP][${mcpServer.name}] Failed to close failed MCP client`,
-                                closeError,
-                            );
-                        });
+                                mcpServer.enabledToolNames,
+                            ),
+                            unavailableMcpServer: null,
+                        };
+                    } catch (error) {
+                        Logger.error(
+                            `[AiAgent][MCP][${mcpServer.name}] Failed to load stored tools`,
+                            error,
+                        );
+                        const normalizedError =
+                            error instanceof Error
+                                ? error
+                                : new Error(String(error));
+                        return {
+                            mcpServer,
+                            tools: null,
+                            unavailableMcpServer: {
+                                serverUuid: mcpServer.uuid,
+                                serverName: mcpServer.name,
+                                message:
+                                    await resolveErrorMessage(normalizedError),
+                                status: getUnavailableMcpStatus(
+                                    mcpServer,
+                                    normalizedError,
+                                ),
+                            },
+                        };
                     }
-
-                    return {
-                        mcpServer,
-                        mcpClient: null,
-                        tools: null,
-                        unavailableMcpServer: {
-                            serverUuid: mcpServer.uuid,
-                            serverName: mcpServer.name,
-                            message: userFacingErrorMessage,
-                            status,
-                        } satisfies UnavailableMcpServer,
-                    };
                 }
+
+                return {
+                    mcpServer,
+                    ...(await connectServer(mcpServer)),
+                };
             }),
         );
 
         for (const serverResult of serverResults) {
             if (serverResult.unavailableMcpServer) {
                 unavailableMcpServers.push(serverResult.unavailableMcpServer);
-            } else if (serverResult.mcpClient && serverResult.tools) {
-                connectedClients.push(serverResult.mcpClient);
-
+            } else if (serverResult.tools) {
                 const enabledToolNames = new Set(
                     serverResult.mcpServer.enabledToolNames ?? [],
                 );
@@ -1810,6 +2011,7 @@ export class AiAgentMcpRuntimeClient {
             connectedToolInventory,
             unavailableMcpServers,
             closeMcpClients: async () => {
+                await Promise.allSettled(pendingConnections);
                 const results = await Promise.allSettled(
                     connectedClients.map((client) => client.close()),
                 );

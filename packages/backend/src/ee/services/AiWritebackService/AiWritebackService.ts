@@ -34,7 +34,6 @@ import {
     type WritebackMergeResult,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { createHash } from 'node:crypto';
 import type {
     AiWritebackFailureStage,
     LightdashAnalytics,
@@ -102,16 +101,17 @@ import {
     type SandboxSpec,
 } from '../SandboxRuntime';
 import {
+    type DbtScriptChange,
+    type DbtScriptCheck,
+} from '../SemanticStudioService/dbtManifestPatch';
+import {
     diffLineCounts,
     runCodeMode,
     unifiedDiffs,
     validateSemanticLayerYaml,
+    type CodeModeLibraries,
     type CodeModeRepo,
-} from '../SemanticStudioService/codeMode/codeMode';
-import {
-    type DbtScriptChange,
-    type DbtScriptCheck,
-} from '../SemanticStudioService/codeMode/dbtManifestPatch';
+} from './codeMode';
 import {
     ALLOWED_TOOLS,
     ASSISTANT_TEXT_TAIL_CHARS,
@@ -190,6 +190,7 @@ import {
     resolveSandboxDbtVersion,
     resolveSandboxTemplateRef,
     resolveWritebackAgentPermissionsApply,
+    sourceRevision,
     splitStreamBuffer,
     summarizeRepoListing,
     summarizeToolInput,
@@ -210,6 +211,14 @@ const WRITEBACK_WORKSPACE: PersistentWorkspace = {
 // when the worker died before it could be finalized. Sweep well beyond that
 // hard timeout so an in-flight or just-timing-out run is never falsely errored.
 const STALE_RUN_THRESHOLD_MINUTES = 45;
+
+/** What a read-only script printed, and which branch it read. */
+export type ScriptRead = {
+    branch: string;
+    onPullRequest: boolean;
+    logs: string[];
+    error: string | null;
+};
 
 export type ScriptSave =
     | { status: 'script_failed'; error: string; logs: string[] }
@@ -1907,6 +1916,105 @@ export class AiWritebackService extends BaseService {
         };
     }
 
+    /** Where a model's YAML and SQL live, from the project's compiled explores. */
+    private async findModelFiles(
+        projectUuid: string,
+        name: string,
+    ): Promise<{ yml: string | null; sql: string | null } | null> {
+        const explore = await this.projectModel.findExploreByTableName(
+            projectUuid,
+            name,
+        );
+        const table =
+            explore && !isExploreError(explore)
+                ? explore.tables[explore.baseTable]
+                : undefined;
+        return table
+            ? { yml: table.ymlPath ?? null, sql: table.sqlPath ?? null }
+            : null;
+    }
+
+    /** Runs a read-only script over the files of this chat's pull request, or what is published when it has none. */
+    async readWithScript(
+        args: { user: SessionUser; projectUuid: string; aiThreadUuid: string },
+        script: string,
+        libraries: CodeModeLibraries = {},
+    ): Promise<ScriptRead> {
+        const { user, projectUuid, aiThreadUuid } = args;
+        const prUrl =
+            await this.aiWritebackRunModel.findLatestPrUrlByThread(
+                aiThreadUuid,
+            );
+        const open = (url: string | null) =>
+            this.openStudioCheckout(user, projectUuid, url);
+        // A merged or closed pull request has no branch left to read.
+        const { checkout, root } = await (
+            prUrl ? open(prUrl) : open(null)
+        ).catch((error: unknown) => {
+            if (prUrl && error instanceof ParameterError) return open(null);
+            throw error;
+        });
+        const startedAt = performance.now();
+        const libraryCalls: string[] = [];
+        const traced = Object.fromEntries(
+            Object.entries(libraries).map(([lib, fns]) => [
+                lib,
+                Object.fromEntries(
+                    Object.entries(fns).map(([fn, entry]) => [
+                        fn,
+                        {
+                            ...entry,
+                            run: (input: unknown) => {
+                                libraryCalls.push(`${lib}.${fn}`);
+                                return entry.run(input);
+                            },
+                        },
+                    ]),
+                ),
+            ]),
+        );
+        let listing: Promise<string[]> | null = null;
+        const ran = await runCodeMode(
+            script,
+            {
+                list: () => {
+                    listing ??= checkout
+                        .listFiles()
+                        .then((paths) =>
+                            paths
+                                .filter((path) => path.startsWith(root))
+                                .map((path) => path.slice(root.length)),
+                        );
+                    return listing;
+                },
+                read: (path) => checkout.readFile(`${root}${path}`),
+                findModel: (name) => this.findModelFiles(projectUuid, name),
+                validateYaml: () => null,
+            },
+            { timeoutMs: 60_000, libraries: traced },
+        );
+        const error =
+            ran.error ??
+            (ran.edits.length > 0
+                ? 'read cannot change files, so nothing was saved. Save the change with write.'
+                : null);
+        this.logger.info('AI writeback read script ran', {
+            event: 'ai_writeback.script.read',
+            projectUuid,
+            onPullRequest: checkout.prUrl !== null,
+            ok: error === null,
+            logLines: ran.logs.length,
+            libraryCalls,
+            durationMs: Math.round(performance.now() - startedAt),
+        });
+        return {
+            branch: checkout.branch,
+            onPullRequest: checkout.prUrl !== null,
+            logs: ran.logs,
+            error,
+        };
+    }
+
     /** The branch of an open pull request in the project's own repository, read as the app. */
     async findPullRequestBranch(
         organizationUuid: string,
@@ -1965,6 +2073,7 @@ export class AiWritebackService extends BaseService {
             dbtSourceUuid: args.dbtSourceUuid,
             prUrl: args.prUrl,
             startNewPullRequest: args.startNewPullRequest,
+            continuesThreadPullRequest: args.continuesThreadPullRequest,
         });
         const fallBack = (
             reason: 'not_runnable' | 'not_github' | 'agent_pull_request',
@@ -2048,9 +2157,7 @@ export class AiWritebackService extends BaseService {
                     `${root}${expectedSource.path}`,
                 );
                 const revision =
-                    current === null
-                        ? null
-                        : createHash('sha256').update(current).digest('hex');
+                    current === null ? null : sourceRevision(current);
                 if (revision !== expectedSource.revision) {
                     throw new ParameterError(
                         'This file changed since you opened it. Reload it to see the latest version, then make your edit again.',
@@ -2075,20 +2182,8 @@ export class AiWritebackService extends BaseService {
                 },
                 read: (path) => checkout.readFile(`${root}${path}`),
                 findModel: async (name) => {
-                    const explore =
-                        await this.projectModel.findExploreByTableName(
-                            projectUuid,
-                            name,
-                        );
-                    const table =
-                        explore && !isExploreError(explore)
-                            ? explore.tables[explore.baseTable]
-                            : undefined;
-                    if (!table) return null;
-                    const found = {
-                        yml: table.ymlPath ?? null,
-                        sql: table.sqlPath ?? null,
-                    };
+                    const found = await this.findModelFiles(projectUuid, name);
+                    if (!found) return null;
                     [found.yml, found.sql].forEach((path) => {
                         if (path) touchedTables.set(path, name);
                     });
@@ -2974,6 +3069,7 @@ export class AiWritebackService extends BaseService {
                 dbtSourceUuid,
                 prUrl,
                 startNewPullRequest,
+                continuesThreadPullRequest: args.continuesThreadPullRequest,
             });
         } catch (error) {
             await persistRunFailed(error);
@@ -3522,6 +3618,7 @@ export class AiWritebackService extends BaseService {
         dbtSourceUuid,
         prUrl,
         startNewPullRequest,
+        continuesThreadPullRequest,
     }: {
         user: SessionUser;
         projectUuid: string;
@@ -3530,6 +3627,7 @@ export class AiWritebackService extends BaseService {
         dbtSourceUuid: string | undefined;
         prUrl: string | null | undefined;
         startNewPullRequest: boolean | undefined;
+        continuesThreadPullRequest?: boolean;
     }): Promise<PreparedTurn> {
         if (!isUserWithOrg(user)) {
             throw new WritebackAccessError(
@@ -3652,7 +3750,14 @@ export class AiWritebackService extends BaseService {
                 installation,
             });
             if (!editState.editable && editState.reason) {
-                throw new WritebackThreadPrClosedError(editState.reason);
+                // Studio's draft is the thread's open pull request, so once it settles the next save starts a new one.
+                if (!continuesThreadPullRequest) {
+                    throw new WritebackThreadPrClosedError(editState.reason);
+                }
+                this.logger.info(
+                    `AiWriteback: workstream ${existingRow.ai_writeback_thread_uuid} pull request is ${editState.reason}; starting a fresh pull request.`,
+                );
+                existingRow = null;
             }
         }
 
@@ -4920,6 +5025,15 @@ export class AiWritebackService extends BaseService {
                     : this.prepareDbtAgentRun(sandbox, turn),
             afterAgentRun: (sandbox) => this.reportCompileTimings(sandbox),
         };
+    }
+
+    /** Whether a save on this chat thread is still opening or updating its pull request. */
+    async hasRunInProgress(aiThreadUuid: string): Promise<boolean> {
+        const runs =
+            await this.aiWritebackRunModel.listInProgressByAiThreadUuid(
+                aiThreadUuid,
+            );
+        return runs.length > 0;
     }
 
     /**

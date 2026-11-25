@@ -4,3 +4,10 @@
         filter: invert(1);
     }
 }
+
+/* A coloured mark too dark for a dark background: draw it white there. */
+.whiteOnDark {
+    @mixin dark {
+        filter: brightness(0) invert(1);
+    }
+}
