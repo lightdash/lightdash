@@ -8,6 +8,10 @@ import {
     type QuerySourceSchema,
     type SourceQuery,
 } from '@lightdash/common';
+import {
+    getPythonSandboxConfigError,
+    type PythonSandboxAvailabilityConfig,
+} from '../../../config/appRuntimeAvailability';
 import type { AsyncQueryService } from '../../AsyncQueryService/AsyncQueryService';
 import type {
     QuerySourceClient,
@@ -19,6 +23,7 @@ import { withoutDocumentAuthority } from './withoutDocumentAuthority';
 
 type PythonQuerySourceArguments = {
     asyncQueryService: Pick<AsyncQueryService, 'executeAsyncPythonQuery'>;
+    lightdashConfig: PythonSandboxAvailabilityConfig;
 };
 
 /**
@@ -40,8 +45,13 @@ export class PythonQuerySource implements QuerySourceClient {
 
     private readonly asyncQueryService: PythonQuerySourceArguments['asyncQueryService'];
 
+    readonly unavailableReason: string | null;
+
     constructor(args: PythonQuerySourceArguments) {
         this.asyncQueryService = args.asyncQueryService;
+        this.unavailableReason = getPythonSandboxConfigError(
+            args.lightdashConfig,
+        );
     }
 
     private static assertSourceQuery(query: SourceQuery): PythonSourceQuery {

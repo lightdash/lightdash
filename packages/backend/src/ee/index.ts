@@ -637,6 +637,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 const registry = QuerySourceRegistry.withBuiltInSources({
                     asyncQueryService: repository.getAsyncQueryService(),
                     projectService: repository.getProjectService(),
+                    lightdashConfig: context.lightdashConfig,
                 });
                 registry.register(
                     new ApiQuerySource({
@@ -670,6 +671,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         projectService: repository.getProjectService(),
                         externalSourceModel:
                             models.getExternalSourceModel<ExternalSourceModel>(),
+                        lightdashConfig: context.lightdashConfig,
                     }),
                 );
                 return new QuerySourceService({

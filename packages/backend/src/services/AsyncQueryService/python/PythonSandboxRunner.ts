@@ -4,6 +4,10 @@ import {
     MissingConfigError,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
+import {
+    AppRuntimeConfigErrors,
+    getPythonSandboxConfigError,
+} from '../../../config/appRuntimeAvailability';
 import { type LightdashConfig } from '../../../config/parseConfig';
 import {
     createSandboxProvider,
@@ -111,6 +115,10 @@ export class PythonSandboxRunner {
 
     private getProvider(): SandboxProvider {
         if (!this.provider) {
+            const configError = getPythonSandboxConfigError(
+                this.lightdashConfig,
+            );
+            if (configError) throw new MissingConfigError(configError);
             const { appRuntime } = this.lightdashConfig;
             const provider = PythonSandboxRunner.getSupportedProvider(
                 appRuntime.sandboxProvider,
@@ -153,7 +161,7 @@ export class PythonSandboxRunner {
                 return provider;
             case 'lambda-microvm':
                 throw new MissingConfigError(
-                    `Python queries are not supported on the ${provider} sandbox provider yet`,
+                    AppRuntimeConfigErrors.pythonLambdaMicroVm,
                 );
             default:
                 return assertUnreachable(
@@ -168,7 +176,7 @@ export class PythonSandboxRunner {
             this.lightdashConfig.appRuntime.gcpCloudRunPython;
         if (!sandboxUrl || !sandboxSecret) {
             throw new MissingConfigError(
-                'GCP Cloud Run python sandboxes are not configured (GCP_CLOUD_RUN_PYTHON_SANDBOX_URL / GCP_CLOUD_RUN_PYTHON_SANDBOX_SECRET)',
+                AppRuntimeConfigErrors.gcpCloudRunPython,
             );
         }
         return { sandboxUrl, sandboxSecret };
@@ -186,7 +194,7 @@ export class PythonSandboxRunner {
             !azureSandboxesPythonGroup
         ) {
             throw new MissingConfigError(
-                'Azure Sandboxes is not configured (AZURE_SANDBOXES_SUBSCRIPTION_ID / AZURE_SANDBOXES_RESOURCE_GROUP / AZURE_SANDBOXES_PYTHON_GROUP)',
+                AppRuntimeConfigErrors.azureSandboxesPythonGroup,
             );
         }
         return {
@@ -217,7 +225,7 @@ export class PythonSandboxRunner {
             case 'azure-sandboxes':
                 if (!appRuntime.azureSandboxesPythonDiskImage) {
                     throw new MissingConfigError(
-                        'Azure python sandbox disk image is not configured (AZURE_SANDBOXES_PYTHON_DISK_IMAGE)',
+                        AppRuntimeConfigErrors.azureSandboxesPythonDiskImage,
                     );
                 }
                 return appRuntime.azureSandboxesPythonDiskImage;

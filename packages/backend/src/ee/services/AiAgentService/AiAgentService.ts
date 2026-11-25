@@ -321,6 +321,7 @@ import {
 } from '../../../clients/github/Github';
 import { type SlackClient } from '../../../clients/Slack/SlackClient';
 import { safeUrl } from '../../../clients/Slack/SlackMessageBlocks';
+import { getPythonSandboxConfigError } from '../../../config/appRuntimeAvailability';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { isUniqueConstraintViolation } from '../../../database/errors';
 import Logger from '../../../logging/logger';
@@ -18122,6 +18123,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     repoFsSupportsCodeSearch,
                     canRunSql,
                     enableComposerQueries,
+                    enableComposerPythonNodes:
+                        enableComposerQueries &&
+                        getPythonSandboxConfigError(this.lightdashConfig) ===
+                            null,
                     liveSources,
                     canCreateDashboards,
                     canCreateScheduledDeliveries,
