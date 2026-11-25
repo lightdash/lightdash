@@ -23,13 +23,10 @@ import {
 } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import tableClasses from '../../../components/common/sourceTable.module.css';
-import { useResultsCacheStatus } from '../../../hooks/useProjectResultsCacheSettings';
 import { useExternalConnectionApiUsage } from '../hooks/useExternalConnectionApiUsage';
-import { useExternalConnectionRateLimitUsage } from '../hooks/useExternalConnectionRateLimitUsage';
 import { useExternalConnections } from '../hooks/useExternalConnections';
 import { useLiveSourceFields } from '../hooks/useLiveSourceFields';
 import { useLiveSourceActions } from './liveSourceActions';
-import { formatChartCount } from './liveSourceCatalog';
 /**
  * Live data sources on the Semantic Layer page, for the admins who manage
  * them: the list with each source's usage, and above a source's fields what
@@ -38,14 +35,11 @@ import { formatChartCount } from './liveSourceCatalog';
 import { LiveSourceIcon } from './LiveSourceIcon';
 import {
     describeLiveSourceAccessRule,
-    formatFreshness,
-    getLiveSourceFreshness,
     toLiveSourceRow,
     toLiveSourceRows,
     type LiveSourceConnection,
 } from './liveSourceRows';
 import classes from './LiveSources.module.css';
-import { getRateLimitStat } from './rateLimitFormat';
 
 const stopPropagation = (event: MouseEvent) => event.stopPropagation();
 
@@ -178,6 +172,9 @@ export const LiveSourcesTable: FC<{
                     API calls
                     <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
                 </span>
+                <span role="columnheader" className={tableClasses.number}>
+                    Median latency
+                </span>
                 <span />
             </Box>
             {rows.map(({ connection, integration, target, usage: used }) => (
@@ -208,25 +205,27 @@ export const LiveSourcesTable: FC<{
                         </Text>
                         <AccessRuleBadge connection={connection} />
                     </Group>
-                    <span role="cell" className={tableClasses.number}>
+                    {/* A dash until it has been called, as its own page shows */}
+                    <span
+                        role="cell"
+                        className={tableClasses.number}
+                        data-empty={!used.isUsed || undefined}
+                    >
                         {used.dataRead}
                     </span>
                     <span
                         role="cell"
                         className={tableClasses.number}
-                        title={
-                            used.medianLatency
-                                ? `${used.apiCalls} calls, median latency ${used.medianLatency}`
-                                : undefined
-                        }
+                        data-empty={!used.isUsed || undefined}
                     >
                         {used.apiCalls}
-                        {used.medianLatency ? (
-                            <span className={tableClasses.statDetail}>
-                                {' '}
-                                ({used.medianLatency})
-                            </span>
-                        ) : null}
+                    </span>
+                    <span
+                        role="cell"
+                        className={tableClasses.number}
+                        data-empty={!used.medianLatency || undefined}
+                    >
+                        {used.medianLatency ?? '—'}
                     </span>
                     <Box role="cell">
                         {canManage ? (
@@ -281,96 +280,39 @@ export const LiveSourceSummary: FC<{
         projectUuid,
         connectionUuid: connection.externalConnectionUuid,
     });
-    const { data: projectCache } = useResultsCacheStatus(projectUuid);
-    const { data: rateLimits } = useExternalConnectionRateLimitUsage({
-        projectUuid,
-        connectionUuid: connection.externalConnectionUuid,
-    });
-    const rateLimit = getRateLimitStat(rateLimits);
-    const isProjectCacheOff = projectCache?.enabled === false;
     const row = toLiveSourceRow(connection, usage);
     const explores = fields?.explores;
     const exploresInUse = explores?.filter((explore) => explore.inUse).length;
-    const freshness = getLiveSourceFreshness(connection);
-    const cachingTitle =
-        freshness === 0
-            ? 'Every query calls the integration'
-            : `A result answers the same query for everyone for ${formatFreshness(freshness)}`;
     return (
-        <Box
-            className={tableClasses.summary}
-            aria-label="Live data source"
-            data-status
-        >
+        <Box className={tableClasses.summary} aria-label="Live data source">
             <Stat label="Integration" value={row.integration} />
             <Stat
-                label="Explore prefix"
-                value={connection.liveSourceName ?? '—'}
+                label="Queries"
+                value={row.usage.queries}
+                labelExtra={
+                    <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
+                }
             />
             <Stat
-                label="Explores in use"
-                value={
+                label="Explores"
+                value={exploresInUse?.toLocaleString() ?? '—'}
+                title={
                     explores && exploresInUse !== undefined
-                        ? `${exploresInUse.toLocaleString()} of ${explores.length.toLocaleString()}`
-                        : '—'
-                }
-            />
-            <Stat
-                label="Who can query"
-                value={
-                    describeLiveSourceAccessRule(connection.accessRule)
-                        ? 'Limited by a rule'
-                        : 'Everyone in the project'
-                }
-                title={
-                    describeLiveSourceAccessRule(connection.accessRule) ??
-                    undefined
-                }
-                labelExtra={<AccessRuleBadge connection={connection} />}
-            />
-            <Stat
-                label="Used by"
-                value={fields ? formatChartCount(fields.usedByChartCount) : '—'}
-            />
-            <Stat
-                label="Data read"
-                value={row.usage.dataRead}
-                labelExtra={
-                    <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
-                }
-            />
-            <Stat
-                label="API calls"
-                value={row.usage.apiCalls}
-                labelExtra={
-                    <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
-                }
-                detail={row.usage.medianLatency}
-                title={
-                    row.usage.medianLatency
-                        ? `${row.usage.apiCalls} calls, median latency ${row.usage.medianLatency}`
+                        ? `${exploresInUse.toLocaleString()} of ${explores.length.toLocaleString()} in use`
                         : undefined
                 }
             />
             <Stat
-                label="Caching"
+                label="Access"
                 value={
-                    isProjectCacheOff ? 'Disabled' : formatFreshness(freshness)
+                    describeLiveSourceAccessRule(connection.accessRule)
+                        ? 'Restricted'
+                        : 'Everyone'
                 }
-                detail={isProjectCacheOff ? null : row.usage.cacheHitsLabel}
                 title={
-                    isProjectCacheOff
-                        ? 'Results caching is off for this project'
-                        : cachingTitle
+                    describeLiveSourceAccessRule(connection.accessRule) ??
+                    'Everyone in the project can query it'
                 }
-                tone={isProjectCacheOff ? 'warning' : undefined}
-            />
-            <Stat
-                label="Rate limit"
-                value={rateLimit.value}
-                detail={rateLimit.detail}
-                title={rateLimit.title}
-                tone={rateLimit.limitReached ? 'danger' : undefined}
             />
         </Box>
     );

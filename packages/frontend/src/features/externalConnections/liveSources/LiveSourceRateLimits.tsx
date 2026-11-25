@@ -5,7 +5,8 @@
  */
 import { type ExternalConnectionRateLimitUsage } from '@lightdash/common';
 import { Box, Progress, Text } from '@mantine/core';
-import { useState, type FC, type FormEvent } from 'react';
+import { IconGauge } from '@tabler/icons-react';
+import { useState, type FC } from 'react';
 import { NumberInput } from '../../../components/common/NumberInput';
 import {
     useExternalConnectionRateLimitUsage,
@@ -13,9 +14,9 @@ import {
 } from '../hooks/useExternalConnectionRateLimitUsage';
 import classes from './LiveSources.module.css';
 import {
+    EditableSettingsCard,
     SettingsCard,
     SettingsRow,
-    SettingsSaveFooter,
 } from './LiveSourceSettingsRows';
 import {
     getMaxLimit,
@@ -60,8 +61,9 @@ const LimitRow: FC<{
     row: RateLimitRow;
     value: number | undefined;
     usage: ExternalConnectionRateLimitUsage;
+    isEditing: boolean;
     onChange: (value: number | undefined) => void;
-}> = ({ row, value, usage, onChange }) => {
+}> = ({ row, value, usage, isEditing, onChange }) => {
     const meter = getRateLimitMeter(row, usage.runningCalls);
     return (
         <SettingsRow
@@ -75,37 +77,60 @@ const LimitRow: FC<{
                 />
             }
         >
-            <Progress
-                w={100}
-                size="sm"
-                value={meter.percent}
-                color={meter.isFull ? 'red' : undefined}
-                aria-label={`${row.label}: ${meter.text}`}
-            />
-            <Box className={classes.rateCount}>
-                <Text inherit c={meter.isCounted ? undefined : 'dimmed'}>
-                    {meter.text}
-                </Text>
-                {row.defaultLimit === null ? null : (
-                    <Text className={classes.rateMax}>
-                        Max {row.defaultLimit.toLocaleString()}
-                    </Text>
-                )}
-            </Box>
-            <NumberInput
-                w={96}
-                size="xs"
-                aria-label={`${row.label} limit`}
-                placeholder={row.defaultLimit?.toLocaleString() ?? 'No limit'}
-                min={1}
-                clampBehavior="none"
-                allowNegative={false}
-                thousandSeparator=","
-                hideControls
-                error={!isValidLimit(row, value)}
-                value={value ?? ''}
-                onNumberChange={onChange}
-            />
+            {isEditing ? (
+                <>
+                    {row.defaultLimit === null ? null : (
+                        <Text fz="xs" c="dimmed">
+                            Max {row.defaultLimit.toLocaleString()}
+                        </Text>
+                    )}
+                    <NumberInput
+                        w={96}
+                        size="xs"
+                        aria-label={`${row.label} limit`}
+                        placeholder={
+                            row.defaultLimit?.toLocaleString() ?? 'Uncapped'
+                        }
+                        min={1}
+                        clampBehavior="none"
+                        allowNegative={false}
+                        thousandSeparator=","
+                        hideControls
+                        error={!isValidLimit(row, value)}
+                        value={value ?? ''}
+                        onNumberChange={onChange}
+                    />
+                </>
+            ) : (
+                <Box className={classes.rateMeter}>
+                    <Box className={classes.rateCount}>
+                        {/* Only a counted limit has a count; the rest show their cap alone */}
+                        <Text inherit>
+                            {meter.isCounted ? meter.text : null}
+                        </Text>
+                        <Text className={classes.rateMax}>
+                            {row.defaultLimit === null
+                                ? meter.text
+                                : `Max ${(meter.isCounted
+                                      ? row.defaultLimit
+                                      : (row.savedLimit ?? row.defaultLimit)
+                                  ).toLocaleString()}`}
+                        </Text>
+                    </Box>
+                    <Progress
+                        size="sm"
+                        value={meter.percent}
+                        color={
+                            meter.isFull
+                                ? 'red'
+                                : meter.percent >= 80
+                                  ? 'orange'
+                                  : undefined
+                        }
+                        aria-label={`${row.label}: ${meter.text}`}
+                    />
+                </Box>
+            )}
         </SettingsRow>
     );
 };
@@ -121,52 +146,61 @@ const RateLimitsForm: FC<
     const values = edits ?? saved;
     const isChanged = rows.some(({ key }) => values[key] !== saved[key]);
     const isValid = rows.every((row) => isValidLimit(row, values[row.key]));
+    const [isEditing, setIsEditing] = useState(false);
 
-    const handleSubmit = (event: FormEvent) => {
-        event.preventDefault();
-        if (!isChanged || !isValid) {
-            return;
-        }
-        update.mutate(toRateLimitSettings(rows, values), {
-            onSuccess: () => setEdits(null),
-        });
+    const close = () => {
+        setEdits(null);
+        setIsEditing(false);
+    };
+
+    const save = () => {
+        if (!isChanged || !isValid) return;
+        update.mutate(toRateLimitSettings(rows, values), { onSuccess: close });
     };
 
     return (
-        <SettingsCard
+        <EditableSettingsCard
             title="Rate limits"
+            icon={IconGauge}
             titleInfo={usage.note ?? undefined}
-            onSubmit={handleSubmit}
+            canEdit={rows.length > 0}
+            isEditing={isEditing}
+            onEdit={() => setIsEditing(true)}
+            onCancel={close}
+            onSave={save}
+            isChanged={isChanged}
+            isValid={isValid}
+            isSaving={update.isLoading}
         >
-            {usage.limitedUntil ? (
-                <SettingsRow
-                    label={`Paused by ${usage.integrationLabel}`}
-                    hint={`Requests resume ${formatUntil(
-                        usage.limitedUntil,
-                        usage.checkedAt,
-                    )}`}
-                >
-                    {null}
-                </SettingsRow>
-            ) : null}
-            {rows.map((row) => (
-                <LimitRow
-                    key={row.key}
-                    row={row}
-                    value={values[row.key]}
-                    usage={usage}
-                    onChange={(value) =>
-                        setEdits({ ...values, [row.key]: value })
-                    }
-                />
-            ))}
-            <SettingsSaveFooter
-                isChanged={isChanged}
-                isValid={isValid}
-                isSaving={update.isLoading}
-                onCancel={() => setEdits(null)}
-            />
-        </SettingsCard>
+            {(editing) => (
+                <>
+                    {usage.limitedUntil && !editing ? (
+                        <SettingsRow
+                            label={`Paused by ${usage.integrationLabel}`}
+                            hint={`No requests ${formatUntil(
+                                usage.limitedUntil,
+                                usage.checkedAt,
+                            )}`}
+                        >
+                            {null}
+                        </SettingsRow>
+                    ) : null}
+                    {rows.map((row) => (
+                        <LimitRow
+                            key={row.key}
+                            row={row}
+                            // The page keeps showing what is saved
+                            value={editing ? values[row.key] : saved[row.key]}
+                            usage={usage}
+                            isEditing={editing}
+                            onChange={(value) =>
+                                setEdits({ ...values, [row.key]: value })
+                            }
+                        />
+                    ))}
+                </>
+            )}
+        </EditableSettingsCard>
     );
 };
 

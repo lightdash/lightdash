@@ -71,7 +71,7 @@ export const SalesforceConnectionModal: FC<Props> = ({
             confirmDisabled={sourceId.isBlocked}
         >
             <Stack gap="lg">
-                <SettingsCard title="Access">
+                <SettingsCard title="Authentication" titleOutside>
                     <SettingsRow
                         label="Use a sandbox"
                         hint="Production by default"

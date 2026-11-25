@@ -685,7 +685,6 @@ export const MainPane: FC<{
                         />
                     ) : liveConnection && liveSettings ? (
                         <LiveSourceFlow
-                            title="Explores"
                             main={
                                 <LiveExploreRows
                                     projectUuid={view.project.id}

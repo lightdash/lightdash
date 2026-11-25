@@ -45,7 +45,6 @@ import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { SettingsSection } from '../externalConnections/liveSources/LiveSourceSettingsRows';
 import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
@@ -770,11 +769,9 @@ export const ModelTabs: FC<{
  * fields), then its settings. A settings link scrolls to them.
  */
 export const LiveSourceFlow: FC<{
-    /** Omitted where the page title already says what the main part is. */
-    title?: string;
     main: ReactNode;
     settings: ReactNode;
-}> = ({ title, main, settings }) => {
+}> = ({ main, settings }) => {
     const [searchParams] = useSearchParams();
     const wantsSettings = searchParams.get(VIEW_PARAM) === 'settings';
     const settingsRef = useRef<HTMLDivElement>(null);
@@ -789,11 +786,7 @@ export const LiveSourceFlow: FC<{
     return (
         <Box className={classes.root} data-fit-content>
             <Stack gap="lg">
-                {title ? (
-                    <SettingsSection title={title}>{main}</SettingsSection>
-                ) : (
-                    main
-                )}
+                {main}
                 <Box ref={settingsRef}>{settings}</Box>
             </Stack>
         </Box>

@@ -32,8 +32,8 @@ export const LiveSourceRefreshAction: FC<{
             >
                 <Text fz="xs" c="dimmed" flex="none">
                     {scannedAt
-                        ? `Refreshed ${dayjs(scannedAt).fromNow()}`
-                        : 'Never refreshed'}
+                        ? `Fields refreshed ${dayjs(scannedAt).fromNow()}`
+                        : 'Fields never refreshed'}
                 </Text>
             </Tooltip>
             <Button

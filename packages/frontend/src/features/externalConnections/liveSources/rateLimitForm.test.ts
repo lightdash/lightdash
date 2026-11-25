@@ -187,7 +187,7 @@ describe('getRateLimitHint', () => {
 
     it('explains concurrency whatever is in flight', () => {
         expect(getRateLimitHint(rowOf('concurrentCalls'), checkedAt)).toBe(
-            'Max in flight, extra requests wait for a slot',
+            'How many run at once; the rest wait',
         );
     });
 });
