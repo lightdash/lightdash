@@ -191,6 +191,36 @@ describe('mixpanelIntegration run', () => {
         ]);
     });
 
+    it('drops property values with no events on a date, keeping empty dates without a split', async () => {
+        const { source } = connect(
+            segmentation({
+                Chrome: { '2026-10-01': 0, '2026-10-02': 3 },
+                Safari: { '2026-10-01': 0, '2026-10-02': 0 },
+            }),
+            segmentation({ Purchase: { '2026-10-01': 0, '2026-10-02': 3 } }),
+        );
+        const split = await source.run({
+            query: JSON.stringify({ ...SEGMENTATION, groupBy: 'browser' }),
+            limit: 100,
+        });
+        const unsplit = await source.run({
+            query: JSON.stringify(SEGMENTATION),
+            limit: 100,
+        });
+        expect(split.rows).toEqual([
+            {
+                date: '2026-10-02',
+                event: 'Purchase',
+                browser: 'Chrome',
+                event_count: 3,
+            },
+        ]);
+        expect(unsplit.rows).toEqual([
+            { date: '2026-10-01', event: 'Purchase', event_count: 0 },
+            { date: '2026-10-02', event: 'Purchase', event_count: 3 },
+        ]);
+    });
+
     it('reads a saved funnel as one row per step', async () => {
         const { send, source } = connect(
             jsonResponse({

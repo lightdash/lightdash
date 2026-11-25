@@ -337,6 +337,18 @@ const runSegmentation = async (
                 });
         });
     });
+    const metricColumns = request.metrics.map(
+        (metric) => MIXPANEL_SEGMENTATION_METRICS[metric],
+    );
+    // Split by a property, Mixpanel lists every value on every date, mostly
+    // zeros; a row with no events says nothing
+    const rows = request.groupBy
+        ? merged
+              .rows()
+              .filter((row) =>
+                  metricColumns.some((column) => (row[column] ?? 0) !== 0),
+              )
+        : merged.rows();
     return {
         // Mixpanel drops the values past its limit without saying so
         truncated:
@@ -358,12 +370,12 @@ const runSegmentation = async (
             ...(request.groupBy
                 ? [{ name: request.groupBy, type: DimensionType.STRING }]
                 : []),
-            ...request.metrics.map((metric) => ({
-                name: MIXPANEL_SEGMENTATION_METRICS[metric],
+            ...metricColumns.map((name) => ({
+                name,
                 type: DimensionType.NUMBER,
             })),
         ],
-        rows: merged.rows(),
+        rows,
     };
 };
 
