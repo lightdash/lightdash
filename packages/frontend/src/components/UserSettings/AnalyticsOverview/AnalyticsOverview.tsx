@@ -349,7 +349,7 @@ const AnalyticsOverview = ({
             onChange={setDays}
             data={analyticsDateRangeDays.map((range) => ({
                 value: String(range),
-                label: `Last ${range} days`,
+                label: `${range} days`,
             }))}
         />
     );
