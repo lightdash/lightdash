@@ -6843,6 +6843,7 @@ export class AiAgentService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        await this.assertNotSemanticStudioAgent(agent.uuid);
 
         return agent;
     }
@@ -8482,10 +8483,17 @@ export class AiAgentService extends BaseService {
                 'You cannot change the semantic layer of this project',
             );
         }
-        return this.aiAgentModel.getOrCreateSemanticStudioAgent({
+        const agent = await this.aiAgentModel.getOrCreateSemanticStudioAgent({
             organizationUuid,
             projectUuid,
         });
+        // Starting its thread needs agent access too, so say no here and not on the first message.
+        if (!(await this.checkAgentAccess(user, agent))) {
+            throw new ForbiddenError(
+                'Insufficient permissions to use AI in this project',
+            );
+        }
+        return agent;
     }
 
     private async getManageableAgentOrThrow(
@@ -24709,6 +24717,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         if (!agent) {
             throw new NotFoundError(`Agent not found: ${agentUuid}`);
         }
+        // A copy is an ordinary chat, which the built-in Studio agent does not serve.
+        await this.assertAgentServesThread(agentUuid, undefined);
 
         const sourceThread = await this.aiAgentModel.getThread({
             organizationUuid,
@@ -24849,6 +24859,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         if (!agent || agent.projectUuid !== projectUuid) {
             throw new NotFoundError(`Agent not found: ${share.agentUuid}`);
         }
+        await this.assertAgentServesThread(share.agentUuid, undefined);
 
         const hasAgentAccess = await this.checkAgentAccess(user, agent);
         if (!hasAgentAccess) {
