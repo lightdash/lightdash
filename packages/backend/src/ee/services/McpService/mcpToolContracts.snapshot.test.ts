@@ -15,13 +15,14 @@ import { MCP_FILTER_EXPRESSION_GUIDANCE_SECTION } from '../ai/prompts/filterGuid
 import { getMcpAnalystPrompt } from '../ai/prompts/mcpAnalyst';
 import { BuiltInSkills } from '../ai/skills/builtInSkills';
 import { MCP_CUSTOM_CHART_FRAME_TOOL_NAME } from './mcpCustomChartFrameHtml';
+import type { McpQueryPath } from './mcpQueryPath';
 import {
     isProjectScopedMcpTool,
     McpService,
     McpToolName,
     type McpServerToolOptions,
 } from './McpService';
-import { makeMcpServerOptions } from './McpService.mock';
+import { classicQueryPath, makeMcpServerOptions } from './McpService.mock';
 
 type RegisteredMcpTool = {
     name: string;
@@ -42,6 +43,9 @@ type RegisteredMcpPrompt = {
         description?: string;
         argsSchema?: ZodRawShape;
     };
+    callback: () => Promise<{
+        messages: Array<{ content: { type: string; text: string } }>;
+    }>;
 };
 
 const mockRegisteredMcpTools: RegisteredMcpTool[] = [];
@@ -78,9 +82,13 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', async (importOriginal) => ({
                     (
                         name: string,
                         config: RegisteredMcpPrompt['config'],
-                        _callback: unknown,
+                        callback: RegisteredMcpPrompt['callback'],
                     ) => {
-                        mockRegisteredMcpPrompts.push({ name, config });
+                        mockRegisteredMcpPrompts.push({
+                            name,
+                            config,
+                            callback,
+                        });
                         return {};
                     },
                 ),
@@ -189,10 +197,32 @@ const sharedMcpToolDefinitionNames = mcpToolDefinitions.map(
 const defaultMcpAnalystPromptOptions = {
     documentsEnabled: false,
     agentIdentityEnabled: false,
-    runSqlEnabled: true,
-    runMetricQueryEnabled: true,
-    filterExpressionsEnabled: false,
+    queryPath: classicQueryPath(true, false),
 };
+
+const queryRunnerOptionCombinations = [false, true].flatMap(
+    (sqlRunnerEnabled) =>
+        [false, true].map((filterExpressionsEnabled) => ({
+            sqlRunnerEnabled,
+            filterExpressionsEnabled,
+        })),
+);
+// Keyed by type so a new query path fails to compile until it is covered.
+const mcpQueryPathsByType: {
+    [T in McpQueryPath['type']]: Extract<McpQueryPath, { type: T }>[];
+} = {
+    contentOnly: [{ type: 'contentOnly' }],
+    sqlOnly: [{ type: 'sqlOnly' }],
+    classic: queryRunnerOptionCombinations.map((options) => ({
+        type: 'classic',
+        ...options,
+    })),
+    composer: queryRunnerOptionCombinations.map((options) => ({
+        type: 'composer',
+        ...options,
+    })),
+};
+const mcpQueryPaths: McpQueryPath[] = Object.values(mcpQueryPathsByType).flat();
 
 // Observed in Claude Code 2.1.263; this is not an MCP protocol limit.
 const MCP_CLIENT_TEXT_MAX_CHARS = 2048;
@@ -204,19 +234,18 @@ const registrationOnlyFeatures = {
     dataAppBuildsEnabled: true,
     chartTypeBuildsEnabled: true,
     customChartTypesEnabled: true,
-    queryEnabled: true,
 } satisfies Omit<
     McpServerToolOptions['featureAvailability'],
     keyof typeof defaultMcpAnalystPromptOptions
 >;
-const mcpOptionCombinations = Object.keys(
-    defaultMcpAnalystPromptOptions,
-).reduce(
-    (combinations, key) =>
-        combinations.flatMap((options) =>
-            [false, true].map((enabled) => ({ ...options, [key]: enabled })),
-        ),
-    [defaultMcpAnalystPromptOptions],
+const mcpOptionCombinations = mcpQueryPaths.flatMap((queryPath) =>
+    [false, true].flatMap((documentsEnabled) =>
+        [false, true].map((agentIdentityEnabled) => ({
+            queryPath,
+            documentsEnabled,
+            agentIdentityEnabled,
+        })),
+    ),
 );
 
 const mcpTextConfigurations = mcpOptionCombinations.map((options) => ({
@@ -260,17 +289,17 @@ describe('MCP tool contracts', () => {
         });
     });
 
-    it.each([
-        { runSqlEnabled: false, runMetricQueryEnabled: false, rule: false },
-        { runSqlEnabled: true, runMetricQueryEnabled: false, rule: true },
-        { runSqlEnabled: true, runMetricQueryEnabled: true, rule: true },
-        { runSqlEnabled: false, runMetricQueryEnabled: true, rule: true },
-    ])(
-        'gates the connect rule in the prompt variant sql=$runSqlEnabled metric=$runMetricQueryEnabled',
-        ({ rule, ...queryOptions }) => {
+    it.each(
+        mcpQueryPaths.map((queryPath) => ({
+            queryPath,
+            rule: queryPath.type !== 'contentOnly',
+        })),
+    )(
+        'gates the connect rule in the prompt variant $queryPath',
+        ({ rule, queryPath }) => {
             const options = {
                 ...defaultMcpAnalystPromptOptions,
-                ...queryOptions,
+                queryPath,
             };
             const connectRule = 'refuses with a connect link';
             const flagOn = getMcpAnalystPrompt({
@@ -293,8 +322,7 @@ describe('MCP tool contracts', () => {
         mockRegisteredMcpTools.length = 0;
         await service.createServer(
             makeMcpServerOptions({
-                runSqlEnabled: true,
-                runMetricQueryEnabled: true,
+                queryPath: classicQueryPath(true, false),
                 agentIdentityEnabled: true,
             }),
         );
@@ -444,7 +472,7 @@ describe('MCP tool contracts', () => {
         expect(
             getMcpAnalystPrompt({
                 ...defaultMcpAnalystPromptOptions,
-                runSqlEnabled: false,
+                queryPath: classicQueryPath(false, false),
             }),
         ).not.toContain(guidance);
     });
@@ -454,8 +482,7 @@ describe('MCP tool contracts', () => {
 
         await mcpService.createServer(
             makeMcpServerOptions({
-                runMetricQueryEnabled: true,
-                filterExpressionsEnabled: false,
+                queryPath: classicQueryPath(false, false),
             }),
         );
         expect(getLatestMcpServerInstructions()).not.toContain(
@@ -464,8 +491,7 @@ describe('MCP tool contracts', () => {
 
         await mcpService.createServer(
             makeMcpServerOptions({
-                runMetricQueryEnabled: true,
-                filterExpressionsEnabled: true,
+                queryPath: classicQueryPath(false, true),
             }),
         );
         expect(getLatestMcpServerInstructions()).not.toContain(
@@ -483,8 +509,10 @@ describe('MCP tool contracts', () => {
             mockRegisteredMcpTools.length = 0;
             await mcpService.createServer(
                 makeMcpServerOptions({
-                    runMetricQueryEnabled: true,
-                    filterExpressionsEnabled,
+                    queryPath: classicQueryPath(
+                        false,
+                        filterExpressionsEnabled,
+                    ),
                 }),
             );
             for (const name of [
@@ -525,9 +553,7 @@ describe('MCP tool contracts', () => {
 
             await mcpService.createServer(
                 makeMcpServerOptions({
-                    runSqlEnabled: true,
-                    runMetricQueryEnabled: true,
-                    filterExpressionsEnabled,
+                    queryPath: classicQueryPath(true, filterExpressionsEnabled),
                 }),
             );
 
@@ -536,8 +562,8 @@ describe('MCP tool contracts', () => {
     );
 
     it('covers every instruction/filter configuration exactly once', () => {
-        const expectedCount =
-            2 ** Object.keys(defaultMcpAnalystPromptOptions).length;
+        // query paths × documents on/off × agent identity on/off
+        const expectedCount = mcpQueryPaths.length * 2 * 2;
         expect(mcpOptionCombinations).toHaveLength(expectedCount);
         expect(
             new Set(
@@ -547,7 +573,7 @@ describe('MCP tool contracts', () => {
     });
 
     it.each(mcpTextConfigurations)(
-        `keeps registered MCP tool descriptions within ${MCP_CLIENT_TEXT_MAX_CHARS} chars: sql=$runSqlEnabled metric=$runMetricQueryEnabled expressions=$filterExpressionsEnabled`,
+        `keeps registered MCP tool descriptions within ${MCP_CLIENT_TEXT_MAX_CHARS} chars: $queryPath docs=$documentsEnabled agent=$agentIdentityEnabled`,
         async (options) => {
             const configuration = JSON.stringify(options);
             const mcpService = makeMcpService();
@@ -570,7 +596,7 @@ describe('MCP tool contracts', () => {
     );
 
     it.each(mcpTextConfigurations)(
-        'keeps pagination guidance on registered input fields: sql=$runSqlEnabled metric=$runMetricQueryEnabled expressions=$filterExpressionsEnabled',
+        'keeps pagination guidance on registered input fields: $queryPath docs=$documentsEnabled agent=$agentIdentityEnabled',
         async (options) => {
             const service = makeMcpService();
             mockRegisteredMcpTools.length = 0;
@@ -601,7 +627,7 @@ describe('MCP tool contracts', () => {
     );
 
     it.each(mcpTextConfigurations)(
-        'keeps registered MCP server instructions within the client text limit: sql=$runSqlEnabled metric=$runMetricQueryEnabled expressions=$filterExpressionsEnabled',
+        'keeps registered MCP server instructions within the client text limit: $queryPath docs=$documentsEnabled agent=$agentIdentityEnabled',
         async (options) => {
             const configuration = JSON.stringify(options);
             const mcpService = makeMcpService();
@@ -620,9 +646,7 @@ describe('MCP tool contracts', () => {
             mockRegisteredMcpTools.length = 0;
             await service.createServer(
                 makeMcpServerOptions({
-                    runSqlEnabled: true,
-                    runMetricQueryEnabled: true,
-                    filterExpressionsEnabled,
+                    queryPath: classicQueryPath(true, filterExpressionsEnabled),
                 }),
             );
             const guidance = [
@@ -713,9 +737,7 @@ describe('MCP tool contracts', () => {
             mockRegisteredMcpTools.length = 0;
             await mcpService.createServer(
                 makeMcpServerOptions({
-                    runSqlEnabled: true,
-                    runMetricQueryEnabled: true,
-                    filterExpressionsEnabled,
+                    queryPath: classicQueryPath(true, filterExpressionsEnabled),
                 }),
             );
             const queryTools = mockRegisteredMcpTools.filter(({ name }) =>
@@ -754,9 +776,7 @@ describe('MCP tool contracts', () => {
             mockRegisteredMcpTools.length = 0;
             await service.createServer(
                 makeMcpServerOptions({
-                    runSqlEnabled: true,
-                    runMetricQueryEnabled: true,
-                    filterExpressionsEnabled,
+                    queryPath: classicQueryPath(true, filterExpressionsEnabled),
                 }),
             );
             const query = mockRegisteredMcpTools.find(
@@ -797,9 +817,7 @@ describe('MCP tool contracts', () => {
             const service = makeMcpService();
             await service.createServer(
                 makeMcpServerOptions({
-                    runSqlEnabled: true,
-                    runMetricQueryEnabled: true,
-                    filterExpressionsEnabled,
+                    queryPath: classicQueryPath(true, filterExpressionsEnabled),
                 }),
             );
             for (const name of [
@@ -839,30 +857,31 @@ describe('MCP tool contracts', () => {
         mockRegisteredMcpPrompts.length = 0;
         await mcpService.createServer(
             makeMcpServerOptions({
-                runSqlEnabled: true,
-                runMetricQueryEnabled: true,
-                queryEnabled: true,
+                queryPath: {
+                    type: 'composer',
+                    sqlRunnerEnabled: true,
+                    filterExpressionsEnabled: false,
+                },
                 dataAppBuildsEnabled: true,
                 chartTypeBuildsEnabled: true,
                 customChartTypesEnabled: true,
             }),
         );
 
-        const prompts = mockRegisteredMcpPrompts.map(({ name, config }) => ({
-            name,
-            title: config.title,
-            description: config.description,
-            argsSchema: schemaToJson(config.argsSchema, 'input'),
-            prompt:
-                name === 'lightdash-analyst'
-                    ? getMcpAnalystPrompt({
-                          runSqlEnabled: true,
-                          runMetricQueryEnabled: true,
-                          filterExpressionsEnabled: false,
-                          documentsEnabled: false,
-                      })
-                    : null,
-        }));
+        const prompts = await Promise.all(
+            mockRegisteredMcpPrompts.map(
+                async ({ name, config, callback }) => ({
+                    name,
+                    title: config.title,
+                    description: config.description,
+                    argsSchema: schemaToJson(config.argsSchema, 'input'),
+                    prompt:
+                        name === 'lightdash-analyst'
+                            ? (await callback()).messages[0].content.text
+                            : null,
+                }),
+            ),
+        );
         const tools = mockRegisteredMcpTools.map(({ name, config }) => ({
             name,
             agentName:
@@ -887,34 +906,11 @@ describe('MCP tool contracts', () => {
         expect({ prompts, tools }).toMatchSnapshot();
     });
 
-    it('does not register semantic-layer tools without runMetricQueryEnabled', async () => {
-        const mcpService = makeMcpService();
-
-        mockRegisteredMcpTools.length = 0;
-        await mcpService.createServer(
-            makeMcpServerOptions({
-                runSqlEnabled: false,
-                runMetricQueryEnabled: false,
-            }),
-        );
-
-        const registeredNames = mockRegisteredMcpTools.map(({ name }) => name);
-        expect(registeredNames).not.toContain(McpToolName.LIST_EXPLORES);
-        expect(registeredNames).not.toContain(McpToolName.GREP_FIELDS);
-        expect(registeredNames).not.toContain(McpToolName.GET_METADATA);
-        expect(registeredNames).not.toContain(McpToolName.SEARCH_FIELD_VALUES);
-        expect(registeredNames).not.toContain(McpToolName.RUN_METRIC_QUERY);
-        expect(registeredNames).not.toContain(McpToolName.RENDER_CHART);
-        expect(registeredNames).not.toContain(McpToolName.GET_QUERY_RESULT);
-        expect(registeredNames).toContain(McpToolName.FIND_CONTENT);
-        expect(registeredNames).toContain(McpToolName.LIST_CONTENT);
-    });
-
     it('registers the chart type frame tool for the chart view only', async () => {
         const mcpService = makeMcpService();
         mockRegisteredMcpTools.length = 0;
         await mcpService.createServer(
-            makeMcpServerOptions({ runMetricQueryEnabled: true }),
+            makeMcpServerOptions({ queryPath: classicQueryPath(false, false) }),
         );
         const tool = mockRegisteredMcpTools.find(
             ({ name }) => name === MCP_CUSTOM_CHART_FRAME_TOOL_NAME,
@@ -925,32 +921,13 @@ describe('MCP tool contracts', () => {
         expect(tool?.config._meta).toEqual({ ui: { visibility: ['app'] } });
     });
 
-    it('registers only SQL execution tools when metric queries are disabled', async () => {
-        const mcpService = makeMcpService();
-
-        mockRegisteredMcpTools.length = 0;
-        await mcpService.createServer(
-            makeMcpServerOptions({
-                runSqlEnabled: true,
-                runMetricQueryEnabled: false,
-            }),
-        );
-
-        const registeredNames = mockRegisteredMcpTools.map(({ name }) => name);
-        expect(registeredNames).toContain(McpToolName.RUN_SQL);
-        expect(registeredNames).toContain(McpToolName.GET_QUERY_RESULT);
-        expect(registeredNames).not.toContain(McpToolName.RENDER_CHART);
-        expect(registeredNames).not.toContain(McpToolName.RUN_METRIC_QUERY);
-    });
-
     it('matches the filter-expression run_metric_query tools/list snapshot', async () => {
         const mcpService = makeMcpService();
 
         mockRegisteredMcpTools.length = 0;
         await mcpService.createServer(
             makeMcpServerOptions({
-                runMetricQueryEnabled: true,
-                filterExpressionsEnabled: true,
+                queryPath: classicQueryPath(false, true),
             }),
         );
 
@@ -977,8 +954,7 @@ describe('MCP tool contracts', () => {
         mockRegisteredMcpTools.length = 0;
         await mcpService.createServer(
             makeMcpServerOptions({
-                runMetricQueryEnabled: true,
-                filterExpressionsEnabled: true,
+                queryPath: classicQueryPath(false, true),
             }),
         );
 
@@ -1040,7 +1016,7 @@ describe('MCP tool contracts', () => {
 
         await mcpService.createServer(
             makeMcpServerOptions({
-                runSqlEnabled: true,
+                queryPath: { type: 'sqlOnly' },
             }),
         );
 
@@ -1063,45 +1039,100 @@ describe('MCP tool contracts', () => {
         expect(toolsWithoutProjectUuid).toEqual([]);
     });
 
-    it('registers run_sql only when runSqlEnabled', async () => {
-        const mcpService = makeMcpService();
+    const queryToolNames = [
+        McpToolName.LIST_EXPLORES,
+        McpToolName.GREP_FIELDS,
+        McpToolName.GET_METADATA,
+        McpToolName.SEARCH_FIELD_VALUES,
+        McpToolName.RUN_METRIC_QUERY,
+        McpToolName.GET_CUSTOM_CHART_TYPE_FRAME,
+        McpToolName.RENDER_CHART,
+        McpToolName.RUN_SQL,
+        McpToolName.QUERY,
+        McpToolName.GET_QUERY_RESULT,
+    ];
+    const classicQueryTools = [
+        McpToolName.LIST_EXPLORES,
+        McpToolName.GREP_FIELDS,
+        McpToolName.GET_METADATA,
+        McpToolName.RUN_METRIC_QUERY,
+        McpToolName.GET_CUSTOM_CHART_TYPE_FRAME,
+        McpToolName.RENDER_CHART,
+        McpToolName.SEARCH_FIELD_VALUES,
+    ];
 
-        mockRegisteredMcpTools.length = 0;
-        await mcpService.createServer(
-            makeMcpServerOptions({ runSqlEnabled: true }),
-        );
-        expect(mockRegisteredMcpTools.map(({ name }) => name)).toContain(
-            McpToolName.RUN_SQL,
-        );
-
-        mockRegisteredMcpTools.length = 0;
-        await mcpService.createServer(
-            makeMcpServerOptions({ runSqlEnabled: false }),
-        );
-        expect(mockRegisteredMcpTools.map(({ name }) => name)).not.toContain(
-            McpToolName.RUN_SQL,
-        );
-    });
-
-    it('registers run_metric_query only when runMetricQueryEnabled', async () => {
-        const mcpService = makeMcpService();
-
-        mockRegisteredMcpTools.length = 0;
-        await mcpService.createServer(
-            makeMcpServerOptions({ runMetricQueryEnabled: true }),
-        );
-        expect(mockRegisteredMcpTools.map(({ name }) => name)).toContain(
-            McpToolName.RUN_METRIC_QUERY,
-        );
-
-        mockRegisteredMcpTools.length = 0;
-        await mcpService.createServer(
-            makeMcpServerOptions({ runMetricQueryEnabled: false }),
-        );
-        expect(mockRegisteredMcpTools.map(({ name }) => name)).not.toContain(
-            McpToolName.RUN_METRIC_QUERY,
-        );
-    });
+    it.each<{
+        name: string;
+        queryPath: McpQueryPath;
+        tools: McpToolName[];
+        instructions: string;
+    }>([
+        {
+            name: 'content only',
+            queryPath: { type: 'contentOnly' },
+            tools: [],
+            instructions: 'Saved Content Mode',
+        },
+        {
+            name: 'SQL only',
+            queryPath: { type: 'sqlOnly' },
+            tools: [McpToolName.RUN_SQL, McpToolName.GET_QUERY_RESULT],
+            instructions: 'SQL Runner Mode',
+        },
+        {
+            name: 'classic without SQL Runner',
+            queryPath: {
+                type: 'classic',
+                sqlRunnerEnabled: false,
+                filterExpressionsEnabled: false,
+            },
+            tools: [...classicQueryTools, McpToolName.GET_QUERY_RESULT],
+            instructions: '## Query Building Workflow',
+        },
+        {
+            name: 'classic with SQL Runner',
+            queryPath: {
+                type: 'classic',
+                sqlRunnerEnabled: true,
+                filterExpressionsEnabled: false,
+            },
+            tools: [
+                ...classicQueryTools,
+                McpToolName.RUN_SQL,
+                McpToolName.GET_QUERY_RESULT,
+            ],
+            instructions: '## Query Building Workflow',
+        },
+        {
+            name: 'composer',
+            queryPath: {
+                type: 'composer',
+                sqlRunnerEnabled: false,
+                filterExpressionsEnabled: false,
+            },
+            tools: [
+                ...classicQueryTools,
+                McpToolName.QUERY,
+                McpToolName.GET_QUERY_RESULT,
+            ],
+            instructions: '## Query Building Workflow',
+        },
+    ])(
+        'registers the query tools and instructions of the $name query path',
+        async ({ queryPath, tools, instructions }) => {
+            const mcpService = makeMcpService();
+            mockRegisteredMcpTools.length = 0;
+            await mcpService.createServer(makeMcpServerOptions({ queryPath }));
+            expect(
+                mockRegisteredMcpTools
+                    .map(({ name }) => name)
+                    .filter((name) =>
+                        queryToolNames.some((toolName) => toolName === name),
+                    ),
+            ).toEqual(tools);
+            expect(getLatestMcpServerInstructions()).toContain(instructions);
+        },
+    );
 
     describe('isRunSqlEnabled', () => {
         const ORG_UUID = 'org-1';
@@ -1256,6 +1287,194 @@ describe('MCP tool contracts', () => {
                 await service.isRunMetricQueryEnabled(interactiveViewer),
             ).toBe(true);
         });
+    });
+
+    describe('resolveQueryPath', () => {
+        const PROJECT_UUID = 'project-a';
+        const composerAgent = {
+            enableDataAccess: true,
+            enableComposerQueries: true,
+        };
+        const userWith = (
+            canExplore: boolean,
+            canRunSql: boolean,
+        ): SessionUser => ({
+            ...defaultSessionUser,
+            ability: new Ability<PossibleAbilities>([
+                ...(canExplore
+                    ? [
+                          {
+                              action: 'manage' as const,
+                              subject: 'Explore' as const,
+                          },
+                      ]
+                    : []),
+                ...(canRunSql
+                    ? [
+                          {
+                              action: 'manage' as const,
+                              subject: 'SqlRunner' as const,
+                          },
+                      ]
+                    : []),
+            ]),
+        });
+
+        it.each<{
+            name: string;
+            canExplore: boolean;
+            canRunSql: boolean;
+            composeFlag: boolean;
+            pinnedAgent: {
+                enableDataAccess: boolean;
+                enableComposerQueries: boolean;
+            } | null;
+            expected: McpQueryPath;
+        }>([
+            {
+                name: 'no explore and no SQL Runner is content only',
+                canExplore: false,
+                canRunSql: false,
+                composeFlag: true,
+                pinnedAgent: null,
+                expected: { type: 'contentOnly' },
+            },
+            {
+                name: 'SQL Runner without explore is SQL only',
+                canExplore: false,
+                canRunSql: true,
+                composeFlag: true,
+                pinnedAgent: null,
+                expected: { type: 'sqlOnly' },
+            },
+            {
+                name: 'explore with the flag off is classic',
+                canExplore: true,
+                canRunSql: true,
+                composeFlag: false,
+                pinnedAgent: null,
+                expected: {
+                    type: 'classic',
+                    sqlRunnerEnabled: true,
+                    filterExpressionsEnabled: true,
+                },
+            },
+            {
+                name: 'explore and SQL Runner with the flag on is composer with SQL Runner',
+                canExplore: true,
+                canRunSql: true,
+                composeFlag: true,
+                pinnedAgent: null,
+                expected: {
+                    type: 'composer',
+                    sqlRunnerEnabled: true,
+                    filterExpressionsEnabled: true,
+                },
+            },
+            {
+                name: 'explore with the flag on is composer',
+                canExplore: true,
+                canRunSql: false,
+                composeFlag: true,
+                pinnedAgent: null,
+                expected: {
+                    type: 'composer',
+                    sqlRunnerEnabled: false,
+                    filterExpressionsEnabled: true,
+                },
+            },
+            {
+                name: 'a pinned agent with composer on is composer',
+                canExplore: true,
+                canRunSql: true,
+                composeFlag: true,
+                pinnedAgent: composerAgent,
+                expected: {
+                    type: 'composer',
+                    sqlRunnerEnabled: true,
+                    filterExpressionsEnabled: true,
+                },
+            },
+            {
+                name: 'a pinned agent with composer on and the flag off is classic',
+                canExplore: true,
+                canRunSql: true,
+                composeFlag: false,
+                pinnedAgent: composerAgent,
+                expected: {
+                    type: 'classic',
+                    sqlRunnerEnabled: true,
+                    filterExpressionsEnabled: true,
+                },
+            },
+            {
+                name: 'a pinned agent without explore is content only',
+                canExplore: false,
+                canRunSql: false,
+                composeFlag: true,
+                pinnedAgent: composerAgent,
+                expected: { type: 'contentOnly' },
+            },
+            {
+                name: 'a pinned agent with SQL Runner but no explore is SQL only',
+                canExplore: false,
+                canRunSql: true,
+                composeFlag: true,
+                pinnedAgent: composerAgent,
+                expected: { type: 'sqlOnly' },
+            },
+            {
+                name: 'a pinned agent with composer off is classic',
+                canExplore: true,
+                canRunSql: true,
+                composeFlag: true,
+                pinnedAgent: { ...composerAgent, enableComposerQueries: false },
+                expected: {
+                    type: 'classic',
+                    sqlRunnerEnabled: true,
+                    filterExpressionsEnabled: true,
+                },
+            },
+            {
+                name: 'a pinned agent with data access off keeps classic tools',
+                canExplore: true,
+                canRunSql: false,
+                composeFlag: true,
+                pinnedAgent: { ...composerAgent, enableDataAccess: false },
+                expected: {
+                    type: 'classic',
+                    sqlRunnerEnabled: false,
+                    filterExpressionsEnabled: true,
+                },
+            },
+        ])(
+            '$name',
+            async ({
+                canExplore,
+                canRunSql,
+                composeFlag,
+                pinnedAgent,
+                expected,
+            }) => {
+                const get = vi.fn(
+                    async ({ featureFlagId }: { featureFlagId: string }) => ({
+                        enabled:
+                            featureFlagId === FeatureFlags.ComposeSqlRunner
+                                ? composeFlag
+                                : featureFlagId ===
+                                  FeatureFlags.AiFilterExpressions,
+                    }),
+                );
+                const service = makeMcpService(true, { get });
+                const user = userWith(canExplore, canRunSql);
+                await expect(
+                    service.resolveQueryPath(user, null, pinnedAgent),
+                ).resolves.toEqual(expected);
+                await expect(
+                    service.resolveQueryPath(user, PROJECT_UUID, pinnedAgent),
+                ).resolves.toEqual(expected);
+            },
+        );
     });
 
     it('registers content and scheduled-delivery tools independently', async () => {

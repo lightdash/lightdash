@@ -1,4 +1,14 @@
+import type { McpQueryPath } from './mcpQueryPath';
 import type { McpServerToolOptions } from './McpService';
+
+export const classicQueryPath = (
+    sqlRunnerEnabled: boolean,
+    filterExpressionsEnabled: boolean,
+): McpQueryPath => ({
+    type: 'classic',
+    sqlRunnerEnabled,
+    filterExpressionsEnabled,
+});
 
 export const makeMcpServerOptions = (
     featureAvailability: Partial<
@@ -15,10 +25,7 @@ export const makeMcpServerOptions = (
     featureAvailability: {
         mcpContentWritesEnabled: true,
         scheduledDeliveryEnabled: true,
-        runSqlEnabled: false,
-        runMetricQueryEnabled: false,
-        queryEnabled: false,
-        filterExpressionsEnabled: false,
+        queryPath: { type: 'contentOnly' },
         documentsEnabled: false,
         dataAppBuildsEnabled: false,
         chartTypeBuildsEnabled: false,
