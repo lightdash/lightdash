@@ -34,13 +34,19 @@ afterEach(() => {
 const regionOf = (rowIndex: number) =>
     `Region ${Math.floor(rowIndex / GROUP_SIZE)}`;
 
-function buildGroupedPivot({ columnTotals = false } = {}) {
+function buildGroupedPivot({
+    columnTotals = false,
+    getRegion = regionOf,
+}: {
+    columnTotals?: boolean;
+    getRegion?: (rowIndex: number) => string;
+} = {}) {
     const getField = () => undefined;
     const getFieldLabel = (id: string) => id;
     const data = convertSqlPivotedRowsToPivotData({
         rows: Array.from({ length: ROW_COUNT }, (_, index) => ({
             region: {
-                value: { raw: regionOf(index), formatted: regionOf(index) },
+                value: { raw: getRegion(index), formatted: getRegion(index) },
             },
             city: {
                 value: { raw: `City ${index}`, formatted: `City ${index}` },
@@ -80,9 +86,15 @@ function buildGroupedPivot({ columnTotals = false } = {}) {
 const renderGroupedPivot = ({
     columnTotals = false,
     enableContextMenu = false,
+    getRegion = regionOf,
+}: {
+    columnTotals?: boolean;
+    enableContextMenu?: boolean;
+    getRegion?: (rowIndex: number) => string;
 } = {}) => {
     const { data, getField, getFieldLabel } = buildGroupedPivot({
         columnTotals,
+        getRegion,
     });
     renderWithProviders(
         <PivotTable
@@ -178,6 +190,51 @@ it('starts a new merged cell at a group boundary inside the rendered rows', asyn
     expect(rows[0].rowIndex).toBeLessThan(4 * GROUP_SIZE);
     expect(screen.getByText('Region 3')).toBeInTheDocument();
     expect(screen.getByText('Region 4')).toBeInTheDocument();
+});
+
+// The browser sizes a row from its tallest cell. Pivot cells keep line breaks,
+// so a merged cell must not show more lines than fit in the rows it covers.
+const getValueLineLimit = (cell: HTMLTableCellElement) => {
+    const limit = cell
+        .querySelector<HTMLElement>(':scope > span')
+        ?.style.getPropertyValue('--merged-line-clamp');
+    return limit ? Number(limit) : undefined;
+};
+
+it('shows the lines of a merged value that fit in the rows its cell covers', async () => {
+    const pairOf = (rowIndex: number) =>
+        `Pair ${Math.floor(rowIndex / 2)}\nsecond line`;
+    const table = renderGroupedPivot({ getRegion: pairOf });
+    expect(await screen.findByText('City 0')).toBeInTheDocument();
+
+    const viewport = table.parentElement!;
+    viewport.scrollTop = 150 * CELL_HEIGHT;
+    fireEvent.scroll(viewport);
+    await waitFor(() => expect(screen.queryByText('City 0')).toBeNull());
+
+    const rows = getRenderedDataRows(table);
+    // The window starts on the second row of a two-row group, so that row
+    // gets a new one-row cell for the group.
+    expect(rows[0].rowIndex % 2).toBe(1);
+    const pairCells = Array.from(table.querySelectorAll('td')).filter((td) =>
+        td.textContent?.startsWith('Pair '),
+    );
+    expect(pairCells[0].textContent).toBe(pairOf(rows[0].rowIndex));
+    expect(pairCells[0]).not.toHaveAttribute('rowspan');
+    // One row fits one line. Two rows fit both lines.
+    expect(getValueLineLimit(pairCells[0])).toBe(1);
+    const twoRowCells = pairCells.filter(
+        (cell) => cell.getAttribute('rowspan') === '2',
+    );
+    expect(twoRowCells.length).toBeGreaterThan(0);
+    twoRowCells.forEach((cell) => {
+        expect(getValueLineLimit(cell)).toBe(2);
+    });
+
+    const cityCell = Array.from(rows[0].tr.querySelectorAll('td')).find(
+        (td) => td.textContent === `City ${rows[0].rowIndex}`,
+    )!;
+    expect(getValueLineLimit(cityCell)).toBeUndefined();
 });
 
 it('keeps a merged cell selected when the rendered rows move by one row', async () => {
