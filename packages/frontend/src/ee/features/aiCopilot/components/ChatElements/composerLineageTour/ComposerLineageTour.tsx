@@ -9,6 +9,8 @@ import {
 
 // A thread can show several composer panels at once; only the first to qualify runs the tour.
 let ownerScopeId: string | null = null;
+// Set on close, so no panel reopens the tour before the completion reaches the cache.
+let isClosedThisSession = false;
 
 type Props = {
     /** The panel's `data-composer-tour-scope` value. */
@@ -40,7 +42,11 @@ export const ComposerLineageTour: FC<Props> = ({
     });
     const [isOwner, setIsOwner] = useState(false);
     useEffect(() => {
-        if (!shouldShow || (ownerScopeId !== null && ownerScopeId !== scopeId))
+        if (
+            !shouldShow ||
+            isClosedThisSession ||
+            (ownerScopeId !== null && ownerScopeId !== scopeId)
+        )
             return undefined;
         ownerScopeId = scopeId;
         setIsOwner(true);
@@ -68,7 +74,10 @@ export const ComposerLineageTour: FC<Props> = ({
             steps={steps}
             opened={opened}
             tracking={tracking}
-            onClose={closeTour}
+            onClose={() => {
+                isClosedThisSession = true;
+                closeTour();
+            }}
             onStepChange={(stepIndex) =>
                 onShowLineage(stepIndex >= COMPOSER_LINEAGE_TOUR_LINEAGE_FROM)
             }
