@@ -168,7 +168,7 @@ export const agentEvaluationSections: UsageDashboardSpec['tabs'][number]['sectio
         {
             title: 'Do the agents pass their evaluations?',
             description:
-                'Test runs of agents in the selected period, empty until an evaluation has run. Pass rate is passing assessments divided by all assessments.',
+                'Test runs of agents in the selected period, empty until one has run. Pass rate is passing assessments out of all assessments.',
             charts: [
                 'evals-runs',
                 'evals-passed-assessments',
@@ -186,7 +186,7 @@ export const agentEvaluationSections: UsageDashboardSpec['tabs'][number]['sectio
         {
             title: 'Results by evaluation and run',
             description:
-                'Compare evaluations and inspect individual runs. Results reflect the latest nightly refresh and may change if evaluation history is removed.',
+                'Compare evaluations and inspect single runs. Results come from the latest nightly refresh and change if history is removed.',
             charts: ['quality-by-evaluation'],
             layout: 'row',
             // A handful of evaluations is usual: room for six rows, more by scrolling

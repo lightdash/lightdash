@@ -3,10 +3,11 @@
 // (packages/frontend: DEFAULT_ROW_HEIGHT and GRID_MARGIN in features/dashboardTabs/gridUtils.ts,
 // the 14px text of DashboardMarkdownTile.module.css at a line height of 1.5).
 
-// Characters on one line of a full-width tile about 1200px wide, the narrowest a dashboard is commonly
-// read at. Text in the tile measures about 7px a character (190 characters span 1323px), so 170 fit.
-// At the full 1660px of a wide window about 235 fit.
-export const NOTE_CHARS_PER_LINE = 170;
+// Characters on one line of a full-width tile about 1000px wide: the Lightdash analytics page in a
+// 1500px window, beside the settings sidebar. Text in the tile measures about 7px a character (190
+// characters span 1323px), so about 143 fit; 135 leaves room for wider letters. At the full 1660px of a
+// wide window about 235 fit.
+export const NOTE_CHARS_PER_LINE = 135;
 // Text above tiles is a caption, not a page: it never takes more than two grid rows
 export const NOTE_MAX_ROWS = 2;
 

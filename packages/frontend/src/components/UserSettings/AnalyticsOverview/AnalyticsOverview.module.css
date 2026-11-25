@@ -38,9 +38,15 @@
 }
 
 .projectFilter {
-    width: 280px;
-    max-width: 100%;
+    /* Gives up width before the controls drop under the tabs */
+    flex: 1 1 160px;
+    min-width: 160px;
+    max-width: 280px;
+}
+
+.dateNote {
     flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .projectInput {
@@ -128,6 +134,12 @@
     .tabActions {
         margin-left: auto;
     }
+
+    /* Too narrow for the controls on one line */
+    .dashboardControls {
+        min-width: 0;
+        flex-wrap: wrap !important;
+    }
 }
 
 /* Clipped to nothing, not removed from the layout: what is inside keeps its size */
@@ -152,8 +164,13 @@
 }
 
 .dashboardControls {
-    /* Stays on the right when it wraps under the tabs */
+    /* Takes the room the tabs leave, on the same line while its narrowest form fits. Stays on the
+       right when it has to wrap under the tabs */
+    flex: 1 1 0;
+    min-width: min-content;
     margin-left: auto;
+    /* Over the wrap the Group sets on itself */
+    flex-wrap: nowrap !important;
 }
 
 .dashboardFrame {

@@ -416,7 +416,7 @@ export const dataAppsDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Data app use',
                     description:
-                        'A load is a person opening a data app on a standalone page or a dashboard, reloads included. Viewer counts leave out anonymous visitors.',
+                        'A load is a person opening a data app on its own page or a dashboard, reloads included. Viewer counts leave out anonymous visitors.',
                     charts: [
                         'apps-viewers-latest-day',
                         'total-loads',
@@ -519,7 +519,7 @@ export const dataAppsDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Are data apps loading reliably?',
                     description:
-                        'Technical signals from every surface, counted once for each load of a data app page. The Data app and Surface filters change only these two tiles.',
+                        'Technical signals from every surface, one per data app page load. The Data app and Surface filters change only these two tiles.',
                     charts: [
                         'apps-errors-by-day',
                         'apps-outcomes-by-app-and-surface',

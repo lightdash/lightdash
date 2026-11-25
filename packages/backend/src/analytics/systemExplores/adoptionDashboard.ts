@@ -111,7 +111,7 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'How many people are using Lightdash?',
                     description:
-                        'People on the latest day of the selected period, in all and by the two main things they open. Each feature has its own dashboard for the detail.',
+                        'People on the latest day of the selected period, in all and by the two main things they open. Each feature has its own dashboard.',
                     charts: [
                         'adoption-active-people-latest-day',
                         'adoption-dashboard-viewers-latest-day',

@@ -347,13 +347,13 @@ export const embedDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Embedded query demand',
                     description:
-                        'Queries are separate from dashboard loads: tiles, refreshes and interactions can each run queries. Query history can cover a different period from load history.',
+                        'Queries are not dashboard loads: one load can run many. Query history can cover a different period from load history.',
                     charts: ['embed-query-count', 'embed-query-errors'],
                 },
                 {
                     title: 'Queries and response time',
                     description:
-                        'Queries per day, and response time for successful queries. Timing includes queueing and result storage, and stops before the browser draws the result.',
+                        'Queries per day, and response time for successful ones. Timing includes queueing and result storage, not drawing in the browser.',
                     charts: ['embed-query-trend', 'embed-query-latency'],
                     layout: 'row',
                     rowHeight: 7,

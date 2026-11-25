@@ -225,7 +225,7 @@ export const toolsDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'Export activity',
                     description:
-                        'Recorded downloads, with who downloaded and the content it came from where known. This does not show who received the file afterwards or how it was used.',
+                        'Recorded downloads, with who downloaded and the source content where known. Who received the file afterwards is not recorded.',
                     charts: [
                         'tools-downloads',
                         'tools-people-downloading-latest-day',

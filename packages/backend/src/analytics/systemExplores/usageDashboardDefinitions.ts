@@ -51,7 +51,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'How requests ended',
                         description:
-                            'Whether each request finished, which is a technical result and not a judgement of the answer. Pending and unknown outcomes are included.',
+                            'Whether each request finished: a technical result, not a judgement of the answer. Pending and unknown outcomes are included.',
                         charts: [
                             'agent-requests-and-completion-by-day',
                             'agent-request-outcomes',
@@ -68,7 +68,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Failed requests and retries',
                         description:
-                            'Tokens spent on requests that failed or were cancelled, beside requests and average latency by retry count. Each retry runs the request again.',
+                            'Tokens spent on failed or cancelled requests, beside requests and average latency by retry count. Each retry runs the request again.',
                         charts: [
                             'request-consumption-by-outcome-and-feedback',
                             'agent-retries-latency-and-consumption',
@@ -148,7 +148,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Which dashboards are slow or expensive?',
                         description:
-                            'P95 response time is how long the backend took to respond, before the browser draws the result. Warehouse time is what the queries cost to run.',
+                            'P95 response time is how long the backend took, before the browser draws the result. Warehouse time is what the queries cost to run.',
                         charts: [
                             'slow-dashboards-tail-latency-and-demand',
                             'dashboards-warehouse-and-response-time',
@@ -171,7 +171,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'Query origins',
                         description:
-                            'Origin is the kind of work, such as interactive, scheduled or data app. Context is where the query was run from, such as a dashboard or an Explore.',
+                            'Origin is the kind of work, such as interactive, scheduled or data app. Context is where it ran, such as a dashboard or an Explore.',
                         charts: ['query-origin-and-initiating-actor'],
                     },
                     {
@@ -195,13 +195,13 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                     {
                         title: 'People and content',
                         description:
-                            'See who uses each field, and which charts, dashboards or data apps the queries came from. Queries with no linked content are left out of the content table.',
+                            'Who uses each field, and which content the queries came from. The content table leaves out queries with no linked content.',
                         charts: ['people-using-fields', 'content-using-fields'],
                     },
                     {
                         title: 'How complete these numbers are',
                         description:
-                            'The tiles above count only queries with a recorded list of fields, so a low share here means they undercount. SQL queries and older queries have no list.',
+                            'The tiles above count only queries with a recorded field list, so a low share means they undercount. SQL and older queries have none.',
                         charts: ['field-capture-coverage'],
                         // One number: a short tile, not a tall empty one
                         layout: 'row',
