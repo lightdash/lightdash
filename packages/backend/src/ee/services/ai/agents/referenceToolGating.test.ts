@@ -25,6 +25,7 @@ const tools = () => ({
     listDataAppThemes: tool({ inputSchema: z.object({}) }),
     listDataAppConnections: tool({ inputSchema: z.object({}) }),
     createContent: tool({ inputSchema: z.object({}) }),
+    editContent: tool({ inputSchema: z.object({}) }),
     runContentQuery: tool({ inputSchema: z.object({}) }),
     runSql: tool({ inputSchema: z.object({}) }),
     editDbtProject: tool({ inputSchema: z.object({}) }),
@@ -215,6 +216,19 @@ describe('deferred prompt sections', () => {
         expect(
             createIntentToolGate(composerTools, 'chart').activeTools(),
         ).toEqual(expect.arrayContaining(['query', 'visualize']));
+    });
+
+    it('starts chart turns with editContent and its prompt section', () => {
+        for (const intent of ['chart', 'chart_from_previous'] as const) {
+            expect(
+                createIntentToolGate(tools(), intent).activeTools(),
+            ).toContain('editContent');
+            expect(
+                getDeferredPromptSections(
+                    getIntentToolNames(tools(), [intent]),
+                ),
+            ).not.toContain('contentTools');
+        }
     });
 
     it('keeps runContentQuery out of the data answer toolbox', () => {
