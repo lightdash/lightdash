@@ -437,6 +437,12 @@ port = 443
 host = "www.googleapis.com"
 port = 443
 
+# Google Sheets sync (the Google secrets in [secrets]). Sign-in, the token
+# refresh and Drive use the two hosts above; the sync writes the sheet here.
+[[egress.allow]]
+host = "sheets.googleapis.com"
+port = 443
+
 # Certificate revocation checks the Snowflake driver makes (fail-open when
 # refused, but each refusal waits out a timeout first).
 [[egress.allow]]
@@ -536,3 +542,16 @@ S3_HOST = "host"
 # off. It uses the S3_* endpoint and credentials above, so the bucket must be
 # one that key can write to.
 UPLOADS_S3_BUCKET = "config"
+# Google Sheets sync: the OAuth client a user connects Google with, and the
+# key for the sheet picker. The client belongs to the shared Google test
+# account (team password manager, Shared vault), and its consent screen is
+# in testing with that account as the only test user, so Google refuses
+# every other account. Envs are public: treat the token as
+# public and never connect your own account. Testing tokens expire after
+# 7 days; reconnect when a sync fails with invalid_grant. Google needs an
+# exact redirect URI per host, so connecting works only on the fixed envs
+# gsheets, gsheets-2 and gsheets-3. Without AUTH_GOOGLE_ENABLED the login
+# page keeps no Google button.
+AUTH_GOOGLE_OAUTH2_CLIENT_ID = "oauth-client"
+AUTH_GOOGLE_OAUTH2_CLIENT_SECRET = "oauth-client"
+GOOGLE_DRIVE_API_KEY = "api-key"
