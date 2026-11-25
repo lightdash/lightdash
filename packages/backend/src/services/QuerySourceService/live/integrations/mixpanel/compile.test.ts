@@ -317,11 +317,11 @@ describe('compileMixpanelQuery', () => {
                         ]),
                     ],
                 );
-            // 52 weeks after start is Mixpanel's cap: 2025-11-01 to 2026-10-23 needs 52
-            expect(retention.compile(cohorts('2026-10-23'))).toMatchObject({
+            // Mixpanel reads at most 52 weeks after start: the week of 27 Oct 2025 reaches 26 Oct 2026
+            expect(retention.compile(cohorts('2026-11-01'))).toMatchObject({
                 unit: 'week',
             });
-            expect(() => retention.compile(cohorts('2026-10-24'))).toThrow(
+            expect(() => retention.compile(cohorts('2026-11-02'))).toThrow(
                 /Shorten the cohort date range: Mixpanel reads at most 52 weeks after start, and this range needs 53/,
             );
         });

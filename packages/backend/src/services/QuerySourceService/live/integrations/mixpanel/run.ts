@@ -1,5 +1,6 @@
 import {
     ApiConnectorType,
+    assertUnreachable,
     DimensionType,
     LIVE_INTEGRATION_CATALOG,
     MIXPANEL_PATHS,
@@ -450,21 +451,53 @@ const retentionResponseSchema = z.record(
     }),
 );
 
-const UNIT_DAYS = { day: 1, week: 7, month: 30 } as const;
 const COHORT_COLUMNS = { day: 'date', week: 'week', month: 'month' } as const;
 
+type RetentionUnit = keyof typeof MIXPANEL_MAX_RETENTION_PERIODS;
+
+/** Monday of the date's week, as Mixpanel starts its weeks. */
+const toMonday = (date: string) => {
+    const day = new Date(`${date}T00:00:00Z`);
+    day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7));
+    return day.toISOString().slice(0, 10);
+};
+
+/** Calendar periods from the start's period to the end's, both counted. */
+const countPeriods = (start: string, end: string, unit: RetentionUnit) => {
+    switch (unit) {
+        case 'day':
+            return countDays(start, end);
+        case 'week':
+            return (countDays(toMonday(start), toMonday(end)) - 1) / 7 + 1;
+        case 'month': {
+            const [startYear, startMonth] = start.split('-').map(Number);
+            const [endYear, endMonth] = end.split('-').map(Number);
+            return (endYear - startYear) * 12 + endMonth - startMonth + 1;
+        }
+        default:
+            return assertUnreachable(unit, 'Unknown retention unit');
+    }
+};
+
 /**
- * Periods to read: enough to reach the end of the range from its start, up
- * to the cap; `capped` says the earliest cohorts lose their later periods.
+ * Periods after the start to read (Mixpanel's `interval_count`, which leaves
+ * out each cohort's own period 0): enough for the earliest cohort to reach
+ * the end of the range, at least one, up to the cap; `capped` says the
+ * earliest cohorts would lose their later periods.
  */
 export const getRetentionPeriods = (
     start: string,
     end: string,
-    unit: keyof typeof UNIT_DAYS,
+    unit: RetentionUnit,
 ) => {
-    const needed = Math.ceil(countDays(start, end) / UNIT_DAYS[unit]) + 1;
+    const needed = countPeriods(start, end, unit) - 1;
     const max = MIXPANEL_MAX_RETENTION_PERIODS[unit];
-    return { needed, max, count: Math.min(needed, max), capped: needed > max };
+    return {
+        needed,
+        max,
+        count: Math.max(1, Math.min(needed, max)),
+        capped: needed > max,
+    };
 };
 
 const runRetention = async (

@@ -316,7 +316,7 @@ describe('mixpanelIntegration run', () => {
                 retention_type: 'birth',
                 born_event: 'Sign Up',
                 unit: 'day',
-                interval_count: '4',
+                interval_count: '2',
             },
         });
         expect(requestOf(send).query).not.toHaveProperty('event');
@@ -563,15 +563,32 @@ describe('toWhereExpression', () => {
 });
 
 describe('getRetentionPeriods', () => {
-    it('reads enough periods to reach the end of the range, capped per unit', () => {
+    it('reads the periods after the start that the earliest cohort needs to reach the end', () => {
+        // Thursday 1 Oct to Saturday 31 Oct: weeks of 28 Sep to 26 Oct
         expect(
             getRetentionPeriods('2026-10-01', '2026-10-31', 'week'),
-        ).toMatchObject({ count: 6, capped: false });
+        ).toMatchObject({ needed: 4, count: 4, capped: false });
+        expect(
+            getRetentionPeriods('2026-08-03', '2026-10-31', 'day'),
+        ).toMatchObject({ needed: 89, capped: false });
+        expect(
+            getRetentionPeriods('2025-01-01', '2026-12-31', 'month'),
+        ).toMatchObject({ needed: 23, capped: false });
+        // One period still asks for the next one
+        expect(
+            getRetentionPeriods('2026-10-12', '2026-10-18', 'week'),
+        ).toMatchObject({ needed: 0, count: 1 });
+    });
+
+    it('caps the periods per unit', () => {
         expect(
             getRetentionPeriods('2025-01-01', '2026-10-31', 'day'),
-        ).toMatchObject({
-            count: 90,
-            capped: true,
-        });
+        ).toMatchObject({ count: 90, capped: true });
+        expect(
+            getRetentionPeriods('2025-01-01', '2027-01-01', 'month'),
+        ).toMatchObject({ needed: 24, count: 24, capped: false });
+        expect(
+            getRetentionPeriods('2025-01-01', '2027-02-01', 'month'),
+        ).toMatchObject({ needed: 25, count: 24, capped: true });
     });
 });
