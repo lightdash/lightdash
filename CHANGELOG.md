@@ -1,3 +1,10 @@
+# [3.398.0](https://github.com/lightdash/lightdash/compare/3.397.1...3.398.0) (2026-11-25)
+
+
+### Features
+
+* **live-sources:** ask for a new data source inline below the integrations ([#33426](https://github.com/lightdash/lightdash/issues/33426)) ([40d1757](https://github.com/lightdash/lightdash/commit/40d17573a2af52a1948c94555963918f9753adc2))
+
 ## [3.397.1](https://github.com/lightdash/lightdash/compare/3.397.0...3.397.1) (2026-11-25)
 
 
