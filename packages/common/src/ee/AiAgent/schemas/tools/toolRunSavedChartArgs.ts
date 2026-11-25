@@ -5,14 +5,14 @@ import {
 } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-export const TOOL_RUN_SAVED_CHART_DESCRIPTION = `Run an existing saved chart by its UUID and return the rows it produces, with its saved metric query, filters, sorts and custom metrics applied. Use it to read a pinned chart or one found with findContent without rebuilding its query.`;
+export const TOOL_RUN_SAVED_CHART_DESCRIPTION = `Run an existing saved chart by its UUID or slug and return the rows it produces, with its saved metric query, filters, sorts and custom metrics applied. Use it to read a pinned chart or one found with findContent without rebuilding its query.`;
 
 export const toolRunSavedChartArgsSchema = createToolSchema()
     .extend({
         chartUuid: z
             .string()
             .describe(
-                'UUID of the saved chart to execute, from the prompt context or a prior findContent result.',
+                'UUID or slug of the saved chart to execute, from the prompt context or a prior findContent result.',
             ),
     })
     .build();

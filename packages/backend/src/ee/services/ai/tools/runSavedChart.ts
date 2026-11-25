@@ -195,12 +195,12 @@ export const getRunSavedChart = ({
 }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async ({ chartUuid }) => {
+        execute: async ({ chartUuid: chartUuidOrSlug }) => {
             try {
                 await updateProgress('Running saved chart...');
 
-                const savedChart = await getSavedChart(chartUuid);
-                const { metricQuery, name } = savedChart;
+                const savedChart = await getSavedChart(chartUuidOrSlug);
+                const { uuid: chartUuid, metricQuery, name } = savedChart;
 
                 if (!enableDataAccess) {
                     return {
