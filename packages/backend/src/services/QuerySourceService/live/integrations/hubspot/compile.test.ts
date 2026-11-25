@@ -91,6 +91,7 @@ describe('HubSpot fields', () => {
             'dealname',
             'amount',
             'dealstage',
+            'dealstage_label',
             'closedate',
             'contract_date',
             'deal_tags',
@@ -113,21 +114,110 @@ describe('HubSpot fields', () => {
         expect(byName.contract_date.type).toBe('date');
         expect(byName.hs_is_closed_won.type).toBe('boolean');
         expect(byName.dealstage.description).toBe(
-            "The Deal Stage property in HubSpot. Values are HubSpot's internal option names: appointmentscheduled (Appointment Scheduled), closedwon (Closed Won).",
+            'The Deal Stage property in HubSpot.',
         );
-        expect(byName.deal_tags.description).toContain('semicolons');
+        expect(byName.dealstage.aiHint).toBe(
+            "Values are HubSpot's internal option names: appointmentscheduled (Appointment Scheduled), closedwon (Closed Won).",
+        );
+        expect(byName.deal_tags.aiHint).toContain('semicolons');
         expect(byName.dealname.description).toBe(
-            'The name given to this deal. Contains matches whole words or part of one word.',
+            'The name given to this deal.',
         );
+        expect(byName.dealname.aiHint).toBe(
+            "Text 'contains' matches whole words or part of one word.",
+        );
+        expect(byName.amount.aiHint).toBeUndefined();
         expect(byName.property_count.apiName).toBe('count');
     });
 
+    it('adds a label field next to a dropdown whose labels differ from its values', () => {
+        const byName = Object.fromEntries(
+            DEFINITION.dimensions.map((dimension) => [
+                dimension.name,
+                dimension,
+            ]),
+        );
+        expect(byName.dealstage).toMatchObject({
+            apiName: 'dealstage',
+            label: 'Deal Stage (internal value)',
+        });
+        expect(byName.dealstage_label).toMatchObject({
+            apiName: 'dealstage:label',
+            label: 'Deal Stage',
+            type: 'string',
+            valueLabels: {
+                appointmentscheduled: 'Appointment Scheduled',
+                closedwon: 'Closed Won',
+            },
+        });
+        expect(byName.dealstage_label.description).toBe(
+            "Deal Stage as HubSpot shows it, using the option's label rather than its internal value.",
+        );
+        expect(byName.dealstage_label.aiHint).toContain(
+            'Filter with these labels: Appointment Scheduled, Closed Won.',
+        );
+        // No options, so nothing to label
+        expect(byName.deal_tags_label).toBeUndefined();
+        expect(
+            DEALS.apiSource?.fields[field('dealstage_label')].valueLabels,
+        ).toEqual(byName.dealstage_label.valueLabels);
+    });
+
+    it('names built-in fields as HubSpot does', () => {
+        expect(DEALS_EXPLORE.dimensions.map(({ label }) => label)).toEqual([
+            'Record ID',
+            'Create Date',
+            'Last Modified Date',
+        ]);
+    });
+
     it('keeps most hs_ properties out of the default list', () => {
+        expect(isInternalHubspotField('hs_pipeline_stage:label')).toBe(false);
+        expect(isInternalHubspotField('hs_secret_thing:label')).toBe(true);
         expect(
             isInternalHubspotField('hs_analytics_latest_source_data_1'),
         ).toBe(true);
         expect(isInternalHubspotField('hs_is_closed_won')).toBe(false);
         expect(isInternalHubspotField('dealname')).toBe(false);
+    });
+
+    it('builds one explore per object, tickets and leads included', () => {
+        expect(
+            HUBSPOT_EXPLORES.map(({ name, label }) => [name, label]),
+        ).toEqual([
+            ['deals', 'Deals'],
+            ['contacts', 'Contacts'],
+            ['companies', 'Companies'],
+            ['tickets', 'Tickets'],
+            ['leads', 'Leads'],
+            ['pipeline_stages', 'Pipeline stages'],
+        ]);
+    });
+
+    it('shows ticket pipeline and stage by default', () => {
+        expect(isInternalHubspotField('hs_pipeline')).toBe(false);
+        expect(isInternalHubspotField('hs_pipeline_stage')).toBe(false);
+        expect(isInternalHubspotField('hs_ticket_priority')).toBe(false);
+    });
+
+    it('lists every pipeline stage with its label, past the usual cap', () => {
+        const options = Array.from({ length: 20 }, (_, index) => ({
+            value: `${index + 1}`,
+            label: `Stage ${index + 1}`,
+        }));
+        const [stage] = withHubspotPropertyFields(HUBSPOT_EXPLORES[3], {
+            results: [
+                {
+                    name: 'hs_pipeline_stage',
+                    label: 'Ticket status',
+                    type: 'enumeration',
+                    options,
+                },
+            ],
+        }).dimensions.filter(({ name }) => name === 'hs_pipeline_stage');
+        expect(stage.aiHint).toContain('1 (Stage 1)');
+        expect(stage.aiHint).toContain('20 (Stage 20)');
+        expect(stage.aiHint).not.toContain('more');
     });
 
     it('keeps the built-in fields when the list is unreadable', () => {
@@ -424,5 +514,182 @@ describe('compileHubspotQuery', () => {
         });
         expect(compiled.requestLimit).toBe(50);
         expect(compiled.requestLimit).toBeLessThan(HUBSPOT_MAX_ROWS);
+    });
+});
+
+describe('compileHubspotQuery label fields', () => {
+    it('reads the property with its labels', () => {
+        expect(
+            compile(
+                query({
+                    dimensions: [field('dealstage'), field('dealstage_label')],
+                }),
+            ).columns,
+        ).toEqual([
+            { name: 'dealstage', type: 'string' },
+            {
+                name: 'dealstage:label',
+                type: 'string',
+                labels: {
+                    appointmentscheduled: 'Appointment Scheduled',
+                    closedwon: 'Closed Won',
+                },
+            },
+        ]);
+    });
+
+    it('filters by label as the internal value, keeping values it doesn’t know', () => {
+        expect(
+            compile(
+                query(
+                    filtered(
+                        rule('dealstage_label', FilterOperator.EQUALS, [
+                            'closed won',
+                            'appointmentscheduled',
+                        ]),
+                    ),
+                ),
+            ).filters,
+        ).toEqual([
+            {
+                propertyName: 'dealstage',
+                operator: 'IN',
+                values: ['closedwon', 'appointmentscheduled'],
+            },
+        ]);
+    });
+
+    it('sorts labels on our side, since HubSpot sorts internal values', () => {
+        const compiled = compileHubspotQuery({
+            explore: DEALS,
+            metricQuery: query({
+                dimensions: [field('dealstage_label')],
+                sorts: [
+                    { fieldId: field('dealstage_label'), descending: false },
+                ],
+            }),
+            today: '2026-11-19',
+        });
+        expect(JSON.parse(compiled.query).sort).toBeUndefined();
+        expect(compiled.localSorts).toEqual([
+            { fieldId: field('dealstage_label'), descending: false },
+        ]);
+    });
+});
+
+describe('compileHubspotQuery pipeline stages', () => {
+    const PIPELINES = buildLiveExplore({
+        definition: HUBSPOT_EXPLORES.find(
+            ({ name }) => name === 'pipeline_stages',
+        )!,
+        exploreName: 'hubspot_pipeline_stages',
+        label: 'HubSpot pipeline stages',
+        connectionUuid: 'connection-uuid',
+        integration: ApiConnectorType.HUBSPOT,
+        baseVersion: 1,
+        capabilities: hubspotIntegration.capabilities,
+        warehouseSqlBuilder: warehouseSqlBuilderFromType(
+            SupportedDbtAdapter.DUCKDB,
+        ),
+    });
+    const stageField = (name: string) => `hubspot_pipeline_stages_${name}`;
+    const compileStages = (overrides: Partial<MetricQuery>) =>
+        compileHubspotQuery({
+            explore: PIPELINES,
+            metricQuery: {
+                ...query(),
+                exploreName: PIPELINES.name,
+                dimensions: [
+                    stageField('stage_id'),
+                    stageField('stage_label'),
+                    stageField('probability'),
+                ],
+                ...overrides,
+            },
+            today: '2026-11-19',
+        });
+    const objectRule = (operator: FilterOperator, values: string[]) => ({
+        filters: {
+            dimensions: {
+                id: 'root',
+                and: [
+                    {
+                        id: 'object',
+                        target: { fieldId: stageField('object_type') },
+                        operator,
+                        values,
+                    },
+                ],
+            },
+        },
+    });
+
+    it('reads both objects’ pipelines, sorting here', () => {
+        const compiled = compileStages({
+            sorts: [{ fieldId: stageField('stage_label'), descending: true }],
+        });
+        expect(JSON.parse(compiled.query)).toEqual({
+            kind: 'pipeline_stages',
+            objects: ['deals', 'tickets'],
+            columns: [
+                { name: 'stageId', type: 'string' },
+                { name: 'stageLabel', type: 'string' },
+                { name: 'probability', type: 'number' },
+            ],
+        });
+        expect(compiled.localSorts).toEqual([
+            { fieldId: stageField('stage_label'), descending: true },
+        ]);
+    });
+
+    it('reads only the objects an Object filter keeps', () => {
+        expect(
+            JSON.parse(
+                compileStages(objectRule(FilterOperator.EQUALS, ['tickets']))
+                    .query,
+            ).objects,
+        ).toEqual(['tickets']);
+        expect(
+            JSON.parse(
+                compileStages(
+                    objectRule(FilterOperator.NOT_EQUALS, ['tickets']),
+                ).query,
+            ).objects,
+        ).toEqual(['deals']);
+        expect(
+            JSON.parse(
+                compileStages(objectRule(FilterOperator.EQUALS, ['Tickets']))
+                    .query,
+            ).objects,
+        ).toEqual(['tickets']);
+        expect(() =>
+            compileStages(objectRule(FilterOperator.EQUALS, ['contacts'])),
+        ).toThrow('leave no pipelines');
+    });
+
+    it('lets the shared check refuse filters on other fields', () => {
+        const issues = getApiSourceQueryIssues(
+            PIPELINES.apiSource!,
+            {
+                ...query(),
+                exploreName: PIPELINES.name,
+                dimensions: [stageField('stage_label')],
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'stage',
+                                target: { fieldId: stageField('stage_label') },
+                                operator: FilterOperator.EQUALS,
+                                values: ['Closed Won'],
+                            },
+                        ],
+                    },
+                },
+            },
+            { itemsMap: getItemMap(PIPELINES) },
+        );
+        expect(issues.length).toBeGreaterThan(0);
     });
 });

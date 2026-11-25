@@ -12,15 +12,32 @@ const pr = (prNumber: number, summary: string | null) => ({
 
 const run = async (
     listed: Parameters<typeof getListWorkstreams>[0]['listWorkstreams'],
+    savesWithWrite = false,
 ) =>
     toolListWorkstreamsOutputSchema.parse(
-        await getListWorkstreams({ listWorkstreams: listed }).execute!(
+        await getListWorkstreams({
+            listWorkstreams: listed,
+            savesWithWrite,
+        }).execute!(
             { repoTarget: null },
             { toolCallId: 'call', messages: [], context: {} },
         ),
     );
 
 describe('listWorkstreams tool', () => {
+    it('names no edit tool input when the agent saves with write', async () => {
+        const result = await run(
+            async () => ({
+                workstreams: [pr(7, null)],
+                pendingStartedAt: [new Date(Date.now() - 60_000)],
+                otherThreads: [pr(12, null)],
+            }),
+            true,
+        );
+        expect(result.result).not.toMatch(/prUrl|startNewPullRequest/);
+        expect(result.result).toContain('still being saved');
+    });
+
     it('reports a change still being opened instead of "none" while a run is pending', async () => {
         const result = await run(async () => ({
             workstreams: [],

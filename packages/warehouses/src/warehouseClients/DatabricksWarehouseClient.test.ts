@@ -6,6 +6,12 @@ import {
     getCatalogNestedColumnShape,
     getCatalogNestedColumnsUnavailableReason,
     getCatalogTimestampDomain,
+    METRIC_VIEW_TABLE_TYPE,
+    TABLE_DEFINITION_MAX_LENGTH,
+    TABLE_LISTING_FAILED_CODE,
+    WarehouseQueryError,
+    WarehouseTableListingError,
+    WarehouseTableType,
 } from '@lightdash/common';
 import {
     DatabricksErrorCondition,
@@ -309,6 +315,310 @@ describe('DatabricksWarehouseClient', () => {
             withTimers(() => warehouse.runQuery('fake sql')),
         ).rejects.toMatchObject({ message: 'Syntax error near FROM' });
         expect(mocks.openSession).toHaveBeenCalledOnce();
+    });
+
+    describe('getTableMetadata', () => {
+        // Shapes follow the documented DESCRIBE TABLE EXTENDED ... AS JSON output; names are placeholders.
+        const ownerAndStorage = {
+            owner: 'owner@example.com',
+            created_by: 'creator@example.com',
+            location: 's3://example-bucket/private/path',
+            storage_properties: { 'secret.key': 'storage-secret' },
+            table_properties: { 'delta.secretProperty': 'property-secret' },
+            statistics: { num_rows: 42 },
+        };
+        const describedTable = {
+            table_name: 'orders',
+            catalog_name: 'catalog',
+            schema_name: 'schema',
+            namespace: ['schema'],
+            type: 'MANAGED',
+            provider: 'delta',
+            comment: 'One row per order',
+            columns: [
+                { name: 'order_id', type: { name: 'bigint' }, nullable: true },
+                {
+                    name: 'status',
+                    type: { name: 'string', collation: 'UTF8_BINARY' },
+                    comment: 'Fulfilment status',
+                    nullable: true,
+                },
+            ],
+            partition_columns: ['status'],
+            ...ownerAndStorage,
+        };
+        const describedView = {
+            table_name: 'recent_orders',
+            catalog_name: 'catalog',
+            schema_name: 'schema',
+            type: 'VIEW',
+            columns: [
+                { name: 'order_id', type: { name: 'bigint' }, nullable: true },
+            ],
+            view_text: 'SELECT order_id FROM catalog.schema.orders',
+            view_original_text: 'SELECT order_id FROM orders',
+            view_catalog_and_namespace: 'catalog.schema',
+            ...ownerAndStorage,
+        };
+        const metricViewYaml = [
+            'version: 1.1',
+            'source: catalog.schema.orders',
+            'dimensions:',
+            '  - name: order_month',
+            "    expr: DATE_TRUNC('MONTH', order_date)",
+            'measures:',
+            '  - name: order_count',
+            '    expr: COUNT(1)',
+        ].join('\n');
+        const describedMetricView = {
+            table_name: 'orders_metrics',
+            catalog_name: 'catalog',
+            schema_name: 'schema',
+            type: 'METRIC_VIEW',
+            comment: 'Governed order metrics',
+            view_text: metricViewYaml,
+            language: 'YAML',
+            view_creation_spark_configuration: { 'spark.conf': 'value' },
+            columns: [
+                {
+                    name: 'order_month',
+                    type: { name: 'timestamp_ltz' },
+                    nullable: true,
+                },
+                {
+                    name: 'order_count',
+                    type: { name: 'bigint' },
+                    comment: 'Orders placed',
+                    nullable: false,
+                    is_measure: true,
+                },
+            ],
+            ...ownerAndStorage,
+        };
+        const describing = (description: Record<string, unknown>) => {
+            const session = createSession({
+                executeStatement: vi.fn(async () =>
+                    createOperation({
+                        fetchAll: vi.fn(async () => [
+                            { json_metadata: JSON.stringify(description) },
+                        ]),
+                    }),
+                ),
+            });
+            mocks.openSession.mockResolvedValue(session);
+            return session;
+        };
+        const read = () =>
+            new DatabricksWarehouseClient(credentials).getTableMetadata(
+                'orders',
+                'schema',
+                'catalog',
+            );
+
+        it('reads the type and comments of a table from the describe it already runs', async () => {
+            const session = describing(describedTable);
+
+            expect(await read()).toEqual({
+                tableType: WarehouseTableType.TABLE,
+                comment: 'One row per order',
+                columns: [
+                    {
+                        name: 'order_id',
+                        type: DimensionType.NUMBER,
+                        comment: null,
+                        isMeasure: false,
+                    },
+                    {
+                        name: 'status',
+                        type: DimensionType.STRING,
+                        comment: 'Fulfilment status',
+                        isMeasure: false,
+                    },
+                ],
+                definition: null,
+                metricView: null,
+            });
+            expect(session.executeStatement).toHaveBeenCalledExactlyOnceWith(
+                'DESCRIBE TABLE EXTENDED `catalog`.`schema`.`orders` AS JSON',
+            );
+        });
+
+        it("returns a view's definition", async () => {
+            describing(describedView);
+
+            expect(await read()).toEqual({
+                tableType: WarehouseTableType.VIEW,
+                comment: null,
+                columns: [
+                    {
+                        name: 'order_id',
+                        type: DimensionType.NUMBER,
+                        comment: null,
+                        isMeasure: false,
+                    },
+                ],
+                definition: {
+                    text: 'SELECT order_id FROM catalog.schema.orders',
+                    truncated: false,
+                },
+                metricView: null,
+            });
+        });
+
+        it("returns a metric view's YAML and marks its measures", async () => {
+            describing(describedMetricView);
+
+            expect(await read()).toEqual({
+                tableType: METRIC_VIEW_TABLE_TYPE,
+                comment: 'Governed order metrics',
+                columns: [
+                    {
+                        name: 'order_month',
+                        type: DimensionType.TIMESTAMP,
+                        comment: null,
+                        isMeasure: false,
+                    },
+                    {
+                        name: 'order_count',
+                        type: DimensionType.NUMBER,
+                        comment: 'Orders placed',
+                        isMeasure: true,
+                    },
+                ],
+                definition: { text: metricViewYaml, truncated: false },
+                metricView: {
+                    source: 'catalog.schema.orders',
+                    filter: null,
+                    parameterized: false,
+                    dimensions: [
+                        {
+                            name: 'order_month',
+                            expr: "DATE_TRUNC('MONTH', order_date)",
+                            label: null,
+                            comment: null,
+                            synonyms: [],
+                        },
+                    ],
+                    measures: [
+                        {
+                            name: 'order_count',
+                            expr: 'COUNT(1)',
+                            label: null,
+                            comment: null,
+                            synonyms: [],
+                            window: [],
+                        },
+                    ],
+                    joins: [],
+                },
+            });
+        });
+
+        it('parses a metric view past the size cap of its definition text', async () => {
+            const measures = Array.from(
+                { length: 400 },
+                (_, index) =>
+                    `  - name: measure_${index}\n    expr: SUM(column_${index})`,
+            );
+            describing({
+                ...describedMetricView,
+                view_text: [
+                    'version: 1.1',
+                    'source: catalog.schema.orders',
+                    'measures:',
+                    ...measures,
+                ].join('\n'),
+            });
+
+            const metadata = await read();
+
+            expect(metadata?.definition?.truncated).toBe(true);
+            expect(metadata?.metricView?.measures).toHaveLength(400);
+        });
+
+        it('keeps the raw definition when a metric view does not parse', async () => {
+            describing({ ...describedMetricView, view_text: 'measures: [' });
+
+            const metadata = await read();
+
+            expect(metadata?.metricView).toBeNull();
+            expect(metadata?.definition?.text).toBe('measures: [');
+        });
+
+        it.each([
+            ['table', describedTable],
+            ['view', describedView],
+            ['metric view', describedMetricView],
+        ])(
+            'never returns owner, storage or properties of a %s',
+            async (_, description) => {
+                describing(description);
+
+                const metadata = JSON.stringify(await read());
+
+                [
+                    'owner@example.com',
+                    'creator@example.com',
+                    'example-bucket',
+                    'storage-secret',
+                    'property-secret',
+                    'spark.conf',
+                    'num_rows',
+                    'SELECT order_id FROM orders',
+                ].forEach((leak) => expect(metadata).not.toContain(leak));
+                expect(Object.keys(JSON.parse(metadata)).sort()).toEqual([
+                    'columns',
+                    'comment',
+                    'definition',
+                    'metricView',
+                    'tableType',
+                ]);
+            },
+        );
+
+        it('truncates a long definition with a marker', async () => {
+            const longSql = `SELECT ${'order_id, '.repeat(2_000)}1`;
+            describing({ ...describedView, view_text: longSql });
+
+            const metadata = await read();
+
+            expect(metadata?.definition?.truncated).toBe(true);
+            expect(metadata?.definition?.text).toBe(
+                `${longSql.slice(0, TABLE_DEFINITION_MAX_LENGTH)}\n[definition truncated: showing ${TABLE_DEFINITION_MAX_LENGTH} of ${longSql.length} characters]`,
+            );
+        });
+
+        it('returns no metadata on a runtime without the JSON form', async () => {
+            const session = createSession({
+                executeStatement: vi.fn(() =>
+                    Promise.reject(
+                        statusError(
+                            "[PARSE_SYNTAX_ERROR] Syntax error at or near 'JSON'. SQLSTATE: 42601",
+                        ),
+                    ),
+                ),
+            });
+            mocks.openSession.mockResolvedValue(session);
+
+            expect(await read()).toBeNull();
+            expect(session.getColumns).not.toHaveBeenCalled();
+        });
+
+        it('returns no metadata for a table that does not exist', async () => {
+            mocks.openSession.mockResolvedValue(
+                createSession({
+                    executeStatement: vi.fn(() =>
+                        Promise.reject(
+                            statusError(
+                                '[TABLE_OR_VIEW_NOT_FOUND] The table or view cannot be found. SQLSTATE: 42P01',
+                            ),
+                        ),
+                    ),
+                }),
+            );
+
+            expect(await read()).toBeNull();
+        });
     });
 
     describe('getCatalog', () => {
@@ -973,5 +1283,96 @@ describe('DatabricksWarehouseClient getAllTables', () => {
                 tableType: 'materialized_view',
             },
         ]);
+    });
+
+    const failListing = (message: string) => {
+        const warehouse = new DatabricksWarehouseClient({
+            ...credentials,
+            catalog: 'catalog_a',
+        });
+        vi.spyOn(warehouse, 'runQuery').mockRejectedValueOnce(
+            new WarehouseQueryError(message),
+        );
+        return warehouse.getAllTables();
+    };
+
+    // Wording from the Databricks error conditions reference and knowledge base, with placeholder names.
+    it.each([
+        [
+            "[INSUFFICIENT_PERMISSIONS] Insufficient privileges: User does not have USE SCHEMA on Schema 'catalog_a.schema_a'. SQLSTATE: 42501",
+            {
+                kind: 'missing_privilege',
+                privilege: 'USE SCHEMA',
+                catalog: 'catalog_a',
+                schema: 'schema_a',
+            },
+        ],
+        [
+            "PERMISSION_DENIED: User does not have USE CATALOG on Catalog 'catalog_a'.",
+            {
+                kind: 'missing_privilege',
+                privilege: 'USE CATALOG',
+                catalog: 'catalog_a',
+                schema: null,
+            },
+        ],
+        [
+            '[INSUFFICIENT_PERMISSIONS] User does not have USE SCHEMA on Schema `schema_a`.',
+            {
+                kind: 'missing_privilege',
+                privilege: 'USE SCHEMA',
+                catalog: null,
+                schema: 'schema_a',
+            },
+        ],
+        [
+            "[INSUFFICIENT_PERMISSIONS_SECURABLE] User does not have permission SELECT on Table 'catalog_a.schema_a.table_a'. SQLSTATE: 42501",
+            {
+                kind: 'missing_privilege',
+                privilege: 'SELECT',
+                catalog: 'catalog_a',
+                schema: 'schema_a',
+            },
+        ],
+        [
+            "[INSUFFICIENT_PERMISSIONS] Insufficient privileges: 'catalog_a.schema_a'. SQLSTATE: 42501",
+            {
+                kind: 'missing_privilege',
+                privilege: null,
+                catalog: 'catalog_a',
+                schema: 'schema_a',
+            },
+        ],
+        [
+            '[TABLE_OR_VIEW_NOT_FOUND] The table or view `information_schema`.`tables` cannot be found. Verify the spelling and correctness of the schema and catalog. SQLSTATE: 42P01; line 3 pos 17',
+            { kind: 'no_information_schema', catalog: 'catalog_a' },
+        ],
+        [
+            '[SCHEMA_NOT_FOUND] The schema `information_schema` cannot be found. Verify the spelling and correctness of the schema and catalog. SQLSTATE: 42704',
+            { kind: 'no_information_schema', catalog: 'catalog_a' },
+        ],
+        [
+            "[NO_SUCH_CATALOG_EXCEPTION] Catalog 'catalog_b' was not found. Please verify the catalog name and then retry the query or command again. SQLSTATE: 42704",
+            { kind: 'catalog_not_found', catalog: 'catalog_b' },
+        ],
+        [
+            '[CATALOG_NOT_FOUND] The catalog `catalog_b` not found. Consider to set the SQL config `spark.sql.catalog.catalog_b` to a catalog plugin. SQLSTATE: 42P08',
+            { kind: 'catalog_not_found', catalog: 'catalog_b' },
+        ],
+    ])('maps %s to a listing reason', async (message, failure) => {
+        await expect(failListing(message)).rejects.toMatchObject({
+            name: 'WarehouseQueryError',
+            message,
+            failure: { ...failure, message },
+            data: { code: TABLE_LISTING_FAILED_CODE },
+        });
+    });
+
+    it('rethrows a failure it has no reason for unchanged', async () => {
+        const message =
+            '[TABLE_OR_VIEW_NOT_FOUND] The table or view `schema_a`.`table_a` cannot be found. SQLSTATE: 42P01';
+        const error = await failListing(message).catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(WarehouseQueryError);
+        expect(error).not.toBeInstanceOf(WarehouseTableListingError);
     });
 });

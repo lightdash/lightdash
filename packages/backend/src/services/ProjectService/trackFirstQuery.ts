@@ -1,14 +1,10 @@
 import { type Account } from '@lightdash/common';
-import {
-    type LightdashAnalytics,
-    type OnboardingFlow,
-} from '../../analytics/LightdashAnalytics';
+import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 
 type TrackFirstQueryArguments = {
     account: Account;
     organizationUuid: string;
-    onboardingFlow: OnboardingFlow;
     onboardingModel: Pick<
         OnboardingModel,
         'getByOrganizationUuid' | 'setRanQueryAtIfUnset'
@@ -19,7 +15,6 @@ type TrackFirstQueryArguments = {
 export const trackFirstQuery = async ({
     account,
     organizationUuid,
-    onboardingFlow,
     onboardingModel,
     analytics,
 }: TrackFirstQueryArguments): Promise<void> => {
@@ -36,7 +31,7 @@ export const trackFirstQuery = async ({
         properties: {
             step: 'first_query',
             stepIndex: 5,
-            onboardingFlow,
+            onboardingFlow: 'new',
             organizationId: organizationUuid,
         },
     });

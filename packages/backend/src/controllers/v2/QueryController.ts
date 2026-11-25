@@ -72,6 +72,7 @@ import express from 'express';
 import { getContextFromHeader } from '../../analytics/LightdashAnalytics';
 import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import { pipeS3BodyToResponse } from '../../clients/Aws/s3Streams';
+import { compressResultsPage } from '../../middlewares/responseCompression/responseCompression';
 import {
     allowApiKeyAuthentication,
     getDeprecatedRouteMiddleware,
@@ -161,6 +162,7 @@ export class QueryController extends BaseController {
      * @summary Get results
      */
     @Middlewares([
+        compressResultsPage,
         allowApiKeyAuthentication,
         isAuthenticated,
         requireOAuthScopeOperation('QueryController.getAsyncQueryResults'),

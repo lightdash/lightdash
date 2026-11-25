@@ -9,6 +9,7 @@ import {
     useState,
     type FC,
     type PropsWithChildren,
+    type ReactNode,
 } from 'react';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import useApp from '../../../../../providers/App/useApp';
@@ -37,6 +38,8 @@ import { ChatElementsUtils } from './utils';
 
 type Props = {
     thread: AiAgentThread;
+    /** Shown in the thread right after its last message, scrolling with it. */
+    afterMessages?: ReactNode;
     promptUuid?: string;
     agentName?: string;
     height?: string | number;
@@ -99,6 +102,7 @@ const CompactionDivider = () => (
 
 export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     thread,
+    afterMessages,
     height = '100%',
     enableAutoScroll = false,
     children,
@@ -237,7 +241,8 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                     maw={ChatElementsUtils.centeredElementProps.maw}
                     mx={ChatElementsUtils.centeredElementProps.mx}
                     px={ChatElementsUtils.centeredElementProps.px}
-                    pb="md"
+                    // Room for the last reply's hover actions, which float below it
+                    pb="xl"
                     gap="xl"
                     flex={1}
                 >
@@ -351,6 +356,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                 onRunAgain={onRunDeepResearchAgain}
                             />
                         )}
+                        {afterMessages}
                     </Stack>
 
                     {enableAutoScroll && projectUuid && agentUuid ? (

@@ -1,18 +1,13 @@
 import {
     isExploreError,
     ParameterError,
+    toExploreSummary,
     type Account,
     type Explore,
     type ExploreError,
     type SummaryExplore,
 } from '@lightdash/common';
 import { AsyncLocalStorage } from 'node:async_hooks';
-
-/** Sent by a client that wants a person's unpublished model changes applied to what it reads. */
-export const DEVELOPMENT_VIEW_HEADER = 'Lightdash-Development-View';
-
-/** Names the preview project to read instead, for a project whose unpublished changes live on a branch. */
-export const DEVELOPMENT_PREVIEW_HEADER = 'Lightdash-Development-Preview';
 
 export type DevelopmentView = {
     /**
@@ -47,46 +42,18 @@ export const assertCanSaveInDevelopmentView = async (
 };
 
 /** A compiled explore as the explore list carries it, with what decides who may see its base table. */
-export const toExploreSummary = (
+export const toExploreSummaryWithAccess = (
     explore: Explore | ExploreError,
 ): SummaryExplore & {
     baseTableRequiredAttributes: Explore['tables'][string]['requiredAttributes'];
     baseTableAnyAttributes: Explore['tables'][string]['anyAttributes'];
 } => {
-    if (isExploreError(explore)) {
-        return {
-            name: explore.name,
-            label: explore.label,
-            tags: explore.tags,
-            groupLabel: explore.groupLabel,
-            groups: explore.groups,
-            type: explore.type,
-            aiHint: explore.aiHint,
-            customMeta: explore.customMeta,
-            errors: explore.errors,
-            warehouseConnectionUuid: null,
-            baseTableRequiredAttributes: undefined,
-            baseTableAnyAttributes: undefined,
-        };
-    }
-    const baseTable = explore.tables[explore.baseTable];
+    const baseTable = isExploreError(explore)
+        ? undefined
+        : explore.tables[explore.baseTable];
     return {
-        name: explore.name,
-        label: explore.label,
-        tags: explore.tags,
-        groupLabel: explore.groupLabel,
-        groups: explore.groups,
-        type: explore.type,
-        preAggregateSource: explore.preAggregateSource,
-        externalSource: explore.externalSource,
-        aiHint: explore.aiHint,
-        customMeta: explore.customMeta,
-        warnings: explore.warnings,
-        description: baseTable.description,
-        schemaName: baseTable.schema,
-        databaseName: baseTable.database,
-        warehouseConnectionUuid: null,
-        baseTableRequiredAttributes: baseTable.requiredAttributes,
-        baseTableAnyAttributes: baseTable.anyAttributes,
+        ...toExploreSummary(explore),
+        baseTableRequiredAttributes: baseTable?.requiredAttributes,
+        baseTableAnyAttributes: baseTable?.anyAttributes,
     };
 };

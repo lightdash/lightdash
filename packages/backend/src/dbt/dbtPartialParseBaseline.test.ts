@@ -1,10 +1,11 @@
 import * as fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
+import Logger from '../logging/logger';
 import {
     DBT_PARTIAL_PARSE_FILE,
+    getDbtPartialParseBaseline,
     getDbtPartialParseBaselineLimits,
-    getDbtPartialParseBaselinePath,
     getDbtPartialParseBaselineSize,
     pruneDbtPartialParseBaselines,
     saveDbtPartialParse,
@@ -12,6 +13,12 @@ import {
 } from './dbtPartialParseBaseline';
 
 const HOUR = 60 * 60 * 1000;
+
+const limits = {
+    maxBytes: 100,
+    maxAgeMs: 168 * HOUR,
+    abandonedWriteAgeMs: HOUR,
+};
 
 describe('dbt partial parse baselines', () => {
     let root: string;
@@ -27,6 +34,7 @@ describe('dbt partial parse baselines', () => {
 
     afterEach(async () => {
         vi.unstubAllEnvs();
+        vi.restoreAllMocks();
         await fs.rm(root, { recursive: true, force: true });
     });
 
@@ -131,32 +139,36 @@ describe('dbt partial parse baselines', () => {
     });
 
     it('keys a baseline by project and dbt source', () => {
-        const projectConnection = getDbtPartialParseBaselinePath({
+        const projectConnection = getDbtPartialParseBaseline({
             projectUuid: 'project-a',
             dbtSourceUuid: null,
             root: store,
-        });
+            access: 'read-write',
+        }).path;
 
         expect(
-            getDbtPartialParseBaselinePath({
+            getDbtPartialParseBaseline({
                 projectUuid: 'project-a',
                 dbtSourceUuid: null,
                 root: store,
-            }),
+                access: 'read-write',
+            }).path,
         ).toBe(projectConnection);
         expect(
             new Set([
                 projectConnection,
-                getDbtPartialParseBaselinePath({
+                getDbtPartialParseBaseline({
                     projectUuid: 'project-a',
                     dbtSourceUuid: 'source-1',
                     root: store,
-                }),
-                getDbtPartialParseBaselinePath({
+                    access: 'read-write',
+                }).path,
+                getDbtPartialParseBaseline({
                     projectUuid: 'project-b',
                     dbtSourceUuid: null,
                     root: store,
-                }),
+                    access: 'read-write',
+                }).path,
             ]).size,
         ).toBe(3);
         expect(path.dirname(projectConnection)).toBe(store);
@@ -198,12 +210,101 @@ describe('dbt partial parse baselines', () => {
         const baselinePath = path.join(store, 'project.msgpack');
         await fs.mkdir(store);
         await fs.writeFile(baselinePath, 'previous');
+        const warn = vi.spyOn(Logger, 'warn');
 
-        await saveDbtPartialParse(baselinePath, targetDirectory);
+        await expect(
+            saveDbtPartialParse(baselinePath, targetDirectory, limits),
+        ).resolves.toEqual({
+            status: 'no_file',
+            baselineBytes: null,
+            cacheBytes: 8,
+            prunedFiles: 0,
+            prunedBytes: 0,
+            prunedOwnBaseline: false,
+            capBytes: 100,
+        });
 
         await expect(fs.readdir(store)).resolves.toEqual(['project.msgpack']);
         await expect(fs.readFile(baselinePath, 'utf8')).resolves.toBe(
             'previous',
+        );
+        expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('reports the saved baseline, the cache size and what pruning removed', async () => {
+        await fs.mkdir(store);
+        await writeBaseline('older.msgpack', 90, HOUR);
+        await fs.writeFile(
+            path.join(targetDirectory, DBT_PARTIAL_PARSE_FILE),
+            Buffer.alloc(30),
+        );
+
+        await expect(
+            saveDbtPartialParse(
+                path.join(store, 'project.msgpack'),
+                targetDirectory,
+                limits,
+            ),
+        ).resolves.toEqual({
+            status: 'saved',
+            baselineBytes: 30,
+            cacheBytes: 30,
+            prunedFiles: 1,
+            prunedBytes: 90,
+            prunedOwnBaseline: false,
+            capBytes: 100,
+        });
+        await expect(fs.readdir(store)).resolves.toEqual(['project.msgpack']);
+    });
+
+    it('reports when the cap removes the baseline it has just saved', async () => {
+        await fs.writeFile(
+            path.join(targetDirectory, DBT_PARTIAL_PARSE_FILE),
+            Buffer.alloc(150),
+        );
+
+        await expect(
+            saveDbtPartialParse(
+                path.join(store, 'project.msgpack'),
+                targetDirectory,
+                limits,
+            ),
+        ).resolves.toEqual({
+            status: 'saved',
+            baselineBytes: 150,
+            cacheBytes: 0,
+            prunedFiles: 1,
+            prunedBytes: 150,
+            prunedOwnBaseline: true,
+            capBytes: 100,
+        });
+        await expect(fs.readdir(store)).resolves.toEqual([]);
+    });
+
+    it('reports a failed save and warns without throwing', async () => {
+        await fs.writeFile(store, 'not a directory');
+        await fs.writeFile(
+            path.join(targetDirectory, DBT_PARTIAL_PARSE_FILE),
+            'parsed',
+        );
+        const warn = vi.spyOn(Logger, 'warn');
+
+        await expect(
+            saveDbtPartialParse(
+                path.join(store, 'project.msgpack'),
+                targetDirectory,
+                limits,
+            ),
+        ).resolves.toMatchObject({
+            status: 'failed',
+            baselineBytes: null,
+            prunedOwnBaseline: false,
+            capBytes: 100,
+        });
+        expect(warn).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'Could not save dbt partial parse baseline',
+            ),
         );
     });
 
@@ -216,12 +317,24 @@ describe('dbt partial parse baselines', () => {
         await writeBaseline('abandoned.msgpack.1234.tmp', 1, 2 * HOUR);
         await writeBaseline('in-progress.msgpack.5678.tmp', 1, 0);
 
-        await pruneDbtPartialParseBaselines(store, Date.now(), {
+        const result = await pruneDbtPartialParseBaselines(store, Date.now(), {
             maxBytes: 100,
             maxAgeMs: 168 * HOUR,
             abandonedWriteAgeMs: 1 * HOUR,
         });
 
+        expect(result.removedPaths.map((p) => path.basename(p)).sort()).toEqual(
+            [
+                'abandoned.msgpack.1234.tmp',
+                'expired.msgpack',
+                'oldest-in-age.msgpack',
+            ],
+        );
+        expect(result).toMatchObject({
+            removedBytes: 42,
+            keptFiles: 3,
+            keptBytes: 81,
+        });
         await expect(
             fs.readdir(store).then((names) => names.sort()),
         ).resolves.toEqual([

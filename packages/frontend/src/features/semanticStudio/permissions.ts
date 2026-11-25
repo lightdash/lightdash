@@ -1,6 +1,16 @@
 import { subject, type AnyAbility } from '@casl/ability';
-import { type NodeRef } from './model';
-import { type StudioPermissions } from './useSemanticStudio';
+import { type Kind, type NodeRef } from './model';
+
+/**
+ * Who can edit what, from the project CASL abilities (the same checks the
+ * backend runs for each writer):
+ * - modelled: manage SourceCode (developer+)
+ * - sqlViews: manage VirtualView (developer+)
+ * - files: manage ExternalSource (editor+)
+ * - live: manage ExternalConnection (admin); the only role that can read a
+ *   live source's fields that are not in use
+ */
+export type StudioPermissions = Record<Kind, boolean>;
 
 /**
  * What the person can change in Semantic Layer, per kind of source, from the

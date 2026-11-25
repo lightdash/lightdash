@@ -51,9 +51,6 @@ export const linkedInAdsIntegration = defineLiveIntegration({
         headers: LINKEDIN_ADS_REQUEST_HEADERS,
     }),
     limits: {
-        concurrentCalls: 5,
-        callsPerMinute: 60,
-        callsPerHour: 1_000,
         callsPerQuery: LINKEDIN_ADS_CALLS_PER_QUERY,
         timeoutMs: 60_000,
         maxRows: LINKEDIN_ADS_MAX_QUERY_ROWS,

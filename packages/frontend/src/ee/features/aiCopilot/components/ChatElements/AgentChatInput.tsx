@@ -374,6 +374,19 @@ const deepResearchTourAction = {
     'data-tour-docs': 'agents/deep-research.mdx#how-it-works:p2:1',
 };
 
+// Indented lines read as code, so pasted YAML, JSON or SQL keeps its shape.
+const looksLikeCode = (text: string) => {
+    const lines = text.trim().split(/\r?\n/);
+    return lines.length >= 3 && lines.some((line) => /^\s+\S/.test(line));
+};
+
+const getComposerText = (editor: Editor) =>
+    editor.getText({
+        textSerializers: {
+            codeBlock: ({ node }) => `\`\`\`\n${node.textContent}\n\`\`\``,
+        },
+    });
+
 export const AgentChatInput = ({
     onSubmit,
     onStartDeepResearch,
@@ -1159,7 +1172,7 @@ export const AgentChatInput = ({
             showToastError,
         ],
     );
-    const handleImagePaste = useCallback(
+    const handlePaste = useCallback(
         (event: ClipboardEvent) => {
             const images = Array.from(event.clipboardData.items).flatMap(
                 (item) => {
@@ -1169,10 +1182,26 @@ export const AgentChatInput = ({
                     return file ? [file] : [];
                 },
             );
+            const text = event.clipboardData.getData('text/plain');
+            if (images.length === 0 && looksLikeCode(text)) {
+                event.preventDefault();
+                editorRef.current
+                    ?.chain()
+                    .focus()
+                    .insertContent([
+                        {
+                            type: 'codeBlock',
+                            content: [{ type: 'text', text: text.trimEnd() }],
+                        },
+                        { type: 'paragraph' },
+                    ])
+                    .run();
+                return;
+            }
             if (images.length === 0 || !imagesEnabled || !allowAttachments)
                 return;
             // Office apps put a bitmap beside the text the user means to paste.
-            if (event.clipboardData.getData('text/plain').trim()) return;
+            if (text.trim()) return;
             event.preventDefault();
             if (canUseAttachControl) void attachThreadImages(images);
             else
@@ -1223,7 +1252,7 @@ export const AgentChatInput = ({
 
     const handleStartDeepResearch = async () => {
         const ed = editorRef.current;
-        const question = ed?.getText().trim() ?? '';
+        const question = ed ? getComposerText(ed).trim() : '';
         if (!question) {
             return;
         }
@@ -1246,7 +1275,7 @@ export const AgentChatInput = ({
     const handleSubmit = () => {
         const ed = editorRef.current;
         if (!ed) return;
-        const text = ed.getText().trim();
+        const text = getComposerText(ed).trim();
         if (!text || disabled || isPreparingAttachments) return;
         if (composerMode === 'deep_research' && canStartDeepResearch) {
             void handleStartDeepResearch();
@@ -1939,7 +1968,8 @@ export const AgentChatInput = ({
         extensions: composerExtensions,
         onEditorReady: setEditor,
         onValueChange: handleComposerValueChange,
-        onPaste: handleImagePaste,
+        onPaste: handlePaste,
+        codeBlocks: true,
         shouldBlockSubmit,
         onSubmit: handleSubmit,
     };

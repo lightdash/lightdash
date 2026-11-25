@@ -85,7 +85,6 @@ describe('Bedrock output-token requests', () => {
                 region: 'us-east-1',
                 baseUrl,
                 modelName,
-                embeddingModelName: 'amazon.titan-embed-text-v2:0',
                 customHeaders: {},
                 supportsStreaming: true,
                 ...configOverride,

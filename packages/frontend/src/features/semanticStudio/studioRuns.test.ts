@@ -6,7 +6,7 @@ import {
     type SemanticStudioWorkspace,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { isInFlight, toStudioRun } from './studioRuns';
+import { toStudioRun } from './studioRuns';
 
 const workspace = (
     overrides: Partial<SemanticStudioWorkspace> = {},
@@ -84,19 +84,5 @@ describe('toStudioRun', () => {
         expect(
             toStudioRun(workspace(), { savingStep: null, ciChecks: null }),
         ).toEqual({ kind: 'draft' });
-    });
-});
-
-describe('isInFlight', () => {
-    it('drops finished, merged and closed work', () => {
-        expect(isInFlight(inReview)).toBe(true);
-        expect(isInFlight(workspace({ finishedAt: new Date() }))).toBe(false);
-        expect(
-            isInFlight(
-                workspace({
-                    pullRequest: { url: 'x/pull/1', state: 'merged' },
-                }),
-            ),
-        ).toBe(false);
     });
 });

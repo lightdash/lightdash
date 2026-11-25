@@ -45,7 +45,7 @@ const buildService = (promptState: {
             getDecisionClient: async () => undefined,
         },
         lightdashConfig: {
-            ai: { copilot: { embeddingEnabled: false } },
+            ai: { copilot: {} },
         },
         aiAgentModel: {
             getThread: vi.fn().mockResolvedValue({

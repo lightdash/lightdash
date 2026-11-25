@@ -258,7 +258,9 @@ const VisualizationCard: FC<Props> = memo((props) => {
         [toggleExpandedSection],
     );
 
-    const { data: explore } = useExplore(tableName);
+    // When the explore can't load (a live explore switched off, say), the
+    // query never runs, so the card shows why instead of loading forever
+    const { data: explore, error: exploreError } = useExplore(tableName);
 
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartsClickEvent>();
@@ -305,7 +307,8 @@ const VisualizationCard: FC<Props> = memo((props) => {
             (!resultsData?.metricQuery &&
                 !isEditMode &&
                 !query.isError &&
-                !queryResults.error));
+                !queryResults.error &&
+                !exploreError));
     const isChoosingChartType =
         useExplorerSelector(selectChartSidebarStep) === 'choose';
     // A chart can plot dimensions on its y-axis, so it only counts as empty
@@ -412,7 +415,9 @@ const VisualizationCard: FC<Props> = memo((props) => {
         // any error it still holds is stale.
         const queryError = merge?.replacesQuery
             ? undefined
-            : (query.error?.error ?? queryResults.error?.error);
+            : (query.error?.error ??
+              queryResults.error?.error ??
+              exploreError?.error);
 
         if (merge?.runError) return merge.runError.error;
         if (merge?.runErrors.length) {
@@ -438,6 +443,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
     }, [
         query.error?.error,
         queryResults.error?.error,
+        exploreError?.error,
         missingRequiredParameters,
         merge?.runError,
         merge?.runErrors,

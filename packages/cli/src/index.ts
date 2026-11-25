@@ -1578,6 +1578,11 @@ program
         'Path or http(s) URL to an additional dbt manifest.json. Models present in this file but missing from the deploy manifest are merged in so the deploy includes the full project. The deploy-generated manifest always wins on conflicts.',
     )
     .option(
+        '--prune',
+        'Remove every explore that this deploy does not upload, so the project holds exactly the selected models. Virtual views are kept. Not available on projects with more than one dbt source or with --combine-manifest.',
+        false,
+    )
+    .option(
         '--start-of-week <number>',
         'Specifies the first day of the week (used by week-related date functions). 0 (Monday) to 6 (Sunday)',
         parseStartOfWeekArgument,

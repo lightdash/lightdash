@@ -4,6 +4,7 @@ import {
     ParameterError,
     QuerySourceType,
     type ApiSourceQuery,
+    type QueryExecutionContext,
     type QuerySourceDefinition,
     type QuerySourceSchema,
     type QuerySourceSchemaTable,
@@ -20,10 +21,12 @@ import type {
 } from '../types';
 
 /** Looks up the connection's live source, refusing callers who may not use the connection. */
+/** The live source for one query; the context decides how long its calls may wait for rate limits. */
 export type LiveSourceResolver = (
     account: RegisteredAccount,
     projectUuid: string,
     connectionUuid: string,
+    context: QueryExecutionContext,
 ) => Promise<MeteredLiveSource>;
 
 /** Schema tables of the connections the caller may query, from their last scans. */
@@ -52,7 +55,7 @@ export class ApiQuerySource implements QuerySourceClient {
 
     readonly supportsPivot = false;
 
-    readonly requiredFeatureFlags = [FeatureFlags.ApiQuerySources];
+    readonly requiredFeatureFlags: FeatureFlags[] = [];
 
     private readonly asyncQueryService: ApiQuerySourceArguments['asyncQueryService'];
 
@@ -107,6 +110,7 @@ export class ApiQuerySource implements QuerySourceClient {
             account,
             projectUuid,
             sourceQuery.connectionUuid,
+            context,
         );
         const { queryUuid } = await this.asyncQueryService.executeAsyncApiQuery(
             {

@@ -4,6 +4,7 @@ import {
     doModelPathsOverlap,
     readModelPart,
     restoreModelParts,
+    toDraftEdit,
 } from './diffModelDocuments';
 
 const base = `type: model
@@ -248,6 +249,79 @@ describe('restoreModelParts', () => {
         expect(restore(base, base, 'label')).toEqual({
             contents: base,
             restored: [],
+        });
+    });
+});
+
+const draftCurrent = `type: model
+name: orders
+label: Orders
+sql_from: public.orders
+dimensions:
+  - name: amount
+    type: number
+    sql: \${TABLE}.amount
+    description: Order total
+    metrics:
+      revenue:
+        type: sum
+      order_count:
+        type: count
+  - name: customer_id
+    type: number
+    sql: \${TABLE}.customer_id
+metrics:
+  average_amount:
+    type: number
+    sql: AVG(\${amount})
+joins:
+  - join: customers
+    alias: buyer
+    sql_on: \${orders.customer_id} = \${buyer.id}
+`;
+
+const draftEdited = `type: model
+name: orders
+sql_from: public.orders
+description: Every order
+dimensions:
+  - name: amount
+    type: number
+    sql: \${TABLE}.amount_usd
+    metrics:
+      revenue:
+        type: sum
+        label: Revenue
+      total:
+        type: max
+  - name: status
+    type: string
+    sql: \${TABLE}.status
+metrics:
+  median_amount:
+    type: number
+    sql: MEDIAN(\${amount})
+joins:
+  - join: customers
+    alias: buyer
+    sql_on: \${orders.customer_id} = \${buyer.customer_id}
+    label: Buyer
+`;
+
+describe('toDraftEdit', () => {
+    it('puts removals first and changes nothing for an edit of comments alone', () => {
+        expect(
+            toDraftEdit('orders', draftCurrent, `# Note\n${draftCurrent}`),
+        ).toEqual([]);
+        expect(
+            toDraftEdit('orders', draftCurrent, draftEdited)[0],
+        ).toMatchObject({
+            yaml: null,
+            remove: expect.arrayContaining([
+                'dimensions.customer_id',
+                'dimensions.amount.metrics.order_count',
+                'metrics.average_amount',
+            ]),
         });
     });
 });

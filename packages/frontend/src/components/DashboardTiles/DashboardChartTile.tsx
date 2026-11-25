@@ -175,6 +175,7 @@ import {
     hasDashboardTileParameterOverrides,
     isSavedDataAppVizDashboardImageExportAvailable,
 } from '../common/ChartDownload/chartDownloadUtils';
+import { ConnectWarehouseAction } from '../common/ConnectWarehouseAction';
 import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
 import PivotColumnLimitWarning from '../common/PivotColumnLimitWarning';
@@ -2293,6 +2294,12 @@ export const GenericDashboardChartTile: FC<
                     description={
                         getDashboardTileErrorMessage(error) ||
                         'Error running query'
+                    }
+                    action={
+                        <ConnectWarehouseAction
+                            error={'error' in error ? error.error : null}
+                            mt="xs"
+                        />
                     }
                 />
             </TileBase>

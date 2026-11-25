@@ -1,10 +1,12 @@
 import { z } from 'zod';
 import {
+    getHubspotReadScopes,
     HUBSPOT_OBJECTS,
     type ApiSourceOf,
     type ExternalConnectionApiSource,
 } from '../ee/externalConnections/types';
 import { ApiConnectorType } from '../types/querySources';
+import { HYDRA_SETTINGS_SCHEMA } from './hydraLiveSource';
 
 /** How an admin connects a source, which decides the dialog it opens. */
 export type LiveSourceSetupKind =
@@ -12,7 +14,8 @@ export type LiveSourceSetupKind =
     | 'posthog'
     | 'token'
     | 'linkedin_ads'
-    | 'salesforce';
+    | 'salesforce'
+    | 'amplitude';
 
 type LiveIntegrationCatalogFields<C extends ApiConnectorType> = {
     /** Stable id, sent with analytics events. */
@@ -196,12 +199,10 @@ export const LIVE_INTEGRATION_CATALOG: {
         defaultName: 'HubSpot',
         messageLabel: 'HubSpot',
         agentLabel: 'HubSpot',
-        description: 'Deals, contacts and companies from your CRM',
+        description:
+            'Deals, contacts, companies, tickets and leads from your CRM',
         setup: 'token',
-        scopes: HUBSPOT_OBJECTS.flatMap((object) => [
-            `crm.objects.${object}.read`,
-            `crm.schemas.${object}.read`,
-        ]),
+        scopes: HUBSPOT_OBJECTS.flatMap(getHubspotReadScopes),
         settings: z.object({
             connector: z.literal(ApiConnectorType.HUBSPOT),
         }),
@@ -219,6 +220,30 @@ export const LIVE_INTEGRATION_CATALOG: {
             connector: z.literal(ApiConnectorType.SALESFORCE),
         }),
         getTarget: () => 'Salesforce org',
+    },
+    [ApiConnectorType.AMPLITUDE]: {
+        id: 'amplitude',
+        label: 'Amplitude',
+        defaultName: 'Amplitude',
+        messageLabel: 'Amplitude',
+        agentLabel: 'Amplitude',
+        description: 'Events, active users, funnels, retention and sessions',
+        setup: 'amplitude',
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.AMPLITUDE),
+        }),
+        getTarget: () => 'Amplitude project',
+    },
+    [ApiConnectorType.HYDRA]: {
+        id: 'hydra',
+        label: 'Hydra',
+        defaultName: 'Hydra',
+        messageLabel: 'Hydra',
+        agentLabel: 'Hydra',
+        description: 'Test integration with seeded events and users',
+        setup: 'token',
+        settings: HYDRA_SETTINGS_SCHEMA,
+        getTarget: () => 'Hydra test data',
     },
 };
 

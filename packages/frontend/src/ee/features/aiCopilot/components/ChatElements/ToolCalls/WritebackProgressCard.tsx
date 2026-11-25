@@ -15,13 +15,13 @@ import {
     useStepTimes,
     useWritebackProgress,
     type WritebackProgress,
-} from '../../../hooks/useWritebackProgress';
-import { QuietCardsContext } from './quietCards';
+} from '../../../../../../features/writeback/useWritebackProgress';
 import {
     formatDuration,
     stepDuration,
     WRITEBACK_STEPS,
-} from './writebackProgress';
+} from '../../../../../../features/writeback/writebackProgress';
+import { InStudioChatContext } from './studioChatContext';
 import classes from './WritebackProgressCard.module.css';
 
 const STEP_ICONS: Record<(typeof WRITEBACK_STEPS)[number], Icon> = {
@@ -98,7 +98,7 @@ export const WritebackProgressCard: FC<{
         index,
         took: stepDuration(times, index),
     }));
-    const quiet = useContext(QuietCardsContext);
+    const quiet = useContext(InStudioChatContext);
     // A narrow chat follows the save in one line; the draft's own card says what it changed.
     if (quiet && state !== 'stopped') {
         return (

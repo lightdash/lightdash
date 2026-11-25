@@ -50,6 +50,7 @@ import {
 } from './reviewItemDetails';
 import { ReviewPriorityMenu } from './ReviewPriorityMenu';
 import { ReviewValidationList } from './ReviewValidationList';
+import { ThreadMetadataSection } from './ThreadMetadataSection';
 import styles from './ThreadPreviewSidebar.module.css';
 import {
     getThreadReviewHeadline,
@@ -284,6 +285,14 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                     mah="calc(100vh - 150px)"
                     className={styles.scrollableBody}
                 >
+                    {threadData.metadata && (
+                        <>
+                            <ThreadMetadataSection
+                                metadata={threadData.metadata}
+                            />
+                            <Divider />
+                        </>
+                    )}
                     {selectedReviewItem ? (
                         <>
                             <Stack p="md" gap="md">
