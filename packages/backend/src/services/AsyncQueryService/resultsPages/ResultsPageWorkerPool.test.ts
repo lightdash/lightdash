@@ -532,11 +532,11 @@ describe('ResultsPageWorkerPool worker lifetime and metrics', () => {
     });
 
     test('a worker that runs out of heap gives a worker error and the pool keeps building', async () => {
+        const heapLimits = [{ maxOldGenerationSizeMb: 32 }];
         const pool = new ResultsPageWorkerPool({
             size: 1,
             brotliQuality: 4,
-            createWorker: () =>
-                createResultsPageWorker({ maxOldGenerationSizeMb: 128 }),
+            createWorker: () => createResultsPageWorker(heapLimits.shift()),
         });
         const wide = JSON.stringify(
             Object.fromEntries(
@@ -556,7 +556,7 @@ describe('ResultsPageWorkerPool worker lifetime and metrics', () => {
         await expect(
             buildAll(
                 pool,
-                Array.from({ length: 3000 }, () => wide),
+                Array.from({ length: 400 }, () => wide),
                 {
                     ...plainFormat,
                     fields: fields as typeof plainFormat.fields,
@@ -566,6 +566,7 @@ describe('ResultsPageWorkerPool worker lifetime and metrics', () => {
         await expect(
             buildAll(pool, [...resultsPageLines], plainFormat),
         ).resolves.toMatchObject({ rowCount: resultsPageLines.length });
+        expect(pool.workersStarted).toBe(2);
     }, 60_000);
 });
 
