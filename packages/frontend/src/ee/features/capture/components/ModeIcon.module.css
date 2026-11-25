@@ -1,0 +1,8 @@
+.frame {
+    stroke: #818898;
+}
+
+.pointer {
+    fill: light-dark(#5e4cff, #8b7fff);
+    stroke: light-dark(#5e4cff, #8b7fff);
+}

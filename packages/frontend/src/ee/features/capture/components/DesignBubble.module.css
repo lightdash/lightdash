@@ -1,0 +1,81 @@
+/* Placed in content coordinates inside a layer that scrolls with the content. */
+.bubble {
+    position: absolute;
+    left: var(--bubble-left);
+    top: var(--bubble-top);
+    /* Over the page and each other, under modals, popovers and the toolbar. */
+    z-index: calc(var(--ld-z-design-bubble) + var(--bubble-stack, 0));
+    min-width: 280px;
+    max-width: 420px;
+    transition: opacity 120ms ease;
+    overscroll-behavior: contain;
+    /* Its marks' colour, along the top. */
+    border-top: 3px solid var(--bubble-color);
+}
+
+/* A pill: as small as what it says, edged in its marks' colour. */
+.bubble[data-minimised='true'] {
+    min-width: 0;
+    border: 1.5px solid var(--bubble-color);
+    overflow: hidden;
+}
+
+/* The bubble the next hold marks into. */
+.bubble[data-selected='true'] {
+    outline: 2px solid var(--bubble-color);
+    outline-offset: 2px;
+}
+
+.replyHint {
+    color: var(--bubble-color);
+}
+
+/* The row a bubble is moved by. */
+.bubble [data-bubble-drag-handle] {
+    cursor: grab;
+    user-select: none;
+}
+
+.bubble[data-dragging='true'],
+.bubble[data-dragging='true'] [data-bubble-drag-handle] {
+    cursor: grabbing;
+    user-select: none;
+}
+
+/* While a hold is down the bubble is a faint outline the pointer goes through. */
+.bubble[data-passthrough='true'] {
+    background: transparent;
+    border-color: color-mix(in srgb, var(--bubble-color) 15%, transparent);
+    box-shadow: none;
+    pointer-events: none;
+}
+
+.bubble[data-passthrough='true'] > * {
+    opacity: 0.15;
+}
+
+/* The focus ring is drawn inside the button: the bubble's edge would cut an outer one. */
+.controls :global(.mantine-ActionIcon-root):focus-visible {
+    outline-offset: -2px;
+}
+
+.cornerControls {
+    position: absolute;
+    top: 12px;
+    right: 10px;
+    z-index: 1;
+}
+
+.listening {
+    animation: design-bubble-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes design-bubble-pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.35;
+    }
+}

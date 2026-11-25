@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { coveredTargets } from './markCoverage';
 import { type CaptureTarget, type Point } from './types';
 
-const tile = (id: string): CaptureTarget => ({ kind: 'tile', id, label: id });
+const tile = (id: string): CaptureTarget => ({
+    kind: 'tile',
+    id,
+    label: id,
+    parentId: null,
+});
 
 // A title strip across the top, two charts side by side under it.
 const resolve = (point: Point): CaptureTarget | null => {

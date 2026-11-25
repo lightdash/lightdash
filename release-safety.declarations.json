@@ -365,6 +365,18 @@
                     "mcp": []
                 }
             }
+        },
+        "dashboard-capture-router-removed": {
+            "reason": "The dashboard capture router is removed: Design Mode sends a dashboard's marks straight to an AI agent, so nothing sorts a recording into layout changes any more. POST /api/v1/org/aiRouter/capture/{projectUuid} now returns 404, and @lightdash/common no longer exports ApiCaptureRouteRequest, ApiCaptureRouteResponse or the capture routing types. The route served only dashboard Voice Design, which was behind the dashboard-capture feature flag; the flag is off by default on Cloud and on self-hosted, and the web app's dashboard page was the only caller. During a rolling update an old dashboard tab with the flag on fails to sort a recording until refresh; nothing is written or lost.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "featureFlag": "dashboard-capture",
+                "covers": {
+                    "rest": ["POST /api/v1/org/aiRouter/capture/{projectUuid}"],
+                    "mcp": []
+                }
+            }
         }
     }
 }

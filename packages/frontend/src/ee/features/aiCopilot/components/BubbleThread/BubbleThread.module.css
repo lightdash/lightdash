@@ -1,0 +1,69 @@
+/* Sized so the whole bubble, with its own frame, stays within 420 by 480. */
+.thread {
+    display: flex;
+    flex-direction: column;
+    width: 420px;
+    max-width: 100%;
+    max-height: min(420px, calc(100vh - 200px));
+}
+
+/* Minimised: laid out as when open, but taking no room and shown to no one. */
+.keep[data-minimised='true'] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.keep[data-minimised='true'] > .thread {
+    width: calc(420px - 2 * var(--mantine-spacing-xs));
+    max-width: none;
+}
+
+.header {
+    flex: 0 0 auto;
+    padding-bottom: var(--mantine-spacing-xs);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.agentName {
+    min-width: 0;
+}
+
+/* The message list scrolls in here; the reply bar stays at the bottom. */
+.body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* The message list is the one thing that scrolls: the page never scrolls with it. */
+.body > * {
+    overscroll-behavior: contain;
+}
+
+/* The bubble already has a gutter: drop the composer's own. */
+.body [data-layout] {
+    padding-left: 0;
+    padding-right: 0;
+    padding-bottom: 0;
+}
+
+.userMessage {
+    align-self: flex-end;
+    max-width: 85%;
+    overflow: visible;
+    background-color: var(--mantine-color-ldGray-1);
+}
+
+/* A single newline in a message is a line break. */
+.userWords {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
