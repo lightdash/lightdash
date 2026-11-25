@@ -33846,11 +33846,24 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiThreadMetadata: {
+        dataType: 'refAlias',
+        type: { ref: 'Record_string.string_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentThreadSummary_AiAgentUser_: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                metadata: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiThreadMetadata' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 threadContext: {
                     dataType: 'union',
                     subSchemas: [
@@ -35212,6 +35225,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                metadata: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiThreadMetadata' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 threadContext: {
                     dataType: 'union',
                     subSchemas: [
@@ -46945,6 +46966,7 @@ const models: TsoaRoute.Models = {
                 createdFrom: {
                     ref: 'Extract_AiThreadCreatedFrom.semantic_studio_',
                 },
+                metadata: { ref: 'AiThreadMetadata' },
                 threadContext: { dataType: 'string' },
                 binding: { ref: 'AiThreadBinding' },
                 battleProfile: { ref: 'AiAgentBattleProfile' },
@@ -55469,7 +55491,7 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess__jobId-string__', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_':
+    'Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid-or-metadata_':
         {
             dataType: 'refAlias',
             type: {
@@ -55479,6 +55501,14 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    metadata: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'AiThreadMetadata' },
                             { dataType: 'enum', enums: [null] },
                         ],
                         required: true,
@@ -55535,7 +55565,7 @@ const models: TsoaRoute.Models = {
     ThreadSummary: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_',
+            ref: 'Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid-or-metadata_',
             validators: {},
         },
     },
@@ -124164,6 +124194,12 @@ export function RegisterRoutes(app: Router) {
         dateFrom: { in: 'query', name: 'dateFrom', dataType: 'string' },
         dateTo: { in: 'query', name: 'dateTo', dataType: 'string' },
         search: { in: 'query', name: 'search', dataType: 'string' },
+        metadataKey: { in: 'query', name: 'metadataKey', dataType: 'string' },
+        metadataValue: {
+            in: 'query',
+            name: 'metadataValue',
+            dataType: 'string',
+        },
         sortField: {
             in: 'query',
             name: 'sortField',

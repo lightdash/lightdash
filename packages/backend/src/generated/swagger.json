@@ -35736,8 +35736,21 @@
                 ],
                 "description": "A thread binding as read back, with the resource name. `displayName` is null once the resource is deleted."
             },
+            "AiThreadMetadata": {
+                "$ref": "#/components/schemas/Record_string.string_",
+                "description": "Caller-defined labels on a thread. They never change what the request can access."
+            },
             "AiAgentThreadSummary_AiAgentUser_": {
                 "properties": {
+                    "metadata": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiThreadMetadata"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Caller-supplied labels set at creation; null when none were sent."
+                    },
                     "threadContext": {
                         "type": "string",
                         "nullable": true,
@@ -35805,6 +35818,7 @@
                     }
                 },
                 "required": [
+                    "metadata",
                     "threadContext",
                     "binding",
                     "liveStatus",
@@ -37026,6 +37040,15 @@
             },
             "AiAgentThreadSummary": {
                 "properties": {
+                    "metadata": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiThreadMetadata"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Caller-supplied labels set at creation; null when none were sent."
+                    },
                     "threadContext": {
                         "type": "string",
                         "nullable": true,
@@ -37093,6 +37116,7 @@
                     }
                 },
                 "required": [
+                    "metadata",
                     "threadContext",
                     "binding",
                     "liveStatus",
@@ -41928,6 +41952,10 @@
                     "createdFrom": {
                         "$ref": "#/components/schemas/Extract_AiThreadCreatedFrom.semantic_studio_",
                         "description": "Starts a Semantic Studio thread, whose agent drafts model changes for the person to apply. Only the app may set it."
+                    },
+                    "metadata": {
+                        "$ref": "#/components/schemas/AiThreadMetadata",
+                        "description": "Labels saved on the thread, such as an end user id or environment. At most 20 keys,\nkeys up to 255 characters, values up to 4,000 characters. Cannot be changed after creation."
                     },
                     "threadContext": {
                         "type": "string",
@@ -50506,11 +50534,20 @@
             "ApiTriggerAiAgentMemoryDistillResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__jobId-string__"
             },
-            "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_": {
+            "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid-or-metadata_": {
                 "properties": {
                     "title": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "metadata": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiThreadMetadata"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Caller-supplied labels set at creation; null when none were sent."
                     },
                     "uuid": {
                         "type": "string"
@@ -50555,6 +50592,7 @@
                 },
                 "required": [
                     "title",
+                    "metadata",
                     "uuid",
                     "createdAt",
                     "user",
@@ -50564,7 +50602,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ThreadSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_"
+                "$ref": "#/components/schemas/Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid-or-metadata_"
             },
             "Pick_AiAgentSummary.uuid-or-name-or-imageUrl_": {
                 "properties": {
@@ -81727,7 +81765,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.394.0",
+        "version": "3.395.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -101471,6 +101509,22 @@
                     {
                         "in": "query",
                         "name": "search",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "metadataKey",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "metadataValue",
                         "required": false,
                         "schema": {
                             "type": "string"

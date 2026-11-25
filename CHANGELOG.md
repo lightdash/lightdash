@@ -1,3 +1,11 @@
+# [3.395.0](https://github.com/lightdash/lightdash/compare/3.394.0...3.395.0) (2026-11-25)
+
+
+### Features
+
+* **ai-agents:** show thread metadata in the admin threads view ([#33321](https://github.com/lightdash/lightdash/issues/33321)) ([9edd480](https://github.com/lightdash/lightdash/commit/9edd48072d439921f0b0df20082d141989b9cc82))
+* **ai-agents:** store caller metadata on agent threads created through the API ([#33320](https://github.com/lightdash/lightdash/issues/33320)) ([9edbdc0](https://github.com/lightdash/lightdash/commit/9edbdc002ef3536e64c5223ddb5d8965e53881a9))
+
 # [3.394.0](https://github.com/lightdash/lightdash/compare/3.393.0...3.394.0) (2026-11-24)
 
 
