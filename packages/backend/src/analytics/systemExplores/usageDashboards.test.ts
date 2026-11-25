@@ -810,6 +810,127 @@ describe('built-in usage dashboards', () => {
         );
     });
 
+    it('lists the Queries sub-tab charts in order with their fallback types', () => {
+        const { dashboard, charts: queryCharts } = analyticsContentAsCode.find(
+            ({ dashboard: item }) =>
+                item.slug === 'lightdash-analytics-query-activity',
+        )!;
+        const prefix = 'lightdash-analytics-query-activity-';
+        const slugs = (tabSlug: string) =>
+            dashboard.tiles
+                .filter(
+                    (tile) =>
+                        tile.type === DashboardTileTypes.SAVED_CHART &&
+                        tile.tabSlug === tabSlug,
+                )
+                .map(
+                    (tile) =>
+                        (tile.properties as { chartSlug: string }).chartSlug,
+                );
+        expect(slugs('origins')).toEqual(
+            [
+                'query-origin-and-initiating-actor',
+                'warehouse-versus-cached-demand',
+            ].map((key) => `${prefix}${key}`),
+        );
+        expect(slugs('fields')).toEqual(
+            [
+                'most-used-fields-cloud',
+                'most-used-fields',
+                'people-using-fields',
+                'content-using-fields',
+                'field-capture-coverage',
+            ].map((key) => `${prefix}${key}`),
+        );
+        const fallbackType = (key: string) =>
+            queryCharts.find(({ slug }) => slug === `${prefix}${key}`)!
+                .chartConfig.type;
+        expect(fallbackType('query-origin-and-initiating-actor')).toBe(
+            ChartType.TABLE,
+        );
+        expect(fallbackType('most-used-fields-cloud')).toBe(
+            ChartType.CARTESIAN,
+        );
+        const cloud = queryCharts.find(
+            ({ slug }) => slug === `${prefix}most-used-fields-cloud`,
+        )!;
+        expect(cloud.metricQuery.limit).toBe(20);
+        expect(cloud.metricQuery.dimensions).toEqual([
+            'semantic_usage_field_label',
+        ]);
+    });
+
+    it('lays the Queries latency section out as an explicit row', () => {
+        const { dashboard } = analyticsContentAsCode.find(
+            ({ dashboard: item }) =>
+                item.slug === 'lightdash-analytics-query-activity',
+        )!;
+        const tile = (tabSlug: string, key: string) =>
+            dashboard.tiles.find(
+                (item) =>
+                    item.type === DashboardTileTypes.SAVED_CHART &&
+                    item.tabSlug === tabSlug &&
+                    (item.properties as { chartSlug: string }).chartSlug ===
+                        `lightdash-analytics-query-activity-${key}`,
+            )!;
+        const slow = tile('latency', 'slow-dashboards-tail-latency-and-demand');
+        expect([slow.x, slow.w, slow.h]).toEqual([0, 36, 9]);
+    });
+
+    it('leaves the query calendar chart unchanged', () => {
+        const { charts: queryCharts } = analyticsContentAsCode.find(
+            ({ dashboard: item }) =>
+                item.slug === 'lightdash-analytics-query-activity',
+        )!;
+        const calendar = queryCharts.find(({ slug }) =>
+            slug.endsWith('-query-calendar'),
+        )!;
+        expect(analyticsLibraryChartBindings.has(calendar.slug)).toBe(false);
+    });
+
+    it('captions only the Queries sections with library charts and shows the query total compactly', () => {
+        const spec = usageDashboardSpecs.find(
+            ({ key }) => key === 'lightdash-analytics-query-activity',
+        )!;
+        const { dashboard } = analyticsContentAsCode.find(
+            ({ dashboard: item }) =>
+                item.slug === 'lightdash-analytics-query-activity',
+        )!;
+        const captioned = spec.tabs.flatMap(({ sections }) =>
+            sections.filter(({ caption }) => caption).map(({ title }) => title),
+        );
+        expect(captioned).toEqual(['Response latency', 'Most-used fields']);
+        spec.tabs.forEach((tab) => {
+            const notes = dashboard.tiles.filter(
+                (tile) =>
+                    tile.tabSlug === tab.key &&
+                    tile.type === DashboardTileTypes.MARKDOWN,
+            );
+            tab.sections.forEach((section, index) => {
+                const { h, properties } = notes[index] as {
+                    h: number;
+                    properties: { content: string };
+                };
+                if (section.caption) {
+                    expect(h).toBe(1);
+                    expect(properties.content).toBe(section.description);
+                } else {
+                    expect(h).toBe(section.noteHeight ?? 2);
+                    expect(properties.content).toBe(
+                        `### ${section.title}\n\n${section.description}`,
+                    );
+                }
+            });
+        });
+        const queries = analyticsLibraryChartBindings.get(
+            'lightdash-analytics-query-activity-queries',
+        )!;
+        expect(queries.optionValues).toMatchObject({
+            valueAggregation: 'sum',
+            style: 'compact',
+        });
+    });
+
     it('keeps tile geometry for sections without a layout hint', () => {
         const { dashboard } = analyticsContentAsCode.find(
             ({ dashboard: item }) =>
@@ -1478,6 +1599,33 @@ describe('display fixes', () => {
             xName: 'Retries',
             yName: 'Requests',
             yRightName: 'Average latency (ms)',
+        });
+    });
+
+    it('shows Queries latency in whole milliseconds with titled axes', () => {
+        const rounded = { formatOptions: { type: 'number', round: 0 } };
+        const bySuffix = (key: string) =>
+            charts.find(
+                ({ slug }) =>
+                    slug.startsWith('lightdash-analytics-query-activity-') &&
+                    slug.endsWith(`-${key}`),
+            )!;
+        const slow = bySuffix('slow-dashboards-tail-latency-and-demand');
+        expect(slow.metricQuery.metricOverrides).toEqual({
+            query_events_p95_response_time_ms: rounded,
+            query_events_avg_warehouse_execution_time_ms: rounded,
+        });
+        expect(
+            analyticsLibraryChartBindings.get(slow.slug)?.optionValues,
+        ).toMatchObject({
+            yName: 'Queries',
+            yRightName: 'p95 response time (ms)',
+        });
+        ['avg-execution-time', 'p90-execution-time'].forEach((key) => {
+            const [metric] = bySuffix(key).metricQuery.metrics;
+            expect(bySuffix(key).metricQuery.metricOverrides).toEqual({
+                [metric]: rounded,
+            });
         });
     });
 
