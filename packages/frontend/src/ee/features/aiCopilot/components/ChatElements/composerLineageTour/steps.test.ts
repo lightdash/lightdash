@@ -25,6 +25,14 @@ const python: SourceQuery = {
     references: ['joined'],
 };
 
+const final: SourceQuery = {
+    sourceType: QuerySourceType.DUCKDB,
+    nodeId: 'final',
+    title: 'Final',
+    sql: 'SELECT * FROM joined',
+    references: ['joined'],
+};
+
 const stepsFor = (queries: SourceQuery[], terminalNodeId: string) =>
     getComposerLineageTourSteps({
         scope: '[data-panel]',
@@ -38,13 +46,18 @@ describe('getComposerLineageTourSteps', () => {
     it('points the graph and cell steps at the most notable step', () => {
         const cases = [
             {
-                queries: [semantic, merge, python],
-                terminal: 'forecast',
+                queries: [
+                    semantic,
+                    merge,
+                    python,
+                    { ...final, references: ['forecast'] },
+                ],
+                terminal: 'final',
                 focused: 'forecast',
             },
             {
-                queries: [semantic, merge],
-                terminal: 'joined',
+                queries: [semantic, merge, final],
+                terminal: 'final',
                 focused: 'joined',
             },
             {
@@ -70,6 +83,7 @@ describe('getComposerLineageTourSteps', () => {
             saveInMenu: false,
             canAddToChat: true,
         });
+
         expect(steps.at(-1)?.target).toBeNull();
     });
 });

@@ -61,15 +61,13 @@ describe('ComposerLineageTour', () => {
                 <Panel scopeId="second" />
             </>,
         );
-        expect(screen.getAllByText('See how this was built')).toHaveLength(1);
+        expect(screen.getAllByText('Step 1 of 4')).toHaveLength(1);
     });
 
     it('stays open after it switches the panel to Lineage', async () => {
         const user = userEvent.setup();
         renderWithProviders(<Panel scopeId="only" />);
         await user.click(screen.getByRole('button', { name: 'Next' }));
-        expect(
-            screen.getByText('Flexible analysis, governed data'),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Step 2 of 4')).toBeInTheDocument();
     });
 });

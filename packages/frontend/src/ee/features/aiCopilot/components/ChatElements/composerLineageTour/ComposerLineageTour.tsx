@@ -13,7 +13,7 @@ let ownerScopeId: string | null = null;
 type Props = {
     /** The panel's `data-composer-tour-scope` value. */
     scopeId: string;
-    /** The chart is drawn in Chart view and the pipeline has more than one step; read only until the tour opens. */
+    /** Whether the panel may open the tour; read only until it opens. */
     ready: boolean;
     queries: SourceQuery[];
     terminalNodeId: string;
@@ -44,15 +44,13 @@ export const ComposerLineageTour: FC<Props> = ({
             return undefined;
         ownerScopeId = scopeId;
         setIsOwner(true);
+        setIsLaunched(true);
         return () => {
             if (ownerScopeId === scopeId) ownerScopeId = null;
             setIsOwner(false);
         };
     }, [shouldShow, scopeId]);
     const opened = shouldShow && isOwner;
-    useEffect(() => {
-        if (opened) setIsLaunched(true);
-    }, [opened]);
     const steps = useMemo(
         () =>
             getComposerLineageTourSteps({

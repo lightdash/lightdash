@@ -37,7 +37,6 @@ const highlightOf = (query: SourceQuery): Highlight | null => {
     }
 };
 
-/** The step the tour points at: the first Python step, else the first merge, else the final one. */
 const getTourFocus = (
     queries: SourceQuery[],
     terminalNodeId: string,
