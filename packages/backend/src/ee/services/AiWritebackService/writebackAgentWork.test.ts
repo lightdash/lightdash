@@ -55,6 +55,9 @@ it.each([
                 get: vi.fn().mockResolvedValue(policy),
                 getForEnforcement: vi.fn().mockResolvedValue(policy),
                 save: vi.fn(),
+                getProjectPolicies: vi.fn().mockResolvedValue([]),
+                saveProjectPolicy: vi.fn(),
+                deleteProjectPolicy: vi.fn(),
             },
             userModel,
             projectModel: {

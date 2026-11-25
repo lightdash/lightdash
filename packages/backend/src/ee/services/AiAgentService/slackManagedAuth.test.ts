@@ -43,6 +43,7 @@ const setup = ({
                         ? null
                         : policy.allowedGroupUuids.length > 0,
             })),
+            getProjectPolicies: vi.fn().mockResolvedValue([]),
         },
         agentActionLogModel: { insert },
     } as unknown as ConstructorParameters<typeof AgentPermissionService>[0]);

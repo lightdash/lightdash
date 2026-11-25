@@ -122,6 +122,9 @@ const setup = ({
                 };
             },
             save: vi.fn(),
+            getProjectPolicies: vi.fn().mockResolvedValue([]),
+            saveProjectPolicy: vi.fn(),
+            deleteProjectPolicy: vi.fn(),
         },
         userModel: {
             getAgentRoleAssignments: vi.fn().mockResolvedValue({

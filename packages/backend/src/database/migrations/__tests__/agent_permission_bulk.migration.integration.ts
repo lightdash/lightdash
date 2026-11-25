@@ -515,7 +515,7 @@ it('keeps role, policy, group and project query counts constant for 3 and 50 dif
                 ]),
         );
     expect(families(large.sql)).toEqual(families(small.sql));
-    expect(large.sql.length).toBe(9);
+    expect(large.sql.length).toBe(10);
     expect(large.sql.every((query) => query.startsWith('select'))).toBe(true);
     for (const [index, project] of f.projects.entries()) {
         const queryIndex =
@@ -543,6 +543,7 @@ it('keeps role, policy, group and project query counts constant for 3 and 50 dif
         "group_memberships": 2,
         "organization_agent_capability_policies": 1,
         "organization_membership_custom_roles": 1,
+        "project_agent_capability_policies": 1,
         "project_group_access_custom_roles": 1,
         "project_memberships": 1,
         "projects": 1,

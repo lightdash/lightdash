@@ -1,7 +1,10 @@
 export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
+    'AgentPermissionController.deleteProjectPolicy',
     'AgentPermissionController.getPolicy',
+    'AgentPermissionController.getProjectPolicies',
     'AgentPermissionController.resetToLegacy',
     'AgentPermissionController.saveCeiling',
+    'AgentPermissionController.saveProjectPolicy',
     'AiAccessController.getCapabilities',
     'AiAccessController.getMyAccess',
     'AiAccessController.testMarker',

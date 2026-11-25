@@ -16,6 +16,8 @@ import {
     type AgentCapabilityPolicy,
     type AgentCapabilityPolicyOverview,
     type AgentPermissionCheck,
+    type AgentProjectCapabilityPolicy,
+    type AgentProjectCapabilityPolicySave,
     type AiAccessRefusal,
     type RegisteredAccount,
 } from '@lightdash/common';
@@ -56,6 +58,8 @@ export interface ResolvedAgentPolicy {
     allowedGroupUuids: string[] | null;
     version: number;
     editableCustomRoleUuid: string | null;
+    /** True when the project's own restrictions replaced the organization's. */
+    projectScoped?: boolean;
 }
 
 export interface AgentPolicyEvaluation {
@@ -151,7 +155,12 @@ interface Dependencies {
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     agentCapabilityPolicyModel: Pick<
         AgentCapabilityPolicyModel,
-        'get' | 'getForEnforcement' | 'save'
+        | 'get'
+        | 'getForEnforcement'
+        | 'save'
+        | 'getProjectPolicies'
+        | 'saveProjectPolicy'
+        | 'deleteProjectPolicy'
     >;
     userModel: Pick<UserModel, 'getAgentRoleAssignments'>;
     projectModel: Pick<ProjectModel, 'getSummary'>;
@@ -166,12 +175,45 @@ type ImmutableAgentEnforcementPolicy = {
     readonly hasExistingAllowedGroup: boolean | null;
 };
 
+type ProjectCapabilityLimits = ReadonlyMap<
+    string,
+    readonly AgentCapability[] | null
+>;
+
+// A project's own restrictions replace the organization's for that project.
+const applyProjectPolicy = (
+    policy: AgentCapabilityPolicy,
+    projectLimit: readonly AgentCapability[] | null | undefined,
+): AgentCapabilityPolicy & { projectScoped: boolean } =>
+    projectLimit === undefined
+        ? { ...policy, projectScoped: false }
+        : {
+              ...policy,
+              mode: projectLimit === null ? 'legacy' : 'managed',
+              allowedCapabilities:
+                  projectLimit === null ? null : [...projectLimit],
+              projectScoped: true,
+          };
+
+const toProjectLimits = (
+    policies: AgentProjectCapabilityPolicy[],
+): ProjectCapabilityLimits =>
+    new Map(
+        policies.map((policy) => [
+            policy.projectUuid,
+            policy.allowedCapabilities === null
+                ? null
+                : Object.freeze([...policy.allowedCapabilities]),
+        ]),
+    );
+
 class AgentPermissionRequestHandle {
     private readonly memberships = new Map<string, Promise<boolean>>();
 
     constructor(
         readonly organizationUuid: string,
         readonly policy: ImmutableAgentEnforcementPolicy | null,
+        readonly projectLimits: ProjectCapabilityLimits,
         private readonly findGroupMembership: (
             userUuid: string,
             groupUuids: string[],
@@ -183,6 +225,10 @@ class AgentPermissionRequestHandle {
     get enforcementMode(): 'off' | 'admission' | 'managed' {
         if (this.policy === null) return 'off';
         if (this.policy.mode === 'managed') return 'managed';
+        // A project that restricts agents needs the full check even when the
+        // organization itself has no restrictions.
+        if ([...this.projectLimits.values()].some((limit) => limit !== null))
+            return 'managed';
         return this.policy.storedAllowedGroupUuids === null
             ? 'off'
             : 'admission';
@@ -272,16 +318,20 @@ export class AgentPermissionService extends BaseService {
     async loadRequest(
         organizationUuid: string,
     ): Promise<AgentPermissionRequest> {
-        const policy = (await this.isEnabled(organizationUuid))
-            ? freezePolicy(
-                  await this.deps.agentCapabilityPolicyModel.getForEnforcement(
-                      organizationUuid,
-                  ),
-              )
-            : null;
+        const [policy, projectLimits] = (await this.isEnabled(organizationUuid))
+            ? await Promise.all([
+                  this.deps.agentCapabilityPolicyModel
+                      .getForEnforcement(organizationUuid)
+                      .then(freezePolicy),
+                  this.deps.agentCapabilityPolicyModel
+                      .getProjectPolicies(organizationUuid)
+                      .then(toProjectLimits),
+              ])
+            : [null, toProjectLimits([])];
         return new AgentPermissionRequestHandle(
             organizationUuid,
             policy,
+            projectLimits,
             async (userUuid, groupUuids) =>
                 (
                     await this.deps.groupsModel.findUserInGroups({
@@ -346,7 +396,12 @@ export class AgentPermissionService extends BaseService {
                 version: 0,
                 editableCustomRoleUuid: null,
             };
-        const policy = projectEnforcementPolicy(request.policy);
+        const policy = applyProjectPolicy(
+            projectEnforcementPolicy(request.policy),
+            operation.projectUuid === null
+                ? undefined
+                : request.projectLimits.get(operation.projectUuid),
+        );
         if (policy.mode === 'legacy')
             return {
                 ...policy,
@@ -370,8 +425,20 @@ export class AgentPermissionService extends BaseService {
                 version: 0,
                 editableCustomRoleUuid: null,
             };
-        const policy =
-            await this.deps.agentCapabilityPolicyModel.get(organizationUuid);
+        const [organizationPolicy, projectPolicies] = await Promise.all([
+            this.deps.agentCapabilityPolicyModel.get(organizationUuid),
+            projectUuid === null
+                ? []
+                : this.deps.agentCapabilityPolicyModel.getProjectPolicies(
+                      organizationUuid,
+                  ),
+        ]);
+        const policy = applyProjectPolicy(
+            organizationPolicy,
+            projectUuid === null
+                ? undefined
+                : toProjectLimits(projectPolicies).get(projectUuid),
+        );
         if (policy.mode === 'legacy')
             return {
                 ...policy,
@@ -392,7 +459,7 @@ export class AgentPermissionService extends BaseService {
         projectUuid,
         policy,
     }: ResolvePolicyArgs & {
-        policy: AgentCapabilityPolicy;
+        policy: AgentCapabilityPolicy & { projectScoped?: boolean };
     }): Promise<ResolvedAgentPolicy> {
         if (account.organization.organizationUuid !== organizationUuid)
             throw new ForbiddenError(
@@ -443,6 +510,7 @@ export class AgentPermissionService extends BaseService {
             editableCustomRoleUuid: canEditRoles
                 ? (assignments.customRoles[0]?.roleUuid ?? null)
                 : null,
+            projectScoped: policy.projectScoped ?? false,
         };
     }
 
@@ -820,6 +888,68 @@ export class AgentPermissionService extends BaseService {
             mode,
             updatedByUserUuid: account.user.id,
         });
+    }
+
+    async getProjectPolicies(
+        account: Account,
+    ): Promise<AgentProjectCapabilityPolicy[]> {
+        const organizationUuid = await this.assertPolicyAdmin(account);
+        return this.deps.agentCapabilityPolicyModel.getProjectPolicies(
+            organizationUuid,
+        );
+    }
+
+    private async assertProjectInOrganization(
+        projectUuid: string,
+        organizationUuid: string,
+    ): Promise<void> {
+        const project = await this.deps.projectModel.getSummary(projectUuid);
+        if (project.organizationUuid !== organizationUuid)
+            throw new ForbiddenError(
+                'The project does not belong to this organization',
+            );
+    }
+
+    async saveProjectPolicy(
+        account: Account,
+        projectUuid: string,
+        body: AgentProjectCapabilityPolicySave,
+    ): Promise<AgentProjectCapabilityPolicy> {
+        const organizationUuid = await this.assertPolicyAdmin(account);
+        await this.assertProjectInOrganization(projectUuid, organizationUuid);
+        const allowed = body?.allowedCapabilities;
+        if (
+            allowed !== null &&
+            (!Array.isArray(allowed) ||
+                allowed.some(
+                    (capability) =>
+                        !Object.values(AgentCapability).includes(capability),
+                ))
+        )
+            throw new ParameterError(
+                'Provide a valid capability list, or null for no restrictions',
+            );
+        return this.deps.agentCapabilityPolicyModel.saveProjectPolicy({
+            projectUuid,
+            allowedCapabilities:
+                allowed === null
+                    ? null
+                    : Object.values(AgentCapability).filter((capability) =>
+                          allowed.includes(capability),
+                      ),
+            updatedByUserUuid: account.user.id,
+        });
+    }
+
+    async deleteProjectPolicy(
+        account: Account,
+        projectUuid: string,
+    ): Promise<void> {
+        const organizationUuid = await this.assertPolicyAdmin(account);
+        await this.assertProjectInOrganization(projectUuid, organizationUuid);
+        await this.deps.agentCapabilityPolicyModel.deleteProjectPolicy(
+            projectUuid,
+        );
     }
 
     private static validateVersion(version: number | undefined): void {
