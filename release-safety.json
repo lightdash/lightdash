@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.395.0",
-  "previousVersion": "3.394.0",
-  "releaseDate": "2026-11-25T07:57:56.789Z",
+  "version": "3.395.1",
+  "previousVersion": "3.395.0",
+  "releaseDate": "2026-11-25T08:23:32.843Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261124120000_add_thread_metadata_to_ai_thread.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_thread"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

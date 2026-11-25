@@ -1,3 +1,11 @@
+## [3.395.1](https://github.com/lightdash/lightdash/compare/3.395.0...3.395.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* **backend:** harden results-page compression negotiation, late sends and memory ([#33399](https://github.com/lightdash/lightdash/issues/33399)) ([41890ce](https://github.com/lightdash/lightdash/commit/41890ceec3295ba5f267e762bee4bf53f77923cd))
+* **filters:** keep autocomplete spinner off value pills and align its icons ([#33403](https://github.com/lightdash/lightdash/issues/33403)) ([9dd14ef](https://github.com/lightdash/lightdash/commit/9dd14ef03a836c15ea26bb55e72886e0553e1bd8))
+
 # [3.395.0](https://github.com/lightdash/lightdash/compare/3.394.0...3.395.0) (2026-11-25)
 
 
