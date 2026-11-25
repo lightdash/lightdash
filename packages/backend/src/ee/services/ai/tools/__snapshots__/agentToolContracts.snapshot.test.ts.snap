@@ -19998,7 +19998,7 @@ Earlier nodes: a node id names one node for the whole thread. A node reads a nod
                     "type": "string",
                   },
                   "joinKey": {
-                    "description": "The dimensions the sources share, one entry per key.",
+                    "description": "The dimensions the sources share, one entry per key. Sources that share them at the same grain belong in a merge; a key that has to be computed or truncated to a shared grain needs a duckdb join instead.",
                     "items": {
                       "additionalProperties": false,
                       "properties": {
@@ -20096,7 +20096,7 @@ Earlier nodes: a node id names one node for the whole thread. A node reads a nod
                     "type": "string",
                   },
                   "sources": {
-                    "description": "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects its join-key dimensions plus metrics; one source may keep another dimension when every other source sets repeatValues. Each returns fewer rows than its limit: a node cut off at its limit is refused.",
+                    "description": "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects its join-key dimensions plus metrics; one source may keep another dimension when every other source sets repeatValues. Each returns fewer rows than its limit: a node cut off at its limit is refused. Fix a refused merge by narrowing a source with a filter, raising its limit or adding the missing join key, rather than joining the same nodes in a duckdb node.",
                     "items": {
                       "additionalProperties": false,
                       "properties": {
