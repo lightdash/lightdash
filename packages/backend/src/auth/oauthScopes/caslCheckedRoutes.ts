@@ -257,6 +257,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'ExternalConnectionController.updateExternalConnection',
     'ExternalConnectionController.updateLiveSourceCache',
     'ExternalConnectionController.updateLiveSourceFields',
+    'ExternalConnectionController.updateLiveSourceRateLimits',
     'ExternalSourceController.commitUpload',
     'ExternalSourceController.createGoogleSheetsSource',
     'ExternalSourceController.deleteSource',
