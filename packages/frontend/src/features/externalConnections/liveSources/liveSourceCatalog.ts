@@ -39,7 +39,8 @@ export type LiveSourceSetup =
     | { kind: 'token'; form: TokenLiveSourceForm }
     | { kind: 'linkedin_ads' }
     | { kind: 'salesforce' }
-    | { kind: 'amplitude' };
+    | { kind: 'amplitude' }
+    | { kind: 'mixpanel' };
 
 export type AvailableLiveSource = Omit<LiveIntegrationCatalogEntry, 'setup'> & {
     status: 'available';
@@ -75,10 +76,10 @@ const ICONS: Record<string, string> = {
     [ApiConnectorType.HUBSPOT]: hubspotIcon,
     [ApiConnectorType.SALESFORCE]: salesforceIcon,
     [ApiConnectorType.AMPLITUDE]: amplitudeIcon,
+    [ApiConnectorType.MIXPANEL]: mixpanelIcon,
     [ApiConnectorType.HYDRA]: hydraIcon,
     shopify: shopifyIcon,
     stripe: stripeIcon,
-    mixpanel: mixpanelIcon,
     jira: jiraIcon,
 };
 
@@ -109,6 +110,7 @@ const DISPLAY_ORDER = [
     ApiConnectorType.HUBSPOT,
     ApiConnectorType.SALESFORCE,
     ApiConnectorType.AMPLITUDE,
+    ApiConnectorType.MIXPANEL,
     ApiConnectorType.HYDRA,
 ] as const satisfies readonly ApiConnectorType[];
 

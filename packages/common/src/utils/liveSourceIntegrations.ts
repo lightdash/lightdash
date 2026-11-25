@@ -15,7 +15,8 @@ export type LiveSourceSetupKind =
     | 'token'
     | 'linkedin_ads'
     | 'salesforce'
-    | 'amplitude';
+    | 'amplitude'
+    | 'mixpanel';
 
 type LiveIntegrationCatalogFields<C extends ApiConnectorType> = {
     /** Stable id, sent with analytics events. */
@@ -234,6 +235,20 @@ export const LIVE_INTEGRATION_CATALOG: {
         }),
         getTarget: () => 'Amplitude project',
     },
+    [ApiConnectorType.MIXPANEL]: {
+        id: 'mixpanel',
+        label: 'Mixpanel',
+        defaultName: 'Mixpanel',
+        messageLabel: 'Mixpanel',
+        agentLabel: 'Mixpanel',
+        description: 'Events, saved funnels and retention',
+        setup: 'mixpanel',
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.MIXPANEL),
+            projectId: z.string(),
+        }),
+        getTarget: ({ projectId }) => `Project ${projectId}`,
+    },
     [ApiConnectorType.HYDRA]: {
         id: 'hydra',
         label: 'Hydra',
@@ -286,11 +301,6 @@ export const REQUESTABLE_LIVE_INTEGRATIONS = [
         id: 'stripe',
         label: 'Stripe',
         description: 'Payments, subscriptions and revenue',
-    },
-    {
-        id: 'mixpanel',
-        label: 'Mixpanel',
-        description: 'Product events, funnels and retention',
     },
     {
         id: 'jira',
