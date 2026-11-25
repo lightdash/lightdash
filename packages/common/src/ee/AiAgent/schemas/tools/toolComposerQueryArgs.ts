@@ -269,7 +269,7 @@ const composerPeriodComparisonSchema = z.object({
     metricFieldId: z
         .string()
         .describe(
-            'Metric to compare: a field id in "metrics" or a custom metric\'s.',
+            'Metric to compare: a field id in "metrics" or an unfiltered custom metric\'s.',
         ),
     timeDimensionFieldId: z
         .string()
@@ -426,7 +426,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         sql: z
             .string()
             .describe(
-                "A SELECT or WITH statement in the warehouse's SQL dialect. Explores are governed and reusable, so use a sql node only when the user asks for SQL or a raw table, or no explore can produce the result.",
+                "A SELECT or WITH statement in the warehouse's SQL dialect. Explores are governed and reusable, so use a sql node only when the user asks for SQL or names a warehouse table, or no explore can produce the result.",
             ),
         limit: limitSchema,
     });

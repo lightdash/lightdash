@@ -523,7 +523,7 @@ A result holds every row of the terminal node. While it is running, call get_que
                         "items": {
                           "properties": {
                             "metricFieldId": {
-                              "description": "Metric to compare: a field id in "metrics" or a custom metric's.",
+                              "description": "Metric to compare: a field id in "metrics" or an unfiltered custom metric's.",
                               "type": "string",
                             },
                             "periodOffset": {
@@ -624,7 +624,7 @@ A result holds every row of the terminal node. While it is running, call get_que
                     "type": "string",
                   },
                   "sql": {
-                    "description": "A SELECT or WITH statement in the warehouse's SQL dialect. Explores are governed and reusable, so use a sql node only when the user asks for SQL or a raw table, or no explore can produce the result.",
+                    "description": "A SELECT or WITH statement in the warehouse's SQL dialect. Explores are governed and reusable, so use a sql node only when the user asks for SQL or names a warehouse table, or no explore can produce the result.",
                     "type": "string",
                   },
                   "title": {
