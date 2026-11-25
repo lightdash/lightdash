@@ -143,6 +143,10 @@ export type DownloadAsyncQueryResultsArgs = Omit<
     conditionalFormattings?: ConditionalFormattingConfig[];
     showColumnTotals?: boolean;
     xlsxContent?: XlsxExportContent;
+    // Chart-image exports of a scheduled chart delivery: the delivery's filter
+    // overrides, so the picture matches the rows the delivery's query returned.
+    // Server-side only, never accepted from the API.
+    chartImageSchedulerFilters?: Filters;
     showSubtotals?: boolean;
 };
 

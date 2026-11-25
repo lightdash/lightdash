@@ -1651,6 +1651,12 @@ export default class SchedulerTask {
                             exportPivotedData: effectiveExportPivotedData,
                         } = getDownloadPivotOptions(chart, exportPivotedData);
                         const shouldPivotResults = !!downloadPivotConfig;
+                        // Table charts always export their rows
+                        const exportChartAsImage =
+                            format === SchedulerFormat.XLSX &&
+                            csvOptions?.xlsxContent ===
+                                XlsxExportContent.CHART_IMAGE &&
+                            chart.chartConfig.type !== ChartType.TABLE;
                         const query =
                             await this.asyncQueryService.executeAsyncSavedChartQuery(
                                 {
@@ -1699,6 +1705,14 @@ export default class SchedulerTask {
                                             chart.chartConfig.config,
                                         ),
                                     expirationSecondsOverride,
+                                    ...(exportChartAsImage
+                                        ? {
+                                              xlsxContent:
+                                                  XlsxExportContent.CHART_IMAGE,
+                                              chartImageSchedulerFilters:
+                                                  chartSchedulerFilters,
+                                          }
+                                        : {}),
                                 },
                                 this.schedulerPollingOptions,
                             );
