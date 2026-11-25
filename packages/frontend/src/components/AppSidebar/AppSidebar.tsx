@@ -8,11 +8,12 @@ import {
 } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
-import { useRef, type FC } from 'react';
+import { Fragment, useRef, type FC } from 'react';
 import { Link, useLocation } from 'react-router';
 import { MobileSignInMenu } from '../../features/mobile/MobileSignInMenu';
 import { MobileSignInOpenerContext } from '../../features/mobile/mobileSignInOpener';
 import Omnibar from '../../features/omnibar';
+import { useFavorites } from '../../hooks/favorites/useFavorites';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import HeadwayMenuItem from '../NavBar/HeadwayMenuItem';
@@ -29,9 +30,12 @@ import classes from './AppSidebar.module.css';
 import {
     APP_SIDEBAR_ID,
     getActiveAppSidebarItem,
+    getActiveFavoriteUuid,
 } from './appSidebarNavigation';
 import { SidebarCollapsedContext } from './SidebarCollapsedContext';
+import { SidebarFavorites } from './SidebarFavorites';
 import { SidebarMenuTrigger } from './SidebarMenuTrigger';
+import { SidebarSection } from './SidebarSection';
 import { useAppSidebarSections } from './useAppSidebarSections';
 import { useRelocationAnimation } from './useRelocationAnimation';
 
@@ -47,7 +51,14 @@ export const AppSidebar: FC<Props> = ({
     isCollapsed,
 }) => {
     const { pathname } = useLocation();
-    const activeItem = getActiveAppSidebarItem(pathname);
+    const { data: favorites } = useFavorites(projectUuid);
+    const activeFavoriteUuid = getActiveFavoriteUuid(pathname, favorites ?? []);
+    // A favorite names the page more precisely than the list it belongs to.
+    // The rail hides favorites, so there the list keeps the highlight.
+    const activeItem =
+        activeFavoriteUuid === null || isCollapsed
+            ? getActiveAppSidebarItem(pathname)
+            : null;
     const sections = useAppSidebarSections({
         projectUuid,
         projectUrlIdentifier,
@@ -130,41 +141,70 @@ export const AppSidebar: FC<Props> = ({
                         />
                     )}
                 </Box>
-                {sections.map((section) => (
-                    <Box key={section.key}>
-                        {section.label !== null && (
-                            <Text className={classes.sectionLabel}>
-                                {section.label}
-                            </Text>
-                        )}
-                        {section.items.map((item) => (
-                            <Tooltip
-                                key={item.key}
-                                label={item.label}
-                                position="right"
-                                disabled={!isCollapsed}
-                            >
-                                <NavLink
-                                    component={Link}
-                                    to={item.to}
+                <Box className={classes.scroll}>
+                    {sections.map((section) => {
+                        const items = section.items.map((item) => ({
+                            key: item.key,
+                            isActive: item.key === activeItem,
+                            animatesIn: false,
+                            element: (
+                                <Tooltip
+                                    key={item.key}
                                     label={item.label}
-                                    leftSection={item.icon}
-                                    classNames={{
-                                        root: classes.item,
-                                        label: classes.itemLabel,
-                                    }}
-                                    active={item.key === activeItem}
-                                    aria-current={
-                                        item.key === activeItem
-                                            ? 'page'
-                                            : undefined
-                                    }
-                                    onClick={item.onClick ?? undefined}
-                                />
-                            </Tooltip>
-                        ))}
-                    </Box>
-                ))}
+                                    position="right"
+                                    disabled={!isCollapsed}
+                                >
+                                    <NavLink
+                                        component={Link}
+                                        to={item.to}
+                                        label={item.label}
+                                        leftSection={item.icon}
+                                        classNames={{
+                                            root: classes.item,
+                                            label: classes.itemLabel,
+                                        }}
+                                        active={item.key === activeItem}
+                                        aria-current={
+                                            item.key === activeItem
+                                                ? 'page'
+                                                : undefined
+                                        }
+                                        onClick={item.onClick ?? undefined}
+                                    />
+                                </Tooltip>
+                            ),
+                        }));
+                        return section.label === null ? (
+                            <Fragment key={section.key}>
+                                <Box>
+                                    {items.map((item) => (
+                                        <Fragment key={item.key}>
+                                            {item.element}
+                                        </Fragment>
+                                    ))}
+                                </Box>
+                                {projectUuid && projectUrlIdentifier && (
+                                    <SidebarFavorites
+                                        projectUuid={projectUuid}
+                                        projectUrlIdentifier={
+                                            projectUrlIdentifier
+                                        }
+                                        isSidebarCollapsed={isCollapsed}
+                                        activeFavoriteUuid={activeFavoriteUuid}
+                                    />
+                                )}
+                            </Fragment>
+                        ) : (
+                            <SidebarSection
+                                key={section.key}
+                                sectionKey={section.key}
+                                label={section.label}
+                                isSidebarCollapsed={isCollapsed}
+                                items={items}
+                            />
+                        );
+                    })}
+                </Box>
                 <NavBarPortalContext.Provider value="body">
                     <NavMenuTriggerContext.Provider value={SidebarMenuTrigger}>
                         <MobileSignInOpenerContext.Provider
