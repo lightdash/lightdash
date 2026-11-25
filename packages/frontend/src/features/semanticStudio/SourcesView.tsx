@@ -30,7 +30,6 @@ import {
     IconGitCompare,
     IconLock,
     IconListDetails,
-    IconPencil,
     IconSearch,
 } from '@tabler/icons-react';
 import {
@@ -450,10 +449,11 @@ export const SourcePane: FC<{
     }
     const value = text ?? loaded ?? '';
     const isDirty = text !== null && text !== loaded;
-    // Code is read until the person asks to edit it; unsaved text keeps it in editing.
-    const [editingKey, setEditingKey] = useState<string | null>(null);
     const { track } = useTracking();
-    const isEditing = canEdit && (isDirty || editingKey === editKey);
+    // The file it was tracked for, so a first edit counts once per file.
+    const trackedEdit = useRef<string | null>(null);
+    // What the editor was last mounted with, so a remount keeps what is typed.
+    const mounted = useRef<{ key: string; text: string | null } | null>(null);
     // A proposal shown in the editor is the agent's until the person types over it.
     const hasOwnEdits = isDirty && text !== offered;
     const isBeingSaved = isSaving && isDirty && !hasOwnEdits;
@@ -520,6 +520,17 @@ export const SourcePane: FC<{
         setText(null);
         setProposedFrom(null);
         setRevision((current) => current + 1);
+        trackedEdit.current = null;
+    };
+    const editContent = (contents: string) => {
+        if (contents !== value && trackedEdit.current !== editKey) {
+            trackedEdit.current = editKey;
+            track({
+                name: EventName.SEMANTIC_STUDIO_EDIT_STARTED,
+                properties: { projectId: target.projectUuid, kind: 'file' },
+            });
+        }
+        setText(contents);
     };
     const submit = () => {
         if (!path || !isDirty || isBeingSaved || save.isLoading || !canEdit)
@@ -653,17 +664,20 @@ export const SourcePane: FC<{
             : before
         : proposedFrom;
     const shownLayout = compare !== null ? layout : 'code';
-    // Switching layout remounts Pierre, so it restarts from what is typed so far.
-    const pickLayout = (next: Layout) => {
-        setBase(value);
-        setLayout(next);
-    };
     const options = {
         ...pierreThemeFor(colorScheme),
         overflow: 'scroll',
         disableFileHeader: true,
     } as const;
-    const current = { name: fileName(path), contents: base ?? loaded ?? '' };
+    // Pierre takes `edit` when it mounts, so a lock or unlock mounts it again.
+    const surfaceKey = `${path}:${shownLayout}:${revision}:${canEdit}`;
+    // Any remount (layout, a late comparison, a lock) restarts from what is typed so far.
+    if (mounted.current?.key !== surfaceKey)
+        mounted.current = { key: surfaceKey, text };
+    const current = {
+        name: fileName(path),
+        contents: mounted.current.text ?? base ?? loaded ?? '',
+    };
     const dir = path.split('/').slice(0, -1).join('/');
     const status = !change
         ? null
@@ -685,8 +699,6 @@ export const SourcePane: FC<{
     }`;
     const check = (isOn: boolean) =>
         isOn ? <MantineIcon icon={IconCheck} size={14} /> : null;
-    // Pierre takes `edit` when it mounts, so entering or leaving editing mounts it again.
-    const surfaceKey = `${path}:${shownLayout}:${revision}:${isEditing}`;
     return (
         <Box className={tabClasses.codePane}>
             <Group
@@ -771,44 +783,6 @@ export const SourcePane: FC<{
                                 />
                             </Box>
                         </Tooltip>
-                    ) : isEditing ? null : (
-                        <Tooltip
-                            label={
-                                target.prUrl
-                                    ? `Saves to ${where}`
-                                    : 'Saving starts a draft. Published stays as it is.'
-                            }
-                        >
-                            <Button
-                                size="compact-xs"
-                                variant="default"
-                                leftSection={
-                                    <MantineIcon icon={IconPencil} size={12} />
-                                }
-                                onClick={() => {
-                                    track({
-                                        name: EventName.SEMANTIC_STUDIO_EDIT_STARTED,
-                                        properties: {
-                                            projectId: target.projectUuid,
-                                            kind: 'file',
-                                        },
-                                    });
-                                    setEditingKey(editKey);
-                                }}
-                            >
-                                Edit
-                            </Button>
-                        </Tooltip>
-                    )}
-                    {isEditing && !isDirty ? (
-                        <Button
-                            size="compact-xs"
-                            variant="subtle"
-                            color="gray"
-                            onClick={() => setEditingKey(null)}
-                        >
-                            Done
-                        </Button>
                     ) : null}
                     {isFetching && !isDirty ? (
                         <Loader size={12} color="gray" />
@@ -846,14 +820,14 @@ export const SourcePane: FC<{
                                     rightSection={check(shownLayout !== 'code')}
                                     onClick={() =>
                                         shownLayout === 'code' &&
-                                        pickLayout('diff')
+                                        setLayout('diff')
                                     }
                                 >
                                     {comparison}
                                 </Menu.Item>
                                 <Menu.Item
                                     rightSection={check(shownLayout === 'code')}
-                                    onClick={() => pickLayout('code')}
+                                    onClick={() => setLayout('code')}
                                 >
                                     Just the file
                                 </Menu.Item>
@@ -862,7 +836,7 @@ export const SourcePane: FC<{
                                 <Menu.Item
                                     disabled={shownLayout === 'code'}
                                     rightSection={check(shownLayout === 'diff')}
-                                    onClick={() => pickLayout('diff')}
+                                    onClick={() => setLayout('diff')}
                                 >
                                     Unified
                                 </Menu.Item>
@@ -871,7 +845,7 @@ export const SourcePane: FC<{
                                     rightSection={check(
                                         shownLayout === 'split',
                                     )}
-                                    onClick={() => pickLayout('split')}
+                                    onClick={() => setLayout('split')}
                                 >
                                     Side by side
                                 </Menu.Item>
@@ -888,7 +862,6 @@ export const SourcePane: FC<{
                                 onClick={() => {
                                     reset();
                                     setNotice(null);
-                                    setEditingKey(null);
                                 }}
                             >
                                 Discard
@@ -971,13 +944,13 @@ export const SourcePane: FC<{
                                     file={current}
                                     options={options}
                                     edit={
-                                        isEditing &&
+                                        canEdit &&
                                         !save.isLoading &&
                                         !isBeingSaved
                                     }
                                     editorOptions={fileOptions}
                                     onEditChange={(event) =>
-                                        setText(event.file.contents)
+                                        editContent(event.file.contents)
                                     }
                                     onEditComplete={() => 'accept'}
                                 />
@@ -1000,13 +973,13 @@ export const SourcePane: FC<{
                                         lineDiffType: 'word',
                                     }}
                                     edit={
-                                        isEditing &&
+                                        canEdit &&
                                         !save.isLoading &&
                                         !isBeingSaved
                                     }
                                     editorOptions={diffOptions}
                                     onEditChange={(event) =>
-                                        setText(event.file.contents)
+                                        editContent(event.file.contents)
                                     }
                                     onEditComplete={() => 'accept'}
                                 />
