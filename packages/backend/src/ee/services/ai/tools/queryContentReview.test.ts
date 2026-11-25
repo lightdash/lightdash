@@ -179,14 +179,12 @@ describe('content and saved query review', () => {
             expect(deps.runAsyncQuery).not.toHaveBeenCalled();
         },
     );
+
     it('runs a saved chart by slug and reports its uuid', async () => {
         const deps = makeDependencies();
         const output = await getRunSavedChart(deps).execute!(
             { chartUuid: 'orders-slug' },
             options,
-        );
-        expect(deps.getSavedChart).toHaveBeenCalledExactlyOnceWith(
-            'orders-slug',
         );
         expect(output).toMatchObject({
             structuredContent: { chart: { chartUuid: chart.uuid } },

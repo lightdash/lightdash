@@ -2,7 +2,6 @@ import {
     ADD_ON_NAMES,
     ADD_ONS,
     applicableAddOns,
-    hasContentReads,
     hasProjectContextTool,
 } from './addOns';
 import type {
@@ -14,12 +13,7 @@ import type {
     PromptSection,
 } from './types';
 
-const onlyIf = (
-    condition: boolean,
-    tools: readonly AgentToolName[],
-): readonly AgentToolName[] => (condition ? tools : []);
-
-const coreTools = (input: LoadoutInput): readonly AgentToolName[] => [
+const CORE_TOOLS: readonly AgentToolName[] = [
     'findContent',
     'grepFields',
     'getMetadata',
@@ -30,11 +24,15 @@ const coreTools = (input: LoadoutInput): readonly AgentToolName[] => [
     'listKnowledgeDocuments',
     'getKnowledgeDocumentContent',
     'resolveUrl',
-    // runContentQuery runs saved charts when content reads are on.
-    ...onlyIf(!hasContentReads(input), ['runSavedChart']),
+    'runSavedChart',
     'generateHashes',
     'generateUuids',
 ];
+
+const onlyIf = (
+    condition: boolean,
+    tools: readonly AgentToolName[],
+): readonly AgentToolName[] => (condition ? tools : []);
 
 // Deep research narrows tools only; its prompt still renders every applicable add-on's sections and skills.
 const applicableAddOnPrompt = (
@@ -55,7 +53,7 @@ const applicableAddOnPrompt = (
 export const BASES: Record<LoadoutBase, BaseDefinition> = {
     classic: (input) => ({
         tools: [
-            ...coreTools(input),
+            ...CORE_TOOLS,
             'generateVisualization',
             'searchFieldValues',
             'runQuery',
@@ -70,7 +68,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
     // exportChartAsCode cannot export composer artifacts.
     composer: (input) => ({
         tools: [
-            ...coreTools(input),
+            ...CORE_TOOLS,
             'query',
             'visualize',
             // The service enables composer only with data access; kept for exact parity.
@@ -84,7 +82,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
     // Today every add-on can apply without data access; narrowing it is a behaviour change.
     no_data_access: (input) => ({
         tools: [
-            ...coreTools(input),
+            ...CORE_TOOLS,
             'generateVisualization',
             ...onlyIf(input.canRunSql, ['runSql']),
         ],
@@ -192,7 +190,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
     }),
     deep_research_coordinator: (input) => ({
         tools: [
-            ...coreTools(input).filter(
+            ...CORE_TOOLS.filter(
                 (tool) => tool !== 'generateHashes' && tool !== 'generateUuids',
             ),
             'generateVisualization',

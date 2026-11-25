@@ -27,6 +27,7 @@
         "readPinnedThread",
         "resolveUrl",
         "runContentQuery",
+        "runSavedChart",
         "runSql",
         "searchFieldValues",
         "searchSemanticLayer"

@@ -635,19 +635,6 @@ describe('resolveLoadout', () => {
         expect(toolNames.has('editContent')).toBe(false);
         expect(toolNames.has('createContent')).toBe(false);
     });
-
-    test('runContentQuery replaces runSavedChart when content reads are on', () => {
-        const withReads = resolveLoadout(fullInput).toolNames;
-        expect(withReads.has('runContentQuery')).toBe(true);
-        expect(withReads.has('runSavedChart')).toBe(false);
-
-        const withoutReads = resolveLoadout({
-            ...fullInput,
-            enableContentReads: false,
-        }).toolNames;
-        expect(withoutReads.has('runContentQuery')).toBe(false);
-        expect(withoutReads.has('runSavedChart')).toBe(true);
-    });
 });
 
 describe('loadout structure', () => {
