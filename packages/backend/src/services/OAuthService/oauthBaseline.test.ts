@@ -818,16 +818,18 @@ describe.each(modes)('scope issuance in %s flag state', (mode) => {
     });
 
     it.each([
-        ['foo', null],
-        ['read foo', null],
-        ['foo', 'client-organization'],
-        ['write', 'client-organization'],
+        ['foo', null, ['read']],
+        ['openid profile', null, ['read', 'write']],
+        ['foo', 'client-organization', ['read']],
+        ['write', 'client-organization', ['read']],
+        ['openid write', 'client-organization', ['read']],
     ])(
         'refuses scope %j at authorize for client organization %s',
-        async (scope, organizationUuid) => {
+        async (scope, organizationUuid, scopes) => {
             await setScopeMode(mode);
             vi.mocked(model.getClient).mockResolvedValue({
                 ...client,
+                scopes,
                 organizationUuid,
             });
             await expect(authorize({ scope })).rejects.toBeInstanceOf(
@@ -855,6 +857,63 @@ describe.each(modes)('scope issuance in %s flag state', (mode) => {
             await expect(exchange(code)).resolves.toMatchObject({
                 scope: scope.split(' '),
             });
+        },
+    );
+
+    it.each([
+        ['openid mcp:read', ['mcp:read'], null, ['mcp:read']],
+        [
+            'openid profile offline_access read write',
+            ['mcp:read'],
+            null,
+            ['read', 'write'],
+        ],
+        [
+            'openid read',
+            ['read', 'write', 'mcp:read', 'mcp:write'],
+            'client-organization',
+            ['read'],
+        ],
+    ])(
+        'grants only the known scopes of %j',
+        async (scope, registeredScopes, organizationUuid, expected) => {
+            await setScopeMode(mode);
+            vi.mocked(model.getClient).mockResolvedValue({
+                ...client,
+                scopes: registeredScopes,
+                organizationUuid,
+            });
+            const info = vi
+                .spyOn(Logger, 'info')
+                .mockImplementation(() => Logger);
+            const code = await authorize({ scope });
+            expect(code.scope).toEqual(expected);
+            expect(model.saveAuthorizationCode).toHaveBeenCalledWith(
+                expect.objectContaining({ scope: expected }),
+                expect.anything(),
+                expect.anything(),
+            );
+            await expect(exchange(code)).resolves.toMatchObject({
+                scope: expected,
+            });
+            expect(model.saveToken).toHaveBeenCalledWith(
+                expect.objectContaining({ scope: expected }),
+                expect.anything(),
+                expect.anything(),
+            );
+            expect(info).toHaveBeenCalledExactlyOnceWith(
+                'oauth_scope_ignored',
+                {
+                    clientId: client.id,
+                    ignoredScopes: scope
+                        .split(' ')
+                        .filter((name) => !expected.includes(name)),
+                    resolvedScopes: expected,
+                    userUuid: 'user',
+                    organizationUuid: user.organizationUuid,
+                    grant: 'authorize',
+                },
+            );
         },
     );
 
@@ -910,6 +969,37 @@ describe.each(modes)('scope issuance in %s flag state', (mode) => {
             service.resolveAuthorizationScope(
                 'unknown-client',
                 ['read'],
+                recordUser,
+            ),
+        ).resolves.toBe(false);
+    });
+
+    it('resolves consent page scopes to the known names only', async () => {
+        await setScopeMode(mode);
+        const recordUser = {
+            userUuid: 'user-uuid',
+            organizationUuid: user.organizationUuid,
+        };
+        const info = vi.spyOn(Logger, 'info').mockImplementation(() => Logger);
+        vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
+        await expect(
+            service.resolveAuthorizationScope(
+                client.id,
+                ['openid', 'read'],
+                recordUser,
+            ),
+        ).resolves.toEqual(['read']);
+        expect(info).toHaveBeenCalledExactlyOnceWith('oauth_scope_ignored', {
+            clientId: client.id,
+            ignoredScopes: ['openid'],
+            resolvedScopes: ['read'],
+            ...recordUser,
+            grant: 'authorize',
+        });
+        await expect(
+            service.resolveAuthorizationScope(
+                client.id,
+                ['openid', 'profile'],
                 recordUser,
             ),
         ).resolves.toBe(false);

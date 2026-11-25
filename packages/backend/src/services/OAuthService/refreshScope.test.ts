@@ -150,6 +150,89 @@ it.each([
         expect(Logger.warn).not.toHaveBeenCalled();
     },
 );
+it.each([false, true])(
+    'drops unknown names from a refresh scope parameter, strict %s',
+    async (strict) => {
+        setStrict(strict);
+        vi.mocked(model.getRefreshToken).mockResolvedValue({
+            accessToken: '',
+            refreshToken: 'refresh',
+            refreshTokenExpiresAt: new Date(Date.now() + 60000),
+            scope: ['read', 'write'],
+            client,
+            user,
+        });
+        const info = vi.spyOn(Logger, 'info').mockImplementation(() => Logger);
+        await expect(refresh('openid read')).resolves.toMatchObject({
+            scope: ['read'],
+        });
+        expect(model.saveToken).toHaveBeenCalledWith(
+            expect.objectContaining({ scope: ['read'] }),
+            expect.anything(),
+            expect.anything(),
+        );
+        expect(info).toHaveBeenCalledExactlyOnceWith('oauth_scope_ignored', {
+            clientId: client.id,
+            ignoredScopes: ['openid'],
+            resolvedScopes: ['read'],
+            userUuid: 'user',
+            organizationUuid: user.organizationUuid,
+            grant: 'refresh',
+        });
+    },
+);
+it.each(['openid', 'openid profile'])(
+    'refuses a refresh scope parameter %j with only unknown names before rotation',
+    async (scope) => {
+        setStrict(false);
+        vi.mocked(model.getRefreshToken).mockResolvedValue({
+            accessToken: '',
+            refreshToken: 'refresh',
+            refreshTokenExpiresAt: new Date(Date.now() + 60000),
+            scope: ['read', 'write'],
+            client,
+            user,
+        });
+        await expect(refresh(scope)).rejects.toMatchObject({
+            name: 'invalid_scope',
+        });
+        expect(model.revokeToken).not.toHaveBeenCalled();
+        expect(model.saveToken).not.toHaveBeenCalled();
+    },
+);
+it('still refuses a refresh scope parameter that adds a known scope', async () => {
+    setStrict(false);
+    vi.mocked(model.getRefreshToken).mockResolvedValue({
+        accessToken: '',
+        refreshToken: 'refresh',
+        refreshTokenExpiresAt: new Date(Date.now() + 60000),
+        scope: ['read'],
+        client,
+        user,
+    });
+    await expect(refresh('openid read write')).rejects.toMatchObject({
+        name: 'invalid_scope',
+    });
+    expect(model.revokeToken).not.toHaveBeenCalled();
+    expect(model.saveToken).not.toHaveBeenCalled();
+});
+it('removes unknown names stored on a refresh token', async () => {
+    setStrict(false);
+    vi.mocked(model.getRefreshToken).mockResolvedValue({
+        accessToken: '',
+        refreshToken: 'refresh',
+        refreshTokenExpiresAt: new Date(Date.now() + 60000),
+        scope: ['openid', 'read'],
+        client,
+        user,
+    });
+    await expect(refresh()).resolves.toMatchObject({ scope: ['read'] });
+    expect(model.saveToken).toHaveBeenCalledWith(
+        expect.objectContaining({ scope: ['read'] }),
+        expect.anything(),
+        expect.anything(),
+    );
+});
 it('allows a refresh narrowed to the current client scope', async () => {
     flags.get.mockResolvedValue({ enabled: true });
     vi.mocked(model.getRefreshToken).mockResolvedValue({
@@ -308,12 +391,14 @@ it.each(['log', 'enforce'] as const)(
 
 it.each([
     ['write', ['write']],
+    ['openid write', ['write']],
     ['foo', false],
     [undefined, ['read']],
 ] as const)(
     'resolves token-exchange scope %j for a self-registered client',
     async (scope, expected) => {
         setStrict(false);
+        const info = vi.spyOn(Logger, 'info').mockImplementation(() => Logger);
         const exchangeClient = {
             ...client,
             grants: [TOKEN_EXCHANGE_GRANT_TYPE],
@@ -350,6 +435,15 @@ it.each([
             await expect(result).resolves.toMatchObject({ scope: expected });
             expect(Logger.warn).not.toHaveBeenCalled();
         }
+        if (scope === 'openid write')
+            expect(info).toHaveBeenCalledExactlyOnceWith(
+                'oauth_scope_ignored',
+                expect.objectContaining({
+                    ignoredScopes: ['openid'],
+                    resolvedScopes: ['write'],
+                    grant: 'token_exchange',
+                }),
+            );
     },
 );
 

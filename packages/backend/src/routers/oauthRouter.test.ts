@@ -918,8 +918,35 @@ describe('OAuth authorize redirects', () => {
         );
     });
 
+    it('lists only the resolved known scopes on the consent page', async () => {
+        const oauthService = createOAuthService();
+        oauthService.resolveAuthorizationScope.mockResolvedValue(['mcp:read']);
+
+        const response = await requestAuthorizePage({
+            query: {
+                client_id: 'client-id',
+                redirect_uri: 'https://registered.example/callback',
+                scope: 'openid mcp:read',
+                state: 'request-state',
+            },
+            oauthService,
+        });
+
+        expect(response.status).toBe(200);
+        expect(oauthService.resolveAuthorizationScope).toHaveBeenCalledWith(
+            'client-id',
+            ['openid', 'mcp:read'],
+            { userUuid: null, organizationUuid: 'organization-uuid' },
+        );
+        expect(response.body).toContain('name="scope" value="mcp:read"');
+        expect(response.body).toContain('MCP read access');
+        expect(
+            response.body.replace(/href="\/login\?redirect[^"]*"/, ''),
+        ).not.toContain('openid');
+    });
+
     it.each([
-        ['an unknown scope', 'read foo'],
+        ['only unknown scopes', 'openid profile'],
         ['no scope for a client without registered scopes', undefined],
     ])('redirects with invalid_scope for %s', async (_name, scope) => {
         const oauthService = createOAuthService();

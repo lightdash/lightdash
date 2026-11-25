@@ -31,10 +31,11 @@ import {
 } from '../auth/mobileAppAccess';
 import {
     clientIdForOAuthRecord,
-    logOAuthScopeDefaulted,
-    OAUTH_SCOPES,
+    logOAuthScopeResolution,
     scopesForOAuthRecord,
+    splitOAuthScopes,
     type OAuthRecordUser,
+    type OAuthScopeGrant,
 } from '../auth/oauthScopes/mode';
 import { OAuthResourceBinding } from '../auth/oauthScopes/oauthResources';
 import { OAuthTokenBinding } from '../auth/oauthScopes/oauthTokenBinding';
@@ -1118,28 +1119,26 @@ export class OAuth2Model implements AuthorizationCodeModel {
     static resolveScope(
         client: Client,
         scope: readonly string[] = [],
-    ): { allowed: boolean; defaulted: boolean; scopes: string[] } {
+    ): {
+        allowed: boolean;
+        defaulted: boolean;
+        requested: string[];
+        scopes: string[];
+        ignored: string[];
+    } {
         const registeredScopes: string[] = client.scopes ?? [];
         const defaulted = scope.length === 0;
-        const scopes = [...(defaulted ? registeredScopes : scope)];
+        const requested = [...(defaulted ? registeredScopes : scope)];
+        const { known: scopes, ignored } = splitOAuthScopes(requested);
         const adminCreated = typeof client.organizationUuid === 'string';
-        const allowedScopes = new Set<string>(
-            OAUTH_SCOPES.filter(
-                (knownScope) =>
-                    !adminCreated ||
-                    registeredScopes.length === 0 ||
+        const allowed =
+            scopes.length > 0 &&
+            (!adminCreated ||
+                registeredScopes.length === 0 ||
+                scopes.every((knownScope) =>
                     registeredScopes.includes(knownScope),
-            ),
-        );
-        return {
-            allowed:
-                scopes.length > 0 &&
-                scopes.every((requestedScope) =>
-                    allowedScopes.has(requestedScope),
-                ),
-            defaulted,
-            scopes,
-        };
+                ));
+        return { allowed, defaulted, requested, scopes, ignored };
     }
 
     static logScopeRefusal(
@@ -1185,14 +1184,19 @@ export class OAuth2Model implements AuthorizationCodeModel {
         }
     }
 
-    async recordScopeDefaulted(
+    async recordScopeResolution(
         client: Client,
         user: unknown,
+        requestedScopes: readonly string[],
         resolvedScopes: readonly string[],
-        grant: 'authorize' | 'refresh',
+        grant: OAuthScopeGrant,
     ): Promise<void> {
-        logOAuthScopeDefaulted({
+        const resolution = OAuth2Model.resolveScope(client, requestedScopes);
+        if (!resolution.defaulted && resolution.ignored.length === 0) return;
+        logOAuthScopeResolution({
             clientId: client.id,
+            registeredScopes: client.scopes ?? [],
+            requestedScopes,
             resolvedScopes,
             user: await this.getOAuthRecordUser(user),
             grant,
@@ -1208,7 +1212,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
         if (resolution.allowed) return resolution.scopes;
         OAuth2Model.logScopeRefusal(
             client,
-            resolution.scopes,
+            resolution.requested,
             await this.getOAuthRecordUser(user),
         );
         return false;

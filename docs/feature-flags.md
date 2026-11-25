@@ -447,8 +447,11 @@ need `mcp:read` or `mcp:write`. A token with no scopes has no access.
 Personal access tokens, sessions and service accounts keep their permissions.
 
 At grant issuance, an authorize request without a scope receives the scopes
-registered for the client. The request fails with `invalid_scope` when the
-client has no registered scopes or when it asks for an unknown scope.
+registered for the client. Unknown scope names, such as `openid` or
+`offline_access`, are ignored: the token gets only the known scopes, the token
+response lists the granted scopes, and each request that drops names logs
+`oauth_scope_ignored`. The request fails with `invalid_scope` when the client
+has no registered scopes or when every requested name is unknown.
 Admin-created clients can only request scopes they registered. Self-registered
 and URL-identified clients can request any known scope, because their
 registration is not authenticated. The same rules apply on refresh. The

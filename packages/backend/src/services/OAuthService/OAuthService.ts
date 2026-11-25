@@ -17,7 +17,7 @@ import {
 } from '../../auth/mobileAppAccess';
 import { assertOAuthCredentialOperationAllowed } from '../../auth/oauthScopes/credentials';
 import {
-    logOAuthScopeDefaulted,
+    logOAuthScopeResolution,
     OAUTH_SCOPES,
     type OAuthRecordUser,
 } from '../../auth/oauthScopes/mode';
@@ -137,11 +137,12 @@ export class OAuthService extends BaseService {
                                 clientId: client.id,
                             },
                         ),
-                    (client, user, scopes) =>
-                        this.oauthModel.recordScopeDefaulted(
+                    (client, user, requested, resolved) =>
+                        this.oauthModel.recordScopeResolution(
                             client,
                             user,
-                            scopes,
+                            requested,
+                            resolved,
                             'refresh',
                         ),
                 ) as unknown as typeof OAuth2Server.AbstractGrantType,
@@ -156,6 +157,14 @@ export class OAuthService extends BaseService {
                                       ),
                                   this.getSiteUrl(),
                                   getMobileSignInService,
+                                  (client, user, requested, resolved) =>
+                                      this.oauthModel.recordScopeResolution(
+                                          client,
+                                          user,
+                                          requested,
+                                          resolved,
+                                          'token_exchange',
+                                      ),
                               ),
                       }
                     : {}),
@@ -193,10 +202,11 @@ export class OAuthService extends BaseService {
                 client,
                 scope,
             );
-            if (validated && !scope?.length)
-                await this.oauthModel.recordScopeDefaulted(
+            if (validated)
+                await this.oauthModel.recordScopeResolution(
                     client,
                     scopeUser,
+                    scope ?? [],
                     validated,
                     'authorize',
                 );
@@ -430,16 +440,17 @@ export class OAuthService extends BaseService {
         if (client === false) return false;
         const resolution = OAuth2Model.resolveScope(client, scope);
         if (!resolution.allowed) {
-            OAuth2Model.logScopeRefusal(client, resolution.scopes, user);
+            OAuth2Model.logScopeRefusal(client, resolution.requested, user);
             return false;
         }
-        if (resolution.defaulted)
-            logOAuthScopeDefaulted({
-                clientId: client.id,
-                resolvedScopes: resolution.scopes,
-                user,
-                grant: 'authorize',
-            });
+        logOAuthScopeResolution({
+            clientId: client.id,
+            registeredScopes: client.scopes ?? [],
+            requestedScopes: scope,
+            resolvedScopes: resolution.scopes,
+            user,
+            grant: 'authorize',
+        });
         return resolution.scopes;
     }
 
