@@ -152,3 +152,15 @@ export const besideMarks = ({
             : best,
     ).at;
 };
+
+/**
+ * How far to move a bubble so its top edge stays inside a surface that
+ * scrolls on its own: scrolled past, it waits at the surface's edge.
+ */
+export const keepInRegion = (at: Position, region: DOMRect): Position => {
+    const top = Math.min(
+        Math.max(at.y, region.top + MARGIN_PX),
+        Math.max(region.top + MARGIN_PX, region.bottom - ATTACHED_PX),
+    );
+    return { x: 0, y: top - at.y };
+};

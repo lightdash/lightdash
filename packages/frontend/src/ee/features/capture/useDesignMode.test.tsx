@@ -1235,6 +1235,8 @@ describe('useDesignMode', () => {
                     },
                 });
                 expect(grabAppFrame).toHaveBeenCalledTimes(1);
+                // Pictured from where the app is scrolled to.
+                expect(grabAppFrame.mock.calls[0][2]).toEqual(scroll);
             } finally {
                 restoreSurface();
             }
@@ -1531,6 +1533,44 @@ describe('useDesignMode', () => {
             // The next hold opens a new bubble.
             await drawMark();
             await waitFor(() => expect(api.session.bubbles).toHaveLength(2));
+        });
+
+        it('a click inside an app hands the page back, as a press on the page does', async () => {
+            await turnOn();
+            const id = await sendFirst();
+            fireEvent.click(bubbleEl(id));
+            expect(selected(id)).toBe('true');
+            const focused = vi.spyOn(document, 'activeElement', 'get');
+            try {
+                // The app's frame takes focus when it is clicked.
+                focused.mockReturnValue(document.createElement('iframe'));
+                await act(async () => {
+                    window.dispatchEvent(new Event('blur'));
+                    await new Promise((resolve) => setTimeout(resolve, 0));
+                });
+            } finally {
+                focused.mockRestore();
+            }
+            expect(api.session.active).toEqual({ kind: 'page' });
+            expect(selected(id)).toBe('false');
+        });
+
+        it('focus leaving in the middle of a hold keeps the conversation selected', async () => {
+            await turnOn();
+            const id = await sendFirst();
+            fireEvent.click(bubbleEl(id));
+            const focused = vi.spyOn(document, 'activeElement', 'get');
+            try {
+                await keyDown({ key: 'Alt', altKey: true });
+                focused.mockReturnValue(document.createElement('iframe'));
+                await act(async () => {
+                    window.dispatchEvent(new Event('blur'));
+                    await new Promise((resolve) => setTimeout(resolve, 0));
+                });
+            } finally {
+                focused.mockRestore();
+            }
+            expect(selected(id)).toBe('true');
         });
 
         it('a press on the page keeps a reply that has marks', async () => {
