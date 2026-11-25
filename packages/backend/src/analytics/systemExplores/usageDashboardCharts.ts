@@ -1037,8 +1037,10 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 rowHeaderName: 'Dashboard',
                 valueNames:
                     'Warehouse time (s),P95 response time (s),Queries,People',
-                // Seconds keep their decimals and counts stay whole
+                // Seconds keep their decimals from the field's own format. A plain count has no format
+                // to read, so it takes this: whole numbers
                 useFieldFormats: true,
+                decimalPlaces: 0,
             },
             // Shares the plain table's query, which carries the address of each dashboard
             query: null,
