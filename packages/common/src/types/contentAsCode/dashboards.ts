@@ -3,6 +3,7 @@ import type { DashboardAsCodeLanguageMap } from '../../utils/i18n/dashboardAsCod
 import type { ContentVerificationInfo } from '../contentVerification';
 import type {
     Dashboard,
+    DashboardAiSummaryTileProperties,
     DashboardChartTileProperties,
     DashboardComposerChartTileProperties,
     DashboardConfig,
@@ -119,6 +120,12 @@ export type DashboardDataAppTileAsCode = DashboardTileAsCodeBase & {
     };
 };
 
+/** `scope.tileUuids` are project-local; a tile uploaded without its uuid drops out of the scope. */
+export type DashboardAiSummaryTileAsCode = DashboardTileAsCodeBase & {
+    type: DashboardTileTypes.AI_SUMMARY;
+    properties: DashboardAiSummaryTileProperties['properties'];
+};
+
 export type DashboardTileAsCode =
     | DashboardChartTileAsCode
     | DashboardSqlChartTileAsCode
@@ -126,7 +133,8 @@ export type DashboardTileAsCode =
     | DashboardMarkdownTileAsCode
     | DashboardLoomTileAsCode
     | DashboardHeadingTileAsCode
-    | DashboardDataAppTileAsCode;
+    | DashboardDataAppTileAsCode
+    | DashboardAiSummaryTileAsCode;
 
 export type DashboardTileWithSlug = DashboardTile & {
     tileSlug: string | undefined;

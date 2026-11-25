@@ -1,6 +1,7 @@
 import {
     HTML_SANITIZE_MARKDOWN_TILE_RULES,
     sanitizeHtml,
+    type DashboardAiSummaryScope,
     type DashboardMarkdownTile,
 } from '@lightdash/common';
 
@@ -18,3 +19,10 @@ export const markdownTileContentTransform = (
     ...values,
     content: sanitizeHtml(values.content, HTML_SANITIZE_MARKDOWN_TILE_RULES),
 });
+
+export const aiSummaryScopeValidator = {
+    scope: (value: DashboardAiSummaryScope | undefined) =>
+        value?.type === 'tiles' && value.tileUuids.length === 0
+            ? 'Pick at least one chart'
+            : null,
+};

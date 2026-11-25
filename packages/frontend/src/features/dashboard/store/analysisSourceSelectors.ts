@@ -16,7 +16,7 @@ const selectTileQueries = (state: DashboardStoreState) =>
     state.tileStatus.tileQueries;
 
 /** Tiles whose queries can feed an analysis; layout-only tiles cannot. */
-const isAnalysableTile = (tile: DashboardTile): boolean =>
+export const isAnalysableTile = (tile: DashboardTile): boolean =>
     (isDashboardChartTileType(tile) &&
         tile.properties.savedChartUuid !== null) ||
     isDashboardSqlChartTile(tile);

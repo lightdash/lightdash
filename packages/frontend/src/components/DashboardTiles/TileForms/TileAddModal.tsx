@@ -3,6 +3,7 @@ import {
     DashboardTileTypes,
     defaultTileSize,
     type Dashboard,
+    type DashboardAiSummaryTileProperties,
     type DashboardDataAppTileProperties,
     type DashboardLoomTileProperties,
     type DashboardMarkdownTile,
@@ -10,14 +11,25 @@ import {
 } from '@lightdash/common';
 import { Button, Stack, Text } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
-import { IconAppWindow, IconMarkdown, IconVideo } from '@tabler/icons-react';
+import {
+    IconAppWindow,
+    IconMarkdown,
+    IconSparkles,
+    IconVideo,
+} from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
+import { DEFAULT_AI_SUMMARY_PROPERTIES } from '../../../features/dashboardAiSummary/aiSummaryDefaults';
+import AiSummaryTileForm from '../../../features/dashboardAiSummary/AiSummaryTileForm';
 import MantineModal from '../../common/MantineModal';
 import DataAppTileForm from './DataAppTileForm';
 import LoomTileForm from './LoomTileForm';
 import MarkdownTileForm from './MarkdownTileForm';
-import { getLoomId, markdownTileContentTransform } from './utils';
+import {
+    aiSummaryScopeValidator,
+    getLoomId,
+    markdownTileContentTransform,
+} from './utils';
 
 type Tile = Dashboard['tiles'][number];
 type TileProperties = Tile['properties'];
@@ -28,7 +40,8 @@ type AddProps = {
     type:
         | DashboardTileTypes.LOOM
         | DashboardTileTypes.MARKDOWN
-        | DashboardTileTypes.DATA_APP;
+        | DashboardTileTypes.DATA_APP
+        | DashboardTileTypes.AI_SUMMARY;
     onConfirm: (tile: Tile) => void;
 };
 
@@ -57,9 +70,15 @@ export const TileAddModal: FC<AddProps> = ({
             return { ...urlValidator, ...titleValidator };
         if (type === DashboardTileTypes.DATA_APP)
             return { ...titleValidator, ...appUuidValidator };
+        if (type === DashboardTileTypes.AI_SUMMARY)
+            return { ...titleValidator, ...aiSummaryScopeValidator };
     };
 
     const form = useForm<TileProperties>({
+        initialValues:
+            type === DashboardTileTypes.AI_SUMMARY
+                ? DEFAULT_AI_SUMMARY_PROPERTIES
+                : undefined,
         validate: getValidators(),
         validateInputOnChange: ['title', 'url', 'content'],
         transformValues(values) {
@@ -81,6 +100,8 @@ export const TileAddModal: FC<AddProps> = ({
                 return IconVideo;
             case DashboardTileTypes.DATA_APP:
                 return IconAppWindow;
+            case DashboardTileTypes.AI_SUMMARY:
+                return IconSparkles;
             default:
                 return assertUnreachable(type, 'Tile type not supported');
         }
@@ -94,6 +115,8 @@ export const TileAddModal: FC<AddProps> = ({
                 return 'Add loom tile';
             case DashboardTileTypes.DATA_APP:
                 return 'Add data app tile';
+            case DashboardTileTypes.AI_SUMMARY:
+                return 'Add AI summary';
             default:
                 return assertUnreachable(type, 'Tile type not supported');
         }
@@ -173,6 +196,14 @@ export const TileAddModal: FC<AddProps> = ({
                             form={
                                 form as UseFormReturnType<
                                     DashboardDataAppTileProperties['properties']
+                                >
+                            }
+                        />
+                    ) : type === DashboardTileTypes.AI_SUMMARY ? (
+                        <AiSummaryTileForm
+                            form={
+                                form as UseFormReturnType<
+                                    DashboardAiSummaryTileProperties['properties']
                                 >
                             }
                         />

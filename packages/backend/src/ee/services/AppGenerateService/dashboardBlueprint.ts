@@ -27,6 +27,7 @@ const TILE_TYPE_LABELS: Record<DashboardTileTypes, string> = {
     [DashboardTileTypes.HEADING]: 'heading',
     [DashboardTileTypes.DATA_APP]: 'data app',
     [DashboardTileTypes.COMPOSER_CHART]: 'composer chart',
+    [DashboardTileTypes.AI_SUMMARY]: 'AI summary',
 };
 
 /**

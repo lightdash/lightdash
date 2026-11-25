@@ -34,6 +34,7 @@ export enum DashboardTileTypes {
     HEADING = 'heading',
     DATA_APP = 'data_app',
     COMPOSER_CHART = 'composer_chart',
+    AI_SUMMARY = 'ai_summary',
 }
 
 export type DashboardTilePosition = {
@@ -169,6 +170,21 @@ export type DashboardComposerChartTileProperties = {
     };
 };
 
+export type DashboardAiSummaryScope =
+    | { type: 'tab' }
+    | { type: 'tiles'; tileUuids: string[] };
+
+export type DashboardAiSummaryTileProperties = {
+    type: DashboardTileTypes.AI_SUMMARY;
+    properties: {
+        title: string;
+        /** Author guidance for the model; null uses the default summary */
+        instructions: string | null;
+        /** Which charts the summary reads: the tile's tab, or named tiles */
+        scope: DashboardAiSummaryScope;
+    };
+};
+
 export type CreateDashboardMarkdownTile = CreateDashboardTileBase &
     DashboardMarkdownTileProperties;
 export type DashboardMarkdownTile = DashboardTileBase &
@@ -203,6 +219,11 @@ export type CreateDashboardComposerChartTile = CreateDashboardTileBase &
 export type DashboardComposerChartTile = DashboardTileBase &
     DashboardComposerChartTileProperties;
 
+export type CreateDashboardAiSummaryTile = CreateDashboardTileBase &
+    DashboardAiSummaryTileProperties;
+export type DashboardAiSummaryTile = DashboardTileBase &
+    DashboardAiSummaryTileProperties;
+
 export type CreateDashboard = {
     name: string;
     description?: string;
@@ -214,6 +235,7 @@ export type CreateDashboard = {
         | CreateDashboardHeadingTile
         | CreateDashboardDataAppTile
         | CreateDashboardComposerChartTile
+        | CreateDashboardAiSummaryTile
     >;
     filters?: DashboardFilters;
     parameters?: DashboardParameters;
@@ -234,7 +256,8 @@ export type DashboardTile =
     | DashboardSqlChartTile
     | DashboardHeadingTile
     | DashboardDataAppTile
-    | DashboardComposerChartTile;
+    | DashboardComposerChartTile
+    | DashboardAiSummaryTile;
 
 export const isDashboardChartTileType = (
     tile: DashboardTile,
@@ -264,6 +287,11 @@ export const isDashboardComposerChartTile = (
     tile: DashboardTileBase,
 ): tile is DashboardComposerChartTile =>
     tile.type === DashboardTileTypes.COMPOSER_CHART;
+
+export const isDashboardAiSummaryTileType = (
+    tile: DashboardTile,
+): tile is DashboardAiSummaryTile =>
+    tile.type === DashboardTileTypes.AI_SUMMARY;
 
 export type DashboardTab = {
     uuid: string;

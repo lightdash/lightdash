@@ -61,6 +61,12 @@ const dashboardAsCodeSchema = z.object({
                     title: z.string(),
                 }),
             }),
+            z.object({
+                type: z.literal(DashboardTileTypes.AI_SUMMARY),
+                properties: z.object({
+                    title: z.string(),
+                }),
+            }),
         ]),
     ),
 });

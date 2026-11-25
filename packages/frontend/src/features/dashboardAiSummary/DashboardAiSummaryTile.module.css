@@ -1,0 +1,13 @@
+.body {
+    flex: 1;
+    overflow: auto;
+}
+
+.updating {
+    opacity: 0.5;
+    transition: opacity 150ms ease-out;
+}
+
+.instructions {
+    white-space: pre-wrap;
+}

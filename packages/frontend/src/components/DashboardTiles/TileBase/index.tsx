@@ -146,11 +146,14 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const hideTitle =
         hasError ||
         tile.type === DashboardTileTypes.HEADING ||
-        (tile.type !== DashboardTileTypes.MARKDOWN
+        (tile.type !== DashboardTileTypes.MARKDOWN &&
+        tile.type !== DashboardTileTypes.AI_SUMMARY
             ? tile.properties.hideTitle
             : false);
     const isTitleLink =
-        !isEditMode && tile.type !== DashboardTileTypes.MARKDOWN;
+        !isEditMode &&
+        tile.type !== DashboardTileTypes.MARKDOWN &&
+        tile.type !== DashboardTileTypes.AI_SUMMARY;
     // Touch keeps the plain :hover, which a tap makes sticky
     const canHover = useMediaQuery('(hover: hover)', undefined, {
         getInitialValueInEffect: false,

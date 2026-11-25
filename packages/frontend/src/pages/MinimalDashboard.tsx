@@ -170,6 +170,9 @@ const renderDashboardTile = (tile: Dashboard['tiles'][number]) => {
                     onEdit={() => {}}
                 />
             );
+        case DashboardTileTypes.AI_SUMMARY:
+            // AI analysis never runs in exports and scheduled deliveries
+            return null;
         default:
             return assertUnreachable(
                 tile,

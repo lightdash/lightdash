@@ -11,12 +11,14 @@ import {
     IconHeading,
     IconMarkdown,
     IconPlus,
+    IconSparkles,
     IconVideo,
     type Icon,
 } from '@tabler/icons-react';
 import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
+import { useAnalysisAvailability } from '../../features/apps/analysis/useDataAppAnalysisAvailability';
 import {
     dashboardEditActions,
     selectDashboardFilters,
@@ -38,12 +40,14 @@ import { TileAddModal } from './TileForms/TileAddModal';
 type FormTileType =
     | DashboardTileTypes.MARKDOWN
     | DashboardTileTypes.LOOM
-    | DashboardTileTypes.DATA_APP;
+    | DashboardTileTypes.DATA_APP
+    | DashboardTileTypes.AI_SUMMARY;
 
 export type AddTileOptionId =
     | 'savedChart'
     | 'newChart'
     | 'dataApp'
+    | 'aiSummary'
     | 'markdown'
     | 'loom'
     | 'heading';
@@ -109,6 +113,7 @@ export const useAddTileOptions = ({
     const { health } = useApp();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled === true;
+    const aiSummaryEnabled = useAnalysisAvailability().status === 'available';
 
     const isTileTypeAllowed = (tileType: DashboardTileTypes) =>
         !allowedTileTypes || allowedTileTypes.includes(tileType);
@@ -192,6 +197,16 @@ export const useAddTileOptions = ({
             isShown:
                 dataAppsEnabled &&
                 isTileTypeAllowed(DashboardTileTypes.DATA_APP),
+        },
+        {
+            id: 'aiSummary',
+            label: 'AI summary',
+            icon: IconSparkles,
+            hint: 'Written from the charts on this dashboard and updated with its filters',
+            onSelect: () => setFormTileType(DashboardTileTypes.AI_SUMMARY),
+            isShown:
+                aiSummaryEnabled &&
+                isTileTypeAllowed(DashboardTileTypes.AI_SUMMARY),
         },
         {
             id: 'markdown',

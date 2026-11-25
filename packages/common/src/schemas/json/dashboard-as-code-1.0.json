@@ -316,6 +316,100 @@
             ],
             "type": "string"
         },
+        "DashboardAiSummaryScope": {
+            "anyOf": [
+                {
+                    "properties": {
+                        "type": {
+                            "enum": ["tab"],
+                            "type": "string"
+                        }
+                    },
+                    "required": ["type"],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "tileUuids": {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        },
+                        "type": {
+                            "enum": ["tiles"],
+                            "type": "string"
+                        }
+                    },
+                    "required": ["tileUuids", "type"],
+                    "type": "object"
+                }
+            ]
+        },
+        "DashboardAiSummaryTileAsCode": {
+            "additionalProperties": false,
+            "properties": {
+                "h": {
+                    "format": "double",
+                    "minimum": 1,
+                    "type": "number"
+                },
+                "properties": {
+                    "additionalProperties": false,
+                    "properties": {
+                        "instructions": {
+                            "description": "Author guidance for the model; null uses the default summary",
+                            "type": ["string", "null"]
+                        },
+                        "scope": {
+                            "$ref": "#/$defs/DashboardAiSummaryScope",
+                            "description": "Which charts the summary reads: the tile's tab, or named tiles"
+                        },
+                        "title": {
+                            "type": "string"
+                        }
+                    },
+                    "required": ["scope", "instructions", "title"],
+                    "type": "object"
+                },
+                "tabSlug": {
+                    "description": "Portable reference to the dashboard tab containing this tile.",
+                    "type": ["string", "null"]
+                },
+                "tabUuid": {
+                    "description": "Legacy project-local tab reference. Accepted on upload for backwards compatibility.",
+                    "type": ["string", "null"]
+                },
+                "tileSlug": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/$defs/DashboardTileTypes.AI_SUMMARY"
+                },
+                "uuid": {
+                    "type": "string"
+                },
+                "w": {
+                    "format": "double",
+                    "maximum": 36,
+                    "minimum": 1,
+                    "type": "number"
+                },
+                "x": {
+                    "format": "double",
+                    "maximum": 35,
+                    "minimum": 0,
+                    "type": "number"
+                },
+                "y": {
+                    "format": "double",
+                    "minimum": 0,
+                    "type": "number"
+                }
+            },
+            "required": ["w", "h", "y", "x", "type", "properties"],
+            "type": "object"
+        },
         "DashboardChartTileAsCode": {
             "additionalProperties": false,
             "properties": {
@@ -1146,6 +1240,9 @@
                 },
                 {
                     "$ref": "#/$defs/DashboardDataAppTileAsCode"
+                },
+                {
+                    "$ref": "#/$defs/DashboardAiSummaryTileAsCode"
                 }
             ]
         },
@@ -1237,8 +1334,13 @@
                 "loom",
                 "heading",
                 "data_app",
-                "composer_chart"
+                "composer_chart",
+                "ai_summary"
             ],
+            "type": "string"
+        },
+        "DashboardTileTypes.AI_SUMMARY": {
+            "enum": ["ai_summary"],
             "type": "string"
         },
         "DashboardTileTypes.COMPOSER_CHART": {

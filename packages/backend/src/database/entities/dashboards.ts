@@ -6,6 +6,7 @@ import {
     type DashboardParameters,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { type DbAiSummaryTileConfig } from '../../models/DashboardModel/aiSummaryTiles';
 import { type DbHeadingTileConfig } from '../../models/DashboardModel/headingTileConfig';
 
 export const DashboardsTableName = 'dashboards';
@@ -19,6 +20,7 @@ export const DashboardTileMarkdownsTableName = 'dashboard_tile_markdowns';
 export const DashboardTileLoomsTableName = 'dashboard_tile_looms';
 export const DashboardTileHeadingsTableName = 'dashboard_tile_headings';
 export const DashboardTileDataAppsTableName = 'dashboard_tile_data_apps';
+export const DashboardTileAiSummariesTableName = 'dashboard_tile_ai_summaries';
 export const DashboardTabsTableName = 'dashboard_tabs';
 
 export type DbDashboard = {
@@ -171,6 +173,16 @@ type DbDashboardTileDataApps = {
 
 export type DashboardTileDataAppsTable =
     Knex.CompositeTableType<DbDashboardTileDataApps>;
+
+type DbDashboardTileAiSummaries = {
+    dashboard_version_id: number;
+    dashboard_tile_uuid: string;
+    title: string | null;
+    config: DbAiSummaryTileConfig;
+};
+
+export type DashboardTileAiSummariesTable =
+    Knex.CompositeTableType<DbDashboardTileAiSummaries>;
 
 export type DbDashboardTabs = {
     name: string;

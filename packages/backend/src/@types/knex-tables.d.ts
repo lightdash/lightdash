@@ -137,6 +137,8 @@ import {
     DashboardTable,
     DashboardTabsTable,
     DashboardTabsTableName,
+    DashboardTileAiSummariesTable,
+    DashboardTileAiSummariesTableName,
     DashboardTileChartTable,
     DashboardTileChartTableName,
     DashboardTileDataAppsTable,
@@ -923,6 +925,7 @@ declare module 'knex/types/tables' {
         [DashboardTileMarkdownsTableName]: DashboardTileMarkdownsTable;
         [DashboardTileHeadingsTableName]: DashboardTileHeadingsTable;
         [DashboardTileDataAppsTableName]: DashboardTileDataAppsTable;
+        [DashboardTileAiSummariesTableName]: DashboardTileAiSummariesTable;
         [DashboardTileComposerChartsTableName]: DashboardTileComposerChartsTable;
         [ComposerChartsTableName]: ComposerChartsTable;
         [ComposerChartVersionsTableName]: ComposerChartVersionsTable;

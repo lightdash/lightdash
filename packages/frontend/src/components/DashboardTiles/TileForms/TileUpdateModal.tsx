@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     DashboardTileTypes,
     type Dashboard,
+    type DashboardAiSummaryTileProperties,
     type DashboardComposerChartTileProperties,
     type DashboardDataAppTileProperties,
     type DashboardLoomTileProperties,
@@ -14,16 +15,22 @@ import {
     IconAppWindow,
     IconHeading,
     IconMarkdown,
+    IconSparkles,
     IconVideo,
 } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useMemo } from 'react';
 import ComposerChartTileForm from '../../../features/composerCharts/components/ComposerChartTileForm';
+import AiSummaryTileForm from '../../../features/dashboardAiSummary/AiSummaryTileForm';
 import MantineModal from '../../common/MantineModal';
 import DataAppTileEditForm from './DataAppTileEditForm';
 import LoomTileForm from './LoomTileForm';
 import MarkdownTileForm from './MarkdownTileForm';
-import { getLoomId, markdownTileContentTransform } from './utils';
+import {
+    aiSummaryScopeValidator,
+    getLoomId,
+    markdownTileContentTransform,
+} from './utils';
 
 type Tile = Dashboard['tiles'][number];
 type TileProperties = Tile['properties'];
@@ -56,6 +63,8 @@ const TileUpdateModal = <T extends Tile>({
         if (tile.type === DashboardTileTypes.LOOM)
             return { ...urlValidator, ...titleValidator };
         if (tile.type === DashboardTileTypes.DATA_APP) return titleValidator;
+        if (tile.type === DashboardTileTypes.AI_SUMMARY)
+            return { ...titleValidator, ...aiSummaryScopeValidator };
     };
 
     const form = useForm<TileProperties>({
@@ -92,6 +101,8 @@ const TileUpdateModal = <T extends Tile>({
                 return IconHeading;
             case DashboardTileTypes.DATA_APP:
                 return IconAppWindow;
+            case DashboardTileTypes.AI_SUMMARY:
+                return IconSparkles;
             case DashboardTileTypes.SAVED_CHART:
                 return undefined;
             case DashboardTileTypes.SQL_CHART:
@@ -113,6 +124,8 @@ const TileUpdateModal = <T extends Tile>({
                 return 'Edit heading tile';
             case DashboardTileTypes.DATA_APP:
                 return 'Edit data app tile';
+            case DashboardTileTypes.AI_SUMMARY:
+                return 'Edit AI summary';
             case DashboardTileTypes.SAVED_CHART:
                 return 'Edit saved_chart tile';
             case DashboardTileTypes.SQL_CHART:
@@ -178,6 +191,14 @@ const TileUpdateModal = <T extends Tile>({
                             form={
                                 form as UseFormReturnType<
                                     DashboardComposerChartTileProperties['properties']
+                                >
+                            }
+                        />
+                    ) : tile.type === DashboardTileTypes.AI_SUMMARY ? (
+                        <AiSummaryTileForm
+                            form={
+                                form as UseFormReturnType<
+                                    DashboardAiSummaryTileProperties['properties']
                                 >
                             }
                         />

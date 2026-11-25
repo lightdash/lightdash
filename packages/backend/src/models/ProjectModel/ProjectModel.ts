@@ -108,6 +108,7 @@ import { DashboardTileComposerChartsTableName } from '../../database/entities/co
 import {
     DashboardsTableName,
     DashboardTabsTableName,
+    DashboardTileAiSummariesTableName,
     DashboardTileChartTableName,
     DashboardTileDataAppsTableName,
     DashboardTileHeadingsTableName,
@@ -249,6 +250,7 @@ import {
     withWarehouseCredentialVersions,
 } from '../../utils/warehouseCredentialVersion';
 import { AwsWebIdentityAudienceModel } from '../AwsWebIdentityAudienceModel';
+import { remapAiSummaryTileConfig } from '../DashboardModel/aiSummaryTiles';
 import { FeatureFlagModel } from '../FeatureFlagModel/FeatureFlagModel';
 import { RefreshTokenSourceChangedError } from '../RefreshTokenRotation/RefreshTokenRotation';
 import { clearProjectExtraRoles } from '../roleSetUtils';
@@ -2296,6 +2298,7 @@ export class ProjectModel {
                 DashboardTileHeadingsTableName,
                 DashboardTileDataAppsTableName,
                 DashboardTileComposerChartsTableName,
+                DashboardTileAiSummariesTableName,
             ];
             // Child rows reference the tile by (version, uuid) without ON
             // UPDATE, so the tile is re-inserted under the new uuid, the
@@ -8210,6 +8213,28 @@ export class ProjectModel {
             // source project's app — the preview project gets no `apps` row of
             // its own. See `docs/data-apps.md` Limitations.
             await copyDashboardTileContent('dashboard_tile_data_apps');
+            const aiSummaryTiles = await trx(DashboardTileAiSummariesTableName)
+                .whereIn('dashboard_tile_uuid', dashboardTileUuids)
+                .whereIn('dashboard_version_id', dashboardVersionIds);
+            if (aiSummaryTiles.length > 0) {
+                await trx(DashboardTileAiSummariesTableName).insert(
+                    aiSummaryTiles.map((tile) => ({
+                        ...tile,
+                        config: remapAiSummaryTileConfig(
+                            tile.config,
+                            previewDashboardTileUuidBySource,
+                        ),
+                        dashboard_version_id:
+                            previewDashboardVersionIdBySource.get(
+                                tile.dashboard_version_id,
+                            )!,
+                        dashboard_tile_uuid:
+                            previewDashboardTileUuidBySource.get(
+                                tile.dashboard_tile_uuid,
+                            )!,
+                    })),
+                );
+            }
             await copyComposerChartsToPreview(
                 trx,
                 previewProjectUuid,

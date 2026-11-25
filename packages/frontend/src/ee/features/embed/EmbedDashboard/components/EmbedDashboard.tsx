@@ -420,7 +420,8 @@ const EmbedDashboardGrid: FC<{
                                     onDelete={() => onDeleteTile(tile)}
                                     onEdit={onEditTile}
                                 />
-                            ) : (
+                            ) : tile.type ===
+                              DashboardTileTypes.AI_SUMMARY ? null : (
                                 assertUnreachable(
                                     tile,
                                     `Dashboard tile type is not recognised`,

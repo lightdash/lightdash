@@ -4,6 +4,7 @@ import {
     ContentReviewContentType,
     ContentType,
     CreateDashboard,
+    CreateDashboardAiSummaryTile,
     CreateDashboardChartTile,
     CreateDashboardComposerChartTile,
     CreateDashboardDataAppTile,
@@ -63,6 +64,7 @@ import {
     DashboardsTableName,
     DashboardTable,
     DashboardTabsTableName,
+    DashboardTileAiSummariesTableName,
     DashboardTileChartTable,
     DashboardTileChartTableName,
     DashboardTileDataAppsTableName,
@@ -109,6 +111,12 @@ import {
 } from '../../utils/SlugUtils';
 import { ContentVerificationModel } from '../ContentVerificationModel';
 import { type OnContentVersionCreated } from '../OnContentVersionCreated';
+import {
+    insertAiSummaryTiles,
+    onAiSummaryTile,
+    toAiSummaryTile,
+    type DbAiSummaryTileConfig,
+} from './aiSummaryTiles';
 import {
     insertComposerChartTiles,
     onComposerChartTile,
@@ -383,6 +391,7 @@ export class DashboardModel {
             | (CreateDashboardHeadingTile & { uuid: string })
             | (CreateDashboardDataAppTile & { uuid: string })
             | (CreateDashboardComposerChartTile & { uuid: string })
+            | (CreateDashboardAiSummaryTile & { uuid: string })
         > = version.tiles.map((tile) => ({
             ...tile,
             uuid: tile.uuid || uuidv4(),
@@ -530,6 +539,11 @@ export class DashboardModel {
         await insertComposerChartTiles(
             trx,
             dashboardId,
+            versionId.dashboard_version_id,
+            tilesWithUuids,
+        );
+        await insertAiSummaryTiles(
+            trx,
             versionId.dashboard_version_id,
             tilesWithUuids,
         );
@@ -1374,6 +1388,8 @@ export class DashboardModel {
                     app_slug: string | null;
                     data_app_deleted_at: Date | null;
                     composer_chart_uuid: string | null;
+                    ai_summary_title: string | null;
+                    ai_summary_config: DbAiSummaryTileConfig | null;
                 }[]
             >(
                 `${DashboardTilesTableName}.x_offset`,
@@ -1430,6 +1446,8 @@ export class DashboardModel {
                 `${DashboardTileHeadingsTableName}.config AS heading_config`,
                 `${DashboardTileDataAppsTableName}.app_uuid`,
                 `${DashboardTileComposerChartsTableName}.composer_chart_uuid`,
+                `${DashboardTileAiSummariesTableName}.title AS ai_summary_title`,
+                `${DashboardTileAiSummariesTableName}.config AS ai_summary_config`,
                 database.raw(`${AppsTableName}.slug AS app_slug`),
                 database.raw(
                     `${AppsTableName}.deleted_at AS data_app_deleted_at`,
@@ -1531,6 +1549,7 @@ export class DashboardModel {
                 `${AppsTableName}.app_id`,
             )
             .leftJoin(DashboardTileComposerChartsTableName, onComposerChartTile)
+            .leftJoin(DashboardTileAiSummariesTableName, onAiSummaryTile)
             .leftJoin(ComposerChartsTableName, onNonDeletedComposerChart)
             .where(
                 `${DashboardTilesTableName}.dashboard_version_id`,
@@ -1625,6 +1644,8 @@ export class DashboardModel {
                     app_slug,
                     data_app_deleted_at,
                     composer_chart_uuid,
+                    ai_summary_title,
+                    ai_summary_config,
                 }) => {
                     const base: Omit<
                         DashboardDAO['tiles'][number],
@@ -1717,6 +1738,11 @@ export class DashboardModel {
                                 composer_chart_uuid,
                                 name,
                                 chart_slug,
+                            });
+                        case DashboardTileTypes.AI_SUMMARY:
+                            return toAiSummaryTile(base, {
+                                ai_summary_title,
+                                ai_summary_config,
                             });
                         default: {
                             return assertUnreachable(
@@ -2972,6 +2998,8 @@ export class DashboardModel {
                     app_slug: string | null;
                     data_app_deleted_at: Date | null;
                     composer_chart_uuid: string | null;
+                    ai_summary_title: string | null;
+                    ai_summary_config: DbAiSummaryTileConfig | null;
                 }[]
             >(
                 `${DashboardTilesTableName}.x_offset`,
@@ -3028,6 +3056,8 @@ export class DashboardModel {
                 `${DashboardTileHeadingsTableName}.config AS heading_config`,
                 `${DashboardTileDataAppsTableName}.app_uuid`,
                 `${DashboardTileComposerChartsTableName}.composer_chart_uuid`,
+                `${DashboardTileAiSummariesTableName}.title AS ai_summary_title`,
+                `${DashboardTileAiSummariesTableName}.config AS ai_summary_config`,
                 this.database.raw(`${AppsTableName}.slug AS app_slug`),
                 this.database.raw(
                     `${AppsTableName}.deleted_at AS data_app_deleted_at`,
@@ -3121,6 +3151,7 @@ export class DashboardModel {
                 `${AppsTableName}.app_id`,
             )
             .leftJoin(DashboardTileComposerChartsTableName, onComposerChartTile)
+            .leftJoin(DashboardTileAiSummariesTableName, onAiSummaryTile)
             .leftJoin(ComposerChartsTableName, onNonDeletedComposerChart)
             .where(
                 `${DashboardTilesTableName}.dashboard_version_id`,
@@ -3204,6 +3235,8 @@ export class DashboardModel {
                     app_slug,
                     data_app_deleted_at,
                     composer_chart_uuid,
+                    ai_summary_title,
+                    ai_summary_config,
                 }) => {
                     const base: Omit<
                         DashboardDAO['tiles'][number],
@@ -3296,6 +3329,11 @@ export class DashboardModel {
                                 composer_chart_uuid,
                                 name,
                                 chart_slug,
+                            });
+                        case DashboardTileTypes.AI_SUMMARY:
+                            return toAiSummaryTile(base, {
+                                ai_summary_title,
+                                ai_summary_config,
                             });
                         default: {
                             return assertUnreachable(

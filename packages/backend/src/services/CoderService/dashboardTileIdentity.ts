@@ -49,6 +49,13 @@ const getContentKey = (tile: DashboardTile): string | null => {
                 tile.properties.verticalAlign ??
                     DEFAULT_DASHBOARD_HEADING_VERTICAL_ALIGN,
             ]);
+        case DashboardTileTypes.AI_SUMMARY:
+            return JSON.stringify([
+                tile.type,
+                tile.properties.title,
+                tile.properties.instructions,
+                tile.properties.scope,
+            ]);
         default:
             return assertUnreachable(tile, 'Unknown dashboard tile type');
     }

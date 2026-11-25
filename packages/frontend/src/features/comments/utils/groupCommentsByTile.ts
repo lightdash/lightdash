@@ -39,6 +39,8 @@ export const getTileTitle = (tile: DashboardTile): string => {
             return tile.properties.text || 'Heading';
         case DashboardTileTypes.DATA_APP:
             return tile.properties.title || 'Data app';
+        case DashboardTileTypes.AI_SUMMARY:
+            return tile.properties.title || 'AI summary';
         case DashboardTileTypes.COMPOSER_CHART:
             return (
                 tile.properties.title ||
