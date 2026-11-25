@@ -84,7 +84,7 @@ const PYTHON_SANDBOX_LIBRARIES_DESCRIPTION = PYTHON_SANDBOX_LIBRARIES.map(
         `${name} ${version.split('.').slice(0, 2).join('.')}`,
 ).join(', ');
 
-const PYTHON_CODE_DESCRIPTION = `Python defining run(inputs, params) -> pandas.DataFrame. Shape every node like this:
+const PYTHON_CODE_DESCRIPTION = `Python for statistics, forecasts and other algorithms SQL expresses poorly, defining run(inputs, params) -> pandas.DataFrame. Shape every node like this:
 
 import pandas as pd
 
@@ -377,7 +377,9 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         ...nodeMetaSchema,
         exploreName: z
             .string()
-            .describe('The explore to run the metric query against.'),
+            .describe(
+                'The explore to run the metric query against. Query each explore with one semanticLayer node that selects every field the answer needs from it.',
+            ),
         dimensions: z
             .array(z.string())
             .describe(
@@ -400,13 +402,13 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
             .array(composerCustomMetricSchema)
             .nullish()
             .describe(
-                'Metrics the explore lacks, each an aggregation over one of its dimensions, computed in this query.',
+                'Metrics the explore lacks, each an aggregation over one of its dimensions. The warehouse computes them over every row, so define a missing metric here rather than in a downstream node.',
             ),
         periodComparisons: z
             .array(composerPeriodComparisonSchema)
             .nullish()
             .describe(
-                'Each adds a column holding a metric shifted back in time, next to that metric, e.g. revenue the same month last year. The warehouse reads the earlier period even when the filters exclude it. The column id is generated; read it from the result columns.',
+                'Each adds a column holding a metric shifted back in time, next to that metric, e.g. revenue the same month last year. The warehouse reads the earlier period even when the filters exclude it, so compare periods here rather than in a downstream node. The column id is generated; read it from the result columns.',
             ),
         parameters: z
             .record(z.string(), parameterValueSchema)
@@ -424,7 +426,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         sql: z
             .string()
             .describe(
-                "A SELECT or WITH statement in the warehouse's SQL dialect.",
+                "A SELECT or WITH statement in the warehouse's SQL dialect. Explores are governed and reusable, so use a sql node only when no explore answers the question or the user asks for SQL.",
             ),
         limit: limitSchema,
     });
