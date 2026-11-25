@@ -20,8 +20,8 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { IconCheck, IconPencil } from '@tabler/icons-react';
-import { useState, type FC, type FormEvent } from 'react';
+import { IconCheck, IconPencil, IconTable } from '@tabler/icons-react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
 import {
@@ -29,9 +29,8 @@ import {
     useUpdateLiveSourceExplores,
 } from '../externalConnections/hooks/useLiveSourceFields';
 import {
-    SettingsCard,
+    EditableSettingsCard,
     SettingsRow,
-    SettingsSaveFooter,
 } from '../externalConnections/liveSources/LiveSourceSettingsRows';
 import { LiveSourceSwitchOffModal } from '../externalConnections/liveSources/LiveSourceSwitchOffModal';
 import { summaryOf } from './model';
@@ -123,8 +122,7 @@ export const LiveExploreRows: FC<
             },
         );
 
-    const submit = (event: FormEvent) => {
-        event.preventDefault();
+    const submit = () => {
         if (changed.length === 0) return;
         const used = changed.filter(
             (explore) => !isOn(explore) && explore.usedByChartCount > 0,
@@ -138,92 +136,91 @@ export const LiveExploreRows: FC<
 
     return (
         <>
-            <SettingsCard
-                onSubmit={submit}
+            <EditableSettingsCard
                 title="Explores"
-                edit={{
-                    isEditing,
-                    onEdit: () => setDraft({}),
-                }}
+                icon={IconTable}
+                isEditing={isEditing}
+                onEdit={() => setDraft({})}
+                onCancel={() => setDraft(null)}
+                onSave={submit}
+                isChanged={changed.length > 0}
+                isSaving={update.isLoading}
             >
-                {explores.map((explore) => {
-                    const inUse = isOn(explore);
-                    const openable =
-                        !isEditing &&
-                        explore.inUse &&
-                        isOpenable(explore.exploreName);
-                    return (
-                        <SettingsRow
-                            key={explore.exploreName}
-                            dimmed={!inUse}
-                            label={
-                                openable ? (
-                                    <Anchor
-                                        component="button"
-                                        type="button"
-                                        c="inherit"
-                                        fw={500}
-                                        fz="inherit"
-                                        onClick={() =>
-                                            onOpen(explore.exploreName)
-                                        }
-                                    >
-                                        {explore.label}
-                                    </Anchor>
-                                ) : (
-                                    explore.label
-                                )
-                            }
-                            hint={
-                                summaryOf(explore.description) && (
-                                    <Text
-                                        inherit
-                                        truncate="end"
-                                        title={explore.description}
-                                    >
-                                        {summaryOf(explore.description)}
-                                    </Text>
-                                )
-                            }
-                        >
-                            {isEditing ? (
-                                <Switch
-                                    size="xs"
-                                    aria-label={`${explore.label} in use`}
-                                    checked={inUse}
-                                    disabled={update.isLoading}
-                                    onChange={(event) => {
-                                        const { checked } = event.currentTarget;
-                                        setDraft((current) => ({
-                                            ...current,
-                                            [explore.exploreName]: checked,
-                                        }));
-                                    }}
-                                />
-                            ) : inUse ? (
-                                <Tooltip
-                                    label="In use: people and AI agents can query it"
-                                    withinPortal
-                                >
-                                    <MantineIcon
-                                        icon={IconCheck}
-                                        color="green"
-                                        size="lg"
-                                        aria-label="In use"
+                {(editing) =>
+                    explores.map((explore) => {
+                        // The page keeps showing what is saved
+                        const inUse = editing ? isOn(explore) : explore.inUse;
+                        const openable =
+                            !editing &&
+                            explore.inUse &&
+                            isOpenable(explore.exploreName);
+                        return (
+                            <SettingsRow
+                                key={explore.exploreName}
+                                dimmed={!inUse}
+                                label={
+                                    openable ? (
+                                        <Anchor
+                                            component="button"
+                                            type="button"
+                                            c="inherit"
+                                            fw={500}
+                                            fz="inherit"
+                                            onClick={() =>
+                                                onOpen(explore.exploreName)
+                                            }
+                                        >
+                                            {explore.label}
+                                        </Anchor>
+                                    ) : (
+                                        explore.label
+                                    )
+                                }
+                                hint={
+                                    summaryOf(explore.description) && (
+                                        <Text
+                                            inherit
+                                            truncate="end"
+                                            title={explore.description}
+                                        >
+                                            {summaryOf(explore.description)}
+                                        </Text>
+                                    )
+                                }
+                            >
+                                {editing ? (
+                                    <Switch
+                                        size="xs"
+                                        aria-label={`${explore.label} in use`}
+                                        checked={inUse}
+                                        disabled={update.isLoading}
+                                        onChange={(event) => {
+                                            const { checked } =
+                                                event.currentTarget;
+                                            setDraft((current) => ({
+                                                ...current,
+                                                [explore.exploreName]: checked,
+                                            }));
+                                        }}
                                     />
-                                </Tooltip>
-                            ) : null}
-                        </SettingsRow>
-                    );
-                })}
-                {isEditing ? (
-                    <SettingsSaveFooter
-                        isChanged={changed.length > 0}
-                        isSaving={update.isLoading}
-                        onCancel={() => setDraft(null)}
-                    />
-                ) : null}
-            </SettingsCard>
+                                ) : inUse ? (
+                                    <Tooltip
+                                        label="In use: people and AI agents can query it"
+                                        withinPortal
+                                    >
+                                        <MantineIcon
+                                            icon={IconCheck}
+                                            color="green"
+                                            size="lg"
+                                            aria-label="In use"
+                                        />
+                                    </Tooltip>
+                                ) : null}
+                            </SettingsRow>
+                        );
+                    })
+                }
+            </EditableSettingsCard>
             {toConfirm.length > 0 ? (
                 <LiveSourceSwitchOffModal
                     key={toConfirm[0].exploreName}

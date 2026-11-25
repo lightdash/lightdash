@@ -145,6 +145,11 @@ export const LiveSourcesTable: FC<{
     const rows = toLiveSourceRows(connections ?? [], usage);
     if (rows.length === 0) return <EmptyLiveSources />;
     const open = (connectionUuid: string) => () => onOpen(connectionUuid);
+    const isUsed = ({ externalConnectionUuid }: LiveSourceConnection) =>
+        (usage?.find(
+            (source) =>
+                source.externalConnectionUuid === externalConnectionUuid,
+        )?.apiCalls ?? 0) > 0;
     const onKeyDown =
         (connectionUuid: string) => (event: KeyboardEvent<HTMLElement>) => {
             if (event.target !== event.currentTarget) return;
@@ -171,6 +176,9 @@ export const LiveSourcesTable: FC<{
                 >
                     API calls
                     <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
+                </span>
+                <span role="columnheader" className={tableClasses.number}>
+                    Median latency
                 </span>
                 <span />
             </Box>
@@ -202,25 +210,27 @@ export const LiveSourcesTable: FC<{
                         </Text>
                         <AccessRuleBadge connection={connection} />
                     </Group>
-                    <span role="cell" className={tableClasses.number}>
-                        {used.dataRead}
+                    {/* A dash until it has been called, as its own page shows */}
+                    <span
+                        role="cell"
+                        className={tableClasses.number}
+                        data-empty={!isUsed(connection) || undefined}
+                    >
+                        {isUsed(connection) ? used.dataRead : '—'}
                     </span>
                     <span
                         role="cell"
                         className={tableClasses.number}
-                        title={
-                            used.medianLatency
-                                ? `${used.apiCalls} calls, median latency ${used.medianLatency}`
-                                : undefined
-                        }
+                        data-empty={!isUsed(connection) || undefined}
                     >
-                        {used.apiCalls}
-                        {used.medianLatency ? (
-                            <span className={tableClasses.statDetail}>
-                                {' '}
-                                ({used.medianLatency})
-                            </span>
-                        ) : null}
+                        {isUsed(connection) ? used.apiCalls : '—'}
+                    </span>
+                    <span
+                        role="cell"
+                        className={tableClasses.number}
+                        data-empty={!used.medianLatency || undefined}
+                    >
+                        {used.medianLatency ?? '—'}
                     </span>
                     <Box role="cell">
                         {canManage ? (

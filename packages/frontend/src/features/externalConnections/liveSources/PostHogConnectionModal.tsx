@@ -116,7 +116,7 @@ export const PostHogConnectionModal: FC<Props> = ({
                 {isSignIn ? null : (
                     <LiveSourceSetupCard connector={ApiConnectorType.POSTHOG} />
                 )}
-                <SettingsCard title="Authentication">
+                <SettingsCard title="Authentication" titleOutside>
                     {canSignIn ? (
                         <SettingsRow
                             label="Connect with"

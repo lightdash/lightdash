@@ -20,9 +20,9 @@ import {
     TextInput,
 } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
-import { IconTrash } from '@tabler/icons-react';
+import { IconId, IconKey, IconTrash } from '@tabler/icons-react';
 import { isEqual } from 'es-toolkit/compat';
-import { useState, type FC, type FormEvent } from 'react';
+import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -59,9 +59,9 @@ import {
 } from './liveSourceRows';
 import classes from './LiveSources.module.css';
 import {
+    EditableSettingsCard,
     SettingsCard,
     SettingsRow,
-    SettingsSaveFooter,
     SettingsValue,
 } from './LiveSourceSettingsRows';
 import { LiveSourceTagsRow } from './LiveSourceTagsRow';
@@ -108,7 +108,7 @@ const TokenRow: FC<{
     <SettingsRow label={label} hint="Encrypted, never shown again">
         <PasswordInput
             size="xs"
-            w={240}
+            w={320}
             aria-label={`New ${label}`}
             placeholder="Leave empty to keep the saved key"
             autoComplete="off"
@@ -144,16 +144,15 @@ export const LiveSourceSettings: FC<{
         LIVE_SOURCE_UPDATE_MESSAGES,
     );
     const testSource = useTestConnection({ showErrorToast: false });
+    const testDraftSource = useTestConnection({ showErrorToast: false });
     const [isPurgeOpen, setIsPurgeOpen] = useState(false);
     const [isAccessRuleOpen, setIsAccessRuleOpen] = useState(false);
     const [editingCards, setEditingCards] = useState<EditableCard[]>([]);
     const isEditing = (card: EditableCard) => editingCards.includes(card);
     const stopEditing = (card: EditableCard) =>
         setEditingCards((cards) => cards.filter((open) => open !== card));
-    const editProps = (card: EditableCard) => ({
-        isEditing: isEditing(card),
-        onEdit: () => setEditingCards((cards) => [...cards, card]),
-    });
+    const startEditing = (card: EditableCard) =>
+        setEditingCards((cards) => [...cards, card]);
     const accessRule = describeLiveSourceAccessRule(connection.accessRule);
     const { data: projectCache } = useResultsCacheStatus(projectUuid);
     const { data: apiUsage } = useExternalConnectionApiUsage(projectUuid);
@@ -258,23 +257,33 @@ export const LiveSourceSettings: FC<{
     };
 
     const isAccessChanged = accessKeys.length > 0 && isChanged(accessKeys);
-    const testRequest = getLiveSourceTestRequest(
+    /** The page tests what is saved; the dialog, what is typed in it. */
+    const savedTestRequest = getLiveSourceTestRequest(connection, access, {
+        ...form.values,
+        ...form.getInitialValues(),
+    });
+    const draftTestRequest = getLiveSourceTestRequest(
         connection,
         access,
         form.values,
     );
 
-    /** Tests the Access card as edited, so a new key can be tried before saving. */
-    const handleTest = () => {
-        if (!testRequest) return;
+    const testSaved = () => {
+        if (!savedTestRequest) return;
+        testSource.mutate({ ...params, ...savedTestRequest });
+    };
+
+    /** Tries the Authentication dialog as edited, before anything is saved. */
+    const testDraft = () => {
+        if (!draftTestRequest) return;
         if (isAccessChanged) {
             if (accessKeys.some((key) => form.validateField(key).hasError))
                 return;
             if (isPostHogKey && needsKeyForRegion()) return;
         }
-        testSource.mutate({
+        testDraftSource.mutate({
             ...params,
-            ...testRequest,
+            ...draftTestRequest,
             ...(isAccessChanged
                 ? {
                       config: toLiveSourceAccessUpdate(
@@ -294,31 +303,6 @@ export const LiveSourceSettings: FC<{
         });
     };
 
-    const saveFooter = (
-        card: EditableCard,
-        keys: (keyof LiveSourceAccessValues)[],
-    ) =>
-        isEditing(card) ? (
-            <SettingsSaveFooter
-                isChanged={isChanged(keys)}
-                isSaving={updateSource.isLoading}
-                hasFields={keys.length > 0}
-                onCancel={() => {
-                    revert(keys);
-                    stopEditing(card);
-                }}
-            />
-        ) : null;
-
-    const submit =
-        (card: EditableCard, keys: (keyof LiveSourceAccessValues)[]) =>
-        (event: FormEvent) => {
-            event.preventDefault();
-            void saveSource(keys).then((isSaved) => {
-                if (isSaved) stopEditing(card);
-            });
-        };
-
     const isTagsChanged = !isEqual(
         form.values.tags,
         form.getInitialValues().tags,
@@ -330,8 +314,7 @@ export const LiveSourceSettings: FC<{
         stopEditing('details');
     };
 
-    const submitDetails = (event: FormEvent) => {
-        event.preventDefault();
+    const saveDetails = () => {
         void saveSource(
             DETAIL_KEYS,
             isTagsChanged ? form.values.tags : undefined,
@@ -358,81 +341,91 @@ export const LiveSourceSettings: FC<{
     return (
         <>
             <Stack gap="lg">
-                <SettingsCard
+                <EditableSettingsCard
                     title="Details"
-                    onSubmit={submitDetails}
-                    edit={editProps('details')}
+                    icon={IconId}
+                    isEditing={isEditing('details')}
+                    onEdit={() => startEditing('details')}
+                    onCancel={cancelDetails}
+                    onSave={saveDetails}
+                    isChanged={isChanged(DETAIL_KEYS) || isTagsChanged}
+                    isSaving={updateSource.isLoading}
                 >
-                    <SettingsRow
-                        label="Explore prefix"
-                        hint="Starts the name of each explore, and can't be changed"
-                    >
-                        {isEditing('details') ? (
-                            <TextInput
-                                w={240}
-                                size="xs"
-                                aria-label="Explore prefix"
-                                disabled
-                                value={connection.liveSourceName ?? ''}
-                                readOnly
+                    {(editing) => (
+                        <>
+                            <SettingsRow
+                                label="Explore prefix"
+                                hint="Starts the name of each explore, and can't be changed"
+                            >
+                                {editing ? (
+                                    <TextInput
+                                        w={320}
+                                        size="xs"
+                                        aria-label="Explore prefix"
+                                        disabled
+                                        value={connection.liveSourceName ?? ''}
+                                        readOnly
+                                    />
+                                ) : (
+                                    <Code fz="xs">
+                                        {connection.liveSourceName ?? '—'}
+                                    </Code>
+                                )}
+                            </SettingsRow>
+                            <SettingsRow
+                                label="Name"
+                                hint="Shown in explores and to AI agents"
+                            >
+                                {editing ? (
+                                    <TextInput
+                                        w={320}
+                                        size="xs"
+                                        autoFocus
+                                        aria-label="Name"
+                                        {...form.getInputProps('name')}
+                                    />
+                                ) : (
+                                    <SettingsValue>
+                                        {form.values.name}
+                                    </SettingsValue>
+                                )}
+                            </SettingsRow>
+                            <SettingsRow
+                                label="AI hint"
+                                hint="Helps AI agents pick this source"
+                            >
+                                {editing ? (
+                                    <Textarea
+                                        w={320}
+                                        size="xs"
+                                        aria-label="AI hint"
+                                        placeholder="For example: EU storefront"
+                                        autosize
+                                        minRows={1}
+                                        maxRows={4}
+                                        maxLength={
+                                            LIVE_SOURCE_AI_HINT_MAX_LENGTH
+                                        }
+                                        {...form.getInputProps('aiHint')}
+                                    />
+                                ) : (
+                                    <SettingsValue
+                                        isEmpty={!form.values.aiHint}
+                                    >
+                                        {form.values.aiHint || 'Not set'}
+                                    </SettingsValue>
+                                )}
+                            </SettingsRow>
+                            <LiveSourceTagsRow
+                                isEditing={editing}
+                                tags={form.values.tags}
+                                onChange={(tags) =>
+                                    form.setFieldValue('tags', tags)
+                                }
                             />
-                        ) : (
-                            <Code fz="xs">
-                                {connection.liveSourceName ?? '—'}
-                            </Code>
-                        )}
-                    </SettingsRow>
-                    <SettingsRow
-                        label="Name"
-                        hint="Shown in explores and to AI agents"
-                    >
-                        {isEditing('details') ? (
-                            <TextInput
-                                w={240}
-                                size="xs"
-                                autoFocus
-                                aria-label="Name"
-                                {...form.getInputProps('name')}
-                            />
-                        ) : (
-                            <SettingsValue>{form.values.name}</SettingsValue>
-                        )}
-                    </SettingsRow>
-                    <SettingsRow
-                        label="AI hint"
-                        hint="Helps AI agents pick this source"
-                    >
-                        {isEditing('details') ? (
-                            <Textarea
-                                w={240}
-                                size="xs"
-                                aria-label="AI hint"
-                                placeholder="For example: EU storefront"
-                                autosize
-                                minRows={1}
-                                maxRows={4}
-                                maxLength={LIVE_SOURCE_AI_HINT_MAX_LENGTH}
-                                {...form.getInputProps('aiHint')}
-                            />
-                        ) : (
-                            <SettingsValue isEmpty={!form.values.aiHint}>
-                                {form.values.aiHint || 'Not set'}
-                            </SettingsValue>
-                        )}
-                    </SettingsRow>
-                    <LiveSourceTagsRow
-                        isEditing={isEditing('details')}
-                        tags={form.values.tags}
-                        onChange={(tags) => form.setFieldValue('tags', tags)}
-                    />
-                    {isEditing('details') ? (
-                        <SettingsSaveFooter
-                            isChanged={isChanged(DETAIL_KEYS) || isTagsChanged}
-                            isSaving={updateSource.isLoading}
-                            onCancel={cancelDetails}
-                        />
-                    ) : null}
-                </SettingsCard>
+                        </>
+                    )}
+                </EditableSettingsCard>
 
                 <SettingsCard title="Usage" titleInfo={usageWindow}>
                     <SettingsRow
@@ -565,31 +558,32 @@ export const LiveSourceSettings: FC<{
                         onEdit: () => setIsAccessRuleOpen(true),
                     }}
                 >
-                    {accessRule ? null : (
-                        <SettingsRow
-                            label="Everyone"
-                            hint="Open to the whole project"
-                        >
-                            <Code fz="xs">*</Code>
-                        </SettingsRow>
-                    )}
+                    {/* The same rows as the dialog that edits it */}
+                    <SettingsRow
+                        label="Query access"
+                        // Says which it is; the dialog's caption offers both
+                        hint={
+                            accessRule
+                                ? 'Limited by user attribute'
+                                : 'Open to the whole project'
+                        }
+                    >
+                        <SettingsValue>
+                            {accessRule ? 'Restricted' : 'Everyone'}
+                        </SettingsValue>
+                    </SettingsRow>
                     {(
                         [
-                            ['required', 'Must match'],
-                            ['any', 'At least one of these must match'],
+                            ['required', 'Must match all'],
+                            ['any', 'Must match any'],
                         ] as const
-                    ).flatMap(([key, groupHint]) =>
+                    ).flatMap(([key, group]) =>
                         Object.entries(connection.accessRule?.[key] ?? {}).map(
-                            ([name, values], _index, conditions) => (
+                            ([name, values]) => (
                                 <SettingsRow
                                     key={`${key}:${name}`}
                                     label={name}
-                                    // Alone in its group, the one condition has to match
-                                    hint={
-                                        conditions.length === 1
-                                            ? 'Must match'
-                                            : groupHint
-                                    }
+                                    hint={group}
                                 >
                                     {values.map((value) => (
                                         <Code key={value} fz="xs">
@@ -602,133 +596,169 @@ export const LiveSourceSettings: FC<{
                     )}
                 </SettingsCard>
 
-                <SettingsCard
+                <EditableSettingsCard
                     title="Authentication"
-                    onSubmit={
+                    icon={IconKey}
+                    canEdit={accessKeys.length > 0 || reconnect !== null}
+                    isEditing={isEditing('access')}
+                    onEdit={() => startEditing('access')}
+                    onCancel={() => {
+                        revert(accessKeys);
+                        stopEditing('access');
+                    }}
+                    onSave={
                         accessKeys.length > 0
-                            ? submit('access', accessKeys)
+                            ? () =>
+                                  void saveSource(accessKeys).then(
+                                      (isSaved) => {
+                                          if (isSaved) stopEditing('access');
+                                      },
+                                  )
                             : undefined
                     }
-                    edit={
-                        accessKeys.length > 0 || reconnect
-                            ? editProps('access')
-                            : undefined
-                    }
+                    isChanged={isChanged(accessKeys)}
+                    isSaving={updateSource.isLoading}
                 >
-                    {accountField ? (
-                        <SettingsRow
-                            label={accountField.label}
-                            hint={accountField.description}
-                        >
-                            {isEditing('access') ? (
-                                <TextInput
-                                    w={240}
-                                    size="xs"
-                                    aria-label={accountField.label}
-                                    placeholder={accountField.placeholder}
-                                    autoComplete="off"
-                                    {...form.getInputProps('accountId')}
-                                />
-                            ) : form.values.accountId ? (
-                                <Code fz="xs">{form.values.accountId}</Code>
-                            ) : (
-                                <SettingsValue isEmpty>Not set</SettingsValue>
-                            )}
-                        </SettingsRow>
-                    ) : null}
-                    {isPostHogKey ? (
-                        <SettingsRow label="Region" hint="Where you log in">
-                            {isEditing('access') ? (
-                                <SegmentedControl
-                                    size="xs"
-                                    w={240}
-                                    data={POSTHOG_REGIONS}
-                                    {...form.getInputProps('region')}
-                                />
-                            ) : (
-                                <SettingsValue>
-                                    {
-                                        POSTHOG_REGIONS.find(
-                                            ({ value }) =>
-                                                value === form.values.region,
-                                        )?.label
-                                    }
-                                </SettingsValue>
-                            )}
-                        </SettingsRow>
-                    ) : null}
-                    {tokenLabel ? (
-                        isEditing('access') ? (
-                            <TokenRow label={tokenLabel} form={form} />
-                        ) : (
-                            <SettingsRow
-                                label={tokenLabel}
-                                hint="Encrypted, never shown again"
-                            >
-                                <SettingsValue>Saved</SettingsValue>
-                            </SettingsRow>
-                        )
-                    ) : (
-                        <SettingsRow
-                            label="Account"
-                            hint={`Reads ${getApiSourceTarget(connection.apiSource)}`}
-                        >
-                            {reconnect && isEditing('access') ? (
-                                <Button
-                                    size="xs"
-                                    variant="default"
-                                    onClick={reconnect}
+                    {(editing) => (
+                        <>
+                            {accountField ? (
+                                <SettingsRow
+                                    label={accountField.label}
+                                    hint={accountField.description}
                                 >
-                                    Sign in again
-                                </Button>
-                            ) : connection.targetLabel ? (
-                                <SettingsValue>
-                                    {connection.targetLabel}
-                                </SettingsValue>
+                                    {editing ? (
+                                        <TextInput
+                                            w={320}
+                                            size="xs"
+                                            aria-label={accountField.label}
+                                            placeholder={
+                                                accountField.placeholder
+                                            }
+                                            autoComplete="off"
+                                            {...form.getInputProps('accountId')}
+                                        />
+                                    ) : form.values.accountId ? (
+                                        <Code fz="xs">
+                                            {form.values.accountId}
+                                        </Code>
+                                    ) : (
+                                        <SettingsValue isEmpty>
+                                            Not set
+                                        </SettingsValue>
+                                    )}
+                                </SettingsRow>
                             ) : null}
-                        </SettingsRow>
+                            {isPostHogKey ? (
+                                <SettingsRow
+                                    label="Region"
+                                    hint="Where you log in"
+                                >
+                                    {editing ? (
+                                        <SegmentedControl
+                                            size="xs"
+                                            w={320}
+                                            data={POSTHOG_REGIONS}
+                                            {...form.getInputProps('region')}
+                                        />
+                                    ) : (
+                                        <SettingsValue>
+                                            {
+                                                POSTHOG_REGIONS.find(
+                                                    ({ value }) =>
+                                                        value ===
+                                                        form.values.region,
+                                                )?.label
+                                            }
+                                        </SettingsValue>
+                                    )}
+                                </SettingsRow>
+                            ) : null}
+                            {tokenLabel ? (
+                                editing ? (
+                                    <TokenRow label={tokenLabel} form={form} />
+                                ) : (
+                                    <SettingsRow
+                                        label={tokenLabel}
+                                        hint="Encrypted, never shown again"
+                                    >
+                                        {/* A note that a key exists, not the key: dimmed like "Never" */}
+                                        <SettingsValue isEmpty>
+                                            Saved
+                                        </SettingsValue>
+                                    </SettingsRow>
+                                )
+                            ) : (
+                                <SettingsRow
+                                    label="Account"
+                                    hint={`Reads ${getApiSourceTarget(connection.apiSource)}`}
+                                >
+                                    {reconnect && editing ? (
+                                        <Button
+                                            size="xs"
+                                            variant="default"
+                                            onClick={reconnect}
+                                        >
+                                            Sign in again
+                                        </Button>
+                                    ) : connection.targetLabel ? (
+                                        <SettingsValue>
+                                            {connection.targetLabel}
+                                        </SettingsValue>
+                                    ) : null}
+                                </SettingsRow>
+                            )}
+                            {isPostHogKey && reconnect && editing ? (
+                                <SettingsRow
+                                    label="Sign in instead"
+                                    hint="Replaces the key with a PostHog sign-in"
+                                >
+                                    <Button
+                                        size="xs"
+                                        variant="default"
+                                        onClick={reconnect}
+                                    >
+                                        Sign in with PostHog
+                                    </Button>
+                                </SettingsRow>
+                            ) : null}
+                            {/* On the page it tests what is saved; in the dialog, what is typed */}
+                            {savedTestRequest && !editing ? (
+                                <LiveSourceTestRow
+                                    label="Status"
+                                    hint="Runs a quick check"
+                                    test={testSource}
+                                    onTest={testSaved}
+                                    inputs={accessKeys.map(
+                                        (key) => form.getInitialValues()[key],
+                                    )}
+                                />
+                            ) : draftTestRequest && editing ? (
+                                <LiveSourceTestRow
+                                    label="Status"
+                                    hint="Checks the details above, without saving"
+                                    test={testDraftSource}
+                                    onTest={testDraft}
+                                    inputs={accessKeys.map(
+                                        (key) => form.values[key],
+                                    )}
+                                />
+                            ) : editing ? null : (
+                                <SettingsRow
+                                    label="Status"
+                                    hint="No test for this integration yet"
+                                >
+                                    <Button
+                                        size="xs"
+                                        variant="default"
+                                        disabled
+                                    >
+                                        Test
+                                    </Button>
+                                </SettingsRow>
+                            )}
+                        </>
                     )}
-                    {isPostHogKey && reconnect && isEditing('access') ? (
-                        <SettingsRow
-                            label="Sign in instead"
-                            hint="Replaces the key with a PostHog sign-in"
-                        >
-                            <Button
-                                size="xs"
-                                variant="default"
-                                onClick={reconnect}
-                            >
-                                Sign in with PostHog
-                            </Button>
-                        </SettingsRow>
-                    ) : null}
-                    {saveFooter('access', accessKeys)}
-                </SettingsCard>
-
-                <SettingsCard title="Status">
-                    {testRequest ? (
-                        <LiveSourceTestRow
-                            label="API"
-                            hint={
-                                isAccessChanged
-                                    ? 'Tries your unsaved changes in Authentication'
-                                    : 'Runs a quick check'
-                            }
-                            test={testSource}
-                            onTest={handleTest}
-                            inputs={accessKeys.map((key) => form.values[key])}
-                        />
-                    ) : (
-                        <SettingsRow
-                            label="API"
-                            hint="No test for this integration yet"
-                        >
-                            <Button size="xs" variant="default" disabled>
-                                Test
-                            </Button>
-                        </SettingsRow>
-                    )}
-                </SettingsCard>
+                </EditableSettingsCard>
 
                 <SettingsCard title="Danger zone" tone="danger">
                     <SettingsRow

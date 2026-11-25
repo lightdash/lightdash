@@ -12,9 +12,10 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconInfoCircle, IconPencil } from '@tabler/icons-react';
+import { IconInfoCircle, type Icon as TablerIcon } from '@tabler/icons-react';
 import { type FC, type FormEvent, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal from '../../../components/common/MantineModal';
 import classes from './LiveSourceSettingsRows.module.css';
 
 /** A label and a short hint on the left, its control on the right. */
@@ -52,40 +53,6 @@ export const SettingsValue: FC<{
     </Text>
 );
 
-/** Cancel and Save under a card that is being edited. */
-export const SettingsSaveFooter: FC<{
-    isChanged: boolean;
-    isSaving: boolean;
-    /** False keeps Save disabled until the fields can be saved. */
-    isValid?: boolean;
-    /** False for a card with nothing to save, which only closes. */
-    hasFields?: boolean;
-    onCancel: () => void;
-}> = ({ isChanged, isSaving, isValid = true, hasFields = true, onCancel }) => (
-    // The same size as Edit, which it replaces, so the card doesn't jump
-    <Group justify="flex-end" gap={6} className={classes.settingsEdit}>
-        <Button
-            size="compact-xs"
-            variant="subtle"
-            color="gray"
-            disabled={isSaving}
-            onClick={onCancel}
-        >
-            {hasFields ? 'Cancel' : 'Done'}
-        </Button>
-        {hasFields ? (
-            <Button
-                type="submit"
-                size="compact-xs"
-                disabled={!isChanged || !isValid}
-                loading={isSaving}
-            >
-                Save
-            </Button>
-        ) : null}
-    </Group>
-);
-
 /** Content that brings its own surface (a table), titled like a card. */
 export const SettingsSection: FC<{
     title: string;
@@ -102,11 +69,16 @@ export const SettingsCard: FC<{
     title?: string;
     /** More about the card, behind an info icon after its title. */
     titleInfo?: string;
+    /**
+     * Puts the title above the card as a quiet label, for cards stacked in a
+     * dialog, where a header inside each would read as one more row.
+     */
+    titleOutside?: boolean;
     /** Marks a card whose actions can't be undone. */
     tone?: 'danger';
     /** Makes the card a form whose rows save together. */
     onSubmit?: (event: FormEvent) => void;
-    /** Puts Edit at the card's foot, for a card that reads until it is used. */
+    /** Puts Edit in the card's header, for a card that reads until it is used. */
     edit?: {
         isEditing: boolean;
         onEdit: () => void;
@@ -114,7 +86,15 @@ export const SettingsCard: FC<{
         label?: string;
     };
     children: ReactNode;
-}> = ({ title, titleInfo, tone, onSubmit, edit, children }) => {
+}> = ({ title, titleInfo, titleOutside, tone, onSubmit, edit, children }) => {
+    if (title && titleOutside) {
+        return (
+            <Stack gap={6}>
+                <span className={classes.settingsOutsideTitle}>{title}</span>
+                <Box className={classes.settings}>{children}</Box>
+            </Stack>
+        );
+    }
     const header = title ? (
         <Box className={classes.settingsHeader}>
             <span className={classes.settingsTitle}>
@@ -137,26 +117,20 @@ export const SettingsCard: FC<{
                     </Tooltip>
                 ) : null}
             </span>
-        </Box>
-    ) : null;
-    // Sits where Cancel and Save changes appear once it is used
-    // Sits where Cancel and Save appear once it is used
-    const editFooter =
-        edit && !edit.isEditing ? (
-            <Box className={classes.settingsEdit}>
+            {/* Cancel and Save take this place once it is used */}
+            {edit && !edit.isEditing ? (
                 <Button
                     size="compact-xs"
                     variant="subtle"
                     color="gray"
-                    className={classes.editButton}
-                    leftSection={<MantineIcon icon={IconPencil} />}
                     aria-label={`Edit ${edit.label ?? title}`}
                     onClick={edit.onEdit}
                 >
                     Edit
                 </Button>
-            </Box>
-        ) : null;
+            ) : null}
+        </Box>
+    ) : null;
     return onSubmit ? (
         <form
             className={classes.settings}
@@ -166,13 +140,74 @@ export const SettingsCard: FC<{
         >
             {header}
             {children}
-            {editFooter}
         </form>
     ) : (
         <Box className={classes.settings} data-tone={tone}>
             {header}
             {children}
-            {editFooter}
         </Box>
     );
 };
+
+/**
+ * A card that only reads: Edit opens its rows as fields in a dialog, saved
+ * or cancelled there, so the page itself never changes shape.
+ */
+export const EditableSettingsCard: FC<{
+    title: string;
+    /** Heads the dialog, beside its title. */
+    icon: TablerIcon;
+    titleInfo?: string;
+    /** False leaves out Edit, such as when there is nothing to change. */
+    canEdit?: boolean;
+    isEditing: boolean;
+    onEdit: () => void;
+    onCancel: () => void;
+    /** Omitted for a dialog with nothing to save, which only closes. */
+    onSave?: () => void;
+    isChanged?: boolean;
+    isValid?: boolean;
+    isSaving?: boolean;
+    /** The card's rows, as read on the page or as fields in the dialog. */
+    children: (isEditing: boolean) => ReactNode;
+}> = ({
+    title,
+    icon,
+    titleInfo,
+    canEdit = true,
+    isEditing,
+    onEdit,
+    onCancel,
+    onSave,
+    isChanged = false,
+    isValid = true,
+    isSaving = false,
+    children,
+}) => (
+    <>
+        <SettingsCard
+            title={title}
+            titleInfo={titleInfo}
+            edit={canEdit ? { isEditing: false, onEdit } : undefined}
+        >
+            {children(false)}
+        </SettingsCard>
+        <MantineModal
+            opened={isEditing}
+            onClose={onCancel}
+            title={`Edit ${title.toLowerCase()}`}
+            icon={icon}
+            // As wide as the dialogs that add a source
+            size="xl"
+            cancelLabel={onSave ? 'Cancel' : 'Done'}
+            confirmLabel="Save changes"
+            confirmDisabled={!isChanged || !isValid}
+            confirmLoading={isSaving}
+            onConfirm={onSave}
+        >
+            {isEditing ? (
+                <Box className={classes.dialogRows}>{children(true)}</Box>
+            ) : null}
+        </MantineModal>
+    </>
+);

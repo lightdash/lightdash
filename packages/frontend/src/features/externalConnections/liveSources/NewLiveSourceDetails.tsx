@@ -11,7 +11,7 @@ export const NewLiveSourceDetails: FC<{
     nameProps: GetInputPropsReturnType;
     sourceId: ReturnType<typeof useNewSourceId>;
 }> = ({ nameProps, sourceId }) => (
-    <SettingsCard title="Details">
+    <SettingsCard title="Details" titleOutside>
         <SettingsRow label="Name" hint="Shown in explores">
             <TextInput
                 w={NEW_LIVE_SOURCE_FIELD_WIDTH}

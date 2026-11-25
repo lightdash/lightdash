@@ -2,7 +2,9 @@
 
 .row {
     composes: row from '../../../components/common/sourceTable.module.css';
-    grid-template-columns: minmax(160px, 220px) minmax(0, 1fr) 96px 136px 28px;
+    grid-template-columns:
+        minmax(160px, 220px) minmax(0, 1fr)
+        96px 96px 120px 28px;
 }
 
 .usageInfo {
@@ -51,4 +53,9 @@
 
 .warningText {
     color: var(--mantine-color-orange-text);
+}
+
+/* A source that hasn't been called yet: its numbers are dashes, set back. */
+.row [data-empty] {
+    color: var(--mantine-color-dimmed);
 }

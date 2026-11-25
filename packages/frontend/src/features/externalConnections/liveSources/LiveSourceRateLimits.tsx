@@ -5,7 +5,8 @@
  */
 import { type ExternalConnectionRateLimitUsage } from '@lightdash/common';
 import { Box, Progress, Text } from '@mantine/core';
-import { useState, type FC, type FormEvent } from 'react';
+import { IconGauge } from '@tabler/icons-react';
+import { useState, type FC } from 'react';
 import { NumberInput } from '../../../components/common/NumberInput';
 import {
     useExternalConnectionRateLimitUsage,
@@ -13,9 +14,9 @@ import {
 } from '../hooks/useExternalConnectionRateLimitUsage';
 import classes from './LiveSources.module.css';
 import {
+    EditableSettingsCard,
     SettingsCard,
     SettingsRow,
-    SettingsSaveFooter,
 } from './LiveSourceSettingsRows';
 import {
     getMaxLimit,
@@ -152,57 +153,54 @@ const RateLimitsForm: FC<
         setIsEditing(false);
     };
 
-    const handleSubmit = (event: FormEvent) => {
-        event.preventDefault();
-        if (!isChanged || !isValid) {
-            return;
-        }
+    const save = () => {
+        if (!isChanged || !isValid) return;
         update.mutate(toRateLimitSettings(rows, values), { onSuccess: close });
     };
 
     return (
-        <SettingsCard
+        <EditableSettingsCard
             title="Rate limits"
+            icon={IconGauge}
             titleInfo={usage.note ?? undefined}
-            onSubmit={handleSubmit}
-            edit={
-                rows.length > 0
-                    ? { isEditing, onEdit: () => setIsEditing(true) }
-                    : undefined
-            }
+            canEdit={rows.length > 0}
+            isEditing={isEditing}
+            onEdit={() => setIsEditing(true)}
+            onCancel={close}
+            onSave={save}
+            isChanged={isChanged}
+            isValid={isValid}
+            isSaving={update.isLoading}
         >
-            {usage.limitedUntil ? (
-                <SettingsRow
-                    label={`Paused by ${usage.integrationLabel}`}
-                    hint={`No requests ${formatUntil(
-                        usage.limitedUntil,
-                        usage.checkedAt,
-                    )}`}
-                >
-                    {null}
-                </SettingsRow>
-            ) : null}
-            {rows.map((row) => (
-                <LimitRow
-                    key={row.key}
-                    row={row}
-                    value={values[row.key]}
-                    usage={usage}
-                    isEditing={isEditing}
-                    onChange={(value) =>
-                        setEdits({ ...values, [row.key]: value })
-                    }
-                />
-            ))}
-            {isEditing ? (
-                <SettingsSaveFooter
-                    isChanged={isChanged}
-                    isValid={isValid}
-                    isSaving={update.isLoading}
-                    onCancel={close}
-                />
-            ) : null}
-        </SettingsCard>
+            {(editing) => (
+                <>
+                    {usage.limitedUntil && !editing ? (
+                        <SettingsRow
+                            label={`Paused by ${usage.integrationLabel}`}
+                            hint={`No requests ${formatUntil(
+                                usage.limitedUntil,
+                                usage.checkedAt,
+                            )}`}
+                        >
+                            {null}
+                        </SettingsRow>
+                    ) : null}
+                    {rows.map((row) => (
+                        <LimitRow
+                            key={row.key}
+                            row={row}
+                            // The page keeps showing what is saved
+                            value={editing ? values[row.key] : saved[row.key]}
+                            usage={usage}
+                            isEditing={editing}
+                            onChange={(value) =>
+                                setEdits({ ...values, [row.key]: value })
+                            }
+                        />
+                    ))}
+                </>
+            )}
+        </EditableSettingsCard>
     );
 };
 
