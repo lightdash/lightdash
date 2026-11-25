@@ -113,6 +113,14 @@
     }
 }
 
+/* With the thread list collapsed its divider sits against the left navigation
+   sidebar, where it reads as a border, so it only shows while in use. */
+:global([data-left-navigation])
+    .sidebar[data-collapsed='true']
+    + .resizeHandle:not(:hover, [data-active]) {
+    background-color: transparent;
+}
+
 .artifact {
     box-shadow: var(--mantine-shadow-lg);
 }
