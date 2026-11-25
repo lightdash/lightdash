@@ -44,9 +44,10 @@ export const dashboardResultsQueryPredicate = getPredicateFunction(
     DASHBOARD_RESULTS_QUERIES,
 );
 
-// Tiles with a request on the wire; one queued for a slot or waiting to retry
-// sends its next request later
-const sendingRequest = new WeakSet<Query>();
+// Requests each tile has on the wire; a tile can have two after a remount, and
+// one queued for a slot or waiting to retry sends its next request later
+const requestsSent = new WeakMap<Query, number>();
+const isSendingRequest = (query: Query) => (requestsSent.get(query) ?? 0) > 0;
 
 export const sendTileRequest = async <T>(
     queryClient: QueryClient,
@@ -54,11 +55,11 @@ export const sendTileRequest = async <T>(
     request: Promise<T>,
 ) => {
     const query = queryClient.getQueryCache().find(queryKey);
-    if (query) sendingRequest.add(query);
+    if (query) requestsSent.set(query, (requestsSent.get(query) ?? 0) + 1);
     try {
         return await request;
     } finally {
-        if (query) sendingRequest.delete(query);
+        if (query) requestsSent.set(query, (requestsSent.get(query) ?? 1) - 1);
     }
 };
 
@@ -96,15 +97,14 @@ export const evictSavedDashboardResults = (queryClient: QueryClient) => {
             })
             .map((query) => [
                 query,
-                query.state.fetchStatus !== 'idle' &&
-                    !sendingRequest.has(query),
+                query.state.fetchStatus !== 'idle' && !isSendingRequest(query),
             ]),
     );
     if (onScreen.size === 0) return;
     // A request started before the save may answer with older data, so its
     // tile fetches once more when it lands
     const startedBeforeSave = new Set(
-        [...onScreen.keys()].filter((query) => sendingRequest.has(query)),
+        [...onScreen.keys()].filter(isSendingRequest),
     );
     // Rows still loading may also predate the save, and an error may have
     // cleared since, so those tiles run again now

@@ -369,4 +369,37 @@ describe('evictSavedDashboardResults', () => {
 
         expect(queryClient.getQueryData(tileKey('failing'))).toBeUndefined();
     });
+
+    it('fetches again when a second pre-save request is still out after the first lands', async () => {
+        const responses: ((value: string) => void)[] = [];
+        const send = () =>
+            sendTileRequest(
+                queryClient,
+                tileKey('overlap'),
+                new Promise<string>((resolve) => {
+                    responses.push(resolve);
+                }),
+            );
+        queryClient.setQueryData(tileKey('overlap'), 'old');
+        const unmount = new QueryObserver(queryClient, {
+            queryKey: tileKey('overlap'),
+            queryFn: send,
+            staleTime: Infinity,
+        }).subscribe(() => {});
+        // A request left over from before a remount, then the tile's own
+        const leftover = send();
+        void queryClient.refetchQueries(tileKey('overlap'));
+        responses[0]('leftover');
+        await leftover;
+        evictSavedDashboardResults(queryClient);
+
+        responses[1]('pre-save');
+        await flush();
+
+        expect(responses).toHaveLength(3);
+        responses[2]('post-save');
+        await flush();
+        expect(queryClient.getQueryData(tileKey('overlap'))).toBe('post-save');
+        unmount();
+    });
 });
