@@ -71,6 +71,10 @@ export const toRateLimitUsage = ({
         adminRateLimits,
         defaultCallsPerSecond: declared.callsPerSecond,
         defaultConcurrentCalls: declared.concurrentCalls,
+        runningCalls: Math.min(
+            snapshot.runningCalls,
+            rateLimits.concurrentCalls,
+        ),
         note: declared.cardNote ?? null,
         callsPerQuery,
     };

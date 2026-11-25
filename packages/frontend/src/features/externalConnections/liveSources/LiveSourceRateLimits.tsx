@@ -3,7 +3,10 @@
  * resets, whether the vendor has paused it, and the lower limits an admin
  * sets. Usage is read when the page opens and after a save.
  */
-import { type ExternalConnectionRateLimitUsage } from '@lightdash/common';
+import {
+    assertUnreachable,
+    type ExternalConnectionRateLimitUsage,
+} from '@lightdash/common';
 import { Button, Group, Progress, Text } from '@mantine/core';
 import { useState, type FC, type FormEvent } from 'react';
 import { NumberInput } from '../../../components/common/NumberInput';
@@ -16,6 +19,7 @@ import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
 import rowClasses from './LiveSourceSettingsRows.module.css';
 import {
     getMaxLimit,
+    getRateLimitMeter,
     getRateLimitRows,
     getSavedValues,
     isBelowQueryCalls,
@@ -24,15 +28,39 @@ import {
     type RateLimitRow,
     type RateLimitValues,
 } from './rateLimitForm';
-import { formatUntil, formatUsed, isFull, resetsOf } from './rateLimitFormat';
+import { capitalize, formatUntil, isFull, resetsOf } from './rateLimitFormat';
 
 type RateLimitParams = { projectUuid: string; connectionUuid: string };
+
+const getRowStatus = (
+    row: RateLimitRow,
+    usage: ExternalConnectionRateLimitUsage,
+) => {
+    switch (row.kind) {
+        case 'window': {
+            if (!row.usage) {
+                return 'No limit set';
+            }
+            const resets = resetsOf(row.usage, usage.checkedAt);
+            return isFull(row.usage)
+                ? `Limit reached, ${resets}`
+                : capitalize(resets);
+        }
+        case 'callsPerSecond':
+            return 'Throttled to this rate';
+        case 'concurrentCalls':
+            return usage.runningCalls > 0 ? 'In flight now' : 'None in flight';
+        default:
+            return assertUnreachable(row, 'Unknown rate limit row');
+    }
+};
 
 const RowHint: FC<{
     row: RateLimitRow;
     value: number | undefined;
     usage: ExternalConnectionRateLimitUsage;
-}> = ({ row, value, usage }) => {
+    isLimitReached: boolean;
+}> = ({ row, value, usage, isLimitReached }) => {
     if (!isValidLimit(row, value)) {
         return (
             <span className={classes.rateError}>
@@ -41,28 +69,20 @@ const RowHint: FC<{
             </span>
         );
     }
-    if (row.kind !== 'window') {
-        return null;
-    }
-    const warning = isBelowQueryCalls(row, value, usage.callsPerQuery) ? (
-        <span className={classes.warningText}>
-            One query can make up to {usage.callsPerQuery} calls
-        </span>
-    ) : null;
-    if (!row.usage) {
-        return warning ?? 'Not set';
-    }
-    const full = isFull(row.usage);
-    const resets = resetsOf(row.usage, usage.checkedAt);
     return (
         <>
             <span
                 className={classes.rateDetail}
-                data-limit-reached={full || undefined}
+                data-limit-reached={isLimitReached || undefined}
             >
-                {full ? `Limit reached, ${resets}` : resets}
+                {getRowStatus(row, usage)}
             </span>
-            {warning ? <> · {warning}</> : null}
+            {isBelowQueryCalls(row, value, usage.callsPerQuery) ? (
+                <span className={classes.warningText}>
+                    {' '}
+                    · One query can make up to {usage.callsPerQuery} requests
+                </span>
+            ) : null}
         </>
     );
 };
@@ -73,34 +93,37 @@ const LimitRow: FC<{
     usage: ExternalConnectionRateLimitUsage;
     onChange: (value: number | undefined) => void;
 }> = ({ row, value, usage, onChange }) => {
-    const bucket = row.kind === 'window' ? row.usage : null;
+    const meter = getRateLimitMeter(row, usage.runningCalls);
     return (
         <SettingsRow
             label={row.label}
-            hint={<RowHint row={row} value={value} usage={usage} />}
+            hint={
+                <RowHint
+                    row={row}
+                    value={value}
+                    usage={usage}
+                    isLimitReached={meter.isFull}
+                />
+            }
         >
-            {bucket ? (
-                <>
-                    <Progress
-                        w={100}
-                        size="sm"
-                        value={Math.min(
-                            100,
-                            (bucket.used / bucket.capacity) * 100,
-                        )}
-                        color={isFull(bucket) ? 'red' : undefined}
-                        aria-label={`${bucket.label}: ${formatUsed(bucket.used, bucket.capacity)}`}
-                    />
-                    <Text className={classes.rateCount}>
-                        {formatUsed(bucket.used, bucket.capacity)}
-                    </Text>
-                </>
-            ) : null}
+            <Text
+                className={classes.rateCount}
+                c={meter.isCounted ? undefined : 'dimmed'}
+            >
+                {meter.text}
+            </Text>
+            <Progress
+                w={100}
+                size="sm"
+                value={meter.percent}
+                color={meter.isFull ? 'red' : undefined}
+                aria-label={`${row.label}: ${meter.text}`}
+            />
             <NumberInput
                 w={96}
                 size="xs"
                 aria-label={`${row.label} limit`}
-                placeholder={row.defaultLimit?.toLocaleString()}
+                placeholder={row.defaultLimit?.toLocaleString() ?? 'No limit'}
                 min={1}
                 clampBehavior="none"
                 allowNegative={false}
@@ -112,7 +135,7 @@ const LimitRow: FC<{
             />
             <Text className={classes.rateMax}>
                 {row.defaultLimit === null
-                    ? null
+                    ? 'no max'
                     : `max ${row.defaultLimit.toLocaleString()}`}
             </Text>
         </SettingsRow>
@@ -146,7 +169,7 @@ const RateLimitsForm: FC<
             {usage.limitedUntil ? (
                 <SettingsRow
                     label={`Paused by ${usage.integrationLabel}`}
-                    hint={`Calls resume ${formatUntil(
+                    hint={`Requests resume ${formatUntil(
                         usage.limitedUntil,
                         usage.checkedAt,
                     )}`}

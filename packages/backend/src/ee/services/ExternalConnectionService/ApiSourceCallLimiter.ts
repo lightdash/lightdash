@@ -357,8 +357,8 @@ export class ApiSourceCallLimiter {
                     const running = `${label} is already running`;
                     const atOnce = formatCount(rateLimits.concurrentCalls);
                     const busy = setByAdmin.concurrentCalls
-                        ? `${running} as many calls at once as your admin allows (${atOnce})`
-                        : `${running} ${atOnce} calls at once`;
+                        ? `${running} as many concurrent requests as your admin allows (${atOnce})`
+                        : `${running} ${atOnce} concurrent requests`;
                     throw refuse({
                         message: `${busy}. Retry in ${BUSY_RETRY_AFTER_SECONDS} seconds.`,
                         code: CONCURRENCY_LIMIT,

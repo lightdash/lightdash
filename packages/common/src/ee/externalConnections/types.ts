@@ -889,6 +889,8 @@ export type ExternalConnectionRateLimitUsage = {
     defaultCallsPerSecond: number | null;
     /** The integration's own limit on calls in flight at once. */
     defaultConcurrentCalls: number;
+    /** Calls in flight, never above the concurrency limit now in force. */
+    runningCalls: number;
     /** What admins are told alongside the limits they can lower. */
     note: string | null;
     /** The most calls one query can make. */

@@ -1,16 +1,18 @@
 /**
- * The limits an admin can lower on a live data source, as rows of a form: one
- * per time window, a daily one on every integration, calls a second where the
- * integration limits it, and calls at once.
+ * The limits an admin can lower on a live data source, as rows of a form from
+ * the smallest span to the largest: concurrency, calls a second where the
+ * integration limits it, then one per time window, with a daily one on every
+ * integration.
  */
 import {
+    assertUnreachable,
     LIVE_SOURCE_DAILY_RATE_LIMIT,
     LIVE_SOURCE_RATE_LIMIT_MAX,
     type ExternalConnectionRateLimitBucket,
     type ExternalConnectionRateLimitUsage,
     type LiveSourceRateLimitSettings,
 } from '@lightdash/common';
-import { capitalize } from './rateLimitFormat';
+import { capitalize, formatUsed } from './rateLimitFormat';
 
 type RateLimitKind =
     /** `usage` is null for a daily limit that isn't set yet. */
@@ -67,8 +69,9 @@ export const getRateLimitRows = ({
             savedLimit: clampSaved(saved, defaultLimit),
         };
     };
-    const windows = buckets.map((bucket) =>
-        toWindowRow(
+    const declared = buckets.map((bucket) => ({
+        windowMs: bucket.windowMs,
+        row: toWindowRow(
             bucket,
             bucket,
             adminRateLimits?.buckets[bucket.id] ??
@@ -76,10 +79,22 @@ export const getRateLimitRows = ({
                     ? adminRateLimits?.buckets[LIVE_SOURCE_DAILY_RATE_LIMIT.id]
                     : undefined),
         ),
-    );
+    }));
     const unsetDaily = buckets.some(isDaily)
         ? []
-        : [toWindowRow(LIVE_SOURCE_DAILY_RATE_LIMIT, null, undefined)];
+        : [
+              {
+                  windowMs: LIVE_SOURCE_DAILY_RATE_LIMIT.windowMs,
+                  row: toWindowRow(
+                      LIVE_SOURCE_DAILY_RATE_LIMIT,
+                      null,
+                      undefined,
+                  ),
+              },
+          ];
+    const windows = [...declared, ...unsetDaily]
+        .sort((a, b) => a.windowMs - b.windowMs)
+        .map(({ row }) => row);
     const perSecond: RateLimitRow[] =
         defaultCallsPerSecond === null
             ? []
@@ -96,19 +111,18 @@ export const getRateLimitRows = ({
                   },
               ];
     return [
-        ...windows,
-        ...unsetDaily,
-        ...perSecond,
         {
             kind: 'concurrentCalls',
             key: 'concurrentCalls',
-            label: 'Calls at once',
+            label: 'Concurrent requests',
             defaultLimit: defaultConcurrentCalls,
             savedLimit: clampSaved(
                 adminRateLimits?.concurrentCalls,
                 defaultConcurrentCalls,
             ),
         },
+        ...perSecond,
+        ...windows,
     ];
 };
 
@@ -124,6 +138,48 @@ export const isValidLimit = (
 ): boolean =>
     value === undefined ||
     (Number.isInteger(value) && value >= 1 && value <= getMaxLimit(row));
+
+/** A row's progress bar and the words beside it. */
+export type RateLimitMeter = {
+    text: string;
+    /** From 0 to 100; 0 where nothing is counted. */
+    percent: number;
+    isCounted: boolean;
+    isFull: boolean;
+};
+
+/** Describes the limit now in force, so an unsaved edit leaves it alone. */
+export const getRateLimitMeter = (
+    row: RateLimitRow,
+    runningCalls: number,
+): RateLimitMeter => {
+    const counted = (used: number, capacity: number): RateLimitMeter => ({
+        text: formatUsed(used, capacity),
+        percent: Math.min(100, (used / capacity) * 100),
+        isCounted: true,
+        isFull: used >= capacity,
+    });
+    const uncounted = (text: string): RateLimitMeter => ({
+        text,
+        percent: 0,
+        isCounted: false,
+        isFull: false,
+    });
+    const inForce = row.savedLimit ?? getMaxLimit(row);
+
+    switch (row.kind) {
+        case 'window':
+            return row.usage
+                ? counted(row.usage.used, row.usage.capacity)
+                : uncounted('Unlimited');
+        case 'callsPerSecond':
+            return uncounted(`Up to ${inForce.toLocaleString()}`);
+        case 'concurrentCalls':
+            return counted(runningCalls, inForce);
+        default:
+            return assertUnreachable(row, 'Unknown rate limit row');
+    }
+};
 
 /** Whether one query could need more calls than the window allows. */
 export const isBelowQueryCalls = (

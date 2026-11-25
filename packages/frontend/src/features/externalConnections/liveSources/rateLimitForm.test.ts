@@ -1,6 +1,7 @@
 import { type ExternalConnectionRateLimitUsage } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    getRateLimitMeter,
     getRateLimitRows,
     getSavedValues,
     isBelowQueryCalls,
@@ -32,6 +33,7 @@ const usageWith = (
     },
     defaultCallsPerSecond: 4,
     defaultConcurrentCalls: 5,
+    runningCalls: 0,
     note: null,
     callsPerQuery: 5,
     ...overrides,
@@ -49,7 +51,7 @@ const rowOf = (
 };
 
 describe('getRateLimitRows', () => {
-    it('lists each window, an unset daily one, calls a second and calls at once', () => {
+    it('orders limits from concurrency up to an unset daily one', () => {
         expect(
             getRateLimitRows(usageWith()).map(
                 ({ label, defaultLimit, savedLimit }) => ({
@@ -59,11 +61,30 @@ describe('getRateLimitRows', () => {
                 }),
             ),
         ).toEqual([
+            {
+                label: 'Concurrent requests',
+                defaultLimit: 5,
+                savedLimit: undefined,
+            },
+            { label: 'Per second', defaultLimit: 4, savedLimit: 2 },
             { label: 'Per hour', defaultLimit: 10_000, savedLimit: 1_000 },
             { label: 'Per day', defaultLimit: null, savedLimit: undefined },
-            { label: 'Per second', defaultLimit: 4, savedLimit: 2 },
-            { label: 'Calls at once', defaultLimit: 5, savedLimit: undefined },
         ]);
+    });
+
+    it('places an unset daily limit before a longer window', () => {
+        const month = {
+            ...HOUR_BUCKET,
+            id: 'month',
+            label: 'per month',
+            windowMs: 2_592_000_000,
+        };
+
+        expect(
+            getRateLimitRows(usageWith({ buckets: [HOUR_BUCKET, month] }))
+                .slice(2)
+                .map(({ label }) => label),
+        ).toEqual(['Per hour', 'Per day', 'Per month']);
     });
 
     it('leaves out calls a second when the integration does not limit them', () => {
@@ -127,7 +148,7 @@ describe('isBelowQueryCalls', () => {
         expect(isBelowQueryCalls(rowOf('window:hour'), 5, 5)).toBe(false);
     });
 
-    it('does not warn about calls at once', () => {
+    it('does not warn about concurrency', () => {
         expect(isBelowQueryCalls(rowOf('concurrentCalls'), 1, 5)).toBe(false);
     });
 });
@@ -153,6 +174,52 @@ describe('toRateLimitSettings', () => {
             buckets: {},
             callsPerSecond: null,
             concurrentCalls: null,
+        });
+    });
+});
+
+describe('getRateLimitMeter', () => {
+    it('fills a window by how much of it is used', () => {
+        expect(getRateLimitMeter(rowOf('window:hour'), 0)).toEqual({
+            text: '410 of 1,000',
+            percent: 41,
+            isCounted: true,
+            isFull: false,
+        });
+    });
+
+    it('calls a daily limit that is not set unlimited', () => {
+        expect(getRateLimitMeter(rowOf('window:day'), 0)).toEqual({
+            text: 'Unlimited',
+            percent: 0,
+            isCounted: false,
+            isFull: false,
+        });
+    });
+
+    it('counts calls running against the limit in force', () => {
+        const saved = usageWith({
+            adminRateLimits: {
+                buckets: {},
+                callsPerSecond: null,
+                concurrentCalls: 2,
+            },
+        });
+
+        expect(
+            getRateLimitMeter(rowOf('concurrentCalls', saved), 2),
+        ).toMatchObject({ text: '2 of 2', percent: 100, isFull: true });
+        expect(getRateLimitMeter(rowOf('concurrentCalls'), 1)).toMatchObject({
+            text: '1 of 5',
+            percent: 20,
+        });
+    });
+
+    it('states the per-second limit without counting it', () => {
+        expect(getRateLimitMeter(rowOf('callsPerSecond'), 0)).toMatchObject({
+            text: 'Up to 2',
+            percent: 0,
+            isCounted: false,
         });
     });
 });

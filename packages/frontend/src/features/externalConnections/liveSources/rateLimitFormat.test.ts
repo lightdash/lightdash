@@ -80,6 +80,7 @@ describe('getRateLimitStat', () => {
         defaultCallsPerSecond: null,
         defaultConcurrentCalls: 3,
         note: null,
+        runningCalls: 0,
         callsPerQuery: 1,
     };
 

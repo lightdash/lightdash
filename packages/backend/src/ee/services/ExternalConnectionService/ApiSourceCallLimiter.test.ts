@@ -301,7 +301,7 @@ describe('ApiSourceCallLimiter', () => {
         );
     });
 
-    it('says an admin set the number of calls at once that kept the call waiting', async () => {
+    it('says an admin set the concurrency limit that kept the call waiting', async () => {
         const { limiter } = buildLimiter({ slots: 0 });
 
         const error = await refusal(
@@ -312,7 +312,7 @@ describe('ApiSourceCallLimiter', () => {
         );
 
         expect(error.message).toBe(
-            'HubSpot is already running as many calls at once as your admin allows (1). Retry in 5 seconds.',
+            'HubSpot is already running as many concurrent requests as your admin allows (1). Retry in 5 seconds.',
         );
     });
 
@@ -373,7 +373,7 @@ describe('ApiSourceCallLimiter', () => {
             'live_source.internal.concurrency_limit',
         );
         expect(error.message).toBe(
-            'HubSpot is already running 2 calls at once. Retry in 5 seconds.',
+            'HubSpot is already running 2 concurrent requests. Retry in 5 seconds.',
         );
         expect(model.refundApiSourceRateBuckets).toHaveBeenCalledOnce();
         expect(call).not.toHaveBeenCalled();

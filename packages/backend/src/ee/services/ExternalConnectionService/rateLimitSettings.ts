@@ -156,7 +156,7 @@ export const assertValidRateLimitSettings = ({
     }
     if (settings.concurrentCalls !== null) {
         assertWithin(
-            'on calls at once',
+            'on concurrent requests',
             settings.concurrentCalls,
             declared.concurrentCalls,
         );

@@ -59,7 +59,7 @@ export const resetsOf = (
 ) =>
     bucket.resetsAt
         ? formatResetsAt(bucket.resetsAt, checkedAt)
-        : 'No calls in this window';
+        : 'No requests in this window';
 
 /**
  * The summary tile: a vendor pause, else the shortest limit that is full

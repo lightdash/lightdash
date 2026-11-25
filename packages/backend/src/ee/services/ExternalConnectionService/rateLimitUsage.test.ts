@@ -20,7 +20,12 @@ const usageOf = (
     {
         rateLimits = RATE_LIMITS,
         declared,
-    }: { rateLimits?: LiveRateLimits; declared?: LiveRateLimits } = {},
+        runningCalls = 0,
+    }: {
+        rateLimits?: LiveRateLimits;
+        declared?: LiveRateLimits;
+        runningCalls?: number;
+    } = {},
 ) =>
     toRateLimitUsage({
         integrationLabel: 'HubSpot',
@@ -28,12 +33,23 @@ const usageOf = (
         declared: declared ?? rateLimits,
         adminRateLimits: null,
         callsPerQuery: 5,
-        snapshot: { now: NOW, buckets },
+        snapshot: { now: NOW, buckets, runningCalls },
     });
 
 const ago = (ms: number) => new Date(NOW.getTime() - ms);
 
 describe('toRateLimitUsage', () => {
+    it('never shows more calls running than the limit in force', () => {
+        const rateLimits = { ...RATE_LIMITS, concurrentCalls: 2 };
+
+        expect(usageOf([], { rateLimits, runningCalls: 1 }).runningCalls).toBe(
+            1,
+        );
+        expect(usageOf([], { rateLimits, runningCalls: 4 }).runningCalls).toBe(
+            2,
+        );
+    });
+
     it('shows each open window, shortest first, with when it resets', () => {
         const usage = usageOf([
             {
@@ -77,6 +93,7 @@ describe('toRateLimitUsage', () => {
             adminRateLimits: null,
             defaultCallsPerSecond: 4,
             defaultConcurrentCalls: 5,
+            runningCalls: 0,
             note: null,
             callsPerQuery: 5,
         });

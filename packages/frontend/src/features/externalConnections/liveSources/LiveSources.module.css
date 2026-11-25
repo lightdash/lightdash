@@ -20,8 +20,10 @@
 
 /* A source's rate limits in its settings: usage beside each limit's field. */
 
+/* Right-aligned against its bar, so short counts leave no gap after it. */
 .rateCount {
-    min-width: 84px;
+    min-width: 136px;
+    text-align: right;
     font-size: 13px;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
