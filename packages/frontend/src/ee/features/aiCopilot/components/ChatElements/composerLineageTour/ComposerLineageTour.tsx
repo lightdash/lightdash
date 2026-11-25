@@ -12,7 +12,8 @@ type Props = {
     ready: boolean;
     queries: SourceQuery[];
     terminalNodeId: string;
-    hasActionsMenu: boolean;
+    saveInMenu: boolean;
+    canAddToChat: boolean;
     onShowLineage: (show: boolean) => void;
 };
 
@@ -21,7 +22,8 @@ export const ComposerLineageTour: FC<Props> = ({
     ready,
     queries,
     terminalNodeId,
-    hasActionsMenu,
+    saveInMenu,
+    canAddToChat,
     onShowLineage,
 }) => {
     const { shouldShow, closeTour, tracking } = useOnboardingTour({
@@ -33,15 +35,16 @@ export const ComposerLineageTour: FC<Props> = ({
             getComposerLineageTourSteps({
                 queries,
                 terminalNodeId,
-                hasActionsMenu,
+                saveInMenu,
+                canAddToChat,
             }),
-        [queries, terminalNodeId, hasActionsMenu],
+        [queries, terminalNodeId, saveInMenu, canAddToChat],
     );
 
     return (
         <GuidedTour
             steps={steps}
-            opened={ready && shouldShow}
+            opened={shouldShow}
             tracking={tracking}
             onClose={closeTour}
             onStepChange={(stepIndex) =>

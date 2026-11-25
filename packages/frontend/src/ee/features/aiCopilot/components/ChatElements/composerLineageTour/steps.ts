@@ -16,8 +16,8 @@ const GRAPH_COPY: Record<Highlight, { title: string; body: string }> = {
         body: 'See how each step feeds into your chart. The agent can run Python for custom calculations and analysis, with no coding required.',
     },
     merge: {
-        title: 'Multiple queries, one answer',
-        body: 'See how separate queries merge into one chart. Combining trusted metrics gives you flexible analysis without pulling unverified data.',
+        title: 'Flexible analysis, governed data',
+        body: 'See how each step feeds into your chart. The agent can combine and reshape trusted results instead of pulling raw, unverified data.',
     },
     default: {
         title: 'How each step connects',
@@ -57,11 +57,14 @@ export const COMPOSER_LINEAGE_TOUR_LINEAGE_FROM = 1;
 export const getComposerLineageTourSteps = ({
     queries,
     terminalNodeId,
-    hasActionsMenu,
+    saveInMenu,
+    canAddToChat,
 }: {
     queries: SourceQuery[];
     terminalNodeId: string;
-    hasActionsMenu: boolean;
+    /** The panel menu offers saving to a dashboard. */
+    saveInMenu: boolean;
+    canAddToChat: boolean;
 }): GuidedTourStep[] => {
     const focus = getTourFocus(queries, terminalNodeId);
     return [
@@ -76,13 +79,27 @@ export const getComposerLineageTourSteps = ({
         },
         {
             target: `${TARGETS.steps} [data-node-id="${CSS.escape(focus.nodeId)}"]`,
-            title: 'Check or question any step',
-            body: 'Each step shows what it did and its result table. Use Add to chat on any step to ask follow-up questions.',
+            ...(canAddToChat
+                ? {
+                      title: 'Check or question any step',
+                      body: 'Each step shows what it did and its result table. Use Add to chat on any step to ask follow-up questions.',
+                  }
+                : {
+                      title: 'Check any step',
+                      body: 'Each step shows what it did and its result table, so you can verify the numbers behind the chart.',
+                  }),
         },
         {
-            target: hasActionsMenu ? TARGETS.actions : null,
             title: 'Save to a dashboard',
-            body: 'Add the chart to a dashboard from this menu, or just ask the agent to save it for you.',
+            ...(saveInMenu
+                ? {
+                      target: TARGETS.actions,
+                      body: 'Add the chart to a dashboard from this menu, or just ask the agent to save it for you.',
+                  }
+                : {
+                      target: null,
+                      body: 'To keep this chart, just ask the agent in chat to save it for you.',
+                  }),
         },
     ];
 };

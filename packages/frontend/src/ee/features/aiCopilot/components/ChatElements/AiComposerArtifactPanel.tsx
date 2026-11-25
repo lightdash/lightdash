@@ -285,6 +285,10 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         canDownloadResults ||
         !!mergeChartActions ||
         !!composerSave;
+    const hasSaveInMenu =
+        !!mergeChartActions?.canSave ||
+        !!mergeChartActions?.quickSaveDashboard ||
+        !!composerSave;
     const isTourReady =
         !isEmbed &&
         initialView === 'chart' &&
@@ -524,7 +528,8 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                 ready={isTourReady}
                 queries={config.queries}
                 terminalNodeId={config.terminalNodeId}
-                hasActionsMenu={hasActionsMenu}
+                saveInMenu={hasSaveInMenu}
+                canAddToChat={onAddToChat !== null}
                 onShowLineage={(show) => setView(show ? 'lineage' : 'chart')}
             />
             <AiChartImageExportModal

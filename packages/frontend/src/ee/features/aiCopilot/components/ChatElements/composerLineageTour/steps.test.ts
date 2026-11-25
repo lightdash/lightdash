@@ -29,7 +29,8 @@ const stepsFor = (queries: SourceQuery[], terminalNodeId: string) =>
     getComposerLineageTourSteps({
         queries,
         terminalNodeId,
-        hasActionsMenu: true,
+        saveInMenu: true,
+        canAddToChat: true,
     });
 
 describe('getComposerLineageTourSteps', () => {
@@ -60,11 +61,12 @@ describe('getComposerLineageTourSteps', () => {
         expect(new Set(graphTitles).size).toBe(3);
     });
 
-    it('centres the save step when the panel has no menu', () => {
+    it('centres the save step when the menu cannot save', () => {
         const steps = getComposerLineageTourSteps({
             queries: [semantic, merge],
             terminalNodeId: 'joined',
-            hasActionsMenu: false,
+            saveInMenu: false,
+            canAddToChat: true,
         });
         expect(steps.at(-1)?.target).toBeNull();
     });
