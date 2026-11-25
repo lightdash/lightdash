@@ -9,7 +9,7 @@ import type {
     LiveRateLimits,
 } from '../../../services/QuerySourceService/live/spec/types';
 import type {
-    ApiSourceRateWindow,
+    ApiSourceRateChargedWindow,
     ExternalConnectionModel,
 } from '../../models/ExternalConnectionModel';
 import type { AdminSetLimits } from './rateLimitSettings';
@@ -51,6 +51,12 @@ export type RateLimitTurn = {
     waitedMs: number;
 };
 
+/** A limit that a call has just filled. */
+export type ReachedRateLimit = {
+    bucket: LiveRateLimitBucket;
+    isSetByAdmin: boolean;
+};
+
 /** The integration said to slow down; `resumesAt` is null when it didn't say until when. */
 export type VendorRateLimit = { resumesAt: Date | null };
 
@@ -59,6 +65,9 @@ export const DEFAULT_RATE_LIMIT_DEADLINE_MS = 60_000;
 
 // Retries after the integration says to slow down, within the deadline.
 const MAX_VENDOR_RETRIES = 2;
+
+// Shorter windows fill too often for each filling to be worth recording.
+const MIN_REPORTED_WINDOW_MS = 60 * 60 * 1_000;
 
 const SLOT_POLL_MS = 250;
 // A crashed server's slot frees itself once the call could no longer be running.
@@ -125,6 +134,25 @@ const getBucketsToHold = (
     return [shortest];
 };
 
+/** The long-window limits that the charged call used the last of. */
+const getReachedLimits = (
+    { rateLimits, setByAdmin }: RateLimitTarget,
+    windows: ApiSourceRateChargedWindow[],
+): ReachedRateLimit[] =>
+    rateLimits.buckets
+        .filter(
+            ({ id, windowMs, capacity }) =>
+                windowMs >= MIN_REPORTED_WINDOW_MS &&
+                windows.some(
+                    ({ bucketId, used }) =>
+                        bucketId === id && used === capacity,
+                ),
+        )
+        .map((bucket) => ({
+            bucket,
+            isSetByAdmin: setByAdmin.bucketIds.includes(bucket.id),
+        }));
+
 /**
  * Keeps calls to an integration inside its rate limits, across every backend
  * server. A call charges the buckets, then takes its paced turn, then a slot,
@@ -165,6 +193,8 @@ export class ApiSourceCallLimiter {
      * answered "slow down", the charged buckets are held (`getBucketsToHold`), and
      * the call is retried in a new turn, up to twice within the deadline.
      * Other calls on those buckets wait for the hold instead of calling.
+     * `onLimitReached` hears of each limit of an hour or longer as a call that
+     * gets through fills it.
      */
     async run<T>(
         target: RateLimitTarget,
@@ -172,15 +202,21 @@ export class ApiSourceCallLimiter {
         {
             deadlineMs = DEFAULT_RATE_LIMIT_DEADLINE_MS,
             readRateLimit,
+            onLimitReached,
         }: {
             deadlineMs?: number;
             readRateLimit?: (result: T) => VendorRateLimit | null;
+            onLimitReached?: (reached: ReachedRateLimit) => void;
         } = {},
     ): Promise<T> {
         const giveUpAt = this.now().getTime() + deadlineMs;
         for (let attempt = 0; ; attempt += 1) {
             // eslint-disable-next-line no-await-in-loop
-            const { turn, release } = await this.admit(target, giveUpAt);
+            const { turn, release, reached } = await this.admit(
+                target,
+                giveUpAt,
+            );
+            reached.forEach((limit) => onLimitReached?.(limit));
             let result: T;
             try {
                 // eslint-disable-next-line no-await-in-loop
@@ -204,7 +240,11 @@ export class ApiSourceCallLimiter {
     private async admit(
         target: RateLimitTarget,
         giveUpAt: number,
-    ): Promise<{ turn: RateLimitTurn; release: () => Promise<void> }> {
+    ): Promise<{
+        turn: RateLimitTurn;
+        release: () => Promise<void>;
+        reached: ReachedRateLimit[];
+    }> {
         const startedAt = this.now().getTime();
         try {
             const windows = await this.chargeBuckets(target, giveUpAt);
@@ -230,6 +270,7 @@ export class ApiSourceCallLimiter {
                     buckets: windows.map(({ bucketId }) => bucketId),
                     waitedMs,
                 },
+                reached: getReachedLimits(target, windows),
                 // Best effort: a slot left held frees itself when its lease expires
                 release: () =>
                     this.model
@@ -251,7 +292,7 @@ export class ApiSourceCallLimiter {
     private async chargeBuckets(
         { limitKey, label, rateLimits, setByAdmin }: RateLimitTarget,
         giveUpAt: number,
-    ): Promise<ApiSourceRateWindow[]> {
+    ): Promise<ApiSourceRateChargedWindow[]> {
         const { buckets } = rateLimits;
         if (buckets.length === 0) return [];
         for (;;) {

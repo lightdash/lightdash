@@ -43,7 +43,7 @@ const target = (
 const charged = (now: number): ApiSourceRateCharge => ({
     charged: true,
     now: new Date(now),
-    windows: [{ bucketId: 'hour', windowStartedAt: WINDOW }],
+    windows: [{ bucketId: 'hour', windowStartedAt: WINDOW, used: 1 }],
 });
 
 const buildLimiter = ({
@@ -356,7 +356,7 @@ describe('ApiSourceCallLimiter', () => {
         expect(error.data.resumesAt).toBe('2026-11-22T14:01:30.000Z');
         expect(model.refundApiSourceRateBuckets).toHaveBeenCalledWith(
             'connection-1',
-            [{ bucketId: 'hour', windowStartedAt: WINDOW }],
+            [{ bucketId: 'hour', windowStartedAt: WINDOW, used: 1 }],
         );
         expect(call).not.toHaveBeenCalled();
     });
@@ -385,6 +385,91 @@ describe('ApiSourceCallLimiter', () => {
         await limiter.run(target({ buckets: [] }), async () => 'rows');
 
         expect(model.chargeApiSourceRateBuckets).not.toHaveBeenCalled();
+    });
+
+    describe('when a call fills a limit', () => {
+        const minute = {
+            id: 'minute',
+            label: 'per minute',
+            windowMs: 60_000,
+            capacity: 60,
+        };
+        const hour = {
+            id: 'hour',
+            label: 'per hour',
+            windowMs: 3_600_000,
+            capacity: 100,
+        };
+        const day = {
+            id: 'day',
+            label: 'per day',
+            windowMs: 86_400_000,
+            capacity: 500,
+        };
+        const filled =
+            (used: Record<string, number>) =>
+            (now: number): ApiSourceRateCharge => ({
+                charged: true,
+                now: new Date(now),
+                windows: Object.entries(used).map(([bucketId, count]) => ({
+                    bucketId,
+                    windowStartedAt: WINDOW,
+                    used: count,
+                })),
+            });
+
+        it('reports each limit of an hour or longer, saying who set it', async () => {
+            const { limiter } = buildLimiter({
+                charges: [filled({ minute: 60, hour: 100, day: 500 })],
+            });
+            const onLimitReached = vi.fn();
+
+            await limiter.run(
+                target(
+                    { buckets: [minute, hour, day] },
+                    { bucketIds: ['day'] },
+                ),
+                async () => 'rows',
+                { onLimitReached },
+            );
+
+            expect(onLimitReached.mock.calls).toEqual([
+                [{ bucket: hour, isSetByAdmin: false }],
+                [{ bucket: day, isSetByAdmin: true }],
+            ]);
+        });
+
+        it('says nothing while a limit has room', async () => {
+            const { limiter } = buildLimiter({
+                charges: [filled({ hour: 99, day: 499 })],
+            });
+            const onLimitReached = vi.fn();
+
+            await limiter.run(
+                target({ buckets: [hour, day] }),
+                async () => 'rows',
+                { onLimitReached },
+            );
+
+            expect(onLimitReached).not.toHaveBeenCalled();
+        });
+
+        it('says nothing when the charge is given back', async () => {
+            const { limiter } = buildLimiter({
+                charges: [filled({ hour: 100 })],
+                slots: 0,
+            });
+            const onLimitReached = vi.fn();
+
+            await refusal(
+                limiter.run(target({ buckets: [hour] }), vi.fn(), {
+                    deadlineMs: 1_000,
+                    onLimitReached,
+                }),
+            );
+
+            expect(onLimitReached).not.toHaveBeenCalled();
+        });
     });
 
     describe('deadlines per caller', () => {
@@ -498,8 +583,16 @@ describe('ApiSourceCallLimiter', () => {
                         charged: true,
                         now: new Date(now),
                         windows: [
-                            { bucketId: 'minute', windowStartedAt: WINDOW },
-                            { bucketId: 'day', windowStartedAt: WINDOW },
+                            {
+                                bucketId: 'minute',
+                                windowStartedAt: WINDOW,
+                                used: 1,
+                            },
+                            {
+                                bucketId: 'day',
+                                windowStartedAt: WINDOW,
+                                used: 1,
+                            },
                         ],
                     }),
                 ],

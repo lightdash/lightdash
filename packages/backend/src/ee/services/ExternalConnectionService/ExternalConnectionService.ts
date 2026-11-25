@@ -164,6 +164,7 @@ import { type EmbedService } from '../EmbedService/EmbedService';
 import {
     ApiSourceCallLimiter,
     type RateLimitTarget,
+    type ReachedRateLimit,
 } from './ApiSourceCallLimiter';
 import {
     validateApiSourceConnection,
@@ -2750,6 +2751,31 @@ export class ExternalConnectionService extends BaseService {
         };
     }
 
+    /** Logs and tracks a limit as it fills, once rather than per refused call. */
+    private trackReachedRateLimit(
+        account: Account,
+        connection: ExternalConnection,
+        { bucket, isSetByAdmin }: ReachedRateLimit,
+    ): void {
+        const integration = connection.apiSource?.connector ?? null;
+        this.logger.warn(
+            `Live data source ${connection.externalConnectionUuid} reached its rate limit: integration=${integration} limit=${bucket.capacity} window="${bucket.label}" setByAdmin=${isSetByAdmin}`,
+        );
+        this.analytics.trackAccount(account, {
+            event: 'live_source.rate_limit_reached',
+            properties: {
+                organizationId: connection.organizationUuid,
+                projectId: connection.projectUuid,
+                externalConnectionUuid: connection.externalConnectionUuid,
+                integration,
+                bucket: bucket.id,
+                windowMs: bucket.windowMs,
+                limit: bucket.capacity,
+                isSetByAdmin,
+            },
+        });
+    }
+
     /**
      * The source's integration with calls over the guarded fetch. A
      * per-query source refuses to make more calls than one query may.
@@ -2841,6 +2867,12 @@ export class ExternalConnectionService extends BaseService {
                 () => sendOnce(request),
                 {
                     deadlineMs: rateLimitDeadlineMs,
+                    onLimitReached: (reached) =>
+                        this.trackReachedRateLimit(
+                            account,
+                            connection,
+                            reached,
+                        ),
                     // Retried here, so a paged read keeps the pages it has
                     readRateLimit: (response) =>
                         readLiveRateLimit(
@@ -4208,6 +4240,14 @@ export class ExternalConnectionService extends BaseService {
                           apiSource,
                       ),
                       fetchOnce,
+                      {
+                          onLimitReached: (reached) =>
+                              this.trackReachedRateLimit(
+                                  account,
+                                  connection,
+                                  reached,
+                              ),
+                      },
                   )
                 : await fetchOnce();
         } catch (error) {

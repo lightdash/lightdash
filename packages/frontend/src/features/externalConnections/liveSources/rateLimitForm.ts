@@ -180,8 +180,7 @@ export const getRateLimitHint = (
 
 /** A row's progress bar and the words beside it. */
 export type RateLimitMeter = {
-    /** Null where no limit is set. */
-    text: string | null;
+    text: string;
     /** From 0 to 100; 0 where nothing is counted. */
     percent: number;
     isCounted: boolean;
@@ -199,7 +198,7 @@ export const getRateLimitMeter = (
         isCounted: true,
         isFull: used >= capacity,
     });
-    const uncounted = (text: string | null): RateLimitMeter => ({
+    const uncounted = (text: string): RateLimitMeter => ({
         text,
         percent: 0,
         isCounted: false,
@@ -211,7 +210,7 @@ export const getRateLimitMeter = (
         case 'window':
             return row.usage
                 ? counted(row.usage.used, row.usage.capacity)
-                : uncounted(null);
+                : uncounted('Uncapped');
         case 'callsPerSecond':
             return uncounted(`Up to ${inForce.toLocaleString()}`);
         case 'concurrentCalls':

@@ -202,9 +202,9 @@ describe('getRateLimitMeter', () => {
         });
     });
 
-    it('shows no count for a daily limit that is not set', () => {
+    it('calls a daily limit that is not set uncapped', () => {
         expect(getRateLimitMeter(rowOf('window:day'), 0)).toEqual({
-            text: null,
+            text: 'Uncapped',
             percent: 0,
             isCounted: false,
             isFull: false,

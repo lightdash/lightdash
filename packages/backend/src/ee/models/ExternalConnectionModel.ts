@@ -239,8 +239,13 @@ export type ApiSourceRateBucketLimit = {
 /** The window a call was charged in, so a refund hits that window only. */
 export type ApiSourceRateWindow = { bucketId: string; windowStartedAt: Date };
 
+/** `used` counts the window's calls, this one included. */
+export type ApiSourceRateChargedWindow = ApiSourceRateWindow & {
+    used: number;
+};
+
 export type ApiSourceRateCharge =
-    | { charged: true; now: Date; windows: ApiSourceRateWindow[] }
+    | { charged: true; now: Date; windows: ApiSourceRateChargedWindow[] }
     | {
           charged: false;
           now: Date;
@@ -1976,12 +1981,16 @@ export class ExternalConnectionModel {
     ): Promise<ApiSourceRateCharge> {
         try {
             return await this.database.transaction(async (trx) => {
-                const windows: ApiSourceRateWindow[] = [];
+                const windows: ApiSourceRateChargedWindow[] = [];
                 let now: Date | null = null;
                 /* eslint-disable no-await-in-loop */
                 for (const bucket of buckets) {
                     const { rows } = await trx.raw<{
-                        rows: { window_started_at: Date; now: Date }[];
+                        rows: {
+                            window_started_at: Date;
+                            used: number;
+                            now: Date;
+                        }[];
                     }>(
                         `INSERT INTO ${ApiSourceRateBucketsTableName} AS b
                             (limit_key, bucket_id, window_started_at, used, updated_at)
@@ -1992,7 +2001,7 @@ export class ExternalConnectionModel {
                             updated_at = now()
                         WHERE (${WINDOW_CLOSED} OR b.used < :capacity)
                             AND (b.limited_until IS NULL OR b.limited_until <= now())
-                        RETURNING window_started_at, now() AS now`,
+                        RETURNING window_started_at, used, now() AS now`,
                         {
                             limitKey,
                             bucketId: bucket.id,
@@ -2015,6 +2024,7 @@ export class ExternalConnectionModel {
                     windows.push({
                         bucketId: bucket.id,
                         windowStartedAt: rows[0].window_started_at,
+                        used: rows[0].used,
                     });
                 }
                 /* eslint-enable no-await-in-loop */

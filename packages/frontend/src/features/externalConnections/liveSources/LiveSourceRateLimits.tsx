@@ -80,7 +80,7 @@ const LimitRow: FC<{
                 size="sm"
                 value={meter.percent}
                 color={meter.isFull ? 'red' : undefined}
-                aria-label={`${row.label}: ${meter.text ?? 'No limit'}`}
+                aria-label={`${row.label}: ${meter.text}`}
             />
             <Box className={classes.rateCount}>
                 <Text inherit c={meter.isCounted ? undefined : 'dimmed'}>

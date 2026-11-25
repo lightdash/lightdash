@@ -387,6 +387,42 @@ describe('ExternalConnectionService api sources', () => {
         ).rejects.toThrow(TimeoutError);
     });
 
+    it('tracks the hourly limit as a query fills it', async () => {
+        const { service, externalConnectionModel, analytics } = buildService();
+        externalConnectionModel.chargeApiSourceRateBuckets.mockResolvedValue({
+            charged: true,
+            now: new Date(),
+            windows: [
+                { bucketId: 'hour', windowStartedAt: new Date(), used: 2_400 },
+            ],
+        });
+        const source = await service.getLiveSource(
+            account,
+            'proj-1',
+            'conn-1',
+            60_000,
+        );
+
+        await runLiveRequest(source, { query: 'SELECT 1 AS a', limit: 10 });
+
+        expect(analytics.trackAccount).toHaveBeenCalledExactlyOnceWith(
+            account,
+            {
+                event: 'live_source.rate_limit_reached',
+                properties: {
+                    organizationId: 'org-1',
+                    projectId: 'proj-1',
+                    externalConnectionUuid: 'conn-1',
+                    integration: ApiConnectorType.POSTHOG,
+                    bucket: 'hour',
+                    windowMs: 3_600_000,
+                    limit: 2_400,
+                    isSetByAdmin: false,
+                },
+            },
+        );
+    });
+
     it('logs a finished query with what its calls cost', async () => {
         const { service, externalConnectionModel, analytics } = buildService();
         const source = await service.getLiveSource(
@@ -744,7 +780,9 @@ describe('ExternalConnectionService api source schema scans', () => {
         externalConnectionModel.chargeApiSourceRateBuckets.mockResolvedValue({
             charged: true,
             now: new Date(),
-            windows: [{ bucketId: 'minute', windowStartedAt: new Date() }],
+            windows: [
+                { bucketId: 'minute', windowStartedAt: new Date(), used: 1 },
+            ],
         });
 
         const scan = await service.scanApiSourceSchema(
